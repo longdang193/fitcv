@@ -19,3 +19,7 @@ pythonpath = ["src"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
+
+[[tool.mypy.overrides]]
+module = "fitcv.tracker"
+warn_unused_ignores = false
