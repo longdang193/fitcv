@@ -1044,9 +1044,9 @@ JOB-PROJECT/
       assert len(result["passed"]) == 1
   ```
 
-- [ ] **Step 2: Run test — expect FAIL**
+- [x] **Step 2: Run test — expect FAIL**
 
-- [ ] **Step 3: Implement `src/fitcv/rule_filter.py`**
+- [x] **Step 3: Implement `src/fitcv/rule_filter.py`**
 
   > **Seniority ladder** (ordered, lower index = more junior):
   > `["intern", "entry", "associate", "mid", "senior", "lead", "manager", "director"]`
@@ -1088,9 +1088,9 @@ JOB-PROJECT/
   - `apply_rule_filters(jobs, prefs) -> dict` — composes all checks, returns `{passed, rejected}`
   - `store_filter_results(result, config) -> None` — log passed/rejected to BQ (`@pytest.mark.integration`)
 
-- [ ] **Step 4: Run test — expect PASS**
+- [x] **Step 4: Run test — expect PASS**
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
   ```bash
   git add -A
@@ -1126,9 +1126,9 @@ JOB-PROJECT/
 > | `retrieval_strategy` | STRING | `"job_summary_v1"` for v1 Option A |
 > | `retrieved_at` | TIMESTAMP | |
 
-- [ ] **Step 1: Define `vector_shortlist` DDL** in `assets/bigquery/vector_shortlist.sql`
+- [x] **Step 1: Define `vector_shortlist` DDL** in `assets/bigquery/vector_shortlist.sql`
 
-- [ ] **Step 2: Write failing tests**
+- [x] **Step 2: Write failing tests**
 
   ```python
   # tests/test_vector_search.py
@@ -1162,9 +1162,9 @@ JOB-PROJECT/
       assert "job_url" in query
   ```
 
-- [ ] **Step 3: Run test — expect FAIL**
+- [x] **Step 3: Run test — expect FAIL**
 
-- [ ] **Step 4: Implement `src/fitcv/vector_search.py`**
+- [x] **Step 4: Implement `src/fitcv/vector_search.py`**
 
   Functions:
   - `build_candidate_query_text(profile) -> str` — builds the single candidate query string: `headline + top N skills + preferred domains` (deterministic, no embedding call)
