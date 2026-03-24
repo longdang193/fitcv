@@ -1313,53 +1313,200 @@ JOB-PROJECT/
 - Create: `tests/test_ranking.py`
 - Create: `assets/bigquery/final_ranking.sql`
 
+> **v1 data contract:**
+> - **Input:** one dict per job containing all ranking features + optional `fit_label` inherited from `ai_score_results`
+> - **Output:** rows in `fitcv.final_ranking` with schema below
+
+> **Feature contracts — all inputs normalized to [0.0, 1.0]:**
+>
+> | Feature | Source | Missing fallback |
+> |---------|--------|-----------------|
+> | `ai_score` | `ai_score_results.ai_score` | `0.0` (conservative) |
+> | `must_have_match` | computed by `compute_must_have_match()` | `0.0` if candidate has no skills |
+> | `vector_similarity` | `vector_shortlist.vector_similarity` | `0.0` |
+> | `title_relevance` | token overlap between candidate target role and job title | `0.5` (neutral) |
+> | `seniority_fit` | mapped from seniority ladder: exact=1.0, ±1=0.5, ±2=0.0 | `0.5` (neutral — unknown seniority already passed filter) |
+> | `preference_fit` | fraction of domain/location preferences matched | `0.5` (neutral) |
+
+> **Configurable weights** — loaded from `config["ranking_weights"]` with defaults:
+> ```yaml
+> ranking_weights:
+>   ai_score: 0.40
+>   must_have_match: 0.20
+>   vector_similarity: 0.15
+>   title_relevance: 0.10
+>   seniority_fit: 0.10
+>   preference_fit: 0.05
+> ```
+
+> **`final_ranking` schema:**
+> | Column | Type | Description |
+> |--------|------|-------------|
+> | `job_url` | STRING | FK → structured_jobs |
+> | `final_rank` | INT64 | 1 = best fit |
+> | `final_score` | FLOAT64 | Weighted composite score |
+> | `ai_score` | FLOAT64 | From ai_score_results |
+> | `must_have_match` | FLOAT64 | Required skills ratio |
+> | `vector_similarity` | FLOAT64 | From vector_shortlist |
+> | `title_relevance` | FLOAT64 | Title token overlap |
+> | `seniority_fit` | FLOAT64 | Ladder-based score |
+> | `preference_fit` | FLOAT64 | Preference match ratio |
+> | `fit_label` | STRING | Inherited from ai_score_results (strong/stretch/skip) |
+> | `ranked_at` | TIMESTAMP | |
+
+> **Tie-breaking order (deterministic):**
+> 1. `final_score DESC`
+> 2. `ai_score DESC`
+> 3. `vector_similarity DESC`
+
 - [ ] **Step 1: Write failing tests**
 
   ```python
   # tests/test_ranking.py
-  from fitcv.ranking import compute_final_score, rank_jobs
+  from fitcv.ranking import compute_final_score, compute_must_have_match, rank_jobs
+
+  _DEFAULT_WEIGHTS = {
+      "ai_score": 0.40, "must_have_match": 0.20, "vector_similarity": 0.15,
+      "title_relevance": 0.10, "seniority_fit": 0.10, "preference_fit": 0.05,
+  }
+
+  # ── compute_final_score ──
 
   def test_compute_final_score_weighted():
-      score = compute_final_score(
-          ai_score=0.8,
-          must_have_match=0.9,
-          vector_similarity=0.7,
-          title_relevance=0.6,
-          seniority_fit=1.0,
-          preference_fit=0.5,
-      )
+      features = {
+          "ai_score": 0.8, "must_have_match": 0.9, "vector_similarity": 0.7,
+          "title_relevance": 0.6, "seniority_fit": 1.0, "preference_fit": 0.5,
+      }
+      score = compute_final_score(features, _DEFAULT_WEIGHTS)
       expected = 0.40*0.8 + 0.20*0.9 + 0.15*0.7 + 0.10*0.6 + 0.10*1.0 + 0.05*0.5
       assert abs(score - expected) < 0.001
 
+  def test_compute_final_score_handles_missing_ai_score():
+      """Missing ai_score → fallback 0.0 (conservative)."""
+      features = {"must_have_match": 1.0, "vector_similarity": 1.0,
+                  "title_relevance": 1.0, "seniority_fit": 1.0, "preference_fit": 1.0}
+      score = compute_final_score(features, _DEFAULT_WEIGHTS)
+      # Without ai_score (0.0 default), score must be < 1.0
+      assert score < 1.0
+
+  def test_compute_final_score_handles_missing_title_relevance():
+      """Missing title_relevance → fallback 0.5 (neutral)."""
+      features = {"ai_score": 0.8, "must_have_match": 0.8, "vector_similarity": 0.8,
+                  "seniority_fit": 0.8, "preference_fit": 0.8}
+      score = compute_final_score(features, _DEFAULT_WEIGHTS)
+      # title_relevance defaults to 0.5, must not crash
+      assert 0.0 <= score <= 1.0
+
+  def test_compute_final_score_accepts_config_weights():
+      """Weights must come from the weights dict, not hardcoded."""
+      features = {"ai_score": 1.0, "must_have_match": 0.0, "vector_similarity": 0.0,
+                  "title_relevance": 0.0, "seniority_fit": 0.0, "preference_fit": 0.0}
+      custom_weights = {**_DEFAULT_WEIGHTS, "ai_score": 1.0,
+                        "must_have_match": 0.0, "vector_similarity": 0.0,
+                        "title_relevance": 0.0, "seniority_fit": 0.0, "preference_fit": 0.0}
+      # With weight fully on ai_score=1.0, final score should be 1.0
+      assert abs(compute_final_score(features, custom_weights) - 1.0) < 0.001
+
+  # ── compute_must_have_match ──
+
+  def test_compute_must_have_match_ratio():
+      score = compute_must_have_match(
+          job_skills=["SQL", "Python", "BigQuery"],
+          candidate_skills=["SQL", "BigQuery"],
+      )
+      assert abs(score - (2/3)) < 0.001  # 2 of 3 required skills matched
+
+  def test_compute_must_have_match_synonym_canonicalization():
+      """GCP == Google Cloud via synonym map."""
+      score = compute_must_have_match(
+          job_skills=["Google Cloud"],
+          candidate_skills=["GCP"],
+      )
+      assert score == 1.0
+
+  def test_compute_must_have_match_empty_job_skills():
+      """No required skills → neutral 0.5 (not a penalty)."""
+      assert compute_must_have_match(job_skills=[], candidate_skills=["SQL"]) == 0.5
+
+  def test_compute_must_have_match_empty_candidate_skills():
+      """Candidate has no skills → 0.0 (cannot satisfy any requirement)."""
+      assert compute_must_have_match(job_skills=["SQL"], candidate_skills=[]) == 0.0
+
+  def test_compute_must_have_match_case_insensitive():
+      score = compute_must_have_match(job_skills=["bigquery"], candidate_skills=["BigQuery"])
+      assert score == 1.0
+
+  # ── rank_jobs ──
+
   def test_rank_jobs_sorts_descending():
       jobs = [
-          {"job_url": "https://linkedin.com/jobs/view/1", "final_score": 0.5},
-          {"job_url": "https://linkedin.com/jobs/view/2", "final_score": 0.9},
+          {"job_url": "u1", "final_score": 0.5, "ai_score": 0.5, "vector_similarity": 0.5},
+          {"job_url": "u2", "final_score": 0.9, "ai_score": 0.9, "vector_similarity": 0.9},
       ]
       ranked = rank_jobs(jobs, top_n=2)
-      assert ranked[0]["job_url"] == "https://linkedin.com/jobs/view/2"
+      assert ranked[0]["job_url"] == "u2"
+
+  def test_rank_jobs_respects_top_n():
+      jobs = [
+          {"job_url": "u1", "final_score": 0.9, "ai_score": 0.9, "vector_similarity": 0.9},
+          {"job_url": "u2", "final_score": 0.8, "ai_score": 0.8, "vector_similarity": 0.8},
+          {"job_url": "u3", "final_score": 0.7, "ai_score": 0.7, "vector_similarity": 0.7},
+      ]
+      ranked = rank_jobs(jobs, top_n=2)
+      assert len(ranked) == 2
+
+  def test_rank_jobs_breaks_ties_by_ai_score_then_vector():
+      """Tie in final_score → higher ai_score wins; tie in ai_score → higher vector_similarity wins."""
+      jobs = [
+          {"job_url": "u1", "final_score": 0.8, "ai_score": 0.7, "vector_similarity": 0.8},
+          {"job_url": "u2", "final_score": 0.8, "ai_score": 0.9, "vector_similarity": 0.6},
+      ]
+      ranked = rank_jobs(jobs, top_n=2)
+      assert ranked[0]["job_url"] == "u2"  # higher ai_score wins
+
+  def test_rank_jobs_assigns_final_rank():
+      """rank_jobs must add a final_rank field (1-indexed)."""
+      jobs = [
+          {"job_url": "u1", "final_score": 0.5, "ai_score": 0.5, "vector_similarity": 0.5},
+          {"job_url": "u2", "final_score": 0.9, "ai_score": 0.9, "vector_similarity": 0.9},
+      ]
+      ranked = rank_jobs(jobs, top_n=2)
+      assert ranked[0]["final_rank"] == 1
+      assert ranked[1]["final_rank"] == 2
   ```
 
 - [ ] **Step 2: Run test — expect FAIL**
 
 - [ ] **Step 3: Implement `src/fitcv/ranking.py`**
 
+  > **`compute_must_have_match` semantics:**
+  > `matched_required_skills / total_required_skills`
+  > - Use the same synonym map as `rule_filter._canonicalise_skill()`
+  > - `total_required_skills = 0` → return `0.5` (neutral; no requirements = no penalty)
+  > - `candidate_skills = []` → return `0.0`
+
+  > **`compute_final_score` signature:**
+  > ```python
+  > compute_final_score(features: dict, weights: dict) -> float
+  > ```
+  > - Apply per-feature missing-value fallbacks before multiplying
+  > - Result is always in `[0.0, 1.0]`
+
   Functions:
-  - `compute_final_score(ai_score, must_have_match, vector_similarity, title_relevance, seniority_fit, preference_fit) -> float`
-  - `compute_must_have_match(job_skills, candidate_skills) -> float`
-  - `rank_jobs(jobs, top_n) -> list[dict]`
-  - `store_final_ranking(ranked, config) -> None`
+  - `compute_must_have_match(job_skills, candidate_skills) -> float` — ratio, canonicalized, with fallbacks
+  - `compute_seniority_fit(job_seniority, target_seniority) -> float` — `exact=1.0, ±1=0.5, ±2=0.0`, unknown=`0.5`
+  - `compute_title_relevance(job_title, candidate_target_role) -> float` — case-insensitive token overlap ratio
+  - `compute_preference_fit(job, prefs) -> float` — fraction of domain/location preferences matched, `0.5` if no prefs
+  - `compute_final_score(features: dict, weights: dict) -> float` — weighted sum with missing-value fallbacks
+  - `rank_jobs(jobs, top_n) -> list[dict]` — sort by `(final_score, ai_score, vector_similarity)` DESC, assign `final_rank`, truncate to `top_n`
+  - `store_final_ranking(ranked, config) -> None` — insert into `fitcv.final_ranking` (`@pytest.mark.integration`)
 
-  Weight formula:
-
-  ```text
-  final_score =
-      0.40 * ai_score
-    + 0.20 * must_have_skill_match
-    + 0.15 * vector_similarity
-    + 0.10 * title_relevance
-    + 0.10 * seniority_fit
-    + 0.05 * preference_fit
+  **Default weight fallbacks** (used when `config["ranking_weights"]` is missing a key):
+  ```python
+  _DEFAULT_WEIGHTS = {
+      "ai_score": 0.40, "must_have_match": 0.20, "vector_similarity": 0.15,
+      "title_relevance": 0.10, "seniority_fit": 0.10, "preference_fit": 0.05,
+  }
   ```
 
 - [ ] **Step 4: Run test — expect PASS**
@@ -1368,7 +1515,7 @@ JOB-PROJECT/
 
   ```bash
   git add -A
-  git commit -m "feat(fitcv): composite final ranking with configurable weights"
+  git commit -m "feat(fitcv): composite final ranking with configurable weights and deterministic tie-breaking"
   ```
 
 ---
