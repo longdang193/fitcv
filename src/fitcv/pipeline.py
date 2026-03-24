@@ -1,0 +1,265 @@
+"""Full pipeline orchestrator — wires all FitCV pipeline stages end-to-end.
+
+Stage order
+-----------
+1. Ingest + normalise + enrich
+2. Candidate profile load
+3a. Rule filter (BEFORE embedding — keeps shortlist clean and reduces cost)
+3b. Embed eligible jobs + candidate, then vector shortlist + AI scoring
+3c. Build ranking features; final ranking
+4. Per-job: evidence retrieval → gap analysis → CV generation → validation → versioning
+
+Failure policy
+--------------
+- Fail fast on setup issues: missing config, bad credentials, unreadable profile.
+- Per-job failures in Layer 4 are caught, logged, and skipped (partial success is OK).
+
+Config keys consumed
+--------------------
+config["paths"]["candidate_profile"]       path to candidate YAML
+config["pipeline"]["vector_search_top_n"]  top-N for vector shortlist (e.g. 50)
+config["pipeline"]["ai_score_top_n"]       top-N cap for AI scoring  (e.g. 50)
+config["pipeline"]["final_top_n"]          final ranked list size     (e.g. 10)
+config["pipeline"]["evidence_top_k"]       evidence items per job     (e.g. 5)
+
+embed_scope note
+----------------
+v1 embeds only rule-passing jobs (cheaper, faster).  A future
+config["pipeline"]["embed_scope"] key (filtered_only | all_enriched_jobs)
+can make this configurable without code changes.
+"""
+
+import logging
+import uuid
+from typing import Any
+
+from fitcv.ai_score import run_ai_scoring
+from fitcv.candidate import load_candidate_to_bigquery, load_profile_yaml
+from fitcv.cv_generator import generate_cv
+from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
+from fitcv.enrich import enrich_batch, load_structured_jobs
+from fitcv.evidence import retrieve_evidence
+from fitcv.gap_analysis import classify_fit, compute_gap
+from fitcv.ingest import load_to_bigquery, parse_jobs_file
+from fitcv.normalize import normalize_batch
+from fitcv.ranking import compute_final_score, rank_jobs, store_final_ranking
+from fitcv.rule_filter import apply_rule_filters, store_filter_results
+from fitcv.tracker import create_cv_version_record, store_cv_version
+from fitcv.validator import run_all_validations
+from fitcv.vector_search import run_vector_search
+
+logger = logging.getLogger(__name__)
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def create_run_id() -> str:
+    """Return a new UUID4 string to identify this pipeline run."""
+    return str(uuid.uuid4())
+
+
+def load_config_bundle(config_path: str) -> dict[str, Any]:
+    """Load config from YAML.  Thin wrapper kept here so tests can mock it."""
+    import yaml  # type: ignore[import-untyped]
+
+    with open(config_path) as fh:
+        return dict(yaml.safe_load(fh) or {})
+
+
+def build_ranking_features(
+    shortlist: list[dict[str, Any]],
+    ai_scores: list[dict[str, Any]],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Merge vector shortlist + AI-score records into a single feature dict per job.
+
+    Final ranking needs all of:
+      ai_score, vector_similarity, must_have_match,
+      title_relevance, seniority_fit, preference_fit
+
+    Strategy:
+    - Index shortlist by job_url to get vector_similarity + rank.
+    - For each AI-score record, look up the vector_similarity from the shortlist index.
+    - Jobs in the shortlist but missing from ai_scores are silently dropped
+      (they were not scored — e.g. upstream filtering removed them).
+    - final_score is computed via ranking.compute_final_score().
+    """
+    shortlist_index: dict[str, dict[str, Any]] = {
+        row["job_url"]: row for row in shortlist
+    }
+    weights = dict(config.get("ranking_weights") or {})
+
+    features: list[dict[str, Any]] = []
+    for ai_row in ai_scores:
+        job_url = str(ai_row.get("job_url") or "")
+        sl_row = shortlist_index.get(job_url)
+        if sl_row is None:
+            continue  # not in shortlist — skip
+
+        feature: dict[str, Any] = {
+            **ai_row,
+            "vector_rank": int(sl_row.get("rank") or 0),
+            "vector_similarity": float(sl_row.get("similarity_score") or 0.0),
+        }
+        # Compute deterministic final_score using the ranking module
+        null_defaults: dict[str, float] = dict(config.get("ranking_null_defaults") or {
+            "ai_score": 0.0,
+            "must_have_match": 0.5,
+            "vector_similarity": 0.5,
+            "title_relevance": 0.5,
+            "seniority_fit": 0.5,
+            "preference_fit": 0.5,
+        })
+        feature["final_score"] = compute_final_score(feature, weights, null_defaults)
+        features.append(feature)
+
+    return features
+
+
+# ── orchestrator ──────────────────────────────────────────────────────────────
+
+def run_pipeline(
+    jobs_path: str,
+    config_path: str = "config/env.yaml",
+) -> dict[str, Any]:
+    """Run the full FitCV candidate pipeline end-to-end.
+
+    Returns
+    -------
+    dict with keys:
+        run_id          : UUID4 of this run
+        total_jobs      : number of raw jobs ingested
+        passed_filter   : number of jobs that passed rule filtering
+        ranked          : number of jobs in the final shortlist
+        cvs_generated   : number of successfully generated + validated CVs
+    """
+    config = load_config_bundle(config_path)
+    run_id = create_run_id()
+    logger.info("Pipeline run started [run_id=%s]", run_id)
+
+    # ── Layer 1: ingest + normalise + enrich ──────────────────────────────────
+    raw_jobs = parse_jobs_file(jobs_path)
+    normalized = normalize_batch(raw_jobs)
+
+    # prepare_raw_rows does not accept run_id yet; tag rows manually
+    raw_rows = [{"run_id": run_id, **job} for job in normalized]
+    load_to_bigquery(raw_rows, config)
+
+    enriched = enrich_batch(normalized, config)
+    load_structured_jobs(enriched, config)
+
+    # ── Layer 2: candidate profile ────────────────────────────────────────────
+    profile_path: str = str(config["paths"]["candidate_profile"])
+    profile = load_profile_yaml(profile_path)
+    load_candidate_to_bigquery(profile, config)
+
+    # ── Layer 3a: rule filter BEFORE embedding ────────────────────────────────
+    filter_result = apply_rule_filters(enriched, profile["preferences"], config)
+    passed_jobs: list[dict[str, Any]] = list(filter_result["passed"])
+    rejected_jobs: list[dict[str, Any]] = list(filter_result["rejected"])
+    store_filter_results(filter_result, config)
+
+    # ── Layer 3b: embed → vector shortlist → AI scoring → final ranking ───────
+    embed_and_store_jobs(passed_jobs, config)
+    embed_and_store_candidate(profile, config)
+
+    vector_top_n = int(config["pipeline"]["vector_search_top_n"])
+    # run_vector_search: (profile, passed_job_urls, config, top_n)
+    # searches candidate summary embedding against filtered job-summary embeddings
+    passed_job_urls = [str(j.get("job_url") or "") for j in passed_jobs]
+    shortlist = run_vector_search(
+        profile,
+        passed_job_urls,
+        config,
+        top_n=vector_top_n,
+    )
+
+    ai_top_n = int(config["pipeline"]["ai_score_top_n"])
+    from fitcv.vector_search import build_candidate_query_text
+    candidate_summary = build_candidate_query_text(profile, config)
+    ai_scores = run_ai_scoring(
+        shortlist,
+        candidate_summary,
+        config,
+        top_n=ai_top_n,
+    )
+
+    ranking_inputs = build_ranking_features(shortlist, ai_scores, profile, config)
+    final_top_n = int(config["pipeline"]["final_top_n"])
+    ranked = rank_jobs(ranking_inputs, top_n=final_top_n)
+    store_final_ranking(ranked, config)
+
+    # ── Layer 4: per-job evidence → gap → CV → validation → versioning ────────
+    results: list[dict[str, Any]] = []
+    for job in ranked:
+        try:
+            evidence_top_k = int(config["pipeline"]["evidence_top_k"])
+            evidence = retrieve_evidence(
+                profile,
+                job.get("required_skills") or [],
+                top_k=evidence_top_k,
+            )
+
+            gap = compute_gap(
+                required_skills=job.get("required_skills") or [],
+                candidate_skills=profile.get("skills") or [],
+                years_required=job.get("years_required"),
+                years_candidate=profile.get("years_experience"),
+                config=config,
+            )
+
+            required_count = len(job.get("required_skills") or [])
+            fit = classify_fit(gap, required_count=required_count, config=config)
+            if fit == "skip":
+                logger.info("[run_id=%s] Skipping job %s (fit=skip)", run_id, job.get("job_url"))
+                continue
+
+            cv = generate_cv(job, evidence, gap, profile, config)
+
+            validation = run_all_validations(cv, profile, config)
+            if not validation["valid"]:
+                logger.warning(
+                    "[run_id=%s] CV for %s failed validation: %s",
+                    run_id,
+                    job.get("job_url"),
+                    validation.get("missing_sections") or validation.get("grounding_violations"),
+                )
+                # Store rejected version for later review (v2 feature placeholder)
+                # store_rejected_cv(job, validation, config)
+                continue
+
+            version = create_cv_version_record(
+                job_url=str(job.get("job_url") or ""),
+                enrichment_version=str(config.get("enrichment_version") or "v1"),
+                vector_rank=int(job.get("vector_rank") or 0),
+                ai_score=float(job.get("ai_score") or 0.0),
+                final_score=float(job.get("final_score") or 0.0),
+                evidence_ids=[str(e.get("evidence_id") or "") for e in evidence],
+                prompt_version=str(config.get("prompt_version") or "v1"),
+                cv_markdown=cv,
+                gap_summary=gap,
+                fit_classification=fit,
+            )
+            store_cv_version(version, config)
+            results.append({
+                "job_url": str(job.get("job_url") or ""),
+                "fit": fit,
+                "cv_version_id": version["version_id"],
+                "gap": gap,
+            })
+            logger.info("[run_id=%s] CV generated for %s (fit=%s)", run_id, job.get("job_url"), fit)
+
+        except Exception as exc:  # per-job failure — log and skip, don't crash the run
+            logger.error("[run_id=%s] Failed for %s: %s", run_id, job.get("job_url"), exc)
+            continue
+
+    summary: dict[str, Any] = {
+        "run_id": run_id,
+        "total_jobs": len(raw_jobs),
+        "passed_filter": len(passed_jobs),
+        "ranked": len(ranked),
+        "cvs_generated": len(results),
+    }
+    logger.info("Pipeline run complete [run_id=%s] summary=%s", run_id, summary)
+    return summary
