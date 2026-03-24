@@ -1,6 +1,8 @@
 """Tests for config loading."""
 from pathlib import Path
 
+import pytest
+
 from fitcv.config import get_vertex_location, load_config
 
 
@@ -40,3 +42,19 @@ def test_get_vertex_location_prefers_vertex_location() -> None:
 def test_get_vertex_location_defaults_to_us_central1() -> None:
     cfg = {"location": "US"}
     assert get_vertex_location(cfg) == "us-central1"
+
+
+def test_load_config_defaults_to_repo_config_shape() -> None:
+    cfg = load_config()
+    assert cfg["gcp_project"] == "fitcv-491123"
+    assert cfg["gemini_model"] == "gemini-2.5-flash"
+    assert cfg["vertex_location"] == "us-central1"
+    assert cfg["paths"]["candidate_profile"] == "data/candidate_profile.yaml"
+
+
+def test_load_config_accepts_legacy_config_env_path_with_warning() -> None:
+    legacy_path = Path(__file__).parent.parent / "config" / "env.yaml"
+    with pytest.warns(UserWarning, match="legacy config path"):
+        cfg = load_config(legacy_path)
+    assert cfg["gemini_model"] == "gemini-2.5-flash"
+    assert cfg["vertex_location"] == "us-central1"
