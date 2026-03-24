@@ -170,6 +170,7 @@ def _make_genai_client(config: dict[str, Any]) -> Any:
     """
     import os
     from google import genai  # type: ignore[import-untyped]
+    from fitcv.config import get_vertex_location
 
     api_key = os.environ.get("GEMINI_API_KEY", "")
     if api_key:
@@ -183,7 +184,7 @@ def _make_genai_client(config: dict[str, Any]) -> Any:
     return genai.Client(
         vertexai=True,
         project=str(config.get("gcp_project", "")),
-        location=str(config.get("location", "us-central1")),
+        location=get_vertex_location(config),
         credentials=creds,
     )
 
@@ -208,7 +209,7 @@ def score_job(
         top_evidence=top_evidence[:2],
     )
 
-    model_name = str(config.get("gemini_model", "gemini-2.0-flash"))
+    model_name = str(config.get("gemini_model", "gemini-2.5-flash"))
     client = _make_genai_client(config)
     response = client.models.generate_content(model=model_name, contents=prompt)
     raw_text = str(response.text or "")

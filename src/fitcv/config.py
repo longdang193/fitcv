@@ -95,3 +95,11 @@ def load_config(path: str | Path = ".env.yaml") -> dict[str, Any]:
                 cfg[key] = value
 
     return cfg
+
+
+def get_vertex_location(config: dict[str, Any]) -> str:
+    """Return the Vertex AI region, separate from BigQuery location."""
+    vertex_location = str(config.get("vertex_location", "")).strip()
+    if vertex_location:
+        return vertex_location
+    return "us-central1"

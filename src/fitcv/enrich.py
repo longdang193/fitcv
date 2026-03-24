@@ -280,13 +280,14 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
         Merged dict ready for load_structured_jobs().
     """
     import vertexai  # type: ignore[import-untyped]
+    from fitcv.config import get_vertex_location
     from vertexai.generative_models import GenerativeModel  # type: ignore[import-untyped]
 
     vertexai.init(
         project=str(config["gcp_project"]),
-        location=str(config.get("location", "us-central1")),
+        location=get_vertex_location(config),
     )
-    model_name = str(config.get("gemini_model", "gemini-2.0-flash"))
+    model_name = str(config.get("gemini_model", "gemini-2.5-flash"))
     model = GenerativeModel(model_name)
 
     prompt = build_extraction_prompt(

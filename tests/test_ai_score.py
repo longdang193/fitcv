@@ -1,6 +1,8 @@
 """Tests for fitcv.ai_score — all pure unit tests (no cloud calls)."""
 
 import json
+import sys
+import types
 
 import pytest
 
@@ -185,6 +187,75 @@ def test_parse_score_response_fit_label_derived_from_score_if_missing() -> None:
         "key_risks": [],
     })
     result = parse_score_response(raw)
+    assert result["fit_label"] == "strong"
+
+
+def test_make_genai_client_uses_vertex_location(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv.ai_score import _make_genai_client
+
+    captured: dict[str, object] = {}
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            captured.update(kwargs)
+
+    fake_genai = types.SimpleNamespace(Client=FakeClient)
+    fake_google = types.SimpleNamespace(
+        auth=types.SimpleNamespace(default=lambda scopes=None: ("creds", "project"))
+    )
+
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+    monkeypatch.setitem(sys.modules, "google", fake_google)
+    monkeypatch.setitem(sys.modules, "google.auth", fake_google.auth)
+    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
+    setattr(fake_google, "genai", fake_genai)
+
+    _make_genai_client({
+        "gcp_project": "fitcv-491123",
+        "location": "US",
+        "vertex_location": "us-central1",
+    })
+
+    assert captured["vertexai"] is True
+    assert captured["location"] == "us-central1"
+
+
+def test_score_job_uses_versioned_default_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv.ai_score import score_job
+
+    class FakeResponse:
+        text = '{"ai_score": 0.8, "fit_label": "strong", "score_reasoning": "good", "matched_strengths": [], "key_risks": []}'
+
+    captured: dict[str, object] = {}
+
+    class FakeModels:
+        def generate_content(self, *, model: str, contents: str) -> FakeResponse:
+            captured["model"] = model
+            captured["contents"] = contents
+            return FakeResponse()
+
+    class FakeClient:
+        models = FakeModels()
+
+    fake_embeddings = types.SimpleNamespace(
+        build_job_summary_text=lambda job: "summary"
+    )
+
+    monkeypatch.setitem(sys.modules, "fitcv.embeddings", fake_embeddings)
+    monkeypatch.setattr("fitcv.ai_score._make_genai_client", lambda config: FakeClient())
+
+    result = score_job(
+        job={"job_url": "http://test.url/1", "title": "Data Engineer"},
+        candidate_summary="candidate summary",
+        top_evidence=[],
+        config={},
+    )
+
+    assert captured["model"] == "gemini-2.5-flash"
     assert result["fit_label"] == "strong"
 
 
