@@ -665,7 +665,7 @@ JOB-PROJECT/
 - Create: `assets/bigquery/candidate_skills.sql`
 - Create: `assets/bigquery/candidate_achievements.sql`
 
-- [ ] **Step 1: Write `data/candidate_profile.yaml`**
+- [x] **Step 1: Write `data/candidate_profile.yaml`**
 
   Seed file with your structured profile:
 
@@ -710,7 +710,7 @@ JOB-PROJECT/
     seniority_target: "mid"
   ```
 
-- [ ] **Step 2: Define BigQuery tables**
+- [x] **Step 2: Define BigQuery tables**
 
   Create 5 Bruin DDL assets:
   - `candidate_profile` — name, headline, summary, preferences
@@ -719,7 +719,7 @@ JOB-PROJECT/
   - `candidate_skills` — name, level, years, evidence_refs[]
   - `candidate_achievements` — text, category, evidence_refs[]
 
-- [ ] **Step 3: Write failing tests**
+- [x] **Step 3: Write failing tests**
 
   ```python
   # tests/test_candidate.py
@@ -740,9 +740,9 @@ JOB-PROJECT/
       assert len(skills) == len(set(skills))
   ```
 
-- [ ] **Step 4: Run test — expect FAIL**
+- [x] **Step 4: Run test — expect FAIL**
 
-- [ ] **Step 5: Implement `src/fitcv/candidate.py`**
+- [x] **Step 5: Implement `src/fitcv/candidate.py`**
 
   Functions:
   - `load_profile_yaml(path) -> dict` — parse YAML
@@ -750,9 +750,9 @@ JOB-PROJECT/
   - `prepare_profile_rows(profile) -> dict[str, list[dict]]` — map profile to BQ table schemas
   - `load_candidate_to_bigquery(profile, config) -> None` — insert into all candidate tables
 
-- [ ] **Step 6: Run test — expect PASS**
+- [x] **Step 6: Run test — expect PASS**
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
   ```bash
   git add -A
