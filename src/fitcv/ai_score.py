@@ -86,11 +86,16 @@ def build_scoring_prompt(
 
 # ── response parsing ──────────────────────────────────────────────────────────
 
-def _fit_label_from_score(score: float) -> str:
-    """Derive fit_label from numeric score using the defined thresholds."""
-    if score >= 0.7:
+def _fit_label_from_score(score: float, config: dict[str, Any] | None = None) -> str:
+    """Derive fit_label from numeric score using thresholds from config or defaults."""
+    thresholds = {}
+    if config:
+        thresholds = config.get("fit_label_thresholds", {}) or {}
+    strong_threshold = float(thresholds.get("strong", 0.70))
+    stretch_threshold = float(thresholds.get("stretch", 0.40))
+    if score >= strong_threshold:
         return "strong"
-    if score >= 0.4:
+    if score >= stretch_threshold:
         return "stretch"
     return "skip"
 
@@ -140,7 +145,7 @@ def parse_score_response(response_text: str) -> dict[str, Any]:
     # Validate / derive fit_label
     fit_label = str(data.get("fit_label", "")).lower().strip()
     if fit_label not in _VALID_FIT_LABELS:
-        fit_label = _fit_label_from_score(ai_score)
+        fit_label = _fit_label_from_score(ai_score, config=None)
 
     return {
         "ai_score":          ai_score,
@@ -167,7 +172,6 @@ def score_job(
     - Top 2 matched evidence snippets
 
     Requires GOOGLE_APPLICATION_CREDENTIALS.
-    Decorated with @pytest.mark.integration in tests.
     """
     import vertexai  # type: ignore[import-untyped]
     from vertexai.generative_models import GenerativeModel  # type: ignore[import-untyped]
@@ -182,7 +186,7 @@ def score_job(
     prompt = build_scoring_prompt(
         jd_summary=jd_summary,
         candidate_summary=candidate_summary,
-        top_evidence=top_evidence[:2],  # max 2 evidence snippets per job
+        top_evidence=top_evidence[:2],
     )
 
     model_name = str(config.get("gemini_model", "gemini-2.0-flash"))
@@ -201,21 +205,24 @@ def run_ai_scoring(
     shortlist: list[dict[str, Any]],
     candidate_summary: str,
     config: dict[str, Any],
-    top_n: int = 50,
+    top_n: int | None = None,
 ) -> list[dict[str, Any]]:
     """Score at most top_n shortlisted jobs.
 
+    top_n defaults to config["rerank_top_n"] (50 if missing).
+    sleep between calls is config["rerank_sleep_secs"] (0.5 if missing).
+
     shortlist: list of job dicts from VECTOR_SEARCH (must include job_url and
-               structured JD fields such as title, required_skills, seniority).
-               Optionally each item may include "top_evidence" (list[str]).
+               structured JD fields). Each item may include "top_evidence" (list[str]).
 
     Requires GOOGLE_APPLICATION_CREDENTIALS.
-    Decorated with @pytest.mark.integration in tests.
     """
     import time
 
+    effective_top_n = top_n if top_n is not None else int(config.get("rerank_top_n", 50))
+    sleep_secs = float(config.get("rerank_sleep_secs", 0.5))
     scored: list[dict[str, Any]] = []
-    for i, job in enumerate(shortlist[:top_n]):
+    for i, job in enumerate(shortlist[:effective_top_n]):
         top_evidence = list(job.get("top_evidence", []) or [])[:2]
         try:
             result = score_job(
@@ -226,18 +233,14 @@ def run_ai_scoring(
             )
             scored.append(result)
         except Exception as exc:  # noqa: BLE001
-            logger.error("score_job failed for '%s': %s", job.get("job_url"), exc)
             scored.append({
                 "job_url": str(job.get("job_url", "")),
-                "ai_score": 0.0,
-                "fit_label": "skip",
+                "ai_score": 0.0, "fit_label": "skip",
                 "score_reasoning": f"Scoring error: {exc}",
-                "matched_strengths": [],
-                "key_risks": [],
+                "matched_strengths": [], "key_risks": [],
             })
-
-        if i < len(shortlist[:top_n]) - 1:
-            time.sleep(0.5)  # stay within Vertex AI quota
+        if i < len(shortlist[:effective_top_n]) - 1:
+            time.sleep(sleep_secs)
 
     return scored
 

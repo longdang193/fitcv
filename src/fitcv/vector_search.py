@@ -15,6 +15,12 @@ build_candidate_query_text : deterministic candidate query string (no embedding 
 build_vector_search_query  : BigQuery VECTOR_SEARCH SQL string
 run_vector_search          : embed + query + return shortlist rows (integration)
 store_shortlist            : insert into fitcv.vector_shortlist (integration)
+
+Config keys consumed (from pipeline.yaml)
+-----------------------------------------
+config["vector_top_n"]              : default top_n for VECTOR_SEARCH (default 50)
+config["vector_max_candidate_skills"]: max skills in candidate query text (default 15)
+config["retrieval_strategy"]        : stored in vector_shortlist (default "job_summary_v1")
 """
 
 from datetime import datetime, timezone
@@ -23,10 +29,13 @@ from typing import Any
 
 # ── candidate query text ──────────────────────────────────────────────────────
 
-def build_candidate_query_text(profile: dict[str, Any]) -> str:
+def build_candidate_query_text(
+    profile: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> str:
     """Build the single candidate query string for v1 Option A retrieval.
 
-    Combines: headline + top skills (up to 15) + preferred domains.
+    Combines: headline + top skills (up to vector_max_candidate_skills) + preferred domains.
     Deterministic — same profile always produces the same text.
     No embedding call; used as input to generate_embedding().
 
@@ -35,6 +44,7 @@ def build_candidate_query_text(profile: dict[str, Any]) -> str:
         Skills: <comma-joined skills>
         Target domains: <comma-joined domains>
     """
+    max_skills = int((config or {}).get("vector_max_candidate_skills", 15))
     parts: list[str] = []
 
     headline = (profile.get("headline") or "").strip()
@@ -42,7 +52,7 @@ def build_candidate_query_text(profile: dict[str, Any]) -> str:
         parts.append(f"Candidate: {headline}")
 
     skills = profile.get("skills", []) or []
-    skill_names = [str(s.get("name", "")) for s in skills if s.get("name")][:15]
+    skill_names = [str(s.get("name", "")) for s in skills if s.get("name")][:max_skills]
     if skill_names:
         parts.append(f"Skills: {', '.join(skill_names)}")
 
@@ -82,7 +92,6 @@ def build_vector_search_query(
     Returns:
         A BigQuery SQL string (not yet executed).
     """
-    # Build the IN-list for the filtered universe
     if passed_job_urls:
         url_list = ", ".join(f"'{u}'" for u in passed_job_urls)
         universe_filter = f"AND base.job_url IN ({url_list})"
@@ -116,9 +125,11 @@ def run_vector_search(
     profile: dict[str, Any],
     passed_job_urls: list[str],
     config: dict[str, Any],
-    top_n: int = 50,
+    top_n: int | None = None,
 ) -> list[dict[str, Any]]:
     """Generate candidate query embedding and execute VECTOR_SEARCH.
+
+    top_n defaults to config["vector_top_n"] (50 if missing).
 
     Steps:
     1. Build candidate query text (deterministic, no embedding call)
@@ -136,6 +147,8 @@ def run_vector_search(
     if not passed_job_urls:
         return []
 
+    effective_top_n = top_n if top_n is not None else int(config.get("vector_top_n", 50))
+
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
     from fitcv.embeddings import generate_embedding
@@ -147,36 +160,25 @@ def run_vector_search(
     credentials = service_account.Credentials.from_service_account_file(key_path)
     client = bigquery.Client(project=project, credentials=credentials)
 
-    # Step 1: build candidate query text
-    query_text = build_candidate_query_text(profile)
-
-    # Step 2: embed
+    query_text = build_candidate_query_text(profile, config)
     embedding_vector = generate_embedding(query_text, config)
 
-    # Step 3: build and execute VECTOR_SEARCH SQL
     sql = build_vector_search_query(
-        top_n=top_n,
+        top_n=effective_top_n,
         passed_job_urls=passed_job_urls,
         project=project,
         dataset=dataset,
     )
 
-    # Substitute the embedding via query parameters
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
-            bigquery.ArrayQueryParameter(
-                "candidate_embedding", "FLOAT64", embedding_vector
-            )
+            bigquery.ArrayQueryParameter("candidate_embedding", "FLOAT64", embedding_vector)
         ]
     )
 
     rows = client.query(sql, job_config=job_config).result()
     return [
-        {
-            "job_url":           row.job_url,
-            "vector_similarity": row.vector_similarity,
-            "vector_rank":       row.vector_rank,
-        }
+        {"job_url": row.job_url, "vector_similarity": row.vector_similarity, "vector_rank": row.vector_rank}
         for row in rows
     ]
 
@@ -186,15 +188,19 @@ def run_vector_search(
 def store_shortlist(
     shortlist: list[dict[str, Any]],
     config: dict[str, Any],
-    retrieval_strategy: str = "job_summary_v1",
+    retrieval_strategy: str | None = None,
 ) -> None:
     """Insert vector shortlist rows into fitcv.vector_shortlist.
+
+    retrieval_strategy defaults to config["retrieval_strategy"] ("job_summary_v1" if missing).
 
     Requires GOOGLE_APPLICATION_CREDENTIALS.
     Decorated with @pytest.mark.integration in tests.
     """
     if not shortlist:
         return
+
+    effective_strategy = retrieval_strategy or str(config.get("retrieval_strategy", "job_summary_v1"))
 
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
@@ -213,7 +219,7 @@ def store_shortlist(
             "job_url":            item["job_url"],
             "vector_rank":        item["vector_rank"],
             "vector_similarity":  item["vector_similarity"],
-            "retrieval_strategy": retrieval_strategy,
+            "retrieval_strategy": effective_strategy,
             "retrieved_at":       now,
         }
         for item in shortlist
