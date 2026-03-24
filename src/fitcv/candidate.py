@@ -40,12 +40,55 @@ def load_profile_yaml(path: str | Path) -> dict[str, Any]:
 # ── validation ────────────────────────────────────────────────────────────────
 
 def validate_profile(profile: dict[str, Any]) -> list[str]:
-    """Return a list of validation error strings; empty list means valid."""
+    """Return a list of validation error strings; empty list means valid.
+
+    Checks:
+    1. Required sections are present
+    2. All exp/proj/ach IDs are globally unique
+    3. No dangling evidence_refs (every ref must resolve to a known ID)
+    """
     errors: list[str] = []
+
+    # ── 1. required sections ──────────────────────────────────────────────────
     for section in _REQUIRED_SECTIONS:
         if section not in profile:
             errors.append(f"Missing required section: '{section}'")
+
+    if errors:
+        return errors  # ID checks require sections; bail early
+
+    # ── 2. ID uniqueness ──────────────────────────────────────────────────────
+    all_ids: list[str] = (
+        [str(e.get("id", "")) for e in profile.get("experiences", [])]
+        + [str(p.get("id", "")) for p in profile.get("projects", [])]
+        + [str(a.get("id", "")) for a in profile.get("achievements", [])]
+    )
+    seen_ids: set[str] = set()
+    for id_val in all_ids:
+        if not id_val:
+            errors.append("Found an experience/project/achievement without an 'id' field")
+        elif id_val in seen_ids:
+            errors.append(f"Duplicate ID '{id_val}' in candidate profile")
+        else:
+            seen_ids.add(id_val)
+
+    # ── 3. dangling evidence_refs ─────────────────────────────────────────────
+    known_ids: set[str] = set(all_ids)
+    for skill in profile.get("skills", []):
+        for ref in skill.get("evidence_refs", []):
+            if ref not in known_ids:
+                errors.append(
+                    f"Dangling evidence_ref '{ref}' in skill '{skill.get('name', '?')}'"
+                )
+    for ach in profile.get("achievements", []):
+        for ref in ach.get("evidence_refs", []):
+            if ref not in known_ids:
+                errors.append(
+                    f"Dangling evidence_ref '{ref}' in achievement '{ach.get('id', '?')}'"
+                )
+
     return errors
+
 
 
 # ── skill extraction ──────────────────────────────────────────────────────────
