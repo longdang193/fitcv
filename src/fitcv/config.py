@@ -38,6 +38,8 @@ _POLICY_FILES = [
     "ranking.yaml",
 ]
 
+_DEFAULT_ENV_CANDIDATES = (".env.yaml", "config/env.yaml")
+
 
 def _load_yaml_file(path: Path) -> dict[str, Any]:
     """Load a single YAML file. Returns {} on missing file or empty file."""
@@ -61,7 +63,40 @@ def _find_config_dir(base_path: Path) -> Path:
     return base_path.parent / "config"  # fallback: sibling of .env.yaml
 
 
-def load_config(path: str | Path = ".env.yaml") -> dict[str, Any]:
+def _resolve_env_path(path: str | Path | None) -> Path:
+    """Resolve the active env file, supporting legacy config/env.yaml."""
+    if path is not None:
+        return Path(path)
+    for candidate in _DEFAULT_ENV_CANDIDATES:
+        candidate_path = Path(candidate)
+        if candidate_path.exists():
+            return candidate_path
+    return Path(_DEFAULT_ENV_CANDIDATES[0])
+
+
+def _is_legacy_env_path(path: Path) -> bool:
+    return path.name == "env.yaml" and path.parent.name == "config"
+
+
+def _merge_missing_keys(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
+    for key, value in extra.items():
+        if key not in base:
+            base[key] = value
+    return base
+
+
+def _normalize_config_keys(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Normalize legacy config keys into the canonical runtime shape."""
+    if "gemini_model" not in cfg and "ai_score_model" in cfg:
+        cfg["gemini_model"] = cfg["ai_score_model"]
+    if "vertex_location" not in cfg:
+        location = str(cfg.get("location", "")).strip()
+        if location and location.lower() != "us":
+            cfg["vertex_location"] = location
+    return cfg
+
+
+def load_config(path: str | Path | None = None) -> dict[str, Any]:
     """Load and validate config from .env.yaml, then merge policy YAML files.
 
     Args:
@@ -75,26 +110,44 @@ def load_config(path: str | Path = ".env.yaml") -> dict[str, Any]:
         FileNotFoundError: If .env.yaml does not exist.
         ValueError: If required infrastructure keys are missing from .env.yaml.
     """
-    env_path = Path(path)
+    env_path = _resolve_env_path(path)
     if not env_path.exists():
         raise FileNotFoundError(f"Config file not found: {env_path}")
+    if _is_legacy_env_path(env_path):
+        warnings.warn(
+            f"legacy config path in use: {env_path}",
+            UserWarning,
+            stacklevel=2,
+        )
 
     with open(env_path) as f:
         cfg: dict[str, Any] = yaml.safe_load(f) or {}
+
+    resolved_env_path = env_path.resolve()
+    config_dir = _find_config_dir(resolved_env_path)
+    if env_path.name == ".env.yaml":
+        legacy_env_path = config_dir / "env.yaml"
+        if legacy_env_path.exists():
+            cfg = _merge_missing_keys(cfg, _load_yaml_file(legacy_env_path))
+    elif _is_legacy_env_path(env_path):
+        root_env_path = config_dir.parent / ".env.yaml"
+        if root_env_path.exists():
+            cfg = _merge_missing_keys(cfg, _load_yaml_file(root_env_path))
+
+    cfg = _normalize_config_keys(cfg)
 
     missing = [k for k in _REQUIRED_KEYS if k not in cfg]
     if missing:
         raise ValueError(f"Missing config keys: {missing}")
 
     # Merge policy YAML files — later files add keys; .env.yaml keys take priority
-    config_dir = _find_config_dir(env_path.resolve())
     for filename in _POLICY_FILES:
         policy = _load_yaml_file(config_dir / filename)
         for key, value in policy.items():
             if key not in cfg:  # never overwrite .env.yaml values
                 cfg[key] = value
 
-    return cfg
+    return _normalize_config_keys(cfg)
 
 
 def get_vertex_location(config: dict[str, Any]) -> str:

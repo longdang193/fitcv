@@ -35,6 +35,7 @@ from typing import Any
 
 from fitcv.ai_score import run_ai_scoring
 from fitcv.candidate import load_candidate_to_bigquery, load_profile_yaml
+from fitcv.config import load_config
 from fitcv.cv_generator import generate_cv
 from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
 from fitcv.enrich import enrich_batch, load_structured_jobs
@@ -56,15 +57,6 @@ logger = logging.getLogger(__name__)
 def create_run_id() -> str:
     """Return a new UUID4 string to identify this pipeline run."""
     return str(uuid.uuid4())
-
-
-def load_config_bundle(config_path: str) -> dict[str, Any]:
-    """Load config from YAML.  Thin wrapper kept here so tests can mock it."""
-    import yaml  # type: ignore[import-untyped]
-
-    with open(config_path) as fh:
-        return dict(yaml.safe_load(fh) or {})
-
 
 def build_ranking_features(
     shortlist: list[dict[str, Any]],
@@ -121,7 +113,7 @@ def build_ranking_features(
 
 def run_pipeline(
     jobs_path: str,
-    config_path: str = "config/env.yaml",
+    config_path: str = ".env.yaml",
 ) -> dict[str, Any]:
     """Run the full FitCV candidate pipeline end-to-end.
 
@@ -134,7 +126,7 @@ def run_pipeline(
         ranked          : number of jobs in the final shortlist
         cvs_generated   : number of successfully generated + validated CVs
     """
-    config = load_config_bundle(config_path)
+    config = load_config(config_path)
     run_id = create_run_id()
     logger.info("Pipeline run started [run_id=%s]", run_id)
 

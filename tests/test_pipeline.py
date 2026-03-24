@@ -168,7 +168,7 @@ def _minimal_job(url: str = "https://example.com/1") -> dict:
 @patch("fitcv.pipeline.load_to_bigquery")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
-@patch("fitcv.pipeline.load_config_bundle")
+@patch("fitcv.pipeline.load_config")
 def test_run_pipeline_returns_correct_schema(
     mock_config: MagicMock,
     mock_parse: MagicMock,
@@ -249,7 +249,7 @@ def test_run_pipeline_returns_correct_schema(
 @patch("fitcv.pipeline.load_to_bigquery")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
-@patch("fitcv.pipeline.load_config_bundle")
+@patch("fitcv.pipeline.load_config")
 def test_run_pipeline_skips_skip_fit_jobs(
     mock_config: MagicMock,
     mock_parse: MagicMock,
@@ -319,7 +319,7 @@ def test_run_pipeline_skips_skip_fit_jobs(
 @patch("fitcv.pipeline.load_to_bigquery")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
-@patch("fitcv.pipeline.load_config_bundle")
+@patch("fitcv.pipeline.load_config")
 def test_run_pipeline_skips_invalid_cv(
     mock_config: MagicMock,
     mock_parse: MagicMock,
@@ -397,7 +397,7 @@ def test_run_pipeline_skips_invalid_cv(
 @patch("fitcv.pipeline.load_to_bigquery")
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
-@patch("fitcv.pipeline.load_config_bundle")
+@patch("fitcv.pipeline.load_config")
 def test_run_pipeline_per_job_failure_skips_not_crashes(
     mock_config: MagicMock,
     mock_parse: MagicMock,
@@ -444,3 +444,15 @@ def test_run_pipeline_per_job_failure_skips_not_crashes(
     # Pipeline should still return without raising
     assert result["cvs_generated"] == 0
     assert result["total_jobs"] == 1
+
+
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_uses_shared_config_loader(mock_config: MagicMock) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    mock_config.side_effect = RuntimeError("shared loader called")
+
+    with pytest.raises(RuntimeError, match="shared loader called"):
+        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+
+    mock_config.assert_called_once_with("config/env.yaml")
