@@ -108,3 +108,42 @@ def test_load_to_bigquery_inserts_rows(sample_jobs_path: Path, config: dict) -> 
     rows = prepare_raw_rows(jobs)
     inserted = load_to_bigquery(rows, config)
     assert inserted == len(rows)
+
+
+def test_fetch_from_apify_returns_list(sample_jobs_path: Path) -> None:
+    """Unit test — mocks urllib so no real HTTP call is made."""
+    import json
+    from unittest.mock import MagicMock, patch
+
+    from fitcv.ingest import fetch_from_apify
+
+    real_jobs = json.loads(sample_jobs_path.read_text())
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = json.dumps(real_jobs).encode()
+    mock_resp.__enter__ = lambda s: s
+    mock_resp.__exit__ = MagicMock(return_value=False)
+
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        result = fetch_from_apify({"apify_dataset_id": "abc123", "apify_token": "fake-tok"})
+
+    assert isinstance(result, list)
+    assert len(result) == len(real_jobs)
+    assert result[0]["jobUrl"] == real_jobs[0]["jobUrl"]
+
+
+def test_fetch_from_apify_raises_on_non_list(sample_jobs_path: Path) -> None:
+    """Unit test — API returning a non-list should raise ValueError."""
+    import json
+    from unittest.mock import MagicMock, patch
+
+    from fitcv.ingest import fetch_from_apify
+
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = json.dumps({"error": "not a list"}).encode()
+    mock_resp.__enter__ = lambda s: s
+    mock_resp.__exit__ = MagicMock(return_value=False)
+
+    with patch("urllib.request.urlopen", return_value=mock_resp):
+        with pytest.raises(ValueError, match="JSON array"):
+            fetch_from_apify({"apify_dataset_id": "abc123", "apify_token": "fake-tok"})
+

@@ -4,7 +4,14 @@ from pathlib import Path
 
 import yaml
 
-_REQUIRED_KEYS = ["gcp_project", "bigquery_dataset", "service_account_key"]
+_REQUIRED_KEYS = [
+    "gcp_project",
+    "bigquery_dataset",
+    "service_account_key",
+]
+
+# Optional — only needed when using the Apify API source
+_APIFY_KEYS = ["apify_dataset_id", "apify_token"]
 
 
 def load_config(path: str | Path = ".env.yaml") -> dict[str, object]:

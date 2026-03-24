@@ -160,3 +160,39 @@ def load_to_bigquery(rows: list[dict[str, Any]], config: dict[str, Any]) -> int:
         raise RuntimeError(f"BigQuery insert errors: {errors}")
 
     return len(rows)
+
+
+# ── Apify API source ──────────────────────────────────────────────────────────
+
+def fetch_from_apify(config: dict[str, Any]) -> list[dict[str, Any]]:
+    """Fetch all items from an Apify dataset via the REST API.
+
+    Returns the same list[dict] format as parse_jobs_file so the rest of the
+    pipeline is source-agnostic.
+
+    Args:
+        config: Must contain 'apify_dataset_id' and 'apify_token'.
+
+    Returns:
+        List of raw LinkedIn job dicts.
+
+    Raises:
+        KeyError:   If apify_dataset_id or apify_token missing from config.
+        ValueError: If the API does not return a JSON array.
+    """
+    import urllib.request
+
+    dataset_id: str = str(config["apify_dataset_id"])
+    token: str = str(config["apify_token"])
+    url = (
+        f"https://api.apify.com/v2/datasets/{dataset_id}/items"
+        f"?format=json&clean=true"
+    )
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    with urllib.request.urlopen(req) as resp:  # noqa: S310
+        data: Any = json.loads(resp.read())
+
+    if not isinstance(data, list):
+        raise ValueError("Apify API did not return a JSON array")
+
+    return data  # type: ignore[return-value]
