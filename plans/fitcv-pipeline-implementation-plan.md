@@ -164,7 +164,12 @@ JOB-PROJECT/
   embedding_model: "text-embedding-005"
   ai_score_model: "gemini-2.0-flash"
   location: "US"
+  # Apify source (optional — leave blank to load from local file instead)
+  apify_dataset_id: "your-dataset-id"   # from the Apify console
+  apify_token: "your-token"             # keep out of git; set via env var in CI
   ```
+
+  > **Secret handling:** `apify_token` is sensitive. For local dev it can live in `.env.yaml` (which must be in `.gitignore`). In CI/CD, inject it as an environment variable and read it in `config.py` via `os.environ.get("APIFY_TOKEN")`.
 
 - [x] **Step 4: Create `src/fitcv/__init__.py`**
 
@@ -198,7 +203,10 @@ JOB-PROJECT/
   from pathlib import Path
   import yaml
 
+  # Keys that must always be present
   _REQUIRED_KEYS = ["gcp_project", "bigquery_dataset", "service_account_key"]
+  # Optional keys — present only when using Apify API source
+  _APIFY_KEYS = ["apify_dataset_id", "apify_token"]
 
   def load_config(path: str | Path = ".env.yaml") -> dict:
       path = Path(path)
@@ -335,11 +343,58 @@ JOB-PROJECT/
 - [x] **Step 4: Implement `src/fitcv/ingest.py`**
 
   Functions:
-  - `parse_jobs_file(path) -> list[dict]` — load JSON array, validate it's a list
+  - `parse_jobs_file(path) -> list[dict]` — load JSON array from local file, validate it's a list
+  - `fetch_from_apify(config) -> list[dict]` — fetch latest dataset items from Apify REST API using `apify_dataset_id` and `apify_token` from config; returns the same list[dict] format as `parse_jobs_file` so the rest of the pipeline is source-agnostic
   - `validate_linkedin_schema(job) -> list[str]` — check required LinkedIn scraper fields exist
   - `snake_case_keys(job) -> dict` — convert `companyName` → `company_name`, `jobUrl` → `job_url`, etc.
   - `prepare_raw_rows(jobs) -> list[dict]` — map LinkedIn scraper fields to `raw_jobs` BQ schema, store original JSON in `raw_json`
-  - `load_to_bigquery(rows, config) -> int` — insert rows into `fitcv.raw_jobs`
+  - `load_to_bigquery(rows, config) -> int` — insert rows into `fitcv.raw_jobs` (`@pytest.mark.integration`)
+
+  `fetch_from_apify` implementation:
+
+  ```python
+  def fetch_from_apify(config: dict) -> list[dict]:
+      """Fetch all items from an Apify dataset via the REST API."""
+      import json
+      import urllib.request
+      dataset_id = config["apify_dataset_id"]
+      token = config["apify_token"]
+      url = (
+          f"https://api.apify.com/v2/datasets/{dataset_id}/items"
+          f"?format=json&clean=true"
+      )
+      req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+      with urllib.request.urlopen(req) as resp:
+          data = json.loads(resp.read())
+      if not isinstance(data, list):
+          raise ValueError("Apify API did not return a JSON array")
+      return data
+  ```
+
+  Add a unit test for the Apify path using `unittest.mock.patch`:
+
+  ```python
+  # tests/test_ingest.py
+  from unittest.mock import patch, MagicMock
+  import json
+
+  def test_fetch_from_apify_returns_list(sample_jobs_path):
+      """Unit test — mocks urllib so no real HTTP call is made."""
+      import urllib.request
+      from fitcv.ingest import fetch_from_apify
+
+      real_jobs = json.loads(sample_jobs_path.read_text())
+      mock_resp = MagicMock()
+      mock_resp.read.return_value = json.dumps(real_jobs).encode()
+      mock_resp.__enter__ = lambda s: s
+      mock_resp.__exit__ = MagicMock(return_value=False)
+
+      with patch("urllib.request.urlopen", return_value=mock_resp):
+          result = fetch_from_apify({"apify_dataset_id": "abc", "apify_token": "tok"})
+
+      assert isinstance(result, list)
+      assert len(result) == len(real_jobs)
+  ```
 
 - [x] **Step 5: Run test — expect PASS**
 
