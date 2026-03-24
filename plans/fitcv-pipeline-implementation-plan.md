@@ -1176,9 +1176,9 @@ JOB-PROJECT/
   - `run_vector_search(profile, passed_job_urls, config, top_n=50) -> list[dict]` — generate embedding for candidate query + execute VECTOR_SEARCH + return shortlist rows (`@pytest.mark.integration`)
   - `store_shortlist(shortlist, config) -> None` — insert into `fitcv.vector_shortlist` (`@pytest.mark.integration`)
 
-- [ ] **Step 5: Run test — expect PASS**
+- [x] **Step 5: Run test — expect PASS**
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
   ```bash
   git add -A
@@ -1214,9 +1214,9 @@ JOB-PROJECT/
 > | `key_risks` | ARRAY\<STRING\> | Gaps or risks flagged by the model |
 > | `scored_at` | TIMESTAMP | |
 
-- [ ] **Step 1: Define `ai_score_results` DDL** in `assets/bigquery/ai_score_results.sql`
+- [x] **Step 1: Define `ai_score_results` DDL** in `assets/bigquery/ai_score_results.sql`
 
-- [ ] **Step 2: Write failing tests**
+- [x] **Step 2: Write failing tests**
 
   ```python
   # tests/test_ai_score.py
@@ -1269,9 +1269,9 @@ JOB-PROJECT/
       assert result["fit_label"] == "skip"
   ```
 
-- [ ] **Step 3: Run test — expect FAIL**
+- [x] **Step 3: Run test — expect FAIL**
 
-- [ ] **Step 4: Implement `src/fitcv/ai_score.py`**
+- [x] **Step 4: Implement `src/fitcv/ai_score.py`**
 
   > **Scoring rubric** (must appear verbatim in the prompt):
   > - Score the match from `0.0` (no fit) to `1.0` (perfect fit)
@@ -1294,9 +1294,9 @@ JOB-PROJECT/
   - `run_ai_scoring(shortlist, candidate_summary, config, top_n=50) -> list[dict]` — score at most `top_n` shortlisted jobs (`@pytest.mark.integration`)
   - `store_ai_scores(scores, config) -> None` (`@pytest.mark.integration`)
 
-- [ ] **Step 5: Run test — expect PASS**
+- [x] **Step 5: Run test — expect PASS**
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
   ```bash
   git add -A
