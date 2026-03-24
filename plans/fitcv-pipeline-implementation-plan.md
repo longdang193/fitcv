@@ -141,11 +141,11 @@ JOB-PROJECT/
 - Create: `tests/conftest.py`
 - Create: `tests/test_config.py`
 
-- [ ] **Step 1: Create `pyproject.toml`**
+- [x] **Step 1: Create `pyproject.toml`**
 
   Minimal project metadata. Set `name = "fitcv"`, `requires-python = ">=3.11"`.
 
-- [ ] **Step 2: Create `requirements.txt`**
+- [x] **Step 2: Create `requirements.txt`**
 
   ```text
   google-cloud-bigquery>=3.20
@@ -155,7 +155,7 @@ JOB-PROJECT/
   pytest>=8.0
   ```
 
-- [ ] **Step 3: Write `.env.yaml`**
+- [x] **Step 3: Write `.env.yaml`**
 
   ```yaml
   gcp_project: "fitcv-491123"
@@ -166,11 +166,11 @@ JOB-PROJECT/
   location: "US"
   ```
 
-- [ ] **Step 4: Create `src/fitcv/__init__.py`**
+- [x] **Step 4: Create `src/fitcv/__init__.py`**
 
   Empty `__init__.py`.
 
-- [ ] **Step 5: Write the failing test for config loading**
+- [x] **Step 5: Write the failing test for config loading**
 
   ```python
   # tests/test_config.py
@@ -183,7 +183,7 @@ JOB-PROJECT/
       assert "bigquery_dataset" in cfg
   ```
 
-- [ ] **Step 6: Run test — expect FAIL**
+- [x] **Step 6: Run test — expect FAIL**
 
   ```bash
   pytest tests/test_config.py -v
@@ -191,7 +191,7 @@ JOB-PROJECT/
 
   Expected: FAIL — `ModuleNotFoundError: No module named 'fitcv'`
 
-- [ ] **Step 7: Implement `src/fitcv/config.py`**
+- [x] **Step 7: Implement `src/fitcv/config.py`**
 
   ```python
   """Load project configuration from .env.yaml."""
@@ -212,13 +212,13 @@ JOB-PROJECT/
       return cfg
   ```
 
-- [ ] **Step 8: Run test — expect PASS**
+- [x] **Step 8: Run test — expect PASS**
 
   ```bash
   pytest tests/test_config.py -v
   ```
 
-- [ ] **Step 9: Create `data/sample_jobs.json`**
+- [x] **Step 9: Create `data/sample_jobs.json`**
 
   Extract 5–10 representative jobs from `sample/data-dataset_linkedin-jobs-scraper_*.json`. Include:
   - 2 near-duplicate Mindrift postings (same company, different cities) for dedup testing
@@ -229,7 +229,7 @@ JOB-PROJECT/
   
   The fixture must use the exact LinkedIn scraper field names (`title`, `location`, `jobUrl`, `companyName`, `description`, `contractType`, `experienceLevel`, `sector`, `salary`, etc.).
 
-- [ ] **Step 10: Create `tests/conftest.py`**
+- [x] **Step 10: Create `tests/conftest.py`**
 
   Shared fixtures `sample_jobs_path` and `config`, plus an `integration` marker that auto-skips cloud-dependent tests when credentials are absent:
 
@@ -263,7 +263,7 @@ JOB-PROJECT/
 
   **Rule:** any test that calls BigQuery, Vertex AI, or Gemini **must** be decorated with `@pytest.mark.integration`. Pure logic (parsing, normalization, prompt construction, score math) has no marker and runs offline.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
   ```bash
   git add -A
@@ -280,7 +280,7 @@ JOB-PROJECT/
 - Create: `tests/test_ingest.py`
 - Create: `assets/bigquery/raw_jobs.sql`
 
-- [ ] **Step 1: Define `raw_jobs` BigQuery schema**
+- [x] **Step 1: Define `raw_jobs` BigQuery schema**
 
   Write `assets/bigquery/raw_jobs.sql` — Bruin DDL asset creating table `fitcv.raw_jobs`. Schema mirrors the LinkedIn scraper output **1:1**, plus an ingestion audit column:
 
@@ -306,7 +306,7 @@ JOB-PROJECT/
   | `raw_json` | JSON | Full original JSON object for auditability |
   | `ingested_at` | TIMESTAMP | Pipeline ingestion timestamp |
 
-- [ ] **Step 2: Write failing test for ingest**
+- [x] **Step 2: Write failing test for ingest**
 
   ```python
   # tests/test_ingest.py
@@ -330,9 +330,9 @@ JOB-PROJECT/
       assert len(errors) > 0
   ```
 
-- [ ] **Step 3: Run test — expect FAIL**
+- [x] **Step 3: Run test — expect FAIL**
 
-- [ ] **Step 4: Implement `src/fitcv/ingest.py`**
+- [x] **Step 4: Implement `src/fitcv/ingest.py`**
 
   Functions:
   - `parse_jobs_file(path) -> list[dict]` — load JSON array, validate it's a list
@@ -341,9 +341,9 @@ JOB-PROJECT/
   - `prepare_raw_rows(jobs) -> list[dict]` — map LinkedIn scraper fields to `raw_jobs` BQ schema, store original JSON in `raw_json`
   - `load_to_bigquery(rows, config) -> int` — insert rows into `fitcv.raw_jobs`
 
-- [ ] **Step 5: Run test — expect PASS**
+- [x] **Step 5: Run test — expect PASS**
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
   ```bash
   git add -A
