@@ -158,29 +158,48 @@ def parse_score_response(response_text: str) -> dict[str, Any]:
 
 # ── integration: score one job ────────────────────────────────────────────────
 
+def _make_genai_client(config: dict[str, Any]) -> Any:
+    """Return a google.genai Client.
+
+    Priority:
+    1. GEMINI_API_KEY env var  → uses Gemini API (generativelanguage.googleapis.com)
+       - Instant access, no Vertex AI Model Garden approval needed.
+       - Get a key at https://aistudio.google.com/apikey
+    2. GOOGLE_APPLICATION_CREDENTIALS → uses Vertex AI endpoint
+       - Requires Vertex AI publisher model access for the project.
+    """
+    import os
+    from google import genai  # type: ignore[import-untyped]
+
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if api_key:
+        return genai.Client(api_key=api_key)
+
+    # Vertex AI fallback (requires publisher model access)
+    import google.auth  # type: ignore[import-untyped]
+    creds, _ = google.auth.default(  # type: ignore[misc]
+        scopes=["https://www.googleapis.com/auth/cloud-platform"]
+    )
+    return genai.Client(
+        vertexai=True,
+        project=str(config.get("gcp_project", "")),
+        location=str(config.get("location", "us-central1")),
+        credentials=creds,
+    )
+
+
 def score_job(
     job: dict[str, Any],
     candidate_summary: str,
     top_evidence: list[str],
     config: dict[str, Any],
 ) -> dict[str, Any]:
-    """Call Vertex AI ML.GENERATE_TEXT for one job and return a parsed score.
+    """Score one job via Gemini and return a parsed score dict.
 
-    The model receives:
-    - JD summary (built from job fields)
-    - Candidate summary paragraph
-    - Top 2 matched evidence snippets
-
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
+    Auth priority: GEMINI_API_KEY > GOOGLE_APPLICATION_CREDENTIALS (Vertex AI).
+    See _make_genai_client() for details.
     """
-    import vertexai  # type: ignore[import-untyped]
-    from vertexai.generative_models import GenerativeModel  # type: ignore[import-untyped]
     from fitcv.embeddings import build_job_summary_text
-
-    vertexai.init(
-        project=str(config["gcp_project"]),
-        location=str(config.get("location", "us-central1")),
-    )
 
     jd_summary = build_job_summary_text(job)
     prompt = build_scoring_prompt(
@@ -190,9 +209,9 @@ def score_job(
     )
 
     model_name = str(config.get("gemini_model", "gemini-2.0-flash"))
-    model = GenerativeModel(model_name)
-    response = model.generate_content(prompt)
-    raw_text = response.text
+    client = _make_genai_client(config)
+    response = client.models.generate_content(model=model_name, contents=prompt)
+    raw_text = str(response.text or "")
 
     result = parse_score_response(raw_text)
     result["job_url"] = str(job.get("job_url", ""))
