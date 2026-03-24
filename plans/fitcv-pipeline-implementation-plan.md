@@ -712,24 +712,30 @@ JOB-PROJECT/
 
 - [x] **Step 2: Define BigQuery tables**
 
-  Create 5 Bruin DDL assets:
-  - `candidate_profile` — name, headline, summary, preferences
-  - `candidate_experiences` — role, company, dates, bullets (nested struct)
-  - `candidate_projects` — name, skills[], business_value, evidence
+  Create **7** Bruin DDL assets:
+  - `candidate_profile` — name, headline, summary, preferences (location_types, domains, seniority_target, exclude_contract_types, exclude_experience_levels)
+  - `candidate_experiences` — `exp_id` (stable, e.g. `exp_1`), role, company, dates, bullets (one row per bullet)
+  - `candidate_projects` — `project_id` (stable, e.g. `proj_1`), name, skills[], business_value, evidence
   - `candidate_skills` — name, level, years, evidence_refs[]
-  - `candidate_achievements` — text, category, evidence_refs[]
+  - `candidate_achievements` — `achievement_id` (stable, e.g. `ach_1`), text, category, evidence_refs[]
+  - `candidate_education` — degree, institution, year
+  - `candidate_certifications` — name, issuer, year
+
+  > **Stable ID rule:** every `experience`, `project`, and `achievement` in the YAML must have an explicit `id` field (e.g. `exp_1`, `proj_1`, `ach_1`). These IDs are used as `evidence_refs` in skills and achievements and as `evidence_id` in embedding rows. Without stable IDs the evidence-reference design is broken.
 
 - [x] **Step 3: Write failing tests**
 
   ```python
   # tests/test_candidate.py
-  from fitcv.candidate import load_profile_yaml, flatten_skills
+  from fitcv.candidate import load_profile_yaml, flatten_skills, validate_profile, prepare_profile_rows
 
+  # ── loading ──
   def test_load_profile_yaml_returns_dict():
       profile = load_profile_yaml("data/candidate_profile.yaml")
       assert "experiences" in profile
       assert "skills" in profile
 
+  # ── skills ──
   def test_flatten_skills_extracts_unique():
       profile = {
           "experiences": [{"bullets": [{"skills": ["SQL", "Python"]}]}],
@@ -738,6 +744,39 @@ JOB-PROJECT/
       skills = flatten_skills(profile)
       assert "SQL" in skills
       assert len(skills) == len(set(skills))
+
+  # ── reference integrity ──
+  def test_profile_ids_are_unique():
+      """All exp_id / project_id / achievement_id values must be globally unique."""
+      profile = load_profile_yaml("data/candidate_profile.yaml")
+      ids = (
+          [e["id"] for e in profile.get("experiences", [])]
+          + [p["id"] for p in profile.get("projects", [])]
+          + [a["id"] for a in profile.get("achievements", [])]
+      )
+      assert len(ids) == len(set(ids)), "Duplicate IDs found in candidate profile"
+
+  def test_evidence_refs_are_valid():
+      """Every evidence_ref must resolve to an existing exp/proj/ach ID."""
+      profile = load_profile_yaml("data/candidate_profile.yaml")
+      known_ids = (
+          {e["id"] for e in profile.get("experiences", [])}
+          | {p["id"] for p in profile.get("projects", [])}
+          | {a["id"] for a in profile.get("achievements", [])}
+      )
+      for skill in profile.get("skills", []):
+          for ref in skill.get("evidence_refs", []):
+              assert ref in known_ids, f"Dangling evidence_ref '{ref}' in skill '{skill['name']}'"
+      for ach in profile.get("achievements", []):
+          for ref in ach.get("evidence_refs", []):
+              assert ref in known_ids, f"Dangling evidence_ref '{ref}' in achievement '{ach.get('id')}'"
+
+  # ── prepare_profile_rows ──
+  def test_prepare_profile_rows_returns_expected_tables():
+      profile = load_profile_yaml("data/candidate_profile.yaml")
+      rows = prepare_profile_rows(profile)
+      expected = {"profile", "experiences", "projects", "skills", "achievements"}
+      assert expected == set(rows.keys())
   ```
 
 - [x] **Step 4: Run test — expect FAIL**
@@ -746,9 +785,10 @@ JOB-PROJECT/
 
   Functions:
   - `load_profile_yaml(path) -> dict` — parse YAML
+  - `validate_profile(profile) -> list[str]` — check required sections + ID uniqueness + no dangling evidence_refs
   - `flatten_skills(profile) -> list[str]` — deduplicated skill list
-  - `prepare_profile_rows(profile) -> dict[str, list[dict]]` — map profile to BQ table schemas
-  - `load_candidate_to_bigquery(profile, config) -> None` — insert into all candidate tables
+  - `prepare_profile_rows(profile) -> dict[str, list[dict]]` — returns `{"profile": [...], "experiences": [...], "projects": [...], "skills": [...], "achievements": [...]}`, one row per bullet in experiences
+  - `load_candidate_to_bigquery(profile, config) -> None` — insert into all candidate tables (`@pytest.mark.integration`)
 
 - [x] **Step 6: Run test — expect PASS**
 
@@ -776,31 +816,93 @@ JOB-PROJECT/
 
   - `fitcv.job_embeddings` — `job_url STRING`, `chunk_type STRING`, `chunk_text STRING`, `embedding ARRAY<FLOAT64>`, `created_at TIMESTAMP`
     - **v1 rule:** always store one row with `chunk_type = "job_summary"` per job. This is the single vector used in `VECTOR_SEARCH` for shortlist ranking. Finer-grained chunk rows (`responsibilities`, `required_skills`, etc.) are optional and reserved for future evidence retrieval — do not add them in v1.
-  - `fitcv.candidate_embeddings` — `evidence_id STRING`, `evidence_type STRING`, `chunk_text STRING`, `embedding ARRAY<FLOAT64>`, `created_at TIMESTAMP`
+  - `fitcv.candidate_embeddings` — `evidence_id STRING` (e.g. `proj_1`), `source_ref_id STRING` (maps back to the originating `exp_id`/`proj_id`/`ach_id`), `evidence_type STRING` (`project` / `experience_bullet` / `achievement`), `chunk_text STRING`, `embedding ARRAY<FLOAT64>`, `created_at TIMESTAMP`
+
+  > **`source_ref_id`:** makes retrieval traceable. Without it, `evidence_id` alone is ambiguous across types.
 
 - [ ] **Step 2: Write failing tests**
 
   ```python
   # tests/test_embeddings.py
-  from fitcv.embeddings import chunk_jd_by_section, build_candidate_chunks
+  # ── unit tests (no cloud calls) ──────────────────────────────────────────────
+  from fitcv.embeddings import build_job_summary_text, build_job_summary_chunk, build_candidate_chunks
 
-  def test_chunk_jd_by_section_returns_summary_chunk():
+  def test_build_job_summary_text_structured_format():
+      """Summary text must use labelled sections, not free concatenation."""
+      jd = {
+          "title": "Data Engineer",
+          "seniority": "mid",
+          "job_family": "data_engineering",
+          "required_skills": ["SQL", "Python"],
+          "responsibilities": ["Build pipelines"],
+      }
+      text = build_job_summary_text(jd)
+      assert "Title:" in text
+      assert "Data Engineer" in text
+      assert "Required skills:" in text
+      assert "SQL" in text
+      assert "Seniority:" in text
+
+  def test_build_job_summary_chunk_returns_exactly_one():
+      """v1: must produce exactly one job_summary chunk for VECTOR_SEARCH ranking."""
       structured_jd = {
           "title": "Data Engineer",
           "responsibilities": ["Build pipelines"],
           "required_skills": ["SQL"],
       }
-      chunks = chunk_jd_by_section(structured_jd)
-      # v1: must always produce exactly one job_summary chunk for VECTOR_SEARCH ranking
+      chunks = build_job_summary_chunk(structured_jd)
       summary_chunks = [c for c in chunks if c["chunk_type"] == "job_summary"]
       assert len(summary_chunks) == 1
       assert "Data Engineer" in summary_chunks[0]["chunk_text"]
 
-  def test_build_candidate_chunks_creates_project_chunk():
-      profile = {"projects": [{"name": "GA4 Pipeline", "skills": ["SQL"], "business_value": "analytics"}]}
+  def test_build_candidate_chunks_one_per_project():
+      """Each project produces exactly one chunk with correct shape."""
+      profile = {
+          "projects": [{"id": "proj_1", "name": "GA4 Pipeline", "skills": ["SQL"], "business_value": "analytics"}],
+          "experiences": [],
+          "achievements": [],
+      }
       chunks = build_candidate_chunks(profile)
-      assert len(chunks) > 0
-      assert "GA4 Pipeline" in chunks[0]["chunk_text"]
+      proj_chunks = [c for c in chunks if c["evidence_type"] == "project"]
+      assert len(proj_chunks) == 1
+      assert proj_chunks[0]["evidence_id"] == "proj_1"
+      assert "GA4 Pipeline" in proj_chunks[0]["chunk_text"]
+      # Verify shape: must have evidence_id, evidence_type, source_ref_id, chunk_text
+      assert "source_ref_id" in proj_chunks[0]
+
+  def test_build_candidate_chunks_one_per_experience_bullet():
+      """Each experience bullet produces one chunk."""
+      profile = {
+          "experiences": [{
+              "id": "exp_1", "role": "Data Engineer", "company": "ACME",
+              "bullets": [
+                  {"text": "Built pipelines", "skills": ["SQL"]},
+                  {"text": "Automated tests", "skills": ["Python"]},
+              ],
+          }],
+          "projects": [],
+          "achievements": [],
+      }
+      chunks = build_candidate_chunks(profile)
+      bullet_chunks = [c for c in chunks if c["evidence_type"] == "experience_bullet"]
+      assert len(bullet_chunks) == 2
+
+  def test_build_candidate_chunks_one_per_achievement():
+      profile = {
+          "achievements": [{"id": "ach_1", "text": "Reduced latency by 40%", "category": "performance"}],
+          "projects": [],
+          "experiences": [],
+      }
+      chunks = build_candidate_chunks(profile)
+      ach_chunks = [c for c in chunks if c["evidence_type"] == "achievement"]
+      assert len(ach_chunks) == 1
+      assert ach_chunks[0]["evidence_id"] == "ach_1"
+
+  # ── integration tests (require GOOGLE_APPLICATION_CREDENTIALS) ───────────────
+  # @pytest.mark.integration
+  # def test_generate_embedding_returns_floats(config): ...
+  # @pytest.mark.integration
+  # def test_embed_and_store_jobs_integration(config): ...
   ```
 
 - [ ] **Step 3: Run test — expect FAIL**
@@ -808,12 +910,34 @@ JOB-PROJECT/
 - [ ] **Step 4: Implement `src/fitcv/embeddings.py`**
 
   Functions:
-  - `build_job_summary_text(structured_jd) -> str` — concatenate title + required_skills + responsibilities into one searchable string per job (this is what gets embedded for v1 ranking)
-  - `chunk_jd_by_section(structured_jd) -> list[dict]` — returns list containing exactly one `{chunk_type: "job_summary", chunk_text: ...}` row; reserved for future multi-chunk expansion
-  - `build_candidate_chunks(profile) -> list[dict]` — chunks by project/role/achievement/skill-evidence
-  - `generate_embedding(text, config) -> list[float]` — call Vertex AI embedding model (`@pytest.mark.integration`)
-  - `embed_and_store_jobs(structured_jobs, config) -> int` — batch embed + insert (`@pytest.mark.integration`)
-  - `embed_and_store_candidate(profile, config) -> int` — batch embed + insert (`@pytest.mark.integration`)
+  - `build_job_summary_text(structured_jd) -> str` — produces a **deterministic labelled-section string** for embedding. Format:
+    ```
+    Title: <title>
+    Required skills: <comma-joined required_skills>
+    Preferred skills: <comma-joined preferred_skills>
+    Responsibilities: <semicolon-joined responsibilities>
+    Seniority: <seniority>
+    Job family: <job_family>
+    ```
+    Structured text (not free concatenation) gives better embedding quality.
+  - `build_job_summary_chunk(structured_jd) -> list[dict]` — returns a list containing **exactly one** `{"chunk_type": "job_summary", "chunk_text": ...}` row using `build_job_summary_text`; reserved for future multi-chunk expansion. *Renamed from `chunk_jd_by_section` for clarity.*
+  - `build_candidate_chunks(profile) -> list[dict]` — v1 granularity:
+    - **one chunk per project** (`evidence_type = "project"`)
+    - **one chunk per experience bullet** (`evidence_type = "experience_bullet"`)
+    - **one chunk per achievement** (`evidence_type = "achievement"`)
+    
+    Each chunk has this shape:
+    ```python
+    {
+        "evidence_id":   "proj_1",          # stable ID from YAML
+        "source_ref_id": "proj_1",          # maps back to exp_id/proj_id/ach_id
+        "evidence_type": "project",          # project | experience_bullet | achievement
+        "chunk_text":    "...",              # human-readable text for embedding
+    }
+    ```
+  - `generate_embedding(text, config) -> list[float]` — call Vertex AI `text-embedding-005` (`@pytest.mark.integration`)
+  - `embed_and_store_jobs(structured_jobs, config) -> int` — batch embed + insert into `job_embeddings` (`@pytest.mark.integration`)
+  - `embed_and_store_candidate(profile, config) -> int` — batch embed + insert into `candidate_embeddings` (`@pytest.mark.integration`)
 
 - [ ] **Step 5: Run test — expect PASS**
 
