@@ -1,5 +1,7 @@
 """Tests for fitcv.embeddings — all pure unit tests (no cloud calls)."""
 
+from unittest.mock import patch
+
 import pytest
 
 from fitcv.embeddings import (
@@ -158,6 +160,58 @@ class TestBuildCandidateChunks:
     def test_empty_profile_returns_empty_list(self) -> None:
         profile: dict = {"projects": [], "experiences": [], "achievements": []}
         assert build_candidate_chunks(profile) == []
+
+
+@patch("google.cloud.bigquery.Client")
+@patch("google.oauth2.service_account.Credentials.from_service_account_file")
+@patch("fitcv.embeddings.generate_embedding")
+def test_embed_and_store_jobs_returns_zero_for_empty_batch(
+    mock_generate_embedding: object,
+    mock_from_service_account_file: object,
+    mock_bigquery_client: object,
+) -> None:
+    from fitcv.embeddings import embed_and_store_jobs
+
+    config = {
+        "gcp_project": "fitcv-test",
+        "bigquery_dataset": "fitcv",
+        "service_account_key": "/tmp/fake.json",
+    }
+
+    inserted = embed_and_store_jobs([], config)
+
+    assert inserted == 0
+    mock_generate_embedding.assert_not_called()
+    mock_from_service_account_file.assert_not_called()
+    mock_bigquery_client.assert_not_called()
+
+
+@patch("google.cloud.bigquery.Client")
+@patch("google.oauth2.service_account.Credentials.from_service_account_file")
+@patch("fitcv.embeddings.generate_embedding")
+def test_embed_and_store_jobs_does_not_delete_existing_rows_before_insert(
+    mock_generate_embedding: object,
+    mock_from_service_account_file: object,
+    mock_bigquery_client: object,
+) -> None:
+    from fitcv.embeddings import embed_and_store_jobs
+
+    mock_generate_embedding.return_value = [0.1, 0.2]
+    client = mock_bigquery_client.return_value
+    client.insert_rows_json.return_value = []
+
+    config = {
+        "gcp_project": "fitcv-test",
+        "bigquery_dataset": "fitcv",
+        "service_account_key": "/tmp/fake.json",
+    }
+    jobs = [{"job_url": "https://example.com/1", "title": "DE", "required_skills": []}]
+
+    inserted = embed_and_store_jobs(jobs, config)
+
+    assert inserted == 1
+    client.query.assert_not_called()
+    client.insert_rows_json.assert_called_once()
 
 
 # ── integration tests (require GOOGLE_APPLICATION_CREDENTIALS) ────────────────

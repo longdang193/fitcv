@@ -15,6 +15,12 @@ tags:
   - ci-safe
 """
 
+import sys
+import types
+from pathlib import Path
+
+import pytest
+
 from fitcv.cv_generator import build_generation_prompt, render_cv_template, select_template_variant
 
 
@@ -61,6 +67,39 @@ def test_build_generation_prompt_empty_evidence_no_crash() -> None:
         template="",
     )
     assert isinstance(prompt, str)
+
+
+def test_build_generation_prompt_includes_grounding_constraints_from_profile() -> None:
+    prompt = build_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["SQL"]},
+        evidence=[{"name": "GA4 Project", "skills": ["SQL"]}],
+        gap={"matched": ["SQL"], "missing": []},
+        template="",
+        profile={
+            "experiences": [{"company": "Acme Analytics GmbH"}],
+            "projects": [{"name": "FitCV Pipeline"}],
+        },
+    )
+    assert "Acme Analytics GmbH" in prompt
+    assert "FitCV Pipeline" in prompt
+    assert "Do not invent employer names" in prompt
+    assert "Do not invent project names" in prompt
+
+
+def test_build_generation_prompt_restricts_skills_section_to_candidate_skill_whitelist() -> None:
+    prompt = build_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["SQL"]},
+        evidence=[{"name": "GA4 Project", "skills": ["SQL"]}],
+        gap={"matched": ["SQL"], "missing": []},
+        template="",
+        profile={
+            "skills": [{"name": "SQL"}, {"name": "Python"}],
+            "experiences": [],
+            "projects": [],
+        },
+    )
+    assert "In the Skills section, only use skills from this approved list" in prompt
+    assert "SQL, Python" in prompt
 
 
 # ── select_template_variant ───────────────────────────────────────────────────
@@ -139,3 +178,59 @@ def test_render_cv_template_experience_bullets() -> None:
     )
     assert "DE" in rendered
     assert "Acme" in rendered
+
+
+def test_generate_cv_uses_google_genai_client(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    from fitcv.cv_generator import generate_cv
+
+    template_path = tmp_path / "cv_template.md"
+    template_path.write_text("# CV Template", encoding="utf-8")
+
+    captured: dict[str, object] = {}
+
+    class FakeResponse:
+        text = "# Generated CV"
+
+    class FakeModels:
+        def generate_content(self, *, model: str, contents: str) -> FakeResponse:
+            captured["model"] = model
+            captured["contents"] = contents
+            return FakeResponse()
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            captured["client_kwargs"] = kwargs
+            self.models = FakeModels()
+
+    fake_genai = types.SimpleNamespace(Client=FakeClient)
+    fake_google = types.SimpleNamespace(
+        auth=types.SimpleNamespace(default=lambda scopes=None: ("creds", "project"))
+    )
+
+    monkeypatch.setitem(sys.modules, "google", fake_google)
+    monkeypatch.setitem(sys.modules, "google.auth", fake_google.auth)
+    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
+    setattr(fake_google, "genai", fake_genai)
+
+    result = generate_cv(
+        jd={"title": "Data Engineer", "required_skills": ["SQL"]},
+        evidence=[{"name": "GA4 Project", "skills": ["SQL"]}],
+        gap={"matched": ["SQL"], "missing": []},
+        profile={"name": "Jane Doe"},
+        config={
+            "gcp_project": "fitcv-491123",
+            "vertex_location": "us-central1",
+            "cv_template_path": str(template_path),
+            "cv_generation_model": "gemini-2.5-flash",
+        },
+    )
+
+    assert result == "# Generated CV"
+    assert captured["model"] == "gemini-2.5-flash"
+    client_kwargs = captured["client_kwargs"]
+    assert isinstance(client_kwargs, dict)
+    assert client_kwargs["vertexai"] is True
+    assert client_kwargs["location"] == "us-central1"

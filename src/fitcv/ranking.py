@@ -111,7 +111,9 @@ def compute_preference_fit(job: dict[str, Any], prefs: dict[str, Any]) -> float:
     pref_domains = [d.lower() for d in prefs.get("domains", [])]
     if pref_domains:
         scored_items += 1
-        if (job.get("domain") or "").lower() in pref_domains:
+        job_family = str(job.get("job_family") or "").lower()
+        job_domain = str(job.get("domain") or "").lower()
+        if job_family in pref_domains or job_domain in pref_domains:
             matched_items += 1
 
     pref_locations = [l.lower() for l in prefs.get("location_types", [])]

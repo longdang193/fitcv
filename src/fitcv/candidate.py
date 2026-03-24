@@ -111,7 +111,10 @@ def flatten_skills(profile: dict[str, Any]) -> list[str]:
 
     # Explicit skill inventory
     for skill in profile.get("skills", []):
-        _add(str(skill.get("name", "")))
+        if isinstance(skill, dict):
+            _add(str(skill.get("name", "")))
+        else:
+            _add(str(skill))
 
     # Experience bullets
     for exp in profile.get("experiences", []):

@@ -133,6 +133,10 @@ def test_location_passes_when_prefs_empty() -> None:
     assert check_location_type(_job(location_type="onsite"), _prefs(location_types=[]))
 
 
+def test_location_unknown_passes_when_preferences_exist() -> None:
+    assert check_location_type(_job(location_type=None), _prefs(location_types=["remote", "hybrid"]))
+
+
 # ── contract type ─────────────────────────────────────────────────────────────
 
 def test_contract_type_accepts_matching() -> None:
@@ -149,6 +153,13 @@ def test_contract_type_reason_code_contains_contract() -> None:
     assert any("contract_type" in r for reason in rejected for r in reason["reasons"])
 
 
+def test_contract_type_rejects_profile_excluded_contract_type() -> None:
+    assert not check_contract_type(
+        _job(contract_type="Internship"),
+        _prefs(contract_types=[], exclude_contract_types=["Internship"]),
+    )
+
+
 # ── experience level ──────────────────────────────────────────────────────────
 
 def test_experience_level_excludes_internship() -> None:
@@ -162,6 +173,13 @@ def test_experience_level_passes_entry_level() -> None:
     assert check_experience_level(
         _job(experience_level="Entry level"),
         _prefs(exclude_experience_levels=["Internship"]),
+    )
+
+
+def test_experience_level_does_not_exclude_entry_level() -> None:
+    assert check_experience_level(
+        _job(experience_level="Entry level"),
+        _prefs(exclude_experience_levels=["Internship", "Entry level"]),
     )
 
 
@@ -235,6 +253,27 @@ def test_domain_rejects_non_matching_domain() -> None:
     assert not check_domain_preference(
         _job(domain="fintech"),
         _prefs(preferred_domains=["data_engineering"]),
+    )
+
+
+def test_domain_profile_domains_key_rejects_non_matching_domain() -> None:
+    assert not check_domain_preference(
+        _job(domain="fintech"),
+        _prefs(preferred_domains=[], domains=["analytics", "data_engineering"]),
+    )
+
+
+def test_domain_unknown_passes_when_preferences_exist() -> None:
+    assert check_domain_preference(
+        _job(domain=None),
+        _prefs(preferred_domains=["analytics"]),
+    )
+
+
+def test_domain_preference_matches_job_family_when_domains_use_role_taxonomy() -> None:
+    assert check_domain_preference(
+        _job(domain="finance", job_family="data_science"),
+        _prefs(preferred_domains=[], domains=["data_science", "analytics"]),
     )
 
 

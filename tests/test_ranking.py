@@ -173,6 +173,11 @@ def test_compute_preference_fit():
     assert compute_preference_fit({"domain": "fintech"}, {}) == 0.5
 
 
+def test_compute_preference_fit_matches_job_family_when_domains_are_role_categories():
+    prefs = {"domains": ["data_science"], "location_types": []}
+    assert compute_preference_fit({"domain": "finance", "job_family": "data_science"}, prefs) == 1.0
+
+
 # ── rank_jobs ─────────────────────────────────────────────────────────────────
 
 def test_rank_jobs_sorts_descending():

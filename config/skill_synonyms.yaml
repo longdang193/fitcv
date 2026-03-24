@@ -6,6 +6,8 @@
 skill_synonyms:
   gcp: google cloud
   google cloud platform: google cloud
+  ga4: google analytics
+  google analytics (ga4): google analytics
   bigquery: google bigquery
   big query: google bigquery
   k8s: kubernetes

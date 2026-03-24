@@ -22,6 +22,8 @@ import hashlib
 import re
 from typing import Any
 
+from fitcv.ingest import snake_case_keys
+
 # ── whitespace ────────────────────────────────────────────────────────────────
 
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -162,7 +164,7 @@ def normalize_job(job: dict[str, Any]) -> dict[str, Any]:
 
     Mutates a copy, does not modify the input.
     """
-    result = dict(job)
+    result = snake_case_keys(job)
 
     # Whitespace-clean the description (main text field)
     if "description" in result:

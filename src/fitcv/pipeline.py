@@ -41,7 +41,7 @@ from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
 from fitcv.enrich import enrich_batch, load_structured_jobs
 from fitcv.evidence import retrieve_evidence
 from fitcv.gap_analysis import classify_fit, compute_gap
-from fitcv.ingest import load_to_bigquery, parse_jobs_file
+from fitcv.ingest import load_to_bigquery, parse_jobs_file, prepare_raw_rows
 from fitcv.normalize import normalize_batch
 from fitcv.ranking import compute_final_score, rank_jobs, store_final_ranking
 from fitcv.rule_filter import apply_rule_filters, store_filter_results
@@ -134,8 +134,7 @@ def run_pipeline(
     raw_jobs = parse_jobs_file(jobs_path)
     normalized = normalize_batch(raw_jobs)
 
-    # prepare_raw_rows does not accept run_id yet; tag rows manually
-    raw_rows = [{"run_id": run_id, **job} for job in normalized]
+    raw_rows = prepare_raw_rows(raw_jobs)
     load_to_bigquery(raw_rows, config)
 
     enriched = enrich_batch(normalized, config)
@@ -148,7 +147,16 @@ def run_pipeline(
 
     # ── Layer 3a: rule filter BEFORE embedding ────────────────────────────────
     filter_result = apply_rule_filters(enriched, profile["preferences"], config)
-    passed_jobs: list[dict[str, Any]] = list(filter_result["passed"])
+    passed_job_urls = [str(url) for url in filter_result["passed"]]
+    enriched_by_url = {
+        str(job.get("job_url") or ""): job
+        for job in enriched
+    }
+    passed_jobs: list[dict[str, Any]] = [
+        enriched_by_url[url]
+        for url in passed_job_urls
+        if url in enriched_by_url
+    ]
     rejected_jobs: list[dict[str, Any]] = list(filter_result["rejected"])
     store_filter_results(filter_result, config)
 
@@ -159,7 +167,6 @@ def run_pipeline(
     vector_top_n = int(config["pipeline"]["vector_search_top_n"])
     # run_vector_search: (profile, passed_job_urls, config, top_n)
     # searches candidate summary embedding against filtered job-summary embeddings
-    passed_job_urls = [str(j.get("job_url") or "") for j in passed_jobs]
     shortlist = run_vector_search(
         profile,
         passed_job_urls,
@@ -211,11 +218,17 @@ def run_pipeline(
 
             validation = run_all_validations(cv, profile, config)
             if not validation["valid"]:
+                failure_details = {
+                    "missing_sections": validation.get("missing_sections") or [],
+                    "grounding_violations": validation.get("grounding_violations") or [],
+                    "skill_violations": validation.get("skill_violations") or [],
+                    "warnings": validation.get("warnings") or [],
+                }
                 logger.warning(
                     "[run_id=%s] CV for %s failed validation: %s",
                     run_id,
                     job.get("job_url"),
-                    validation.get("missing_sections") or validation.get("grounding_violations"),
+                    failure_details,
                 )
                 # Store rejected version for later review (v2 feature placeholder)
                 # store_rejected_cv(job, validation, config)
