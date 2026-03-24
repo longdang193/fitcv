@@ -905,9 +905,9 @@ JOB-PROJECT/
   # def test_embed_and_store_jobs_integration(config): ...
   ```
 
-- [ ] **Step 3: Run test — expect FAIL**
+- [x] **Step 3: Run test — expect FAIL**
 
-- [ ] **Step 4: Implement `src/fitcv/embeddings.py`**
+- [x] **Step 4: Implement `src/fitcv/embeddings.py`**
 
   Functions:
   - `build_job_summary_text(structured_jd) -> str` — produces a **deterministic labelled-section string** for embedding. Format:
@@ -943,9 +943,9 @@ JOB-PROJECT/
   - `embed_and_store_jobs(structured_jobs, config) -> int` — batch embed + insert into `job_embeddings` (`@pytest.mark.integration`)
   - `embed_and_store_candidate(profile, config) -> int` — batch embed + insert into `candidate_embeddings` (`@pytest.mark.integration`)
 
-- [ ] **Step 5: Run test — expect PASS**
+- [x] **Step 5: Run test — expect PASS**
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
   ```bash
   git add -A
