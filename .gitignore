@@ -1,2 +1,7 @@
 fitcv-491123-51c030d71e07.json
 .worktrees/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
