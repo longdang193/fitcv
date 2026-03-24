@@ -3,7 +3,7 @@
 -- version_id is the PK; application_tracker.cv_version_id is the FK referencing this field.
 -- CV markdown is stored directly here; no separate generated_cvs table (v1).
 
-CREATE TABLE IF NOT EXISTS `{{project}}.{{dataset}}.cv_versions` (
+CREATE TABLE IF NOT EXISTS `fitcv-491123.fitcv.cv_versions` (
   version_id          STRING    NOT NULL OPTIONS(description="UUID4, PK of this generated CV record"),
   job_url             STRING    NOT NULL OPTIONS(description="LinkedIn job posting URL (FK → structured_jobs)"),
   enrichment_version  STRING             OPTIONS(description="Enrichment model/prompt version used"),
@@ -15,5 +15,5 @@ CREATE TABLE IF NOT EXISTS `{{project}}.{{dataset}}.cv_versions` (
   cv_markdown         STRING    NOT NULL OPTIONS(description="Full generated CV in markdown format"),
   gap_summary         STRING             OPTIONS(description="JSON-serialised gap analysis result"),
   fit_classification  STRING             OPTIONS(description="strong | stretch | skip"),
-  generated_at        TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
+  generated_at        TIMESTAMP NOT NULL
 );
