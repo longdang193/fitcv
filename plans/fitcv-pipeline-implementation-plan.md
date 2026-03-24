@@ -506,28 +506,30 @@ JOB-PROJECT/
   | `company_id` | STRING | scraper `companyId` |
   | `location` | STRING | scraper `location` |
   | `contract_type` | STRING | scraper `contractType` |
-  | `experience_level` | STRING | scraper `experienceLevel` |
+  | `experience_level` | STRING | scraper `experienceLevel` — **raw LinkedIn label** (e.g. `"Entry level"`) |
   | `sector` | STRING | scraper `sector` |
   | `salary_min` | FLOAT64 | parsed from scraper `salary` |
   | `salary_max` | FLOAT64 | parsed from scraper `salary` |
   | `salary_currency` | STRING | parsed from scraper `salary` |
   | `applications_count` | INT64 | parsed from scraper |
   | `published_at` | DATE | scraper `publishedAt` |
-  | `location_type` | STRING | **LLM-enriched**: `remote` / `hybrid` / `onsite` |
-  | `seniority` | STRING | **LLM-enriched**: normalized seniority from description |
+  | `location_type` | STRING | **LLM-enriched**: canonical `remote` / `hybrid` / `onsite` (lowercase, no other values) |
+  | `seniority` | STRING | **LLM-enriched**: normalized level inferred from JD text — `junior` / `mid` / `senior` / `lead`. **Distinct from `experience_level`**: e.g. scraper says `"Entry level"` but JD text says `"5+ years required"` → `seniority = mid` |
   | `required_skills` | ARRAY\<STRING\> | **LLM-enriched** |
   | `preferred_skills` | ARRAY\<STRING\> | **LLM-enriched** |
   | `responsibilities` | ARRAY\<STRING\> | **LLM-enriched** |
-  | `domain` | STRING | **LLM-enriched** |
+  | `domain` | STRING | **LLM-enriched**: **business/industry domain** (e.g. `banking`, `fintech`, `healthcare`, `retail`) |
   | `tech_stack` | ARRAY\<STRING\> | **LLM-enriched** |
   | `years_experience_min` | INT64 | **LLM-enriched** |
   | `years_experience_max` | INT64 | **LLM-enriched** |
   | `keywords` | ARRAY\<STRING\> | **LLM-enriched** |
-  | `job_family` | STRING | **LLM-enriched**: `data_engineering`, `analytics`, `data_science`, etc. |
-  | `must_have_vs_nice_to_have` | JSON | **LLM-enriched** |
+  | `job_family` | STRING | **LLM-enriched**: **role category** (e.g. `data_engineering`, `analytics`, `data_science`, `ml_engineering`). Distinct from `domain`: `job_family` = what you do, `domain` = what industry you do it in |
   | `description_cleaned` | STRING | normalized `description` text |
-  | `enrichment_version` | STRING | prompt version for reproducibility |
+  | `enrichment_version` | STRING | prompt/schema version (e.g. `"v1"`) |
+  | `enrichment_model` | STRING | model name used (e.g. `"gemini-2.0-flash"`) — required for reproducibility |
   | `enriched_at` | TIMESTAMP | |
+
+  > **Note:** `must_have_vs_nice_to_have` is **deferred to v2**. Most JDs do not cleanly separate these, and LLM inference is too unreliable for v1. Remove from prompt and schema.
 
 - [ ] **Step 2: Write failing tests**
 
@@ -535,27 +537,88 @@ JOB-PROJECT/
   # tests/test_enrich.py
   from fitcv.enrich import build_extraction_prompt, parse_extraction_response, merge_scraped_and_enriched
 
-  def test_build_extraction_prompt_includes_description():
+  # ── prompt construction ───────────────────────────────────────────────
+
+  def test_build_extraction_prompt_includes_required_fields():
       prompt = build_extraction_prompt(
           description="Deine Aufgaben\n * Du arbeitest im Bereich Business Intelligence...",
           scraped_metadata={"title": "Data Analyst", "experienceLevel": "Entry level"},
       )
       assert "required_skills" in prompt
       assert "location_type" in prompt
-      # The prompt should instruct the LLM to extract only fields not in metadata
+      assert "job_family" in prompt
+      assert "seniority" in prompt
+      # must_have_vs_nice_to_have must NOT appear — deferred to v2
+      assert "must_have_vs_nice_to_have" not in prompt
 
-  def test_parse_extraction_response_returns_structured_dict():
-      mock_response = '{"required_skills": ["SQL", "Python"], "location_type": "hybrid", "job_family": "data_analytics"}'
-      result = parse_extraction_response(mock_response)
-      assert "SQL" in result["required_skills"]
-      assert result["location_type"] == "hybrid"
+  def test_build_extraction_prompt_includes_domain_job_family_distinction():
+      prompt = build_extraction_prompt(
+          description="Role in the banking sector",
+          scraped_metadata={"sector": "Banking"},
+      )
+      # Prompt must clarify: job_family = role category, domain = industry
+      assert "job_family" in prompt
+      assert "domain" in prompt
+
+  # ── parse_extraction_response contract ───────────────────────────────
+
+  def test_parse_extraction_response_valid_json():
+      raw = '{"required_skills": ["SQL", "Python"], "location_type": "hybrid", "job_family": "data_analytics"}'
+      result = parse_extraction_response(raw)
+      assert result["errors"] == []
+      assert "SQL" in result["parsed"]["required_skills"]
+      assert result["parsed"]["location_type"] == "hybrid"
+
+  def test_parse_extraction_response_malformed_json():
+      result = parse_extraction_response("not json at all")
+      assert len(result["errors"]) > 0
+      assert result["parsed"] == {}  # empty fallback, not a crash
+      assert result["raw_response"] == "not json at all"
+
+  def test_parse_extraction_response_markdown_fenced_json():
+      raw = '```json\n{"required_skills": ["SQL"]}\n```'
+      result = parse_extraction_response(raw)
+      assert result["errors"] == []
+      assert result["parsed"]["required_skills"] == ["SQL"]
+
+  def test_parse_extraction_response_missing_fields_get_defaults():
+      raw = '{"required_skills": ["SQL"]}'
+      result = parse_extraction_response(raw)
+      assert result["parsed"].get("preferred_skills", []) == []
+      assert result["parsed"].get("location_type") is None
+
+  def test_parse_extraction_response_normalizes_location_type_enum():
+      raw = '{"location_type": "Remote"}'
+      result = parse_extraction_response(raw)
+      assert result["parsed"]["location_type"] == "remote"  # lowercased
+
+  def test_parse_extraction_response_bad_enum_returns_none():
+      raw = '{"location_type": "in-person-hybrid-flexible"}'
+      result = parse_extraction_response(raw)
+      assert result["parsed"]["location_type"] is None  # unknown enum → null
+
+  def test_parse_extraction_response_null_value_in_valid_json():
+      raw = '{"required_skills": null, "location_type": "remote"}'
+      result = parse_extraction_response(raw)
+      assert result["parsed"]["required_skills"] == []  # null list → empty list
+      assert result["errors"] == []
+
+  def test_parse_extraction_response_unknown_keys_ignored():
+      raw = '{"required_skills": ["SQL"], "invented_field": "foo"}'
+      result = parse_extraction_response(raw)
+      assert "invented_field" not in result["parsed"]
+      assert result["errors"] == []
+
+  # ── merge ─────────────────────────────────────────────────────────────
 
   def test_merge_scraped_and_enriched():
       scraped = {"job_url": "url1", "title": "DA", "company_name": "ACME", "contract_type": "Full-time"}
       enriched = {"required_skills": ["SQL"], "job_family": "analytics"}
       merged = merge_scraped_and_enriched(scraped, enriched)
-      assert merged["title"] == "DA"  # from scraper
+      assert merged["title"] == "DA"            # from scraper
       assert merged["required_skills"] == ["SQL"]  # from LLM
+      assert "enrichment_model" in merged       # audit field must be present
+      assert "enrichment_version" in merged
   ```
 
 - [ ] **Step 3: Run test — expect FAIL**
@@ -563,12 +626,18 @@ JOB-PROJECT/
 - [ ] **Step 4: Implement `src/fitcv/enrich.py`**
 
   Functions:
-  - `build_extraction_prompt(description, scraped_metadata) -> str` — prompt for LLM to extract *only* fields not in scraped metadata
-  - `parse_extraction_response(response_text) -> dict` — parse LLM JSON with schema validation + fallback
-  - `merge_scraped_and_enriched(scraped, enriched) -> dict` — combine scraper metadata + LLM-extracted fields into `structured_jobs` schema
-  - `enrich_job(job, config) -> dict` — call Vertex AI / Gemini for extraction
-  - `enrich_batch(normalized_jobs, config) -> list[dict]` — batch with rate limiting
-  - `load_structured_jobs(enriched, config) -> int` — insert into `fitcv.structured_jobs`
+  - `build_extraction_prompt(description, scraped_metadata) -> str` — prompt instructing LLM to extract only fields absent from scraped metadata; must define `job_family` = role category and `domain` = industry domain explicitly; must **not** request `must_have_vs_nice_to_have` (deferred to v2)
+  - `parse_extraction_response(response_text) -> dict` — returns `{"parsed": {...}, "errors": [...], "raw_response": str}`. Contract:
+    - strips Markdown code fences before parsing
+    - invalid JSON → `parsed = {}`, error in `errors` list, no crash
+    - missing field → fill with `[]` for arrays, `None` for scalars
+    - unknown keys → silently ignored
+    - null list values → coerced to `[]`
+    - enum fields (`location_type`, `seniority`, `job_family`) → lowercased; unrecognized values → `None`
+  - `merge_scraped_and_enriched(scraped, enriched, config) -> dict` — combines scraper metadata + LLM `parsed` dict into `structured_jobs` schema; adds `enrichment_version` and `enrichment_model` from config
+  - `enrich_job(job, config) -> dict` — call Vertex AI / Gemini for extraction (`@pytest.mark.integration`)
+  - `enrich_batch(normalized_jobs, config) -> list[dict]` — batch with rate limiting (`@pytest.mark.integration`)
+  - `load_structured_jobs(enriched, config) -> int` — **upsert** into `fitcv.structured_jobs` via `MERGE ON job_url`; updates all enriched columns if row exists, inserts otherwise (`@pytest.mark.integration`)
 
 - [ ] **Step 5: Run test — expect PASS**
 
@@ -576,7 +645,7 @@ JOB-PROJECT/
 
   ```bash
   git add -A
-  git commit -m "feat(fitcv): enrich JDs with LLM + merge with scraped metadata"
+  git commit -m "feat(fitcv): enrich JDs with LLM + merge with scraped metadata, parse contract with fallback"
   ```
 
 ---
