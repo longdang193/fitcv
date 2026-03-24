@@ -416,7 +416,7 @@ JOB-PROJECT/
 
 > **Note:** The LinkedIn scraper data is already well-structured (no HTML, consistent field names). Normalization focuses on: whitespace cleanup, near-duplicate detection (same JD posted in multiple cities), `applicationsCount` parsing, and `salary` parsing.
 
-- [ ] **Step 1: Write failing tests for normalization functions**
+- [x] **Step 1: Write failing tests for normalization functions**
 
   ```python
   # tests/test_normalize.py
@@ -460,9 +460,9 @@ JOB-PROJECT/
       assert parse_salary("") is None
   ```
 
-- [ ] **Step 2: Run test — expect FAIL**
+- [x] **Step 2: Run test — expect FAIL**
 
-- [ ] **Step 3: Implement `src/fitcv/normalize.py`**
+- [x] **Step 3: Implement `src/fitcv/normalize.py`**
 
   Functions:
   - `normalize_whitespace(text) -> str` — collapse excessive whitespace/newlines
@@ -473,9 +473,9 @@ JOB-PROJECT/
   - `normalize_job(job) -> dict` — orchestrate cleaning on one job
   - `normalize_batch(jobs) -> list[dict]` — apply normalization + deduplication to full list
 
-- [ ] **Step 4: Run test — expect PASS**
+- [x] **Step 4: Run test — expect PASS**
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
   ```bash
   git add -A
