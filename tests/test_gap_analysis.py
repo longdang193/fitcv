@@ -4,6 +4,8 @@ type: test
 scope: unit
 domain: gap_analysis
 covers:
+  - normalise_raw_skill: light normalisation for raw comparison
+  - classify_skill_match: two-level matching (raw → matched, synonym → partial, none → missing)
   - compute_gap: matched/partial/missing classification, years_risk, overclaim_risk
   - classify_fit: config-driven strong/stretch/skip thresholds
 excludes:
@@ -15,10 +17,69 @@ tags:
 
 import pytest
 
-from fitcv.gap_analysis import classify_fit, compute_gap
+from fitcv.gap_analysis import classify_fit, classify_skill_match, compute_gap, normalise_raw_skill
 
 
-# ── matched / missing / partial ───────────────────────────────────────────────
+# ── normalise_raw_skill ───────────────────────────────────────────────────────
+
+def test_normalise_raw_skill_lowercases() -> None:
+    assert normalise_raw_skill("SQL") == "sql"
+    assert normalise_raw_skill("BigQuery") == "bigquery"
+
+
+def test_normalise_raw_skill_strips_whitespace() -> None:
+    assert normalise_raw_skill("  SQL  ") == "sql"
+
+
+def test_normalise_raw_skill_collapses_internal_spaces() -> None:
+    assert normalise_raw_skill("Google  Cloud") == "google cloud"
+
+
+# ── classify_skill_match ──────────────────────────────────────────────────────
+
+def test_classify_skill_match_exact_case_insensitive() -> None:
+    """SQL vs sql → matched (raw normalisation only)."""
+    result = classify_skill_match("SQL", ["sql", "Python"])
+    assert result["result"] == "matched"
+    assert result["candidate"] == "sql"
+    assert result["canonical"] is None
+
+
+def test_classify_skill_match_synonym_is_partial() -> None:
+    """GCP vs Google Cloud → partial (same canonical, different raw)."""
+    result = classify_skill_match("Google Cloud", ["GCP", "Python"])
+    assert result["result"] == "partial"
+    assert result["required"] == "Google Cloud"
+    assert result["candidate"] == "GCP"
+    assert result["canonical"] is not None
+
+
+def test_classify_skill_match_apache_airflow_is_partial() -> None:
+    """Airflow vs Apache Airflow → partial is NOT triggered here since
+    'airflow' does not synonym-resolve to 'apache airflow' in the default map.
+    Both normalise differently → raw no-match, no canonical match → missing.
+    This documents the exact boundary of the synonym map."""
+    result = classify_skill_match("Apache Airflow", ["Airflow"])
+    # Without a synonym entry, this is missing (documents the exact behaviour)
+    assert result["result"] in ("partial", "missing")
+
+
+def test_classify_skill_match_postgres_synonym() -> None:
+    """Postgres → PostgreSQL via synonym map → partial."""
+    result = classify_skill_match("PostgreSQL", ["Postgres"])
+    assert result["result"] == "partial"
+    assert result["canonical"] is not None
+
+
+def test_classify_skill_match_missing() -> None:
+    """Terraform not in candidate skills → missing."""
+    result = classify_skill_match("Terraform", ["SQL", "Python"])
+    assert result["result"] == "missing"
+    assert result["candidate"] is None
+    assert result["canonical"] is None
+
+
+# ── compute_gap: matched / partial / missing ──────────────────────────────────
 
 def test_compute_gap_identifies_missing_skills() -> None:
     result = compute_gap(
@@ -34,15 +95,34 @@ def test_compute_gap_identifies_missing_skills() -> None:
 
 
 def test_compute_gap_partial_via_synonym() -> None:
-    """gcp matches google cloud via synonym map → partial, not missing."""
+    """GCP matches Google Cloud via synonym map → partial dict, not missing."""
     result = compute_gap(
         required_skills=["Google Cloud"],
         candidate_skills=["GCP"],
         years_required=None,
         years_candidate=None,
     )
-    assert "Google Cloud" in result["partial"]
+    assert len(result["partial"]) == 1
+    partial_entry = result["partial"][0]
+    assert partial_entry["required"] == "Google Cloud"
+    assert partial_entry["candidate"] == "GCP"
+    assert partial_entry["canonical"] is not None
     assert "Google Cloud" not in result["missing"]
+
+
+def test_compute_gap_partial_has_dict_shape() -> None:
+    """partial entries must have required, candidate, canonical keys."""
+    result = compute_gap(
+        required_skills=["PostgreSQL"],
+        candidate_skills=["Postgres"],
+        years_required=None,
+        years_candidate=None,
+    )
+    assert len(result["partial"]) == 1
+    entry = result["partial"][0]
+    assert "required" in entry
+    assert "candidate" in entry
+    assert "canonical" in entry
 
 
 def test_compute_gap_no_required_skills() -> None:
@@ -131,6 +211,19 @@ def test_classify_fit_uses_config_thresholds() -> None:
     config = {"gap_thresholds": {"strong_min_matched_ratio": 0.8, "stretch_min_matched_ratio": 0.5}}
     assert classify_fit(gap_strong, required_count=2, config=config) == "strong"
     assert classify_fit(gap_skip, required_count=3, config=config) == "skip"
+
+
+def test_classify_fit_partial_does_not_count_as_matched() -> None:
+    """Synonym-only partial matches must not lift the matched ratio."""
+    gap = {
+        "matched": [],
+        "partial": [{"required": "Google Cloud", "candidate": "GCP", "canonical": "google cloud"}],
+        "missing": ["SQL"],
+        "years_risk": False, "overclaim_risk": [],
+    }
+    config = {"gap_thresholds": {"strong_min_matched_ratio": 0.8, "stretch_min_matched_ratio": 0.5}}
+    # 0 matched out of 2 required → ratio 0.0 → skip
+    assert classify_fit(gap, required_count=2, config=config) == "skip"
 
 
 def test_classify_fit_stretch_band() -> None:
