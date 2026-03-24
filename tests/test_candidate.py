@@ -49,6 +49,30 @@ def test_validate_profile_rejects_missing_preferences() -> None:
     assert any("preferences" in e for e in errors)
 
 
+def test_validate_profile_rejects_duplicate_ids() -> None:
+    profile = {
+        "experiences": [{"id": "exp_1", "bullets": []}],
+        "projects": [{"id": "exp_1", "name": "clash"}],  # duplicate
+        "achievements": [],
+        "skills": [],
+        "preferences": {},
+    }
+    errors = validate_profile(profile)
+    assert any("Duplicate" in e for e in errors)
+
+
+def test_validate_profile_rejects_dangling_evidence_ref() -> None:
+    profile = {
+        "experiences": [{"id": "exp_1", "bullets": []}],
+        "projects": [],
+        "achievements": [],
+        "skills": [{"name": "SQL", "evidence_refs": ["proj_99"]}],  # dangling
+        "preferences": {},
+    }
+    errors = validate_profile(profile)
+    assert any("proj_99" in e for e in errors)
+
+
 # ── flatten_skills ────────────────────────────────────────────────────────────
 
 def test_flatten_skills_extracts_unique() -> None:
