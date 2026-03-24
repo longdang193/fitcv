@@ -15,10 +15,26 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
-# ── enum definitions ──────────────────────────────────────────────────────────
+# ── enum definitions (fallbacks — overridden by taxonomy.yaml via config) ──────
 
-_VALID_LOCATION_TYPES: frozenset[str] = frozenset({"remote", "hybrid", "onsite"})
-_VALID_SENIORITY: frozenset[str] = frozenset({"junior", "mid", "senior", "lead"})
+_FALLBACK_LOCATION_TYPES: frozenset[str] = frozenset({"remote", "hybrid", "onsite"})
+_FALLBACK_SENIORITY_ENRICH: frozenset[str] = frozenset({"junior", "mid", "senior", "lead"})
+
+
+def _get_valid_location_types(config: dict | None) -> frozenset[str]:
+    if config:
+        vals = config.get("valid_location_types")
+        if vals:
+            return frozenset(str(v).lower() for v in vals)
+    return _FALLBACK_LOCATION_TYPES
+
+
+def _get_valid_seniority_enrich(config: dict | None) -> frozenset[str]:
+    if config:
+        vals = config.get("valid_seniority_enrich")
+        if vals:
+            return frozenset(str(v).lower() for v in vals)
+    return _FALLBACK_SENIORITY_ENRICH
 
 # ── schema: which fields are arrays vs scalars ─────────────────────────────────
 
@@ -61,7 +77,7 @@ def _normalize_enum(value: Any, valid: frozenset[str]) -> str | None:
     return lowered if lowered in valid else None
 
 
-def _coerce_field(key: str, value: Any) -> Any:
+def _coerce_field(key: str, value: Any, config: dict | None = None) -> Any:
     """Coerce a raw LLM value to its canonical Python type."""
     if key in _ARRAY_FIELDS:
         if value is None or not isinstance(value, list):
@@ -69,17 +85,16 @@ def _coerce_field(key: str, value: Any) -> Any:
         return [str(v) for v in value if v is not None]
 
     if key == "location_type":
-        return _normalize_enum(value, _VALID_LOCATION_TYPES)
+        return _normalize_enum(value, _get_valid_location_types(config))
 
     if key == "seniority":
-        return _normalize_enum(value, _VALID_SENIORITY)
+        return _normalize_enum(value, _get_valid_seniority_enrich(config))
 
     if key in ("years_experience_min", "years_experience_max"):
         if isinstance(value, (int, float)):
             return int(value)
         return None
 
-    # job_family and domain: lowercase string, no strict enum validation
     if key in ("job_family", "domain"):
         if isinstance(value, str) and value.strip():
             return value.lower().strip()
@@ -146,7 +161,7 @@ JOB DESCRIPTION:
 
 # ── response parsing ──────────────────────────────────────────────────────────
 
-def parse_extraction_response(response_text: str) -> dict[str, Any]:
+def parse_extraction_response(response_text: str, config: dict | None = None) -> dict[str, Any]:
     """Parse LLM extraction response with explicit fallback contract.
 
     Returns:
@@ -186,8 +201,8 @@ def parse_extraction_response(response_text: str) -> dict[str, Any]:
 
     parsed: dict[str, Any] = {}
     for field in _KNOWN_FIELDS:
-        raw_value = raw.get(field)  # None if key absent
-        parsed[field] = _coerce_field(field, raw_value)
+        raw_value = raw.get(field)
+        parsed[field] = _coerce_field(field, raw_value, config)
 
     return {
         "parsed": parsed,
@@ -271,7 +286,7 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
         project=str(config["gcp_project"]),
         location=str(config.get("location", "us-central1")),
     )
-    model_name = str(config.get("ai_score_model", "gemini-2.0-flash"))
+    model_name = str(config.get("gemini_model", "gemini-2.0-flash"))
     model = GenerativeModel(model_name)
 
     prompt = build_extraction_prompt(

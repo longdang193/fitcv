@@ -21,6 +21,12 @@ apply_rule_filters returns:
             {"job_url": "url2", "reasons": ["seniority_mismatch", "contract_type_excluded"]}
         ]
     }
+
+Config keys consumed (loaded via config.py from taxonomy.yaml / skill_synonyms.yaml)
+-------------------------------------------------------------------------------------
+config["seniority"]["ladder"]    : ordered list of seniority levels
+config["seniority"]["aliases"]   : alias → canonical mapping
+config["skill_synonyms"]         : alias → canonical skill mapping
 """
 
 import logging
@@ -30,42 +36,77 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-# ── seniority ladder ──────────────────────────────────────────────────────────
+# ── built-in fallbacks (used when config is not passed) ───────────────────────
+# Kept here so unit tests that don't inject config still pass.
 
-_SENIORITY_LADDER: list[str] = [
-    "intern",
-    "entry",
-    "associate",
-    "mid",
-    "senior",
-    "lead",
-    "manager",
-    "director",
+_FALLBACK_SENIORITY_LADDER: list[str] = [
+    "intern", "entry", "associate", "mid", "senior", "lead", "manager", "director",
 ]
 
-_SENIORITY_ALIASES: dict[str, str] = {
-    # common LinkedIn / LLM aliases → canonical ladder values
-    "junior": "entry",
-    "jr": "entry",
-    "sr": "senior",
-    "staff": "lead",
-    "principal": "lead",
-    "vp": "director",
-    "vice president": "director",
+_FALLBACK_SENIORITY_ALIASES: dict[str, str] = {
+    "junior": "entry", "jr": "entry", "sr": "senior",
+    "staff": "lead", "principal": "lead", "vp": "director", "vice president": "director",
+}
+
+_FALLBACK_SKILL_SYNONYMS: dict[str, str] = {
+    "gcp": "google cloud", "google cloud platform": "google cloud",
+    "bigquery": "google bigquery", "big query": "google bigquery",
+    "k8s": "kubernetes", "aws": "amazon web services", "azure": "microsoft azure",
+    "ml": "machine learning", "nlp": "natural language processing",
+    "postgres": "postgresql", "pg": "postgresql",
 }
 
 
-def _normalise_seniority(raw: str | None) -> str | None:
+# ── config helpers ────────────────────────────────────────────────────────────
+
+def _get_seniority_ladder(config: dict[str, Any] | None) -> list[str]:
+    """Return the ordered seniority ladder from config, or the built-in fallback."""
+    if config:
+        seniority = config.get("seniority", {})
+        if isinstance(seniority, dict) and seniority.get("ladder"):
+            return list(seniority["ladder"])
+    return _FALLBACK_SENIORITY_LADDER
+
+
+def _get_seniority_aliases(config: dict[str, Any] | None) -> dict[str, str]:
+    """Return the seniority alias map from config, or the built-in fallback."""
+    if config:
+        seniority = config.get("seniority", {})
+        if isinstance(seniority, dict) and seniority.get("aliases"):
+            return {str(k).lower(): str(v).lower() for k, v in seniority["aliases"].items()}
+    return _FALLBACK_SENIORITY_ALIASES
+
+
+def _get_skill_synonyms(config: dict[str, Any] | None) -> dict[str, str]:
+    """Return the skill synonym map from config, or the built-in fallback."""
+    if config:
+        synonyms = config.get("skill_synonyms")
+        if isinstance(synonyms, dict) and synonyms:
+            return {str(k).lower(): str(v).lower() for k, v in synonyms.items()}
+    return _FALLBACK_SKILL_SYNONYMS
+
+
+# ── seniority normalisation ───────────────────────────────────────────────────
+
+def _normalise_seniority(
+    raw: str | None,
+    config: dict[str, Any] | None = None,
+) -> str | None:
     """Map raw seniority string to a canonical ladder value, or None if unknown."""
     if not raw:
         return None
+    ladder = _get_seniority_ladder(config)
+    aliases = _get_seniority_aliases(config)
     lowered = raw.strip().lower()
-    # try alias map first
-    mapped = _SENIORITY_ALIASES.get(lowered, lowered)
-    return mapped if mapped in _SENIORITY_LADDER else None
+    mapped = aliases.get(lowered, lowered)
+    return mapped if mapped in ladder else None
 
 
-def check_seniority(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
+def check_seniority(
+    job: dict[str, Any],
+    prefs: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> bool:
     """Return True if the job seniority is within ±1 step of the target.
 
     Rules:
@@ -74,49 +115,32 @@ def check_seniority(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
     - target - 2 or more → reject (too junior)
     - unknown seniority (None / unrecognised) → pass with warning
     """
+    ladder = _get_seniority_ladder(config)
     target_raw = prefs.get("seniority_target", "")
     job_raw = job.get("seniority")
 
-    target = _normalise_seniority(target_raw)
-    job_seniority = _normalise_seniority(job_raw)
+    target = _normalise_seniority(target_raw, config)
+    job_seniority = _normalise_seniority(job_raw, config)
 
     if target is None:
         logger.warning("Unknown seniority_target '%s' in preferences — skipping check", target_raw)
         return True
-
     if job_seniority is None:
         logger.warning("Job '%s' has unknown seniority '%s' — keeping", job.get("job_url"), job_raw)
-        return True  # do not hard-reject unknown
+        return True
 
-    target_idx = _SENIORITY_LADDER.index(target)
-    job_idx = _SENIORITY_LADDER.index(job_seniority)
-    diff = job_idx - target_idx
-
-    return -1 <= diff <= 1
+    target_idx = ladder.index(target)
+    job_idx = ladder.index(job_seniority)
+    return -1 <= (job_idx - target_idx) <= 1
 
 
-# ── skill synonym map ─────────────────────────────────────────────────────────
+# ── skill canonicalisation ────────────────────────────────────────────────────
 
-_SKILL_SYNONYMS: dict[str, str] = {
-    # canonical form → normalised form (both sides normalised to lower for lookup)
-    "gcp": "google cloud",
-    "google cloud platform": "google cloud",
-    "bigquery": "google bigquery",
-    "big query": "google bigquery",
-    "k8s": "kubernetes",
-    "aws": "amazon web services",
-    "azure": "microsoft azure",
-    "ml": "machine learning",
-    "nlp": "natural language processing",
-    "postgres": "postgresql",
-    "pg": "postgresql",
-}
-
-
-def _canonicalise_skill(skill: str) -> str:
+def _canonicalise_skill(skill: str, config: dict[str, Any] | None = None) -> str:
     """Return the canonical form of a skill name (lower-cased, synonym-resolved)."""
+    synonyms = _get_skill_synonyms(config)
     lower = skill.strip().lower()
-    return _SKILL_SYNONYMS.get(lower, lower)
+    return synonyms.get(lower, lower)
 
 
 # ── individual checks ─────────────────────────────────────────────────────────
@@ -129,8 +153,7 @@ def check_location_type(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
     allowed = [t.lower() for t in prefs.get("location_types", [])]
     if not allowed:
         return True
-    job_location = (job.get("location_type") or "").lower()
-    return job_location in allowed
+    return (job.get("location_type") or "").lower() in allowed
 
 
 def check_contract_type(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
@@ -138,8 +161,7 @@ def check_contract_type(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
     allowed = [t.lower() for t in prefs.get("contract_types", [])]
     if not allowed:
         return True
-    job_contract = (job.get("contract_type") or "").lower()
-    return job_contract in allowed
+    return (job.get("contract_type") or "").lower() in allowed
 
 
 def check_experience_level(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
@@ -149,26 +171,26 @@ def check_experience_level(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
     seniority (LLM-normalised) is the primary signal — handled by check_seniority.
     """
     excluded = [e.lower() for e in prefs.get("exclude_experience_levels", [])]
-    job_level = (job.get("experience_level") or "").lower()
-    return job_level not in excluded
+    return (job.get("experience_level") or "").lower() not in excluded
 
 
-def check_must_have_skills(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
+def check_must_have_skills(
+    job: dict[str, Any],
+    prefs: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> bool:
     """Return True if all must-have skills appear in the job's required_skills.
 
-    Uses the synonym map and case-insensitive comparison before checking overlap.
+    Uses the synonym map (from config or built-in fallback) and case-insensitive
+    comparison before checking overlap.
     """
     must_haves = prefs.get("must_have_skills", [])
     if not must_haves:
         return True
-
     job_skills_canonical = {
-        _canonicalise_skill(s) for s in (job.get("required_skills") or [])
+        _canonicalise_skill(s, config) for s in (job.get("required_skills") or [])
     }
-    for skill in must_haves:
-        if _canonicalise_skill(skill) not in job_skills_canonical:
-            return False
-    return True
+    return all(_canonicalise_skill(skill, config) in job_skills_canonical for skill in must_haves)
 
 
 def check_freshness(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
@@ -180,14 +202,12 @@ def check_freshness(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
     published_at = job.get("published_at")
     if not published_at:
         return True
-
     try:
         if isinstance(published_at, str):
             pub_date = datetime.fromisoformat(published_at.split("T")[0]).replace(tzinfo=timezone.utc)
         else:
-            pub_date = published_at  # assume datetime if not str
-        age_days = (datetime.now(tz=timezone.utc) - pub_date).days
-        return age_days <= max_age
+            pub_date = published_at
+        return (datetime.now(tz=timezone.utc) - pub_date).days <= max_age
     except (ValueError, TypeError):
         logger.warning("Could not parse published_at '%s' — keeping job", published_at)
         return True
@@ -201,27 +221,15 @@ def check_domain_preference(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
     preferred = [d.lower() for d in prefs.get("preferred_domains", [])]
     if not preferred:
         return True
-    job_domain = (job.get("domain") or "").lower()
-    return job_domain in preferred
+    return (job.get("domain") or "").lower() in preferred
 
 
 # ── orchestrator ──────────────────────────────────────────────────────────────
 
-# Maps reason code → check function
-_CHECKS: list[tuple[str, Any]] = [
-    ("seniority_mismatch",        check_seniority),
-    ("location_type_excluded",    check_location_type),
-    ("contract_type_excluded",    check_contract_type),
-    ("experience_level_excluded", check_experience_level),
-    ("must_have_skill_missing",   check_must_have_skills),
-    ("job_too_stale",             check_freshness),
-    ("domain_not_preferred",      check_domain_preference),
-]
-
-
 def apply_rule_filters(
     jobs: list[dict[str, Any]],
     prefs: dict[str, Any],
+    config: dict[str, Any] | None = None,
 ) -> dict[str, list]:
     """Apply all policy checks and return {passed, rejected}.
 
@@ -233,30 +241,37 @@ def apply_rule_filters(
             ]
         }
 
+    config: merged config dict (from load_config). When None, built-in fallbacks apply.
+
     Note: experience_level is used for exclusion only. seniority is the primary signal.
     Conflicts (e.g. experience_level=Entry + seniority=mid) are logged but not auto-rejected.
     """
+    checks: list[tuple[str, Any]] = [
+        ("seniority_mismatch",        lambda j, p: check_seniority(j, p, config)),
+        ("location_type_excluded",    check_location_type),
+        ("contract_type_excluded",    check_contract_type),
+        ("experience_level_excluded", check_experience_level),
+        ("must_have_skill_missing",   lambda j, p: check_must_have_skills(j, p, config)),
+        ("job_too_stale",             check_freshness),
+        ("domain_not_preferred",      check_domain_preference),
+    ]
+
     passed: list[str] = []
     rejected: list[dict[str, Any]] = []
 
     for job in jobs:
         reasons: list[str] = []
-        for reason_code, check_fn in _CHECKS:
+        for reason_code, check_fn in checks:
             if not check_fn(job, prefs):
                 reasons.append(reason_code)
 
-        # Log seniority / experience_level conflicts for analysis (do not auto-reject)
+        # Log seniority / experience_level conflicts (do not auto-reject)
         exp_level = (job.get("experience_level") or "").lower()
-        seniority = _normalise_seniority(job.get("seniority"))
-        if (
-            exp_level in ("entry level", "internship")
-            and seniority not in (None, "entry", "intern")
-        ):
+        seniority = _normalise_seniority(job.get("seniority"), config)
+        if exp_level in ("entry level", "internship") and seniority not in (None, "entry", "intern"):
             logger.info(
                 "Conflict: experience_level='%s', seniority='%s' for job '%s'",
-                job.get("experience_level"),
-                job.get("seniority"),
-                job.get("job_url"),
+                job.get("experience_level"), job.get("seniority"), job.get("job_url"),
             )
 
         if reasons:
@@ -269,10 +284,7 @@ def apply_rule_filters(
 
 # ── integration: persist to BigQuery ─────────────────────────────────────────
 
-def store_filter_results(
-    result: dict[str, list],
-    config: dict[str, Any],
-) -> None:
+def store_filter_results(result: dict[str, list], config: dict[str, Any]) -> None:
     """Insert rule filter results into fitcv.rule_filter_results.
 
     Requires GOOGLE_APPLICATION_CREDENTIALS.
@@ -294,10 +306,8 @@ def store_filter_results(
         rows.append({"job_url": job_url, "passed": True, "reasons": [], "filtered_at": now})
     for item in result.get("rejected", []):
         rows.append({
-            "job_url": item["job_url"],
-            "passed": False,
-            "reasons": item["reasons"],
-            "filtered_at": now,
+            "job_url": item["job_url"], "passed": False,
+            "reasons": item["reasons"], "filtered_at": now,
         })
 
     if rows:

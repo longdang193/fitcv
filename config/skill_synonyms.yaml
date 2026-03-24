@@ -1,0 +1,21 @@
+# Skill synonym map: alias (lowercase) → canonical form (lowercase).
+# Consumed by: rule_filter.py (check_must_have_skills), ranking.py (compute_must_have_match).
+# Both alias and canonical are normalised to lowercase at load time.
+# Add new entries here; no code changes required.
+
+gcp: google cloud
+google cloud platform: google cloud
+bigquery: google bigquery
+big query: google bigquery
+k8s: kubernetes
+aws: amazon web services
+azure: microsoft azure
+ml: machine learning
+nlp: natural language processing
+postgres: postgresql
+pg: postgresql
+airflow: apache airflow
+looker studio: looker
+dbt core: dbt
+spark: apache spark
+kafka: apache kafka
