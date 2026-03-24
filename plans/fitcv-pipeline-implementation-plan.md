@@ -131,6 +131,7 @@ JOB-PROJECT/
 ### Task 1: Project Scaffold & Configuration
 
 **Files:**
+
 - Create: `pyproject.toml`
 - Create: `requirements.txt`
 - Create: `src/fitcv/__init__.py`
@@ -187,6 +188,7 @@ JOB-PROJECT/
   ```bash
   pytest tests/test_config.py -v
   ```
+
   Expected: FAIL — `ModuleNotFoundError: No module named 'fitcv'`
 
 - [ ] **Step 7: Implement `src/fitcv/config.py`**
@@ -229,7 +231,37 @@ JOB-PROJECT/
 
 - [ ] **Step 10: Create `tests/conftest.py`**
 
-  Shared pytest fixtures: `sample_jobs_path`, `config`.
+  Shared fixtures `sample_jobs_path` and `config`, plus an `integration` marker that auto-skips cloud-dependent tests when credentials are absent:
+
+  ```python
+  # tests/conftest.py
+  import os
+  from pathlib import Path
+  import pytest
+
+  def pytest_configure(config):
+      config.addinivalue_line(
+          "markers",
+          "integration: mark test as requiring live GCP credentials (skipped by default)",
+      )
+
+  @pytest.fixture(autouse=True)
+  def skip_integration_without_creds(request):
+      if request.node.get_closest_marker("integration"):
+          if not os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+              pytest.skip("Set GOOGLE_APPLICATION_CREDENTIALS to run integration tests")
+
+  @pytest.fixture
+  def sample_jobs_path() -> Path:
+      return Path(__file__).parent.parent / "data" / "sample_jobs.json"
+
+  @pytest.fixture
+  def config() -> dict:
+      from fitcv.config import load_config
+      return load_config(Path(__file__).parent.parent / ".env.yaml")
+  ```
+
+  **Rule:** any test that calls BigQuery, Vertex AI, or Gemini **must** be decorated with `@pytest.mark.integration`. Pure logic (parsing, normalization, prompt construction, score math) has no marker and runs offline.
 
 - [ ] **Step 11: Commit**
 
@@ -243,6 +275,7 @@ JOB-PROJECT/
 ### Task 2: Ingest Raw Jobs JSON
 
 **Files:**
+
 - Create: `src/fitcv/ingest.py`
 - Create: `tests/test_ingest.py`
 - Create: `assets/bigquery/raw_jobs.sql`
@@ -322,6 +355,7 @@ JOB-PROJECT/
 ### Task 3: Normalize Raw JDs
 
 **Files:**
+
 - Create: `src/fitcv/normalize.py`
 - Create: `tests/test_normalize.py`
 
@@ -398,6 +432,7 @@ JOB-PROJECT/
 ### Task 4: Enrich / Extract Structured JD Fields
 
 **Files:**
+
 - Create: `src/fitcv/enrich.py`
 - Create: `tests/test_enrich.py`
 - Create: `assets/bigquery/structured_jobs.sql`
@@ -496,6 +531,7 @@ JOB-PROJECT/
 ### Task 5: Build Structured Candidate Profile
 
 **Files:**
+
 - Create: `src/fitcv/candidate.py`
 - Create: `tests/test_candidate.py`
 - Create: `data/candidate_profile.yaml`
@@ -606,6 +642,7 @@ JOB-PROJECT/
 ### Task 6: Generate Embeddings
 
 **Files:**
+
 - Create: `src/fitcv/embeddings.py`
 - Create: `tests/test_embeddings.py`
 - Create: `assets/bigquery/job_embeddings.sql`
@@ -613,7 +650,8 @@ JOB-PROJECT/
 
 - [ ] **Step 1: Define embedding tables DDL**
 
-  - `fitcv.job_embeddings` — `job_id STRING`, `chunk_type STRING`, `chunk_text STRING`, `embedding ARRAY<FLOAT64>`, `created_at TIMESTAMP`
+  - `fitcv.job_embeddings` — `job_url STRING`, `chunk_type STRING`, `chunk_text STRING`, `embedding ARRAY<FLOAT64>`, `created_at TIMESTAMP`
+    - **v1 rule:** always store one row with `chunk_type = "job_summary"` per job. This is the single vector used in `VECTOR_SEARCH` for shortlist ranking. Finer-grained chunk rows (`responsibilities`, `required_skills`, etc.) are optional and reserved for future evidence retrieval — do not add them in v1.
   - `fitcv.candidate_embeddings` — `evidence_id STRING`, `evidence_type STRING`, `chunk_text STRING`, `embedding ARRAY<FLOAT64>`, `created_at TIMESTAMP`
 
 - [ ] **Step 2: Write failing tests**
@@ -622,14 +660,17 @@ JOB-PROJECT/
   # tests/test_embeddings.py
   from fitcv.embeddings import chunk_jd_by_section, build_candidate_chunks
 
-  def test_chunk_jd_by_section_returns_named_chunks():
+  def test_chunk_jd_by_section_returns_summary_chunk():
       structured_jd = {
           "title": "Data Engineer",
           "responsibilities": ["Build pipelines"],
           "required_skills": ["SQL"],
       }
       chunks = chunk_jd_by_section(structured_jd)
-      assert any(c["chunk_type"] == "responsibilities" for c in chunks)
+      # v1: must always produce exactly one job_summary chunk for VECTOR_SEARCH ranking
+      summary_chunks = [c for c in chunks if c["chunk_type"] == "job_summary"]
+      assert len(summary_chunks) == 1
+      assert "Data Engineer" in summary_chunks[0]["chunk_text"]
 
   def test_build_candidate_chunks_creates_project_chunk():
       profile = {"projects": [{"name": "GA4 Pipeline", "skills": ["SQL"], "business_value": "analytics"}]}
@@ -643,11 +684,12 @@ JOB-PROJECT/
 - [ ] **Step 4: Implement `src/fitcv/embeddings.py`**
 
   Functions:
-  - `chunk_jd_by_section(structured_jd) -> list[dict]` — semantic chunks (summary, responsibilities, skills, etc.)
+  - `build_job_summary_text(structured_jd) -> str` — concatenate title + required_skills + responsibilities into one searchable string per job (this is what gets embedded for v1 ranking)
+  - `chunk_jd_by_section(structured_jd) -> list[dict]` — returns list containing exactly one `{chunk_type: "job_summary", chunk_text: ...}` row; reserved for future multi-chunk expansion
   - `build_candidate_chunks(profile) -> list[dict]` — chunks by project/role/achievement/skill-evidence
-  - `generate_embedding(text, config) -> list[float]` — call Vertex AI embedding model
-  - `embed_and_store_jobs(structured_jobs, config) -> int` — batch embed + insert
-  - `embed_and_store_candidate(profile, config) -> int` — batch embed + insert
+  - `generate_embedding(text, config) -> list[float]` — call Vertex AI embedding model (`@pytest.mark.integration`)
+  - `embed_and_store_jobs(structured_jobs, config) -> int` — batch embed + insert (`@pytest.mark.integration`)
+  - `embed_and_store_candidate(profile, config) -> int` — batch embed + insert (`@pytest.mark.integration`)
 
 - [ ] **Step 5: Run test — expect PASS**
 
@@ -663,6 +705,7 @@ JOB-PROJECT/
 ### Task 7: Rule-Based Filtering
 
 **Files:**
+
 - Create: `src/fitcv/rule_filter.py`
 - Create: `tests/test_rule_filter.py`
 - Create: `assets/bigquery/rule_filter_results.sql`
@@ -735,6 +778,7 @@ JOB-PROJECT/
 ### Task 8: Semantic Retrieval with VECTOR_SEARCH
 
 **Files:**
+
 - Create: `src/fitcv/vector_search.py`
 - Create: `tests/test_vector_search.py`
 - Create: `assets/bigquery/vector_shortlist.sql`
@@ -779,6 +823,7 @@ JOB-PROJECT/
 ### Task 9: AI.SCORE Reranking
 
 **Files:**
+
 - Create: `src/fitcv/ai_score.py`
 - Create: `tests/test_ai_score.py`
 - Create: `assets/bigquery/ai_score_results.sql`
@@ -807,11 +852,13 @@ JOB-PROJECT/
 
 - [ ] **Step 3: Implement `src/fitcv/ai_score.py`**
 
+  > **Scope constraint:** `AI.SCORE` is for **shortlist reranking only** — not for scoring the full job universe. Only run it on the top 20–50 jobs returned by `VECTOR_SEARCH` after rule filtering. This keeps cost and latency under control. The `top_n` parameter must default to `50` and be enforced via a `LIMIT` clause in the SQL.
+
   Functions:
-  - `build_scoring_prompt(jd_summary, candidate_summary) -> str`
-  - `build_ai_score_query(shortlist_table, model) -> str` — BigQuery AI.SCORE or ML.GENERATE_TEXT SQL
-  - `run_ai_scoring(config) -> list[dict]` — execute and parse scores
-  - `store_ai_scores(scores, config) -> None`
+  - `build_scoring_prompt(jd_summary, candidate_summary) -> str` — pure function, no marker needed
+  - `build_ai_score_query(shortlist_table, model, top_n: int = 50) -> str` — BigQuery AI.SCORE or ML.GENERATE_TEXT SQL; enforces `LIMIT top_n` to cap cost
+  - `run_ai_scoring(config, top_n: int = 50) -> list[dict]` — execute on at most `top_n` shortlisted jobs (`@pytest.mark.integration`)
+  - `store_ai_scores(scores, config) -> None` (`@pytest.mark.integration`)
 
 - [ ] **Step 4: Run test — expect PASS**
 
@@ -827,6 +874,7 @@ JOB-PROJECT/
 ### Task 10: Composite Final Ranking
 
 **Files:**
+
 - Create: `src/fitcv/ranking.py`
 - Create: `tests/test_ranking.py`
 - Create: `assets/bigquery/final_ranking.sql`
@@ -851,11 +899,11 @@ JOB-PROJECT/
 
   def test_rank_jobs_sorts_descending():
       jobs = [
-          {"job_id": "a", "final_score": 0.5},
-          {"job_id": "b", "final_score": 0.9},
+          {"job_url": "https://linkedin.com/jobs/view/1", "final_score": 0.5},
+          {"job_url": "https://linkedin.com/jobs/view/2", "final_score": 0.9},
       ]
       ranked = rank_jobs(jobs, top_n=2)
-      assert ranked[0]["job_id"] == "b"
+      assert ranked[0]["job_url"] == "https://linkedin.com/jobs/view/2"
   ```
 
 - [ ] **Step 2: Run test — expect FAIL**
@@ -869,6 +917,7 @@ JOB-PROJECT/
   - `store_final_ranking(ranked, config) -> None`
 
   Weight formula:
+
   ```text
   final_score =
       0.40 * ai_score
@@ -895,6 +944,7 @@ JOB-PROJECT/
 ### Task 11: Per-Job Evidence Retrieval
 
 **Files:**
+
 - Create: `src/fitcv/evidence.py`
 - Create: `tests/test_evidence.py`
 - Create: `assets/bigquery/evidence_retrieval.sql`
@@ -926,7 +976,7 @@ JOB-PROJECT/
   Functions:
   - `score_evidence_item(item, jd_skills) -> float` — skill overlap ratio
   - `retrieve_evidence(profile, jd_skills, top_k) -> list[dict]` — rank and select best projects, achievements, experience bullets
-  - `store_evidence_selection(job_id, evidence, config) -> None`
+  - `store_evidence_selection(job_url, evidence, config) -> None` (`@pytest.mark.integration`)
 
 - [ ] **Step 4: Run test — expect PASS**
 
@@ -942,6 +992,7 @@ JOB-PROJECT/
 ### Task 12: Gap Analysis
 
 **Files:**
+
 - Create: `src/fitcv/gap_analysis.py`
 - Create: `tests/test_gap_analysis.py`
 - Create: `assets/bigquery/gap_analysis.sql`
@@ -989,6 +1040,7 @@ JOB-PROJECT/
 ### Task 13: Template-Based CV Generation
 
 **Files:**
+
 - Create: `src/fitcv/cv_generator.py`
 - Create: `tests/test_cv_generator.py`
 - Create: `templates/cv_template.md`
@@ -996,6 +1048,7 @@ JOB-PROJECT/
 - [ ] **Step 1: Write `templates/cv_template.md`**
 
   Jinja2 template:
+
   ```markdown
   # {{ candidate.name }}
   **{{ headline }}**
@@ -1068,6 +1121,7 @@ JOB-PROJECT/
 ### Task 14: Validation
 
 **Files:**
+
 - Create: `src/fitcv/validator.py`
 - Create: `tests/test_validator.py`
 
@@ -1099,7 +1153,12 @@ JOB-PROJECT/
   - `validate_output(cv_text, required_sections) -> dict` — check section presence, length, format
   - `check_length_constraints(cv_text, max_pages=2) -> bool`
   - `check_chronology(experiences) -> list[str]` — verify date ordering
-  - `run_all_validations(cv_text, profile, config) -> dict` — aggregate all checks
+  - `check_employer_grounding(cv_text, known_employers) -> list[str]` — every employer in output must appear in `profile["experiences"]`
+  - `check_project_existence(cv_text, known_projects) -> list[str]` — every project referenced must exist in `profile["projects"]`
+  - `check_skill_provenance(cv_text, candidate_skills) -> list[str]` — every skill claimed must be in the candidate knowledge base or selected evidence
+  - `run_all_validations(cv_text, profile, config) -> dict` — aggregate all checks; returns `{valid, missing_sections, grounding_violations, skill_violations}`
+
+  > **Note:** the validator is **basic structural + grounding validation**, not a full hallucination guard. It catches invented employers, non-existent projects, and out-of-scope skills. It does not catch subtle factual errors in bullet text.
 
 - [ ] **Step 4: Run test — expect PASS**
 
@@ -1107,7 +1166,7 @@ JOB-PROJECT/
 
   ```bash
   git add -A
-  git commit -m "feat(fitcv): CV validation with section and constraint checks"
+  git commit -m "feat(fitcv): CV validation with section, grounding, and skill provenance checks"
   ```
 
 ---
@@ -1115,6 +1174,7 @@ JOB-PROJECT/
 ### Task 15: Versioning & Application Tracker
 
 **Files:**
+
 - Create: `src/fitcv/tracker.py`
 - Create: `tests/test_tracker.py`
 - Create: `assets/bigquery/cv_versions.sql`
@@ -1123,8 +1183,8 @@ JOB-PROJECT/
 
 - [ ] **Step 1: Define BigQuery tables**
 
-  - `fitcv.cv_versions` — `version_id`, `job_id`, `enrichment_version`, `vector_rank`, `ai_score`, `final_score`, `evidence_ids[]`, `prompt_version`, `cv_markdown`, `gap_summary`, `fit_classification`, `generated_at`
-  - `fitcv.application_tracker` — `job_id`, `version_id`, `status` (applied / not_applied / interview / rejected / no_response), `cv_version_used`, `notes`, `updated_at`
+  - `fitcv.cv_versions` — `version_id`, `job_url`, `enrichment_version`, `vector_rank`, `ai_score`, `final_score`, `evidence_ids[]`, `prompt_version`, `cv_markdown`, `gap_summary`, `fit_classification`, `generated_at`
+  - `fitcv.application_tracker` — `job_url`, `version_id`, `status` (applied / not_applied / interview / rejected / no_response), `cv_version_used`, `notes`, `updated_at`
 
 - [ ] **Step 2: Write failing tests**
 
@@ -1134,7 +1194,7 @@ JOB-PROJECT/
 
   def test_create_cv_version_record():
       record = create_cv_version_record(
-          job_id="abc",
+          job_url="https://linkedin.com/jobs/view/123",
           enrichment_version="v1",
           vector_rank=5,
           ai_score=0.85,
@@ -1145,12 +1205,12 @@ JOB-PROJECT/
           gap_summary={"matched": ["SQL"]},
           fit_classification="strong",
       )
-      assert record["job_id"] == "abc"
+      assert record["job_url"] == "https://linkedin.com/jobs/view/123"
       assert "version_id" in record
       assert "generated_at" in record
 
   def test_update_application_status():
-      record = update_application_status(job_id="abc", status="applied")
+      record = update_application_status(job_url="https://linkedin.com/jobs/view/123", status="applied")
       assert record["status"] == "applied"
   ```
 
@@ -1160,9 +1220,9 @@ JOB-PROJECT/
 
   Functions:
   - `create_cv_version_record(**kwargs) -> dict` — build version record with UUID + timestamp
-  - `store_cv_version(record, config) -> None` — insert into `fitcv.cv_versions`
-  - `update_application_status(job_id, status, notes="") -> dict`
-  - `store_application_status(record, config) -> None`
+  - `store_cv_version(record, config) -> None` — insert into `fitcv.cv_versions` (`@pytest.mark.integration`)
+  - `update_application_status(job_url, status, notes="") -> dict`
+  - `store_application_status(record, config) -> None` (`@pytest.mark.integration`)
 
 - [ ] **Step 5: Run test — expect PASS**
 
@@ -1180,6 +1240,7 @@ JOB-PROJECT/
 ### Task 16: Full Pipeline Orchestrator
 
 **Files:**
+
 - Create: `src/fitcv/pipeline.py`
 
 - [ ] **Step 1: Implement `src/fitcv/pipeline.py`**
@@ -1189,24 +1250,24 @@ JOB-PROJECT/
   ```python
   def run_pipeline(jobs_path: str, config_path: str = ".env.yaml") -> dict:
       config = load_config(config_path)
-      # Layer 1
+      # Layer 1 — ingest + normalize + enrich
       raw_jobs = parse_jobs_file(jobs_path)
       normalized = normalize_batch(raw_jobs)
-      load_to_bigquery(prepare_raw_rows(normalized, source="manual"), config)
+      load_to_bigquery(prepare_raw_rows(normalized), config)
       enriched = enrich_batch(normalized, config)
       load_structured_jobs(enriched, config)
-      # Layer 2
+      # Layer 2 — candidate profile
       profile = load_profile_yaml("data/candidate_profile.yaml")
       load_candidate_to_bigquery(profile, config)
-      # Layer 3
-      embed_and_store_jobs(enriched, config)
-      embed_and_store_candidate(profile, config)
+      # Layer 3 — rule filter FIRST, then embed eligible jobs only, then vector shortlist
       filtered = apply_rule_filters(enriched, profile["preferences"])
+      embed_and_store_jobs(filtered, config)          # embed rule-passing jobs only
+      embed_and_store_candidate(profile, config)
       shortlist = run_vector_search(config, top_n=50)
-      ai_scores = run_ai_scoring(config)
+      ai_scores = run_ai_scoring(config, top_n=50)   # cap at 50 per scope constraint
       ranked = rank_jobs(ai_scores, top_n=10)
       store_final_ranking(ranked, config)
-      # Layer 4
+      # Layer 4 — evidence, CV generation, validation, versioning
       results = []
       for job in ranked:
           evidence = retrieve_evidence(profile, job["required_skills"])
@@ -1216,11 +1277,15 @@ JOB-PROJECT/
               continue
           cv = generate_cv(job, evidence, gap, profile, config)
           validation = run_all_validations(cv, profile, config)
-          version = create_cv_version_record(...)
+          version = create_cv_version_record(
+              job_url=job["job_url"], ...  # canonical business key
+          )
           store_cv_version(version, config)
-          results.append({"job_id": job["job_id"], "fit": fit, "cv": cv, "gap": gap})
+          results.append({"job_url": job["job_url"], "fit": fit, "cv": cv, "gap": gap})
       return {"total_jobs": len(raw_jobs), "ranked": len(ranked), "cvs_generated": len(results)}
   ```
+
+  > **Ordering invariant:** rule filter **must** run before `embed_and_store_jobs` so only eligible jobs are embedded and searched. Embedding all jobs and filtering after is wasteful and means structurally excluded jobs compete in the vector shortlist.
 
 - [ ] **Step 2: Commit**
 
