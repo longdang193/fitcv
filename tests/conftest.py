@@ -28,6 +28,12 @@ def sample_jobs_path() -> Path:
 
 
 @pytest.fixture
+def sample_profile_path() -> Path:
+    """Absolute path to the candidate profile YAML fixture."""
+    return Path(__file__).parent.parent / "data" / "candidate_profile.yaml"
+
+
+@pytest.fixture
 def config() -> dict[str, object]:
     """Loaded project config from .env.yaml."""
     from fitcv.config import load_config

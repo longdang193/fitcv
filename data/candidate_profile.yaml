@@ -1,0 +1,133 @@
+# Candidate profile seed file for FitCV pipeline.
+# Fill in your actual details — this is the source of truth for CV generation.
+
+name: "Your Name"
+headline: "Data Engineer"
+summary: >
+  Data Engineer with 3+ years of experience building robust data pipelines,
+  analytics platforms, and cloud-native ETL solutions on GCP and BigQuery.
+  Passionate about data quality, automation, and enabling analytics at scale.
+
+experiences:
+  - id: "exp_1"
+    role: "Data Engineer"
+    company: "Acme Analytics GmbH"
+    location: "Berlin, Germany"
+    start: "2023-01"
+    end: "present"
+    bullets:
+      - text: "Built GA4 to BigQuery pipeline processing 2M daily events with dbt transformations."
+        skills: ["BigQuery", "SQL", "dbt", "GA4", "ETL"]
+        measurable_impact: "Reduced reporting latency by 40%"
+      - text: "Designed and implemented a Pub/Sub → Dataflow → BigQuery streaming architecture."
+        skills: ["Pub/Sub", "Dataflow", "BigQuery", "Python", "Apache Beam"]
+        measurable_impact: "Enabled real-time dashboard updates under 30s"
+      - text: "Automated data quality checks with Great Expectations, integrating into CI/CD."
+        skills: ["Great Expectations", "Python", "CI/CD", "GitHub Actions"]
+        measurable_impact: ""
+
+  - id: "exp_2"
+    role: "Junior Data Analyst"
+    company: "Startup Berlin"
+    location: "Berlin, Germany"
+    start: "2021-06"
+    end: "2022-12"
+    bullets:
+      - text: "Built self-service Looker dashboards for product KPI monitoring."
+        skills: ["Looker", "SQL", "LookML", "BigQuery"]
+        measurable_impact: "Reduced ad-hoc reporting requests by 60%"
+      - text: "Wrote Python ETL scripts to consolidate CRM and marketing data into BigQuery."
+        skills: ["Python", "SQL", "BigQuery", "ETL"]
+        measurable_impact: ""
+
+projects:
+  - id: "proj_1"
+    name: "FitCV Pipeline"
+    skills: ["BigQuery", "Python", "Vertex AI", "Gemini", "dbt", "SQL"]
+    business_value: "End-to-end AI pipeline for job matching and CV generation using BigQuery ML"
+    evidence: "https://github.com/yourusername/fitcv"
+
+  - id: "proj_2"
+    name: "GA4 to BigQuery Analytics Platform"
+    skills: ["BigQuery", "SQL", "ETL", "dbt", "Google Analytics"]
+    business_value: "Reusable analytics tables enabling self-service reporting"
+    evidence: "https://github.com/yourusername/ga4-bq"
+
+skills:
+  - name: "SQL"
+    level: "advanced"
+    years: 4
+    evidence_refs: ["exp_1", "exp_2", "proj_1", "proj_2"]
+
+  - name: "BigQuery"
+    level: "advanced"
+    years: 3
+    evidence_refs: ["exp_1", "exp_2", "proj_1", "proj_2"]
+
+  - name: "Python"
+    level: "advanced"
+    years: 3
+    evidence_refs: ["exp_1", "exp_2", "proj_1"]
+
+  - name: "dbt"
+    level: "intermediate"
+    years: 2
+    evidence_refs: ["exp_1", "proj_2"]
+
+  - name: "Vertex AI"
+    level: "intermediate"
+    years: 1
+    evidence_refs: ["proj_1"]
+
+  - name: "Pub/Sub"
+    level: "intermediate"
+    years: 1
+    evidence_refs: ["exp_1"]
+
+  - name: "Dataflow"
+    level: "intermediate"
+    years: 1
+    evidence_refs: ["exp_1"]
+
+  - name: "Looker"
+    level: "intermediate"
+    years: 2
+    evidence_refs: ["exp_2"]
+
+  - name: "GitHub Actions"
+    level: "intermediate"
+    years: 2
+    evidence_refs: ["exp_1"]
+
+achievements:
+  - id: "ach_1"
+    text: "Reduced reporting latency by 40% by rebuilding GA4 → BigQuery pipeline with dbt."
+    category: "performance"
+    evidence_refs: ["exp_1"]
+
+  - id: "ach_2"
+    text: "Enabled real-time dashboard updates under 30s via Pub/Sub → Dataflow streaming."
+    category: "performance"
+    evidence_refs: ["exp_1"]
+
+  - id: "ach_3"
+    text: "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards."
+    category: "productivity"
+    evidence_refs: ["exp_2"]
+
+education:
+  - degree: "B.Sc. Computer Science"
+    institution: "Technical University Berlin"
+    year: 2021
+
+certifications:
+  - name: "Google Professional Data Engineer"
+    issuer: "Google"
+    year: 2023
+
+preferences:
+  location_types: ["remote", "hybrid"]
+  domains: ["data_engineering", "analytics", "data_science"]
+  seniority_target: "mid"
+  exclude_contract_types: ["Internship"]
+  exclude_experience_levels: ["Internship", "Entry level"]
