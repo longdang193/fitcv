@@ -911,6 +911,7 @@ JOB-PROJECT/
 
   Functions:
   - `build_job_summary_text(structured_jd) -> str` — produces a **deterministic labelled-section string** for embedding. Format:
+
     ```
     Title: <title>
     Required skills: <comma-joined required_skills>
@@ -919,14 +920,16 @@ JOB-PROJECT/
     Seniority: <seniority>
     Job family: <job_family>
     ```
+
     Structured text (not free concatenation) gives better embedding quality.
   - `build_job_summary_chunk(structured_jd) -> list[dict]` — returns a list containing **exactly one** `{"chunk_type": "job_summary", "chunk_text": ...}` row using `build_job_summary_text`; reserved for future multi-chunk expansion. *Renamed from `chunk_jd_by_section` for clarity.*
   - `build_candidate_chunks(profile) -> list[dict]` — v1 granularity:
     - **one chunk per project** (`evidence_type = "project"`)
     - **one chunk per experience bullet** (`evidence_type = "experience_bullet"`)
     - **one chunk per achievement** (`evidence_type = "achievement"`)
-    
+
     Each chunk has this shape:
+
     ```python
     {
         "evidence_id":   "proj_1",          # stable ID from YAML
@@ -935,6 +938,7 @@ JOB-PROJECT/
         "chunk_text":    "...",              # human-readable text for embedding
     }
     ```
+
   - `generate_embedding(text, config) -> list[float]` — call Vertex AI `text-embedding-005` (`@pytest.mark.integration`)
   - `embed_and_store_jobs(structured_jobs, config) -> int` — batch embed + insert into `job_embeddings` (`@pytest.mark.integration`)
   - `embed_and_store_candidate(profile, config) -> int` — batch embed + insert into `candidate_embeddings` (`@pytest.mark.integration`)
@@ -958,59 +962,131 @@ JOB-PROJECT/
 - Create: `tests/test_rule_filter.py`
 - Create: `assets/bigquery/rule_filter_results.sql`
 
+> **v1 data contract:**
+> - **Input:** list of structured job dicts + candidate preferences dict
+> - **Output:** `{"passed": [job_url, ...], "rejected": [{"job_url": ..., "reasons": [...]}]}`
+> - The rejection reason list is used for debugging, feedback loops, and tracker tables.
+
 - [ ] **Step 1: Write failing tests**
 
   ```python
   # tests/test_rule_filter.py
-  from fitcv.rule_filter import apply_rule_filters
+  from fitcv.rule_filter import apply_rule_filters, check_seniority
 
-  def test_filters_out_seniority_mismatch():
-      jobs = [
-          {"job_url": "url1", "seniority": "senior", "location_type": "remote",
-           "contract_type": "Full-time", "experience_level": "Mid-Senior level", "required_skills": ["SQL"]},
-          {"job_url": "url2", "seniority": "mid", "location_type": "remote",
-           "contract_type": "Full-time", "experience_level": "Entry level", "required_skills": ["SQL"]},
-      ]
-      prefs = {"seniority_target": "mid", "location_types": ["remote"], "must_have_skills": [],
-               "contract_types": ["Full-time"], "exclude_experience_levels": ["Internship"]}
+  # ── return structure ──
+  def test_apply_rule_filters_returns_passed_and_rejected():
+      """Return value must always be {passed, rejected} dicts, never a flat list."""
+      jobs = [{"job_url": "url1", "seniority": "senior", "location_type": "remote",
+               "contract_type": "Full-time", "experience_level": "Mid-Senior level",
+               "required_skills": ["SQL"], "published_at": "2026-03-01", "domain": "fintech"}]
+      prefs = {"seniority_target": "mid", "location_types": ["remote"],
+               "contract_types": ["Full-time"], "exclude_experience_levels": ["Internship"],
+               "must_have_skills": [], "preferred_domains": [], "max_age_days": 30}
       result = apply_rule_filters(jobs, prefs)
-      assert len(result) == 1
-      assert result[0]["job_url"] == "url2"
+      assert "passed" in result and "rejected" in result
 
-  def test_filters_out_internships():
-      jobs = [
-          {"job_url": "url1", "seniority": "mid", "location_type": "remote",
-           "contract_type": "Internship", "experience_level": "Internship", "required_skills": ["SQL"]},
-          {"job_url": "url2", "seniority": "mid", "location_type": "remote",
-           "contract_type": "Full-time", "experience_level": "Entry level", "required_skills": ["SQL"]},
-      ]
-      prefs = {"seniority_target": "mid", "location_types": ["remote"], "must_have_skills": [],
-               "contract_types": ["Full-time", "Part-time"], "exclude_experience_levels": ["Internship"]}
+  def test_rejected_jobs_include_reasons():
+      """Each rejected job must include a non-empty reasons list."""
+      jobs = [{"job_url": "url1", "seniority": "senior", "location_type": "remote",
+               "contract_type": "Full-time", "experience_level": "Mid-Senior level",
+               "required_skills": ["SQL"], "published_at": "2026-03-01", "domain": "fintech"}]
+      prefs = {"seniority_target": "mid", "location_types": ["remote"],
+               "contract_types": ["Full-time"], "exclude_experience_levels": ["Internship"],
+               "must_have_skills": [], "preferred_domains": [], "max_age_days": 30}
       result = apply_rule_filters(jobs, prefs)
-      assert len(result) == 1
-      assert result[0]["job_url"] == "url2"
+      assert len(result["rejected"]) > 0
+      assert all(len(r["reasons"]) > 0 for r in result["rejected"])
+
+  # ── seniority ladder ──
+  def test_seniority_ladder_rejects_senior_for_mid_target():
+      """target=mid, job=senior → reject (one level above)."""
+      job = {"seniority": "senior"}
+      assert not check_seniority(job, {"seniority_target": "mid"})
+
+  def test_seniority_ladder_accepts_mid_for_mid_target():
+      job = {"seniority": "mid"}
+      assert check_seniority(job, {"seniority_target": "mid"})
+
+  def test_seniority_unknown_keeps_with_flag():
+      """unknown seniority → keep (return True) but log a warning, not immediate reject."""
+      job = {"seniority": None}
+      assert check_seniority(job, {"seniority_target": "mid"})  # keep, not reject
+
+  # ── canonical skill matching ──
+  def test_must_have_skills_synonym_match():
+      """GCP must match Google Cloud via synonym map."""
+      from fitcv.rule_filter import check_must_have_skills
+      job = {"required_skills": ["Google Cloud"]}
+      prefs = {"must_have_skills": ["GCP"]}
+      assert check_must_have_skills(job, prefs)  # synonym resolves
+
+  # ── additional filters ──
+  def test_filters_out_excluded_contract_type():
+      from fitcv.rule_filter import apply_rule_filters
+      jobs = [{"job_url": "url1", "seniority": "mid", "location_type": "remote",
+               "contract_type": "Internship", "experience_level": "Internship",
+               "required_skills": [], "published_at": "2026-03-01", "domain": "fintech"}]
+      prefs = {"seniority_target": "mid", "location_types": ["remote"],
+               "contract_types": ["Full-time"], "exclude_experience_levels": ["Internship"],
+               "must_have_skills": [], "preferred_domains": [], "max_age_days": 30}
+      result = apply_rule_filters(jobs, prefs)
+      assert len(result["passed"]) == 0
+      assert any("contract_type" in r["reasons"][0] for r in result["rejected"])
 
   def test_passes_when_no_filters_violated():
       jobs = [{"job_url": "url1", "seniority": "mid", "location_type": "remote",
-               "contract_type": "Full-time", "experience_level": "Entry level", "required_skills": ["SQL"]}]
-      prefs = {"seniority_target": "mid", "location_types": ["remote"], "must_have_skills": ["SQL"],
-               "contract_types": ["Full-time"], "exclude_experience_levels": ["Internship"]}
+               "contract_type": "Full-time", "experience_level": "Entry level",
+               "required_skills": ["SQL"], "published_at": "2026-03-01", "domain": "fintech"}]
+      prefs = {"seniority_target": "mid", "location_types": ["remote"],
+               "contract_types": ["Full-time"], "exclude_experience_levels": ["Internship"],
+               "must_have_skills": ["SQL"], "preferred_domains": [], "max_age_days": 30}
       result = apply_rule_filters(jobs, prefs)
-      assert len(result) == 1
+      assert len(result["passed"]) == 1
   ```
 
 - [ ] **Step 2: Run test — expect FAIL**
 
 - [ ] **Step 3: Implement `src/fitcv/rule_filter.py`**
 
+  > **Seniority ladder** (ordered, lower index = more junior):
+  > `["intern", "entry", "associate", "mid", "senior", "lead", "manager", "director"]`
+  >
+  > **Seniority matching rules:**
+  > - target ladder position ±1 step → **pass**
+  > - target ladder position +2 or more above → **reject** (too senior)
+  > - target ladder position -2 or more below → **reject** (too junior)
+  > - `seniority = None` or unknown → **pass** (keep with warning, do not hard-reject)
+  >
+  > **`experience_level` vs `seniority` hierarchy:**
+  > - `seniority` (LLM-normalized) is the **primary** filter signal
+  > - `experience_level` (raw LinkedIn label) is used only for **exclusion** (e.g. `exclude_experience_levels = ["Internship"]`)
+  > - Conflicts (`experience_level=Entry` + `seniority=mid` + `years_experience_min=5`) should be logged but not auto-rejected
+  >
+  > **Skill canonicalization (v1 synonym map):**
+  > A curated dict maps common aliases before comparison:
+  > `{"GCP": "Google Cloud", "BigQuery": "Google BigQuery", "K8s": "Kubernetes", ...}`
+  > Do not rely on raw string overlap only.
+
+  **Return contract:**
+  ```python
+  {
+      "passed": ["url1", "url3", ...],       # job_urls that passed all rules
+      "rejected": [
+          {"job_url": "url2", "reasons": ["seniority_mismatch", "contract_type_excluded"]}
+      ]
+  }
+  ```
+
   Functions:
-  - `check_seniority(job, prefs) -> bool`
-  - `check_location(job, prefs) -> bool`
-  - `check_contract_type(job, prefs) -> bool` — filter by `contract_type` (leverages LinkedIn scraper field)
-  - `check_experience_level(job, prefs) -> bool` — filter by `experience_level` (leverages LinkedIn scraper field)
-  - `check_must_have_skills(job, prefs) -> bool`
-  - `apply_rule_filters(jobs, prefs) -> list[dict]` — compose all checks
-  - `store_filter_results(passed, rejected, config) -> None` — log to BQ
+  - `check_seniority(job, prefs) -> bool` — uses the seniority ladder, passes unknown
+  - `check_location_type(job, prefs) -> bool`
+  - `check_contract_type(job, prefs) -> bool`
+  - `check_experience_level(job, prefs) -> bool` — exclusion only (LinkedIn label)
+  - `check_must_have_skills(job, prefs) -> bool` — uses synonym map before comparison
+  - `check_freshness(job, prefs) -> bool` — `published_at` within `prefs["max_age_days"]` (default 30)
+  - `check_domain_preference(job, prefs) -> bool` — pass when `preferred_domains` is empty; reject if job domain not in list
+  - `apply_rule_filters(jobs, prefs) -> dict` — composes all checks, returns `{passed, rejected}`
+  - `store_filter_results(result, config) -> None` — log passed/rejected to BQ (`@pytest.mark.integration`)
 
 - [ ] **Step 4: Run test — expect PASS**
 
@@ -1018,7 +1094,7 @@ JOB-PROJECT/
 
   ```bash
   git add -A
-  git commit -m "feat(fitcv): rule-based job filtering with contract type and experience level"
+  git commit -m "feat(fitcv): rule-based filtering with seniority ladder, rejection reasons, synonym map"
   ```
 
 ---
@@ -1031,44 +1107,87 @@ JOB-PROJECT/
 - Create: `tests/test_vector_search.py`
 - Create: `assets/bigquery/vector_shortlist.sql`
 
-- [ ] **Step 1: Write failing tests**
+> **v1 retrieval design (Option A — one candidate summary embedding):**
+> Build one candidate query embedding from: headline + top skills + target role family (from preferences).
+> Match that single vector against `job_embeddings` where `chunk_type = "job_summary"`.
+> Restrict the search universe to `job_url IN (SELECT job_url FROM rule_filter_results WHERE passed = TRUE)`.
+> Option B (multi-evidence aggregation) is deferred to v2.
+
+> **v1 data contract:**
+> - **Input:** candidate query text + list of passed `job_url`s from Task 7
+> - **Output:** rows in `fitcv.vector_shortlist` with schema below
+
+> **`vector_shortlist` schema:**
+> | Column | Type | Description |
+> |--------|------|-------------|
+> | `job_url` | STRING | FK → structured_jobs |
+> | `vector_rank` | INT64 | Rank within this retrieval run (1 = most similar) |
+> | `vector_similarity` | FLOAT64 | Cosine similarity score from VECTOR_SEARCH |
+> | `retrieval_strategy` | STRING | `"job_summary_v1"` for v1 Option A |
+> | `retrieved_at` | TIMESTAMP | |
+
+- [ ] **Step 1: Define `vector_shortlist` DDL** in `assets/bigquery/vector_shortlist.sql`
+
+- [ ] **Step 2: Write failing tests**
 
   ```python
   # tests/test_vector_search.py
-  from fitcv.vector_search import build_vector_search_query
+  from fitcv.vector_search import build_vector_search_query, build_candidate_query_text
 
-  def test_build_vector_search_query_contains_required_elements():
-      query = build_vector_search_query(
-          candidate_table="fitcv.candidate_embeddings",
-          job_table="fitcv.job_embeddings",
-          top_n=50,
-      )
+  def test_build_candidate_query_text_uses_headline_and_skills():
+      profile = {
+          "headline": "Data Engineer",
+          "skills": [{"name": "SQL"}, {"name": "Python"}],
+          "preferences": {"domains": ["data_engineering"]},
+      }
+      text = build_candidate_query_text(profile)
+      assert "Data Engineer" in text
+      assert "SQL" in text
+
+  def test_build_vector_search_query_targets_job_summary_chunk():
+      """Query must filter to chunk_type = job_summary, not all embeddings."""
+      query = build_vector_search_query(top_n=50, passed_job_urls=["url1", "url2"])
       assert "VECTOR_SEARCH" in query
-      assert "fitcv.job_embeddings" in query
-      assert "TOP 50" in query or "top_k => 50" in query
+      assert "job_summary" in query   # must filter chunk_type
+      assert "50" in query             # top_n must appear
+
+  def test_build_vector_search_query_filters_to_passed_universe():
+      """Query must restrict to rule-filtered job universe, not full job_embeddings table."""
+      query = build_vector_search_query(top_n=50, passed_job_urls=["url1", "url2"])
+      # The query must reference the passed universe (subquery or temp table)
+      assert "url1" in query or "rule_filter_results" in query or "passed" in query.lower()
+
+  def test_build_vector_search_query_outputs_job_url():
+      query = build_vector_search_query(top_n=50, passed_job_urls=["url1"])
+      assert "job_url" in query
   ```
 
-- [ ] **Step 2: Run test — expect FAIL**
+- [ ] **Step 3: Run test — expect FAIL**
 
-- [ ] **Step 3: Implement `src/fitcv/vector_search.py`**
+- [ ] **Step 4: Implement `src/fitcv/vector_search.py`**
 
   Functions:
-  - `build_vector_search_query(candidate_table, job_table, top_n) -> str` — BigQuery VECTOR_SEARCH SQL
-  - `run_vector_search(config, top_n=50) -> list[dict]` — execute and return shortlist
-  - `store_shortlist(shortlist, config) -> None` — insert into `fitcv.vector_shortlist`
+  - `build_candidate_query_text(profile) -> str` — builds the single candidate query string: `headline + top N skills + preferred domains` (deterministic, no embedding call)
+  - `build_vector_search_query(top_n, passed_job_urls) -> str` — BigQuery `VECTOR_SEARCH` SQL that:
+    - matches against `fitcv.job_embeddings` WHERE `chunk_type = 'job_summary'`
+    - restricts to `job_url IN (passed_job_urls)` (the rule-filtered universe)
+    - returns `job_url`, `distance` (cosine similarity), rank
+    - enforces `top_k = top_n`
+  - `run_vector_search(profile, passed_job_urls, config, top_n=50) -> list[dict]` — generate embedding for candidate query + execute VECTOR_SEARCH + return shortlist rows (`@pytest.mark.integration`)
+  - `store_shortlist(shortlist, config) -> None` — insert into `fitcv.vector_shortlist` (`@pytest.mark.integration`)
 
-- [ ] **Step 4: Run test — expect PASS**
+- [ ] **Step 5: Run test — expect PASS**
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
   ```bash
   git add -A
-  git commit -m "feat(fitcv): BigQuery VECTOR_SEARCH semantic retrieval"
+  git commit -m "feat(fitcv): BigQuery VECTOR_SEARCH semantic retrieval over rule-filtered universe"
   ```
 
 ---
 
-### Task 9: AI.SCORE Reranking
+### Task 9: AI Reranking
 
 **Files:**
 
@@ -1076,45 +1195,112 @@ JOB-PROJECT/
 - Create: `tests/test_ai_score.py`
 - Create: `assets/bigquery/ai_score_results.sql`
 
-- [ ] **Step 1: Write failing tests**
+> **Scope constraint:** Reranking is for **shortlist only** — never the full job universe. Only score the top 20–50 jobs returned by `VECTOR_SEARCH` after rule filtering. Enforced via `LIMIT top_n`.
+
+> **Primary scoring path:** `ML.GENERATE_TEXT` (Vertex AI call from Python, not BigQuery SQL `AI.SCORE`). Rationale: gives full control over prompt + structured JSON output. `AI.SCORE` is not used in v1.
+
+> **v1 data contract:**
+> - **Input:** vector shortlist (top 20–50 `job_url`s) + per-job context: JD summary, required skills, seniority, top matched evidence snippets from retrieval
+> - **Output:** rows in `fitcv.ai_score_results` with schema below
+
+> **`ai_score_results` schema:**
+> | Column | Type | Description |
+> |--------|------|-------------|
+> | `job_url` | STRING | FK → structured_jobs |
+> | `ai_score` | FLOAT64 | 0.0 – 1.0 |
+> | `fit_label` | STRING | `strong` / `stretch` / `skip` |
+> | `score_reasoning` | STRING | Free-text explanation |
+> | `matched_strengths` | ARRAY\<STRING\> | Candidate strengths relevant to this JD |
+> | `key_risks` | ARRAY\<STRING\> | Gaps or risks flagged by the model |
+> | `scored_at` | TIMESTAMP | |
+
+- [ ] **Step 1: Define `ai_score_results` DDL** in `assets/bigquery/ai_score_results.sql`
+
+- [ ] **Step 2: Write failing tests**
 
   ```python
   # tests/test_ai_score.py
-  from fitcv.ai_score import build_ai_score_query, build_scoring_prompt
+  from fitcv.ai_score import build_scoring_prompt, parse_score_response
 
-  def test_build_scoring_prompt_includes_jd_and_profile():
+  # ── prompt construction ──
+  def test_build_scoring_prompt_includes_jd_and_candidate():
       prompt = build_scoring_prompt(
           jd_summary="Data Engineer role requiring SQL, Python",
           candidate_summary="3 years experience in SQL, Python, BigQuery",
+          top_evidence=["Built GA4 pipeline reducing latency 40%"],
       )
       assert "Data Engineer" in prompt
       assert "SQL" in prompt
       assert "score" in prompt.lower()
+      assert "0.0" in prompt or "1.0" in prompt   # rubric range must be in prompt
+      assert "strong" in prompt.lower()            # fit labels must be in prompt
+      assert "GA4" in prompt                       # top evidence must be included
 
-  def test_build_ai_score_query_uses_model():
-      query = build_ai_score_query("fitcv.vector_shortlist", "gemini-2.0-flash")
-      assert "AI.SCORE" in query or "ML.GENERATE_TEXT" in query
+  def test_build_scoring_prompt_contains_rubric():
+      prompt = build_scoring_prompt(
+          jd_summary="DE role",
+          candidate_summary="mid-level engineer",
+          top_evidence=[],
+      )
+      assert "required_skills" in prompt or "required skills" in prompt.lower()
+      assert "seniority" in prompt.lower()
+
+  # ── response parsing ──
+  def test_parse_score_response_valid_json():
+      raw = '{"ai_score": 0.85, "fit_label": "strong", "score_reasoning": "SQL match", "matched_strengths": ["SQL"], "key_risks": []}'
+      result = parse_score_response(raw)
+      assert result["ai_score"] == 0.85
+      assert result["fit_label"] == "strong"
+      assert result["matched_strengths"] == ["SQL"]
+
+  def test_parse_score_response_score_clamped_0_to_1():
+      raw = '{"ai_score": 1.5, "fit_label": "strong", "score_reasoning": "", "matched_strengths": [], "key_risks": []}'
+      result = parse_score_response(raw)
+      assert result["ai_score"] <= 1.0
+
+  def test_parse_score_response_bad_fit_label_mapped_to_skip():
+      raw = '{"ai_score": 0.3, "fit_label": "maybe", "score_reasoning": "", "matched_strengths": [], "key_risks": []}'
+      result = parse_score_response(raw)
+      assert result["fit_label"] in ("strong", "stretch", "skip")
+
+  def test_parse_score_response_malformed_json_returns_defaults():
+      result = parse_score_response("not json")
+      assert result["ai_score"] == 0.0
+      assert result["fit_label"] == "skip"
   ```
 
-- [ ] **Step 2: Run test — expect FAIL**
+- [ ] **Step 3: Run test — expect FAIL**
 
-- [ ] **Step 3: Implement `src/fitcv/ai_score.py`**
+- [ ] **Step 4: Implement `src/fitcv/ai_score.py`**
 
-  > **Scope constraint:** `AI.SCORE` is for **shortlist reranking only** — not for scoring the full job universe. Only run it on the top 20–50 jobs returned by `VECTOR_SEARCH` after rule filtering. This keeps cost and latency under control. The `top_n` parameter must default to `50` and be enforced via a `LIMIT` clause in the SQL.
+  > **Scoring rubric** (must appear verbatim in the prompt):
+  > - Score the match from `0.0` (no fit) to `1.0` (perfect fit)
+  > - **Heavily weight:** required skills coverage
+  > - **Penalize:** missing core technologies, seniority mismatch, years-of-experience gap
+  > - **Reward:** strong project evidence matching JD requirements, domain relevance
+  > - **Classify** into exactly one: `strong` (score ≥ 0.7), `stretch` (0.4 – 0.69), `skip` (< 0.4)
+  > - Return a JSON object only, no prose
+
+  > **Reranking input** (what `build_scoring_prompt` receives per job):
+  > - JD summary text (from `build_job_summary_text`)
+  > - Required skills + seniority from `structured_jobs`
+  > - Candidate summary paragraph
+  > - Top 2 matched evidence snippets (`chunk_text`) from `vector_shortlist` retrieval
 
   Functions:
-  - `build_scoring_prompt(jd_summary, candidate_summary) -> str` — pure function, no marker needed
-  - `build_ai_score_query(shortlist_table, model, top_n: int = 50) -> str` — BigQuery AI.SCORE or ML.GENERATE_TEXT SQL; enforces `LIMIT top_n` to cap cost
-  - `run_ai_scoring(config, top_n: int = 50) -> list[dict]` — execute on at most `top_n` shortlisted jobs (`@pytest.mark.integration`)
+  - `build_scoring_prompt(jd_summary, candidate_summary, top_evidence) -> str` — embeds rubric + structured input; `top_evidence` is a list of candidate evidence `chunk_text` strings
+  - `parse_score_response(response_text) -> dict` — returns `{ai_score, fit_label, score_reasoning, matched_strengths, key_risks}`; clamps score to [0, 1]; maps unknown `fit_label` → `skip`; malformed JSON → safe defaults
+  - `score_job(job, candidate_summary, top_evidence, config) -> dict` — calls Vertex AI `ML.GENERATE_TEXT`, parses response (`@pytest.mark.integration`)
+  - `run_ai_scoring(shortlist, candidate_summary, config, top_n=50) -> list[dict]` — score at most `top_n` shortlisted jobs (`@pytest.mark.integration`)
   - `store_ai_scores(scores, config) -> None` (`@pytest.mark.integration`)
 
-- [ ] **Step 4: Run test — expect PASS**
+- [ ] **Step 5: Run test — expect PASS**
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
   ```bash
   git add -A
-  git commit -m "feat(fitcv): BigQuery AI.SCORE reranking"
+  git commit -m "feat(fitcv): AI reranking with ML.GENERATE_TEXT, structured rubric, evidence-grounded input"
   ```
 
 ---
