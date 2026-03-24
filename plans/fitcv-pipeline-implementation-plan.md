@@ -494,7 +494,7 @@ JOB-PROJECT/
 
 > **Note:** The LinkedIn scraper already provides `title`, `companyName`, `location`, `contractType`, `experienceLevel`, `sector`. The enrichment step only needs to extract fields that are *buried in the `description` text* and not available as structured metadata. The enrichment prompt receives both the `description` text AND the scraped metadata so the LLM can cross-reference.
 
-- [ ] **Step 1: Define `structured_jobs` BigQuery schema**
+- [x] **Step 1: Define `structured_jobs` BigQuery schema**
 
   `assets/bigquery/structured_jobs.sql` — table `fitcv.structured_jobs`:
 
@@ -621,9 +621,9 @@ JOB-PROJECT/
       assert "enrichment_version" in merged
   ```
 
-- [ ] **Step 3: Run test — expect FAIL**
+- [x] **Step 3: Run test — expect FAIL**
 
-- [ ] **Step 4: Implement `src/fitcv/enrich.py`**
+- [x] **Step 4: Implement `src/fitcv/enrich.py`**
 
   Functions:
   - `build_extraction_prompt(description, scraped_metadata) -> str` — prompt instructing LLM to extract only fields absent from scraped metadata; must define `job_family` = role category and `domain` = industry domain explicitly; must **not** request `must_have_vs_nice_to_have` (deferred to v2)
@@ -639,9 +639,9 @@ JOB-PROJECT/
   - `enrich_batch(normalized_jobs, config) -> list[dict]` — batch with rate limiting (`@pytest.mark.integration`)
   - `load_structured_jobs(enriched, config) -> int` — **upsert** into `fitcv.structured_jobs` via `MERGE ON job_url`; updates all enriched columns if row exists, inserts otherwise (`@pytest.mark.integration`)
 
-- [ ] **Step 5: Run test — expect PASS**
+- [x] **Step 5: Run test — expect PASS**
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
   ```bash
   git add -A
