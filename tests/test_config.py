@@ -1,7 +1,7 @@
 """Tests for config loading."""
 from pathlib import Path
 
-from fitcv.config import load_config
+from fitcv.config import get_vertex_location, load_config
 
 
 def test_load_config_returns_dict() -> None:
@@ -30,3 +30,13 @@ def test_load_config_raises_for_missing_keys(tmp_path: Path) -> None:
     bad_yaml.write_text("some_key: value\n")
     with pytest.raises(ValueError, match="Missing config keys"):
         load_config(bad_yaml)
+
+
+def test_get_vertex_location_prefers_vertex_location() -> None:
+    cfg = {"location": "US", "vertex_location": "us-central1"}
+    assert get_vertex_location(cfg) == "us-central1"
+
+
+def test_get_vertex_location_defaults_to_us_central1() -> None:
+    cfg = {"location": "US"}
+    assert get_vertex_location(cfg) == "us-central1"

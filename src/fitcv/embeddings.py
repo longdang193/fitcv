@@ -164,11 +164,12 @@ def generate_embedding(text: str, config: dict[str, Any]) -> list[float]:
     Marked @pytest.mark.integration in tests.
     """
     import vertexai  # type: ignore[import-untyped]
+    from fitcv.config import get_vertex_location
     from vertexai.language_models import TextEmbeddingModel  # type: ignore[import-untyped]
 
     vertexai.init(
         project=str(config["gcp_project"]),
-        location=str(config.get("location", "us-central1")),
+        location=get_vertex_location(config),
     )
     model = TextEmbeddingModel.from_pretrained("text-embedding-005")
     embeddings = model.get_embeddings([text])

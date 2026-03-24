@@ -3,7 +3,7 @@
 # Override any value in .env.yaml; pipeline.yaml defaults apply otherwise.
 
 # ── AI models ──────────────────────────────────────────────────────────────────
-gemini_model: gemini-2.0-flash         # used by enrich.py and ai_score.py
+gemini_model: gemini-2.5-flash         # used by enrich.py and ai_score.py
 embedding_model: text-embedding-005    # used by embeddings.py
 
 # ── Enrichment (Task 4) ────────────────────────────────────────────────────────
