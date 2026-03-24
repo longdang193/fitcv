@@ -1359,7 +1359,7 @@ JOB-PROJECT/
 > 2. `ai_score DESC`
 > 3. `vector_similarity DESC`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
   ```python
   # tests/test_ranking.py
@@ -1475,9 +1475,9 @@ JOB-PROJECT/
       assert ranked[1]["final_rank"] == 2
   ```
 
-- [ ] **Step 2: Run test — expect FAIL**
+- [x] **Step 2: Run test — expect FAIL**
 
-- [ ] **Step 3: Implement `src/fitcv/ranking.py`**
+- [x] **Step 3: Implement `src/fitcv/ranking.py`**
 
   > **`compute_must_have_match` semantics:**
   > `matched_required_skills / total_required_skills`
@@ -1509,9 +1509,9 @@ JOB-PROJECT/
   }
   ```
 
-- [ ] **Step 4: Run test — expect PASS**
+- [x] **Step 4: Run test — expect PASS**
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
   ```bash
   git add -A
