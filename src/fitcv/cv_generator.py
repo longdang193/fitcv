@@ -22,6 +22,7 @@ from typing import Any
 
 from jinja2 import BaseLoader, Environment, TemplateError
 
+from fitcv.candidate import flatten_skills
 
 # ── template variant map ─────────────────────────────────────────────────────
 # Maps job_family values (populated by enrichment) to styling hints.
@@ -57,6 +58,7 @@ def build_generation_prompt(
     evidence: list[dict[str, Any]],
     gap: dict[str, Any],
     template: str,
+    profile: dict[str, Any] | None = None,
 ) -> str:
     """Assemble the full LLM prompt for CV generation.
 
@@ -89,6 +91,33 @@ def build_generation_prompt(
         constraint_lines.append(
             f"The candidate does have: {', '.join(matched_skills)}"
         )
+    if profile:
+        approved_skills = flatten_skills(profile)
+        known_employers = [
+            str(exp.get("company") or "")
+            for exp in (profile.get("experiences") or [])
+            if exp.get("company")
+        ]
+        known_projects = [
+            str(project.get("name") or "")
+            for project in (profile.get("projects") or [])
+            if project.get("name")
+        ]
+        if known_employers:
+            constraint_lines.append(
+                "Do not invent employer names. Only use employers from the candidate profile: "
+                + ", ".join(known_employers)
+            )
+        if known_projects:
+            constraint_lines.append(
+                "Do not invent project names. Only use project names from the candidate profile: "
+                + ", ".join(known_projects)
+            )
+        if approved_skills:
+            constraint_lines.append(
+                "In the Skills section, only use skills from this approved list: "
+                + ", ".join(approved_skills)
+            )
     constraints = "\n".join(constraint_lines) or "(no specific constraints)"
 
     return textwrap.dedent(f"""\
@@ -160,25 +189,38 @@ def generate_cv(
     """Call the LLM to generate a tailored CV markdown string.
 
     Reads the template from ``config["cv_template_path"]`` (default: templates/cv_template.md).
-    Uses the Vertex AI Generative Language API via ``google.generativeai``.
+    Uses ``google.genai`` against Vertex AI.
 
     Requires GOOGLE_APPLICATION_CREDENTIALS.
     Decorated with @pytest.mark.integration in tests.
     """
     import pathlib
+    import google.auth  # type: ignore[import-untyped]
+    from google import genai  # type: ignore[import-untyped]
+
+    from fitcv.config import get_vertex_location
 
     template_path = str(config.get("cv_template_path") or "templates/cv_template.md")
     template_str = pathlib.Path(template_path).read_text(encoding="utf-8")
 
-    prompt = build_generation_prompt(jd=jd, evidence=evidence, gap=gap, template=template_str)
+    prompt = build_generation_prompt(
+        jd=jd,
+        evidence=evidence,
+        gap=gap,
+        template=template_str,
+        profile=profile,
+    )
 
-    import google.generativeai as genai  # type: ignore[import-not-found]
+    creds, _ = google.auth.default(
+        scopes=["https://www.googleapis.com/auth/cloud-platform"]
+    )
+    client = genai.Client(
+        vertexai=True,
+        project=str(config.get("gcp_project", "")),
+        location=get_vertex_location(config),
+        credentials=creds,
+    )
 
-    api_key = str(config.get("gemini_api_key") or "")
-    if api_key:
-        genai.configure(api_key=api_key)
-
-    model_name = str(config.get("cv_generation_model") or "gemini-1.5-flash")
-    model = genai.GenerativeModel(model_name)
-    response = model.generate_content(prompt)
+    model_name = str(config.get("cv_generation_model") or "gemini-2.5-flash")
+    response = client.models.generate_content(model=model_name, contents=prompt)
     return str(response.text)

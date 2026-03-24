@@ -36,6 +36,8 @@ Output schema (run_all_validations)
 import re
 from typing import Any
 
+from fitcv.candidate import flatten_skills
+from fitcv.rule_filter import _canonicalise_skill
 
 # ── constants ─────────────────────────────────────────────────────────────────
 
@@ -131,7 +133,7 @@ def check_employer_grounding(cv_text: str, known_employers: list[str]) -> list[s
 
     # Find candidate employer tokens: capitalised words/phrases near "at", "—", "@"
     employer_pattern = re.compile(
-        r"(?:at|@|–|—)\s+([A-Z][A-Za-z0-9&\s\-'\.]+?)(?:\s*[\(\[\,\n]|$)",
+        r"(?:\bat\b|@|–|—)\s+([A-Z][A-Za-z0-9&\s\-'\.]+?)(?:\s*[\(\[\,\n]|$)",
     )
     mentioned: list[str] = employer_pattern.findall(cv_text)
 
@@ -163,22 +165,13 @@ def check_project_existence(cv_text: str, known_projects: list[str]) -> list[str
     violations: list[str] = []
     known_lower = {p.strip().lower() for p in known_projects}
 
-    # Strategy 1: ### headings (generated from template Projects section)
-    heading_re = re.compile(r"^###\s+(.+)$", re.MULTILINE)
-    for heading in heading_re.findall(cv_text):
-        heading_stripped = heading.strip()
-        if heading_stripped.lower() not in known_lower:
-            violations.append(
-                f"Project '{heading_stripped}' in CV is not in the known projects list"
-            )
-
-    # Strategy 2: capitalized phrases adjacent to project-indicator words
-    # Pattern: optional "the " + 1-3 Title-Case words + optional "project|pipeline|system|platform"
+    # Strategy: explicit project references such as "the Phantom Pipeline project"
+    # or "Built Phantom Pipeline". Generic lowercase phrases like "data pipeline"
+    # are too noisy and should not be treated as project names.
     indicator_re = re.compile(
-        r"(?:the\s+)?"
+        r"(?:\b(?:the|built|led|designed|implemented)\s+)"
         r"((?:[A-Z][A-Za-z0-9]+\s+){1,3})"       # 1-3 title-case words
         r"(?:project|pipeline|system|platform)\b",
-        re.IGNORECASE,
     )
     for match in indicator_re.finditer(cv_text):
         phrase = match.group(1).strip()
@@ -198,7 +191,11 @@ def check_project_existence(cv_text: str, known_projects: list[str]) -> list[str
 
 # ── skill provenance (Skills section only) ────────────────────────────────────
 
-def check_skill_provenance(cv_text: str, candidate_skills: list[str]) -> list[str]:
+def check_skill_provenance(
+    cv_text: str,
+    candidate_skills: list[str],
+    config: dict[str, Any] | None = None,
+) -> list[str]:
     """Validate the Skills section of the CV against the candidate's knowledge base.
 
     Checks the Skills section only (the text after '## Skills' up to the next ## heading).
@@ -225,10 +222,17 @@ def check_skill_provenance(cv_text: str, candidate_skills: list[str]) -> list[st
     cv_skills = [t.strip() for t in raw_tokens if t.strip()]
 
     candidate_lower = {s.strip().lower() for s in candidate_skills}
+    candidate_canonical = {
+        _canonicalise_skill(skill, config)
+        for skill in candidate_skills
+        if skill.strip()
+    }
     violations: list[str] = []
 
     for skill in cv_skills:
-        if skill.lower() not in candidate_lower:
+        skill_lower = skill.lower()
+        skill_canonical = _canonicalise_skill(skill, config)
+        if skill_lower not in candidate_lower and skill_canonical not in candidate_canonical:
             violations.append(
                 f"Skill '{skill}' in CV Skills section is not in candidate knowledge base"
             )
@@ -277,13 +281,20 @@ def run_all_validations(
         str(proj.get("name") or "") for proj in (profile.get("projects") or [])
         if proj.get("name")
     ]
-    candidate_skills: list[str] = list(profile.get("skills") or [])
+    candidate_skills = flatten_skills(profile)
+    if not candidate_skills:
+        raw_candidate_skills = list(profile.get("skills") or [])
+        candidate_skills = [
+            str(skill)
+            for skill in raw_candidate_skills
+            if skill
+        ]
 
     grounding_violations: list[str] = (
         check_employer_grounding(cv_text, known_employers)
         + check_project_existence(cv_text, known_projects)
     )
-    skill_violations: list[str] = check_skill_provenance(cv_text, candidate_skills)
+    skill_violations: list[str] = check_skill_provenance(cv_text, candidate_skills, config=config)
 
     # Non-blocking warnings
     warnings: list[str] = []

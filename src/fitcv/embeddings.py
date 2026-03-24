@@ -190,6 +190,9 @@ def embed_and_store_jobs(
     Returns:
         Number of rows inserted.
     """
+    if not structured_jobs:
+        return 0
+
     import time
 
     from google.cloud import bigquery  # type: ignore[import-untyped]

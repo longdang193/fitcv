@@ -26,6 +26,18 @@ config["retrieval_strategy"]        : stored in vector_shortlist (default "job_s
 from datetime import datetime, timezone
 from typing import Any
 
+def _dedupe_shortlist_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep the best-ranked row per job_url, preserving shortlist order."""
+    deduped: list[dict[str, Any]] = []
+    seen_job_urls: set[str] = set()
+    for row in rows:
+        job_url = str(row.get("job_url") or "")
+        if not job_url or job_url in seen_job_urls:
+            continue
+        seen_job_urls.add(job_url)
+        deduped.append(row)
+    return deduped
+
 
 # ── candidate query text ──────────────────────────────────────────────────────
 
@@ -177,10 +189,11 @@ def run_vector_search(
     )
 
     rows = client.query(sql, job_config=job_config).result()
-    return [
+    shortlist = [
         {"job_url": row.job_url, "vector_similarity": row.vector_similarity, "vector_rank": row.vector_rank}
         for row in rows
     ]
+    return _dedupe_shortlist_rows(shortlist)
 
 
 # ── integration: store shortlist ──────────────────────────────────────────────

@@ -11,6 +11,7 @@ load_structured_jobs         : MERGE upsert into fitcv.structured_jobs (integrat
 """
 
 import json
+import os
 import re
 from datetime import datetime, timezone
 from typing import Any
@@ -270,6 +271,26 @@ def merge_scraped_and_enriched(
 
 # ── integration: LLM call ─────────────────────────────────────────────────────
 
+def _make_genai_client(config: dict[str, Any]) -> Any:
+    """Return a google.genai client using API key first, then Vertex AI."""
+    import google.auth  # type: ignore[import-untyped]
+    from google import genai  # type: ignore[import-untyped]
+    from fitcv.config import get_vertex_location
+
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if api_key:
+        return genai.Client(api_key=api_key)
+
+    creds, _ = google.auth.default(  # type: ignore[misc]
+        scopes=["https://www.googleapis.com/auth/cloud-platform"]
+    )
+    return genai.Client(
+        vertexai=True,
+        project=str(config["gcp_project"]),
+        location=get_vertex_location(config),
+        credentials=creds,
+    )
+
 def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     """Call Gemini to extract structured fields from one normalized job.
 
@@ -279,16 +300,8 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     Returns:
         Merged dict ready for load_structured_jobs().
     """
-    import vertexai  # type: ignore[import-untyped]
-    from fitcv.config import get_vertex_location
-    from vertexai.generative_models import GenerativeModel  # type: ignore[import-untyped]
-
-    vertexai.init(
-        project=str(config["gcp_project"]),
-        location=get_vertex_location(config),
-    )
     model_name = str(config.get("gemini_model", "gemini-2.5-flash"))
-    model = GenerativeModel(model_name)
+    client = _make_genai_client(config)
 
     prompt = build_extraction_prompt(
         description=str(job.get("description", "")),
@@ -300,8 +313,8 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
             "location": job.get("location", ""),
         },
     )
-    response = model.generate_content(prompt)
-    extraction = parse_extraction_response(response.text)
+    response = client.models.generate_content(model=model_name, contents=prompt)
+    extraction = parse_extraction_response(str(response.text or ""))
     return merge_scraped_and_enriched(job, extraction["parsed"], config)
 
 
@@ -315,14 +328,32 @@ def enrich_batch(
     Decorated with @pytest.mark.integration in tests.
     """
     import time
+    from google.api_core.exceptions import ResourceExhausted  # type: ignore[import-untyped]
+    from google.genai.errors import ClientError  # type: ignore[import-untyped]
 
+    sleep_secs = float(config.get("enrichment_sleep_secs", 1.0))
+    max_retries = int(config.get("enrichment_max_retries", 2))
     results: list[dict[str, Any]] = []
     for i, job in enumerate(normalized_jobs):
-        enriched = enrich_job(job, config)
+        attempts = 0
+        while True:
+            try:
+                enriched = enrich_job(job, config)
+                break
+            except ResourceExhausted:
+                if attempts >= max_retries:
+                    raise
+                attempts += 1
+                time.sleep(sleep_secs * (2 ** (attempts - 1)))
+            except ClientError as exc:
+                if getattr(exc, "status_code", None) != 429 or attempts >= max_retries:
+                    raise
+                attempts += 1
+                time.sleep(sleep_secs * (2 ** (attempts - 1)))
         results.append(enriched)
         # Simple rate limit: 1 req/s to stay within Gemini free-tier limits
         if i < len(normalized_jobs) - 1:
-            time.sleep(1.0)
+            time.sleep(sleep_secs)
     return results
 
 
@@ -337,6 +368,37 @@ _MERGE_COLUMNS = [
     "job_family", "description_cleaned", "enrichment_version", "enrichment_model",
     "enriched_at",
 ]
+
+_STAGING_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
+    ("job_url", "STRING", "REQUIRED"),
+    ("title", "STRING", "NULLABLE"),
+    ("company_name", "STRING", "NULLABLE"),
+    ("company_id", "STRING", "NULLABLE"),
+    ("location", "STRING", "NULLABLE"),
+    ("contract_type", "STRING", "NULLABLE"),
+    ("experience_level", "STRING", "NULLABLE"),
+    ("sector", "STRING", "NULLABLE"),
+    ("salary_min", "FLOAT64", "NULLABLE"),
+    ("salary_max", "FLOAT64", "NULLABLE"),
+    ("salary_currency", "STRING", "NULLABLE"),
+    ("applications_count", "INT64", "NULLABLE"),
+    ("published_at", "DATE", "NULLABLE"),
+    ("location_type", "STRING", "NULLABLE"),
+    ("seniority", "STRING", "NULLABLE"),
+    ("required_skills", "STRING", "REPEATED"),
+    ("preferred_skills", "STRING", "REPEATED"),
+    ("responsibilities", "STRING", "REPEATED"),
+    ("domain", "STRING", "NULLABLE"),
+    ("tech_stack", "STRING", "REPEATED"),
+    ("years_experience_min", "INT64", "NULLABLE"),
+    ("years_experience_max", "INT64", "NULLABLE"),
+    ("keywords", "STRING", "REPEATED"),
+    ("job_family", "STRING", "NULLABLE"),
+    ("description_cleaned", "STRING", "NULLABLE"),
+    ("enrichment_version", "STRING", "NULLABLE"),
+    ("enrichment_model", "STRING", "NULLABLE"),
+    ("enriched_at", "TIMESTAMP", "NULLABLE"),
+)
 
 
 def load_structured_jobs(
@@ -368,21 +430,23 @@ def load_structured_jobs(
     insert_cols = ", ".join(["job_url"] + _MERGE_COLUMNS)
     insert_vals = ", ".join([f"S.{c}" for c in ["job_url"] + _MERGE_COLUMNS])
 
-    rows_json = json.dumps(enriched, default=str)
     temp_table = f"`{project}.{dataset}._enrich_staging`"
+    schema = [
+        bigquery.SchemaField(name, field_type, mode=mode)
+        for name, field_type, mode in _STAGING_SCHEMA_FIELDS
+    ]
 
     # Load to a temp table first, then MERGE
     staging_ref = f"{project}.{dataset}._enrich_staging"
     job_config = bigquery.LoadJobConfig(
         write_disposition="WRITE_TRUNCATE",
-        autodetect=True,
         source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+        schema=schema,
     )
-    ndjson = "\n".join(json.dumps(row, default=str) for row in enriched)
     load_job = client.load_table_from_json(
-        [json.loads(r) for r in ndjson.splitlines()],
+        enriched,
         staging_ref,
-        job_config=bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE", autodetect=True),
+        job_config=job_config,
     )
     load_job.result()
 

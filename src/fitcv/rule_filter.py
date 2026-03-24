@@ -50,6 +50,7 @@ _FALLBACK_SENIORITY_ALIASES: dict[str, str] = {
 
 _FALLBACK_SKILL_SYNONYMS: dict[str, str] = {
     "gcp": "google cloud", "google cloud platform": "google cloud",
+    "ga4": "google analytics", "google analytics (ga4)": "google analytics",
     "bigquery": "google bigquery", "big query": "google bigquery",
     "k8s": "kubernetes", "aws": "amazon web services", "azure": "microsoft azure",
     "ml": "machine learning", "nlp": "natural language processing",
@@ -84,6 +85,20 @@ def _get_skill_synonyms(config: dict[str, Any] | None) -> dict[str, str]:
         if isinstance(synonyms, dict) and synonyms:
             return {str(k).lower(): str(v).lower() for k, v in synonyms.items()}
     return _FALLBACK_SKILL_SYNONYMS
+
+
+def _get_preferred_domains(prefs: dict[str, Any]) -> list[str]:
+    domains = prefs.get("domains")
+    if domains:
+        return [str(domain).lower() for domain in domains]
+    return [str(domain).lower() for domain in prefs.get("preferred_domains", [])]
+
+
+def _get_excluded_contract_types(prefs: dict[str, Any]) -> list[str]:
+    excluded = prefs.get("exclude_contract_types")
+    if excluded:
+        return [str(contract_type).lower() for contract_type in excluded]
+    return []
 
 
 # ── seniority normalisation ───────────────────────────────────────────────────
@@ -153,15 +168,23 @@ def check_location_type(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
     allowed = [t.lower() for t in prefs.get("location_types", [])]
     if not allowed:
         return True
-    return (job.get("location_type") or "").lower() in allowed
+    location_type = str(job.get("location_type") or "").lower()
+    if not location_type:
+        return True
+    return location_type in allowed
 
 
 def check_contract_type(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
-    """Return True if job contract_type is in the allowed list."""
-    allowed = [t.lower() for t in prefs.get("contract_types", [])]
+    """Return True if job contract_type is permitted by include/exclude prefs."""
+    contract_type = str(job.get("contract_type") or "").lower()
+    excluded = _get_excluded_contract_types(prefs)
+    if excluded and contract_type in excluded:
+        return False
+
+    allowed = [str(contract_type).lower() for contract_type in prefs.get("contract_types", [])]
     if not allowed:
         return True
-    return (job.get("contract_type") or "").lower() in allowed
+    return contract_type in allowed
 
 
 def check_experience_level(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
@@ -170,8 +193,11 @@ def check_experience_level(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
     experience_level (raw LinkedIn label) is used for exclusion only.
     seniority (LLM-normalised) is the primary signal — handled by check_seniority.
     """
-    excluded = [e.lower() for e in prefs.get("exclude_experience_levels", [])]
-    return (job.get("experience_level") or "").lower() not in excluded
+    excluded = [str(experience_level).lower() for experience_level in prefs.get("exclude_experience_levels", [])]
+    experience_level = str(job.get("experience_level") or "").lower()
+    if experience_level == "entry level":
+        return True
+    return experience_level not in excluded
 
 
 def check_must_have_skills(
@@ -218,10 +244,16 @@ def check_domain_preference(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
 
     Empty preferred_domains = no preference → accept everything.
     """
-    preferred = [d.lower() for d in prefs.get("preferred_domains", [])]
+    preferred = _get_preferred_domains(prefs)
     if not preferred:
         return True
-    return (job.get("domain") or "").lower() in preferred
+    job_family = str(job.get("job_family") or "").lower()
+    if job_family and job_family in preferred:
+        return True
+    domain = str(job.get("domain") or "").lower()
+    if not domain:
+        return True
+    return domain in preferred
 
 
 # ── orchestrator ──────────────────────────────────────────────────────────────

@@ -170,6 +170,25 @@ def test_normalize_job_parses_applications_count() -> None:
     assert result["applications_count_int"] == 200
 
 
+def test_normalize_job_converts_scraper_keys_to_snake_case() -> None:
+    job = {
+        "jobUrl": "url1",
+        "companyName": "ACME",
+        "companyId": "101",
+        "experienceLevel": "Entry level",
+        "applicationsCount": "42 applicants",
+        "description": "Some JD",
+        "salary": "",
+        "title": "DE",
+    }
+    result = normalize_job(job)
+    assert result["job_url"] == "url1"
+    assert result["company_name"] == "ACME"
+    assert result["company_id"] == "101"
+    assert result["experience_level"] == "Entry level"
+    assert result["applications_count"] == "42 applicants"
+
+
 def test_normalize_batch_runs_dedup_and_normalization() -> None:
     jobs = [
         {"job_url": "url1", "company_id": "101", "title": "DE", "description": "Same JD", "applications_count": "5 applicants", "salary": ""},

@@ -2,7 +2,11 @@
 
 import pytest
 
-from fitcv.vector_search import build_candidate_query_text, build_vector_search_query
+from fitcv.vector_search import (
+    _dedupe_shortlist_rows,
+    build_candidate_query_text,
+    build_vector_search_query,
+)
 
 
 # ── build_candidate_query_text ────────────────────────────────────────────────
@@ -96,6 +100,21 @@ def test_build_vector_search_query_empty_passed_urls() -> None:
     query = build_vector_search_query(top_n=50, passed_job_urls=[])
     assert isinstance(query, str)
     assert "VECTOR_SEARCH" in query
+
+
+def test_dedupe_shortlist_rows_keeps_best_rank_per_job_url() -> None:
+    rows = [
+        {"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1},
+        {"job_url": "https://example.com/1", "vector_similarity": 0.8, "vector_rank": 2},
+        {"job_url": "https://example.com/2", "vector_similarity": 0.7, "vector_rank": 3},
+    ]
+
+    deduped = _dedupe_shortlist_rows(rows)
+
+    assert deduped == [
+        {"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1},
+        {"job_url": "https://example.com/2", "vector_similarity": 0.7, "vector_rank": 3},
+    ]
 
 
 # ── integration tests ─────────────────────────────────────────────────────────

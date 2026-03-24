@@ -123,6 +123,12 @@ def test_check_employer_grounding_empty_known_list_returns_no_violations() -> No
     assert violations == []
 
 
+def test_check_employer_grounding_ignores_great_expectations_tool_name() -> None:
+    cv_text = "Used Great Expectations, dbt, and SQL for data quality workflows."
+    violations = check_employer_grounding(cv_text, known_employers=["ACME", "TechCo"])
+    assert violations == []
+
+
 # ── check_project_existence ───────────────────────────────────────────────────
 
 def test_check_project_existence_catches_unknown_project() -> None:
@@ -140,6 +146,18 @@ def test_check_project_existence_passes_known_project() -> None:
 def test_check_project_existence_empty_projects_no_violations() -> None:
     """No known_projects → nothing to check → no violations."""
     assert check_project_existence("any text", known_projects=[]) == []
+
+
+def test_check_project_existence_ignores_generic_pipeline_phrase() -> None:
+    cv_text = "Built a sophisticated data pipeline on Google Cloud Platform for analytics."
+    violations = check_project_existence(cv_text, known_projects=["GA4 Pipeline", "ETL System"])
+    assert violations == []
+
+
+def test_check_project_existence_ignores_non_project_heading() -> None:
+    cv_text = "## Projects\n### Self-Service Product KPI Dashboards\nBuilt analytics assets."
+    violations = check_project_existence(cv_text, known_projects=["GA4 Pipeline", "ETL System"])
+    assert violations == []
 
 
 # ── check_skill_provenance ────────────────────────────────────────────────────
@@ -162,6 +180,12 @@ def test_check_skill_provenance_ignores_bullet_text() -> None:
     cv_text = "## Experience\n- Built Rust-based tools\n## Skills\nSQL, Python"
     violations = check_skill_provenance(cv_text, candidate_skills=["SQL", "Python"])
     # Rust in bullet text should NOT trigger a violation (Skills section only)
+    assert violations == []
+
+
+def test_check_skill_provenance_accepts_synonym_equivalent_skill() -> None:
+    cv_text = "## Skills\nGoogle Analytics"
+    violations = check_skill_provenance(cv_text, candidate_skills=["GA4"])
     assert violations == []
 
 
@@ -188,3 +212,38 @@ def test_run_all_validations_length_warning() -> None:
     )
     result = run_all_validations(long_cv, profile=profile, config={})
     assert any("length" in w.lower() for w in result["warnings"])
+
+
+def test_run_all_validations_accepts_skill_dicts_in_profile() -> None:
+    profile = {
+        "experiences": [{"role": "DE", "company": "ACME", "start": "2020", "end": "2022"}],
+        "projects": [{"name": "GA4 Pipeline"}],
+        "skills": [
+            {"name": "SQL", "level": "advanced"},
+            {"name": "Python", "level": "advanced"},
+        ],
+    }
+    cv_text = "# Name\n## Summary\nX\n## Skills\nSQL, Python\n## Experience\nEngineer at ACME"
+
+    result = run_all_validations(cv_text, profile=profile, config={})
+
+    assert result["skill_violations"] == []
+
+
+def test_run_all_validations_uses_flattened_profile_skills() -> None:
+    profile = {
+        "experiences": [{
+            "role": "DE",
+            "company": "ACME",
+            "start": "2020",
+            "end": "2022",
+            "bullets": [{"text": "Built pipelines", "skills": ["ETL", "CI/CD"]}],
+        }],
+        "projects": [{"name": "FitCV Pipeline", "skills": ["Gemini", "Great Expectations"]}],
+        "skills": [{"name": "SQL", "level": "advanced"}],
+    }
+    cv_text = "# Name\n## Summary\nX\n## Skills\nSQL, ETL, CI/CD, Gemini, Great Expectations\n## Experience\nEngineer at ACME"
+
+    result = run_all_validations(cv_text, profile=profile, config={})
+
+    assert result["skill_violations"] == []
