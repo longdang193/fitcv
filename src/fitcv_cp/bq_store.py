@@ -1,0 +1,151 @@
+"""BigQuery persistence helpers for control-plane tables.
+
+All mutating queries use query parameters — never string interpolation.
+"""
+import datetime
+import logging
+from typing import Any, Optional
+
+from google.cloud import bigquery as bq_module
+
+from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
+
+logger = logging.getLogger(__name__)
+
+
+def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None:
+    table = f"{project}.{dataset}.pipeline_runs"
+    row = {
+        "run_id": run.run_id,
+        "status": run.status.value,
+        "triggered_by": run.triggered_by,
+        "trigger_source": run.trigger_source,
+        "jobs_path": run.jobs_path,
+        "config_path": run.config_path,
+        "created_at": run.created_at.isoformat(),
+    }
+    errors = bq.insert_rows_json(table, [row])
+    if errors:
+        logger.error("BQ insert_run errors: %s", errors)
+
+
+def update_run_status(
+    run_id: str,
+    status: RunStatus,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+    started_at: Optional[datetime.datetime] = None,
+    finished_at: Optional[datetime.datetime] = None,
+    summary: Optional[dict] = None,
+    error_message: Optional[str] = None,
+    error_stage: Optional[str] = None,
+) -> None:
+    set_clauses = ["status = @status"]
+    params: list[bq_module.ScalarQueryParameter] = [
+        bq_module.ScalarQueryParameter("status", "STRING", status.value),
+        bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+    ]
+    if started_at:
+        set_clauses.append("started_at = @started_at")
+        params.append(bq_module.ScalarQueryParameter("started_at", "TIMESTAMP", started_at))
+    if finished_at:
+        set_clauses.append("finished_at = @finished_at")
+        params.append(bq_module.ScalarQueryParameter("finished_at", "TIMESTAMP", finished_at))
+    if error_message:
+        set_clauses.append("error_message = @error_message")
+        params.append(bq_module.ScalarQueryParameter("error_message", "STRING", error_message))
+    if error_stage:
+        set_clauses.append("error_stage = @error_stage")
+        params.append(bq_module.ScalarQueryParameter("error_stage", "STRING", error_stage))
+    if summary:
+        for k in ("total_jobs", "passed_filter", "ranked", "cvs_generated"):
+            if k in summary:
+                set_clauses.append(f"{k} = @{k}")
+                params.append(bq_module.ScalarQueryParameter(k, "INT64", int(summary[k])))
+
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET {', '.join(set_clauses)} WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(query_parameters=params)
+    bq.query(sql, job_config=job_config).result()
+
+
+def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> None:
+    table = f"{project}.{dataset}.pipeline_run_events"
+    row = {
+        "run_id": event.run_id,
+        "event_id": event.event_id,
+        "stage": event.stage,
+        "level": event.level,
+        "message": event.message,
+        "payload_json": event.payload_json,
+        "created_at": event.created_at.isoformat(),
+    }
+    errors = bq.insert_rows_json(table, [row])
+    if errors:
+        logger.warning("BQ append_event errors: %s", errors)
+
+
+def get_run(run_id: str, bq: Any, *, project: str, dataset: str) -> Optional[PipelineRun]:
+    sql = f"SELECT * FROM `{project}.{dataset}.pipeline_runs` WHERE run_id = @run_id LIMIT 1"
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[bq_module.ScalarQueryParameter("run_id", "STRING", run_id)]
+    )
+    rows = list(bq.query(sql, job_config=job_config).result())
+    return _row_to_run(rows[0]) if rows else None
+
+
+def list_runs(bq: Any, *, project: str, dataset: str, limit: int = 50) -> list[PipelineRun]:
+    sql = (
+        f"SELECT * FROM `{project}.{dataset}.pipeline_runs` "
+        f"ORDER BY created_at DESC LIMIT {int(limit)}"
+    )
+    return [_row_to_run(r) for r in bq.query(sql).result()]
+
+
+def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunEvent]:
+    sql = (
+        f"SELECT * FROM `{project}.{dataset}.pipeline_run_events` "
+        f"WHERE run_id = @run_id ORDER BY created_at ASC"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[bq_module.ScalarQueryParameter("run_id", "STRING", run_id)]
+    )
+    return [_row_to_event(r) for r in bq.query(sql, job_config=job_config).result()]
+
+
+def _row_to_run(row: Any) -> PipelineRun:
+    r = dict(row)
+    return PipelineRun(
+        run_id=r["run_id"],
+        status=RunStatus(r["status"]),
+        triggered_by=r.get("triggered_by") or "",
+        trigger_source=r.get("trigger_source") or "",
+        jobs_path=r.get("jobs_path") or "",
+        config_path=r.get("config_path") or "",
+        created_at=r["created_at"],
+        started_at=r.get("started_at"),
+        finished_at=r.get("finished_at"),
+        total_jobs=r.get("total_jobs"),
+        passed_filter=r.get("passed_filter"),
+        ranked=r.get("ranked"),
+        cvs_generated=r.get("cvs_generated"),
+        error_message=r.get("error_message"),
+        error_stage=r.get("error_stage"),
+    )
+
+
+def _row_to_event(row: Any) -> RunEvent:
+    r = dict(row)
+    return RunEvent(
+        run_id=r["run_id"],
+        event_id=r["event_id"],
+        stage=r["stage"],
+        level=r["level"],
+        message=r["message"],
+        created_at=r["created_at"],
+        payload_json=r.get("payload_json"),
+    )
