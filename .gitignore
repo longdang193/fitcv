@@ -9,3 +9,8 @@ __pycache__/
 # Ignore MCP Logs and Database Files
 .neuralmemory/
 mcp_*.log
+
+# Local testing files
+start_admin_cp.sh
+*.log
+dump.rdb
