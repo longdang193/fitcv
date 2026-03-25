@@ -124,6 +124,7 @@ def test_build_ranking_features_drops_jobs_missing_from_ai_scores() -> None:
 @patch("fitcv.pipeline.load_candidate_to_bigquery")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
 @patch("fitcv.pipeline.load_to_bigquery")
 @patch("fitcv.pipeline.normalize_batch")
@@ -135,6 +136,7 @@ def test_run_pipeline_logs_full_validation_reasons(
     mock_norm: MagicMock,
     mock_load_bq: MagicMock,
     mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
     mock_load_struct: MagicMock,
     mock_profile_yaml: MagicMock,
     mock_load_cand: MagicMock,
@@ -280,6 +282,7 @@ def _raw_scraper_job(url: str = "https://example.com/1") -> dict:
 @patch("fitcv.pipeline.load_candidate_to_bigquery")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
 @patch("fitcv.pipeline.load_to_bigquery")
 @patch("fitcv.pipeline.normalize_batch")
@@ -291,6 +294,7 @@ def test_run_pipeline_returns_correct_schema(
     mock_norm: MagicMock,
     mock_load_bq: MagicMock,
     mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
     mock_load_struct: MagicMock,
     mock_profile_yaml: MagicMock,
     mock_load_cand: MagicMock,
@@ -361,6 +365,7 @@ def test_run_pipeline_returns_correct_schema(
 @patch("fitcv.pipeline.load_candidate_to_bigquery")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
 @patch("fitcv.pipeline.load_to_bigquery")
 @patch("fitcv.pipeline.normalize_batch")
@@ -372,6 +377,7 @@ def test_run_pipeline_prepares_raw_rows_before_bigquery_insert(
     mock_norm: MagicMock,
     mock_load_bq: MagicMock,
     mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
     mock_load_struct: MagicMock,
     mock_profile_yaml: MagicMock,
     mock_load_cand: MagicMock,
@@ -440,6 +446,7 @@ def test_run_pipeline_prepares_raw_rows_before_bigquery_insert(
 @patch("fitcv.pipeline.load_candidate_to_bigquery")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
 @patch("fitcv.pipeline.load_to_bigquery")
 @patch("fitcv.pipeline.normalize_batch")
@@ -451,6 +458,7 @@ def test_run_pipeline_passes_job_dicts_to_embeddings_and_urls_to_vector_search(
     mock_norm: MagicMock,
     mock_load_bq: MagicMock,
     mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
     mock_load_struct: MagicMock,
     mock_profile_yaml: MagicMock,
     mock_load_cand: MagicMock,
@@ -512,6 +520,7 @@ def test_run_pipeline_passes_job_dicts_to_embeddings_and_urls_to_vector_search(
 @patch("fitcv.pipeline.load_candidate_to_bigquery")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
 @patch("fitcv.pipeline.load_to_bigquery")
 @patch("fitcv.pipeline.normalize_batch")
@@ -523,6 +532,7 @@ def test_run_pipeline_skips_skip_fit_jobs(
     mock_norm: MagicMock,
     mock_load_bq: MagicMock,
     mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
     mock_load_struct: MagicMock,
     mock_profile_yaml: MagicMock,
     mock_load_cand: MagicMock,
@@ -582,6 +592,7 @@ def test_run_pipeline_skips_skip_fit_jobs(
 @patch("fitcv.pipeline.load_candidate_to_bigquery")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
 @patch("fitcv.pipeline.load_to_bigquery")
 @patch("fitcv.pipeline.normalize_batch")
@@ -593,6 +604,7 @@ def test_run_pipeline_skips_invalid_cv(
     mock_norm: MagicMock,
     mock_load_bq: MagicMock,
     mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
     mock_load_struct: MagicMock,
     mock_profile_yaml: MagicMock,
     mock_load_cand: MagicMock,
@@ -660,6 +672,7 @@ def test_run_pipeline_skips_invalid_cv(
 @patch("fitcv.pipeline.load_candidate_to_bigquery")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
 @patch("fitcv.pipeline.load_to_bigquery")
 @patch("fitcv.pipeline.normalize_batch")
@@ -671,6 +684,7 @@ def test_run_pipeline_per_job_failure_skips_not_crashes(
     mock_norm: MagicMock,
     mock_load_bq: MagicMock,
     mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
     mock_load_struct: MagicMock,
     mock_profile_yaml: MagicMock,
     mock_load_cand: MagicMock,
