@@ -81,3 +81,21 @@ def test_worker_falls_back_to_config_path_if_no_snapshot():
     call_kwargs = mock_pipeline.call_args[1]
     assert call_kwargs.get("config") is None
 
+
+def test_worker_passes_control_plane_run_id_to_pipeline():
+    """Worker must pass the admin run_id into the pipeline for downstream joins."""
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock()
+    mock_run.effective_settings_json = None
+
+    with patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+         patch("fitcv_cp.worker_job.run_pipeline", return_value={
+             "run_id": "r1", "total_jobs": 0, "passed_filter": 0, "ranked": 0, "cvs_generated": 0
+         }) as mock_pipeline, \
+         patch("fitcv_cp.worker_job._get_bq", return_value=bq):
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
+                             config_path=".env.yaml")
+
+    call_kwargs = mock_pipeline.call_args[1]
+    assert call_kwargs["run_id"] == "r1"

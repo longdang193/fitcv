@@ -181,6 +181,8 @@ def test_admin_run_detail_success_banner():
     assert "candidate CV(s) were successfully generated." in resp.text
     assert "persisted to the <strong>cv_versions</strong> BigQuery table" in resp.text
     assert 'href="/admin/cvs/v123/download"' in resp.text
+    assert 'href="/admin/runs/test-123"' in resp.text
+    assert "Refresh Status" in resp.text
 
 
 def test_admin_run_detail_warning_banner():
@@ -304,6 +306,7 @@ def test_admin_run_detail_enriched_jobs_shows_required_skills():
     assert "Python" in resp.text
     assert "TensorFlow" in resp.text
     assert "https://example.com/job/2" in resp.text
+
 
 
 

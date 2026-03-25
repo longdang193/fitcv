@@ -2,7 +2,10 @@
 {% block title %}Run {{ run.run_id[:8] }} — FitCV Admin{% endblock %}
 {% block content %}
 
-<h1>Run <code style="font-size:1.1rem;color:#818cf8">{{ run.run_id }}</code></h1>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
+  <h1 style="margin-bottom:0">Run <code style="font-size:1.1rem;color:#818cf8">{{ run.run_id }}</code></h1>
+  <a href="/admin/runs/{{ run.run_id }}" class="button" style="text-decoration:none;font-size:0.85rem">⟳ Refresh Status</a>
+</div>
 
 <div class="card">
   <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">

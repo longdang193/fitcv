@@ -52,6 +52,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             config_path=config_path,
             reporter=reporter,
             config=effective_config,  # None → falls back to load_config(config_path)
+            run_id=run_id,
         )
         # run_pipeline() contract: returns {total_jobs, passed_filter, ranked, cvs_generated}
         update_run_status(
