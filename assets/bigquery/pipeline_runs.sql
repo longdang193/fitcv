@@ -13,5 +13,6 @@ CREATE TABLE IF NOT EXISTS `{project}.{dataset}.pipeline_runs` (
   ranked          INT64,
   cvs_generated   INT64,
   error_message   STRING,
-  error_stage     STRING    OPTIONS(description="stage name where the run failed")
+  error_stage     STRING    OPTIONS(description="stage name where the run failed"),
+  effective_settings_json STRING    OPTIONS(description="Merged config snapshot at trigger time")
 );
