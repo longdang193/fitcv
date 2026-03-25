@@ -38,7 +38,7 @@ from fitcv.candidate import load_candidate_to_bigquery, load_profile_yaml
 from fitcv.config import load_config
 from fitcv.cv_generator import generate_cv
 from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
-from fitcv.enrich import enrich_batch, load_structured_jobs
+from fitcv.enrich import enrich_batch, load_run_structured_jobs, load_structured_jobs
 from fitcv.evidence import retrieve_evidence
 from fitcv.gap_analysis import classify_fit, compute_gap
 from fitcv.ingest import load_to_bigquery, parse_jobs_file, prepare_raw_rows
@@ -116,6 +116,7 @@ def run_pipeline(
     config_path: str = ".env.yaml",
     reporter: object = None,  # Optional[PipelineReporter] — avoids circular import
     config: dict | None = None,  # If provided, skips load_config(config_path)
+    run_id: str | None = None,
 ) -> dict[str, Any]:
     """Run the full FitCV candidate pipeline end-to-end.
 
@@ -129,6 +130,9 @@ def run_pipeline(
         Optional pre-built config dict. When provided, `config_path` is ignored.
         Used by the worker to inject the effective settings snapshot stored at
         trigger time. When None, config is loaded from `config_path` as usual.
+    run_id:
+        Optional externally provided run ID. When present, it is treated as the
+        canonical identifier for summaries, events, and persisted records.
 
     Returns
     -------
@@ -141,7 +145,7 @@ def run_pipeline(
     """
     if config is None:
         config = load_config(config_path)
-    run_id = create_run_id()
+    run_id = run_id or create_run_id()
     logger.info("Pipeline run started [run_id=%s]", run_id)
     if reporter is not None:
         reporter.emit("pipeline_start", "info", f"Run started [run_id={run_id}]")  # type: ignore[union-attr]
@@ -155,6 +159,7 @@ def run_pipeline(
 
     enriched = enrich_batch(normalized, config)
     load_structured_jobs(enriched, config)
+    load_run_structured_jobs(enriched, run_id, config)
     if reporter is not None:
         reporter.emit("layer1_jobs", "info", f"Ingested {len(raw_jobs)} jobs, enriched {len(enriched)}")  # type: ignore[union-attr]
 

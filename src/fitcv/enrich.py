@@ -8,6 +8,7 @@ merge_scraped_and_enriched   : combine scraper metadata + LLM parsed dict
 enrich_job                   : call Gemini for one job (integration)
 enrich_batch                 : batch enrichment with rate limiting (integration)
 load_structured_jobs         : MERGE upsert into fitcv.structured_jobs (integration)
+load_run_structured_jobs     : append run-scoped rows into fitcv.run_structured_jobs (integration)
 """
 
 import json
@@ -461,3 +462,90 @@ def load_structured_jobs(
     """
     client.query(merge_sql).result()
     return len(enriched)
+
+
+# ── integration: run-scoped append ───────────────────────────────────────────────
+
+# Ordered columns for run_structured_jobs (same order as DDL).
+_RUN_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
+    ("run_id",               "STRING",    "REQUIRED"),
+    ("job_url",              "STRING",    "REQUIRED"),
+    ("title",                "STRING",    "NULLABLE"),
+    ("company_name",         "STRING",    "NULLABLE"),
+    ("location",             "STRING",    "NULLABLE"),
+    ("contract_type",        "STRING",    "NULLABLE"),
+    ("experience_level",     "STRING",    "NULLABLE"),
+    ("published_at",         "DATE",      "NULLABLE"),
+    ("location_type",        "STRING",    "NULLABLE"),
+    ("seniority",            "STRING",    "NULLABLE"),
+    ("required_skills",      "STRING",    "REPEATED"),
+    ("preferred_skills",     "STRING",    "REPEATED"),
+    ("responsibilities",     "STRING",    "REPEATED"),
+    ("domain",               "STRING",    "NULLABLE"),
+    ("tech_stack",            "STRING",   "REPEATED"),
+    ("years_experience_min", "INT64",     "NULLABLE"),
+    ("years_experience_max", "INT64",     "NULLABLE"),
+    ("keywords",             "STRING",    "REPEATED"),
+    ("job_family",           "STRING",    "NULLABLE"),
+    ("description_cleaned",  "STRING",    "NULLABLE"),
+    ("enrichment_version",   "STRING",    "NULLABLE"),
+    ("enrichment_model",     "STRING",    "NULLABLE"),
+    ("enriched_at",          "TIMESTAMP", "NULLABLE"),
+)
+
+_RUN_SCHEMA_KEYS: frozenset[str] = frozenset(name for name, _, _ in _RUN_SCHEMA_FIELDS)
+
+
+def _map_to_run_structured_jobs_row(
+    row: dict[str, Any],
+    run_id: str,
+) -> dict[str, Any]:
+    """Project an enriched row into the run_structured_jobs schema, injecting run_id."""
+    mapped: dict[str, Any] = {"run_id": run_id}
+    for key in _RUN_SCHEMA_KEYS - {"run_id"}:
+        if key in row:
+            mapped[key] = row[key]
+    return mapped
+
+
+def load_run_structured_jobs(
+    enriched: list[dict[str, Any]],
+    run_id: str,
+    config: dict[str, Any],
+) -> int:
+    """Append run-scoped enriched job rows into fitcv.run_structured_jobs.
+
+    Uses WRITE_APPEND semantics — no MERGE, no staging table.  One job can
+    appear multiple times across different runs (that is intentional).
+
+    Requires GOOGLE_APPLICATION_CREDENTIALS.
+    Decorated with @pytest.mark.integration in tests.
+
+    Returns:
+        Number of rows appended.
+    """
+    from google.cloud import bigquery  # type: ignore[import-untyped]
+    from google.oauth2 import service_account  # type: ignore[import-untyped]
+
+    project = str(config["gcp_project"])
+    dataset = str(config["bigquery_dataset"])
+    key_path = str(config["service_account_key"])
+
+    credentials = service_account.Credentials.from_service_account_file(key_path)
+    client = bigquery.Client(project=project, credentials=credentials)
+
+    rows = [_map_to_run_structured_jobs_row(row, run_id) for row in enriched]
+
+    schema = [
+        bigquery.SchemaField(name, field_type, mode=mode)
+        for name, field_type, mode in _RUN_SCHEMA_FIELDS
+    ]
+    table_ref = f"{project}.{dataset}.run_structured_jobs"
+    job_config = bigquery.LoadJobConfig(
+        write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+        source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+        schema=schema,
+    )
+    load_job = client.load_table_from_json(rows, table_ref, job_config=job_config)
+    load_job.result()
+    return len(rows)
