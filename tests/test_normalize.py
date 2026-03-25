@@ -197,3 +197,27 @@ def test_normalize_batch_runs_dedup_and_normalization() -> None:
     ]
     result = normalize_batch(jobs)
     assert len(result) == 2  # url1 duplicate removed
+
+
+def test_normalize_batch_handles_raw_scraper_keys_before_deduplication() -> None:
+    jobs = [
+        {
+            "jobUrl": "url1",
+            "companyId": "101",
+            "title": "DE 1",
+            "description": "JD 1",
+            "applicationsCount": "5 applicants",
+            "salary": "",
+        },
+        {
+            "jobUrl": "url2",
+            "companyId": "102",
+            "title": "DE 2",
+            "description": "JD 2",
+            "applicationsCount": "6 applicants",
+            "salary": "",
+        },
+    ]
+    result = normalize_batch(jobs)
+    assert len(result) == 2
+    assert {job["job_url"] for job in result} == {"url1", "url2"}
