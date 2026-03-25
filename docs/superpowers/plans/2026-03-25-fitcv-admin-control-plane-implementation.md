@@ -26,7 +26,7 @@
 - Create: `tests/fitcv_cp/__init__.py`
 - Create: `tests/fitcv_cp/test_models.py`
 
-- [ ] **Step 1.1: Write the failing model tests**
+- [x] **Step 1.1: Write the failing model tests**
 
 ```python
 # tests/fitcv_cp/test_models.py
@@ -49,14 +49,14 @@ def test_run_event_fields():
     assert {"run_id", "event_id", "stage", "level", "message", "created_at"} <= fields
 ```
 
-- [ ] **Step 1.2: Run to confirm failure**
+- [x] **Step 1.2: Run to confirm failure**
 
 ```bash
 pytest tests/fitcv_cp/test_models.py -v
 # Expected: ImportError — fitcv_cp not found
 ```
 
-- [ ] **Step 1.3: Create the package and models**
+- [x] **Step 1.3: Create the package and models**
 
 ```python
 # src/fitcv_cp/__init__.py
@@ -125,7 +125,7 @@ class RunEvent:
     payload_json: Optional[str] = None
 ```
 
-- [ ] **Step 1.4: Write the BigQuery DDL files**
+- [x] **Step 1.4: Write the BigQuery DDL files**
 
 `assets/bigquery/pipeline_runs.sql`:
 ```sql
@@ -161,14 +161,14 @@ CREATE TABLE IF NOT EXISTS `{project}.{dataset}.pipeline_run_events` (
 );
 ```
 
-- [ ] **Step 1.5: Run tests to confirm they pass**
+- [x] **Step 1.5: Run tests to confirm they pass**
 
 ```bash
 pytest tests/fitcv_cp/test_models.py -v
 # Expected: 4 passed
 ```
 
-- [ ] **Step 1.6: Commit**
+- [x] **Step 1.6: Commit**
 
 ```bash
 git add src/fitcv_cp/ tests/fitcv_cp/ assets/bigquery/pipeline_runs.sql assets/bigquery/pipeline_run_events.sql
@@ -185,7 +185,7 @@ git commit -m "feat(cp): add control-plane data models and BigQuery DDL"
 
 **Key requirement:** All SQL in this file must use query parameters, not string interpolation. Use `bq.query(sql, job_config=bigquery.QueryJobConfig(query_parameters=[...]))`.
 
-- [ ] **Step 2.1: Write failing tests**
+- [x] **Step 2.1: Write failing tests**
 
 ```python
 # tests/fitcv_cp/test_bq_store.py
@@ -237,14 +237,14 @@ def test_get_events_returns_list():
     assert isinstance(get_events("rid", bq, project="p", dataset="d"), list)
 ```
 
-- [ ] **Step 2.2: Run to confirm failure**
+- [x] **Step 2.2: Run to confirm failure**
 
 ```bash
 pytest tests/fitcv_cp/test_bq_store.py -v
 # Expected: ImportError
 ```
 
-- [ ] **Step 2.3: Implement `bq_store.py`**
+- [x] **Step 2.3: Implement `bq_store.py`**
 
 ```python
 # src/fitcv_cp/bq_store.py
@@ -401,14 +401,14 @@ def _row_to_event(row: Any) -> RunEvent:
     )
 ```
 
-- [ ] **Step 2.4: Run tests**
+- [x] **Step 2.4: Run tests**
 
 ```bash
 pytest tests/fitcv_cp/test_bq_store.py -v
 # Expected: 6 passed
 ```
 
-- [ ] **Step 2.5: Commit**
+- [x] **Step 2.5: Commit**
 
 ```bash
 git add src/fitcv_cp/bq_store.py tests/fitcv_cp/test_bq_store.py
@@ -424,7 +424,7 @@ git commit -m "feat(cp): add parameterized BigQuery store for control-plane tabl
 - Modify: `src/fitcv/pipeline.py` (add optional `reporter` kwarg + emit calls)
 - Create: `tests/fitcv_cp/test_reporter.py`
 
-- [ ] **Step 3.1: Write failing reporter tests**
+- [x] **Step 3.1: Write failing reporter tests**
 
 ```python
 # tests/fitcv_cp/test_reporter.py
@@ -450,14 +450,14 @@ def test_reporter_payload_serialized():
     assert "retries" in call_args["payload_json"]
 ```
 
-- [ ] **Step 3.2: Run to confirm failure**
+- [x] **Step 3.2: Run to confirm failure**
 
 ```bash
 pytest tests/fitcv_cp/test_reporter.py -v
 # Expected: ImportError
 ```
 
-- [ ] **Step 3.3: Implement `reporter.py`**
+- [x] **Step 3.3: Implement `reporter.py`**
 
 ```python
 # src/fitcv_cp/reporter.py
@@ -505,7 +505,7 @@ class PipelineReporter:
             logger.warning("Reporter failed to write event: %s", exc)
 ```
 
-- [ ] **Step 3.4: Add `reporter` kwarg to `run_pipeline()` in `src/fitcv/pipeline.py`**
+- [x] **Step 3.4: Add `reporter` kwarg to `run_pipeline()` in `src/fitcv/pipeline.py`**
 
 Change signature:
 ```python
@@ -552,14 +552,14 @@ if reporter is not None:
     reporter.emit("pipeline_complete", "info", str(summary))  # type: ignore[union-attr]
 ```
 
-- [ ] **Step 3.5: Run reporter tests and existing pipeline tests**
+- [x] **Step 3.5: Run reporter tests and existing pipeline tests**
 
 ```bash
 pytest tests/fitcv_cp/test_reporter.py tests/test_pipeline.py -v
 # Expected: all pass
 ```
 
-- [ ] **Step 3.6: Commit**
+- [x] **Step 3.6: Commit**
 
 ```bash
 git add src/fitcv_cp/reporter.py tests/fitcv_cp/test_reporter.py src/fitcv/pipeline.py
@@ -576,7 +576,7 @@ git commit -m "feat(cp): add PipelineReporter with extended stage coverage; wire
 - Create: `tests/fitcv_cp/test_queue.py`
 - Create: `tests/fitcv_cp/test_worker_job.py`
 
-- [ ] **Step 4.1: Write failing queue tests**
+- [x] **Step 4.1: Write failing queue tests**
 
 ```python
 # tests/fitcv_cp/test_queue.py
@@ -592,7 +592,7 @@ def test_enqueue_run_returns_uuid():
     mock_q.enqueue.assert_called_once()
 ```
 
-- [ ] **Step 4.2: Write failing worker tests**
+- [x] **Step 4.2: Write failing worker tests**
 
 ```python
 # tests/fitcv_cp/test_worker_job.py
@@ -632,14 +632,14 @@ def test_worker_error_event_has_correct_level():
     assert event_row["stage"] == "pipeline_failed"
 ```
 
-- [ ] **Step 4.3: Run to confirm failure**
+- [x] **Step 4.3: Run to confirm failure**
 
 ```bash
 pytest tests/fitcv_cp/test_queue.py tests/fitcv_cp/test_worker_job.py -v
 # Expected: ImportError
 ```
 
-- [ ] **Step 4.4: Implement `queue.py`**
+- [x] **Step 4.4: Implement `queue.py`**
 
 ```python
 # src/fitcv_cp/queue.py
@@ -681,7 +681,7 @@ def enqueue_run(
     return run_id
 ```
 
-- [ ] **Step 4.5: Implement `worker_job.py`**
+- [x] **Step 4.5: Implement `worker_job.py`**
 
 ```python
 # src/fitcv_cp/worker_job.py
@@ -754,14 +754,14 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             logger.warning("[run_id=%s] Failed to write failure event: %s", run_id, inner)
 ```
 
-- [ ] **Step 4.6: Run tests**
+- [x] **Step 4.6: Run tests**
 
 ```bash
 pytest tests/fitcv_cp/test_queue.py tests/fitcv_cp/test_worker_job.py -v
 # Expected: all pass
 ```
 
-- [ ] **Step 4.7: Commit**
+- [x] **Step 4.7: Commit**
 
 ```bash
 git add src/fitcv_cp/queue.py src/fitcv_cp/worker_job.py tests/fitcv_cp/test_queue.py tests/fitcv_cp/test_worker_job.py
@@ -781,7 +781,7 @@ git commit -m "feat(cp): add Redis/RQ queue and worker job with failure event em
 
 **Key requirement:** `trigger_run()` must call `insert_run()` **before** `enqueue_run()`.
 
-- [ ] **Step 5.1: Write failing API tests**
+- [x] **Step 5.1: Write failing API tests**
 
 ```python
 # tests/fitcv_cp/test_app.py
@@ -834,14 +834,14 @@ def test_healthz():
     assert resp.status_code == 200
 ```
 
-- [ ] **Step 5.2: Run to confirm failure**
+- [x] **Step 5.2: Run to confirm failure**
 
 ```bash
 pytest tests/fitcv_cp/test_app.py -v
 # Expected: ImportError
 ```
 
-- [ ] **Step 5.3: Implement `app.py`**
+- [x] **Step 5.3: Implement `app.py`**
 
 ```python
 # src/fitcv_cp/app.py
@@ -985,7 +985,7 @@ def enqueue_run(jobs_path: str, config_path: str, triggered_by: str,
     ...
 ```
 
-- [ ] **Step 5.4: Create Jinja2 templates**
+- [x] **Step 5.4: Create Jinja2 templates**
 
 `src/fitcv_cp/templates/base.html` — base layout with:
 - Status badge color classes: `queued` (grey), `running` (blue), `succeeded` (green), `failed` (red)
@@ -1000,14 +1000,14 @@ def enqueue_run(jobs_path: str, config_path: str, triggered_by: str,
 - Error box (if status = failed): error_stage + error_message
 - Event timeline table: columns = Timestamp, Stage, Level (badge), Message
 
-- [ ] **Step 5.5: Run tests**
+- [x] **Step 5.5: Run tests**
 
 ```bash
 pytest tests/fitcv_cp/test_app.py -v
 # Expected: 6 passed
 ```
 
-- [ ] **Step 5.6: Commit**
+- [x] **Step 5.6: Commit**
 
 ```bash
 git add src/fitcv_cp/app.py src/fitcv_cp/templates/ tests/fitcv_cp/test_app.py src/fitcv_cp/queue.py
@@ -1024,7 +1024,7 @@ git commit -m "feat(cp): FastAPI app with insert-before-enqueue ordering, input 
 - Create: `docker-compose.yml`
 - Create: `src/fitcv_cp/main.py`
 
-- [ ] **Step 6.1: Update `requirements.txt`**
+- [x] **Step 6.1: Update `requirements.txt`**
 
 ```
 fastapi>=0.110.0
@@ -1041,7 +1041,7 @@ Install:
 pip install -r requirements.txt
 ```
 
-- [ ] **Step 6.2: Create `src/fitcv_cp/main.py`**
+- [x] **Step 6.2: Create `src/fitcv_cp/main.py`**
 
 ```python
 # src/fitcv_cp/main.py
@@ -1061,7 +1061,7 @@ app = create_app(
 )
 ```
 
-- [ ] **Step 6.3: Write Dockerfile**
+- [x] **Step 6.3: Write Dockerfile**
 
 ```dockerfile
 FROM python:3.11-slim
@@ -1079,7 +1079,7 @@ ENV PYTHONUNBUFFERED=1
 
 Note: Templates live under `src/fitcv_cp/templates/` which is already included by `COPY src/ ./src/`. No separate `COPY templates/` is needed.
 
-- [ ] **Step 6.4: Write `docker-compose.yml`**
+- [x] **Step 6.4: Write `docker-compose.yml`**
 
 ```yaml
 version: "3.9"
@@ -1118,14 +1118,14 @@ services:
 
 Note: `GCP_SA_KEY_PATH` is configurable via env var (defaulting to the local file path) rather than hardcoding the filename.
 
-- [ ] **Step 6.5: Run full test suite**
+- [x] **Step 6.5: Run full test suite**
 
 ```bash
 pytest tests/ -v
 # Expected: all existing + new tests pass
 ```
 
-- [ ] **Step 6.6: Commit**
+- [x] **Step 6.6: Commit**
 
 ```bash
 git add Dockerfile docker-compose.yml src/fitcv_cp/main.py requirements.txt
@@ -1141,7 +1141,7 @@ git commit -m "feat(cp): add Dockerfile, docker-compose (configurable SA key pat
 
 Table ownership: The bootstrap script is the source of truth for DDL. Add both new SQL files to its list and run it once.
 
-- [ ] **Step 7.1: Register new DDL files in bootstrap script**
+- [x] **Step 7.1: Register new DDL files in bootstrap script**
 
 Add `pipeline_runs.sql` and `pipeline_run_events.sql` to the list of DDL files in `scripts/bootstrap_bigquery.py`, then run:
 
@@ -1185,7 +1185,7 @@ curl http://localhost:8000/runs/<run_id>/events
 docker compose down
 ```
 
-- [ ] **Step 7.3: Commit**
+- [x] **Step 7.3: Commit**
 
 ```bash
 git add scripts/bootstrap_bigquery.py
