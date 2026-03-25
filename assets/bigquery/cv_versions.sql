@@ -5,6 +5,7 @@
 
 CREATE TABLE IF NOT EXISTS `fitcv-491123.fitcv.cv_versions` (
   version_id          STRING    NOT NULL OPTIONS(description="UUID4, PK of this generated CV record"),
+  run_id              STRING             OPTIONS(description="Logical FK to pipeline_runs"),
   job_url             STRING    NOT NULL OPTIONS(description="LinkedIn job posting URL (FK → structured_jobs)"),
   enrichment_version  STRING             OPTIONS(description="Enrichment model/prompt version used"),
   vector_rank         INT64              OPTIONS(description="Rank from vector shortlist stage"),
