@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events
+from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import datetime
 import uuid
@@ -52,3 +52,25 @@ def test_get_events_returns_list():
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     assert isinstance(get_events("rid", bq, project="p", dataset="d"), list)
+
+
+def test_list_cvs_for_run_parameterized():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([
+        {"version_id": "v1", "job_url": "http", "fit_classification": "strong", "generated_at": datetime.datetime.now(datetime.timezone.utc)}
+    ])
+    result = list_cvs_for_run("rid", bq, project="p", dataset="d")
+    assert len(result) == 1
+    bq.query.assert_called_once()
+    sql_arg = bq.query.call_args[0][0]
+    assert "rid" not in sql_arg, "SQL must use query parameters"
+
+def test_get_cv_markdown_returns_string_or_none():
+    bq = MagicMock()
+    # Test not found
+    bq.query.return_value.result.return_value = iter([])
+    assert get_cv_markdown("missing", bq, project="p", dataset="d") is None
+    
+    # Test found
+    bq.query.return_value.result.return_value = iter([{"cv_markdown": "my cv"}])
+    assert get_cv_markdown("found", bq, project="p", dataset="d") == "my cv"

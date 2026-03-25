@@ -161,3 +161,39 @@ def _row_to_event(row: Any) -> RunEvent:
         created_at=r["created_at"],
         payload_json=r.get("payload_json"),
     )
+
+
+def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> list[dict[str, Any]]:
+    table = f"{project}.{dataset}.cv_versions"
+    sql = f"""
+        SELECT version_id, job_url, fit_classification, generated_at
+        FROM `{table}`
+        WHERE run_id = @run_id
+        ORDER BY generated_at DESC
+    """
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    rows = bq.query(sql, job_config=job_config).result()
+    return [dict(row.items()) for row in rows]
+
+
+def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> Optional[str]:
+    table = f"{project}.{dataset}.cv_versions"
+    sql = f"""
+        SELECT cv_markdown
+        FROM `{table}`
+        WHERE version_id = @version_id
+        LIMIT 1
+    """
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("version_id", "STRING", version_id),
+        ]
+    )
+    rows = list(bq.query(sql, job_config=job_config).result())
+    if not rows:
+        return None
+    return rows[0]["cv_markdown"]
