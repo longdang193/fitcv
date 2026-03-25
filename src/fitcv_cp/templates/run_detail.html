@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Run {{ run.run_id[:8] }} — FitCV Admin{% endblock %}
+{% block content %}
+<p style="margin-bottom:1rem"><a href="/admin/runs">← All Runs</a></p>
+<h1>Run <code style="font-size:1.1rem;color:#818cf8">{{ run.run_id }}</code></h1>
+
+<div class="card">
+  <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
+    <span class="badge badge-{{ run.status.value }}" style="font-size:0.8rem;padding:0.25rem 0.75rem">{{ run.status.value }}</span>
+    {% if run.error_stage %}<span class="meta">failed at: <strong>{{ run.error_stage }}</strong></span>{% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Triggered By</span><span class="v">{{ run.triggered_by }}</span>
+    <span class="k">Jobs Path</span><span class="v"><code>{{ run.jobs_path }}</code></span>
+    <span class="k">Config</span><span class="v"><code>{{ run.config_path }}</code></span>
+    <span class="k">Created</span><span class="v">{{ run.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.created_at else '—' }}</span>
+    <span class="k">Started</span><span class="v">{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.started_at else '—' }}</span>
+    <span class="k">Finished</span><span class="v">{{ run.finished_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.finished_at else '—' }}</span>
+    {% if run.started_at and run.finished_at %}
+    <span class="k">Duration</span><span class="v">{{ ((run.finished_at - run.started_at).total_seconds() | int) }}s</span>
+    {% endif %}
+    <span class="k">Total Jobs</span><span class="v">{{ run.total_jobs if run.total_jobs is not none else '—' }}</span>
+    <span class="k">Passed Filter</span><span class="v">{{ run.passed_filter if run.passed_filter is not none else '—' }}</span>
+    <span class="k">Ranked</span><span class="v">{{ run.ranked if run.ranked is not none else '—' }}</span>
+    <span class="k">CVs Generated</span><span class="v">{{ run.cvs_generated if run.cvs_generated is not none else '—' }}</span>
+  </div>
+</div>
+
+{% if run.status.value == 'failed' and run.error_message %}
+<div class="error-box">
+  <strong>⚠ Pipeline Error{% if run.error_stage %} — {{ run.error_stage }}{% endif %}</strong>
+  <code style="font-size:0.82rem;color:#fca5a5;word-break:break-all">{{ run.error_message }}</code>
+</div>
+{% endif %}
+
+<h2>Event Timeline</h2>
+<div class="card" style="padding:0;overflow:hidden">
+  <table>
+    <thead>
+      <tr>
+        <th>Timestamp</th>
+        <th>Stage</th>
+        <th>Level</th>
+        <th>Message</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for ev in events %}
+      <tr>
+        <td class="meta">{{ ev.created_at.strftime('%H:%M:%S') if ev.created_at else '—' }}</td>
+        <td><code style="font-size:0.78rem">{{ ev.stage }}</code></td>
+        <td><span class="badge badge-{{ ev.level }}">{{ ev.level }}</span></td>
+        <td style="font-size:0.82rem;color:#94a3b8;max-width:600px;word-break:break-word">{{ ev.message }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" style="color:#4a5568;text-align:center;padding:2rem">No events yet</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
