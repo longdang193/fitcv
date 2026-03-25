@@ -174,7 +174,8 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
     job_config = bq_module.QueryJobConfig(
         query_parameters=[
             bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
-        ]
+        ],
+        use_query_cache=False,
     )
     rows = bq.query(sql, job_config=job_config).result()
     return [dict(row.items()) for row in rows]
@@ -191,7 +192,8 @@ def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> 
     job_config = bq_module.QueryJobConfig(
         query_parameters=[
             bq_module.ScalarQueryParameter("version_id", "STRING", version_id),
-        ]
+        ],
+        use_query_cache=False,
     )
     rows = list(bq.query(sql, job_config=job_config).result())
     if not rows:
