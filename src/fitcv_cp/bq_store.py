@@ -15,19 +15,29 @@ logger = logging.getLogger(__name__)
 
 def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None:
     table = f"{project}.{dataset}.pipeline_runs"
-    row = {
-        "run_id": run.run_id,
-        "status": run.status.value,
-        "triggered_by": run.triggered_by,
-        "trigger_source": run.trigger_source,
-        "jobs_path": run.jobs_path,
-        "config_path": run.config_path,
-        "created_at": run.created_at.isoformat(),
-        "effective_settings_json": run.effective_settings_json,
-    }
-    errors = bq.insert_rows_json(table, [row])
-    if errors:
-        logger.error("BQ insert_run errors: %s", errors)
+    sql = f"""
+        INSERT INTO `{table}` (
+            run_id, status, triggered_by, trigger_source,
+            jobs_path, config_path, created_at, effective_settings_json
+        )
+        VALUES (
+            @run_id, @status, @triggered_by, @trigger_source,
+            @jobs_path, @config_path, @created_at, @effective_settings_json
+        )
+    """
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("run_id", "STRING", run.run_id),
+            bq_module.ScalarQueryParameter("status", "STRING", run.status.value),
+            bq_module.ScalarQueryParameter("triggered_by", "STRING", run.triggered_by),
+            bq_module.ScalarQueryParameter("trigger_source", "STRING", run.trigger_source),
+            bq_module.ScalarQueryParameter("jobs_path", "STRING", run.jobs_path),
+            bq_module.ScalarQueryParameter("config_path", "STRING", run.config_path),
+            bq_module.ScalarQueryParameter("created_at", "TIMESTAMP", run.created_at),
+            bq_module.ScalarQueryParameter("effective_settings_json", "STRING", run.effective_settings_json),
+        ]
+    )
+    bq.query(sql, job_config=job_config).result()
 
 
 def update_run_status(
