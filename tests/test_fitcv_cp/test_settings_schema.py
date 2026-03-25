@@ -25,6 +25,7 @@ def test_schema_has_required_fields():
         assert "type" in entry       # "int" or "float"
         assert "default" in entry
         assert "label" in entry
+        assert "description" in entry
         assert "group" in entry      # "retrieval" | "timing" | "ranking"
 
 
