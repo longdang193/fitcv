@@ -151,8 +151,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     def admin_settings_view(request: Request) -> HTMLResponse:
         active = load_active_settings(bq=bq, project=project, dataset=dataset)
         return templates.TemplateResponse(
-            "settings.html",
-            {"request": request, "schema": SETTINGS_SCHEMA, "active": active}
+            request=request,
+            name="settings.html",
+            context={"schema": SETTINGS_SCHEMA, "active": active}
         )
 
     @app.post("/admin/settings/{key}", response_class=HTMLResponse)
@@ -167,9 +168,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         except (KeyError, ValidationError, ValueError) as exc:
             active = load_active_settings(bq=bq, project=project, dataset=dataset)
             return templates.TemplateResponse(
-                "settings.html",
-                {"request": request, "schema": SETTINGS_SCHEMA,
-                 "active": active, "error": str(exc)},
+                request=request,
+                name="settings.html",
+                context={"schema": SETTINGS_SCHEMA, "active": active, "error": str(exc)},
                 status_code=422,
             )
         save_setting(key, coerced, updated_by="admin", bq=bq, project=project, dataset=dataset)
@@ -178,7 +179,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     @app.get("/admin/runs", response_class=HTMLResponse)
     def admin_runs(request: Request) -> HTMLResponse:
         runs = list_runs(bq, project=project, dataset=dataset)
-        return templates.TemplateResponse("runs_list.html", {"request": request, "runs": runs})
+        return templates.TemplateResponse(request=request, name="runs_list.html", context={"runs": runs})
 
     @app.get("/admin/runs/{run_id}", response_class=HTMLResponse)
     def admin_run_detail(request: Request, run_id: str) -> HTMLResponse:
@@ -187,7 +188,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=404)
         events = get_events(run_id, bq, project=project, dataset=dataset)
         return templates.TemplateResponse(
-            "run_detail.html", {"request": request, "run": run, "events": events}
+            request=request, name="run_detail.html", context={"run": run, "events": events}
         )
 
     return app
