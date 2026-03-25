@@ -20,6 +20,7 @@ ASSETS_DIR = Path(__file__).parent.parent / "assets" / "bigquery"
 TABLE_ORDER = [
     "raw_jobs",
     "structured_jobs",
+    "run_structured_jobs",
     "candidate_profile",
     "candidate_skills",
     "candidate_experiences",
