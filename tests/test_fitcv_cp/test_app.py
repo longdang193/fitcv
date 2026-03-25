@@ -122,3 +122,13 @@ def test_post_runs_rejects_invalid_config_overrides():
     })
     assert resp.status_code == 422
 
+
+# ── html routes ──────────────────────────────────────────────────────────────
+
+def test_admin_runs_rendered_nav():
+    with patch("fitcv_cp.app.list_runs", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert resp.status_code == 200
+    assert 'href="/admin/settings">Settings</a>' in resp.text
+
+
