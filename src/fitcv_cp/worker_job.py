@@ -5,6 +5,7 @@ Worker failure path:
 2. append a pipeline_failed event to the event log
 """
 import datetime
+import json
 import logging
 import os
 import uuid
@@ -12,7 +13,7 @@ import uuid
 from google.cloud import bigquery
 
 from fitcv.pipeline import run_pipeline
-from fitcv_cp.bq_store import append_event, update_run_status
+from fitcv_cp.bq_store import append_event, get_run, update_run_status
 from fitcv_cp.models import RunEvent, RunStatus
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,22 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             started_at=datetime.datetime.now(datetime.timezone.utc),
         )
         reporter = PipelineReporter(run_id=run_id, bq=bq, project=project, dataset=dataset)
-        summary = run_pipeline(jobs_path=jobs_path, config_path=config_path, reporter=reporter)
+
+        # Read the effective config snapshot stored at trigger time
+        run_record = get_run(run_id, bq, project=project, dataset=dataset)
+        effective_config: dict | None = None
+        if run_record and run_record.effective_settings_json:
+            try:
+                effective_config = json.loads(run_record.effective_settings_json)
+            except Exception as exc:
+                logger.warning("[run_id=%s] Failed to parse effective_settings_json: %s", run_id, exc)
+
+        summary = run_pipeline(
+            jobs_path=jobs_path,
+            config_path=config_path,
+            reporter=reporter,
+            config=effective_config,  # None → falls back to load_config(config_path)
+        )
         # run_pipeline() contract: returns {total_jobs, passed_filter, ranked, cvs_generated}
         update_run_status(
             run_id, RunStatus.SUCCEEDED, bq, project=project, dataset=dataset,
