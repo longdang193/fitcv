@@ -45,6 +45,13 @@ def test_build_extraction_prompt_contains_description_text() -> None:
     assert "SQL" in prompt
 
 
+def test_build_extraction_prompt_requires_all_keys_present() -> None:
+    prompt = build_extraction_prompt(description="Remote SQL role", scraped_metadata={})
+    assert "Every schema key must be present" in prompt
+    assert "Use [] for unknown list fields" in prompt
+    assert "Use null for unknown scalar fields" in prompt
+
+
 # ── parse_extraction_response — valid JSON ────────────────────────────────────
 
 def test_parse_extraction_response_valid_json() -> None:
@@ -68,6 +75,14 @@ def test_parse_extraction_response_markdown_fenced_json() -> None:
     result = parse_extraction_response(raw)
     assert result["errors"] == []
     assert result["parsed"]["required_skills"] == ["SQL"]
+
+
+def test_parse_extraction_response_repairs_missing_array_commas() -> None:
+    raw = '{"required_skills": ["SQL" "Python"], "location_type": "remote"}'
+    result = parse_extraction_response(raw)
+    assert result["errors"] == []
+    assert result["parsed"]["required_skills"] == ["SQL", "Python"]
+    assert result["parsed"]["location_type"] == "remote"
 
 
 def test_parse_extraction_response_missing_fields_get_defaults() -> None:
@@ -346,9 +361,12 @@ def test_enrich_job_uses_google_genai_client(
         text = '{"required_skills": ["SQL"], "location_type": "remote"}'
 
     class FakeModels:
-        def generate_content(self, *, model: str, contents: str) -> FakeResponse:
+        def generate_content(
+            self, *, model: str, contents: str, config: dict[str, object]
+        ) -> FakeResponse:
             captured["model"] = model
             captured["contents"] = contents
+            captured["config"] = config
             return FakeResponse()
 
     class FakeClient:
@@ -387,6 +405,29 @@ def test_enrich_job_uses_google_genai_client(
     assert result["required_skills"] == ["SQL"]
     assert result["location_type"] == "remote"
     assert captured["model"] == "gemini-2.5-flash"
+    config = captured["config"]
+    assert isinstance(config, dict)
+    assert config["response_mime_type"] == "application/json"
+    schema = config["response_json_schema"]
+    assert isinstance(schema, dict)
+    assert schema["type"] == "object"
+    assert schema["required"] == [
+        "required_skills",
+        "preferred_skills",
+        "responsibilities",
+        "tech_stack",
+        "keywords",
+        "location_type",
+        "seniority",
+        "domain",
+        "job_family",
+        "years_experience_min",
+        "years_experience_max",
+    ]
+    properties = schema["properties"]
+    assert isinstance(properties, dict)
+    assert properties["required_skills"]["type"] == "array"
+    assert properties["location_type"]["enum"] == ["remote", "hybrid", "onsite"]
     client_kwargs = captured["client_kwargs"]
     assert isinstance(client_kwargs, dict)
     assert client_kwargs["vertexai"] is True
@@ -402,9 +443,12 @@ def test_enrich_job_prefers_gemini_api_key(
         text = '{"required_skills": ["SQL"]}'
 
     class FakeModels:
-        def generate_content(self, *, model: str, contents: str) -> FakeResponse:
+        def generate_content(
+            self, *, model: str, contents: str, config: dict[str, object]
+        ) -> FakeResponse:
             captured["model"] = model
             captured["contents"] = contents
+            captured["config"] = config
             return FakeResponse()
 
     class FakeClient:
@@ -433,6 +477,9 @@ def test_enrich_job_prefers_gemini_api_key(
     assert isinstance(client_kwargs, dict)
     assert client_kwargs["api_key"] == "test-key"
     assert "vertexai" not in client_kwargs
+    config = captured["config"]
+    assert isinstance(config, dict)
+    assert config["response_mime_type"] == "application/json"
 
 
 # ── load_run_structured_jobs ──────────────────────────────────────────────────
