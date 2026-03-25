@@ -185,10 +185,11 @@ def normalize_batch(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Normalize and deduplicate a list of raw LinkedIn job dicts.
 
     Pipeline:
-    1. Exact dedupe by job_url
-    2. Near-duplicate dedupe by company_id + title + description hash
-    3. Per-job field normalization
+    1. Per-job field normalization
+    2. Exact dedupe by job_url
+    3. Near-duplicate dedupe by company_id + title + description hash
     """
-    deduped = deduplicate_jobs(jobs)
+    normalized = [normalize_job(job) for job in jobs]
+    deduped = deduplicate_jobs(normalized)
     deduped = deduplicate_near_duplicates(deduped)
-    return [normalize_job(job) for job in deduped]
+    return deduped
