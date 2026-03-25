@@ -8,6 +8,7 @@ import pytest
 from fitcv.enrich import (
     build_extraction_prompt,
     enrich_job,
+    load_run_structured_jobs,
     load_structured_jobs,
     merge_scraped_and_enriched,
     parse_extraction_response,
@@ -432,3 +433,281 @@ def test_enrich_job_prefers_gemini_api_key(
     assert isinstance(client_kwargs, dict)
     assert client_kwargs["api_key"] == "test-key"
     assert "vertexai" not in client_kwargs
+
+
+# ── load_run_structured_jobs ──────────────────────────────────────────────────
+
+def test_load_run_structured_jobs_inserts_to_correct_table(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeSchemaField:
+        def __init__(self, name: str, field_type: str, mode: str = "NULLABLE") -> None:
+            self.name = name
+            self.field_type = field_type
+            self.mode = mode
+
+    class FakeLoadJobConfig:
+        def __init__(self, **kwargs: object) -> None:
+            captured["job_config"] = kwargs
+
+    class FakeJob:
+        def result(self) -> None:
+            return None
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            captured["client_kwargs"] = kwargs
+
+        def load_table_from_json(
+            self, rows: list[dict[str, object]], table: str, job_config: object
+        ) -> FakeJob:
+            captured["rows"] = rows
+            captured["table"] = table
+            captured["load_job_config_obj"] = job_config
+            return FakeJob()
+
+    fake_bigquery = types.SimpleNamespace(
+        Client=FakeClient,
+        LoadJobConfig=FakeLoadJobConfig,
+        SchemaField=FakeSchemaField,
+        SourceFormat=types.SimpleNamespace(NEWLINE_DELIMITED_JSON="NEWLINE_DELIMITED_JSON"),
+        WriteDisposition=types.SimpleNamespace(WRITE_APPEND="WRITE_APPEND"),
+    )
+    fake_service_account = types.SimpleNamespace(
+        Credentials=types.SimpleNamespace(
+            from_service_account_file=lambda path: "creds"
+        )
+    )
+    fake_google_cloud = types.SimpleNamespace(bigquery=fake_bigquery)
+    fake_google_oauth2 = types.SimpleNamespace(service_account=fake_service_account)
+
+    monkeypatch.setitem(sys.modules, "google.cloud", fake_google_cloud)
+    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
+    monkeypatch.setitem(sys.modules, "google.oauth2", fake_google_oauth2)
+    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+
+    enriched = [
+        {
+            "job_url": "https://example.com/1",
+            "title": "Data Engineer",
+            "company_name": "ACME",
+            "location": "Remote",
+            "contract_type": "Full-time",
+            "experience_level": "mid",
+            "published_at": "2026-01-01",
+            "location_type": "remote",
+            "seniority": "senior",
+            "required_skills": ["SQL", "Python"],
+            "preferred_skills": [],
+            "responsibilities": [],
+            "domain": "fintech",
+            "tech_stack": [],
+            "years_experience_min": 3,
+            "years_experience_max": None,
+            "keywords": [],
+            "job_family": "data_engineering",
+            "description_cleaned": "Build pipelines.",
+            "enrichment_version": "v1",
+            "enrichment_model": "gemini-2.0-flash",
+            "enriched_at": "2026-01-01T00:00:00+00:00",
+            # extra fields NOT in run_structured_jobs schema:
+            "company_id": "123",
+            "sector": "Software",
+            "salary_min": 50000.0,
+            "salary_max": 80000.0,
+            "salary_currency": "EUR",
+            "applications_count": 10,
+        }
+    ]
+
+    load_run_structured_jobs(
+        enriched=enriched,
+        run_id="run-abc",
+        config={
+            "gcp_project": "fitcv-491123",
+            "bigquery_dataset": "fitcv",
+            "service_account_key": "/tmp/key.json",
+        },
+    )
+
+    table = captured["table"]
+    assert "run_structured_jobs" in table, f"Expected run_structured_jobs table, got: {table}"
+    assert "structured_jobs" not in table.replace("run_structured_jobs", ""), (
+        "Table must be run_structured_jobs, not structured_jobs"
+    )
+
+
+def test_load_run_structured_jobs_injects_run_id_into_rows(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeJob:
+        def result(self) -> None:
+            return None
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def load_table_from_json(
+            self, rows: list[dict[str, object]], table: str, job_config: object
+        ) -> FakeJob:
+            captured["rows"] = rows
+            return FakeJob()
+
+    fake_bigquery = types.SimpleNamespace(
+        Client=FakeClient,
+        LoadJobConfig=lambda **kw: None,
+        SchemaField=lambda name, ft, mode="NULLABLE": None,
+        SourceFormat=types.SimpleNamespace(NEWLINE_DELIMITED_JSON="NEWLINE_DELIMITED_JSON"),
+        WriteDisposition=types.SimpleNamespace(WRITE_APPEND="WRITE_APPEND"),
+    )
+    fake_service_account = types.SimpleNamespace(
+        Credentials=types.SimpleNamespace(
+            from_service_account_file=lambda path: "creds"
+        )
+    )
+    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
+    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
+    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
+    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+
+    enriched = [{"job_url": "https://example.com/1", "title": "DE"}]
+    load_run_structured_jobs(
+        enriched=enriched,
+        run_id="run-xyz",
+        config={
+            "gcp_project": "fitcv-491123",
+            "bigquery_dataset": "fitcv",
+            "service_account_key": "/tmp/key.json",
+        },
+    )
+
+    rows = captured["rows"]
+    assert isinstance(rows, list)
+    assert len(rows) == 1
+    assert rows[0]["run_id"] == "run-xyz"
+    assert rows[0]["job_url"] == "https://example.com/1"
+
+
+def test_load_run_structured_jobs_uses_write_append(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeJob:
+        def result(self) -> None:
+            return None
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def load_table_from_json(
+            self, rows: list[dict[str, object]], table: str, job_config: object
+        ) -> FakeJob:
+            captured["job_config_kwargs"] = getattr(job_config, "_kwargs", {})
+            return FakeJob()
+
+    class FakeLoadJobConfig:
+        def __init__(self, **kwargs: object) -> None:
+            self._kwargs = kwargs
+
+    fake_bigquery = types.SimpleNamespace(
+        Client=FakeClient,
+        LoadJobConfig=FakeLoadJobConfig,
+        SchemaField=lambda name, ft, mode="NULLABLE": None,
+        SourceFormat=types.SimpleNamespace(NEWLINE_DELIMITED_JSON="NEWLINE_DELIMITED_JSON"),
+        WriteDisposition=types.SimpleNamespace(WRITE_APPEND="WRITE_APPEND"),
+    )
+    fake_service_account = types.SimpleNamespace(
+        Credentials=types.SimpleNamespace(
+            from_service_account_file=lambda path: "creds"
+        )
+    )
+    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
+    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
+    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
+    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+
+    enriched = [{"job_url": "https://example.com/1"}]
+    load_run_structured_jobs(
+        enriched=enriched,
+        run_id="run-xyz",
+        config={
+            "gcp_project": "fitcv-491123",
+            "bigquery_dataset": "fitcv",
+            "service_account_key": "/tmp/key.json",
+        },
+    )
+
+    kwargs = captured["job_config_kwargs"]
+    assert kwargs.get("write_disposition") == "WRITE_APPEND", (
+        f"Expected WRITE_APPEND, got: {kwargs.get('write_disposition')}"
+    )
+
+
+def test_load_run_structured_jobs_excludes_schema_extra_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Extra fields from structured_jobs (company_id, sector, salary_*) must not appear in rows."""
+    captured: dict[str, object] = {}
+
+    class FakeJob:
+        def result(self) -> None:
+            return None
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def load_table_from_json(
+            self, rows: list[dict[str, object]], table: str, job_config: object
+        ) -> FakeJob:
+            captured["rows"] = rows
+            return FakeJob()
+
+    fake_bigquery = types.SimpleNamespace(
+        Client=FakeClient,
+        LoadJobConfig=lambda **kw: None,
+        SchemaField=lambda name, ft, mode="NULLABLE": None,
+        SourceFormat=types.SimpleNamespace(NEWLINE_DELIMITED_JSON="NEWLINE_DELIMITED_JSON"),
+        WriteDisposition=types.SimpleNamespace(WRITE_APPEND="WRITE_APPEND"),
+    )
+    fake_service_account = types.SimpleNamespace(
+        Credentials=types.SimpleNamespace(
+            from_service_account_file=lambda path: "creds"
+        )
+    )
+    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
+    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
+    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
+    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+
+    enriched = [
+        {
+            "job_url": "https://example.com/1",
+            "company_id": "SHOULD_NOT_APPEAR",
+            "sector": "SHOULD_NOT_APPEAR",
+            "salary_min": 99999.0,
+            "salary_max": 99999.0,
+            "salary_currency": "USD",
+            "applications_count": 42,
+        }
+    ]
+    load_run_structured_jobs(
+        enriched=enriched,
+        run_id="run-abc",
+        config={
+            "gcp_project": "fitcv-491123",
+            "bigquery_dataset": "fitcv",
+            "service_account_key": "/tmp/key.json",
+        },
+    )
+
+    row = captured["rows"][0]  # type: ignore[index]
+    for excluded in ("company_id", "sector", "salary_min", "salary_max", "salary_currency", "applications_count"):
+        assert excluded not in row, f"Field {excluded!r} should not be in run_structured_jobs row"
