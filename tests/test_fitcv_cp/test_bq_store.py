@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown
+from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import datetime
 import uuid
@@ -74,3 +74,57 @@ def test_get_cv_markdown_returns_string_or_none():
     # Test found
     bq.query.return_value.result.return_value = iter([{"cv_markdown": "my cv"}])
     assert get_cv_markdown("found", bq, project="p", dataset="d") == "my cv"
+
+
+# ── list_run_structured_jobs ─────────────────────────────────────────────────
+
+def test_list_run_structured_jobs_returns_list():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    result = list_run_structured_jobs("rid", bq, project="p", dataset="d")
+    assert isinstance(result, list)
+
+
+def test_list_run_structured_jobs_uses_parameterized_query():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    list_run_structured_jobs("run-secret-id", bq, project="p", dataset="d")
+    bq.query.assert_called_once()
+    sql_arg = bq.query.call_args[0][0]
+    assert "run-secret-id" not in sql_arg, "SQL must use query parameters, not string interpolation"
+
+
+def test_list_run_structured_jobs_returns_rows_as_dicts():
+    bq = MagicMock()
+
+    class FakeRow:
+        def items(self):
+            return [
+                ("run_id", "run-abc"),
+                ("job_url", "https://example.com/1"),
+                ("title", "Data Engineer"),
+                ("location_type", "remote"),
+                ("seniority", "senior"),
+                ("job_family", "data_engineering"),
+                ("domain", "fintech"),
+                ("required_skills", ["SQL", "Python"]),
+            ]
+
+    bq.query.return_value.result.return_value = iter([FakeRow()])
+    result = list_run_structured_jobs("run-abc", bq, project="p", dataset="d")
+    assert len(result) == 1
+    row = result[0]
+    assert isinstance(row, dict)
+    assert row["run_id"] == "run-abc"
+    assert row["job_url"] == "https://example.com/1"
+    assert row["location_type"] == "remote"
+    assert row["required_skills"] == ["SQL", "Python"]
+
+
+def test_list_run_structured_jobs_queries_correct_table():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    list_run_structured_jobs("run-abc", bq, project="myproject", dataset="myds")
+    sql_arg = bq.query.call_args[0][0]
+    assert "run_structured_jobs" in sql_arg, "SQL must reference run_structured_jobs table"
+
