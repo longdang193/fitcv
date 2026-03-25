@@ -40,6 +40,7 @@ TABLE_ORDER = [
     # Control-plane tables
     "pipeline_runs",
     "pipeline_run_events",
+    "pipeline_settings",
 ]
 
 
