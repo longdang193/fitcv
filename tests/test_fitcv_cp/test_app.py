@@ -141,11 +141,13 @@ def test_admin_run_detail_success_banner():
         cvs_generated=5, total_jobs=10, jobs_path="",
         triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
         created_at=datetime.now(timezone.utc)
-    )), patch("fitcv_cp.app.get_events", return_value=[]):
+    )), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[{"version_id": "v123", "job_url": "mock.com", "fit_classification": "strong", "generated_at": datetime.now(timezone.utc)}]):
         resp = TestClient(_app()).get("/admin/runs/test-123")
     assert resp.status_code == 200
     assert "candidate CV(s) were successfully generated." in resp.text
     assert "persisted to the <strong>cv_versions</strong> BigQuery table" in resp.text
+    assert 'href="/admin/cvs/v123/download"' in resp.text
 
 
 def test_admin_run_detail_warning_banner():
@@ -157,9 +159,23 @@ def test_admin_run_detail_warning_banner():
         cvs_generated=0, total_jobs=10, jobs_path="",
         triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
         created_at=datetime.now(timezone.utc)
-    )), patch("fitcv_cp.app.get_events", return_value=[]):
+    )), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/test-124")
     assert resp.status_code == 200
     assert "No candidates passed the final AI ranking threshold." in resp.text
+
+def test_download_cv_endpoint_200():
+    with patch("fitcv_cp.app.get_cv_markdown", return_value="# Mock CV"):
+        resp = TestClient(_app()).get("/admin/cvs/v456/download")
+    assert resp.status_code == 200
+    assert resp.text == "# Mock CV"
+    assert resp.headers["content-type"] == "text/markdown; charset=utf-8"
+    assert "attachment; filename=\"cv_v456.md\"" in resp.headers["content-disposition"]
+
+def test_download_cv_endpoint_404():
+    with patch("fitcv_cp.app.get_cv_markdown", return_value=None):
+        resp = TestClient(_app()).get("/admin/cvs/missing/download")
+    assert resp.status_code == 404
 
 

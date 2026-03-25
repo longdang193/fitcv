@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator
 
 from fitcv.config import load_config
-from fitcv_cp.bq_store import get_events, get_run, insert_run, list_runs
+from fitcv_cp.bq_store import get_events, get_run, insert_run, list_runs, list_cvs_for_run, get_cv_markdown
 from fitcv_cp.models import PipelineRun, RunStatus
 from fitcv_cp.queue import enqueue_run
 from fitcv_cp.settings_schema import (
@@ -187,8 +187,21 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if run is None:
             raise HTTPException(status_code=404)
         events = get_events(run_id, bq, project=project, dataset=dataset)
+        cv_versions = list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
         return templates.TemplateResponse(
-            request=request, name="run_detail.html", context={"run": run, "events": events}
+            request=request, name="run_detail.html", context={"run": run, "events": events, "cv_versions": cv_versions}
+        )
+
+    @app.get("/admin/cvs/{version_id}/download")
+    def download_cv(version_id: str):
+        from fastapi import Response
+        content = get_cv_markdown(version_id, bq, project=project, dataset=dataset)
+        if content is None:
+            raise HTTPException(status_code=404, detail="CV not found")
+        return Response(
+            content=content,
+            media_type="text/markdown",
+            headers={"Content-Disposition": f'attachment; filename="cv_{version_id}.md"'}
         )
 
     return app
