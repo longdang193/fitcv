@@ -64,6 +64,48 @@
 </div>
 {% endif %}
 
+<h2>Enriched Jobs</h2>
+<div class="card" style="padding:0;overflow:hidden;margin-bottom:2rem">
+  {% if enriched_jobs %}
+    <table>
+      <thead>
+        <tr>
+          <th>Job Title</th>
+          <th>Location Type</th>
+          <th>Seniority</th>
+          <th>Job Family</th>
+          <th>Domain</th>
+          <th>Required Skills (top 5)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for job in enriched_jobs %}
+        <tr>
+          <td>
+            <a href="{{ job.job_url }}" target="_blank" style="color:#a5b4fc;text-decoration:none">
+              {{ job.title or job.job_url }}
+            </a>
+          </td>
+          <td><code style="font-size:0.78rem">{{ job.location_type or '—' }}</code></td>
+          <td><code style="font-size:0.78rem">{{ job.seniority or '—' }}</code></td>
+          <td><code style="font-size:0.78rem">{{ job.job_family or '—' }}</code></td>
+          <td><code style="font-size:0.78rem">{{ job.domain or '—' }}</code></td>
+          <td style="font-size:0.82rem;color:#94a3b8">
+            {% if job.required_skills %}
+              {{ job.required_skills[:5] | join(', ') }}{% if job.required_skills | length > 5 %}, <em style="color:#6b7280">+{{ job.required_skills | length - 5 }} more</em>{% endif %}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="color:#4a5568;text-align:center;padding:1.5rem">No enrichment data available for this run.</p>
+  {% endif %}
+</div>
+
 <h2>Event Timeline</h2>
 <div class="card" style="padding:0;overflow:hidden">
   <table>

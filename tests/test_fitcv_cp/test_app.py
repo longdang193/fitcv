@@ -212,3 +212,98 @@ def test_download_cv_endpoint_404():
     assert resp.status_code == 404
 
 
+# ── enriched jobs on run detail ──────────────────────────────────────────────
+
+def test_admin_run_detail_shows_enriched_jobs_section():
+    """Run detail page renders Enriched Jobs section when rows are returned."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    enriched_jobs = [
+        {
+            "run_id": "test-123",
+            "job_url": "https://example.com/job/1",
+            "title": "Senior Data Engineer",
+            "location_type": "remote",
+            "seniority": "senior",
+            "job_family": "data_engineering",
+            "domain": "fintech",
+            "required_skills": ["SQL", "Python", "Spark"],
+        }
+    ]
+
+    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
+        run_id="test-123", status=RunStatus.SUCCEEDED,
+        cvs_generated=1, total_jobs=5, jobs_path="",
+        triggered_by="admin", trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc)
+    )), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched_jobs):
+        resp = TestClient(_app()).get("/admin/runs/test-123")
+
+    assert resp.status_code == 200
+    assert "Enriched Jobs" in resp.text
+    assert "Senior Data Engineer" in resp.text
+    assert "remote" in resp.text
+    assert "senior" in resp.text
+    assert "data_engineering" in resp.text
+    assert "fintech" in resp.text
+
+
+def test_admin_run_detail_empty_enriched_jobs_renders_gracefully():
+    """Run detail page handles empty enriched_jobs without errors."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
+        run_id="test-empty", status=RunStatus.SUCCEEDED,
+        cvs_generated=0, total_jobs=3, jobs_path="",
+        triggered_by="admin", trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc)
+    )), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/test-empty")
+
+    assert resp.status_code == 200
+    assert "Enriched Jobs" in resp.text
+    # empty state message
+    assert "No enrichment data" in resp.text or "enriched" in resp.text.lower()
+
+
+def test_admin_run_detail_enriched_jobs_shows_required_skills():
+    """Run detail renders required_skills from enriched job rows."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    enriched_jobs = [
+        {
+            "run_id": "test-456",
+            "job_url": "https://example.com/job/2",
+            "title": "ML Engineer",
+            "location_type": "hybrid",
+            "seniority": "mid",
+            "job_family": "ml_engineering",
+            "domain": "healthcare",
+            "required_skills": ["Python", "TensorFlow", "Kubernetes"],
+        }
+    ]
+
+    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
+        run_id="test-456", status=RunStatus.SUCCEEDED,
+        cvs_generated=0, total_jobs=1, jobs_path="",
+        triggered_by="admin", trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc)
+    )), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched_jobs):
+        resp = TestClient(_app()).get("/admin/runs/test-456")
+
+    assert resp.status_code == 200
+    assert "Python" in resp.text
+    assert "TensorFlow" in resp.text
+    assert "https://example.com/job/2" in resp.text
+
+
+
