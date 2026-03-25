@@ -199,3 +199,33 @@ def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> 
     if not rows:
         return None
     return rows[0]["cv_markdown"]
+
+
+def list_run_structured_jobs(
+    run_id: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> list[dict[str, Any]]:
+    """Return run-scoped enriched job rows for the given run_id.
+
+    Rows are returned as plain dicts and ordered by title, job_url for
+    deterministic display. Uses parameterized SQL to avoid injection.
+    """
+    table = f"{project}.{dataset}.run_structured_jobs"
+    sql = f"""
+        SELECT *
+        FROM `{table}`
+        WHERE run_id = @run_id
+        ORDER BY title, job_url
+    """
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ],
+        use_query_cache=False,
+    )
+    rows = bq.query(sql, job_config=job_config).result()
+    return [dict(row.items()) for row in rows]
+
