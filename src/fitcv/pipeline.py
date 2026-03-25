@@ -114,8 +114,16 @@ def build_ranking_features(
 def run_pipeline(
     jobs_path: str,
     config_path: str = ".env.yaml",
+    reporter: object = None,  # Optional[PipelineReporter] — avoids circular import
 ) -> dict[str, Any]:
     """Run the full FitCV candidate pipeline end-to-end.
+
+    Parameters
+    ----------
+    reporter:
+        Optional PipelineReporter instance injected by the control-plane worker.
+        When provided, stage events are emitted to pipeline_run_events in BigQuery.
+        When None, no events are emitted (normal CLI / test usage).
 
     Returns
     -------
@@ -129,6 +137,8 @@ def run_pipeline(
     config = load_config(config_path)
     run_id = create_run_id()
     logger.info("Pipeline run started [run_id=%s]", run_id)
+    if reporter is not None:
+        reporter.emit("pipeline_start", "info", f"Run started [run_id={run_id}]")  # type: ignore[union-attr]
 
     # ── Layer 1: ingest + normalise + enrich ──────────────────────────────────
     raw_jobs = parse_jobs_file(jobs_path)
@@ -139,11 +149,15 @@ def run_pipeline(
 
     enriched = enrich_batch(normalized, config)
     load_structured_jobs(enriched, config)
+    if reporter is not None:
+        reporter.emit("layer1_jobs", "info", f"Ingested {len(raw_jobs)} jobs, enriched {len(enriched)}")  # type: ignore[union-attr]
 
     # ── Layer 2: candidate profile ────────────────────────────────────────────
     profile_path: str = str(config["paths"]["candidate_profile"])
     profile = load_profile_yaml(profile_path)
     load_candidate_to_bigquery(profile, config)
+    if reporter is not None:
+        reporter.emit("layer2_candidate", "info", "Candidate profile loaded")  # type: ignore[union-attr]
 
     # ── Layer 3a: rule filter BEFORE embedding ────────────────────────────────
     filter_result = apply_rule_filters(enriched, profile["preferences"], config)
@@ -159,6 +173,8 @@ def run_pipeline(
     ]
     rejected_jobs: list[dict[str, Any]] = list(filter_result["rejected"])
     store_filter_results(filter_result, config)
+    if reporter is not None:
+        reporter.emit("layer3_filter", "info", f"{len(passed_jobs)} passed rule filter")  # type: ignore[union-attr]
 
     # ── Layer 3b: embed → vector shortlist → AI scoring → final ranking ───────
     embed_and_store_jobs(passed_jobs, config)
@@ -188,6 +204,8 @@ def run_pipeline(
     final_top_n = int(config["pipeline"]["final_top_n"])
     ranked = rank_jobs(ranking_inputs, top_n=final_top_n)
     store_final_ranking(ranked, config)
+    if reporter is not None:
+        reporter.emit("layer3_ranking", "info", f"Final ranking: top {len(ranked)} jobs")  # type: ignore[union-attr]
 
     # ── Layer 4: per-job evidence → gap → CV → validation → versioning ────────
     results: list[dict[str, Any]] = []
@@ -212,6 +230,8 @@ def run_pipeline(
             fit = classify_fit(gap, required_count=required_count, config=config)
             if fit == "skip":
                 logger.info("[run_id=%s] Skipping job %s (fit=skip)", run_id, job.get("job_url"))
+                if reporter is not None:
+                    reporter.emit("layer4_cv_skip", "info", f"Skipped {job.get('job_url')} (fit=skip)")  # type: ignore[union-attr]
                 continue
 
             cv = generate_cv(job, evidence, gap, profile, config)
@@ -232,6 +252,8 @@ def run_pipeline(
                 )
                 # Store rejected version for later review (v2 feature placeholder)
                 # store_rejected_cv(job, validation, config)
+                if reporter is not None:
+                    reporter.emit("layer4_cv_validation_failed", "warning", f"CV validation failed for {job.get('job_url')}")  # type: ignore[union-attr]
                 continue
 
             version = create_cv_version_record(
@@ -267,4 +289,6 @@ def run_pipeline(
         "cvs_generated": len(results),
     }
     logger.info("Pipeline run complete [run_id=%s] summary=%s", run_id, summary)
+    if reporter is not None:
+        reporter.emit("pipeline_complete", "info", str(summary))  # type: ignore[union-attr]
     return summary
