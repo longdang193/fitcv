@@ -264,6 +264,7 @@ def run_pipeline(
 
             version = create_cv_version_record(
                 job_url=str(job.get("job_url") or ""),
+                run_id=run_id,
                 enrichment_version=str(config.get("enrichment_version") or "v1"),
                 vector_rank=int(job.get("vector_rank") or 0),
                 ai_score=float(job.get("ai_score") or 0.0),

@@ -53,6 +53,7 @@ def _get_valid_statuses(config: dict[str, Any] | None) -> list[str]:
 
 def create_cv_version_record(
     job_url: str,
+    run_id: str,
     enrichment_version: str,
     vector_rank: int,
     ai_score: float,
@@ -75,6 +76,7 @@ def create_cv_version_record(
     """
     return {
         "version_id": str(uuid.uuid4()),
+        "run_id": str(run_id) if run_id else None,
         "job_url": str(job_url),
         "enrichment_version": str(enrichment_version),
         "vector_rank": int(vector_rank),
