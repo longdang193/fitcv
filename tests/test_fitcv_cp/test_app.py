@@ -160,6 +160,9 @@ def test_admin_runs_rendered_nav():
         resp = TestClient(_app()).get("/admin/runs")
     assert resp.status_code == 200
     assert 'href="/admin/settings">Settings</a>' in resp.text
+    assert 'Refresh Status' in resp.text
+    assert 'id="jobs_file"' in resp.text
+    assert 'id="jobs_path"' in resp.text
 
 
 def test_admin_run_detail_success_banner():
