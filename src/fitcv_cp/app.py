@@ -5,7 +5,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator
@@ -53,15 +53,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     def healthz() -> dict:
         return {"status": "ok"}
 
-    @app.post("/runs", status_code=201)
-    def trigger_run(req: TriggerRequest) -> dict:
+    def _execute_trigger(jobs_path: str, config_path: str, triggered_by: str, config_overrides: dict[str, Any]) -> dict:
         # Build effective config: YAML → BQ settings → per-run overrides
-        base_config = load_config(req.config_path)
+        base_config = load_config(config_path)
         active_settings = load_active_settings(bq=bq, project=project, dataset=dataset)
 
         # Coerce and validate per-run overrides using the same schema
         coerced_overrides: dict[str, Any] = {}
-        for k, v in req.config_overrides.items():
+        for k, v in config_overrides.items():
             try:
                 coerced_overrides[k] = coerce_value(k, v)
             except KeyError:
@@ -83,22 +82,53 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = PipelineRun(
             run_id=run_id,
             status=RunStatus.QUEUED,
-            triggered_by=req.triggered_by,
+            triggered_by=triggered_by,
             trigger_source="ui",
-            jobs_path=req.jobs_path,
-            config_path=req.config_path,
+            jobs_path=jobs_path,
+            config_path=config_path,
             created_at=datetime.datetime.now(datetime.timezone.utc),
             effective_settings_json=_json.dumps(effective_config),
         )
         insert_run(run, bq, project=project, dataset=dataset)
         enqueue_run(
-            jobs_path=req.jobs_path,
-            config_path=req.config_path,
-            triggered_by=req.triggered_by,
+            jobs_path=jobs_path,
+            config_path=config_path,
+            triggered_by=triggered_by,
             redis_url=redis_url,
             run_id=run_id,  # pass the pre-created run_id
         )
         return {"run_id": run_id}
+
+    @app.post("/runs", status_code=201)
+    def trigger_run(req: TriggerRequest) -> dict:
+        return _execute_trigger(
+            jobs_path=req.jobs_path,
+            config_path=req.config_path,
+            triggered_by=req.triggered_by,
+            config_overrides=req.config_overrides,
+        )
+
+    @app.post("/admin/upload-trigger", status_code=201)
+    async def upload_trigger(
+        jobs_file: UploadFile = File(None),
+        jobs_path: str = Form("data/sample_jobs.json"),
+        config_path: str = Form(".env.yaml"),
+    ) -> dict:
+        actual_jobs_path = jobs_path
+        if jobs_file and jobs_file.filename:
+            upload_dir = Path("data/uploads")
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            save_path = upload_dir / f"{uuid.uuid4().hex}_{jobs_file.filename}"
+            with open(save_path, "wb") as f:
+                f.write(await jobs_file.read())
+            actual_jobs_path = str(save_path)
+            
+        return _execute_trigger(
+            jobs_path=actual_jobs_path,
+            config_path=config_path,
+            triggered_by="admin",
+            config_overrides={},
+        )
 
     @app.get("/runs")
     def get_runs_list() -> list:
