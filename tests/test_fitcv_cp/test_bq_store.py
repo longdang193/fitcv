@@ -9,14 +9,14 @@ def _make_run() -> PipelineRun:
     return PipelineRun(
         run_id=str(uuid.uuid4()), status=RunStatus.QUEUED, triggered_by="admin",
         trigger_source="ui", jobs_path="data/sample_jobs.json",
-        config_path=".env.yaml", created_at=datetime.datetime.utcnow(),
+        config_path=".env.yaml", created_at=datetime.datetime.now(datetime.timezone.utc),
     )
 
 
 def test_insert_run_calls_bq():
     bq = MagicMock()
     insert_run(_make_run(), bq, project="p", dataset="d")
-    bq.insert_rows_json.assert_called_once()
+    bq.query.assert_called_once()
 
 
 def test_update_run_status_uses_parameterized_query():
@@ -31,7 +31,7 @@ def test_update_run_status_uses_parameterized_query():
 def test_append_event_calls_bq():
     bq = MagicMock()
     ev = RunEvent(run_id="rid", event_id=str(uuid.uuid4()), stage="ingest",
-                  level="info", message="done", created_at=datetime.datetime.utcnow())
+                  level="info", message="done", created_at=datetime.datetime.now(datetime.timezone.utc))
     append_event(ev, bq, project="p", dataset="d")
     bq.insert_rows_json.assert_called_once()
 
