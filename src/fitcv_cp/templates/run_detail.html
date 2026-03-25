@@ -22,7 +22,6 @@
     <span class="k">Total Jobs</span><span class="v">{{ run.total_jobs if run.total_jobs is not none else '—' }}</span>
     <span class="k">Passed Filter</span><span class="v">{{ run.passed_filter if run.passed_filter is not none else '—' }}</span>
     <span class="k">Ranked</span><span class="v">{{ run.ranked if run.ranked is not none else '—' }}</span>
-    <span class="k">CVs Generated</span><span class="v">{{ run.cvs_generated if run.cvs_generated is not none else '—' }}</span>
   </div>
 </div>
 
@@ -30,6 +29,22 @@
 <div class="error-box">
   <strong>⚠ Pipeline Error{% if run.error_stage %} — {{ run.error_stage }}{% endif %}</strong>
   <code style="font-size:0.82rem;color:#fca5a5;word-break:break-all">{{ run.error_message }}</code>
+</div>
+{% endif %}
+
+{% if run.status.value == 'succeeded' and run.cvs_generated is not none %}
+<div class="card" style="margin-bottom:2rem;background:#1e1b4b;border:1px solid #4338ca">
+  <h3 style="margin-top:0;margin-bottom:0.5rem;color:#818cf8;font-size:1.05rem">Pipeline Results</h3>
+  {% if run.cvs_generated > 0 %}
+    <p style="color: #bbf7d0; font-size: 0.9rem;">
+      <strong>{{ run.cvs_generated }}</strong> candidate CV(s) were successfully generated. 
+      The generated CV markdowns have been persisted to the <strong>cv_versions</strong> BigQuery table.
+    </p>
+  {% else %}
+    <p style="color: #fca5a5; font-size: 0.9rem;">
+      <strong>0</strong> candidate CVs were generated. No candidates passed the final AI ranking threshold.
+    </p>
+  {% endif %}
 </div>
 {% endif %}
 
