@@ -37,6 +37,9 @@ TABLE_ORDER = [
     "gap_analysis",
     "cv_versions",
     "application_tracker",
+    # Control-plane tables
+    "pipeline_runs",
+    "pipeline_run_events",
 ]
 
 
