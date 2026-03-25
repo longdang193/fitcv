@@ -20,7 +20,7 @@
 - Create: `src/fitcv_cp/settings_schema.py`
 - Create: `tests/fitcv_cp/test_settings_schema.py`
 
-- [ ] **Step 1.1: Write failing tests**
+- [x] **Step 1.1: Write failing tests**
 
 ```python
 # tests/fitcv_cp/test_settings_schema.py
@@ -154,14 +154,14 @@ def test_apply_settings_to_config_flat_key():
     assert config["enrichment_sleep_secs"] == 0.5
 ```
 
-- [ ] **Step 1.2: Run to confirm failure**
+- [x] **Step 1.2: Run to confirm failure**
 
 ```bash
 pytest tests/fitcv_cp/test_settings_schema.py -v
 # Expected: ImportError — settings_schema not found
 ```
 
-- [ ] **Step 1.3: Implement `settings_schema.py`**
+- [x] **Step 1.3: Implement `settings_schema.py`**
 
 ```python
 # src/fitcv_cp/settings_schema.py
@@ -419,14 +419,14 @@ def apply_settings_to_config(config: dict[str, Any], settings: dict[str, Any]) -
         target[path[-1]] = value
 ```
 
-- [ ] **Step 1.4: Run tests**
+- [x] **Step 1.4: Run tests**
 
 ```bash
 pytest tests/fitcv_cp/test_settings_schema.py -v
 # Expected: all pass
 ```
 
-- [ ] **Step 1.5: Commit**
+- [x] **Step 1.5: Commit**
 
 ```bash
 git add src/fitcv_cp/settings_schema.py tests/fitcv_cp/test_settings_schema.py
@@ -442,7 +442,7 @@ git commit -m "feat(cp/settings): add settings_schema with validation and config
 - Create: `assets/bigquery/pipeline_settings.sql`
 - Create: `tests/fitcv_cp/test_settings_store.py`
 
-- [ ] **Step 2.1: Write failing tests**
+- [x] **Step 2.1: Write failing tests**
 
 ```python
 # tests/fitcv_cp/test_settings_store.py
@@ -503,14 +503,14 @@ def test_load_active_settings_uses_parameterized_query_or_safe_query():
     bq.query.assert_called_once()
 ```
 
-- [ ] **Step 2.2: Run to confirm failure**
+- [x] **Step 2.2: Run to confirm failure**
 
 ```bash
 pytest tests/fitcv_cp/test_settings_store.py -v
 # Expected: ImportError
 ```
 
-- [ ] **Step 2.3: Write `assets/bigquery/pipeline_settings.sql`**
+- [x] **Step 2.3: Write `assets/bigquery/pipeline_settings.sql`**
 
 ```sql
 CREATE TABLE IF NOT EXISTS `{project}.{dataset}.pipeline_settings` (
@@ -521,7 +521,7 @@ CREATE TABLE IF NOT EXISTS `{project}.{dataset}.pipeline_settings` (
 );
 ```
 
-- [ ] **Step 2.4: Implement `settings_store.py`**
+- [x] **Step 2.4: Implement `settings_store.py`**
 
 ```python
 # src/fitcv_cp/settings_store.py
@@ -590,14 +590,14 @@ def load_active_settings(*, bq: Any, project: str, dataset: str) -> dict[str, An
     return result
 ```
 
-- [ ] **Step 2.5: Run tests**
+- [x] **Step 2.5: Run tests**
 
 ```bash
 pytest tests/fitcv_cp/test_settings_store.py -v
 # Expected: all pass
 ```
 
-- [ ] **Step 2.6: Commit**
+- [x] **Step 2.6: Commit**
 
 ```bash
 git add src/fitcv_cp/settings_store.py assets/bigquery/pipeline_settings.sql tests/fitcv_cp/test_settings_store.py
@@ -614,21 +614,21 @@ git commit -m "feat(cp/settings): add settings_store BQ helpers and pipeline_set
 - Modify: `src/fitcv_cp/bq_store.py` (`insert_run()` and `_row_to_run()` handle new field)
 - Modify: `src/fitcv_cp/models.py` (`PipelineRun` gains `effective_settings_json` optional field)
 
-- [ ] **Step 3.1: Add `effective_settings_json` to `pipeline_runs.sql`**
+- [x] **Step 3.1: Add `effective_settings_json` to `pipeline_runs.sql`**
 
 In `assets/bigquery/pipeline_runs.sql`, add before the closing `);`:
 ```sql
   effective_settings_json STRING    OPTIONS(description="Merged config snapshot at trigger time")
 ```
 
-- [ ] **Step 3.2: Add field to `PipelineRun` dataclass**
+- [x] **Step 3.2: Add field to `PipelineRun` dataclass**
 
 In `src/fitcv_cp/models.py`, add to `PipelineRun`:
 ```python
 effective_settings_json: Optional[str] = None
 ```
 
-- [ ] **Step 3.3: Write failing pipeline test**
+- [x] **Step 3.3: Write failing pipeline test**
 
 ```python
 # In tests/test_pipeline.py (add to existing test file):
@@ -651,7 +651,7 @@ def test_run_pipeline_accepts_prebuilt_config(tmp_path, monkeypatch):
 
 Check existing test patterns in `tests/test_pipeline.py` before implementing — follow whatever mocking pattern is already in use.
 
-- [ ] **Step 3.4: Add `config` kwarg to `run_pipeline()`**
+- [x] **Step 3.4: Add `config` kwarg to `run_pipeline()`**
 
 In `src/fitcv/pipeline.py`, update the signature:
 ```python
@@ -673,7 +673,7 @@ if config is None:
     config = load_config(config_path)
 ```
 
-- [ ] **Step 3.5: Update `bq_store.py` for new field**
+- [x] **Step 3.5: Update `bq_store.py` for new field**
 
 In `insert_run()`, add to the `row` dict:
 ```python
@@ -685,14 +685,14 @@ In `_row_to_run()`, add to the `PipelineRun(...)` call:
 effective_settings_json=r.get("effective_settings_json"),
 ```
 
-- [ ] **Step 3.6: Run all existing pipeline tests**
+- [x] **Step 3.6: Run all existing pipeline tests**
 
 ```bash
 pytest tests/test_pipeline.py tests/fitcv_cp/test_bq_store.py -v
 # Expected: all pass (no regressions)
 ```
 
-- [ ] **Step 3.7: Commit**
+- [x] **Step 3.7: Commit**
 
 ```bash
 git add assets/bigquery/pipeline_runs.sql src/fitcv/pipeline.py src/fitcv_cp/models.py src/fitcv_cp/bq_store.py
@@ -706,7 +706,7 @@ git commit -m "feat(cp/settings): add effective_settings_json to pipeline_runs a
 **Files:**
 - Modify: `src/fitcv_cp/worker_job.py` (read `effective_settings_json` from run record; pass as `config=` to `run_pipeline()`)
 
-- [ ] **Step 4.1: Write failing worker test**
+- [x] **Step 4.1: Write failing worker test**
 
 ```python
 # In tests/fitcv_cp/test_worker_job.py, add:
@@ -754,14 +754,14 @@ def test_worker_falls_back_to_config_path_if_no_snapshot():
     assert call_kwargs.get("config") is None
 ```
 
-- [ ] **Step 4.2: Run to confirm failure**
+- [x] **Step 4.2: Run to confirm failure**
 
 ```bash
 pytest tests/fitcv_cp/test_worker_job.py -v
 # Expected: new tests fail
 ```
 
-- [ ] **Step 4.3: Update `worker_job.py`**
+- [x] **Step 4.3: Update `worker_job.py`**
 
 In `execute_pipeline_run()`, replace the call to `run_pipeline()` with:
 
@@ -786,14 +786,14 @@ summary = run_pipeline(
 )
 ```
 
-- [ ] **Step 4.4: Run worker tests**
+- [x] **Step 4.4: Run worker tests**
 
 ```bash
 pytest tests/fitcv_cp/test_worker_job.py -v
 # Expected: all pass
 ```
 
-- [ ] **Step 4.5: Commit**
+- [x] **Step 4.5: Commit**
 
 ```bash
 git add src/fitcv_cp/worker_job.py tests/fitcv_cp/test_worker_job.py
@@ -810,7 +810,7 @@ git commit -m "feat(cp/settings): worker reads effective_settings_json snapshot;
 - Create: `src/fitcv_cp/templates/settings.html`
 - Modify: `tests/fitcv_cp/test_app.py` (add settings tests)
 
-- [ ] **Step 5.1: Write failing tests**
+- [x] **Step 5.1: Write failing tests**
 
 ```python
 # Add to tests/fitcv_cp/test_app.py:
@@ -875,14 +875,14 @@ def test_post_runs_rejects_invalid_config_overrides():
     assert resp.status_code == 422
 ```
 
-- [ ] **Step 5.2: Run to confirm failure**
+- [x] **Step 5.2: Run to confirm failure**
 
 ```bash
 pytest tests/fitcv_cp/test_app.py -v
 # Expected: new tests fail
 ```
 
-- [ ] **Step 5.3: Update `app.py`**
+- [x] **Step 5.3: Update `app.py`**
 
 Add imports:
 ```python
@@ -1000,7 +1000,7 @@ def admin_settings_update(request: Request) -> HTMLResponse:
     ...
 ```
 
-- [ ] **Step 5.4: Create `src/fitcv_cp/templates/settings.html`**
+- [x] **Step 5.4: Create `src/fitcv_cp/templates/settings.html`**
 
 Extends `base.html`. Three sections (Retrieval, Timing, Ranking Policy) with:
 - One `<input>` per key, showing current active value (BQ override if set, YAML default as placeholder)
@@ -1070,14 +1070,14 @@ def admin_settings_update_key(request: Request, key: str,
     return RedirectResponse("/admin/settings", status_code=303)
 ```
 
-- [ ] **Step 5.5: Run tests**
+- [x] **Step 5.5: Run tests**
 
 ```bash
 pytest tests/fitcv_cp/test_app.py -v
 # Expected: all pass
 ```
 
-- [ ] **Step 5.6: Commit**
+- [x] **Step 5.6: Commit**
 
 ```bash
 git add src/fitcv_cp/app.py src/fitcv_cp/templates/settings.html tests/fitcv_cp/test_app.py
@@ -1091,7 +1091,7 @@ git commit -m "feat(cp/settings): add settings API and admin UI with effective c
 **Files:**
 - Modify: `scripts/bootstrap_bigquery.py` (register `pipeline_settings.sql`)
 
-- [ ] **Step 6.1: Register new DDL in bootstrap script**
+- [x] **Step 6.1: Register new DDL in bootstrap script**
 
 Add `pipeline_settings.sql` to the DDL file list in `scripts/bootstrap_bigquery.py`, then run:
 
@@ -1102,7 +1102,7 @@ python scripts/bootstrap_bigquery.py
 
 Also run the full BQ migration to add `effective_settings_json` column to `pipeline_runs` if the table already exists. (If `pipeline_runs` was created fresh via bootstrap, the updated DDL already includes the new column.)
 
-- [ ] **Step 6.2: Run full test suite**
+- [x] **Step 6.2: Run full test suite**
 
 ```bash
 pytest tests/ -v
@@ -1158,7 +1158,7 @@ curl -X POST http://localhost:8000/runs \
 docker compose down
 ```
 
-- [ ] **Step 6.4: Commit**
+- [x] **Step 6.4: Commit**
 
 ```bash
 git add scripts/bootstrap_bigquery.py
