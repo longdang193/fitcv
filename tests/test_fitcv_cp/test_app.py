@@ -1,4 +1,5 @@
 from unittest.mock import MagicMock, patch
+import json
 from fastapi.testclient import TestClient
 from fitcv_cp.app import create_app
 
@@ -20,7 +21,12 @@ def test_post_runs_inserts_before_enqueue():
         return "run-123"
 
     with patch("fitcv_cp.app.insert_run", side_effect=fake_insert), \
-         patch("fitcv_cp.app.enqueue_run", side_effect=fake_enqueue):
+         patch("fitcv_cp.app.enqueue_run", side_effect=fake_enqueue), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+             "pipeline": {"final_top_n": 10}
+         }):
         resp = TestClient(_app()).post("/runs", json={"jobs_path": "data/sample_jobs.json"})
     assert resp.status_code == 201
     assert "run_id" in resp.json()
@@ -55,3 +61,64 @@ def test_get_run_events():
 def test_healthz():
     resp = TestClient(_app()).get("/healthz")
     assert resp.status_code == 200
+
+
+# ── settings API ─────────────────────────────────────────────────────────────
+
+def test_get_settings_returns_dict():
+    with patch("fitcv_cp.app.load_active_settings", return_value={"pipeline.final_top_n": 5}):
+        resp = TestClient(_app()).get("/settings")
+    assert resp.status_code == 200
+    assert resp.json()["pipeline.final_top_n"] == 5
+
+
+def test_post_settings_key_saves_and_returns_200():
+    with patch("fitcv_cp.app.save_setting") as mock_save:
+        resp = TestClient(_app()).post(
+            "/settings/pipeline.final_top_n",
+            json={"value": 7, "updated_by": "admin"},
+        )
+    assert resp.status_code == 200
+    mock_save.assert_called_once()
+
+
+def test_post_settings_key_rejects_invalid_value():
+    resp = TestClient(_app()).post(
+        "/settings/pipeline.final_top_n",
+        json={"value": 0, "updated_by": "admin"},  # 0 violates int >= 1
+    )
+    assert resp.status_code == 422
+
+
+def test_post_settings_key_rejects_unknown_key():
+    resp = TestClient(_app()).post(
+        "/settings/unknown.key",
+        json={"value": 1, "updated_by": "admin"},
+    )
+    assert resp.status_code == 422
+
+
+def test_post_runs_with_config_overrides():
+    """POST /runs with per-run overrides snapshot effective settings."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run"), \
+         patch("fitcv_cp.app.enqueue_run", return_value="run-123"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+             "pipeline": {"final_top_n": 10}
+         }):
+        resp = TestClient(_app()).post("/runs", json={
+            "jobs_path": "data/sample_jobs.json",
+            "config_overrides": {"pipeline.final_top_n": 5},
+        })
+    assert resp.status_code == 201
+    assert "run_id" in resp.json()
+
+
+def test_post_runs_rejects_invalid_config_overrides():
+    resp = TestClient(_app()).post("/runs", json={
+        "jobs_path": "data/sample_jobs.json",
+        "config_overrides": {"pipeline.final_top_n": 0},  # violates >= 1
+    })
+    assert resp.status_code == 422
+

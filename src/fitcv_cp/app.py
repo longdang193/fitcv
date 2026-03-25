@@ -1,5 +1,6 @@
 """FastAPI admin control plane app."""
 import datetime
+import json as _json
 import uuid
 from pathlib import Path
 from typing import Any
@@ -9,9 +10,18 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator
 
+from fitcv.config import load_config
 from fitcv_cp.bq_store import get_events, get_run, insert_run, list_runs
 from fitcv_cp.models import PipelineRun, RunStatus
 from fitcv_cp.queue import enqueue_run
+from fitcv_cp.settings_schema import (
+    SETTINGS_SCHEMA,
+    ValidationError,
+    apply_settings_to_config,
+    coerce_value,
+    validate_settings,
+)
+from fitcv_cp.settings_store import load_active_settings, save_setting
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -20,6 +30,7 @@ class TriggerRequest(BaseModel):
     jobs_path: str = "data/sample_jobs.json"
     config_path: str = ".env.yaml"
     triggered_by: str = "admin"
+    config_overrides: dict[str, Any] = {}
 
     @field_validator("jobs_path")
     @classmethod
@@ -27,6 +38,11 @@ class TriggerRequest(BaseModel):
         if not v or not v.strip():
             raise ValueError("jobs_path must not be empty")
         return v
+
+
+class SettingUpdate(BaseModel):
+    value: Any
+    updated_by: str = "admin"
 
 
 def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
@@ -39,6 +55,29 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
     @app.post("/runs", status_code=201)
     def trigger_run(req: TriggerRequest) -> dict:
+        # Build effective config: YAML → BQ settings → per-run overrides
+        base_config = load_config(req.config_path)
+        active_settings = load_active_settings(bq=bq, project=project, dataset=dataset)
+
+        # Coerce and validate per-run overrides using the same schema
+        coerced_overrides: dict[str, Any] = {}
+        for k, v in req.config_overrides.items():
+            try:
+                coerced_overrides[k] = coerce_value(k, v)
+            except KeyError:
+                raise HTTPException(status_code=422, detail=f"Unknown setting key: {k!r}")
+            except (ValueError, TypeError) as exc:
+                raise HTTPException(status_code=422, detail=str(exc))
+        try:
+            validate_settings(coerced_overrides)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+
+        # Merge: YAML < BQ settings < per-run overrides
+        effective_config = dict(base_config)
+        apply_settings_to_config(effective_config, active_settings)
+        apply_settings_to_config(effective_config, coerced_overrides)
+
         run_id = str(uuid.uuid4())
         # Insert FIRST — then enqueue. DB is the source of truth.
         run = PipelineRun(
@@ -49,6 +88,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             jobs_path=req.jobs_path,
             config_path=req.config_path,
             created_at=datetime.datetime.now(datetime.timezone.utc),
+            effective_settings_json=_json.dumps(effective_config),
         )
         insert_run(run, bq, project=project, dataset=dataset)
         enqueue_run(
@@ -87,6 +127,53 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             }
             for e in events
         ]
+
+    @app.get("/settings")
+    def get_settings_view() -> dict:
+        return load_active_settings(bq=bq, project=project, dataset=dataset)
+
+    @app.post("/settings/{key}", status_code=200)
+    def update_setting(key: str, body: SettingUpdate) -> dict:
+        try:
+            coerced = coerce_value(key, body.value)
+        except KeyError:
+            raise HTTPException(status_code=422, detail=f"Unknown setting key: {key!r}")
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+        try:
+            validate_settings({key: coerced})
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+        save_setting(key, coerced, updated_by=body.updated_by, bq=bq, project=project, dataset=dataset)
+        return {"key": key, "value": coerced}
+
+    @app.get("/admin/settings", response_class=HTMLResponse)
+    def admin_settings_view(request: Request) -> HTMLResponse:
+        active = load_active_settings(bq=bq, project=project, dataset=dataset)
+        return templates.TemplateResponse(
+            "settings.html",
+            {"request": request, "schema": SETTINGS_SCHEMA, "active": active}
+        )
+
+    @app.post("/admin/settings/{key}", response_class=HTMLResponse)
+    async def admin_settings_update_key(request: Request, key: str) -> HTMLResponse:
+        from fastapi import Form
+        from fastapi.responses import RedirectResponse
+        form = await request.form()
+        value = form.get("value", "")
+        try:
+            coerced = coerce_value(key, value)
+            validate_settings({key: coerced})
+        except (KeyError, ValidationError, ValueError) as exc:
+            active = load_active_settings(bq=bq, project=project, dataset=dataset)
+            return templates.TemplateResponse(
+                "settings.html",
+                {"request": request, "schema": SETTINGS_SCHEMA,
+                 "active": active, "error": str(exc)},
+                status_code=422,
+            )
+        save_setting(key, coerced, updated_by="admin", bq=bq, project=project, dataset=dataset)
+        return RedirectResponse("/admin/settings", status_code=303)
 
     @app.get("/admin/runs", response_class=HTMLResponse)
     def admin_runs(request: Request) -> HTMLResponse:
