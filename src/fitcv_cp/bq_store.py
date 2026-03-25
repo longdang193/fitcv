@@ -23,6 +23,7 @@ def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None
         "jobs_path": run.jobs_path,
         "config_path": run.config_path,
         "created_at": run.created_at.isoformat(),
+        "effective_settings_json": run.effective_settings_json,
     }
     errors = bq.insert_rows_json(table, [row])
     if errors:
@@ -135,6 +136,7 @@ def _row_to_run(row: Any) -> PipelineRun:
         cvs_generated=r.get("cvs_generated"),
         error_message=r.get("error_message"),
         error_stage=r.get("error_stage"),
+        effective_settings_json=r.get("effective_settings_json"),
     )
 
 

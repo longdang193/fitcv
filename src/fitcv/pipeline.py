@@ -115,6 +115,7 @@ def run_pipeline(
     jobs_path: str,
     config_path: str = ".env.yaml",
     reporter: object = None,  # Optional[PipelineReporter] — avoids circular import
+    config: dict | None = None,  # If provided, skips load_config(config_path)
 ) -> dict[str, Any]:
     """Run the full FitCV candidate pipeline end-to-end.
 
@@ -124,6 +125,10 @@ def run_pipeline(
         Optional PipelineReporter instance injected by the control-plane worker.
         When provided, stage events are emitted to pipeline_run_events in BigQuery.
         When None, no events are emitted (normal CLI / test usage).
+    config:
+        Optional pre-built config dict. When provided, `config_path` is ignored.
+        Used by the worker to inject the effective settings snapshot stored at
+        trigger time. When None, config is loaded from `config_path` as usual.
 
     Returns
     -------
@@ -134,7 +139,8 @@ def run_pipeline(
         ranked          : number of jobs in the final shortlist
         cvs_generated   : number of successfully generated + validated CVs
     """
-    config = load_config(config_path)
+    if config is None:
+        config = load_config(config_path)
     run_id = create_run_id()
     logger.info("Pipeline run started [run_id=%s]", run_id)
     if reporter is not None:

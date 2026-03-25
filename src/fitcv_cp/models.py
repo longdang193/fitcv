@@ -46,6 +46,7 @@ class PipelineRun:
     cvs_generated: Optional[int] = None
     error_message: Optional[str] = None
     error_stage: Optional[str] = None   # which stage the run failed at
+    effective_settings_json: Optional[str] = None  # merged config snapshot at trigger time
 
 
 @dataclasses.dataclass
