@@ -132,3 +132,34 @@ def test_admin_runs_rendered_nav():
     assert 'href="/admin/settings">Settings</a>' in resp.text
 
 
+def test_admin_run_detail_success_banner():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    
+    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
+        run_id="test-123", status=RunStatus.SUCCEEDED, 
+        cvs_generated=5, total_jobs=10, jobs_path="",
+        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
+        created_at=datetime.now(timezone.utc)
+    )), patch("fitcv_cp.app.get_events", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/test-123")
+    assert resp.status_code == 200
+    assert "candidate CV(s) were successfully generated." in resp.text
+    assert "persisted to the <strong>cv_versions</strong> BigQuery table" in resp.text
+
+
+def test_admin_run_detail_warning_banner():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    
+    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
+        run_id="test-124", status=RunStatus.SUCCEEDED, 
+        cvs_generated=0, total_jobs=10, jobs_path="",
+        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
+        created_at=datetime.now(timezone.utc)
+    )), patch("fitcv_cp.app.get_events", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/test-124")
+    assert resp.status_code == 200
+    assert "No candidates passed the final AI ranking threshold." in resp.text
+
+
