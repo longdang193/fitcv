@@ -67,6 +67,8 @@ def main() -> None:
             print(f"  ⚠ {table_name}.sql is empty — skipping")
             continue
 
+        ddl = ddl.replace("{project}", PROJECT).replace("{dataset}", DATASET)
+
         try:
             job = client.query(ddl)
             job.result()
