@@ -122,6 +122,37 @@ _EXTRACTION_SCHEMA = """\
   "years_experience_max": null
 }"""
 
+_EXTRACTION_RESPONSE_JSON_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "required_skills": {"type": "array", "items": {"type": "string"}},
+        "preferred_skills": {"type": "array", "items": {"type": "string"}},
+        "responsibilities": {"type": "array", "items": {"type": "string"}},
+        "tech_stack": {"type": "array", "items": {"type": "string"}},
+        "keywords": {"type": "array", "items": {"type": "string"}},
+        "location_type": {"type": "string", "enum": ["remote", "hybrid", "onsite"]},
+        "seniority": {"type": "string", "enum": ["junior", "mid", "senior", "lead"]},
+        "domain": {"type": "string"},
+        "job_family": {"type": "string"},
+        "years_experience_min": {"type": ["integer", "null"]},
+        "years_experience_max": {"type": ["integer", "null"]},
+    },
+    "required": [
+        "required_skills",
+        "preferred_skills",
+        "responsibilities",
+        "tech_stack",
+        "keywords",
+        "location_type",
+        "seniority",
+        "domain",
+        "job_family",
+        "years_experience_min",
+        "years_experience_max",
+    ],
+}
+
 
 def build_extraction_prompt(
     description: str,
@@ -154,7 +185,12 @@ FIELD DEFINITIONS:
   Example: if the JD says "5+ years required" but LinkedIn shows "Entry level", infer seniority = mid.
 - location_type: must be exactly one of: remote, hybrid, onsite
 
-Return ONLY a valid JSON object matching this schema. No markdown, no explanation:
+Return ONLY a valid JSON object matching this schema. No markdown, no explanation.
+Every schema key must be present in the response.
+Use [] for unknown list fields.
+Use null for unknown scalar fields.
+
+Schema:
 {_EXTRACTION_SCHEMA}
 
 JOB DESCRIPTION:
@@ -188,11 +224,17 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
     try:
         raw: Any = json.loads(cleaned)
     except json.JSONDecodeError as exc:
-        return {
-            "parsed": {},
-            "errors": [f"JSON parse error: {exc}"],
-            "raw_response": response_text,
-        }
+        # Thinking models (e.g. gemini-2.5-flash) sometimes emit malformed JSON
+        # (missing commas, trailing commas, etc.). Try json_repair before giving up.
+        try:
+            from json_repair import repair_json  # type: ignore[import-untyped]
+            raw = json.loads(repair_json(cleaned))
+        except Exception:
+            return {
+                "parsed": {},
+                "errors": [f"JSON parse error: {exc}"],
+                "raw_response": response_text,
+            }
 
     if not isinstance(raw, dict):
         return {
@@ -292,6 +334,14 @@ def _make_genai_client(config: dict[str, Any]) -> Any:
         credentials=creds,
     )
 
+
+def _build_extraction_generation_config() -> dict[str, Any]:
+    """Return structured-output config for enrichment extraction calls."""
+    return {
+        "response_mime_type": "application/json",
+        "response_json_schema": _EXTRACTION_RESPONSE_JSON_SCHEMA,
+    }
+
 def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     """Call Gemini to extract structured fields from one normalized job.
 
@@ -301,7 +351,7 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     Returns:
         Merged dict ready for load_structured_jobs().
     """
-    model_name = str(config.get("gemini_model", "gemini-2.5-flash"))
+    model_name = str(config.get("gemini_model", "gemini-2.0-flash"))
     client = _make_genai_client(config)
 
     prompt = build_extraction_prompt(
@@ -314,8 +364,19 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
             "location": job.get("location", ""),
         },
     )
-    response = client.models.generate_content(model=model_name, contents=prompt)
+    response = client.models.generate_content(
+        model=model_name,
+        contents=prompt,
+        config=_build_extraction_generation_config(),
+    )
     extraction = parse_extraction_response(str(response.text or ""))
+    if extraction["errors"]:
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "Enrichment parse errors for job %r: %s",
+            job.get("title") or job.get("job_url"),
+            "; ".join(extraction["errors"]),
+        )
     return merge_scraped_and_enriched(job, extraction["parsed"], config)
 
 

@@ -282,6 +282,7 @@ def _raw_scraper_job(url: str = "https://example.com/1") -> dict:
 @patch("fitcv.pipeline.apply_rule_filters")
 @patch("fitcv.pipeline.load_candidate_to_bigquery")
 @patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_run_structured_jobs")
 @patch("fitcv.pipeline.load_structured_jobs")
 @patch("fitcv.pipeline.enrich_batch")
 @patch("fitcv.pipeline.load_to_bigquery")
@@ -295,6 +296,7 @@ def test_run_pipeline_uses_supplied_run_id_for_summary_and_cv_records(
     mock_load_bq: MagicMock,
     mock_enrich: MagicMock,
     mock_load_struct: MagicMock,
+    mock_load_run_struct: MagicMock,
     mock_profile_yaml: MagicMock,
     mock_load_cand: MagicMock,
     mock_filter: MagicMock,
