@@ -25,6 +25,7 @@ from fitcv.tracker import create_cv_version_record, update_application_status
 def test_create_cv_version_record() -> None:
     record = create_cv_version_record(
         job_url="https://linkedin.com/jobs/view/123",
+        run_id="test-run-123",
         enrichment_version="v1",
         vector_rank=5,
         ai_score=0.85,
@@ -44,6 +45,7 @@ def test_create_cv_version_record_uuid_format() -> None:
     """version_id must be a valid UUID string."""
     record = create_cv_version_record(
         job_url="https://linkedin.com/jobs/view/123",
+        run_id="test-run-123",
         enrichment_version="v1", vector_rank=1, ai_score=0.9,
         final_score=0.85, evidence_ids=[], prompt_version="v1",
         cv_markdown="# CV", gap_summary={}, fit_classification="strong",
@@ -54,6 +56,7 @@ def test_create_cv_version_record_uuid_format() -> None:
 def test_create_cv_version_record_has_timestamp() -> None:
     record = create_cv_version_record(
         job_url="https://linkedin.com/jobs/view/123",
+        run_id="test-run-123",
         enrichment_version="v1", vector_rank=1, ai_score=0.9,
         final_score=0.85, evidence_ids=[], prompt_version="v1",
         cv_markdown="# CV", gap_summary={}, fit_classification="strong",
@@ -65,6 +68,7 @@ def test_create_cv_version_record_contains_all_fields() -> None:
     """Record must contain all schema fields."""
     record = create_cv_version_record(
         job_url="https://linkedin.com/jobs/view/123",
+        run_id="test-run-123",
         enrichment_version="v2", vector_rank=3, ai_score=0.7,
         final_score=0.65, evidence_ids=["e1"], prompt_version="v2",
         cv_markdown="# Jane Doe\n## Skills\nSQL",
@@ -83,7 +87,7 @@ def test_create_cv_version_record_evidence_ids_preserved() -> None:
     """evidence_ids list must be stored as-is."""
     evidence = ["ev-001", "ev-002", "ev-003"]
     record = create_cv_version_record(
-        job_url="u", enrichment_version="v1", vector_rank=1,
+        job_url="u", run_id="rid", enrichment_version="v1", vector_rank=1,
         ai_score=0.8, final_score=0.7, evidence_ids=evidence,
         prompt_version="v1", cv_markdown="# CV", gap_summary={},
         fit_classification="strong",
