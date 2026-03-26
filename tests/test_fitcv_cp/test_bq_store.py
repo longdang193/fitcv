@@ -128,3 +128,80 @@ def test_list_run_structured_jobs_queries_correct_table():
     sql_arg = bq.query.call_args[0][0]
     assert "run_structured_jobs" in sql_arg, "SQL must reference run_structured_jobs table"
 
+
+# ── Task 1: run-scoped input metadata fields ──────────────────────────────────
+
+def test_insert_run_includes_input_metadata_params() -> None:
+    """insert_run sends all 4 new input metadata fields as query parameters."""
+    bq = MagicMock()
+    run = _make_run()
+    run.jobs_input_source = "paste"
+    run.jobs_input_json = '[{"title": "DE"}]'
+    run.candidate_profile_source = "upload"
+    run.candidate_profile_json = '{"skills": []}'
+    insert_run(run, bq, project="p", dataset="d")
+    call_args = bq.query.call_args
+    job_config = call_args[1]["job_config"]
+    param_names = {p.name for p in job_config.query_parameters}
+    assert "jobs_input_source" in param_names
+    assert "jobs_input_json" in param_names
+    assert "candidate_profile_source" in param_names
+    assert "candidate_profile_json" in param_names
+
+
+def test_insert_run_input_metadata_none_values_are_included() -> None:
+    """insert_run includes None input metadata params (not silently omitted)."""
+    bq = MagicMock()
+    run = _make_run()  # all 4 new fields default to None
+    insert_run(run, bq, project="p", dataset="d")
+    call_args = bq.query.call_args
+    job_config = call_args[1]["job_config"]
+    param_names = {p.name for p in job_config.query_parameters}
+    assert "jobs_input_source" in param_names
+    assert "candidate_profile_json" in param_names
+    # verify value is None (not missing)
+    params_by_name = {p.name: p for p in job_config.query_parameters}
+    assert params_by_name["jobs_input_source"].value is None
+
+
+def test_row_to_run_maps_input_metadata_fields() -> None:
+    """_row_to_run correctly maps all 4 new fields from a BQ row."""
+    from fitcv_cp.bq_store import _row_to_run
+    import datetime
+    row = {
+        "run_id": "r1",
+        "status": "queued",
+        "triggered_by": "admin",
+        "trigger_source": "ui",
+        "jobs_path": "data/jobs.json",
+        "config_path": ".env.yaml",
+        "created_at": datetime.datetime.now(datetime.timezone.utc),
+        "jobs_input_source": "paste",
+        "jobs_input_json": '[{"title": "Analyst"}]',
+        "candidate_profile_source": "upload",
+        "candidate_profile_json": '{"skills": []}',
+    }
+    result = _row_to_run(row)
+    assert result.jobs_input_source == "paste"
+    assert result.jobs_input_json == '[{"title": "Analyst"}]'
+    assert result.candidate_profile_source == "upload"
+    assert result.candidate_profile_json == '{"skills": []}'
+
+
+def test_row_to_run_handles_missing_input_metadata_fields() -> None:
+    """_row_to_run returns None for new fields absent from old BQ rows."""
+    from fitcv_cp.bq_store import _row_to_run
+    import datetime
+    row = {
+        "run_id": "r2",
+        "status": "succeeded",
+        "jobs_path": "data/jobs.json",
+        "config_path": ".env.yaml",
+        "created_at": datetime.datetime.now(datetime.timezone.utc),
+        # no input metadata fields — simulates old row
+    }
+    result = _row_to_run(row)
+    assert result.jobs_input_source is None
+    assert result.jobs_input_json is None
+    assert result.candidate_profile_source is None
+    assert result.candidate_profile_json is None
