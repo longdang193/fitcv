@@ -44,7 +44,11 @@ from fitcv.gap_analysis import classify_fit, compute_gap
 from fitcv.ingest import load_to_bigquery, parse_jobs_file, prepare_raw_rows
 from fitcv.normalize import normalize_batch
 from fitcv.ranking import compute_final_score, rank_jobs, store_final_ranking
-from fitcv.rule_filter import apply_rule_filters, store_filter_results
+from fitcv.rule_filter import (
+    apply_pre_enrichment_global_filters,
+    apply_rule_filters,
+    store_filter_results,
+)
 from fitcv.tracker import create_cv_version_record, store_cv_version
 from fitcv.validator import run_all_validations
 from fitcv.vector_search import run_vector_search
@@ -150,18 +154,43 @@ def run_pipeline(
     if reporter is not None:
         reporter.emit("pipeline_start", "info", f"Run started [run_id={run_id}]")  # type: ignore[union-attr]
 
-    # ── Layer 1: ingest + normalise + enrich ──────────────────────────────────
+    # ── Layer 1: ingest + normalise ───────────────────────────────────────────
     raw_jobs = parse_jobs_file(jobs_path)
     normalized = normalize_batch(raw_jobs)
 
     raw_rows = prepare_raw_rows(raw_jobs)
     load_to_bigquery(raw_rows, config)
 
-    enriched = enrich_batch(normalized, config)
+    # ── Layer 1b: pre-enrichment global filters ───────────────────────────────
+    # Run cheap admin filters before the expensive enrichment step so rejected
+    # jobs never enter the LLM/API path.
+    raw_global = config.get("global_job_filters", {})
+    global_settings = (
+        {f"global_job_filters.{k}": v for k, v in raw_global.items()}
+        if raw_global else None
+    )
+    pre_filter = apply_pre_enrichment_global_filters(normalized, global_settings)
+    pre_filter_passed_urls: set[str] = set(pre_filter["passed"])
+    surviving_normalized = [
+        j for j in normalized
+        if str(j.get("job_url", "")) in pre_filter_passed_urls
+    ]
+    if reporter is not None:
+        n_pre_rejected = len(normalized) - len(surviving_normalized)
+        reporter.emit(  # type: ignore[union-attr]
+            "layer1b_pre_filter", "info",
+            f"Pre-enrichment filter: {len(surviving_normalized)} pass, {n_pre_rejected} rejected",
+        )
+
+    # ── Layer 1c: enrich survivors only ──────────────────────────────────────
+    enriched = enrich_batch(surviving_normalized, config)
     load_structured_jobs(enriched, config)
     load_run_structured_jobs(enriched, run_id, config)
     if reporter is not None:
-        reporter.emit("layer1_jobs", "info", f"Ingested {len(raw_jobs)} jobs, enriched {len(enriched)}")  # type: ignore[union-attr]
+        reporter.emit(  # type: ignore[union-attr]
+            "layer1_jobs", "info",
+            f"Ingested {len(raw_jobs)} jobs, enriched {len(enriched)} (after pre-filter)",
+        )
 
     # ── Layer 2: candidate profile ────────────────────────────────────────────
     runtime_profile_json: str | None = (
@@ -176,16 +205,14 @@ def run_pipeline(
     if reporter is not None:
         reporter.emit("layer2_candidate", "info", "Candidate profile loaded")  # type: ignore[union-attr]
 
-    # ── Layer 3a: rule filter BEFORE embedding ────────────────────────────────
-    raw_global = config.get("global_job_filters", {})
-    global_settings = (
-        {f"global_job_filters.{k}": v for k, v in raw_global.items()}
-        if raw_global else None
-    )
-    filter_result = apply_rule_filters(
-        enriched, profile["preferences"], config,
-        global_settings=global_settings,
-    )
+    # ── Layer 3a: candidate-specific rule filter BEFORE embedding ─────────────
+    # Global filters already ran pre-enrichment; pass global_settings=None.
+    filter_result = apply_rule_filters(enriched, profile["preferences"], config)
+    # Merge pre-enrichment and candidate-filter rejects for run-detail visibility.
+    combined_filter_result = {
+        "passed": filter_result["passed"],
+        "rejected": pre_filter["rejected"] + filter_result["rejected"],
+    }
     passed_job_urls = [str(url) for url in filter_result["passed"]]
     enriched_by_url = {
         str(job.get("job_url") or ""): job
@@ -196,8 +223,8 @@ def run_pipeline(
         for url in passed_job_urls
         if url in enriched_by_url
     ]
-    rejected_jobs: list[dict[str, Any]] = list(filter_result["rejected"])
-    store_filter_results(filter_result, run_id, config)
+    rejected_jobs: list[dict[str, Any]] = list(combined_filter_result["rejected"])
+    store_filter_results(combined_filter_result, run_id, config)
     if reporter is not None:
         reporter.emit("layer3_filter", "info", f"{len(passed_jobs)} passed rule filter")  # type: ignore[union-attr]
 
