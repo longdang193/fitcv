@@ -141,6 +141,36 @@
   </div>
 </div>
 
+{% if pre_enrichment_rejects %}
+<div style="margin:1.5rem 0;background:#1e1e2e;border-radius:0.75rem;border:1px solid #2d2d44;overflow:hidden">
+  <details>
+    <summary style="padding:0.75rem 1.25rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;color:#94a3b8;font-size:0.8rem;user-select:none">
+      <span style="color:#f87171;font-weight:600">&#10007; Rejected before enrichment</span>
+      <span style="background:#7f1d1d;color:#fca5a5;font-size:0.7rem;padding:0.1rem 0.5rem;border-radius:999px;font-weight:600">{{ pre_enrichment_rejects | length }}</span>
+      <span style="margin-left:auto;color:#4b5563;font-size:0.7rem">These jobs were screened out by global filters before the enrichment step.</span>
+    </summary>
+    <table style="width:100%;font-size:0.78rem;border-collapse:collapse">
+      <thead>
+        <tr style="color:#6b7280;text-align:left;border-bottom:1px solid #2d2d44">
+          <th style="padding:0.5rem 1.25rem">Job URL</th>
+          <th style="padding:0.5rem 1rem">Reject Reasons</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in pre_enrichment_rejects %}
+        <tr style="border-bottom:1px solid #1a1a2e">
+          <td style="padding:0.5rem 1.25rem">
+            <a href="{{ row.job_url }}" target="_blank" style="color:#a5b4fc;text-decoration:none;font-size:0.75rem">{{ row.job_url }}</a>
+          </td>
+          <td style="padding:0.5rem 1rem;color:#fca5a5">{{ row.reasons | join(', ') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+</div>
+{% endif %}
+
 <!-- ── Tab 2: Original Job Input ─────────────────────────────────────── -->
 <div class="tab-pane" id="pane-jobs-input" style="display:none;margin-bottom:2rem">
   {% if run.jobs_input_json %}

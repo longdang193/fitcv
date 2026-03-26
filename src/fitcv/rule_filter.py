@@ -262,10 +262,14 @@ def check_applicant_count(
     max_count = global_settings.get("global_job_filters.applications_count_max")
     if max_count is None:
         return True
-    count = job.get("applications_count")
+    # Prefer the parsed integer from normalize.py; fall back to raw string field
+    count = job.get("applications_count_int", job.get("applications_count"))
     if count is None:
-        return True
-    return int(count) <= int(max_count)
+        return True  # fail open
+    try:
+        return int(count) <= int(max_count)
+    except (ValueError, TypeError):
+        return True  # unparseable — fail open
 
 
 def check_domain_preference(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
@@ -283,6 +287,46 @@ def check_domain_preference(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
     if not domain:
         return True
     return domain in preferred
+
+
+# ── pre-enrichment global filter orchestrator ─────────────────────────────────
+
+def apply_pre_enrichment_global_filters(
+    jobs: list[dict[str, Any]],
+    global_settings: dict[str, Any] | None,
+) -> dict[str, list]:
+    """Apply admin-managed pre-enrichment global filters.
+
+    Uses only ingest/normalization fields (applications_count_int, published_at).
+    Runs before enrich_batch so rejected jobs do not consume LLM/API budget.
+
+    Returns the same shape as apply_rule_filters:
+        {"passed": [job_url, ...], "rejected": [{"job_url": ..., "reasons": [...]}, ...]}
+
+    When global_settings is None or empty, all jobs pass (filters disabled).
+    """
+    if not global_settings:
+        return {
+            "passed": [str(j.get("job_url", "")) for j in jobs],
+            "rejected": [],
+        }
+
+    checks: list[tuple[str, Any]] = [
+        ("job_too_stale",               lambda j: check_freshness(j, global_settings)),
+        ("applications_count_exceeded", lambda j: check_applicant_count(j, global_settings)),
+    ]
+
+    passed: list[str] = []
+    rejected: list[dict[str, Any]] = []
+    for job in jobs:
+        url = str(job.get("job_url", ""))
+        failed = [reason for reason, fn in checks if not fn(job)]
+        if failed:
+            rejected.append({"job_url": url, "reasons": failed})
+        else:
+            passed.append(url)
+
+    return {"passed": passed, "rejected": rejected}
 
 
 # ── orchestrator ──────────────────────────────────────────────────────────────
@@ -304,8 +348,10 @@ def apply_rule_filters(
         }
 
     config: merged config dict (from load_config). When None, built-in fallbacks apply.
-    global_settings: flat dict of global_job_filters.* admin values. When None, global
-        checks are skipped (backward compatible) and freshness uses the hard default of 30 days.
+    global_settings: retained for backward compatibility with direct callers; no longer
+        used by the pipeline (global checks now run pre-enrichment via
+        apply_pre_enrichment_global_filters). Freshness and applicant-count checks
+        are not applied here regardless of this value.
 
     Note: experience_level is used for exclusion only. seniority is the primary signal.
     Conflicts (e.g. experience_level=Entry + seniority=mid) are logged but not auto-rejected.
@@ -316,16 +362,8 @@ def apply_rule_filters(
         ("contract_type_excluded",    check_contract_type),
         ("experience_level_excluded", check_experience_level),
         ("must_have_skill_missing",   lambda j, p: check_must_have_skills(j, p, config)),
-        ("job_too_stale",             lambda j, p: check_freshness(j, global_settings)),
         ("domain_not_preferred",      check_domain_preference),
     ]
-
-    # Global admin-managed filters (applied after candidate-specific checks)
-    if global_settings:
-        checks.append(
-            ("applications_count_exceeded",
-             lambda j, p: check_applicant_count(j, global_settings)),
-        )
 
     passed: list[str] = []
     rejected: list[dict[str, Any]] = []

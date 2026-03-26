@@ -435,6 +435,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             row["job_url"]: row for row in filter_results
         }
 
+        # Jobs rejected before enrichment have filter_results rows but no enriched row.
+        enriched_job_urls = {j["job_url"] for j in enriched_jobs}
+        pre_enrichment_rejects = [
+            row for row in filter_results
+            if row["job_url"] not in enriched_job_urls and row.get("reasons")
+        ]
+
         # Candidate profile display
         candidate_profile_parsed: dict | None = None
         candidate_profile_pretty: str | None = None
@@ -452,6 +459,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "cv_versions": cv_versions,
                 "enriched_jobs": enriched_jobs,
                 "filter_results_by_job_url": filter_results_by_job_url,
+                "pre_enrichment_rejects": pre_enrichment_rejects,
                 "candidate_profile_parsed": candidate_profile_parsed,
                 "candidate_profile_pretty": candidate_profile_pretty,
             }
