@@ -419,3 +419,160 @@ def test_run_detail_event_timeline_appears_after_tab_panes():
     assert timeline_pos > profile_pane_pos, (
         "Event Timeline must appear after all tab panes in the HTML"
     )
+
+
+# ── grouped settings endpoint ─────────────────────────────────────────────────
+
+_VALID_WEIGHTS = {
+    "ranking_weights.ai_score": "0.40",
+    "ranking_weights.must_have_match": "0.20",
+    "ranking_weights.vector_similarity": "0.15",
+    "ranking_weights.title_relevance": "0.10",
+    "ranking_weights.seniority_fit": "0.10",
+    "ranking_weights.preference_fit": "0.05",
+}
+
+
+def test_grouped_save_valid_ranking_weights_redirects():
+    """Valid 6-weight form POST → 303 redirect; save_settings_group called."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/group/ranking-weights",
+            data=_VALID_WEIGHTS,
+        )
+    assert resp.status_code == 303
+    mock_group_save.assert_called_once()
+    saved_keys = set(mock_group_save.call_args[0][0].keys())
+    assert saved_keys == set(_VALID_WEIGHTS.keys())
+
+
+def test_grouped_save_weights_dont_sum_to_one_returns_422():
+    """Weights summing to 0.9 → 422; no write."""
+    bad_weights = dict(_VALID_WEIGHTS)
+    bad_weights["ranking_weights.ai_score"] = "0.30"  # sum = 0.90
+    with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/group/ranking-weights",
+            data=bad_weights,
+        )
+    assert resp.status_code == 422
+    mock_group_save.assert_not_called()
+
+
+def test_grouped_save_weights_error_preserved_in_response():
+    """Error response must contain the submitted form values (so admin can correct)."""
+    bad_weights = dict(_VALID_WEIGHTS)
+    bad_weights["ranking_weights.ai_score"] = "0.30"  # sum ≠ 1.0
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/group/ranking-weights",
+            data=bad_weights,
+        )
+    assert resp.status_code == 422
+    # The form values must persist (input elements show the submitted values)
+    assert "0.30" in resp.text
+
+
+def test_grouped_save_fit_label_thresholds_valid():
+    """strong > stretch → 303 redirect; 2 keys saved."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/group/fit-label-thresholds",
+            data={
+                "fit_label_thresholds.strong": "0.70",
+                "fit_label_thresholds.stretch": "0.40",
+            },
+        )
+    assert resp.status_code == 303
+    mock_group_save.assert_called_once()
+
+
+def test_grouped_save_fit_label_thresholds_invalid_order():
+    """stretch > strong → 422; no write."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/group/fit-label-thresholds",
+            data={
+                "fit_label_thresholds.strong": "0.40",
+                "fit_label_thresholds.stretch": "0.70",
+            },
+        )
+    assert resp.status_code == 422
+    mock_group_save.assert_not_called()
+
+
+def test_grouped_save_gap_thresholds_valid():
+    """strong_min > stretch_min → 303."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/group/gap-thresholds",
+            data={
+                "gap_thresholds.strong_min_matched_ratio": "0.80",
+                "gap_thresholds.stretch_min_matched_ratio": "0.50",
+            },
+        )
+    assert resp.status_code == 303
+    mock_group_save.assert_called_once()
+
+
+def test_grouped_save_gap_thresholds_invalid_order():
+    """stretch_min > strong_min → 422; no write."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/group/gap-thresholds",
+            data={
+                "gap_thresholds.strong_min_matched_ratio": "0.30",
+                "gap_thresholds.stretch_min_matched_ratio": "0.80",
+            },
+        )
+    assert resp.status_code == 422
+    mock_group_save.assert_not_called()
+
+
+def test_grouped_save_unknown_group_returns_404():
+    """Unknown group name → 404."""
+    resp = TestClient(_app()).post(
+        "/admin/settings/group/nonexistent",
+        data={"some.key": "1"},
+    )
+    assert resp.status_code == 404
+
+
+def test_grouped_save_bq_error_returns_422_not_303():
+    """BQ failure from save_settings_group → 422 error page, not a redirect."""
+    with patch("fitcv_cp.app.save_settings_group", side_effect=RuntimeError("BQ failed")), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/group/fit-label-thresholds",
+            data={
+                "fit_label_thresholds.strong": "0.70",
+                "fit_label_thresholds.stretch": "0.40",
+            },
+        )
+    assert resp.status_code == 422
+    assert "BQ failed" in resp.text
+
+
+def test_grouped_save_audit_identity_encoded_in_updated_by():
+    """Each group save uses updated_by='admin:grp:{uuid}'."""
+    captured = {}
+
+    def fake_save(keys_values, *, updated_by, bq, project, dataset):
+        captured["updated_by"] = updated_by
+
+    with patch("fitcv_cp.app.save_settings_group", side_effect=fake_save), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/group/fit-label-thresholds",
+            data={
+                "fit_label_thresholds.strong": "0.70",
+                "fit_label_thresholds.stretch": "0.40",
+            },
+        )
+    assert captured.get("updated_by", "").startswith("admin:grp:")
