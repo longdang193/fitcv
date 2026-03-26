@@ -177,7 +177,15 @@ def run_pipeline(
         reporter.emit("layer2_candidate", "info", "Candidate profile loaded")  # type: ignore[union-attr]
 
     # ── Layer 3a: rule filter BEFORE embedding ────────────────────────────────
-    filter_result = apply_rule_filters(enriched, profile["preferences"], config)
+    raw_global = config.get("global_job_filters", {})
+    global_settings = (
+        {f"global_job_filters.{k}": v for k, v in raw_global.items()}
+        if raw_global else None
+    )
+    filter_result = apply_rule_filters(
+        enriched, profile["preferences"], config,
+        global_settings=global_settings,
+    )
     passed_job_urls = [str(url) for url in filter_result["passed"]]
     enriched_by_url = {
         str(job.get("job_url") or ""): job
