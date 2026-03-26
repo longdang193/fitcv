@@ -7,10 +7,20 @@ import pytest
 
 from fitcv.candidate import (
     flatten_skills,
+    load_profile_json_text,
     load_profile_yaml,
     prepare_profile_rows,
     validate_profile,
 )
+
+
+_VALID_PROFILE_DICT: dict = {
+    "experiences": [{"id": "exp_1", "role": "DE", "company": "X", "bullets": []}],
+    "skills": [{"name": "SQL"}],
+    "projects": [],
+    "achievements": [],
+    "preferences": {"seniority_target": "mid", "location_types": ["remote"]},
+}
 
 
 # ── load_profile_yaml ─────────────────────────────────────────────────────────
@@ -147,3 +157,39 @@ def test_load_candidate_to_bigquery(sample_profile_path: Path, config: dict) -> 
     from fitcv.candidate import load_candidate_to_bigquery
     profile = load_profile_yaml(sample_profile_path)
     load_candidate_to_bigquery(profile, config)  # should not raise
+
+
+# ── Task 3: load_profile_json_text ───────────────────────────────────────────
+
+import json as _json
+
+
+def test_load_profile_json_text_valid_returns_dict() -> None:
+    payload = _json.dumps(_VALID_PROFILE_DICT)
+    result = load_profile_json_text(payload)
+    assert isinstance(result, dict)
+    assert "experiences" in result
+
+
+def test_load_profile_json_text_invalid_json_raises() -> None:
+    with pytest.raises(ValueError, match="Invalid JSON"):
+        load_profile_json_text("{not json}")
+
+
+def test_load_profile_json_text_array_raises() -> None:
+    """Top-level array is not a valid candidate profile (must be an object)."""
+    with pytest.raises(ValueError, match="JSON object"):
+        load_profile_json_text("[]")
+
+
+def test_load_profile_json_text_missing_section_raises() -> None:
+    """Profile missing required sections fails validate_profile."""
+    incomplete = {"experiences": [], "skills": []}
+    with pytest.raises(ValueError, match="validation failed"):
+        load_profile_json_text(_json.dumps(incomplete))
+
+
+def test_load_profile_json_text_preserves_all_required_sections() -> None:
+    result = load_profile_json_text(_json.dumps(_VALID_PROFILE_DICT))
+    for section in ("experiences", "skills", "projects", "achievements", "preferences"):
+        assert section in result
