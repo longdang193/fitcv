@@ -157,7 +157,7 @@ def test_admin_runs_rendered_nav():
         resp = TestClient(_app()).get("/admin/runs")
     assert resp.status_code == 200
     assert 'href="/admin/settings">Settings</a>' in resp.text
-    assert 'Refresh Status' in resp.text
+    assert 'Refresh' in resp.text
     assert 'id="jobs_file"' in resp.text
     assert 'id="jobs_path"' in resp.text
 
@@ -179,7 +179,7 @@ def test_admin_run_detail_success_banner():
     assert "Persisted to the <strong>cv_versions</strong> BigQuery table." in resp.text
     assert 'href="/admin/cvs/v123/download"' in resp.text
     assert 'href="/admin/runs/test-123"' in resp.text
-    assert "Refresh Status" in resp.text
+    assert "Refresh Status" in resp.text  # still present on run_detail page
 
 
 def test_admin_run_detail_warning_banner():
@@ -723,3 +723,90 @@ def test_admin_runs_archived_view_passes_archived_only():
     assert resp.status_code == 200
     call_kwargs = mock_list.call_args[1]
     assert call_kwargs.get("archived_only") is True
+
+
+# ── Task 5: Admin UI lifecycle controls ─────────────────────────────────────
+
+def _make_full_run_mock(status="queued", archived_at=None, run_id="run-ui-1"):
+    from fitcv_cp.models import PipelineRun, RunStatus
+    import datetime
+    return PipelineRun(
+        run_id=run_id,
+        status=RunStatus(status),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime(2026, 3, 26, 12, 0, 0, tzinfo=datetime.timezone.utc),
+        archived_at=archived_at,
+    )
+
+
+def test_runs_list_shows_active_all_archived_filter_tabs():
+    with patch("fitcv_cp.app.list_runs", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert resp.status_code == 200
+    body = resp.text
+    assert "Active" in body
+    assert "Archived" in body
+    assert "All" in body
+
+
+def test_runs_list_queued_row_shows_stop_button():
+    run = _make_full_run_mock(status="queued")
+    with patch("fitcv_cp.app.list_runs", return_value=[run]):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert "Stop Run" in resp.text
+
+
+def test_runs_list_running_row_shows_stop_button():
+    run = _make_full_run_mock(status="running")
+    with patch("fitcv_cp.app.list_runs", return_value=[run]):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert "Stop Run" in resp.text
+
+
+def test_runs_list_succeeded_row_shows_archive_button():
+    run = _make_full_run_mock(status="succeeded")
+    with patch("fitcv_cp.app.list_runs", return_value=[run]):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert "Archive" in resp.text
+
+
+def test_run_detail_queued_shows_stop_run():
+    import datetime
+    run = _make_full_run_mock(status="queued")
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-ui-1")
+    assert resp.status_code == 200
+    assert "Stop Run" in resp.text
+
+
+def test_run_detail_succeeded_shows_archive_run():
+    run = _make_full_run_mock(status="succeeded")
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-ui-1")
+    assert resp.status_code == 200
+    assert "Archive Run" in resp.text
+
+
+def test_run_detail_archived_shows_unarchive_and_badge():
+    import datetime
+    run = _make_full_run_mock(status="succeeded", archived_at=datetime.datetime(2026, 3, 26, 13, 0, 0, tzinfo=datetime.timezone.utc))
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-ui-1")
+    assert resp.status_code == 200
+    assert "Unarchive Run" in resp.text
+    assert "Archived" in resp.text
