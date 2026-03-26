@@ -6,6 +6,8 @@ import types
 import pytest
 
 from fitcv.enrich import (
+    EnrichmentOutput,
+    _apply_structured_normalization,
     build_extraction_prompt,
     enrich_job,
     load_run_structured_jobs,
@@ -357,12 +359,17 @@ def test_enrich_job_uses_google_genai_client(
 ) -> None:
     captured: dict[str, object] = {}
 
+    class FakeGenerateContentConfig:
+        def __init__(self, **kwargs: object) -> None:
+            captured["gen_config_kwargs"] = kwargs
+
     class FakeResponse:
         text = '{"required_skills": ["SQL"], "location_type": "remote"}'
+        parsed = None  # trigger fallback path
 
     class FakeModels:
         def generate_content(
-            self, *, model: str, contents: str, config: dict[str, object]
+            self, *, model: str, contents: str, config: object
         ) -> FakeResponse:
             captured["model"] = model
             captured["contents"] = contents
@@ -374,7 +381,8 @@ def test_enrich_job_uses_google_genai_client(
             captured["client_kwargs"] = kwargs
             self.models = FakeModels()
 
-    fake_genai = types.SimpleNamespace(Client=FakeClient)
+    fake_genai_types = types.SimpleNamespace(GenerateContentConfig=FakeGenerateContentConfig)
+    fake_genai = types.SimpleNamespace(Client=FakeClient, types=fake_genai_types)
     fake_google = types.SimpleNamespace(
         auth=types.SimpleNamespace(default=lambda scopes=None: ("creds", "project"))
     )
@@ -382,6 +390,7 @@ def test_enrich_job_uses_google_genai_client(
     monkeypatch.setitem(sys.modules, "google", fake_google)
     monkeypatch.setitem(sys.modules, "google.auth", fake_google.auth)
     monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
+    monkeypatch.setitem(sys.modules, "google.genai.types", fake_genai_types)
     setattr(fake_google, "genai", fake_genai)
 
     result = enrich_job(
@@ -405,29 +414,9 @@ def test_enrich_job_uses_google_genai_client(
     assert result["required_skills"] == ["SQL"]
     assert result["location_type"] == "remote"
     assert captured["model"] == "gemini-2.5-flash"
-    config = captured["config"]
-    assert isinstance(config, dict)
-    assert config["response_mime_type"] == "application/json"
-    schema = config["response_json_schema"]
-    assert isinstance(schema, dict)
-    assert schema["type"] == "object"
-    assert schema["required"] == [
-        "required_skills",
-        "preferred_skills",
-        "responsibilities",
-        "tech_stack",
-        "keywords",
-        "location_type",
-        "seniority",
-        "domain",
-        "job_family",
-        "years_experience_min",
-        "years_experience_max",
-    ]
-    properties = schema["properties"]
-    assert isinstance(properties, dict)
-    assert properties["required_skills"]["type"] == "array"
-    assert properties["location_type"]["enum"] == ["remote", "hybrid", "onsite"]
+    # GenerateContentConfig should have been constructed with response_schema=EnrichmentOutput
+    from fitcv.enrich import EnrichmentOutput as _EO
+    assert captured["gen_config_kwargs"].get("response_schema") is _EO
     client_kwargs = captured["client_kwargs"]
     assert isinstance(client_kwargs, dict)
     assert client_kwargs["vertexai"] is True
@@ -439,12 +428,17 @@ def test_enrich_job_prefers_gemini_api_key(
 ) -> None:
     captured: dict[str, object] = {}
 
+    class FakeGenerateContentConfig:
+        def __init__(self, **kwargs: object) -> None:
+            captured["gen_config_kwargs"] = kwargs
+
     class FakeResponse:
         text = '{"required_skills": ["SQL"]}'
+        parsed = None  # trigger fallback path
 
     class FakeModels:
         def generate_content(
-            self, *, model: str, contents: str, config: dict[str, object]
+            self, *, model: str, contents: str, config: object
         ) -> FakeResponse:
             captured["model"] = model
             captured["contents"] = contents
@@ -456,7 +450,8 @@ def test_enrich_job_prefers_gemini_api_key(
             captured["client_kwargs"] = kwargs
             self.models = FakeModels()
 
-    fake_genai = types.SimpleNamespace(Client=FakeClient)
+    fake_genai_types = types.SimpleNamespace(GenerateContentConfig=FakeGenerateContentConfig)
+    fake_genai = types.SimpleNamespace(Client=FakeClient, types=fake_genai_types)
     fake_google = types.SimpleNamespace(
         auth=types.SimpleNamespace(default=lambda scopes=None: (_ for _ in ()).throw(AssertionError("google.auth.default should not be called")))
     )
@@ -465,6 +460,7 @@ def test_enrich_job_prefers_gemini_api_key(
     monkeypatch.setitem(sys.modules, "google", fake_google)
     monkeypatch.setitem(sys.modules, "google.auth", fake_google.auth)
     monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
+    monkeypatch.setitem(sys.modules, "google.genai.types", fake_genai_types)
     setattr(fake_google, "genai", fake_genai)
 
     result = enrich_job(
@@ -477,9 +473,8 @@ def test_enrich_job_prefers_gemini_api_key(
     assert isinstance(client_kwargs, dict)
     assert client_kwargs["api_key"] == "test-key"
     assert "vertexai" not in client_kwargs
-    config = captured["config"]
-    assert isinstance(config, dict)
-    assert config["response_mime_type"] == "application/json"
+    # GenerateContentConfig should have been called with response_schema
+    assert "response_schema" in captured.get("gen_config_kwargs", {})
 
 
 # ── load_run_structured_jobs ──────────────────────────────────────────────────
@@ -758,3 +753,138 @@ def test_load_run_structured_jobs_excludes_schema_extra_fields(
     row = captured["rows"][0]  # type: ignore[index]
     for excluded in ("company_id", "sector", "salary_min", "salary_max", "salary_currency", "applications_count"):
         assert excluded not in row, f"Field {excluded!r} should not be in run_structured_jobs row"
+
+
+# ── EnrichmentOutput + _apply_structured_normalization ───────────────────────
+
+def test_apply_structured_normalization_lowercases_domain() -> None:
+    output = EnrichmentOutput(domain="FinTech", job_family="Data_Engineering")
+    result = _apply_structured_normalization(output, config=None)
+    assert result["domain"] == "fintech"
+    assert result["job_family"] == "data_engineering"
+
+
+def test_apply_structured_normalization_rejects_invalid_location_type() -> None:
+    output = EnrichmentOutput(location_type="office")  # not in valid set
+    result = _apply_structured_normalization(output, config=None)
+    assert result["location_type"] is None
+
+
+def test_apply_structured_normalization_accepts_valid_location_type() -> None:
+    for valid in ("remote", "hybrid", "onsite"):
+        output = EnrichmentOutput(location_type=valid)
+        result = _apply_structured_normalization(output, config=None)
+        assert result["location_type"] == valid
+
+
+def test_apply_structured_normalization_rejects_invalid_seniority() -> None:
+    output = EnrichmentOutput(seniority="executive")  # not in valid set
+    result = _apply_structured_normalization(output, config=None)
+    assert result["seniority"] is None
+
+
+def test_apply_structured_normalization_empty_lists_preserved() -> None:
+    """Pydantic enforces list[str] so None items cannot be constructed.
+    This tests that empty lists are preserved correctly."""
+    output = EnrichmentOutput(required_skills=[])
+    result = _apply_structured_normalization(output, config=None)
+    assert result["required_skills"] == []
+
+
+def test_apply_structured_normalization_none_domain_stays_none() -> None:
+    output = EnrichmentOutput(domain=None)
+    result = _apply_structured_normalization(output, config=None)
+    assert result["domain"] is None
+
+
+def test_apply_structured_normalization_strips_whitespace() -> None:
+    output = EnrichmentOutput(domain="  FinTech  ", job_family="  ML Engineering  ")
+    result = _apply_structured_normalization(output, config=None)
+    assert result["domain"] == "fintech"
+    assert result["job_family"] == "ml engineering"
+
+
+# ── enrich_job primary and fallback paths ─────────────────────────────────────
+
+def _job_fixture() -> dict:
+    return {
+        "job_url": "https://example.com/job/1",
+        "title": "Data Engineer",
+        "description": "Build pipelines with Python and Spark.",
+        "location": "Berlin",
+        "experience_level": "",
+        "contract_type": "",
+        "sector": "",
+    }
+
+
+def _config_fixture() -> dict:
+    return {
+        "gcp_project": "test-proj",
+        "gemini_model": "gemini-2.5-flash",
+        "ai_score_model": "gemini-2.5-flash",
+        "location": "us-central1",
+        "enrichment_version": "v1",
+    }
+
+
+def test_enrich_job_uses_response_parsed() -> None:
+    """Primary path: response.parsed is used and normalization applied."""
+    from unittest.mock import MagicMock, patch
+
+    mock_response = MagicMock()
+    mock_response.parsed = EnrichmentOutput(
+        required_skills=["Python", "Spark"],
+        location_type="remote",
+        seniority="mid",
+        domain="FinTech",    # should be lowercased by normalization
+        job_family="data_engineering",
+    )
+
+    with patch("fitcv.enrich._make_genai_client") as mk:
+        mk.return_value.models.generate_content.return_value = mock_response
+        result = enrich_job(_job_fixture(), _config_fixture())
+
+    assert result["required_skills"] == ["Python", "Spark"]
+    assert result["location_type"] == "remote"
+    assert result["seniority"] == "mid"
+    assert result["domain"] == "fintech"
+    assert result["job_family"] == "data_engineering"
+
+
+def test_enrich_job_fallback_when_parsed_is_none(caplog: pytest.LogCaptureFixture) -> None:
+    """Falls back to parse_extraction_response + json_repair when response.parsed is None."""
+    import logging
+    from unittest.mock import MagicMock, patch
+
+    mock_response = MagicMock()
+    mock_response.parsed = None
+    # malformed JSON — missing comma (what gemini-2.5-flash sometimes produces)
+    mock_response.text = '{"required_skills": ["SQL" "Python"], "location_type": "remote"}'
+
+    with patch("fitcv.enrich._make_genai_client") as mk, \
+         caplog.at_level(logging.WARNING, logger="fitcv.enrich"):
+        mk.return_value.models.generate_content.return_value = mock_response
+        result = enrich_job(_job_fixture(), _config_fixture())
+
+    assert "falling back" in caplog.text.lower()
+    assert isinstance(result["required_skills"], list)
+    assert result["location_type"] == "remote"
+
+
+def test_enrich_job_fallback_empty_on_bad_text(caplog: pytest.LogCaptureFixture) -> None:
+    """Returns empty enrichment (no crash) when parsed=None and text is not JSON."""
+    import logging
+    from unittest.mock import MagicMock, patch
+
+    mock_response = MagicMock()
+    mock_response.parsed = None
+    mock_response.text = "I cannot extract structured data from this input."
+
+    with patch("fitcv.enrich._make_genai_client") as mk, \
+         caplog.at_level(logging.WARNING, logger="fitcv.enrich"):
+        mk.return_value.models.generate_content.return_value = mock_response
+        result = enrich_job(_job_fixture(), _config_fixture())
+
+    assert result["required_skills"] == []
+    assert result["location_type"] is None
