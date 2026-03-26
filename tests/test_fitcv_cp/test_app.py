@@ -306,3 +306,116 @@ def test_admin_run_detail_enriched_jobs_shows_required_skills():
 
 
 
+
+
+# ── Inspection Tab Tests ──────────────────────────────────────────────────────
+
+
+def _run_detail_base_patches(run_obj):
+    """Return tuple of patchers for standard run detail route dependencies."""
+    return (
+        patch("fitcv_cp.app.get_run", return_value=run_obj),
+        patch("fitcv_cp.app.get_events", return_value=[]),
+        patch("fitcv_cp.app.list_cvs_for_run", return_value=[]),
+        patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]),
+        patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]),
+    )
+
+
+def test_run_detail_default_tab_is_enriched():
+    """Enriched Jobs pane must be active by default on page load."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="tab-test-1", status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json", triggered_by="admin",
+        trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/tab-test-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'id="pane-enriched"' in html
+    assert 'id="tab-btn-enriched"' in html
+    # active class must be on the enriched pane (class attr comes before id= in HTML)
+    pane_pos = html.index('id="pane-enriched"')
+    assert "active" in html[max(0, pane_pos - 60):pane_pos + 50]
+    # active class must be on the enriched tab button
+    btn_pos = html.index('id="tab-btn-enriched"')
+    assert "active" in html[max(0, btn_pos - 80):btn_pos + 10]
+
+
+def test_run_detail_tab2_fallback_when_no_jobs_snapshot():
+    """Tab 2 shows source/path fallback when jobs_input_json is absent."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="tab-test-2", status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json", jobs_input_source="path",
+        jobs_input_json=None,
+        triggered_by="admin", trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/tab-test-2")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "No immutable raw snapshot" in html
+    assert "data/sample_jobs.json" in html
+
+
+def test_run_detail_tab3_null_source_shows_not_recorded_not_default_config():
+    """Tab 3 fallback must not infer 'default_config' when source is NULL."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="tab-test-3", status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        candidate_profile_source=None,
+        candidate_profile_json=None,
+        triggered_by="admin", trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/tab-test-3")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "No candidate profile snapshot" in html
+    pane_start = html.index('id="pane-profile"')
+    pane_html = html[pane_start:pane_start + 2000]
+    assert "not recorded" in pane_html
+    assert "default_config" not in pane_html
+
+
+def test_run_detail_event_timeline_appears_after_tab_panes():
+    """Event Timeline heading must come after all 3 tab panes in the HTML."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="tab-test-4", status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin", trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/tab-test-4")
+
+    assert resp.status_code == 200
+    html = resp.text
+    profile_pane_pos = html.index('id="pane-profile"')
+    timeline_pos = html.index("Event Timeline")
+    assert timeline_pos > profile_pane_pos, (
+        "Event Timeline must appear after all tab panes in the HTML"
+    )
