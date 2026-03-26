@@ -18,11 +18,15 @@ def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None
     sql = f"""
         INSERT INTO `{table}` (
             run_id, status, triggered_by, trigger_source,
-            jobs_path, config_path, created_at, effective_settings_json
+            jobs_path, config_path, created_at, effective_settings_json,
+            jobs_input_source, jobs_input_json,
+            candidate_profile_source, candidate_profile_json
         )
         VALUES (
             @run_id, @status, @triggered_by, @trigger_source,
-            @jobs_path, @config_path, @created_at, @effective_settings_json
+            @jobs_path, @config_path, @created_at, @effective_settings_json,
+            @jobs_input_source, @jobs_input_json,
+            @candidate_profile_source, @candidate_profile_json
         )
     """
     job_config = bq_module.QueryJobConfig(
@@ -35,6 +39,10 @@ def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None
             bq_module.ScalarQueryParameter("config_path", "STRING", run.config_path),
             bq_module.ScalarQueryParameter("created_at", "TIMESTAMP", run.created_at),
             bq_module.ScalarQueryParameter("effective_settings_json", "STRING", run.effective_settings_json),
+            bq_module.ScalarQueryParameter("jobs_input_source", "STRING", run.jobs_input_source),
+            bq_module.ScalarQueryParameter("jobs_input_json", "STRING", run.jobs_input_json),
+            bq_module.ScalarQueryParameter("candidate_profile_source", "STRING", run.candidate_profile_source),
+            bq_module.ScalarQueryParameter("candidate_profile_json", "STRING", run.candidate_profile_json),
         ]
     )
     bq.query(sql, job_config=job_config).result()
@@ -147,6 +155,10 @@ def _row_to_run(row: Any) -> PipelineRun:
         error_message=r.get("error_message"),
         error_stage=r.get("error_stage"),
         effective_settings_json=r.get("effective_settings_json"),
+        jobs_input_source=r.get("jobs_input_source"),
+        jobs_input_json=r.get("jobs_input_json"),
+        candidate_profile_source=r.get("candidate_profile_source"),
+        candidate_profile_json=r.get("candidate_profile_json"),
     )
 
 
@@ -229,3 +241,31 @@ def list_run_structured_jobs(
     rows = bq.query(sql, job_config=job_config).result()
     return [dict(row.items()) for row in rows]
 
+
+def list_filter_results_for_run(
+    run_id: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> list[dict[str, Any]]:
+    """Return run-scoped filter results for a given run_id.
+
+    Rows include job_url, passed (bool), reasons (repeated string), and run_id.
+    Ordered by job_url for deterministic display. Uses parameterized SQL.
+    """
+    table = f"{project}.{dataset}.rule_filter_results"
+    sql = f"""
+        SELECT job_url, passed, reasons, run_id, filtered_at
+        FROM `{table}`
+        WHERE run_id = @run_id
+        ORDER BY job_url
+    """
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ],
+        use_query_cache=False,
+    )
+    rows = bq.query(sql, job_config=job_config).result()
+    return [dict(row.items()) for row in rows]

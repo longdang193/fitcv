@@ -15,7 +15,13 @@
   <div class="kv">
     <span class="k">Triggered By</span><span class="v">{{ run.triggered_by }}</span>
     <span class="k">Jobs Path</span><span class="v"><code>{{ run.jobs_path }}</code></span>
+    {% if run.jobs_input_source %}
+    <span class="k">Jobs Source</span><span class="v"><span class="badge badge-info" style="font-size:0.72rem">{{ run.jobs_input_source }}</span></span>
+    {% endif %}
     <span class="k">Config</span><span class="v"><code>{{ run.config_path }}</code></span>
+    {% if run.candidate_profile_source %}
+    <span class="k">Profile Source</span><span class="v"><span class="badge badge-info" style="font-size:0.72rem">{{ run.candidate_profile_source }}</span></span>
+    {% endif %}
     <span class="k">Created</span><span class="v">{{ run.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.created_at else '—' }}</span>
     <span class="k">Started</span><span class="v">{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.started_at else '—' }}</span>
     <span class="k">Finished</span><span class="v">{{ run.finished_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.finished_at else '—' }}</span>
@@ -79,10 +85,12 @@
           <th>Job Family</th>
           <th>Domain</th>
           <th>Required Skills (top 5)</th>
+          <th>Filter</th>
         </tr>
       </thead>
       <tbody>
         {% for job in enriched_jobs %}
+        {% set fr = filter_results_by_job_url.get(job.job_url) %}
         <tr>
           <td>
             <a href="{{ job.job_url }}" target="_blank" style="color:#a5b4fc;text-decoration:none">
@@ -100,6 +108,18 @@
               —
             {% endif %}
           </td>
+          <td style="white-space:nowrap;font-size:0.78rem">
+            {% if fr %}
+              {% if fr.passed %}
+                <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              {% else %}
+                <span class="badge badge-error" title="{{ fr.reasons | join(', ') }}">&#10007; reject</span>
+                <div style="margin-top:0.3rem;color:#fca5a5;font-size:0.72rem">{{ fr.reasons | join(', ') }}</div>
+              {% endif %}
+            {% else %}
+              <span style="color:#4a5568">—</span>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -108,6 +128,28 @@
     <p style="color:#4a5568;text-align:center;padding:1.5rem">No enrichment data available for this run.</p>
   {% endif %}
 </div>
+
+{% if candidate_profile_pretty %}
+<h2>Candidate Profile Input</h2>
+<div class="card" style="margin-bottom:2rem">
+  <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+    <span class="badge badge-info" style="font-size:0.78rem">{{ run.candidate_profile_source or 'override' }}</span>
+    <span class="meta" style="font-size:0.82rem">Candidate profile JSON provided at trigger time (immutable snapshot)</span>
+  </div>
+  <pre style="background:#0f0f1a;border:1px solid #312e81;border-radius:6px;padding:1rem;overflow-x:auto;font-size:0.78rem;color:#c7d2fe;max-height:400px">{{ candidate_profile_pretty }}</pre>
+</div>
+{% endif %}
+
+{% if run.jobs_input_json %}
+<h2>Jobs Input Snapshot</h2>
+<div class="card" style="margin-bottom:2rem">
+  <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+    <span class="badge badge-info" style="font-size:0.78rem">paste</span>
+    <span class="meta" style="font-size:0.82rem">Raw job JSON provided at trigger time (immutable snapshot)</span>
+  </div>
+  <pre style="background:#0f0f1a;border:1px solid #312e81;border-radius:6px;padding:1rem;overflow-x:auto;font-size:0.78rem;color:#c7d2fe;max-height:300px">{{ run.jobs_input_json }}</pre>
+</div>
+{% endif %}
 
 <h2>Event Timeline</h2>
 <div class="card" style="padding:0;overflow:hidden">

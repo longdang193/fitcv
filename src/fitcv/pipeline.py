@@ -34,7 +34,7 @@ import uuid
 from typing import Any
 
 from fitcv.ai_score import run_ai_scoring
-from fitcv.candidate import load_candidate_to_bigquery, load_profile_yaml
+from fitcv.candidate import load_candidate_to_bigquery, load_profile_json_text, load_profile_yaml
 from fitcv.config import load_config
 from fitcv.cv_generator import generate_cv
 from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
@@ -164,8 +164,14 @@ def run_pipeline(
         reporter.emit("layer1_jobs", "info", f"Ingested {len(raw_jobs)} jobs, enriched {len(enriched)}")  # type: ignore[union-attr]
 
     # ── Layer 2: candidate profile ────────────────────────────────────────────
-    profile_path: str = str(config["paths"]["candidate_profile"])
-    profile = load_profile_yaml(profile_path)
+    runtime_profile_json: str | None = (
+        config.get("runtime_inputs", {}).get("candidate_profile_json")
+    )
+    if runtime_profile_json:
+        profile = load_profile_json_text(runtime_profile_json)
+    else:
+        profile_path: str = str(config["paths"]["candidate_profile"])
+        profile = load_profile_yaml(profile_path)
     load_candidate_to_bigquery(profile, config)
     if reporter is not None:
         reporter.emit("layer2_candidate", "info", "Candidate profile loaded")  # type: ignore[union-attr]
@@ -183,7 +189,7 @@ def run_pipeline(
         if url in enriched_by_url
     ]
     rejected_jobs: list[dict[str, Any]] = list(filter_result["rejected"])
-    store_filter_results(filter_result, config)
+    store_filter_results(filter_result, run_id, config)
     if reporter is not None:
         reporter.emit("layer3_filter", "info", f"{len(passed_jobs)} passed rule filter")  # type: ignore[union-attr]
 
