@@ -7,8 +7,9 @@ check_location_type      : job location_type in preferred list
 check_contract_type      : contract_type in allowed list
 check_experience_level   : exclusion filter on raw LinkedIn experience_level label
 check_must_have_skills   : candidate must-haves present in JD (with synonym map)
-check_freshness          : published_at within max_age_days window
+check_freshness          : published_at within global_job_filters.max_age_days window
 check_domain_preference  : job domain in preferred list (empty = accept all)
+check_applicant_count    : applications_count ≤ global_job_filters.applications_count_max
 apply_rule_filters       : compose all checks → {passed, rejected}
 store_filter_results     : persist results to BigQuery (integration)
 
@@ -219,12 +220,22 @@ def check_must_have_skills(
     return all(_canonicalise_skill(skill, config) in job_skills_canonical for skill in must_haves)
 
 
-def check_freshness(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
-    """Return True if published_at is within max_age_days of today.
+def check_freshness(
+    job: dict[str, Any],
+    global_settings: dict[str, Any] | None = None,
+) -> bool:
+    """Return True if published_at is within the admin-configured max_age_days window.
 
-    Missing published_at → pass (cannot determine staleness).
+    Reads max_age_days from global_settings (admin-managed). Falls back to 30 days
+    if not configured. Does NOT read prefs.max_age_days — freshness is a global
+    admin-managed filter, not a candidate preference.
+
+    Missing or unparseable published_at → pass (fail open).
     """
-    max_age = int(prefs.get("max_age_days", 30))
+    if global_settings is not None:
+        max_age = int(global_settings.get("global_job_filters.max_age_days", 30))
+    else:
+        max_age = 30
     published_at = job.get("published_at")
     if not published_at:
         return True
@@ -237,6 +248,24 @@ def check_freshness(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
     except (ValueError, TypeError):
         logger.warning("Could not parse published_at '%s' — keeping job", published_at)
         return True
+
+
+def check_applicant_count(
+    job: dict[str, Any],
+    global_settings: dict[str, Any],
+) -> bool:
+    """Return True if applications_count is within the admin-configured threshold.
+
+    NULL applications_count → pass (fail open).
+    No configured threshold → pass (filter disabled).
+    """
+    max_count = global_settings.get("global_job_filters.applications_count_max")
+    if max_count is None:
+        return True
+    count = job.get("applications_count")
+    if count is None:
+        return True
+    return int(count) <= int(max_count)
 
 
 def check_domain_preference(job: dict[str, Any], prefs: dict[str, Any]) -> bool:
@@ -262,6 +291,7 @@ def apply_rule_filters(
     jobs: list[dict[str, Any]],
     prefs: dict[str, Any],
     config: dict[str, Any] | None = None,
+    global_settings: dict[str, Any] | None = None,
 ) -> dict[str, list]:
     """Apply all policy checks and return {passed, rejected}.
 
@@ -274,6 +304,8 @@ def apply_rule_filters(
         }
 
     config: merged config dict (from load_config). When None, built-in fallbacks apply.
+    global_settings: flat dict of global_job_filters.* admin values. When None, global
+        checks are skipped (backward compatible) and freshness uses the hard default of 30 days.
 
     Note: experience_level is used for exclusion only. seniority is the primary signal.
     Conflicts (e.g. experience_level=Entry + seniority=mid) are logged but not auto-rejected.
@@ -284,9 +316,16 @@ def apply_rule_filters(
         ("contract_type_excluded",    check_contract_type),
         ("experience_level_excluded", check_experience_level),
         ("must_have_skill_missing",   lambda j, p: check_must_have_skills(j, p, config)),
-        ("job_too_stale",             check_freshness),
+        ("job_too_stale",             lambda j, p: check_freshness(j, global_settings)),
         ("domain_not_preferred",      check_domain_preference),
     ]
+
+    # Global admin-managed filters (applied after candidate-specific checks)
+    if global_settings:
+        checks.append(
+            ("applications_count_exceeded",
+             lambda j, p: check_applicant_count(j, global_settings)),
+        )
 
     passed: list[str] = []
     rejected: list[dict[str, Any]] = []

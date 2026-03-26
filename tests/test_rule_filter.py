@@ -4,6 +4,7 @@ import pytest
 
 from fitcv.rule_filter import (
     apply_rule_filters,
+    check_applicant_count,
     check_contract_type,
     check_domain_preference,
     check_experience_level,
@@ -24,7 +25,7 @@ def _prefs(**kwargs) -> dict:
         "exclude_experience_levels": ["Internship"],
         "must_have_skills": [],
         "preferred_domains": [],
-        "max_age_days": 30,
+        # max_age_days intentionally omitted — freshness now uses global admin settings
     }
     return {**defaults, **kwargs}
 
@@ -220,19 +221,41 @@ def test_must_have_skills_case_insensitive() -> None:
     )
 
 
-# ── freshness ─────────────────────────────────────────────────────────────────
+# ── freshness (now reads from global_settings) ───────────────────────────────
+
+def _gs(**kwargs) -> dict:
+    """Build a global_settings dict for freshness/applicant checks."""
+    return {f"global_job_filters.{k}": v for k, v in kwargs.items()}
+
 
 def test_freshness_accepts_recent_job() -> None:
-    assert check_freshness(_job(published_at="2026-03-20"), _prefs(max_age_days=30))
+    assert check_freshness(_job(published_at="2026-03-20"), _gs(max_age_days=30))
 
 
 def test_freshness_rejects_stale_job() -> None:
-    assert not check_freshness(_job(published_at="2025-01-01"), _prefs(max_age_days=30))
+    assert not check_freshness(_job(published_at="2025-01-01"), _gs(max_age_days=30))
 
 
 def test_freshness_passes_when_no_published_at() -> None:
-    """Missing published_at → keep (cannot determine staleness)."""
-    assert check_freshness(_job(published_at=None), _prefs(max_age_days=30))
+    """Missing published_at → keep (fail open)."""
+    assert check_freshness(_job(published_at=None), _gs(max_age_days=30))
+
+
+def test_freshness_uses_global_settings_not_prefs() -> None:
+    """Candidate profile max_age_days is ignored — admin setting takes precedence."""
+    # Admin says 7 days; stale job should be rejected even if prefs say 365
+    old_job = _job(published_at="2025-01-01")
+    # With global_settings=7 days → reject
+    assert not check_freshness(old_job, _gs(max_age_days=7))
+
+
+def test_freshness_falls_back_to_30_days_when_no_global_settings() -> None:
+    """global_settings=None → hard-coded default of 30 days applies."""
+    recent = _job(published_at="2026-03-20")
+    assert check_freshness(recent, global_settings=None)
+    stale = _job(published_at="2025-01-01")
+    assert not check_freshness(stale, global_settings=None)
+
 
 
 # ── domain preference ─────────────────────────────────────────────────────────
@@ -348,3 +371,84 @@ def test_store_filter_results_run_id_in_rejected_rows(monkeypatch: pytest.Monkey
     assert rows[0]["run_id"] == "run-xyz"
     assert rows[0]["reasons"] == ["seniority_mismatch"]
     assert rows[0]["passed"] is False
+
+
+# ── check_applicant_count ─────────────────────────────────────────────────────
+
+def test_applicant_count_passes_when_below_threshold() -> None:
+    gs = _gs(applications_count_max=100)
+    assert check_applicant_count(_job(applications_count=50), gs)
+
+
+def test_applicant_count_passes_at_threshold() -> None:
+    gs = _gs(applications_count_max=100)
+    assert check_applicant_count(_job(applications_count=100), gs)
+
+
+def test_applicant_count_rejects_above_threshold() -> None:
+    gs = _gs(applications_count_max=100)
+    assert not check_applicant_count(_job(applications_count=101), gs)
+
+
+def test_applicant_count_passes_when_null() -> None:
+    """NULL applications_count → fail open."""
+    gs = _gs(applications_count_max=100)
+    assert check_applicant_count(_job(applications_count=None), gs)
+
+
+def test_applicant_count_passes_when_no_setting() -> None:
+    """No configured threshold → filter disabled."""
+    assert check_applicant_count(_job(applications_count=9999), {})
+
+
+# ── apply_rule_filters with global_settings ───────────────────────────────────
+
+def test_apply_rule_filters_global_settings_none_skips_applicant_check() -> None:
+    """global_settings=None → applications_count_exceeded never appears."""
+    jobs = [{"job_url": "http://a", "applications_count": 9999}]
+    result = apply_rule_filters(jobs, prefs={}, global_settings=None)
+    assert "http://a" in result["passed"]
+    all_reasons = [r for item in result["rejected"] for r in item["reasons"]]
+    assert "applications_count_exceeded" not in all_reasons
+
+
+def test_apply_rule_filters_global_settings_rejects_high_count() -> None:
+    """High-count job correctly rejected when admin setting is configured."""
+    jobs = [
+        {"job_url": "http://pass", "applications_count": 10},
+        {"job_url": "http://fail", "applications_count": 500},
+    ]
+    gs = _gs(applications_count_max=50)
+    result = apply_rule_filters(jobs, prefs={}, global_settings=gs)
+    assert "http://pass" in result["passed"]
+    rejected_urls = {r["job_url"] for r in result["rejected"]}
+    assert "http://fail" in rejected_urls
+    reasons = next(r["reasons"] for r in result["rejected"] if r["job_url"] == "http://fail")
+    assert "applications_count_exceeded" in reasons
+
+
+# ── end-to-end: apply_settings_to_config → apply_rule_filters ────────────────
+
+def test_admin_setting_reaches_filter_via_apply_settings_to_config() -> None:
+    """Proves the full settings→config→filter chain: an admin setting reaches the filter."""
+    from fitcv_cp.settings_schema import apply_settings_to_config
+
+    config: dict = {}
+    apply_settings_to_config(config, {
+        "global_job_filters.applications_count_max": 50,
+    })
+
+    raw_global = config.get("global_job_filters", {})
+    global_settings = {f"global_job_filters.{k}": v for k, v in raw_global.items()}
+
+    jobs = [
+        {"job_url": "http://a", "applications_count": 10},   # pass
+        {"job_url": "http://b", "applications_count": 200},  # reject
+    ]
+    result = apply_rule_filters(jobs, prefs={}, global_settings=global_settings)
+
+    assert "http://a" in result["passed"]
+    rejected_urls = {r["job_url"] for r in result["rejected"]}
+    assert "http://b" in rejected_urls
+    reasons = next(r["reasons"] for r in result["rejected"] if r["job_url"] == "http://b")
+    assert "applications_count_exceeded" in reasons

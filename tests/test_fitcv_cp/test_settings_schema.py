@@ -127,3 +127,44 @@ def test_apply_settings_to_config_flat_key():
     config = {"enrichment_sleep_secs": 1.0}
     apply_settings_to_config(config, {"enrichment_sleep_secs": 0.5})
     assert config["enrichment_sleep_secs"] == 0.5
+
+
+# ── global_job_filters settings ───────────────────────────────────────────────
+
+def test_global_job_filters_keys_registered():
+    keys = {s["key"] for s in SETTINGS_SCHEMA}
+    assert "global_job_filters.applications_count_max" in keys
+    assert "global_job_filters.max_age_days" in keys
+
+
+def test_global_job_filters_group_name():
+    for entry in SETTINGS_SCHEMA:
+        if entry["key"].startswith("global_job_filters."):
+            assert entry["group"] == "global_job_filters"
+
+
+def test_global_job_filters_apply_settings_to_config_writes_correct_path():
+    config: dict = {}
+    apply_settings_to_config(config, {
+        "global_job_filters.applications_count_max": 150,
+        "global_job_filters.max_age_days": 14,
+    })
+    assert config["global_job_filters"]["applications_count_max"] == 150
+    assert config["global_job_filters"]["max_age_days"] == 14
+
+
+def test_global_job_filters_validate_rejects_zero():
+    with pytest.raises(ValidationError):
+        validate_settings({"global_job_filters.applications_count_max": 0})
+
+
+def test_global_job_filters_validate_rejects_negative():
+    with pytest.raises(ValidationError):
+        validate_settings({"global_job_filters.max_age_days": -1})
+
+
+def test_global_job_filters_validate_accepts_positive():
+    validate_settings({
+        "global_job_filters.applications_count_max": 200,
+        "global_job_filters.max_age_days": 30,
+    })  # must not raise
