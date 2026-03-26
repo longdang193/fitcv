@@ -358,9 +358,16 @@ def _make_genai_client(config: dict[str, Any]) -> Any:
 
 
 def _build_extraction_generation_config() -> "Any":
-    """Return structured-output config using EnrichmentOutput Pydantic schema."""
+    """Return structured-output config using EnrichmentOutput Pydantic schema.
+
+    Both response_mime_type and response_schema are required: Vertex AI
+    rejects response_schema when mime type defaults to 'text/plain'.
+    """
     from google.genai import types as _genai_types  # type: ignore[import-untyped]
-    return _genai_types.GenerateContentConfig(response_schema=EnrichmentOutput)
+    return _genai_types.GenerateContentConfig(
+        response_mime_type="application/json",
+        response_schema=EnrichmentOutput,
+    )
 
 
 def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
