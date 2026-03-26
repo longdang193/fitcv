@@ -17,6 +17,8 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
+from pydantic import BaseModel as _BaseModel, Field as _Field
+
 # ── enum definitions (fallbacks — overridden by taxonomy.yaml via config) ──────
 
 _FALLBACK_LOCATION_TYPES: frozenset[str] = frozenset({"remote", "hybrid", "onsite"})
@@ -105,6 +107,57 @@ def _coerce_field(key: str, value: Any, config: dict | None = None) -> Any:
     return value
 
 
+# ── Pydantic model for structured output ─────────────────────────────────────
+
+class EnrichmentOutput(_BaseModel):
+    """Structured output schema for Gemini enrichment extraction.
+
+    Used as response_schema in generate_content to guarantee valid JSON
+    from the API. Post-processing via _apply_structured_normalization
+    preserves the same field semantics as the text-path coercion.
+    """
+    required_skills: list[str] = _Field(default_factory=list)
+    preferred_skills: list[str] = _Field(default_factory=list)
+    responsibilities: list[str] = _Field(default_factory=list)
+    tech_stack: list[str] = _Field(default_factory=list)
+    keywords: list[str] = _Field(default_factory=list)
+    location_type: str | None = None
+    seniority: str | None = None
+    domain: str | None = None
+    job_family: str | None = None
+    years_experience_min: int | None = None
+    years_experience_max: int | None = None
+
+
+def _apply_structured_normalization(
+    output: EnrichmentOutput,
+    config: dict | None,
+) -> dict[str, Any]:
+    """Convert EnrichmentOutput to a normalized dict preserving existing field semantics.
+
+    Applies the same canonicalization as _coerce_field on the text path:
+    - enum fields (location_type, seniority): validated against valid sets, unknown → None
+    - domain, job_family: lowercased and stripped
+    - list fields: None values removed, items coerced to str
+    """
+    return {
+        "location_type": _normalize_enum(
+            output.location_type, _get_valid_location_types(config)
+        ),
+        "seniority": _normalize_enum(
+            output.seniority, _get_valid_seniority_enrich(config)
+        ),
+        "domain":     output.domain.lower().strip() if output.domain else None,
+        "job_family": output.job_family.lower().strip() if output.job_family else None,
+        "years_experience_min": output.years_experience_min,
+        "years_experience_max": output.years_experience_max,
+        "required_skills":  [str(s) for s in output.required_skills  if s is not None],
+        "preferred_skills": [str(s) for s in output.preferred_skills if s is not None],
+        "responsibilities": [str(s) for s in output.responsibilities if s is not None],
+        "tech_stack":       [str(s) for s in output.tech_stack       if s is not None],
+        "keywords":         [str(s) for s in output.keywords         if s is not None],
+    }
+
 # ── prompt construction ───────────────────────────────────────────────────────
 
 _EXTRACTION_SCHEMA = """\
@@ -121,37 +174,6 @@ _EXTRACTION_SCHEMA = """\
   "years_experience_min": 0,
   "years_experience_max": null
 }"""
-
-_EXTRACTION_RESPONSE_JSON_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "required_skills": {"type": "array", "items": {"type": "string"}},
-        "preferred_skills": {"type": "array", "items": {"type": "string"}},
-        "responsibilities": {"type": "array", "items": {"type": "string"}},
-        "tech_stack": {"type": "array", "items": {"type": "string"}},
-        "keywords": {"type": "array", "items": {"type": "string"}},
-        "location_type": {"type": "string", "enum": ["remote", "hybrid", "onsite"]},
-        "seniority": {"type": "string", "enum": ["junior", "mid", "senior", "lead"]},
-        "domain": {"type": "string"},
-        "job_family": {"type": "string"},
-        "years_experience_min": {"type": ["integer", "null"]},
-        "years_experience_max": {"type": ["integer", "null"]},
-    },
-    "required": [
-        "required_skills",
-        "preferred_skills",
-        "responsibilities",
-        "tech_stack",
-        "keywords",
-        "location_type",
-        "seniority",
-        "domain",
-        "job_family",
-        "years_experience_min",
-        "years_experience_max",
-    ],
-}
 
 
 def build_extraction_prompt(
@@ -335,15 +357,18 @@ def _make_genai_client(config: dict[str, Any]) -> Any:
     )
 
 
-def _build_extraction_generation_config() -> dict[str, Any]:
-    """Return structured-output config for enrichment extraction calls."""
-    return {
-        "response_mime_type": "application/json",
-        "response_json_schema": _EXTRACTION_RESPONSE_JSON_SCHEMA,
-    }
+def _build_extraction_generation_config() -> "Any":
+    """Return structured-output config using EnrichmentOutput Pydantic schema."""
+    from google.genai import types as _genai_types  # type: ignore[import-untyped]
+    return _genai_types.GenerateContentConfig(response_schema=EnrichmentOutput)
+
 
 def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     """Call Gemini to extract structured fields from one normalized job.
+
+    Primary path: uses response_schema structured output (EnrichmentOutput),
+    which the API guarantees to be valid JSON matching the schema.
+    Fallback: response.text + json_repair when response.parsed is None.
 
     Requires GOOGLE_APPLICATION_CREDENTIALS.
     Decorated with @pytest.mark.integration in tests.
@@ -351,8 +376,12 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     Returns:
         Merged dict ready for load_structured_jobs().
     """
-    model_name = str(config.get("gemini_model", "gemini-2.0-flash"))
+    import logging as _logging
+    _log = _logging.getLogger(__name__)
+
+    model_name = str(config.get("gemini_model", "gemini-2.5-flash"))
     client = _make_genai_client(config)
+    title_for_log = job.get("title") or job.get("job_url")
 
     prompt = build_extraction_prompt(
         description=str(job.get("description", "")),
@@ -364,17 +393,28 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
             "location": job.get("location", ""),
         },
     )
+
     response = client.models.generate_content(
         model=model_name,
         contents=prompt,
         config=_build_extraction_generation_config(),
     )
+
+    # ── Primary path: structured output ──────────────────────────────────────
+    if response.parsed is not None:
+        parsed = _apply_structured_normalization(response.parsed, config)
+        return merge_scraped_and_enriched(job, parsed, config)
+
+    # ── Fallback: text + json_repair ─────────────────────────────────────────
+    _log.warning(
+        "Structured output unavailable for %r — falling back to json_repair",
+        title_for_log,
+    )
     extraction = parse_extraction_response(str(response.text or ""))
     if extraction["errors"]:
-        import logging as _logging
-        _logging.getLogger(__name__).warning(
+        _log.warning(
             "Enrichment parse errors for job %r: %s",
-            job.get("title") or job.get("job_url"),
+            title_for_log,
             "; ".join(extraction["errors"]),
         )
     return merge_scraped_and_enriched(job, extraction["parsed"], config)
