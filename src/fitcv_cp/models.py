@@ -7,6 +7,8 @@ from typing import Optional
 class RunStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
+    CANCELLING = "cancelling"
+    CANCELLED = "cancelled"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
 
@@ -52,6 +54,12 @@ class PipelineRun:
     jobs_input_json: Optional[str] = None             # canonical JSON snapshot (paste mode only)
     candidate_profile_source: Optional[str] = None    # "default_config" | "upload" | "paste"
     candidate_profile_json: Optional[str] = None      # canonical JSON snapshot (upload/paste)
+    # lifecycle controls
+    queue_job_id: Optional[str] = None               # RQ job id for queued-run cancellation
+    cancel_requested_at: Optional[datetime.datetime] = None
+    cancel_requested_by: Optional[str] = None
+    archived_at: Optional[datetime.datetime] = None
+    archived_by: Optional[str] = None
 
 
 @dataclasses.dataclass
