@@ -74,20 +74,21 @@ No change to this content — it moves from inline to inside the tab pane.
 
 ### Tab 2: Original Job Input
 
-**When `run.jobs_input_json` is present:**
+**When `run.jobs_input_json` is present (paste or upload mode):**
 
 Render a scrollable `<pre>` block with the raw JSON snapshot.
-Label with source badge (`paste`).
+Label with source badge (`paste` or `upload`).
 Add heading: `"Raw job payload captured at trigger time (immutable snapshot)"`.
 
-**When `run.jobs_input_json` is absent:**
+**When `run.jobs_input_json` is absent (path mode or pre-feature run):**
 
 Render a fallback info panel:
 
 ```
-Source: {jobs_input_source} · Path: {jobs_path}
+Source: {jobs_input_source if set, otherwise "—"} · Path: {jobs_path}
 No immutable raw snapshot was stored for this run.
-Only paste-mode runs capture a raw JSON snapshot at trigger time.
+Only path-mode runs do not capture a raw JSON snapshot.
+Paste and upload modes always store an immutable snapshot.
 ```
 
 ---
@@ -129,9 +130,11 @@ The event timeline remains **below** the tab panes, always visible. It is not pa
 | Scenario | Tab 2 | Tab 3 |
 |---|---|---|
 | paste jobs + paste profile | raw JSON ✓ | formatted + raw JSON ✓ |
-| upload jobs + upload profile | fallback (source + path) | formatted + raw JSON ✓ |
+| upload jobs + upload profile | raw JSON ✓ | formatted + raw JSON ✓ |
 | path jobs + default profile | fallback (source + path) | fallback (source=`default_config`) |
 | old run (pre-feature, all NULLs) | fallback (source=`—`, path shown) | fallback (source=`—`, not `default_config`) |
+
+> **Snapshot rule:** `paste` and `upload` capture an immutable JSON snapshot at trigger time. `path` and `default_config` reference external files/config and do not capture a snapshot — only source metadata and path are stored.
 
 > **Null source rule:** `candidate_profile_source=NULL` means the source was not recorded (pre-feature run). Display `—`. Do not substitute `default_config` as that implies a known source choice that was not actually recorded.
 
