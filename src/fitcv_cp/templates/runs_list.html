@@ -6,13 +6,64 @@
   <a href="/admin/runs" class="button" style="text-decoration:none;font-size:0.85rem">⟳ Refresh Status</a>
 </div>
 
-<form class="form-row" method="post" action="/runs" onsubmit="triggerRun(event)">
-  <input type="text" id="jobs_path" name="jobs_path" value="data/sample_jobs.json" placeholder="jobs_path" style="width:170px">
-  <input type="file" id="jobs_file" accept=".json" style="max-width:210px">
-  <input type="text" id="config_path" name="config_path" value=".env.yaml" placeholder="config_path" style="width:130px">
-  <button type="submit" id="trigger-btn">▶ Trigger Run</button>
-</form>
+<!-- ── Trigger Form ─────────────────────────────────────────────────────── -->
+<div class="card" style="margin-bottom:1.5rem">
 
+  <!-- Jobs input mode selector -->
+  <div style="margin-bottom:1rem">
+    <label style="font-size:0.8rem;color:#94a3b8;display:block;margin-bottom:0.4rem">Jobs Input</label>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button type="button" class="mode-btn mode-btn-active" id="jobs-tab-path"   onclick="setJobsMode('path')">📂 Path</button>
+      <button type="button" class="mode-btn" id="jobs-tab-upload" onclick="setJobsMode('upload')">⬆ Upload</button>
+      <button type="button" class="mode-btn" id="jobs-tab-paste"  onclick="setJobsMode('paste')">📋 Paste JSON</button>
+    </div>
+  </div>
+
+  <div id="jobs-pane-path" style="margin-bottom:1rem">
+    <input type="text" id="jobs_path" value="data/sample_jobs.json" placeholder="jobs_path" style="width:300px">
+  </div>
+  <div id="jobs-pane-upload" style="display:none;margin-bottom:1rem">
+    <input type="file" id="jobs_file" accept=".json">
+  </div>
+  <div id="jobs-pane-paste" style="display:none;margin-bottom:1rem">
+    <textarea id="jobs_text" placeholder='[{"title": "Data Engineer", "job_url": "..."}, ...]'
+      style="width:100%;height:100px;background:#0f0f1a;color:#c7d2fe;border:1px solid #312e81;border-radius:6px;padding:0.5rem;font-size:0.8rem;font-family:monospace;resize:vertical"></textarea>
+  </div>
+
+  <hr style="border-color:#1e293b;margin:1rem 0">
+
+  <!-- Candidate profile mode selector -->
+  <div style="margin-bottom:1rem">
+    <label style="font-size:0.8rem;color:#94a3b8;display:block;margin-bottom:0.4rem">Candidate Profile</label>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button type="button" class="mode-btn mode-btn-active" id="prof-tab-default" onclick="setProfMode('default_config')">⚙ Default Config</button>
+      <button type="button" class="mode-btn" id="prof-tab-upload" onclick="setProfMode('upload')">⬆ Upload JSON</button>
+      <button type="button" class="mode-btn" id="prof-tab-paste"  onclick="setProfMode('paste')">📋 Paste JSON</button>
+    </div>
+  </div>
+
+  <div id="prof-pane-default" style="margin-bottom:1rem">
+    <span style="font-size:0.82rem;color:#64748b">Uses the candidate profile YAML path from <code>.env.yaml</code></span>
+  </div>
+  <div id="prof-pane-upload" style="display:none;margin-bottom:1rem">
+    <input type="file" id="candidate_profile_file" accept=".json">
+    <span style="font-size:0.78rem;color:#64748b;display:block;margin-top:0.25rem">JSON file matching the FitCV candidate profile schema</span>
+  </div>
+  <div id="prof-pane-paste" style="display:none;margin-bottom:1rem">
+    <textarea id="candidate_profile_text" placeholder='{"experiences": [...], "skills": [...], "preferences": {...}, ...}'
+      style="width:100%;height:100px;background:#0f0f1a;color:#c7d2fe;border:1px solid #312e81;border-radius:6px;padding:0.5rem;font-size:0.8rem;font-family:monospace;resize:vertical"></textarea>
+  </div>
+
+  <hr style="border-color:#1e293b;margin:1rem 0">
+
+  <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+    <input type="text" id="config_path" value=".env.yaml" placeholder="config_path" style="width:140px">
+    <button type="button" id="trigger-btn" onclick="triggerRun()" style="min-width:140px">▶ Trigger Run</button>
+    <span id="trigger-status" style="font-size:0.82rem;color:#94a3b8"></span>
+  </div>
+</div>
+
+<!-- ── Runs Table ──────────────────────────────────────────────────────── -->
 <div class="card" style="padding:0;overflow:hidden">
   <table>
     <thead>
@@ -46,35 +97,80 @@
   </table>
 </div>
 
-<script>
-async function triggerRun(e) {
-  e.preventDefault();
-  const btn = document.getElementById('trigger-btn');
-  btn.disabled = true; btn.textContent = 'Triggering…';
-  
-  const fileInput = document.getElementById('jobs_file');
-  const jobsPathInput = document.getElementById('jobs_path');
-  const configPathInput = document.getElementById('config_path');
-  
-  let fetchPromise;
-  
-  if (fileInput.files.length > 0) {
-    const formData = new FormData();
-    formData.append('jobs_file', fileInput.files[0]);
-    formData.append('jobs_path', jobsPathInput.value);
-    formData.append('config_path', configPathInput.value);
-    fetchPromise = fetch('/admin/upload-trigger', { method: 'POST', body: formData });
-  } else {
-    const body = {
-      jobs_path: jobsPathInput.value,
-      config_path: configPathInput.value,
-    };
-    fetchPromise = fetch('/runs', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
-  }
+<style>
+.mode-btn {
+  background: #1e293b; color: #94a3b8; border: 1px solid #334155;
+  border-radius: 6px; padding: 0.35rem 0.75rem; font-size: 0.8rem;
+  cursor: pointer; transition: all 0.15s;
+}
+.mode-btn:hover { background: #334155; color: #e2e8f0; }
+.mode-btn-active { background: #312e81 !important; color: #a5b4fc !important; border-color: #4f46e5 !important; }
+</style>
 
-  const resp = await fetchPromise;
-  if (resp.ok) { location.reload(); }
-  else { alert('Error: ' + await resp.text()); btn.disabled = false; btn.textContent = '▶ Trigger Run'; }
+<script>
+let _jobsMode = 'path';
+let _profMode = 'default_config';
+
+function setJobsMode(m) {
+  _jobsMode = m;
+  ['path','upload','paste'].forEach(k => {
+    document.getElementById('jobs-pane-' + k).style.display = k === m ? '' : 'none';
+    document.getElementById('jobs-tab-' + k).classList.toggle('mode-btn-active', k === m);
+  });
+}
+
+function setProfMode(m) {
+  _profMode = m;
+  ['default', 'upload', 'paste'].forEach(k => {
+    const key = k === 'default' ? 'default_config' : k;
+    document.getElementById('prof-pane-' + k).style.display = key === m ? '' : 'none';
+    document.getElementById('prof-tab-' + k).classList.toggle('mode-btn-active', key === m);
+  });
+}
+
+async function triggerRun() {
+  const btn = document.getElementById('trigger-btn');
+  const status = document.getElementById('trigger-status');
+  btn.disabled = true; btn.textContent = 'Triggering…'; status.textContent = '';
+
+  try {
+    const fd = new FormData();
+    fd.append('config_path', document.getElementById('config_path').value);
+    fd.append('jobs_input_mode', _jobsMode);
+    fd.append('candidate_profile_mode', _profMode);
+
+    if (_jobsMode === 'path') {
+      fd.append('jobs_path', document.getElementById('jobs_path').value);
+    } else if (_jobsMode === 'upload') {
+      const f = document.getElementById('jobs_file').files[0];
+      if (!f) { alert('Please select a jobs JSON file.'); return; }
+      fd.append('jobs_file', f);
+    } else {
+      fd.append('jobs_text', document.getElementById('jobs_text').value);
+    }
+
+    if (_profMode === 'upload') {
+      const pf = document.getElementById('candidate_profile_file').files[0];
+      if (!pf) { alert('Please select a candidate profile JSON file.'); return; }
+      fd.append('candidate_profile_file', pf);
+    } else if (_profMode === 'paste') {
+      fd.append('candidate_profile_text', document.getElementById('candidate_profile_text').value);
+    }
+
+    const resp = await fetch('/admin/upload-trigger', { method: 'POST', body: fd });
+    if (resp.ok) {
+      status.textContent = '✓ Run queued';
+      status.style.color = '#4ade80';
+      setTimeout(() => location.reload(), 800);
+    } else {
+      const err = await resp.text();
+      alert('Error: ' + err);
+      status.textContent = '⚠ Failed';
+      status.style.color = '#f87171';
+    }
+  } finally {
+    btn.disabled = false; btn.textContent = '▶ Trigger Run';
+  }
 }
 </script>
 {% endblock %}
