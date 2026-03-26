@@ -1,18 +1,18 @@
 # Gemini Structured Output for Job Enrichment — Design Spec
 
 **Date:** 2026-03-26  
-**Status:** Approved  
+**Status:** Revised after review  
 **Feature area:** `src/fitcv/enrich.py`
 
 ---
 
 ## Problem
 
-The current enrichment pipeline calls `gemini-2.5-flash` with a free-text prompt and parses the response with `json.loads`. The thinking model produces malformed JSON (missing commas, truncated arrays) in ~40% of calls. The workaround (`json_repair`) silently guesses corrections that may corrupt extracted data.
+The current enrichment pipeline calls `gemini-2.5-flash` with a free-text prompt and parses the response with `json.loads`. `_EXTRACTION_RESPONSE_JSON_SCHEMA` is already defined in `enrich.py` but has never been wired up to the API call. The thinking model produces malformed JSON (missing commas) in ~40% of calls. `json_repair` is a workaround that silently guesses corrections and may corrupt data.
 
 ## Goal
 
-Replace the text-parse pipeline with Gemini's native **structured output** (`response_schema`). The API guarantees valid JSON matching the declared schema, eliminating parse failures at the source.
+Wire up Gemini's native **structured output** (`response_schema`) using a Pydantic model instead of the existing raw dict. The API guarantees valid JSON matching the declared schema, eliminating parse failures on the primary path. A text + `json_repair` fallback is retained for resilience.
 
 ---
 
@@ -22,12 +22,12 @@ Replace the text-parse pipeline with Gemini's native **structured output** (`res
 
 ```
 build_extraction_prompt()
-  → client.models.generate_content(prompt)
+  → client.models.generate_content(prompt)   # no schema — raw text response
   → response.text (raw string)
   → _strip_markdown_fences()
   → json.loads()  ← fails ~40% of calls
   → json_repair() ← silent corruption risk
-  → _coerce_field() per key
+  → _coerce_field() per key                  # lowercasing, enum validation, int coercion
   → merge_scraped_and_enriched()
 ```
 
@@ -40,16 +40,22 @@ build_extraction_prompt()
         config=GenerateContentConfig(response_schema=EnrichmentOutput)
      )
   → response.parsed  ← guaranteed valid, typed Pydantic object
+  → _apply_structured_normalization()        # preserve existing field semantics
+  → merge_scraped_and_enriched()
+
+  # Fallback (response.parsed is None only):
+  → response.text + json_repair
+  → _coerce_field() per key (unchanged)
   → merge_scraped_and_enriched()
 ```
-
-If `response.parsed` is `None` (API couldn't produce structured output), fall back to `response.text` + `json_repair` and emit a `WARNING`.
 
 ---
 
 ## Components
 
-### `EnrichmentOutput` — new Pydantic model in `src/fitcv/enrich.py`
+### `EnrichmentOutput` — new Pydantic model
+
+Replaces `_EXTRACTION_RESPONSE_JSON_SCHEMA` (the raw dict). Everything else in `enrich.py` is preserved.
 
 ```python
 from pydantic import BaseModel, Field
@@ -68,52 +74,53 @@ class EnrichmentOutput(BaseModel):
     years_experience_max: int | None = None
 ```
 
-The `location_type` and `seniority` fields are post-validated against their allowed enum sets after parsing (Gemini's enum enforcement via schema can be imperfect on thinking models).
+### Normalization after `response.parsed`
 
-### Changes to `enrich_job`
-
-- Pass `config=GenerateContentConfig(response_schema=EnrichmentOutput)` to `generate_content`
-- Read `response.parsed` (a typed `EnrichmentOutput`) instead of `response.text`
-- Call `merge_scraped_and_enriched(job, output.model_dump(), config)` directly
-
-### Deleted code
-
-The following are no longer needed and will be removed:
-
-| Symbol | Reason |
-|---|---|
-| `parse_extraction_response()` | API handles parsing |
-| `_coerce_field()` | Pydantic handles coercion |
-| `_normalize_enum()` | Replaced by post-validate step |
-| `_ARRAY_FIELDS`, `_SCALAR_FIELDS`, `_KNOWN_FIELDS` | Replaced by Pydantic model |
-| `_EXTRACTION_SCHEMA` (text) | Replaced by Pydantic model |
-| `_EXTRACTION_RESPONSE_JSON_SCHEMA` (dict) | Replaced by Pydantic model |
-
-### Fallback path (resilience)
+`_coerce_field` / `_normalize_enum` are **kept** and applied after `response.parsed`. This preserves the existing stored enrichment semantics: enum canonicalization, lowercasing, list sanitization, integer coercion.
 
 ```python
-if response.parsed is None:
-    logger.warning("Structured output unavailable for %r — falling back to json_repair", title)
-    # existing json_repair path
+def _apply_structured_normalization(
+    output: EnrichmentOutput, config: dict | None
+) -> dict[str, Any]:
+    """Convert EnrichmentOutput to a normalized dict matching existing semantics."""
+    return {
+        "location_type": _normalize_enum(output.location_type, _get_valid_location_types(config)),
+        "seniority":     _normalize_enum(output.seniority, _get_valid_seniority_enrich(config)),
+        "domain":        output.domain.lower().strip() if output.domain else None,
+        "job_family":    output.job_family.lower().strip() if output.job_family else None,
+        "years_experience_min": output.years_experience_min,
+        "years_experience_max": output.years_experience_max,
+        "required_skills":  [str(s) for s in output.required_skills if s],
+        "preferred_skills": [str(s) for s in output.preferred_skills if s],
+        "responsibilities": [str(s) for s in output.responsibilities if s],
+        "tech_stack":       [str(s) for s in output.tech_stack if s],
+        "keywords":         [str(s) for s in output.keywords if s],
+    }
 ```
 
-`json_repair` stays in the codebase as a last-resort fallback, not the primary path.
+### What is deleted
 
----
+Only `_EXTRACTION_RESPONSE_JSON_SCHEMA` (the raw dict constant, now superseded by `EnrichmentOutput`). Nothing else.
 
-## Prompt changes
+| Symbol | Action | Reason |
+|---|---|---|
+| `_EXTRACTION_RESPONSE_JSON_SCHEMA` | **Delete** | Replaced by `EnrichmentOutput` |
+| `parse_extraction_response()` | **Keep** | Used by fallback path |
+| `_coerce_field()`, `_normalize_enum()` | **Keep** | Used by both primary and fallback normalization |
+| `_ARRAY_FIELDS`, `_SCALAR_FIELDS`, `_KNOWN_FIELDS` | **Keep** | Used by `_coerce_field` in fallback |
+| `_EXTRACTION_SCHEMA` (text) | **Keep** | Still in prompt for field guidance |
 
-The prompt no longer needs to end with `"Return ONLY a valid JSON object..."` since structure is enforced by the API. The instruction block simplifies to a plain field-definition section.
+### Prompt
 
----
+The `"Return ONLY a valid JSON object…"` instruction is **kept**. The fallback still reads `response.text`, and this prompt guidance improves text shape when structured output fails.
 
-## What doesn't change
+### Fallback path
 
-- `merge_scraped_and_enriched()` — interface unchanged
-- `enrich_batch()` — retry logic unchanged
-- `load_run_structured_jobs()` — unchanged
-- All downstream pipeline code — unchanged
-- `.env.yaml` model config — unchanged
+When `response.parsed is None`:
+1. Log `WARNING`
+2. Run `parse_extraction_response(response.text)` + `json_repair` (existing path, unchanged)
+3. Log any parse errors
+4. Call `merge_scraped_and_enriched` with the fallback parsed dict
 
 ---
 
@@ -121,36 +128,33 @@ The prompt no longer needs to end with `"Return ONLY a valid JSON object..."` si
 
 | Scenario | Behaviour |
 |---|---|
-| `response.parsed` is valid | Primary path, no logging |
-| `response.parsed` is `None` | WARNING log + json_repair fallback |
-| json_repair fallback also fails | Return `{}`, WARNING log, empty enrichment row |
-| `ResourceExhausted` 429 | Existing retry logic in `enrich_batch` handles it |
+| `response.parsed` is valid | Primary path — normalization applied, no log |
+| `response.parsed` is `None` | WARNING + fallback via `parse_extraction_response` |
+| Fallback parse also fails | Return empty enrichment, WARNING logged, no crash |
+| 429 ResourceExhausted | Existing retry logic in `enrich_batch` — unchanged |
 
 ---
 
 ## Testing
 
-### Unit tests (no API calls)
+### New unit tests
 
-- `test_enrich_job_uses_response_parsed` — mock `client.models.generate_content` to return a mock with `.parsed = EnrichmentOutput(...)`, assert correct merge
-- `test_enrich_job_fallback_when_parsed_is_none` — mock `.parsed = None`, assert fallback triggers and WARNING logged
-- `test_enrich_job_fallback_produces_empty_on_total_failure` — mock `.parsed = None` and `response.text = "not json"`, assert empty enrichment and no crash
-- `test_enrichment_output_rejects_invalid_location_type` — assert post-validation nullifies unknown enum values
-- `test_enrichment_output_rejects_invalid_seniority` — same for seniority
+- `test_enrich_job_uses_response_parsed` — mock `response.parsed = EnrichmentOutput(...)`, assert normalization applied
+- `test_enrich_job_fallback_when_parsed_is_none` — mock `response.parsed = None`, assert fallback triggers + WARNING
+- `test_enrich_job_fallback_empty_on_bad_text` — mock `response.parsed = None`, `response.text = "not json"`, assert empty + no crash
+- `test_apply_structured_normalization_lowercases_domain` — assert `"FinTech"` → `"fintech"`
+- `test_apply_structured_normalization_rejects_invalid_location_type` — assert unknown value → `None`
 
-### Existing tests to update
+### Tests to update
 
-- Tests that mock `parse_extraction_response` → update to mock `response.parsed`
-- Tests that assert `_coerce_field` behaviour → replace with `EnrichmentOutput` field assertions
+Tests that mock `parse_extraction_response` return values may need updating to reflect the new primary path. Fallback tests should still exercise `parse_extraction_response`.
 
 ### Tests to delete
 
-- All tests for `parse_extraction_response`, `_coerce_field`, `_normalize_enum` (functions being deleted)
+Any test that directly asserts the shape or content of `_EXTRACTION_RESPONSE_JSON_SCHEMA`.
 
 ---
 
-## Constraints
+## Dependencies
 
-- `pydantic` is already a dependency (used in `fitcv_cp`); no new package needed
-- `google-genai` SDK already installed; `GenerateContentConfig` is available
-- Must remain compatible with Vertex AI credentials path (service account key)
+`pydantic` is currently available transitively via `fastapi` (used in `fitcv_cp`). Since this change introduces a direct Pydantic dependency in `fitcv` (not just `fitcv_cp`), `pydantic` should be added as a direct dependency in `pyproject.toml` to make the coupling explicit and prevent breakage if the transitive path changes.
