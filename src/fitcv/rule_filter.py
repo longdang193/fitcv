@@ -316,8 +316,15 @@ def apply_rule_filters(
 
 # ── integration: persist to BigQuery ─────────────────────────────────────────
 
-def store_filter_results(result: dict[str, list], config: dict[str, Any]) -> None:
+def store_filter_results(
+    result: dict[str, list],
+    run_id: str,
+    config: dict[str, Any],
+) -> None:
     """Insert rule filter results into fitcv.rule_filter_results.
+
+    Each row includes run_id so the admin UI can show reject reasons for a
+    specific run (rather than mixing results across all runs for the same job).
 
     Requires GOOGLE_APPLICATION_CREDENTIALS.
     Decorated with @pytest.mark.integration in tests.
@@ -335,11 +342,15 @@ def store_filter_results(result: dict[str, list], config: dict[str, Any]) -> Non
 
     rows: list[dict[str, Any]] = []
     for job_url in result.get("passed", []):
-        rows.append({"job_url": job_url, "passed": True, "reasons": [], "filtered_at": now})
+        rows.append({
+            "job_url": job_url, "passed": True, "reasons": [],
+            "filtered_at": now, "run_id": run_id,
+        })
     for item in result.get("rejected", []):
         rows.append({
             "job_url": item["job_url"], "passed": False,
             "reasons": item["reasons"], "filtered_at": now,
+            "run_id": run_id,
         })
 
     if rows:

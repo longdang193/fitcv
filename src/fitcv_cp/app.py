@@ -11,7 +11,10 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator
 
 from fitcv.config import load_config
-from fitcv_cp.bq_store import get_events, get_run, insert_run, list_runs, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs
+from fitcv_cp.bq_store import (
+    get_events, get_run, insert_run, list_filter_results_for_run,
+    list_runs, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs,
+)
 from fitcv_cp.models import PipelineRun, RunStatus
 from fitcv_cp.queue import enqueue_run
 from fitcv_cp.settings_schema import (
@@ -99,6 +102,66 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         )
         return {"run_id": run_id}
 
+    def _execute_trigger_with_inputs(
+        jobs_path: str,
+        config_path: str,
+        triggered_by: str,
+        config_overrides: dict[str, Any],
+        *,
+        jobs_input_source: str | None = None,
+        jobs_input_json: str | None = None,
+        candidate_profile_source: str | None = None,
+        candidate_profile_json: str | None = None,
+    ) -> dict:
+        """Like _execute_trigger but records run-scoped input metadata."""
+        # Build effective config: YAML → BQ settings → per-run overrides
+        base_config = load_config(config_path)
+        active_settings = load_active_settings(bq=bq, project=project, dataset=dataset)
+        coerced_overrides: dict[str, Any] = {}
+        for k, v in config_overrides.items():
+            try:
+                coerced_overrides[k] = coerce_value(k, v)
+            except KeyError:
+                raise HTTPException(status_code=422, detail=f"Unknown setting key: {k!r}")
+            except (ValueError, TypeError) as exc:
+                raise HTTPException(status_code=422, detail=str(exc))
+        try:
+            validate_settings(coerced_overrides)
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+        effective_config = dict(base_config)
+        apply_settings_to_config(effective_config, active_settings)
+        apply_settings_to_config(effective_config, coerced_overrides)
+
+        # Inject runtime candidate profile override
+        if candidate_profile_json:
+            effective_config.setdefault("runtime_inputs", {})["candidate_profile_json"] = candidate_profile_json
+
+        run_id = str(uuid.uuid4())
+        run = PipelineRun(
+            run_id=run_id,
+            status=RunStatus.QUEUED,
+            triggered_by=triggered_by,
+            trigger_source="ui",
+            jobs_path=jobs_path,
+            config_path=config_path,
+            created_at=datetime.datetime.now(datetime.timezone.utc),
+            effective_settings_json=_json.dumps(effective_config),
+            jobs_input_source=jobs_input_source,
+            jobs_input_json=jobs_input_json,
+            candidate_profile_source=candidate_profile_source,
+            candidate_profile_json=candidate_profile_json,
+        )
+        insert_run(run, bq, project=project, dataset=dataset)
+        enqueue_run(
+            jobs_path=jobs_path,
+            config_path=config_path,
+            triggered_by=triggered_by,
+            redis_url=redis_url,
+            run_id=run_id,
+        )
+        return {"run_id": run_id}
+
     @app.post("/runs", status_code=201)
     def trigger_run(req: TriggerRequest) -> dict:
         return _execute_trigger(
@@ -112,22 +175,90 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     async def upload_trigger(
         jobs_file: UploadFile = File(None),
         jobs_path: str = Form("data/sample_jobs.json"),
+        jobs_input_mode: str = Form("path"),      # "path" | "upload" | "paste"
+        jobs_text: str = Form(""),
         config_path: str = Form(".env.yaml"),
+        candidate_profile_mode: str = Form("default_config"),  # "default_config" | "upload" | "paste"
+        candidate_profile_file: UploadFile = File(None),
+        candidate_profile_text: str = Form(""),
     ) -> dict:
-        actual_jobs_path = jobs_path
-        if jobs_file and jobs_file.filename:
-            upload_dir = Path("data/uploads")
-            upload_dir.mkdir(parents=True, exist_ok=True)
+        from fitcv.candidate import load_profile_json_text as _load_json_profile
+        from fastapi import HTTPException as _HTTPEx
+
+        upload_dir = Path("data/uploads")
+        upload_dir.mkdir(parents=True, exist_ok=True)
+
+        # ── Jobs input resolution ──────────────────────────────────────
+        jobs_input_json_snapshot: str | None = None
+        if jobs_input_mode == "path":
+            if not jobs_path or not jobs_path.strip():
+                raise HTTPException(status_code=422, detail="jobs_path required for path mode")
+            actual_jobs_path = jobs_path
+            jobs_input_source = "path"
+        elif jobs_input_mode == "upload":
+            if not jobs_file or not jobs_file.filename:
+                raise HTTPException(status_code=422, detail="jobs_file required for upload mode")
             save_path = upload_dir / f"{uuid.uuid4().hex}_{jobs_file.filename}"
             with open(save_path, "wb") as f:
                 f.write(await jobs_file.read())
             actual_jobs_path = str(save_path)
-            
-        return _execute_trigger(
+            jobs_input_source = "upload"
+        elif jobs_input_mode == "paste":
+            if not jobs_text or not jobs_text.strip():
+                raise HTTPException(status_code=422, detail="jobs_text required for paste mode")
+            try:
+                parsed_jobs = _json.loads(jobs_text)
+            except _json.JSONDecodeError as exc:
+                raise HTTPException(status_code=422, detail=f"Invalid JSON in jobs_text: {exc}")
+            if not isinstance(parsed_jobs, list):
+                raise HTTPException(status_code=422, detail="jobs_text must be a JSON array of objects")
+            canonical = _json.dumps(parsed_jobs, ensure_ascii=False, indent=2)
+            paste_file = upload_dir / f"{uuid.uuid4().hex}_pasted_jobs.json"
+            paste_file.write_text(canonical, encoding="utf-8")
+            actual_jobs_path = str(paste_file)
+            jobs_input_source = "paste"
+            jobs_input_json_snapshot = canonical
+        else:
+            raise HTTPException(status_code=422, detail=f"Unknown jobs_input_mode: {jobs_input_mode!r}")
+
+        # ── Candidate profile resolution ─────────────────────────────────
+        candidate_json_snapshot: str | None = None
+        if candidate_profile_mode == "default_config":
+            candidate_profile_source = "default_config"
+        elif candidate_profile_mode == "upload":
+            if not candidate_profile_file or not candidate_profile_file.filename:
+                raise HTTPException(status_code=422, detail="candidate_profile_file required for upload mode")
+            raw_bytes = await candidate_profile_file.read()
+            raw_text = raw_bytes.decode("utf-8")
+            try:
+                _load_json_profile(raw_text)  # validate
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc))
+            candidate_json_snapshot = _json.dumps(_json.loads(raw_text), ensure_ascii=False, indent=2)
+            candidate_profile_source = "upload"
+        elif candidate_profile_mode == "paste":
+            if not candidate_profile_text or not candidate_profile_text.strip():
+                raise HTTPException(status_code=422, detail="candidate_profile_text required for paste mode")
+            try:
+                _load_json_profile(candidate_profile_text)  # validate
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc))
+            candidate_json_snapshot = _json.dumps(
+                _json.loads(candidate_profile_text), ensure_ascii=False, indent=2
+            )
+            candidate_profile_source = "paste"
+        else:
+            raise HTTPException(status_code=422, detail=f"Unknown candidate_profile_mode: {candidate_profile_mode!r}")
+
+        return _execute_trigger_with_inputs(
             jobs_path=actual_jobs_path,
             config_path=config_path,
             triggered_by="admin",
             config_overrides={},
+            jobs_input_source=jobs_input_source,
+            jobs_input_json=jobs_input_json_snapshot,
+            candidate_profile_source=candidate_profile_source,
+            candidate_profile_json=candidate_json_snapshot,
         )
 
     @app.get("/runs")
@@ -219,12 +350,32 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         events = get_events(run_id, bq, project=project, dataset=dataset)
         cv_versions = list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
         enriched_jobs = list_run_structured_jobs(run_id, bq, project=project, dataset=dataset)
+        filter_results = list_filter_results_for_run(run_id, bq, project=project, dataset=dataset)
+
+        # Build per-job filter outcome lookup: job_url → {passed, reasons}
+        filter_results_by_job_url: dict[str, dict] = {
+            row["job_url"]: row for row in filter_results
+        }
+
+        # Candidate profile display
+        candidate_profile_parsed: dict | None = None
+        candidate_profile_pretty: str | None = None
+        if run.candidate_profile_json:
+            try:
+                candidate_profile_parsed = _json.loads(run.candidate_profile_json)
+                candidate_profile_pretty = _json.dumps(candidate_profile_parsed, indent=2, ensure_ascii=False)
+            except (_json.JSONDecodeError, TypeError):
+                candidate_profile_pretty = run.candidate_profile_json
+
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
                 "run": run,
                 "events": events,
                 "cv_versions": cv_versions,
                 "enriched_jobs": enriched_jobs,
+                "filter_results_by_job_url": filter_results_by_job_url,
+                "candidate_profile_parsed": candidate_profile_parsed,
+                "candidate_profile_pretty": candidate_profile_pretty,
             }
         )
 

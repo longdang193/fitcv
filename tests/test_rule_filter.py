@@ -287,4 +287,64 @@ def test_store_filter_results_integration(config: dict) -> None:
         "passed": ["http://example.com/job/1"],
         "rejected": [{"job_url": "http://example.com/job/2", "reasons": ["seniority_mismatch"]}],
     }
-    store_filter_results(result, config)  # should not raise
+    store_filter_results(result, "run-integration-test", config)  # should not raise
+
+
+# ── Task 2: run-scoped filter results (unit) ─────────────────────────────────
+
+def test_store_filter_results_row_includes_run_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    """store_filter_results includes run_id in every inserted row."""
+    from unittest.mock import MagicMock, patch
+    captured: dict = {}
+
+    mock_client = MagicMock()
+    def _fake_insert_1(table: str, rows: list) -> list:
+        captured["rows"] = rows
+        return []  # no errors
+    mock_client.insert_rows_json.side_effect = _fake_insert_1
+
+    with patch("google.oauth2.service_account.Credentials") as mock_creds, \
+         patch("google.cloud.bigquery.Client") as mock_bq_client:
+        mock_creds.from_service_account_file.return_value = MagicMock()
+        mock_bq_client.return_value = mock_client
+        from fitcv.rule_filter import store_filter_results
+        result = {
+            "passed": ["http://example.com/job/1"],
+            "rejected": [{"job_url": "http://example.com/job/2", "reasons": ["location_type_excluded"]}],
+        }
+        store_filter_results(result, "run-abc", {
+            "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "/tmp/key.json",
+        })
+
+    rows = captured.get("rows", [])
+    assert len(rows) == 2
+    assert all(r.get("run_id") == "run-abc" for r in rows), "All rows must include run_id"
+
+
+def test_store_filter_results_run_id_in_rejected_rows(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Rejected rows include run_id and reasons unchanged."""
+    from unittest.mock import MagicMock, patch
+    captured: dict = {}
+
+    mock_client = MagicMock()
+    def _fake_insert_2(table: str, rows: list) -> list:
+        captured["rows"] = rows
+        return []  # no errors
+    mock_client.insert_rows_json.side_effect = _fake_insert_2
+
+    with patch("google.oauth2.service_account.Credentials"), \
+         patch("google.cloud.bigquery.Client") as mock_bq_client:
+        mock_bq_client.return_value = mock_client
+        from fitcv.rule_filter import store_filter_results
+        result = {
+            "passed": [],
+            "rejected": [{"job_url": "https://x.com/1", "reasons": ["seniority_mismatch"]}],
+        }
+        store_filter_results(result, "run-xyz", {
+            "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "/key.json",
+        })
+
+    rows = captured.get("rows", [])
+    assert rows[0]["run_id"] == "run-xyz"
+    assert rows[0]["reasons"] == ["seniority_mismatch"]
+    assert rows[0]["passed"] is False

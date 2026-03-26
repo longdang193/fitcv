@@ -47,6 +47,11 @@ class PipelineRun:
     error_message: Optional[str] = None
     error_stage: Optional[str] = None   # which stage the run failed at
     effective_settings_json: Optional[str] = None  # merged config snapshot at trigger time
+    # run-scoped input metadata
+    jobs_input_source: Optional[str] = None           # "path" | "upload" | "paste"
+    jobs_input_json: Optional[str] = None             # canonical JSON snapshot (paste mode only)
+    candidate_profile_source: Optional[str] = None    # "default_config" | "upload" | "paste"
+    candidate_profile_json: Optional[str] = None      # canonical JSON snapshot (upload/paste)
 
 
 @dataclasses.dataclass

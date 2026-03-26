@@ -37,6 +37,31 @@ def load_profile_yaml(path: str | Path) -> dict[str, Any]:
         return yaml.safe_load(f)  # type: ignore[return-value]
 
 
+def load_profile_json_text(payload: str) -> dict[str, Any]:
+    """Parse and validate a candidate profile from raw JSON text.
+
+    Raises:
+        ValueError: if payload is not valid JSON, not a top-level object,
+                    or fails existing `validate_profile()` validation.
+    """
+    import json
+    try:
+        profile = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid JSON in candidate profile: {exc}") from exc
+
+    if not isinstance(profile, dict):
+        raise ValueError(
+            f"Candidate profile must be a JSON object, got {type(profile).__name__}"
+        )
+
+    errors = validate_profile(profile)
+    if errors:
+        raise ValueError(f"Candidate profile validation failed: {'; '.join(errors)}")
+
+    return profile  # type: ignore[return-value]
+
+
 # ── validation ────────────────────────────────────────────────────────────────
 
 def validate_profile(profile: dict[str, Any]) -> list[str]:
