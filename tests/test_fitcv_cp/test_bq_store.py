@@ -205,3 +205,103 @@ def test_row_to_run_handles_missing_input_metadata_fields() -> None:
     assert result.jobs_input_json is None
     assert result.candidate_profile_source is None
     assert result.candidate_profile_json is None
+
+
+# ── Lifecycle fields ────────────────────────────────────────────────────────
+
+def test_row_to_run_maps_lifecycle_fields():
+    from fitcv_cp.bq_store import _row_to_run
+    row = {
+        "run_id": "r1",
+        "status": "queued",
+        "triggered_by": "admin",
+        "trigger_source": "web",
+        "jobs_path": "data/jobs.json",
+        "config_path": ".env.yaml",
+        "created_at": datetime.datetime.now(datetime.timezone.utc),
+        "queue_job_id": "rq-job-1",
+        "cancel_requested_at": None,
+        "cancel_requested_by": None,
+        "archived_at": None,
+        "archived_by": None,
+    }
+    run = _row_to_run(row)
+    assert run.queue_job_id == "rq-job-1"
+    assert run.cancel_requested_at is None
+    assert run.archived_at is None
+
+
+def test_insert_run_includes_queue_job_id():
+    from fitcv_cp.bq_store import insert_run
+    bq = MagicMock()
+    run = _make_run()
+    run.queue_job_id = "rq-job-abc"
+    insert_run(run, bq, project="p", dataset="d")
+    bq.query.assert_called_once()
+    sql_arg = bq.query.call_args[0][0]
+    assert "queue_job_id" in sql_arg
+
+
+# ──  Lifecycle update helpers ───────────────────────────────────────────────
+
+def test_update_run_queue_job_id_uses_parameterized_query():
+    from fitcv_cp.bq_store import update_run_queue_job_id
+    bq = MagicMock()
+    update_run_queue_job_id("rid", "rq-job-1", bq, project="p", dataset="d")
+    bq.query.assert_called_once()
+    sql_arg = bq.query.call_args[0][0]
+    assert "rid" not in sql_arg
+    assert "rq-job-1" not in sql_arg
+
+
+def test_request_run_cancel_sets_cancel_fields():
+    from fitcv_cp.bq_store import request_run_cancel
+    bq = MagicMock()
+    request_run_cancel("rid", "admin", "cancelling", bq, project="p", dataset="d")
+    bq.query.assert_called_once()
+    sql_arg = bq.query.call_args[0][0]
+    assert "rid" not in sql_arg
+
+
+def test_archive_run_uses_parameterized_query():
+    from fitcv_cp.bq_store import archive_run
+    bq = MagicMock()
+    archive_run("rid", "admin", bq, project="p", dataset="d")
+    bq.query.assert_called_once()
+    sql_arg = bq.query.call_args[0][0]
+    assert "rid" not in sql_arg
+
+
+def test_unarchive_run_uses_parameterized_query():
+    from fitcv_cp.bq_store import unarchive_run
+    bq = MagicMock()
+    unarchive_run("rid", bq, project="p", dataset="d")
+    bq.query.assert_called_once()
+    sql_arg = bq.query.call_args[0][0]
+    assert "rid" not in sql_arg
+
+
+# ──  list_runs archive filter ───────────────────────────────────────────────
+
+def test_list_runs_active_filters_archived():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    list_runs(bq, project="p", dataset="d", include_archived=False)
+    sql_arg = bq.query.call_args[0][0]
+    assert "archived_at IS NULL" in sql_arg
+
+
+def test_list_runs_archived_only():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    list_runs(bq, project="p", dataset="d", archived_only=True)
+    sql_arg = bq.query.call_args[0][0]
+    assert "archived_at IS NOT NULL" in sql_arg
+
+
+def test_list_runs_include_all():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    list_runs(bq, project="p", dataset="d", include_archived=True)
+    sql_arg = bq.query.call_args[0][0]
+    assert "archived_at" not in sql_arg
