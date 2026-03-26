@@ -3,6 +3,7 @@
 import pytest
 
 from fitcv.rule_filter import (
+    apply_pre_enrichment_global_filters,
     apply_rule_filters,
     check_applicant_count,
     check_contract_type,
@@ -413,13 +414,13 @@ def test_apply_rule_filters_global_settings_none_skips_applicant_check() -> None
 
 
 def test_apply_rule_filters_global_settings_rejects_high_count() -> None:
-    """High-count job correctly rejected when admin setting is configured."""
+    """High-count rejection is now handled by apply_pre_enrichment_global_filters."""
     jobs = [
-        {"job_url": "http://pass", "applications_count": 10},
-        {"job_url": "http://fail", "applications_count": 500},
+        {"job_url": "http://pass", "applications_count_int": 10},
+        {"job_url": "http://fail", "applications_count_int": 500},
     ]
     gs = _gs(applications_count_max=50)
-    result = apply_rule_filters(jobs, prefs={}, global_settings=gs)
+    result = apply_pre_enrichment_global_filters(jobs, gs)
     assert "http://pass" in result["passed"]
     rejected_urls = {r["job_url"] for r in result["rejected"]}
     assert "http://fail" in rejected_urls
@@ -442,13 +443,82 @@ def test_admin_setting_reaches_filter_via_apply_settings_to_config() -> None:
     global_settings = {f"global_job_filters.{k}": v for k, v in raw_global.items()}
 
     jobs = [
-        {"job_url": "http://a", "applications_count": 10},   # pass
-        {"job_url": "http://b", "applications_count": 200},  # reject
+        {"job_url": "http://a", "applications_count_int": 10},   # pass
+        {"job_url": "http://b", "applications_count_int": 200},  # reject
     ]
-    result = apply_rule_filters(jobs, prefs={}, global_settings=global_settings)
+    result = apply_pre_enrichment_global_filters(jobs, global_settings)
 
     assert "http://a" in result["passed"]
     rejected_urls = {r["job_url"] for r in result["rejected"]}
     assert "http://b" in rejected_urls
     reasons = next(r["reasons"] for r in result["rejected"] if r["job_url"] == "http://b")
     assert "applications_count_exceeded" in reasons
+
+
+# ── apply_pre_enrichment_global_filters ───────────────────────────────────────
+
+def _normalized_job(job_url="http://j", **kw):
+    base = {"job_url": job_url, "published_at": None, "applications_count_int": None}
+    base.update(kw)
+    return base
+
+
+def test_pre_filter_no_global_settings_passes_all():
+    jobs = [_normalized_job("http://a"), _normalized_job("http://b")]
+    result = apply_pre_enrichment_global_filters(jobs, None)
+    assert set(result["passed"]) == {"http://a", "http://b"}
+    assert result["rejected"] == []
+
+
+def test_pre_filter_rejects_stale_job():
+    from datetime import datetime, timedelta, timezone
+    old = (datetime.now(tz=timezone.utc) - timedelta(days=60)).date().isoformat()
+    jobs = [_normalized_job("http://stale", published_at=old)]
+    result = apply_pre_enrichment_global_filters(jobs, _gs(max_age_days=30))
+    assert result["passed"] == []
+    assert result["rejected"][0]["reasons"] == ["job_too_stale"]
+
+
+def test_pre_filter_rejects_high_count_job_using_applications_count_int():
+    jobs = [_normalized_job("http://busy", applications_count_int=500)]
+    result = apply_pre_enrichment_global_filters(jobs, _gs(applications_count_max=100))
+    assert result["passed"] == []
+    assert "applications_count_exceeded" in result["rejected"][0]["reasons"]
+
+
+def test_pre_filter_null_count_passes():
+    jobs = [_normalized_job("http://unkn", applications_count_int=None)]
+    result = apply_pre_enrichment_global_filters(jobs, _gs(applications_count_max=50))
+    assert "http://unkn" in result["passed"]
+
+
+def test_check_applicant_count_prefers_count_int_over_raw_field():
+    """applications_count_int=10 (within limit) wins over raw applications_count='9999'."""
+    job = {"applications_count_int": 10, "applications_count": "9999"}
+    gs = _gs(applications_count_max=100)
+    assert check_applicant_count(job, gs) is True  # 10 <= 100
+
+
+def test_check_applicant_count_falls_back_to_raw_field():
+    """When applications_count_int absent, raw applications_count is used."""
+    job = {"applications_count": 200}
+    gs = _gs(applications_count_max=100)
+    assert check_applicant_count(job, gs) is False  # 200 > 100
+
+
+def test_apply_rule_filters_no_longer_rejects_stale_jobs():
+    """After cheapest-first refactor, apply_rule_filters must NOT filter on freshness."""
+    from datetime import datetime, timedelta, timezone
+    old = (datetime.now(tz=timezone.utc) - timedelta(days=90)).date().isoformat()
+    stale_job = _job(job_url="http://stale", published_at=old)
+    result = apply_rule_filters([stale_job], prefs={})
+    assert "http://stale" in result["passed"]
+
+
+def test_apply_rule_filters_ignores_prefs_max_age_days():
+    """Candidate profile max_age_days must have no effect on freshness (migration complete)."""
+    from datetime import datetime, timedelta, timezone
+    old = (datetime.now(tz=timezone.utc) - timedelta(days=90)).date().isoformat()
+    stale_job = _job(job_url="http://stale2", published_at=old)
+    result = apply_rule_filters([stale_job], prefs={"max_age_days": 1})
+    assert "http://stale2" in result["passed"]
