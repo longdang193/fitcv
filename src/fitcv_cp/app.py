@@ -198,11 +198,18 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         elif jobs_input_mode == "upload":
             if not jobs_file or not jobs_file.filename:
                 raise HTTPException(status_code=422, detail="jobs_file required for upload mode")
+            raw_bytes = await jobs_file.read()
             save_path = upload_dir / f"{uuid.uuid4().hex}_{jobs_file.filename}"
             with open(save_path, "wb") as f:
-                f.write(await jobs_file.read())
+                f.write(raw_bytes)
             actual_jobs_path = str(save_path)
             jobs_input_source = "upload"
+            # Capture immutable snapshot (same audit behaviour as paste mode)
+            try:
+                _parsed = _json.loads(raw_bytes.decode("utf-8"))
+                jobs_input_json_snapshot = _json.dumps(_parsed, ensure_ascii=False, indent=2)
+            except (_json.JSONDecodeError, UnicodeDecodeError):
+                jobs_input_json_snapshot = None  # invalid JSON upload; pipeline will surface the error
         elif jobs_input_mode == "paste":
             if not jobs_text or not jobs_text.strip():
                 raise HTTPException(status_code=422, detail="jobs_text required for paste mode")
