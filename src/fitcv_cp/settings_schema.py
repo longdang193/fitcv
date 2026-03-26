@@ -214,6 +214,29 @@ RANKING_GROUPS: dict[str, list[str]] = {
     ],
 }
 
+# ── Independent settings section registry ─────────────────────────────────────
+# Maps URL section slug → ordered list of schema keys in that section.
+# Used by the section-save endpoint (/admin/settings/section/{name}).
+# Each section uses one form with one save action; keys are validated
+# individually (no cross-key constraints within a section).
+
+SETTINGS_SECTIONS: dict[str, list[str]] = {
+    "retrieval": [
+        "pipeline.vector_search_top_n",
+        "pipeline.ai_score_top_n",
+        "pipeline.final_top_n",
+        "pipeline.evidence_top_k",
+    ],
+    "timing": [
+        "enrichment_sleep_secs",
+        "rerank_sleep_secs",
+    ],
+    "global-job-filters": [
+        "global_job_filters.applications_count_max",
+        "global_job_filters.max_age_days",
+    ],
+}
+
 # Build lookup maps once
 _SCHEMA_BY_KEY: dict[str, dict[str, Any]] = {s["key"]: s for s in SETTINGS_SCHEMA}
 _WEIGHT_KEYS: frozenset[str] = frozenset(

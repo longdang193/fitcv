@@ -1,213 +1,250 @@
 {% extends "base.html" %}
-{% block title %}Pipeline Settings{% endblock %}
+{% block title %}Pipeline Settings — FitCV Admin{% endblock %}
 {% block content %}
-<h1 class="text-2xl font-bold mb-6">Pipeline Settings</h1>
-<p class="mb-4 text-gray-400">Changes take effect on the next triggered run. Each change is appended — roll back by re-entering the previous value.</p>
 
-{# Generic per-row sections: retrieval, timing, global_job_filters #}
-{% set groups = ["retrieval", "timing", "global_job_filters"] %}
-{% for group in groups %}
-<section class="mb-8">
-  <h2 class="text-lg font-semibold mb-3 capitalize border-b border-gray-700 pb-1">{{ group }}</h2>
-  <table class="w-full text-sm">
-    <thead>
-      <tr class="text-left text-gray-400">
-        <th class="py-1 pr-4">Setting</th>
-        <th class="py-1 pr-4">Current Value</th>
-        <th class="py-1 pr-4">Default</th>
-        <th class="py-1">Update</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for entry in schema if entry.group == group %}
-      <tr class="border-t border-gray-800 hover:bg-gray-900">
-        <td class="py-3 pr-4">
-          <div class="font-semibold text-gray-200">{{ entry.label }}</div>
-          <div class="text-xs text-gray-400 mt-1 max-w-sm leading-relaxed">{{ entry.description }}</div>
-        </td>
-        <td class="py-2 pr-4">
-          {% if entry.key in active %}
-            <span class="text-green-400 font-semibold">{{ active[entry.key] }}</span>
-          {% else %}
-            <span class="text-gray-500">—</span>
-          {% endif %}
-        </td>
-        <td class="py-2 pr-4 text-gray-400">{{ entry.default }}</td>
-        <td class="py-2">
-          <form method="post" action="/admin/settings/{{ entry.key }}" class="flex gap-2 items-center">
-            <input type="hidden" name="key" value="{{ entry.key }}">
-            <input type="number" name="value" step="any"
-                   placeholder="{{ active.get(entry.key, entry.default) }}"
-                   class="w-24 px-2 py-1 rounded bg-gray-800 border border-gray-600 text-white text-sm focus:outline-none focus:border-blue-500">
-            <button type="submit"
-                    class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded transition">
-              Save
-            </button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
+<div class="page-header">
+  <div>
+    <h1>Pipeline Settings</h1>
+    <p class="meta">Changes take effect on the next triggered run. Each change is appended — roll back by re-entering the previous value.</p>
+  </div>
+</div>
+
+{# ── Independent settings sections: retrieval, timing, global job filters ──── #}
+{% for section_slug, section_label, section_helper in [
+    ("retrieval",          "Retrieval Settings",   "Controls how many jobs are retrieved, scored, and surfaced per run."),
+    ("timing",             "Timing Settings",      "Sleep delays between API calls to avoid rate-limiting."),
+    ("global-job-filters", "Global Job Filters",   "System-wide filters applied before enrichment. Jobs failing these are never sent to the LLM."),
+] %}
+<div class="section-card">
+  <div class="page-header" style="margin-bottom:1rem">
+    <div>
+      <div class="section-title">{{ section_label }}</div>
+      <div class="section-helper">{{ section_helper }}</div>
+    </div>
+  </div>
+
+  {% set section_group = section_slug | replace("-", "_") %}
+  {% if section_errors %}
+    {% for entry in schema if entry.group == section_group and entry.key in section_errors %}
+    <div class="error-box" style="margin-bottom:1rem">
+      <strong>{{ entry.label }}</strong>
+      <span>{{ section_errors[entry.key] }}</span>
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post" action="/admin/settings/section/{{ section_slug }}">
+    <table>
+      <thead>
+        <tr>
+          <th>Setting</th>
+          <th>Current</th>
+          <th>Default</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in schema if entry.group == section_group %}
+        <tr>
+          <td>
+            <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
+            <div class="section-helper">{{ entry.description }}</div>
+          </td>
+          <td>
+            {% if entry.key in active %}
+              <span class="current-value">{{ active[entry.key] }}</span>
+            {% else %}
+              <span class="empty-value">—</span>
+            {% endif %}
+          </td>
+          <td class="meta">{{ entry.default }}</td>
+          <td>
+            <input type="number" name="{{ entry.key }}" step="any"
+                   value="{{ section_draft[entry.key] if section_draft and entry.key in section_draft else active.get(entry.key, entry.default) }}">
+            {% if section_errors and entry.key in section_errors %}
+            <p class="field-error">{{ section_errors[entry.key] }}</p>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="section-actions">
+      <button type="submit" class="btn-section">Save {{ section_label }}</button>
+    </div>
+  </form>
+</div>
 {% endfor %}
 
-{# ── Ranking section: grouped forms ────────────────────────────────────────── #}
-<section class="mb-8">
-  <h2 class="text-lg font-semibold mb-5 border-b border-gray-700 pb-1">ranking</h2>
+{# ── Ranking section: grouped forms ─────────────────────────────────────────── #}
+<div class="section-card">
+  <div class="page-header" style="margin-bottom:1.5rem">
+    <div>
+      <div class="section-title">Ranking</div>
+      <div class="section-helper">Weights, fit thresholds, and gap thresholds used to score and rank matched jobs.</div>
+    </div>
+  </div>
 
-  {# ── Group 1: Ranking Weights ──────────────────────────────────────────── #}
-  <div class="mb-8 pl-1">
-    <h3 class="text-base font-semibold text-gray-300 mb-1">Ranking Weights</h3>
-    <p class="text-xs text-gray-500 mb-3">All six weights must sum to exactly <strong class="text-gray-300">1.0</strong> (±0.01).
-      Current total: <span id="weights-total" class="font-semibold">—</span>
+  {# ── Group 1: Ranking Weights ─────────────────────────────────────────────── #}
+  <div style="margin-bottom:2rem">
+    <div class="section-title" style="margin-bottom:0.25rem">Ranking Weights</div>
+    <p class="section-helper" style="margin-bottom:0.75rem">All six weights must sum to exactly <strong>1.0</strong> (±0.01).
+      Current total: <span id="weights-total" class="meta">—</span>
     </p>
     {% if group_error and 'ranking-weights' in group_error %}
-    <p class="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded">{{ group_error['ranking-weights'] }}</p>
+    <div class="error-box" style="margin-bottom:0.75rem">
+      <strong>Validation error</strong>
+      <span>{{ group_error['ranking-weights'] }}</span>
+    </div>
     {% endif %}
     <form method="post" action="/admin/settings/group/ranking-weights">
-      <table class="w-full text-sm mb-3">
+      <table style="margin-bottom:0.75rem">
         <thead>
-          <tr class="text-left text-gray-400">
-            <th class="py-1 pr-4">Weight</th>
-            <th class="py-1 pr-4">Current</th>
-            <th class="py-1 pr-4">Default</th>
-            <th class="py-1">Value</th>
+          <tr>
+            <th>Weight</th>
+            <th>Current</th>
+            <th>Default</th>
+            <th>Value</th>
           </tr>
         </thead>
         <tbody>
           {% for entry in schema if entry.key in ranking_weight_keys %}
-          {% set draft_val = group_draft['ranking-weights'][entry.key] if group_draft and 'ranking-weights' in group_draft and entry.key in group_draft['ranking-weights'] else None %}
-          <tr class="border-t border-gray-800 hover:bg-gray-900">
-            <td class="py-3 pr-4">
-              <div class="font-semibold text-gray-200">{{ entry.label }}</div>
-              <div class="text-xs text-gray-400 mt-1 max-w-sm leading-relaxed">{{ entry.description }}</div>
+          {% set draft_val = group_draft['ranking-weights'][entry.key] if group_draft and 'ranking-weights' in group_draft and entry.key in group_draft['ranking-weights'] else none %}
+          <tr>
+            <td>
+              <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
+              <div class="section-helper">{{ entry.description }}</div>
             </td>
-            <td class="py-2 pr-4">
+            <td>
               {% if entry.key in active %}
-                <span class="text-green-400 font-semibold">{{ active[entry.key] }}</span>
+                <span class="current-value">{{ active[entry.key] }}</span>
               {% else %}
-                <span class="text-gray-500">—</span>
+                <span class="empty-value">—</span>
               {% endif %}
             </td>
-            <td class="py-2 pr-4 text-gray-400">{{ entry.default }}</td>
-            <td class="py-2">
+            <td class="meta">{{ entry.default }}</td>
+            <td>
               <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
                      value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}"
-                     class="w-24 px-2 py-1 rounded bg-gray-800 border border-gray-600 text-white text-sm focus:outline-none focus:border-blue-500"
                      oninput="updateWeightsTotal()">
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
-      <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition">
-        Save Ranking Weights
-      </button>
+      <div class="section-actions">
+        <button type="submit" class="btn-primary">Save Ranking Weights</button>
+      </div>
     </form>
   </div>
 
-  {# ── Group 2: Fit Label Thresholds ────────────────────────────────────── #}
-  <div class="mb-8 pl-1">
-    <h3 class="text-base font-semibold text-gray-300 mb-1">Fit Label Thresholds</h3>
-    <p class="text-xs text-gray-500 mb-3">Strong threshold must be greater than Stretch threshold.</p>
+  {# ── Group 2: Fit Label Thresholds ───────────────────────────────────────── #}
+  <div style="margin-bottom:2rem">
+    <div class="section-title" style="margin-bottom:0.25rem">Fit Label Thresholds</div>
+    <p class="section-helper" style="margin-bottom:0.75rem">Strong threshold must be greater than Stretch threshold.</p>
     {% if group_error and 'fit-label-thresholds' in group_error %}
-    <p class="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded">{{ group_error['fit-label-thresholds'] }}</p>
+    <div class="error-box" style="margin-bottom:0.75rem">
+      <strong>Validation error</strong>
+      <span>{{ group_error['fit-label-thresholds'] }}</span>
+    </div>
     {% endif %}
     <form method="post" action="/admin/settings/group/fit-label-thresholds">
-      <table class="w-full text-sm mb-3">
+      <table style="margin-bottom:0.75rem">
         <thead>
-          <tr class="text-left text-gray-400">
-            <th class="py-1 pr-4">Threshold</th>
-            <th class="py-1 pr-4">Current</th>
-            <th class="py-1 pr-4">Default</th>
-            <th class="py-1">Value</th>
+          <tr>
+            <th>Threshold</th>
+            <th>Current</th>
+            <th>Default</th>
+            <th>Value</th>
           </tr>
         </thead>
         <tbody>
           {% for entry in schema if entry.key in ranking_groups['fit-label-thresholds'] %}
-          {% set draft_val = group_draft['fit-label-thresholds'][entry.key] if group_draft and 'fit-label-thresholds' in group_draft and entry.key in group_draft['fit-label-thresholds'] else None %}
-          <tr class="border-t border-gray-800 hover:bg-gray-900">
-            <td class="py-3 pr-4">
-              <div class="font-semibold text-gray-200">{{ entry.label }}</div>
-              <div class="text-xs text-gray-400 mt-1 max-w-sm leading-relaxed">{{ entry.description }}</div>
+          {% set draft_val = group_draft['fit-label-thresholds'][entry.key] if group_draft and 'fit-label-thresholds' in group_draft and entry.key in group_draft['fit-label-thresholds'] else none %}
+          <tr>
+            <td>
+              <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
+              <div class="section-helper">{{ entry.description }}</div>
             </td>
-            <td class="py-2 pr-4">
+            <td>
               {% if entry.key in active %}
-                <span class="text-green-400 font-semibold">{{ active[entry.key] }}</span>
+                <span class="current-value">{{ active[entry.key] }}</span>
               {% else %}
-                <span class="text-gray-500">—</span>
+                <span class="empty-value">—</span>
               {% endif %}
             </td>
-            <td class="py-2 pr-4 text-gray-400">{{ entry.default }}</td>
-            <td class="py-2">
+            <td class="meta">{{ entry.default }}</td>
+            <td>
               <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
-                     value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}"
-                     class="w-24 px-2 py-1 rounded bg-gray-800 border border-gray-600 text-white text-sm focus:outline-none focus:border-blue-500">
+                     value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}">
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
-      <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition">
-        Save Fit Label Thresholds
-      </button>
+      <div class="section-actions">
+        <button type="submit" class="btn-primary">Save Fit Label Thresholds</button>
+      </div>
     </form>
   </div>
 
-  {# ── Group 3: Gap Thresholds ──────────────────────────────────────────── #}
-  <div class="mb-8 pl-1">
-    <h3 class="text-base font-semibold text-gray-300 mb-1">Gap Thresholds</h3>
-    <p class="text-xs text-gray-500 mb-3">Strong skill-ratio limit must be greater than Stretch limit.</p>
+  {# ── Group 3: Gap Thresholds ─────────────────────────────────────────────── #}
+  <div style="margin-bottom:0.5rem">
+    <div class="section-title" style="margin-bottom:0.25rem">Gap Thresholds</div>
+    <p class="section-helper" style="margin-bottom:0.75rem">Strong skill-ratio limit must be greater than Stretch limit.</p>
     {% if group_error and 'gap-thresholds' in group_error %}
-    <p class="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded">{{ group_error['gap-thresholds'] }}</p>
+    <div class="error-box" style="margin-bottom:0.75rem">
+      <strong>Validation error</strong>
+      <span>{{ group_error['gap-thresholds'] }}</span>
+    </div>
     {% endif %}
     <form method="post" action="/admin/settings/group/gap-thresholds">
-      <table class="w-full text-sm mb-3">
+      <table style="margin-bottom:0.75rem">
         <thead>
-          <tr class="text-left text-gray-400">
-            <th class="py-1 pr-4">Threshold</th>
-            <th class="py-1 pr-4">Current</th>
-            <th class="py-1 pr-4">Default</th>
-            <th class="py-1">Value</th>
+          <tr>
+            <th>Threshold</th>
+            <th>Current</th>
+            <th>Default</th>
+            <th>Value</th>
           </tr>
         </thead>
         <tbody>
           {% for entry in schema if entry.key in ranking_groups['gap-thresholds'] %}
-          {% set draft_val = group_draft['gap-thresholds'][entry.key] if group_draft and 'gap-thresholds' in group_draft and entry.key in group_draft['gap-thresholds'] else None %}
-          <tr class="border-t border-gray-800 hover:bg-gray-900">
-            <td class="py-3 pr-4">
-              <div class="font-semibold text-gray-200">{{ entry.label }}</div>
-              <div class="text-xs text-gray-400 mt-1 max-w-sm leading-relaxed">{{ entry.description }}</div>
+          {% set draft_val = group_draft['gap-thresholds'][entry.key] if group_draft and 'gap-thresholds' in group_draft and entry.key in group_draft['gap-thresholds'] else none %}
+          <tr>
+            <td>
+              <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
+              <div class="section-helper">{{ entry.description }}</div>
             </td>
-            <td class="py-2 pr-4">
+            <td>
               {% if entry.key in active %}
-                <span class="text-green-400 font-semibold">{{ active[entry.key] }}</span>
+                <span class="current-value">{{ active[entry.key] }}</span>
               {% else %}
-                <span class="text-gray-500">—</span>
+                <span class="empty-value">—</span>
               {% endif %}
             </td>
-            <td class="py-2 pr-4 text-gray-400">{{ entry.default }}</td>
-            <td class="py-2">
+            <td class="meta">{{ entry.default }}</td>
+            <td>
               <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
-                     value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}"
-                     class="w-24 px-2 py-1 rounded bg-gray-800 border border-gray-600 text-white text-sm focus:outline-none focus:border-blue-500">
+                     value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}">
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
-      <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition">
-        Save Gap Thresholds
-      </button>
+      <div class="section-actions">
+        <button type="submit" class="btn-primary">Save Gap Thresholds</button>
+      </div>
     </form>
   </div>
 
-</section>
+</div>
 
+<script type="application/json" id="ranking-weight-keys-data">{{ ranking_weight_keys | tojson }}</script>
 <script>
 function updateWeightsTotal() {
-  const keys = {{ ranking_weight_keys | tojson }};
+  const keysNode = document.getElementById('ranking-weight-keys-data');
+  const keys = keysNode ? JSON.parse(keysNode.textContent) : [];
   let total = 0;
   keys.forEach(function(k) {
     const el = document.querySelector('[name="' + k + '"]');
@@ -216,7 +253,9 @@ function updateWeightsTotal() {
   const span = document.getElementById('weights-total');
   if (span) {
     span.textContent = total.toFixed(3);
-    span.style.color = Math.abs(total - 1.0) < 0.011 ? '#4ade80' : '#f87171';
+    span.style.color = Math.abs(total - 1.0) < 0.011
+      ? 'var(--badge-success-fg)'
+      : 'var(--badge-error-fg)';
   }
 }
 document.addEventListener('DOMContentLoaded', updateWeightsTotal);
