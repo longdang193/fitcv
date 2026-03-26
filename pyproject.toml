@@ -8,6 +8,9 @@ version = "0.1.0"
 requires-python = ">=3.11"
 description = "End-to-end pipeline for ingesting job postings, matching against a candidate profile, and generating tailored CVs."
 license = { text = "MIT" }
+dependencies = [
+    "pydantic>=2.0",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
