@@ -170,6 +170,25 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "group": "ranking",
         "config_path": ["gap_thresholds", "stretch_min_matched_ratio"],
     },
+    # ── Global Job Filters ──────────────────────────────────────────────────────────────────────
+    {
+        "key": "global_job_filters.applications_count_max",
+        "type": "int",
+        "default": 200,
+        "label": "Maximum Applicant Count",
+        "description": "Reject jobs when the applicant count exceeds this threshold.",
+        "group": "global_job_filters",
+        "config_path": ["global_job_filters", "applications_count_max"],
+    },
+    {
+        "key": "global_job_filters.max_age_days",
+        "type": "int",
+        "default": 30,
+        "label": "Maximum Posting Age (Days)",
+        "description": "Reject jobs when the posting is older than this many days. Missing posted date is treated as passing.",
+        "group": "global_job_filters",
+        "config_path": ["global_job_filters", "max_age_days"],
+    },
 ]
 
 # Build lookup maps once
