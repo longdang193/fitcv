@@ -31,7 +31,7 @@ can make this configurable without code changes.
 
 import logging
 import uuid
-from typing import Any
+from typing import Any, Callable
 
 from fitcv.ai_score import run_ai_scoring
 from fitcv.candidate import load_candidate_to_bigquery, load_profile_json_text, load_profile_yaml
@@ -54,6 +54,10 @@ from fitcv.validator import run_all_validations
 from fitcv.vector_search import run_vector_search
 
 logger = logging.getLogger(__name__)
+
+
+class PipelineCancelled(Exception):
+    """Raised when a cooperative cancellation checkpoint is triggered."""
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -121,6 +125,7 @@ def run_pipeline(
     reporter: object = None,  # Optional[PipelineReporter] — avoids circular import
     config: dict | None = None,  # If provided, skips load_config(config_path)
     run_id: str | None = None,
+    cancellation_check: Callable[[], bool] | None = None,
 ) -> dict[str, Any]:
     """Run the full FitCV candidate pipeline end-to-end.
 
@@ -183,6 +188,9 @@ def run_pipeline(
         )
 
     # ── Layer 1c: enrich survivors only ──────────────────────────────────────
+    # Checkpoint: before enrichment (expensive LLM calls)
+    if cancellation_check and cancellation_check():
+        raise PipelineCancelled("Cancelled before enrichment")
     enriched = enrich_batch(surviving_normalized, config)
     load_structured_jobs(enriched, config)
     load_run_structured_jobs(enriched, run_id, config)
@@ -245,6 +253,9 @@ def run_pipeline(
     ai_top_n = int(config["pipeline"]["ai_score_top_n"])
     from fitcv.vector_search import build_candidate_query_text
     candidate_summary = build_candidate_query_text(profile, config)
+    # Checkpoint: before AI scoring
+    if cancellation_check and cancellation_check():
+        raise PipelineCancelled("Cancelled before AI scoring")
     ai_scores = run_ai_scoring(
         shortlist,
         candidate_summary,
@@ -261,6 +272,9 @@ def run_pipeline(
 
     # ── Layer 4: per-job evidence → gap → CV → validation → versioning ────────
     results: list[dict[str, Any]] = []
+    # Checkpoint: before CV generation
+    if cancellation_check and cancellation_check():
+        raise PipelineCancelled("Cancelled before CV generation")
     for job in ranked:
         try:
             evidence_top_k = int(config["pipeline"]["evidence_top_k"])
