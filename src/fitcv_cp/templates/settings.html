@@ -4,7 +4,7 @@
 <h1 class="text-2xl font-bold mb-6">Pipeline Settings</h1>
 <p class="mb-4 text-gray-400">Changes take effect on the next triggered run. Each change is appended — roll back by re-entering the previous value.</p>
 
-{% set groups = ["retrieval", "timing", "ranking"] %}
+{% set groups = ["retrieval", "timing", "ranking", "global_job_filters"] %}
 {% for group in groups %}
 <section class="mb-8">
   <h2 class="text-lg font-semibold mb-3 capitalize border-b border-gray-700 pb-1">{{ group }}</h2>
