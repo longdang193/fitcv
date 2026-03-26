@@ -2,21 +2,28 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Reorganize the run detail page into a 3-tab inspection interface (Enriched Jobs / Original Job Input / Candidate Profile) without any backend changes.
+**Goal:** Reorganize the run detail page into a 3-tab inspection interface (Enriched Jobs / Original Job Input / Candidate Profile). Originally planned as a template-only change; a follow-up fix also extended the snapshot rule to cover `upload` mode.
 
 **Spec:** `docs/superpowers/specs/2026-03-26-run-detail-inspection-tabs-design.md`
 
-**Tech Stack:** Jinja2, Vanilla JS, Vanilla CSS
+**Tech Stack:** Jinja2, Vanilla JS, Vanilla CSS, Python (FastAPI)
+
+---
+
+## ✅ STATUS: COMPLETE — Deployed 2026-03-26
+
+**Tests:** 374 pass, 2 pre-existing `test_enrich` failures (unrelated), 7 deselected
+**Commits:**
+- `feat(ui): reorganize run detail into 3-tab inspection interface`
+- `fix: snapshot jobs_input_json for upload mode (not just paste)`
 
 ---
 
 ## File Map
 
-- **Modify:** `src/fitcv_cp/templates/run_detail.html` (only file changed)
-
-No changes to `app.py`, `bq_store.py`, models, or any Python source.
-
----
+- **Modify:** `src/fitcv_cp/templates/run_detail.html`
+- **Modify:** `src/fitcv_cp/app.py` — `upload_trigger` upload mode now captures `jobs_input_json_snapshot`
+- **Modify:** `tests/test_fitcv_cp/test_app.py` — 4 new tab assertions
 
 ## Task 1: Tab Bar and Pane Structure
 
@@ -239,7 +246,9 @@ No changes to `app.py`, `bq_store.py`, models, or any Python source.
 
 ## Important Notes
 
-- This is a **template-only change**. Do not modify `app.py` or any Python source.
-- All tab content data is already in the Jinja2 context — no new context variables needed.
-- Old runs where all snapshot fields are `None` must render gracefully via the fallback branches.
-- Tab switching must be **instant** (client-side only, no server round-trips).
+## Important Notes
+
+- **Snapshot rule:** `paste` and `upload` capture an immutable raw JSON snapshot at trigger time. `path` (jobs) and `default_config` (candidate profile) do not — only source metadata is stored.
+- `app.py` was modified: jobs `upload` mode now reads bytes once, canonicalises to pretty JSON, stores in `jobs_input_json_snapshot` (same as paste mode). Candidate profile `upload` already did this correctly.
+- Old runs where all snapshot fields are `None` render gracefully via fallback branches.
+- Tab switching is client-side only — no server round-trips.
