@@ -4,7 +4,8 @@
 <h1 class="text-2xl font-bold mb-6">Pipeline Settings</h1>
 <p class="mb-4 text-gray-400">Changes take effect on the next triggered run. Each change is appended — roll back by re-entering the previous value.</p>
 
-{% set groups = ["retrieval", "timing", "ranking", "global_job_filters"] %}
+{# Generic per-row sections: retrieval, timing, global_job_filters #}
+{% set groups = ["retrieval", "timing", "global_job_filters"] %}
 {% for group in groups %}
 <section class="mb-8">
   <h2 class="text-lg font-semibold mb-3 capitalize border-b border-gray-700 pb-1">{{ group }}</h2>
@@ -51,5 +52,174 @@
 </section>
 {% endfor %}
 
+{# ── Ranking section: grouped forms ────────────────────────────────────────── #}
+<section class="mb-8">
+  <h2 class="text-lg font-semibold mb-5 border-b border-gray-700 pb-1">ranking</h2>
+
+  {# ── Group 1: Ranking Weights ──────────────────────────────────────────── #}
+  <div class="mb-8 pl-1">
+    <h3 class="text-base font-semibold text-gray-300 mb-1">Ranking Weights</h3>
+    <p class="text-xs text-gray-500 mb-3">All six weights must sum to exactly <strong class="text-gray-300">1.0</strong> (±0.01).
+      Current total: <span id="weights-total" class="font-semibold">—</span>
+    </p>
+    {% if group_error and 'ranking-weights' in group_error %}
+    <p class="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded">{{ group_error['ranking-weights'] }}</p>
+    {% endif %}
+    <form method="post" action="/admin/settings/group/ranking-weights">
+      <table class="w-full text-sm mb-3">
+        <thead>
+          <tr class="text-left text-gray-400">
+            <th class="py-1 pr-4">Weight</th>
+            <th class="py-1 pr-4">Current</th>
+            <th class="py-1 pr-4">Default</th>
+            <th class="py-1">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in schema if entry.key in ranking_weight_keys %}
+          {% set draft_val = group_draft['ranking-weights'][entry.key] if group_draft and 'ranking-weights' in group_draft and entry.key in group_draft['ranking-weights'] else None %}
+          <tr class="border-t border-gray-800 hover:bg-gray-900">
+            <td class="py-3 pr-4">
+              <div class="font-semibold text-gray-200">{{ entry.label }}</div>
+              <div class="text-xs text-gray-400 mt-1 max-w-sm leading-relaxed">{{ entry.description }}</div>
+            </td>
+            <td class="py-2 pr-4">
+              {% if entry.key in active %}
+                <span class="text-green-400 font-semibold">{{ active[entry.key] }}</span>
+              {% else %}
+                <span class="text-gray-500">—</span>
+              {% endif %}
+            </td>
+            <td class="py-2 pr-4 text-gray-400">{{ entry.default }}</td>
+            <td class="py-2">
+              <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
+                     value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}"
+                     class="w-24 px-2 py-1 rounded bg-gray-800 border border-gray-600 text-white text-sm focus:outline-none focus:border-blue-500"
+                     oninput="updateWeightsTotal()">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition">
+        Save Ranking Weights
+      </button>
+    </form>
+  </div>
+
+  {# ── Group 2: Fit Label Thresholds ────────────────────────────────────── #}
+  <div class="mb-8 pl-1">
+    <h3 class="text-base font-semibold text-gray-300 mb-1">Fit Label Thresholds</h3>
+    <p class="text-xs text-gray-500 mb-3">Strong threshold must be greater than Stretch threshold.</p>
+    {% if group_error and 'fit-label-thresholds' in group_error %}
+    <p class="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded">{{ group_error['fit-label-thresholds'] }}</p>
+    {% endif %}
+    <form method="post" action="/admin/settings/group/fit-label-thresholds">
+      <table class="w-full text-sm mb-3">
+        <thead>
+          <tr class="text-left text-gray-400">
+            <th class="py-1 pr-4">Threshold</th>
+            <th class="py-1 pr-4">Current</th>
+            <th class="py-1 pr-4">Default</th>
+            <th class="py-1">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in schema if entry.key in ranking_groups['fit-label-thresholds'] %}
+          {% set draft_val = group_draft['fit-label-thresholds'][entry.key] if group_draft and 'fit-label-thresholds' in group_draft and entry.key in group_draft['fit-label-thresholds'] else None %}
+          <tr class="border-t border-gray-800 hover:bg-gray-900">
+            <td class="py-3 pr-4">
+              <div class="font-semibold text-gray-200">{{ entry.label }}</div>
+              <div class="text-xs text-gray-400 mt-1 max-w-sm leading-relaxed">{{ entry.description }}</div>
+            </td>
+            <td class="py-2 pr-4">
+              {% if entry.key in active %}
+                <span class="text-green-400 font-semibold">{{ active[entry.key] }}</span>
+              {% else %}
+                <span class="text-gray-500">—</span>
+              {% endif %}
+            </td>
+            <td class="py-2 pr-4 text-gray-400">{{ entry.default }}</td>
+            <td class="py-2">
+              <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
+                     value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}"
+                     class="w-24 px-2 py-1 rounded bg-gray-800 border border-gray-600 text-white text-sm focus:outline-none focus:border-blue-500">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition">
+        Save Fit Label Thresholds
+      </button>
+    </form>
+  </div>
+
+  {# ── Group 3: Gap Thresholds ──────────────────────────────────────────── #}
+  <div class="mb-8 pl-1">
+    <h3 class="text-base font-semibold text-gray-300 mb-1">Gap Thresholds</h3>
+    <p class="text-xs text-gray-500 mb-3">Strong skill-ratio limit must be greater than Stretch limit.</p>
+    {% if group_error and 'gap-thresholds' in group_error %}
+    <p class="text-red-400 text-sm mb-3 bg-red-900/20 px-3 py-2 rounded">{{ group_error['gap-thresholds'] }}</p>
+    {% endif %}
+    <form method="post" action="/admin/settings/group/gap-thresholds">
+      <table class="w-full text-sm mb-3">
+        <thead>
+          <tr class="text-left text-gray-400">
+            <th class="py-1 pr-4">Threshold</th>
+            <th class="py-1 pr-4">Current</th>
+            <th class="py-1 pr-4">Default</th>
+            <th class="py-1">Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in schema if entry.key in ranking_groups['gap-thresholds'] %}
+          {% set draft_val = group_draft['gap-thresholds'][entry.key] if group_draft and 'gap-thresholds' in group_draft and entry.key in group_draft['gap-thresholds'] else None %}
+          <tr class="border-t border-gray-800 hover:bg-gray-900">
+            <td class="py-3 pr-4">
+              <div class="font-semibold text-gray-200">{{ entry.label }}</div>
+              <div class="text-xs text-gray-400 mt-1 max-w-sm leading-relaxed">{{ entry.description }}</div>
+            </td>
+            <td class="py-2 pr-4">
+              {% if entry.key in active %}
+                <span class="text-green-400 font-semibold">{{ active[entry.key] }}</span>
+              {% else %}
+                <span class="text-gray-500">—</span>
+              {% endif %}
+            </td>
+            <td class="py-2 pr-4 text-gray-400">{{ entry.default }}</td>
+            <td class="py-2">
+              <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
+                     value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}"
+                     class="w-24 px-2 py-1 rounded bg-gray-800 border border-gray-600 text-white text-sm focus:outline-none focus:border-blue-500">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm rounded transition">
+        Save Gap Thresholds
+      </button>
+    </form>
+  </div>
+
+</section>
+
+<script>
+function updateWeightsTotal() {
+  const keys = {{ ranking_weight_keys | tojson }};
+  let total = 0;
+  keys.forEach(function(k) {
+    const el = document.querySelector('[name="' + k + '"]');
+    if (el) total += parseFloat(el.value) || 0;
+  });
+  const span = document.getElementById('weights-total');
+  if (span) {
+    span.textContent = total.toFixed(3);
+    span.style.color = Math.abs(total - 1.0) < 0.011 ? '#4ade80' : '#f87171';
+  }
+}
+document.addEventListener('DOMContentLoaded', updateWeightsTotal);
+</script>
 
 {% endblock %}
