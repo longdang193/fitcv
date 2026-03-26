@@ -18,13 +18,14 @@ from fitcv_cp.bq_store import (
 from fitcv_cp.models import PipelineRun, RunStatus
 from fitcv_cp.queue import enqueue_run
 from fitcv_cp.settings_schema import (
+    RANKING_GROUPS,
     SETTINGS_SCHEMA,
     ValidationError,
     apply_settings_to_config,
     coerce_value,
     validate_settings,
 )
-from fitcv_cp.settings_store import load_active_settings, save_setting
+from fitcv_cp.settings_store import load_active_settings, save_setting, save_settings_group
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -321,7 +322,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="settings.html",
-            context={"schema": SETTINGS_SCHEMA, "active": active}
+            context={
+                "schema": SETTINGS_SCHEMA,
+                "active": active,
+                "ranking_weight_keys": RANKING_GROUPS["ranking-weights"],
+                "ranking_groups": RANKING_GROUPS,
+            }
         )
 
     @app.post("/admin/settings/{key}", response_class=HTMLResponse)
@@ -342,6 +348,71 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 status_code=422,
             )
         save_setting(key, coerced, updated_by="admin", bq=bq, project=project, dataset=dataset)
+        return RedirectResponse("/admin/settings", status_code=303)
+
+    @app.post("/admin/settings/group/{group_name}", response_class=HTMLResponse)
+    async def admin_settings_update_group(
+        request: Request, group_name: str
+    ) -> HTMLResponse:
+        from uuid import uuid4
+        from fastapi.responses import RedirectResponse
+
+        if group_name not in RANKING_GROUPS:
+            raise HTTPException(status_code=404, detail=f"Unknown group: {group_name!r}")
+
+        keys = RANKING_GROUPS[group_name]
+        form = await request.form()
+
+        # Coerce all keys in the group
+        coerced: dict = {}
+        coerce_errors: list[str] = []
+        for key in keys:
+            raw = form.get(key, "")
+            try:
+                coerced[key] = coerce_value(key, raw)
+            except (KeyError, ValueError) as exc:
+                coerce_errors.append(str(exc))
+
+        def _get_active() -> dict:
+            return load_active_settings(bq=bq, project=project, dataset=dataset)
+
+        def _error_response(msg: str) -> HTMLResponse:
+            active = _get_active()
+            return templates.TemplateResponse(
+                request=request,
+                name="settings.html",
+                context={
+                    "schema": SETTINGS_SCHEMA,
+                    "active": active,
+                    "ranking_weight_keys": RANKING_GROUPS["ranking-weights"],
+                    "ranking_groups": RANKING_GROUPS,
+                    "group_error": {group_name: msg},
+                    "group_draft": {group_name: dict(form)},
+                },
+                status_code=422,
+            )
+
+        if coerce_errors:
+            return _error_response("; ".join(coerce_errors))
+
+        # Validate full group as one coherent payload — no write occurs on failure
+        try:
+            validate_settings(coerced)
+        except ValidationError as exc:
+            return _error_response(str(exc))
+
+        # Generate shared audit identity for this grouped save
+        update_id = str(uuid4())
+        updated_by = f"admin:grp:{update_id}"
+
+        # Write — surface BQ failures to the user
+        try:
+            save_settings_group(
+                coerced, updated_by=updated_by, bq=bq, project=project, dataset=dataset
+            )
+        except RuntimeError as exc:
+            return _error_response(f"Save failed: {exc}")
+
         return RedirectResponse("/admin/settings", status_code=303)
 
     @app.get("/admin/runs", response_class=HTMLResponse)

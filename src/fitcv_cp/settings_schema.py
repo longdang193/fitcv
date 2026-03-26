@@ -191,6 +191,29 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     },
 ]
 
+# ── Ranking group registry ────────────────────────────────────────────────────
+# Maps URL group slug → ordered list of schema keys in that group.
+# Used by the grouped-edit endpoint and the settings template.
+
+RANKING_GROUPS: dict[str, list[str]] = {
+    "ranking-weights": [
+        "ranking_weights.ai_score",
+        "ranking_weights.must_have_match",
+        "ranking_weights.vector_similarity",
+        "ranking_weights.title_relevance",
+        "ranking_weights.seniority_fit",
+        "ranking_weights.preference_fit",
+    ],
+    "fit-label-thresholds": [
+        "fit_label_thresholds.strong",
+        "fit_label_thresholds.stretch",
+    ],
+    "gap-thresholds": [
+        "gap_thresholds.strong_min_matched_ratio",
+        "gap_thresholds.stretch_min_matched_ratio",
+    ],
+}
+
 # Build lookup maps once
 _SCHEMA_BY_KEY: dict[str, dict[str, Any]] = {s["key"]: s for s in SETTINGS_SCHEMA}
 _WEIGHT_KEYS: frozenset[str] = frozenset(
