@@ -12,11 +12,14 @@ from pydantic import BaseModel, field_validator
 
 from fitcv.config import load_config
 from fitcv_cp.bq_store import (
+    append_event,
+    archive_run,
     get_events, get_run, insert_run, list_filter_results_for_run,
     list_runs, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs,
+    request_run_cancel, unarchive_run, update_run_queue_job_id,
 )
-from fitcv_cp.models import PipelineRun, RunStatus
-from fitcv_cp.queue import enqueue_run
+from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
+from fitcv_cp.queue import cancel_queued_run, enqueue_run, enqueue_run_with_job_id
 from fitcv_cp.settings_schema import (
     RANKING_GROUPS,
     SETTINGS_SCHEMA,
@@ -95,13 +98,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             effective_settings_json=_json.dumps(effective_config),
         )
         insert_run(run, bq, project=project, dataset=dataset)
-        enqueue_run(
+        _, queue_job_id = enqueue_run_with_job_id(
             jobs_path=jobs_path,
             config_path=config_path,
             triggered_by=triggered_by,
             redis_url=redis_url,
-            run_id=run_id,  # pass the pre-created run_id
+            run_id=run_id,
         )
+        update_run_queue_job_id(run_id, queue_job_id, bq, project=project, dataset=dataset)
         return {"run_id": run_id}
 
     def _execute_trigger_with_inputs(
@@ -155,13 +159,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             candidate_profile_json=candidate_profile_json,
         )
         insert_run(run, bq, project=project, dataset=dataset)
-        enqueue_run(
+        _, queue_job_id = enqueue_run_with_job_id(
             jobs_path=jobs_path,
             config_path=config_path,
             triggered_by=triggered_by,
             redis_url=redis_url,
             run_id=run_id,
         )
+        update_run_queue_job_id(run_id, queue_job_id, bq, project=project, dataset=dataset)
         return {"run_id": run_id}
 
     @app.post("/runs", status_code=201)
@@ -484,8 +489,109 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
     @app.get("/admin/runs", response_class=HTMLResponse)
     def admin_runs(request: Request) -> HTMLResponse:
-        runs = list_runs(bq, project=project, dataset=dataset)
-        return templates.TemplateResponse(request=request, name="runs_list.html", context={"runs": runs})
+        view = request.query_params.get("view", "active")
+        if view == "archived":
+            runs = list_runs(bq, project=project, dataset=dataset, archived_only=True)
+        elif view == "all":
+            runs = list_runs(bq, project=project, dataset=dataset, include_archived=True)
+        else:  # default: active
+            runs = list_runs(bq, project=project, dataset=dataset, include_archived=False)
+        return templates.TemplateResponse(
+            request=request, name="runs_list.html",
+            context={"runs": runs, "view": view}
+        )
+
+    @app.post("/admin/runs/{run_id}/stop")
+    def admin_stop_run(run_id: str) -> dict:
+        """Stop a queued or running run. Returns JSON for fetch() callers."""
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        eligible = {RunStatus.QUEUED, RunStatus.RUNNING}
+        if run.status not in eligible:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot stop run with status '{run.status.value}'",
+            )
+        now = datetime.datetime.now(datetime.timezone.utc)
+        event_id = str(uuid.uuid4())
+        if run.status == RunStatus.QUEUED and run.queue_job_id:
+            cancelled_in_queue = cancel_queued_run(run.queue_job_id, redis_url=redis_url)
+            if cancelled_in_queue:
+                # Job still in queue — mark directly cancelled
+                request_run_cancel(run_id, "admin", RunStatus.CANCELLED.value, bq, project=project, dataset=dataset)
+                append_event(
+                    RunEvent(
+                        run_id=run_id, event_id=event_id, stage="cancel_requested",
+                        level="warning", message="Stop requested — cancelled from queue",
+                        created_at=now,
+                    ),
+                    bq, project=project, dataset=dataset,
+                )
+                append_event(
+                    RunEvent(
+                        run_id=run_id, event_id=str(uuid.uuid4()), stage="run_cancelled",
+                        level="warning", message="Run cancelled before pipeline execution",
+                        created_at=now,
+                    ),
+                    bq, project=project, dataset=dataset,
+                )
+                return {"status": "cancelled", "run_id": run_id}
+        # Running (or queued but already claimed) — set cancelling
+        request_run_cancel(run_id, "admin", RunStatus.CANCELLING.value, bq, project=project, dataset=dataset)
+        append_event(
+            RunEvent(
+                run_id=run_id, event_id=event_id, stage="cancel_requested",
+                level="warning", message="Stop requested — run will be cancelled at next checkpoint",
+                created_at=now,
+            ),
+            bq, project=project, dataset=dataset,
+        )
+        return {"status": "cancelling", "run_id": run_id}
+
+    @app.post("/admin/runs/{run_id}/archive")
+    def admin_archive_run(run_id: str) -> dict:
+        """Archive a terminal run. Returns JSON for fetch() callers."""
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        eligible = {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}
+        if run.status not in eligible:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot archive run with status '{run.status.value}'",
+            )
+        if run.archived_at is not None:
+            raise HTTPException(status_code=409, detail="Run is already archived")
+        archive_run(run_id, "admin", bq, project=project, dataset=dataset)
+        append_event(
+            RunEvent(
+                run_id=run_id, event_id=str(uuid.uuid4()), stage="run_archived",
+                level="info", message="Run archived by admin",
+                created_at=datetime.datetime.now(datetime.timezone.utc),
+            ),
+            bq, project=project, dataset=dataset,
+        )
+        return {"status": "archived", "run_id": run_id}
+
+    @app.post("/admin/runs/{run_id}/unarchive")
+    def admin_unarchive_run(run_id: str) -> dict:
+        """Unarchive a run, returning it to the active list. Returns JSON for fetch() callers."""
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.archived_at is None:
+            raise HTTPException(status_code=409, detail="Run is not archived")
+        unarchive_run(run_id, bq, project=project, dataset=dataset)
+        append_event(
+            RunEvent(
+                run_id=run_id, event_id=str(uuid.uuid4()), stage="run_unarchived",
+                level="info", message="Run unarchived by admin",
+                created_at=datetime.datetime.now(datetime.timezone.utc),
+            ),
+            bq, project=project, dataset=dataset,
+        )
+        return {"status": "unarchived", "run_id": run_id}
 
     @app.get("/admin/runs/{run_id}", response_class=HTMLResponse)
     def admin_run_detail(request: Request, run_id: str) -> HTMLResponse:

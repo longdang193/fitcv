@@ -16,12 +16,13 @@ def test_post_runs_inserts_before_enqueue():
     def fake_insert(*args, **kwargs):
         call_order.append("insert")
 
-    def fake_enqueue(*args, **kwargs):
+    def fake_enqueue_with_job(*args, **kwargs):
         call_order.append("enqueue")
-        return "run-123"
+        return "run-123", "rq-job-abc"
 
     with patch("fitcv_cp.app.insert_run", side_effect=fake_insert), \
-         patch("fitcv_cp.app.enqueue_run", side_effect=fake_enqueue), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", side_effect=fake_enqueue_with_job), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
@@ -630,3 +631,95 @@ def test_get_settings_renders_section_save_actions():
     assert "Save Retrieval Settings" in body
     assert "Save Timing Settings" in body
     assert "Save Global Job Filters" in body
+
+
+# ── Lifecycle API routes ─────────────────────────────────────────────────────
+
+def _make_run_mock(status="queued", archived_at=None, queue_job_id="rq-job-1"):
+    from fitcv_cp.models import PipelineRun, RunStatus
+    import datetime
+    return PipelineRun(
+        run_id="run-lifecycle-1",
+        status=RunStatus(status),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        queue_job_id=queue_job_id,
+        archived_at=archived_at,
+    )
+
+
+def test_admin_stop_queued_run_returns_json():
+    run = _make_run_mock(status="queued")
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.cancel_queued_run", return_value=True), \
+         patch("fitcv_cp.app.request_run_cancel"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/stop")
+    assert resp.status_code == 200
+    assert "cancelled" in resp.json().get("status", "")
+
+
+def test_admin_stop_succeeded_run_returns_409():
+    run = _make_run_mock(status="succeeded")
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/stop")
+    assert resp.status_code == 409
+
+
+def test_admin_stop_unknown_run_returns_404():
+    with patch("fitcv_cp.app.get_run", return_value=None):
+        resp = TestClient(_app()).post("/admin/runs/nonexistent/stop")
+    assert resp.status_code == 404
+
+
+def test_admin_archive_succeeded_run_returns_json():
+    run = _make_run_mock(status="succeeded")
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.archive_run"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/archive")
+    assert resp.status_code == 200
+
+
+def test_admin_archive_running_run_returns_409():
+    run = _make_run_mock(status="running")
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/archive")
+    assert resp.status_code == 409
+
+
+def test_admin_unarchive_archived_run_returns_json():
+    import datetime
+    run = _make_run_mock(status="succeeded", archived_at=datetime.datetime.now(datetime.timezone.utc))
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.unarchive_run"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/unarchive")
+    assert resp.status_code == 200
+
+
+def test_admin_unarchive_non_archived_run_returns_409():
+    run = _make_run_mock(status="succeeded", archived_at=None)
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/unarchive")
+    assert resp.status_code == 409
+
+
+def test_admin_runs_active_view_passes_archive_filter():
+    with patch("fitcv_cp.app.list_runs", return_value=[]) as mock_list:
+        resp = TestClient(_app()).get("/admin/runs?view=active")
+    assert resp.status_code == 200
+    call_kwargs = mock_list.call_args[1]
+    assert call_kwargs.get("include_archived") is False
+    assert call_kwargs.get("archived_only", False) is False
+
+
+def test_admin_runs_archived_view_passes_archived_only():
+    with patch("fitcv_cp.app.list_runs", return_value=[]) as mock_list:
+        resp = TestClient(_app()).get("/admin/runs?view=archived")
+    assert resp.status_code == 200
+    call_kwargs = mock_list.call_args[1]
+    assert call_kwargs.get("archived_only") is True
