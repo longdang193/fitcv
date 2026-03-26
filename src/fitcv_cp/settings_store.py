@@ -35,6 +35,41 @@ def save_setting(
         logger.error("BQ save_setting errors: %s", errors)
 
 
+def save_settings_group(
+    keys_values: dict[str, Any],
+    *,
+    updated_by: str,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> None:
+    """Write all keys in the group with a shared updated_at timestamp.
+
+    All rows are submitted in a single insert_rows_json batch call.
+    Raises RuntimeError if BigQuery rejects the batch, so callers can surface
+    the failure to the user rather than silently reporting success.
+
+    WARNING: BigQuery streaming inserts are not transactional. Validation must
+    always be completed before calling this function. Partial writes on BQ-level
+    partial failures are possible but accepted for this admin tool.
+    """
+    table = f"{project}.{dataset}.pipeline_settings"
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    rows = [
+        {
+            "setting_key": key,
+            "setting_value_json": json.dumps(value),
+            "updated_by": updated_by,
+            "updated_at": now,
+        }
+        for key, value in keys_values.items()
+    ]
+    errors = bq.insert_rows_json(table, rows)
+    if errors:
+        logger.error("BQ save_settings_group errors: %s", errors)
+        raise RuntimeError(f"Failed to save settings group: {errors}")
+
+
 def load_active_settings(*, bq: Any, project: str, dataset: str) -> dict[str, Any]:
     """Return the current active settings dict (latest row per key, coerced to Python types).
 

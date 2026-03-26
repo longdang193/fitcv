@@ -168,3 +168,29 @@ def test_global_job_filters_validate_accepts_positive():
         "global_job_filters.applications_count_max": 200,
         "global_job_filters.max_age_days": 30,
     })  # must not raise
+
+
+# ── RANKING_GROUPS registry ───────────────────────────────────────────────────
+
+def test_ranking_groups_has_three_slugs():
+    from fitcv_cp.settings_schema import RANKING_GROUPS
+    assert set(RANKING_GROUPS.keys()) == {"ranking-weights", "fit-label-thresholds", "gap-thresholds"}
+
+
+def test_ranking_groups_all_keys_in_schema():
+    from fitcv_cp.settings_schema import RANKING_GROUPS
+    schema_keys = {s["key"] for s in SETTINGS_SCHEMA}
+    for slug, keys in RANKING_GROUPS.items():
+        for key in keys:
+            assert key in schema_keys, f"{key!r} from group {slug!r} not found in SETTINGS_SCHEMA"
+
+
+def test_ranking_weights_group_has_six_keys():
+    from fitcv_cp.settings_schema import RANKING_GROUPS
+    assert len(RANKING_GROUPS["ranking-weights"]) == 6
+
+
+def test_ranking_groups_threshold_groups_have_two_keys_each():
+    from fitcv_cp.settings_schema import RANKING_GROUPS
+    assert len(RANKING_GROUPS["fit-label-thresholds"]) == 2
+    assert len(RANKING_GROUPS["gap-thresholds"]) == 2
