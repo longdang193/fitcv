@@ -175,7 +175,7 @@ def test_admin_run_detail_success_banner():
         resp = TestClient(_app()).get("/admin/runs/test-123")
     assert resp.status_code == 200
     assert "candidate CV(s) were successfully generated." in resp.text
-    assert "persisted to the <strong>cv_versions</strong> BigQuery table" in resp.text
+    assert "Persisted to the <strong>cv_versions</strong> BigQuery table." in resp.text
     assert 'href="/admin/cvs/v123/download"' in resp.text
     assert 'href="/admin/runs/test-123"' in resp.text
     assert "Refresh Status" in resp.text
@@ -576,3 +576,57 @@ def test_grouped_save_audit_identity_encoded_in_updated_by():
             },
         )
     assert captured.get("updated_by", "").startswith("admin:grp:")
+
+
+# ── POST /admin/settings/section/{section_name} ───────────────────────────────
+
+def test_post_settings_section_valid_redirects():
+    """Valid payload for retrieval section returns 303."""
+    with patch("fitcv_cp.app.save_settings_group"), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/retrieval",
+            data={
+                "pipeline.vector_search_top_n": "100",
+                "pipeline.ai_score_top_n": "20",
+                "pipeline.final_top_n": "10",
+                "pipeline.evidence_top_k": "5",
+            },
+        )
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/admin/settings"
+
+
+def test_post_settings_section_unknown_returns_404():
+    with patch("fitcv_cp.app.save_settings_group"), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/does-not-exist",
+            data={"some.key": "1"},
+        )
+    assert resp.status_code == 404
+
+
+def test_post_settings_section_invalid_value_returns_422():
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/retrieval",
+            data={
+                "pipeline.vector_search_top_n": "not-a-number",
+                "pipeline.ai_score_top_n": "20",
+                "pipeline.final_top_n": "10",
+                "pipeline.evidence_top_k": "5",
+            },
+        )
+    assert resp.status_code == 422
+
+
+def test_get_settings_renders_section_save_actions():
+    """GET /admin/settings renders section-level save labels, not per-row Save buttons."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    body = resp.text
+    assert "Save Retrieval Settings" in body
+    assert "Save Timing Settings" in body
+    assert "Save Global Job Filters" in body

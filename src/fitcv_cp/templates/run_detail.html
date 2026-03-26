@@ -2,26 +2,26 @@
 {% block title %}Run {{ run.run_id[:8] }} — FitCV Admin{% endblock %}
 {% block content %}
 
-<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap">
-  <h1 style="margin-bottom:0">Run <code style="font-size:1.1rem;color:#818cf8">{{ run.run_id }}</code></h1>
-  <a href="/admin/runs/{{ run.run_id }}" class="button" style="text-decoration:none;font-size:0.85rem">⟳ Refresh Status</a>
+<div class="page-header">
+  <h1>Run <code>{{ run.run_id }}</code></h1>
+  <a href="/admin/runs/{{ run.run_id }}" class="btn-secondary">⟳ Refresh Status</a>
 </div>
 
-<!-- ── Run Metadata Card ──────────────────────────────────────────────── -->
+<!-- ── Run Metadata Card ─────────────────────────────────────────────────── -->
 <div class="card">
   <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
-    <span class="badge badge-{{ run.status.value }}" style="font-size:0.8rem;padding:0.25rem 0.75rem">{{ run.status.value }}</span>
+    <span class="badge badge-{{ run.status.value }}">{{ run.status.value }}</span>
     {% if run.error_stage %}<span class="meta">failed at: <strong>{{ run.error_stage }}</strong></span>{% endif %}
   </div>
   <div class="kv">
     <span class="k">Triggered By</span><span class="v">{{ run.triggered_by }}</span>
     <span class="k">Jobs Path</span><span class="v"><code>{{ run.jobs_path }}</code></span>
     {% if run.jobs_input_source %}
-    <span class="k">Jobs Source</span><span class="v"><span class="badge badge-info" style="font-size:0.72rem">{{ run.jobs_input_source }}</span></span>
+    <span class="k">Jobs Source</span><span class="v"><span class="badge badge-info">{{ run.jobs_input_source }}</span></span>
     {% endif %}
     <span class="k">Config</span><span class="v"><code>{{ run.config_path }}</code></span>
     {% if run.candidate_profile_source %}
-    <span class="k">Profile Source</span><span class="v"><span class="badge badge-info" style="font-size:0.72rem">{{ run.candidate_profile_source }}</span></span>
+    <span class="k">Profile Source</span><span class="v"><span class="badge badge-info">{{ run.candidate_profile_source }}</span></span>
     {% endif %}
     <span class="k">Created</span><span class="v">{{ run.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.created_at else '—' }}</span>
     <span class="k">Started</span><span class="v">{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.started_at else '—' }}</span>
@@ -35,57 +35,57 @@
   </div>
 </div>
 
-<!-- ── Error Banner ───────────────────────────────────────────────────── -->
+<!-- ── Error Banner ──────────────────────────────────────────────────────── -->
 {% if run.status.value == 'failed' and run.error_message %}
 <div class="error-box">
   <strong>⚠ Pipeline Error{% if run.error_stage %} — {{ run.error_stage }}{% endif %}</strong>
-  <code style="font-size:0.82rem;color:#fca5a5;word-break:break-all">{{ run.error_message }}</code>
+  <code>{{ run.error_message }}</code>
 </div>
 {% endif %}
 
-<!-- ── CV Results Banner ──────────────────────────────────────────────── -->
+<!-- ── CV Results Banner ─────────────────────────────────────────────────── -->
 {% if run.status.value == 'succeeded' and run.cvs_generated is not none %}
-<div class="card" style="margin-bottom:2rem;background:#1e1b4b;border:1px solid #4338ca">
-  <h3 style="margin-top:0;margin-bottom:0.5rem;color:#818cf8;font-size:1.05rem">Pipeline Results</h3>
+<div class="results-card">
+  <h3>Pipeline Results</h3>
   {% if run.cvs_generated > 0 %}
-    <p style="color: #bbf7d0; font-size: 0.9rem;">
+    <p style="font-size:0.9rem;color:var(--badge-success-fg)">
       <strong>{{ run.cvs_generated }}</strong> candidate CV(s) were successfully generated.
-      The generated CV markdowns have been persisted to the <strong>cv_versions</strong> BigQuery table.
+      Persisted to the <strong>cv_versions</strong> BigQuery table.
     </p>
     {% if cv_versions %}
-      <div style="margin-top:1rem;background:#1e1b4b;border-top:1px solid #3730a3;padding-top:1rem">
-        <h4 style="color:#c7d2fe;font-size:0.95rem;margin:0 0 0.75rem 0">Generated Outputs:</h4>
+      <div style="margin-top:1rem;border-top:1px solid var(--accent);padding-top:1rem">
+        <h4 class="section-title" style="font-size:0.95rem;margin:0 0 0.75rem">Generated Outputs:</h4>
         <div style="display:flex;flex-direction:column;gap:0.75rem">
         {% for cv in cv_versions %}
-          <div style="display:flex;align-items:center;justify-content:space-between;background:#312e81;padding:0.6rem 0.8rem;border-radius:6px;border:1px solid #4f46e5">
+          <div class="cv-row">
             <div style="display:flex;align-items:center;gap:0.8rem">
-              <span class="badge badge-success" style="font-size:0.75rem;padding:0.15rem 0.5rem;text-transform:uppercase">{{ cv.fit_classification }}</span>
-              <a href="{{ cv.job_url }}" target="_blank" style="color:#a5b4fc;font-size:0.85rem;text-decoration:none">View Job ↗</a>
+              <span class="badge badge-success">{{ cv.fit_classification }}</span>
+              <a href="{{ cv.job_url }}" target="_blank">View Job ↗</a>
             </div>
-            <a href="/admin/cvs/{{ cv.version_id }}/download" class="button" style="text-decoration:none;font-size:0.8rem;padding:0.4rem 0.8rem">⬇ Download Markdown</a>
+            <a href="/admin/cvs/{{ cv.version_id }}/download" class="btn-secondary">⬇ Download Markdown</a>
           </div>
         {% endfor %}
         </div>
       </div>
     {% endif %}
   {% else %}
-    <p style="color: #fca5a5; font-size: 0.9rem;">
+    <p style="font-size:0.9rem;color:var(--badge-error-fg)">
       <strong>0</strong> candidate CVs were generated. No candidates passed the final AI ranking threshold.
     </p>
   {% endif %}
 </div>
 {% endif %}
 
-<!-- ── Inspection Tab Bar ─────────────────────────────────────────────── -->
-<div class="tab-bar" style="display:flex;gap:0.5rem;margin-bottom:0;border-bottom:2px solid #1e293b;padding-bottom:0">
-  <button class="tab-btn active" id="tab-btn-enriched"    onclick="showTab('enriched')">📊 Enriched Jobs</button>
-  <button class="tab-btn"        id="tab-btn-jobs-input"  onclick="showTab('jobs-input')">📄 Original Job Input</button>
-  <button class="tab-btn"        id="tab-btn-profile"     onclick="showTab('profile')">👤 Candidate Profile</button>
+<!-- ── Inspection Tab Bar ────────────────────────────────────────────────── -->
+<div class="tab-bar">
+  <button class="tab-btn active" id="tab-btn-enriched"   onclick="showTab('enriched')">📊 Enriched Jobs</button>
+  <button class="tab-btn"        id="tab-btn-jobs-input" onclick="showTab('jobs-input')">📄 Original Job Input</button>
+  <button class="tab-btn"        id="tab-btn-profile"    onclick="showTab('profile')">👤 Candidate Profile</button>
 </div>
 
-<!-- ── Tab 1: Enriched Jobs (default active) ─────────────────────────── -->
+<!-- ── Tab 1: Enriched Jobs (default active) ─────────────────────────────── -->
 <div class="tab-pane active" id="pane-enriched" style="margin-bottom:2rem">
-  <div class="card" style="padding:0;overflow:hidden;border-top-left-radius:0;border-top:none">
+  <div class="card" style="padding:0;overflow:hidden">
     {% if enriched_jobs %}
       <table>
         <thead>
@@ -103,32 +103,28 @@
           {% for job in enriched_jobs %}
           {% set fr = filter_results_by_job_url.get(job.job_url) %}
           <tr>
-            <td>
-              <a href="{{ job.job_url }}" target="_blank" style="color:#a5b4fc;text-decoration:none">
-                {{ job.title or job.job_url }}
-              </a>
-            </td>
-            <td><code style="font-size:0.78rem">{{ job.location_type or '—' }}</code></td>
-            <td><code style="font-size:0.78rem">{{ job.seniority or '—' }}</code></td>
-            <td><code style="font-size:0.78rem">{{ job.job_family or '—' }}</code></td>
-            <td><code style="font-size:0.78rem">{{ job.domain or '—' }}</code></td>
-            <td style="font-size:0.82rem;color:#94a3b8">
+            <td><a href="{{ job.job_url }}" target="_blank">{{ job.title or job.job_url }}</a></td>
+            <td><code>{{ job.location_type or '—' }}</code></td>
+            <td><code>{{ job.seniority or '—' }}</code></td>
+            <td><code>{{ job.job_family or '—' }}</code></td>
+            <td><code>{{ job.domain or '—' }}</code></td>
+            <td class="meta">
               {% if job.required_skills %}
-                {{ job.required_skills[:5] | join(', ') }}{% if job.required_skills | length > 5 %}, <em style="color:#6b7280">+{{ job.required_skills | length - 5 }} more</em>{% endif %}
+                {{ job.required_skills[:5] | join(', ') }}{% if job.required_skills | length > 5 %}, <em class="meta">+{{ job.required_skills | length - 5 }} more</em>{% endif %}
               {% else %}
                 —
               {% endif %}
             </td>
-            <td style="white-space:nowrap;font-size:0.78rem">
+            <td style="white-space:nowrap">
               {% if fr %}
                 {% if fr.passed %}
                   <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
                 {% else %}
                   <span class="badge badge-error" title="{{ fr.reasons | join(', ') }}">&#10007; reject</span>
-                  <div style="margin-top:0.3rem;color:#fca5a5;font-size:0.72rem">{{ fr.reasons | join(', ') }}</div>
+                  <div class="field-error" style="margin-top:0.3rem">{{ fr.reasons | join(', ') }}</div>
                 {% endif %}
               {% else %}
-                <span style="color:#4a5568">—</span>
+                <span class="empty-value">—</span>
               {% endif %}
             </td>
           </tr>
@@ -136,33 +132,31 @@
         </tbody>
       </table>
     {% else %}
-      <p style="color:#4a5568;text-align:center;padding:1.5rem">No enrichment data available for this run.</p>
+      <p class="meta" style="text-align:center;padding:1.5rem">No enrichment data available for this run.</p>
     {% endif %}
   </div>
 </div>
 
 {% if pre_enrichment_rejects %}
-<div style="margin:1.5rem 0;background:#1e1e2e;border-radius:0.75rem;border:1px solid #2d2d44;overflow:hidden">
+<div class="section-card" style="margin:1.5rem 0;padding:0;overflow:hidden">
   <details>
-    <summary style="padding:0.75rem 1.25rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;color:#94a3b8;font-size:0.8rem;user-select:none">
-      <span style="color:#f87171;font-weight:600">&#10007; Rejected before enrichment</span>
-      <span style="background:#7f1d1d;color:#fca5a5;font-size:0.7rem;padding:0.1rem 0.5rem;border-radius:999px;font-weight:600">{{ pre_enrichment_rejects | length }}</span>
-      <span style="margin-left:auto;color:#4b5563;font-size:0.7rem">These jobs were screened out by global filters before the enrichment step.</span>
+    <summary style="padding:0.75rem 1.25rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;user-select:none">
+      <span class="badge badge-error">&#10007; Rejected before enrichment</span>
+      <span class="badge badge-error" style="border-radius:999px">{{ pre_enrichment_rejects | length }}</span>
+      <span class="meta" style="margin-left:auto">Screened out by global filters before enrichment step.</span>
     </summary>
-    <table style="width:100%;font-size:0.78rem;border-collapse:collapse">
+    <table>
       <thead>
-        <tr style="color:#6b7280;text-align:left;border-bottom:1px solid #2d2d44">
-          <th style="padding:0.5rem 1.25rem">Job URL</th>
-          <th style="padding:0.5rem 1rem">Reject Reasons</th>
+        <tr>
+          <th>Job URL</th>
+          <th>Reject Reasons</th>
         </tr>
       </thead>
       <tbody>
         {% for row in pre_enrichment_rejects %}
-        <tr style="border-bottom:1px solid #1a1a2e">
-          <td style="padding:0.5rem 1.25rem">
-            <a href="{{ row.job_url }}" target="_blank" style="color:#a5b4fc;text-decoration:none;font-size:0.75rem">{{ row.job_url }}</a>
-          </td>
-          <td style="padding:0.5rem 1rem;color:#fca5a5">{{ row.reasons | join(', ') }}</td>
+        <tr>
+          <td><a href="{{ row.job_url }}" target="_blank" class="meta">{{ row.job_url }}</a></td>
+          <td class="field-error">{{ row.reasons | join(', ') }}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -171,38 +165,37 @@
 </div>
 {% endif %}
 
-<!-- ── Tab 2: Original Job Input ─────────────────────────────────────── -->
-<div class="tab-pane" id="pane-jobs-input" style="display:none;margin-bottom:2rem">
+<!-- ── Tab 2: Original Job Input ─────────────────────────────────────────── -->
+<div class="tab-pane" id="pane-jobs-input" style="margin-bottom:2rem">
   {% if run.jobs_input_json %}
     <div class="card">
       <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
-        <span class="badge badge-info" style="font-size:0.78rem">{{ run.jobs_input_source or 'paste' }}</span>
-        <span class="meta" style="font-size:0.82rem">Raw job payload captured at trigger time (immutable snapshot)</span>
+        <span class="badge badge-info">{{ run.jobs_input_source or 'paste' }}</span>
+        <span class="meta">Raw job payload captured at trigger time (immutable snapshot)</span>
       </div>
-      <pre style="background:#0f0f1a;border:1px solid #312e81;border-radius:6px;padding:1rem;overflow-x:auto;font-size:0.78rem;color:#c7d2fe;max-height:500px;overflow-y:auto">{{ run.jobs_input_json }}</pre>
+      <pre class="code-area" style="overflow-x:auto;max-height:500px;overflow-y:auto">{{ run.jobs_input_json }}</pre>
     </div>
   {% else %}
-    <div class="card" style="border-color:#334155">
+    <div class="card">
       <p class="meta" style="margin-bottom:0.5rem">
-        Source: {% if run.jobs_input_source %}<strong>{{ run.jobs_input_source }}</strong>{% else %}<span style="color:#64748b">— not recorded</span>{% endif %}
-        {% if run.jobs_path %}&nbsp;·&nbsp; Path: <code style="font-size:0.78rem">{{ run.jobs_path }}</code>{% endif %}
+        Source: {% if run.jobs_input_source %}<strong>{{ run.jobs_input_source }}</strong>{% else %}<span class="empty-value">— not recorded</span>{% endif %}
+        {% if run.jobs_path %}&nbsp;·&nbsp; Path: <code>{{ run.jobs_path }}</code>{% endif %}
       </p>
-      <p style="color:#64748b;font-size:0.85rem;margin:0">
+      <p class="meta">
         No immutable raw snapshot was stored for this run.
-        Only path-mode runs do not capture a raw JSON snapshot at trigger time. Paste and upload modes always store an immutable snapshot.
+        Paste and upload modes always store an immutable snapshot; path-mode runs do not.
       </p>
     </div>
   {% endif %}
 </div>
 
-<!-- ── Tab 3: Candidate Profile ──────────────────────────────────────── -->
-<div class="tab-pane" id="pane-profile" style="display:none;margin-bottom:2rem">
+<!-- ── Tab 3: Candidate Profile ──────────────────────────────────────────── -->
+<div class="tab-pane" id="pane-profile" style="margin-bottom:2rem">
   {% if candidate_profile_pretty %}
-    <!-- Formatted summary -->
     <div class="card" style="margin-bottom:1rem">
       <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem">
-        <span class="badge badge-info" style="font-size:0.78rem">{{ run.candidate_profile_source }}</span>
-        <span class="meta" style="font-size:0.82rem">Candidate profile captured at trigger time (immutable snapshot)</span>
+        <span class="badge badge-info">{{ run.candidate_profile_source }}</span>
+        <span class="meta">Candidate profile captured at trigger time (immutable snapshot)</span>
       </div>
       {% if candidate_profile_parsed %}
       <div class="kv">
@@ -213,7 +206,7 @@
         {% endif %}
         {% if candidate_profile_parsed.get('skills') %}
         <span class="k">Skills</span>
-        <span class="v">{{ candidate_profile_parsed.get('skills', [])[:8] | join(', ') }}{% if candidate_profile_parsed.get('skills', []) | length > 8 %} <em style="color:#6b7280">+{{ candidate_profile_parsed.get('skills', []) | length - 8 }} more</em>{% endif %}</span>
+        <span class="v">{{ candidate_profile_parsed.get('skills', [])[:8] | join(', ') }}{% if candidate_profile_parsed.get('skills', []) | length > 8 %} <em class="meta">+{{ candidate_profile_parsed.get('skills', []) | length - 8 }} more</em>{% endif %}</span>
         {% endif %}
         {% if prefs.get('location_types') %}
         <span class="k">Location Types</span>
@@ -230,19 +223,18 @@
       </div>
       {% endif %}
     </div>
-    <!-- Raw JSON -->
     <div class="card">
       <details open>
-        <summary style="cursor:pointer;color:#94a3b8;font-size:0.82rem;margin-bottom:0.75rem;user-select:none">▾ Raw JSON</summary>
-        <pre style="background:#0f0f1a;border:1px solid #312e81;border-radius:6px;padding:1rem;overflow-x:auto;font-size:0.78rem;color:#c7d2fe;max-height:500px;overflow-y:auto;margin:0">{{ candidate_profile_pretty }}</pre>
+        <summary class="meta" style="cursor:pointer;margin-bottom:0.75rem;user-select:none">▾ Raw JSON</summary>
+        <pre class="code-area" style="overflow-x:auto;max-height:500px;overflow-y:auto;margin:0">{{ candidate_profile_pretty }}</pre>
       </details>
     </div>
   {% else %}
-    <div class="card" style="border-color:#334155">
+    <div class="card">
       <p class="meta" style="margin-bottom:0.5rem">
-        Source: {% if run.candidate_profile_source %}<strong>{{ run.candidate_profile_source }}</strong>{% else %}<span style="color:#64748b">— not recorded</span>{% endif %}
+        Source: {% if run.candidate_profile_source %}<strong>{{ run.candidate_profile_source }}</strong>{% else %}<span class="empty-value">— not recorded</span>{% endif %}
       </p>
-      <p style="color:#64748b;font-size:0.85rem;margin:0">
+      <p class="meta">
         No candidate profile snapshot was stored for this run.
         Default-config and pre-feature runs do not capture a profile snapshot.
       </p>
@@ -250,7 +242,7 @@
   {% endif %}
 </div>
 
-<!-- ── Event Timeline (always visible, outside tabs) ─────────────────── -->
+<!-- ── Event Timeline (always visible) ──────────────────────────────────── -->
 <h2>Event Timeline</h2>
 <div class="card" style="padding:0;overflow:hidden">
   <table>
@@ -266,31 +258,16 @@
       {% for ev in events %}
       <tr>
         <td class="meta">{{ ev.created_at.strftime('%H:%M:%S') if ev.created_at else '—' }}</td>
-        <td><code style="font-size:0.78rem">{{ ev.stage }}</code></td>
+        <td><code>{{ ev.stage }}</code></td>
         <td><span class="badge badge-{{ ev.level }}">{{ ev.level }}</span></td>
-        <td style="font-size:0.82rem;color:#94a3b8;max-width:600px;word-break:break-word">{{ ev.message }}</td>
+        <td class="meta" style="max-width:600px;word-break:break-word">{{ ev.message }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="4" style="color:#4a5568;text-align:center;padding:2rem">No events yet</td></tr>
+      <tr class="empty-row"><td colspan="4">No events yet</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
-
-<style>
-.tab-bar { margin-bottom: 0; }
-.tab-btn {
-  background: #1e293b; color: #64748b; border: 1px solid #334155;
-  border-bottom: none; border-radius: 6px 6px 0 0;
-  padding: 0.5rem 1rem; font-size: 0.85rem; cursor: pointer;
-  transition: all 0.15s; position: relative; top: 2px;
-}
-.tab-btn:hover { background: #334155; color: #e2e8f0; }
-.tab-btn.active { background: #1e293b; color: #a5b4fc; border-color: #4f46e5; border-bottom-color: #1e293b; }
-.tab-pane { display: none; }
-.tab-pane.active { display: block; }
-.tab-pane > .card { border-top-left-radius: 0; border-top: none; }
-</style>
 
 <script>
 function showTab(id) {
