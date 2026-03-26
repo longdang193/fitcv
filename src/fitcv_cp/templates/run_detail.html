@@ -4,7 +4,22 @@
 
 <div class="page-header">
   <h1>Run <code>{{ run.run_id }}</code></h1>
-  <a href="/admin/runs/{{ run.run_id }}" class="btn-secondary">⟳ Refresh Status</a>
+  <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+    {% if run.archived_at %}
+      <span class="badge badge-warning">Archived</span>
+    {% endif %}
+    {% if run.status.value in ('queued', 'running') %}
+      <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'stop', this)">Stop Run</button>
+    {% elif run.status.value == 'cancelling' %}
+      <span class="meta" title="Waiting for next pipeline checkpoint">Cancellation pending…</span>
+    {% elif run.status.value in ('succeeded', 'failed', 'cancelled') and not run.archived_at %}
+      <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'archive', this)">Archive Run</button>
+    {% elif run.archived_at %}
+      <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'unarchive', this)">Unarchive Run</button>
+    {% endif %}
+    <a href="/admin/runs/{{ run.run_id }}" class="btn-secondary">⟳ Refresh Status</a>
+    <a href="/admin/runs" class="btn-secondary">← All Runs</a>
+  </div>
 </div>
 
 <!-- ── Run Metadata Card ─────────────────────────────────────────────────── -->
@@ -280,6 +295,34 @@ function showTab(id) {
   pane.style.display = 'block';
   pane.classList.add('active');
   document.getElementById('tab-btn-' + id).classList.add('active');
+}
+
+async function lifecycleAction(runId, action, btn) {
+  btn.disabled = true;
+  const origText = btn.textContent;
+  btn.textContent = '…';
+  try {
+    const resp = await fetch('/admin/runs/' + runId + '/' + action, { method: 'POST' });
+    if (resp.ok) {
+      location.reload();
+    } else {
+      const body = await resp.json().catch(() => ({ detail: resp.statusText }));
+      let banner = document.getElementById('lifecycle-error-banner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'lifecycle-error-banner';
+        banner.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);background:var(--badge-error-bg);color:var(--badge-error-fg);border:1px solid var(--badge-error-fg);padding:0.75rem 1.5rem;border-radius:8px;z-index:9999;font-size:0.9rem';
+        document.body.appendChild(banner);
+      }
+      banner.textContent = '⚠ ' + (body.detail || 'Action failed');
+      setTimeout(() => { if (banner) banner.remove(); }, 4000);
+      btn.disabled = false;
+      btn.textContent = origText;
+    }
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = origText;
+  }
 }
 </script>
 {% endblock %}
