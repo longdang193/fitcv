@@ -14,5 +14,11 @@ CREATE TABLE IF NOT EXISTS `{project}.{dataset}.pipeline_runs` (
   cvs_generated   INT64,
   error_message   STRING,
   error_stage     STRING    OPTIONS(description="stage name where the run failed"),
-  effective_settings_json STRING    OPTIONS(description="Merged config snapshot at trigger time")
+  effective_settings_json STRING    OPTIONS(description="Merged config snapshot at trigger time"),
+  -- lifecycle controls
+  queue_job_id          STRING    OPTIONS(description="RQ job id for queued run cancellation"),
+  cancel_requested_at   TIMESTAMP,
+  cancel_requested_by   STRING,
+  archived_at           TIMESTAMP,
+  archived_by           STRING
 );
