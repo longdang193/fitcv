@@ -20,13 +20,15 @@ def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None
             run_id, status, triggered_by, trigger_source,
             jobs_path, config_path, created_at, effective_settings_json,
             jobs_input_source, jobs_input_json,
-            candidate_profile_source, candidate_profile_json
+            candidate_profile_source, candidate_profile_json,
+            queue_job_id
         )
         VALUES (
             @run_id, @status, @triggered_by, @trigger_source,
             @jobs_path, @config_path, @created_at, @effective_settings_json,
             @jobs_input_source, @jobs_input_json,
-            @candidate_profile_source, @candidate_profile_json
+            @candidate_profile_source, @candidate_profile_json,
+            @queue_job_id
         )
     """
     job_config = bq_module.QueryJobConfig(
@@ -43,9 +45,11 @@ def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None
             bq_module.ScalarQueryParameter("jobs_input_json", "STRING", run.jobs_input_json),
             bq_module.ScalarQueryParameter("candidate_profile_source", "STRING", run.candidate_profile_source),
             bq_module.ScalarQueryParameter("candidate_profile_json", "STRING", run.candidate_profile_json),
+            bq_module.ScalarQueryParameter("queue_job_id", "STRING", run.queue_job_id),
         ]
     )
     bq.query(sql, job_config=job_config).result()
+
 
 
 def update_run_status(
@@ -117,12 +121,131 @@ def get_run(run_id: str, bq: Any, *, project: str, dataset: str) -> Optional[Pip
     return _row_to_run(rows[0]) if rows else None
 
 
-def list_runs(bq: Any, *, project: str, dataset: str, limit: int = 50) -> list[PipelineRun]:
+def list_runs(
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+    limit: int = 50,
+    include_archived: bool = False,
+    archived_only: bool = False,
+) -> list[PipelineRun]:
+    """List pipeline runs with archive visibility control.
+
+    - include_archived=False (default): active runs only (archived_at IS NULL)
+    - archived_only=True: archived runs only (archived_at IS NOT NULL)
+    - include_archived=True: all runs, no archive filter
+
+    DEPLOY NOTE: migration must be applied before this code is deployed.
+    """
+    if archived_only:
+        where = "WHERE archived_at IS NOT NULL"
+    elif not include_archived:
+        where = "WHERE archived_at IS NULL"
+    else:
+        where = ""
     sql = (
         f"SELECT * FROM `{project}.{dataset}.pipeline_runs` "
-        f"ORDER BY created_at DESC LIMIT {int(limit)}"
+        f"{where} ORDER BY created_at DESC LIMIT {int(limit)}"
     )
     return [_row_to_run(r) for r in bq.query(sql).result()]
+
+
+def update_run_queue_job_id(
+    run_id: str,
+    queue_job_id: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    """Persist the RQ job id onto the run row immediately after enqueue."""
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET queue_job_id = @queue_job_id WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("queue_job_id", "STRING", queue_job_id),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    bq.query(sql, job_config=job_config).result()
+
+
+def request_run_cancel(
+    run_id: str,
+    requested_by: str,
+    new_status: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    """Set cancel_requested_at/by and update status (running→cancelling, queued→cancelled)."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET cancel_requested_at = @cancel_requested_at, "
+        f"    cancel_requested_by = @cancel_requested_by, "
+        f"    status = @status "
+        f"WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("cancel_requested_at", "TIMESTAMP", now),
+            bq_module.ScalarQueryParameter("cancel_requested_by", "STRING", requested_by),
+            bq_module.ScalarQueryParameter("status", "STRING", new_status),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    bq.query(sql, job_config=job_config).result()
+
+
+def archive_run(
+    run_id: str,
+    archived_by: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    """Persist archive state on the run record (non-destructive)."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET archived_at = @archived_at, archived_by = @archived_by "
+        f"WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("archived_at", "TIMESTAMP", now),
+            bq_module.ScalarQueryParameter("archived_by", "STRING", archived_by),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    bq.query(sql, job_config=job_config).result()
+
+
+def unarchive_run(
+    run_id: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    """Clear archive state, returning run to the active list."""
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET archived_at = NULL, archived_by = NULL "
+        f"WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    bq.query(sql, job_config=job_config).result()
 
 
 def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunEvent]:
@@ -159,6 +282,11 @@ def _row_to_run(row: Any) -> PipelineRun:
         jobs_input_json=r.get("jobs_input_json"),
         candidate_profile_source=r.get("candidate_profile_source"),
         candidate_profile_json=r.get("candidate_profile_json"),
+        queue_job_id=r.get("queue_job_id"),
+        cancel_requested_at=r.get("cancel_requested_at"),
+        cancel_requested_by=r.get("cancel_requested_by"),
+        archived_at=r.get("archived_at"),
+        archived_by=r.get("archived_by"),
     )
 
 
