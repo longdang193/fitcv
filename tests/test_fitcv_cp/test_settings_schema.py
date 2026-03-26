@@ -194,3 +194,39 @@ def test_ranking_groups_threshold_groups_have_two_keys_each():
     from fitcv_cp.settings_schema import RANKING_GROUPS
     assert len(RANKING_GROUPS["fit-label-thresholds"]) == 2
     assert len(RANKING_GROUPS["gap-thresholds"]) == 2
+
+
+# ── SETTINGS_SECTIONS registry ────────────────────────────────────────────────
+
+def test_settings_sections_has_expected_slugs():
+    from fitcv_cp.settings_schema import SETTINGS_SECTIONS
+    assert set(SETTINGS_SECTIONS.keys()) == {"retrieval", "timing", "global-job-filters"}
+
+
+def test_settings_sections_all_keys_in_schema():
+    from fitcv_cp.settings_schema import SETTINGS_SECTIONS, SETTINGS_SCHEMA
+    schema_keys = {s["key"] for s in SETTINGS_SCHEMA}
+    for slug, keys in SETTINGS_SECTIONS.items():
+        for key in keys:
+            assert key in schema_keys, (
+                f"{key!r} from SETTINGS_SECTIONS[{slug!r}] not found in SETTINGS_SCHEMA"
+            )
+
+
+def test_settings_sections_no_key_appears_twice():
+    from fitcv_cp.settings_schema import SETTINGS_SECTIONS
+    seen: set[str] = set()
+    for slug, keys in SETTINGS_SECTIONS.items():
+        for key in keys:
+            assert key not in seen, f"{key!r} appears in multiple sections"
+            seen.add(key)
+
+
+def test_settings_sections_retrieval_has_four_keys():
+    from fitcv_cp.settings_schema import SETTINGS_SECTIONS
+    assert len(SETTINGS_SECTIONS["retrieval"]) == 4
+
+
+def test_settings_sections_global_job_filters_has_two_keys():
+    from fitcv_cp.settings_schema import SETTINGS_SECTIONS
+    assert len(SETTINGS_SECTIONS["global-job-filters"]) == 2

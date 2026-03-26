@@ -20,6 +20,7 @@ from fitcv_cp.queue import enqueue_run
 from fitcv_cp.settings_schema import (
     RANKING_GROUPS,
     SETTINGS_SCHEMA,
+    SETTINGS_SECTIONS,
     ValidationError,
     apply_settings_to_config,
     coerce_value,
@@ -414,6 +415,72 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             return _error_response(f"Save failed: {exc}")
 
         return RedirectResponse("/admin/settings", status_code=303)
+
+    @app.post("/admin/settings/section/{section_name}", response_class=HTMLResponse)
+    async def admin_settings_section_save(
+        request: Request, section_name: str
+    ) -> HTMLResponse:
+        """Section-level save for retrieval, timing, and global-job-filters.
+
+        Each key is validated independently (no cross-key constraints within a section).
+        A 422 is returned if any value fails validation, with section_errors populated
+        so the template can highlight offending fields.
+        """
+        from uuid import uuid4
+        from fastapi.responses import RedirectResponse as _Redirect
+
+        if section_name not in SETTINGS_SECTIONS:
+            raise HTTPException(status_code=404, detail=f"Unknown section: {section_name!r}")
+
+        keys = SETTINGS_SECTIONS[section_name]
+        form = await request.form()
+
+        coerced: dict = {}
+        section_errors: dict[str, str] = {}
+
+        for key in keys:
+            raw = form.get(key, "")
+            try:
+                coerced[key] = coerce_value(key, raw)
+            except (KeyError, ValueError) as exc:
+                section_errors[key] = str(exc)
+
+        # Run cross-key validation across all coerced values in this section
+        if not section_errors:
+            try:
+                validate_settings(coerced)
+            except ValidationError as exc:
+                section_errors[keys[0]] = str(exc)
+
+        def _section_error_response(errors: dict[str, str]) -> HTMLResponse:
+            active = load_active_settings(bq=bq, project=project, dataset=dataset)
+            return templates.TemplateResponse(
+                request=request,
+                name="settings.html",
+                context={
+                    "schema": SETTINGS_SCHEMA,
+                    "active": active,
+                    "ranking_weight_keys": RANKING_GROUPS["ranking-weights"],
+                    "ranking_groups": RANKING_GROUPS,
+                    "section_errors": errors,
+                    "section_draft": {key: form.get(key, "") for key in keys},
+                },
+                status_code=422,
+            )
+
+        if section_errors:
+            return _section_error_response(section_errors)
+
+        update_id = str(uuid4())
+        updated_by = f"admin:section:{update_id}"
+        try:
+            save_settings_group(
+                coerced, updated_by=updated_by, bq=bq, project=project, dataset=dataset
+            )
+        except RuntimeError as exc:
+            return _section_error_response({keys[0]: f"Save failed: {exc}"})
+
+        return _Redirect("/admin/settings", status_code=303)
 
     @app.get("/admin/runs", response_class=HTMLResponse)
     def admin_runs(request: Request) -> HTMLResponse:
