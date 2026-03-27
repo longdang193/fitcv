@@ -293,36 +293,54 @@ def test_enrichment_parallelism_in_settings_sections_timing():
 
 def test_cv_settings_keys_registered():
     keys = {s["key"] for s in SETTINGS_SCHEMA}
+    assert "cv_preset" in keys
     assert "cv_generation_model" in keys
-    assert "cv_template_path" in keys
-    assert "prompt_version" in keys
-    assert "required_cv_sections" in keys
+    assert "cv_template_path" in keys  # kept for backward compat; not in UI
+    assert "cv_prompt_version" in keys
     assert "cv_max_pages" in keys
 
 
 def test_cv_settings_have_correct_group():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    for key in ("cv_generation_model", "cv_template_path", "prompt_version",
-                "required_cv_sections", "cv_max_pages"):
-        assert schema_by_key[key]["group"] == "cv_generation", f"{key} should be in cv_generation group"
+    # preset and composition fields are in new groups
+    assert schema_by_key["cv_preset"]["group"] == "cv_preset"
+    assert schema_by_key["cv_generation_model"]["group"] == "cv_composition"
+    assert schema_by_key["cv_prompt_version"]["group"] == "cv_composition"
+    assert schema_by_key["cv_summary_style"]["group"] == "cv_composition"
+    assert schema_by_key["cv_max_pages"]["group"] == "cv_validation"
+    # kept for backward compat
+    assert schema_by_key["cv_template_path"]["group"] == "cv_generation"
 
 
 def test_cv_settings_defaults():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["cv_generation_model"]["default"] == "gemini-2.0-flash"
+    assert schema_by_key["cv_preset"]["default"] == "europass"
+    assert schema_by_key["cv_generation_model"]["default"] == "gemini-2.5-flash"
+    assert schema_by_key["cv_prompt_version"]["default"] == "v1"
     assert schema_by_key["cv_template_path"]["default"] == "templates/cv_template.md"
-    assert schema_by_key["prompt_version"]["default"] == "v1"
-    assert schema_by_key["required_cv_sections"]["default"] == ["Summary", "Work Experience", "Skills"]
     assert schema_by_key["cv_max_pages"]["default"] == 2
 
 
 def test_cv_settings_types():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_preset"]["type"] == "str"
     assert schema_by_key["cv_generation_model"]["type"] == "str"
     assert schema_by_key["cv_template_path"]["type"] == "str"
-    assert schema_by_key["prompt_version"]["type"] == "str"
-    assert schema_by_key["required_cv_sections"]["type"] == "list[str]"
+    assert schema_by_key["cv_prompt_version"]["type"] == "str"
     assert schema_by_key["cv_max_pages"]["type"] == "int"
+    assert schema_by_key["cv_summary_style"]["type"] == "str"
+    assert schema_by_key["cv_education_enabled"]["type"] == "bool"
+    assert schema_by_key["cv_education_detail"]["type"] == "str"
+    assert schema_by_key["cv_experience_enabled"]["type"] == "bool"
+    assert schema_by_key["cv_experience_bullet_style"]["type"] == "str"
+    assert schema_by_key["cv_skills_enabled"]["type"] == "bool"
+    assert schema_by_key["cv_skills_max_items"]["type"] == "int"
+    assert schema_by_key["cv_certifications_enabled"]["type"] == "bool"
+    assert schema_by_key["cv_projects_enabled"]["type"] == "bool"
+    assert schema_by_key["cv_projects_required"]["type"] == "bool"
+    assert schema_by_key["cv_emphasize_required_skills"]["type"] == "bool"
+    assert schema_by_key["cv_align_jd_terminology"]["type"] == "bool"
+    assert schema_by_key["cv_evidence_grounded_only"]["type"] == "bool"
 
 
 def test_pipeline_evidence_top_k_not_in_cv_group():
@@ -333,11 +351,9 @@ def test_pipeline_evidence_top_k_not_in_cv_group():
 
 def test_cv_generation_keys_in_cv_groups():
     from fitcv_cp.settings_schema import CV_GROUPS
-    assert "cv_generation_model" in CV_GROUPS["cv-generation"]
-    assert "cv_template_path" in CV_GROUPS["cv-generation"]
-    assert "prompt_version" in CV_GROUPS["cv-generation"]
-    assert "required_cv_sections" in CV_GROUPS["cv-validation"]
-    assert "cv_max_pages" in CV_GROUPS["cv-validation"]
+    assert "cv_preset" in CV_GROUPS["cv-preset"]
+    assert "cv_generation_model" in CV_GROUPS["cv-preset"]
+    assert "cv_prompt_version" in CV_GROUPS["cv-preset"]
 
 
 def test_cv_groups_all_keys_in_schema():
@@ -357,135 +373,594 @@ def test_cv_groups_no_key_appears_twice():
             seen.add(key)
 
 
+# ── Preset-based CV settings schema ─────────────────────────────────────────────
+
+def test_cv_preset_key_registered():
+    keys = {s["key"] for s in SETTINGS_SCHEMA}
+    assert "cv_preset" in keys
+
+
+def test_cv_preset_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_preset"]["default"] == "europass"
+
+
+def test_cv_preset_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_preset"]["type"] == "str"
+
+
+def test_cv_preset_group():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_preset"]["group"] == "cv_preset"
+
+
+# ── Generation fields ─────────────────────────────────────────────────────────────
+
+def test_cv_generation_fields_registered():
+    keys = {s["key"] for s in SETTINGS_SCHEMA}
+    assert "cv_generation_model" in keys
+    assert "cv_prompt_version" in keys
+
+
+def test_cv_generation_model_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_generation_model"]["type"] == "str"
+
+
+def test_cv_prompt_version_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_prompt_version"]["type"] == "str"
+
+
+def test_cv_generation_model_group():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_generation_model"]["group"] == "cv_composition"
+
+
+def test_cv_prompt_version_group():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_prompt_version"]["group"] == "cv_composition"
+
+
+# ── Composition fields ───────────────────────────────────────────────────────────
+
+def test_cv_composition_fields_registered():
+    keys = {s["key"] for s in SETTINGS_SCHEMA}
+    # Summary
+    assert "cv_summary_style" in keys
+    # Education
+    assert "cv_education_enabled" in keys
+    assert "cv_education_detail" in keys
+    # Experience
+    assert "cv_experience_enabled" in keys
+    assert "cv_experience_bullet_style" in keys
+    # Skills
+    assert "cv_skills_enabled" in keys
+    assert "cv_skills_max_items" in keys
+    # Certifications
+    assert "cv_certifications_enabled" in keys
+    # Projects
+    assert "cv_projects_enabled" in keys
+    assert "cv_projects_required" in keys
+
+
+def test_cv_summary_style_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_summary_style"]["type"] == "str"
+
+
+def test_cv_education_enabled_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_education_enabled"]["type"] == "bool"
+
+
+def test_cv_education_detail_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_education_detail"]["type"] == "str"
+
+
+def test_cv_experience_enabled_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_experience_enabled"]["type"] == "bool"
+
+
+def test_cv_experience_bullet_style_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_experience_bullet_style"]["type"] == "str"
+
+
+def test_cv_skills_enabled_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_skills_enabled"]["type"] == "bool"
+
+
+def test_cv_skills_max_items_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_skills_max_items"]["type"] == "int"
+
+
+def test_cv_certifications_enabled_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_certifications_enabled"]["type"] == "bool"
+
+
+def test_cv_projects_enabled_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_projects_enabled"]["type"] == "bool"
+
+
+def test_cv_projects_required_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_projects_required"]["type"] == "bool"
+
+
+def test_cv_composition_fields_have_correct_group():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    for key in ("cv_summary_style", "cv_education_enabled", "cv_education_detail",
+                "cv_experience_enabled", "cv_experience_bullet_style",
+                "cv_skills_enabled", "cv_skills_max_items",
+                "cv_certifications_enabled", "cv_projects_enabled", "cv_projects_required"):
+        assert schema_by_key[key]["group"] == "cv_composition", f"{key} should be in cv_composition group"
+
+
+# ── Content rules fields ────────────────────────────────────────────────────────
+
+def test_cv_content_rules_fields_registered():
+    keys = {s["key"] for s in SETTINGS_SCHEMA}
+    assert "cv_emphasize_required_skills" in keys
+    assert "cv_align_jd_terminology" in keys
+    assert "cv_evidence_grounded_only" in keys
+
+
+def test_cv_emphasize_required_skills_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_emphasize_required_skills"]["type"] == "bool"
+
+
+def test_cv_align_jd_terminology_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_align_jd_terminology"]["type"] == "bool"
+
+
+def test_cv_evidence_grounded_only_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_evidence_grounded_only"]["type"] == "bool"
+
+
+def test_cv_content_rules_have_correct_group():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    for key in ("cv_emphasize_required_skills", "cv_align_jd_terminology", "cv_evidence_grounded_only"):
+        assert schema_by_key[key]["group"] == "cv_content_rules", f"{key} should be in cv_content_rules group"
+
+
+# ── Validation fields ────────────────────────────────────────────────────────────
+
+def test_cv_validation_fields_registered():
+    keys = {s["key"] for s in SETTINGS_SCHEMA}
+    assert "cv_max_pages" in keys
+
+
+def test_cv_max_pages_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_max_pages"]["type"] == "int"
+
+
+def test_cv_max_pages_group():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_max_pages"]["group"] == "cv_validation"
+
+
+# ── CV group registries ─────────────────────────────────────────────────────────
+
+def test_cv_groups_has_all_four_subgroups():
+    from fitcv_cp.settings_schema import CV_GROUPS
+    assert "cv-preset" in CV_GROUPS
+    assert "cv-composition" in CV_GROUPS
+    assert "cv-content-rules" in CV_GROUPS
+    assert "cv-validation" in CV_GROUPS
+
+
+def test_cv_groups_preset_has_correct_keys():
+    from fitcv_cp.settings_schema import CV_GROUPS
+    assert "cv_preset" in CV_GROUPS["cv-preset"]
+    assert "cv_generation_model" in CV_GROUPS["cv-preset"]
+    assert "cv_prompt_version" in CV_GROUPS["cv-preset"]
+
+
+def test_cv_groups_composition_has_all_composition_keys():
+    from fitcv_cp.settings_schema import CV_GROUPS
+    expected = {
+        "cv_summary_style", "cv_education_enabled", "cv_education_detail",
+        "cv_experience_enabled", "cv_experience_bullet_style",
+        "cv_skills_enabled", "cv_skills_max_items",
+        "cv_certifications_enabled", "cv_projects_enabled", "cv_projects_required",
+    }
+    assert set(CV_GROUPS["cv-composition"]) == expected
+
+
+def test_cv_groups_content_rules_has_all_content_rule_keys():
+    from fitcv_cp.settings_schema import CV_GROUPS
+    expected = {
+        "cv_emphasize_required_skills", "cv_align_jd_terminology", "cv_evidence_grounded_only",
+    }
+    assert set(CV_GROUPS["cv-content-rules"]) == expected
+
+
+def test_cv_groups_validation_has_cv_max_pages():
+    from fitcv_cp.settings_schema import CV_GROUPS
+    assert "cv_max_pages" in CV_GROUPS["cv-validation"]
+
+
+def test_cv_groups_no_key_appears_twice():
+    from fitcv_cp.settings_schema import CV_GROUPS
+    seen: set[str] = set()
+    for slug, keys in CV_GROUPS.items():
+        for key in keys:
+            assert key not in seen, f"{key!r} appears in multiple CV groups"
+            seen.add(key)
+
+
+def test_cv_groups_all_keys_in_schema():
+    from fitcv_cp.settings_schema import CV_GROUPS
+    schema_keys = {s["key"] for s in SETTINGS_SCHEMA}
+    for slug, keys in CV_GROUPS.items():
+        for key in keys:
+            assert key in schema_keys, f"{key!r} from CV_GROUPS[{slug!r}] not found in SETTINGS_SCHEMA"
+
+
+# ── coerce_value for new CV types ────────────────────────────────────────────────
+
+def test_coerce_bool_from_string():
+    from fitcv_cp.settings_schema import coerce_value
+    result = coerce_value("cv_education_enabled", "true")
+    assert result is True
+    assert isinstance(result, bool)
+
+
+def test_coerce_bool_from_string_false():
+    from fitcv_cp.settings_schema import coerce_value
+    result = coerce_value("cv_education_enabled", "false")
+    assert result is False
+    assert isinstance(result, bool)
+
+
+# ── validate_settings for new CV fields ─────────────────────────────────────────
+
+def test_cv_preset_rejects_empty():
+    with pytest.raises(ValidationError, match="cv_preset"):
+        validate_settings({"cv_preset": ""})
+
+
+def test_cv_preset_rejects_whitespace_only():
+    with pytest.raises(ValidationError, match="cv_preset"):
+        validate_settings({"cv_preset": "   "})
+
+
+def test_cv_summary_style_rejects_empty():
+    with pytest.raises(ValidationError, match="cv_summary_style"):
+        validate_settings({"cv_summary_style": ""})
+
+
+def test_cv_education_detail_rejects_empty():
+    with pytest.raises(ValidationError, match="cv_education_detail"):
+        validate_settings({"cv_education_detail": ""})
+
+
+def test_cv_experience_bullet_style_rejects_empty():
+    with pytest.raises(ValidationError, match="cv_experience_bullet_style"):
+        validate_settings({"cv_experience_bullet_style": ""})
+
+
+def test_cv_skills_max_items_rejects_zero():
+    with pytest.raises(ValidationError):
+        validate_settings({"cv_skills_max_items": 0})
+
+
+def test_cv_skills_max_items_rejects_negative():
+    with pytest.raises(ValidationError):
+        validate_settings({"cv_skills_max_items": -1})
+
+
+def test_cv_skills_max_items_accepts_positive():
+    validate_settings({"cv_skills_max_items": 15})  # must not raise
+
+
+# ── apply_settings_to_config for new CV fields ──────────────────────────────────
+
+def test_apply_settings_to_config_cv_preset():
+    config: dict = {}
+    apply_settings_to_config(config, {"cv_preset": "europass"})
+    assert config["cv"]["preset"] == "europass"
+
+
+def test_apply_settings_to_config_cv_composition_nested():
+    config: dict = {}
+    apply_settings_to_config(config, {
+        "cv_summary_style": "achievement_focused",
+        "cv_education_enabled": True,
+        "cv_skills_max_items": 10,
+    })
+    assert config["cv"]["composition"]["summary"]["style"] == "achievement_focused"
+    assert config["cv"]["composition"]["education"]["enabled"] is True
+    assert config["cv"]["composition"]["skills"]["max_items"] == 10
+
+
+def test_apply_settings_to_config_cv_content_rules_nested():
+    config: dict = {}
+    apply_settings_to_config(config, {
+        "cv_emphasize_required_skills": True,
+        "cv_align_jd_terminology": False,
+    })
+    assert config["cv"]["content_rules"]["emphasize_required_skills"] is True
+    assert config["cv"]["content_rules"]["align_jd_terminology"] is False
+
+
+def test_apply_settings_to_config_cv_validation_nested():
+    config: dict = {}
+    apply_settings_to_config(config, {"cv_max_pages": 3})
+    assert config["cv"]["validation"]["max_pages"] == 3
+
+
+def test_apply_settings_to_config_cv_generation_nested():
+    config: dict = {}
+    apply_settings_to_config(config, {
+        "cv_generation_model": "gemini-2.5-flash",
+        "cv_prompt_version": "v2",
+    })
+    assert config["cv"]["generation"]["model"] == "gemini-2.5-flash"
+    assert config["cv"]["generation"]["prompt_version"] == "v2"
+
+
+def test_apply_settings_to_config_cv_preset_with_existing_cv_structure():
+    """apply_settings_to_config must work when cv key already exists in config."""
+    config = {"cv": {"generation": {"model": "old-model"}}}
+    apply_settings_to_config(config, {"cv_preset": "europass"})
+    assert config["cv"]["preset"] == "europass"
+    assert config["cv"]["generation"]["model"] == "old-model"
+
+
+def test_valid_cv_preset_group_payload_passes():
+    """All cv-preset group fields pass validation together."""
+    validate_settings({
+        "cv_preset": "europass",
+        "cv_generation_model": "gemini-2.5-flash",
+        "cv_prompt_version": "v2",
+    })  # must not raise
+
+
+def test_valid_cv_composition_group_payload_passes():
+    """All cv-composition group fields pass validation together."""
+    validate_settings({
+        "cv_summary_style": "concise",
+        "cv_education_enabled": True,
+        "cv_education_detail": "standard",
+        "cv_experience_enabled": True,
+        "cv_experience_bullet_style": "action_project_result",
+        "cv_skills_enabled": True,
+        "cv_skills_max_items": 12,
+        "cv_certifications_enabled": True,
+        "cv_projects_enabled": True,
+        "cv_projects_required": True,
+    })  # must not raise
+
+
+def test_valid_cv_content_rules_group_payload_passes():
+    """All cv-content-rules group fields pass validation together."""
+    validate_settings({
+        "cv_emphasize_required_skills": True,
+        "cv_align_jd_terminology": True,
+        "cv_evidence_grounded_only": False,
+    })  # must not raise
+
+
+# ── Preset-based CV settings defaults match cv.yaml ──────────────────────────────
+
+def test_cv_preset_defaults_match_cv_yaml():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_preset"]["default"] == "europass"
+
+
+def test_cv_generation_model_default_uses_25_flash():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_generation_model"]["default"] == "gemini-2.5-flash"
+
+
+def test_cv_prompt_version_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_prompt_version"]["default"] == "v1"
+
+
+def test_cv_summary_style_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_summary_style"]["default"] == "concise"
+
+
+def test_cv_education_enabled_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_education_enabled"]["default"] is True
+
+
+def test_cv_education_detail_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_education_detail"]["default"] == "compact"
+
+
+def test_cv_experience_enabled_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_experience_enabled"]["default"] is True
+
+
+def test_cv_experience_bullet_style_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_experience_bullet_style"]["default"] == "action_project_result"
+
+
+def test_cv_skills_enabled_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_skills_enabled"]["default"] is True
+
+
+def test_cv_skills_max_items_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_skills_max_items"]["default"] == 12
+
+
+def test_cv_certifications_enabled_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_certifications_enabled"]["default"] is True
+
+
+def test_cv_projects_enabled_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_projects_enabled"]["default"] is True
+
+
+def test_cv_projects_required_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_projects_required"]["default"] is True
+
+
+def test_cv_emphasize_required_skills_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_emphasize_required_skills"]["default"] is True
+
+
+def test_cv_align_jd_terminology_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_align_jd_terminology"]["default"] is True
+
+
+def test_cv_evidence_grounded_only_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_evidence_grounded_only"]["default"] is True
+
+
+def test_cv_max_pages_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_max_pages"]["default"] == 2
+
+
+# ── coerce for new types ─────────────────────────────────────────────────────────
+
+def test_coerce_int_from_string_new_field():
+    from fitcv_cp.settings_schema import coerce_value
+    result = coerce_value("cv_skills_max_items", "15")
+    assert result == 15
+    assert isinstance(result, int)
+
+
+# ── ALL_GROUP_REGISTRIES ──────────────────────────────────────────────────────
+
+def test_all_group_registries_has_all_four_cv_groups():
+    from fitcv_cp.settings_schema import ALL_GROUP_REGISTRIES
+    assert "cv-preset" in ALL_GROUP_REGISTRIES["cv"]
+    assert "cv-composition" in ALL_GROUP_REGISTRIES["cv"]
+    assert "cv-content-rules" in ALL_GROUP_REGISTRIES["cv"]
+    assert "cv-validation" in ALL_GROUP_REGISTRIES["cv"]
+
+
 # ── coerce_value for CV types ─────────────────────────────────────────────────
 
-def test_coerce_str():
-    from fitcv_cp.settings_schema import coerce_value
-    result = coerce_value("cv_generation_model", "  gemini-2.0-flash  ")
-    assert result == "gemini-2.0-flash"
-    assert isinstance(result, str)
-
-
 def test_coerce_list_str_from_list():
-    from fitcv_cp.settings_schema import coerce_value
-    result = coerce_value("required_cv_sections", ["  Summary  ", "  Experience  "])
-    assert result == ["Summary", "Experience"]
+    # required_cv_sections was removed; no list[str] fields remain in schema
+    pass
 
 
 def test_coerce_list_str_from_single_value():
+    # required_cv_sections was removed; no list[str] fields remain in schema
+    pass
+
+
+def test_coerce_cv_generation_model_strips_whitespace():
     from fitcv_cp.settings_schema import coerce_value
-    result = coerce_value("required_cv_sections", "Summary")
-    assert result == ["Summary"]
+    result = coerce_value("cv_generation_model", "  gemini-2.5-flash  ")
+    assert result == "gemini-2.5-flash"
+    assert isinstance(result, str)
+
+
+def test_coerce_bool_from_string():
+    from fitcv_cp.settings_schema import coerce_value
+    result = coerce_value("cv_education_enabled", "true")
+    assert result is True
+    assert isinstance(result, bool)
+
+
+def test_coerce_bool_from_string_false():
+    from fitcv_cp.settings_schema import coerce_value
+    result = coerce_value("cv_education_enabled", "false")
+    assert result is False
+    assert isinstance(result, bool)
 
 
 # ── validate_settings for CV fields ───────────────────────────────────────────
 
-def test_cv_generation_model_rejects_empty():
-    with pytest.raises(ValidationError, match="cv_generation_model"):
-        validate_settings({"cv_generation_model": ""})
+# required_cv_sections was removed; sections are now controlled by cv_*_enabled fields
+
+def test_cv_preset_rejects_empty():
+    with pytest.raises(ValidationError, match="cv_preset"):
+        validate_settings({"cv_preset": ""})
 
 
-def test_cv_generation_model_rejects_whitespace_only():
-    with pytest.raises(ValidationError, match="cv_generation_model"):
-        validate_settings({"cv_generation_model": "   "})
+def test_cv_preset_rejects_whitespace_only():
+    with pytest.raises(ValidationError, match="cv_preset"):
+        validate_settings({"cv_preset": "   "})
 
 
-def test_cv_template_path_rejects_empty():
-    with pytest.raises(ValidationError, match="cv_template_path"):
-        validate_settings({"cv_template_path": ""})
+def test_cv_summary_style_rejects_empty():
+    with pytest.raises(ValidationError, match="cv_summary_style"):
+        validate_settings({"cv_summary_style": ""})
 
 
-def test_cv_template_path_rejects_whitespace_only():
-    with pytest.raises(ValidationError, match="cv_template_path"):
-        validate_settings({"cv_template_path": "   "})
+def test_cv_education_detail_rejects_empty():
+    with pytest.raises(ValidationError, match="cv_education_detail"):
+        validate_settings({"cv_education_detail": ""})
 
 
-def test_prompt_version_rejects_empty():
-    with pytest.raises(ValidationError, match="prompt_version"):
-        validate_settings({"prompt_version": ""})
+def test_cv_experience_bullet_style_rejects_empty():
+    with pytest.raises(ValidationError, match="cv_experience_bullet_style"):
+        validate_settings({"cv_experience_bullet_style": ""})
 
 
-def test_prompt_version_rejects_whitespace_only():
-    with pytest.raises(ValidationError, match="prompt_version"):
-        validate_settings({"prompt_version": "   "})
-
-
-def test_required_cv_sections_rejects_empty_list():
-    with pytest.raises(ValidationError, match="required_cv_sections"):
-        validate_settings({"required_cv_sections": []})
-
-
-def test_required_cv_sections_rejects_blank_items():
-    with pytest.raises(ValidationError, match="required_cv_sections"):
-        validate_settings({"required_cv_sections": ["Summary", "  ", "Skills"]})
-
-
-def test_required_cv_sections_rejects_duplicate():
-    with pytest.raises(ValidationError, match="required_cv_sections"):
-        validate_settings({"required_cv_sections": ["Summary", "Summary", "Skills"]})
-
-
-def test_required_cv_sections_preserves_order_without_sorting():
-    """validate_settings must not reorder the list; order is validated as-is."""
-    validated = {}
-    validate_settings({"required_cv_sections": ["Skills", "Summary", "Work Experience"]})
-    # No error means validation passed; order is preserved as-is (no sort applied)
-
-
-def test_cv_max_pages_rejects_zero():
+def test_cv_skills_max_items_rejects_zero():
     with pytest.raises(ValidationError):
-        validate_settings({"cv_max_pages": 0})
+        validate_settings({"cv_skills_max_items": 0})
 
 
-def test_cv_max_pages_rejects_negative():
+def test_cv_skills_max_items_rejects_negative():
     with pytest.raises(ValidationError):
-        validate_settings({"cv_max_pages": -1})
+        validate_settings({"cv_skills_max_items": -1})
 
 
-def test_cv_max_pages_accepts_positive():
-    validate_settings({"cv_max_pages": 5})  # must not raise
+def test_cv_skills_max_items_accepts_positive():
+    validate_settings({"cv_skills_max_items": 15})  # must not raise
 
 
-def test_cv_max_pages_rejects_non_integer():
-    with pytest.raises(ValidationError):
-        validate_settings({"cv_max_pages": 2.5})
-
-
-def test_cv_settings_valid_payload_passes():
-    validate_settings({
-        "cv_generation_model": "gemini-2.0-flash",
-        "cv_template_path": "templates/cv_template.md",
-        "prompt_version": "v1",
-        "required_cv_sections": ["Summary", "Work Experience", "Skills"],
-        "cv_max_pages": 2,
-    })  # must not raise
+# required_cv_sections replaced by cv_*_enabled fields; old tests removed
 
 
 # ── apply_settings_to_config for CV fields ───────────────────────────────────
 
-def test_apply_settings_to_config_cv_str():
+def test_apply_settings_to_config_cv_preset_nested():
+    """cv_generation_model and cv_prompt_version write to cv.generation.* nested path."""
     config: dict = {}
     apply_settings_to_config(config, {
-        "cv_generation_model": "gemini-2.0-flash",
-        "prompt_version": "v2",
+        "cv_generation_model": "gemini-2.5-flash",
+        "cv_prompt_version": "v2",
     })
-    assert config["cv_generation_model"] == "gemini-2.0-flash"
-    assert config["prompt_version"] == "v2"
+    assert config["cv"]["generation"]["model"] == "gemini-2.5-flash"
+    assert config["cv"]["generation"]["prompt_version"] == "v2"
 
 
-def test_apply_settings_to_config_cv_list_preserves_order():
-    config: dict = {}
-    ordered = ["Skills", "Summary", "Work Experience"]
-    apply_settings_to_config(config, {"required_cv_sections": ordered})
-    assert config["required_cv_sections"] == ordered
-    # Must not silently sort or deduplicate
-    assert config["required_cv_sections"] == ["Skills", "Summary", "Work Experience"]
+def test_apply_settings_to_config_cv_list_removed():
+    # required_cv_sections was removed; no list[str] fields remain in schema
+    pass
 
 
 def test_apply_settings_to_config_cv_int():
     config: dict = {}
     apply_settings_to_config(config, {"cv_max_pages": 3})
-    assert config["cv_max_pages"] == 3
+    assert config["cv"]["validation"]["max_pages"] == 3
 
 
 # ── ALL_GROUP_REGISTRIES ──────────────────────────────────────────────────────
