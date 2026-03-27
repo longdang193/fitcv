@@ -888,3 +888,143 @@ def test_enrich_job_fallback_empty_on_bad_text(caplog: pytest.LogCaptureFixture)
 
     assert result["required_skills"] == []
     assert result["location_type"] is None
+
+
+# ── bounded parallel enrichment (Tasks 3 + 4) ─────────────────────────────────
+
+def _fake_enrich_job(job: dict, config: dict) -> dict:
+    """Simple fake: echoes job with enriched=True marker."""
+    return {**job, "enriched": True}
+
+
+def test_enrich_batch_preserves_input_order_under_parallel_batches() -> None:
+    """Result order must match input order regardless of batch completion order."""
+    from unittest.mock import patch
+    from fitcv.enrich import enrich_batch
+
+    jobs = [{"job_url": f"u{i}"} for i in range(6)]
+    with patch("fitcv.enrich.enrich_job", side_effect=_fake_enrich_job), \
+         patch("time.sleep"):
+        result = enrich_batch(
+            jobs,
+            config={"enrichment_batch_size": 2, "enrichment_concurrency": 3},
+        )
+
+    assert [r["job_url"] for r in result] == [f"u{i}" for i in range(6)]
+
+
+def test_enrich_batch_respects_batch_size() -> None:
+    """All jobs are enriched even when batch_size < len(jobs)."""
+    from unittest.mock import patch
+    from fitcv.enrich import enrich_batch
+
+    jobs = [{"job_url": f"j{i}"} for i in range(7)]
+    with patch("fitcv.enrich.enrich_job", side_effect=_fake_enrich_job), \
+         patch("time.sleep"):
+        result = enrich_batch(
+            jobs,
+            config={"enrichment_batch_size": 3, "enrichment_concurrency": 2},
+        )
+
+    assert len(result) == 7
+    assert all(r["enriched"] is True for r in result)
+
+
+def test_enrich_batch_concurrency_one_behaves_like_sequential() -> None:
+    """concurrency=1 produces the same result set as sequential execution."""
+    from unittest.mock import patch
+    from fitcv.enrich import enrich_batch
+
+    jobs = [{"job_url": f"s{i}"} for i in range(5)]
+    with patch("fitcv.enrich.enrich_job", side_effect=_fake_enrich_job), \
+         patch("time.sleep"):
+        result = enrich_batch(
+            jobs,
+            config={"enrichment_batch_size": 2, "enrichment_concurrency": 1},
+        )
+
+    assert len(result) == 5
+    assert [r["job_url"] for r in result] == [f"s{i}" for i in range(5)]
+
+
+def test_enrich_batch_no_jobs_dropped() -> None:
+    """Zero jobs are lost when batches complete—one count-per-job is exact."""
+    from unittest.mock import patch
+    from fitcv.enrich import enrich_batch
+
+    N = 11
+    jobs = [{"job_url": f"n{i}"} for i in range(N)]
+    with patch("fitcv.enrich.enrich_job", side_effect=_fake_enrich_job), \
+         patch("time.sleep"):
+        result = enrich_batch(
+            jobs,
+            config={"enrichment_batch_size": 4, "enrichment_concurrency": 3},
+        )
+
+    assert len(result) == N
+
+
+def test_enrich_batch_non_recoverable_error_propagates() -> None:
+    """A non-recoverable exception in a chunk must propagate, not be swallowed."""
+    from unittest.mock import patch
+    from fitcv.enrich import enrich_batch
+
+    class FakeResourceExhausted(Exception):
+        pass
+
+    call_count = {"n": 0}
+
+    def boom(job, config):
+        call_count["n"] += 1
+        raise RuntimeError("catastrophic failure")
+
+    with pytest.raises(RuntimeError, match="catastrophic"):
+        with patch("fitcv.enrich.enrich_job", side_effect=boom), \
+             patch("time.sleep"), \
+             patch("fitcv.enrich._GOOGLE_EXCEPTIONS", (FakeResourceExhausted,), create=True):
+            # Inject minimal module stubs needed by enrich_batch imports
+            import types as _types, sys as _sys
+            _fe = _types.SimpleNamespace(ResourceExhausted=FakeResourceExhausted)
+            _fce = _types.SimpleNamespace(ClientError=Exception)
+            _sys.modules.setdefault("google.api_core.exceptions", _fe)
+            _sys.modules.setdefault("google.genai.errors", _fce)
+            enrich_batch(
+                [{"job_url": "x"}],
+                config={"enrichment_batch_size": 1, "enrichment_concurrency": 1},
+            )
+
+
+def test_enrich_batch_uses_configured_batch_size_and_concurrency() -> None:
+    """Config values are respected: batch_size=1 means one job per chunk."""
+    from unittest.mock import patch
+    from fitcv.enrich import enrich_batch
+
+    call_sizes: list[int] = []
+
+    def fake_enrich(job, config):
+        return {**job, "enriched": True}
+
+    original_chunk = None
+
+    def capture_chunk(chunk, config):
+        call_sizes.append(len(chunk))
+        return [fake_enrich(j, config) for j in chunk]
+
+    with patch("fitcv.enrich.enrich_job", side_effect=fake_enrich), \
+         patch("time.sleep"):
+        # Monkey-patch _enrich_chunk to capture chunk sizes
+        import fitcv.enrich as _enrich_mod
+        orig = getattr(_enrich_mod, "_enrich_chunk", None)
+        _enrich_mod._enrich_chunk = capture_chunk
+        try:
+            result = enrich_batch(
+                [{"job_url": f"c{i}"} for i in range(4)],
+                config={"enrichment_batch_size": 2, "enrichment_concurrency": 2},
+            )
+        finally:
+            if orig is not None:
+                _enrich_mod._enrich_chunk = orig
+
+    assert len(result) == 4
+    # Each chunk had at most batch_size=2 jobs
+    assert all(s <= 2 for s in call_sizes), f"Chunk sizes: {call_sizes}"
