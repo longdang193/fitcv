@@ -79,6 +79,24 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "group": "timing",
         "config_path": ["rerank_sleep_secs"],
     },
+    {
+        "key": "enrichment_batch_size",
+        "type": "int",
+        "default": 10,
+        "label": "Enrichment Batch Size",
+        "description": "How many jobs to enrich in one bounded worker batch.",
+        "group": "timing",
+        "config_path": ["enrichment_batch_size"],
+    },
+    {
+        "key": "enrichment_concurrency",
+        "type": "int",
+        "default": 2,
+        "label": "Enrichment Concurrency",
+        "description": "How many enrichment batches may run concurrently.",
+        "group": "timing",
+        "config_path": ["enrichment_concurrency"],
+    },
     # ── Ranking Policy ────────────────────────────────────────────────────────
     {
         "key": "ranking_weights.ai_score",
@@ -230,6 +248,8 @@ SETTINGS_SECTIONS: dict[str, list[str]] = {
     "timing": [
         "enrichment_sleep_secs",
         "rerank_sleep_secs",
+        "enrichment_batch_size",
+        "enrichment_concurrency",
     ],
     "global-job-filters": [
         "global_job_filters.applications_count_max",
