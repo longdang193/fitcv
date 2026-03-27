@@ -226,12 +226,17 @@
 <!-- ── Tab 2: Original Job Input ─────────────────────────────────────────── -->
 <div class="pane-container tab-pane" id="pane-jobs-input">
   {% if run.jobs_input_json %}
-    <div class="card">
-      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
+    <div class="card" style="margin-bottom:1rem">
+      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem">
         <span class="badge badge-info">{{ run.jobs_input_source or 'paste' }}</span>
         <span class="meta">Raw job payload captured at trigger time (immutable snapshot)</span>
       </div>
-      <pre class="code-area" style="overflow-x:auto;max-height:500px;overflow-y:auto">{{ run.jobs_input_json }}</pre>
+    </div>
+    <div class="card">
+      <details open>
+        <summary class="meta" style="cursor:pointer;margin-bottom:0.75rem;user-select:none">▾ Raw JSON</summary>
+        <pre class="code-area" style="overflow-x:auto;max-height:500px;overflow-y:auto;margin:0">{{ run.jobs_input_json }}</pre>
+      </details>
     </div>
   {% else %}
     <div class="card">
@@ -255,31 +260,6 @@
         <span class="badge badge-info">{{ run.candidate_profile_source }}</span>
         <span class="meta">Candidate profile captured at trigger time (immutable snapshot)</span>
       </div>
-      {% if candidate_profile_parsed %}
-      <div class="kv">
-        {% set prefs = candidate_profile_parsed.get('preferences', {}) %}
-        {% if candidate_profile_parsed.get('experiences') %}
-        <span class="k">Experiences</span>
-        <span class="v">{{ candidate_profile_parsed.get('experiences') | length }} entries</span>
-        {% endif %}
-        {% if candidate_profile_parsed.get('skills') %}
-        <span class="k">Skills</span>
-        <span class="v">{{ candidate_profile_parsed.get('skills', [])[:8] | join(', ') }}{% if candidate_profile_parsed.get('skills', []) | length > 8 %} <em class="meta">+{{ candidate_profile_parsed.get('skills', []) | length - 8 }} more</em>{% endif %}</span>
-        {% endif %}
-        {% if prefs.get('location_types') %}
-        <span class="k">Location Types</span>
-        <span class="v">{{ prefs.get('location_types') | join(', ') }}</span>
-        {% endif %}
-        {% if prefs.get('seniority_targets') %}
-        <span class="k">Seniority Targets</span>
-        <span class="v">{{ prefs.get('seniority_targets') | join(', ') }}</span>
-        {% endif %}
-        {% if prefs.get('job_families') %}
-        <span class="k">Job Families</span>
-        <span class="v">{{ prefs.get('job_families') | join(', ') }}</span>
-        {% endif %}
-      </div>
-      {% endif %}
     </div>
     <div class="card">
       <details open>

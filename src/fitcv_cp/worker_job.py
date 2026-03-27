@@ -44,6 +44,17 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
     dataset = os.environ.get("BIGQUERY_DATASET", "fitcv")
     bq = _get_bq()
 
+    # Fall back to config file if GCP_PROJECT env var is not set — the worker
+    # may be started without env vars even though the config file is always present.
+    if not project:
+        try:
+            from fitcv.config import load_config as _load_config
+            _cfg = _load_config(config_path)
+            project = str(_cfg.get("gcp_project", ""))
+            dataset = str(_cfg.get("bigquery_dataset", dataset))
+        except Exception as exc:
+            logger.warning("Could not load config for project/dataset fallback: %s", exc)
+
     # Import here to avoid circular deps at module load time
     from fitcv_cp.reporter import PipelineReporter
 
