@@ -75,7 +75,7 @@
           <div class="cv-row">
             <div style="display:flex;align-items:center;gap:0.8rem">
               <span class="badge badge-success">{{ cv.fit_classification }}</span>
-              <a href="{{ cv.job_url }}" target="_blank">View Job ↗</a>
+              <a href="{{ cv.job_url }}" target="_blank">{{ job_title_by_url.get(cv.job_url) or 'View Job' }} ↗</a>
             </div>
             <a href="/admin/cvs/{{ cv.version_id }}/download" class="btn-secondary">⬇ Download Markdown</a>
           </div>
@@ -100,56 +100,98 @@
 
 <!-- ── Tab 1: Enriched Jobs (default active) ─────────────────────────────── -->
 <div class="tab-pane active" id="pane-enriched" style="margin-bottom:2rem">
-  <div class="card" style="padding:0;overflow:hidden">
-    {% if enriched_jobs %}
-      <table>
-        <thead>
-          <tr>
-            <th>Job Title</th>
-            <th>Location Type</th>
-            <th>Seniority</th>
-            <th>Job Family</th>
-            <th>Domain</th>
-            <th>Required Skills (top 5)</th>
-            <th>Filter</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for job in enriched_jobs %}
-          {% set fr = filter_results_by_job_url.get(job.job_url) %}
-          <tr>
-            <td><a href="{{ job.job_url }}" target="_blank">{{ job.title or job.job_url }}</a></td>
-            <td><code>{{ job.location_type or '—' }}</code></td>
-            <td><code>{{ job.seniority or '—' }}</code></td>
-            <td><code>{{ job.job_family or '—' }}</code></td>
-            <td><code>{{ job.domain or '—' }}</code></td>
-            <td class="meta">
-              {% if job.required_skills %}
-                {{ job.required_skills[:5] | join(', ') }}{% if job.required_skills | length > 5 %}, <em class="meta">+{{ job.required_skills | length - 5 }} more</em>{% endif %}
-              {% else %}
-                —
-              {% endif %}
-            </td>
-            <td style="white-space:nowrap">
-              {% if fr %}
-                {% if fr.passed %}
-                  <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
-                {% else %}
-                  <span class="badge badge-error" title="{{ fr.reasons | join(', ') }}">&#10007; reject</span>
-                  <div class="field-error" style="margin-top:0.3rem">{{ fr.reasons | join(', ') }}</div>
-                {% endif %}
-              {% else %}
-                <span class="empty-value">—</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
-      <p class="meta" style="text-align:center;padding:1.5rem">No enrichment data available for this run.</p>
-    {% endif %}
+  {% if enriched_jobs %}
+  <!-- Summary counts -->
+  <div style="display:flex;gap:1rem;padding:0.75rem 1.25rem;border-bottom:1px solid var(--accent);flex-wrap:wrap;align-items:center">
+    <span class="meta">Total: <strong>{{ enriched_jobs | length }}</strong></span>
+    <span class="badge badge-success" style="padding:0.2rem 0.6rem;font-size:0.8rem">Passed: {{ enriched_passed_count }}</span>
+    <span class="badge badge-error" style="padding:0.2rem 0.6rem;font-size:0.8rem">Rejected: {{ enriched_rejected_count }}</span>
   </div>
+  <!-- Filter + search controls -->
+  <div id="enr-controls" style="display:flex;gap:0.75rem;padding:0.75rem 1.25rem;border-bottom:1px solid var(--accent);flex-wrap:wrap;align-items:center">
+    <div style="display:flex;gap:0.4rem">
+      <button class="btn-secondary" id="enr-btn-all"      data-active="true"  style="font-size:0.8rem;padding:0.2rem 0.7rem" onclick="EnrichedTable.setFilter('all')">All</button>
+      <button class="btn-secondary" id="enr-btn-passed"   data-active="false" style="font-size:0.8rem;padding:0.2rem 0.7rem" onclick="EnrichedTable.setFilter('passed')">Passed</button>
+      <button class="btn-secondary" id="enr-btn-rejected" data-active="false" style="font-size:0.8rem;padding:0.2rem 0.7rem" onclick="EnrichedTable.setFilter('rejected')">Rejected</button>
+    </div>
+    <input id="enr-search" type="search" placeholder="Search title, domain, job family…"
+           style="flex:1;min-width:180px;font-size:0.85rem;padding:0.25rem 0.6rem"
+           oninput="EnrichedTable.onSearch(this.value)">
+    <div style="display:flex;gap:0.4rem;align-items:center;margin-left:auto">
+      <label class="meta" style="font-size:0.8rem" for="enr-page-size">Rows:</label>
+      <select id="enr-page-size" style="font-size:0.8rem;padding:0.2rem 0.4rem" onchange="EnrichedTable.setPageSize(parseInt(this.value))">
+        <option value="25">25</option>
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
+      </select>
+    </div>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="enr-table">
+      <thead>
+        <tr>
+          <th>Job Title</th>
+          <th>Location Type</th>
+          <th>Seniority</th>
+          <th>Job Family</th>
+          <th>Domain</th>
+          <th>Required Skills (top 5)</th>
+          <th>Filter</th>
+        </tr>
+      </thead>
+      <tbody id="enr-tbody">
+        {% for job in enriched_jobs %}
+        {% set fr = filter_results_by_job_url.get(job.job_url) %}
+        <tr data-filter="{% if fr is not none %}{{ 'passed' if fr.passed else 'rejected' }}{% else %}unknown{% endif %}"
+            data-title="{{ (job.title or '') | lower }}"
+            data-domain="{{ (job.domain or '') | lower }}"
+            data-family="{{ (job.job_family or '') | lower }}">
+          <td><a href="{{ job.job_url }}" target="_blank">{{ job.title or job.job_url }}</a></td>
+          <td><code>{{ job.location_type or '—' }}</code></td>
+          <td><code>{{ job.seniority or '—' }}</code></td>
+          <td><code>{{ job.job_family or '—' }}</code></td>
+          <td><code>{{ job.domain or '—' }}</code></td>
+          <td class="meta">
+            {% if job.required_skills %}
+              {{ job.required_skills[:5] | join(', ') }}{% if job.required_skills | length > 5 %}, <em class="meta">+{{ job.required_skills | length - 5 }} more</em>{% endif %}
+            {% else %}
+              —
+            {% endif %}
+          </td>
+          <td style="white-space:nowrap">
+            {% if fr is not none %}
+              {% if fr.passed %}
+                <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+              {% else %}
+                <span class="badge badge-error" title="{{ fr.reasons | join(', ') }}">&#10007; reject</span>
+                <div class="field-error" style="margin-top:0.3rem">{{ fr.reasons | join(', ') }}</div>
+              {% endif %}
+            {% else %}
+              <span class="empty-value">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        <tr id="enr-empty-row" style="display:none">
+          <td colspan="7" style="text-align:center;padding:1.5rem">
+            No jobs match the current controls.
+            <a href="#" style="margin-left:0.5rem" onclick="EnrichedTable.resetControls();return false;">Show all</a>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <!-- Pagination bar -->
+  <div id="enr-pagination" style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 1.25rem;justify-content:flex-end">
+    <button id="enr-prev" class="btn-secondary" style="font-size:0.8rem;padding:0.2rem 0.6rem" onclick="EnrichedTable.prevPage()">← Prev</button>
+    <span id="enr-page-label" class="meta" style="font-size:0.85rem">Page 1 of 1</span>
+    <button id="enr-next" class="btn-secondary" style="font-size:0.8rem;padding:0.2rem 0.6rem" onclick="EnrichedTable.nextPage()">Next →</button>
+  </div>
+  {% else %}
+  <div class="card">
+    <p class="meta" style="text-align:center;padding:1.5rem">No enrichment data available for this run.</p>
+  </div>
+  {% endif %}
 </div>
 
 {% if pre_enrichment_rejects %}
@@ -324,5 +366,122 @@ async function lifecycleAction(runId, action, btn) {
     btn.textContent = origText;
   }
 }
+</script>
+
+<style>
+.enr-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--table-header-bg, var(--card-bg, #1a1b2e));
+}
+</style>
+
+<script>
+const EnrichedTable = (() => {
+  let PAGE_SIZE = 50;
+  let currentFilter = 'all';
+  let currentSearch = '';
+  let currentPage = 1;
+  let allRows = [];
+  let visibleRows = [];
+
+  function init() {
+    const tbody = document.getElementById('enr-tbody');
+    if (!tbody) return;
+    // Exclude the empty-state sentinel row
+    allRows = Array.from(tbody.querySelectorAll('tr[data-filter]'));
+    render();
+  }
+
+  function render() {
+    const q = currentSearch.trim().toLowerCase();
+    visibleRows = allRows.filter(row => {
+      const f = row.dataset.filter;
+      if (currentFilter === 'passed'   && f !== 'passed')   return false;
+      if (currentFilter === 'rejected' && f !== 'rejected') return false;
+      if (q) {
+        const title  = row.dataset.title  || '';
+        const domain = row.dataset.domain || '';
+        const family = row.dataset.family || '';
+        if (!title.includes(q) && !domain.includes(q) && !family.includes(q)) return false;
+      }
+      return true;
+    });
+
+    const totalPages = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const end   = start + PAGE_SIZE;
+
+    // Show/hide rows
+    allRows.forEach(r => { r.style.display = 'none'; });
+    visibleRows.slice(start, end).forEach(r => { r.style.display = ''; });
+
+    // Empty state
+    const emptyRow = document.getElementById('enr-empty-row');
+    if (emptyRow) emptyRow.style.display = visibleRows.length === 0 ? '' : 'none';
+
+    updatePagination(totalPages);
+    updateFilterButtons();
+  }
+
+  function updatePagination(totalPages) {
+    const label = document.getElementById('enr-page-label');
+    const prev  = document.getElementById('enr-prev');
+    const next  = document.getElementById('enr-next');
+    const bar   = document.getElementById('enr-pagination');
+    if (!label) return;
+    label.textContent = `Page ${currentPage} of ${totalPages}`;
+    if (prev) prev.disabled = currentPage <= 1;
+    if (next) next.disabled = currentPage >= totalPages;
+    if (bar)  bar.style.display = totalPages <= 1 ? 'none' : 'flex';
+  }
+
+  function updateFilterButtons() {
+    ['all', 'passed', 'rejected'].forEach(f => {
+      const btn = document.getElementById('enr-btn-' + f);
+      if (btn) btn.dataset.active = String(f === currentFilter);
+    });
+  }
+
+  return {
+    setFilter(f) {
+      currentFilter = f;
+      currentPage   = 1;
+      render();
+    },
+    onSearch(q) {
+      currentSearch = q;
+      currentPage   = 1;
+      render();
+    },
+    setPageSize(n) {
+      PAGE_SIZE   = n;
+      currentPage = 1;
+      render();
+    },
+    prevPage() {
+      if (currentPage > 1) { currentPage--; render(); }
+    },
+    nextPage() {
+      const total = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
+      if (currentPage < total) { currentPage++; render(); }
+    },
+    resetControls() {
+      currentFilter = 'all';
+      currentSearch = '';
+      currentPage   = 1;
+      const searchEl = document.getElementById('enr-search');
+      if (searchEl) searchEl.value = '';
+      render();
+    },
+    init,
+  };
+})();
+
+document.addEventListener('DOMContentLoaded', () => EnrichedTable.init());
+// Also init synchronously if DOM is already ready
+if (document.readyState !== 'loading') EnrichedTable.init();
 </script>
 {% endblock %}

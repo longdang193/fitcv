@@ -615,6 +615,24 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             if row["job_url"] not in enriched_job_urls and row.get("reasons")
         ]
 
+        # Build job title lookup: job_url → title (used for cv_versions generated output labels)
+        job_title_by_url: dict[str, str] = {
+            j["job_url"]: j.get("title") or ""
+            for j in enriched_jobs
+        }
+
+        # Pre-compute pass/reject counts for the enriched jobs summary row.
+        # Rows where filter result is missing are NOT counted as rejected — they are "unknown".
+        # This preserves the existing three-state distinction (pass / reject / —).
+        enriched_passed_count = sum(
+            1 for j in enriched_jobs
+            if filter_results_by_job_url.get(j["job_url"], {}).get("passed") is True
+        )
+        enriched_rejected_count = sum(
+            1 for j in enriched_jobs
+            if filter_results_by_job_url.get(j["job_url"], {}).get("passed") is False
+        )
+
         # Candidate profile display
         candidate_profile_parsed: dict | None = None
         candidate_profile_pretty: str | None = None
@@ -633,6 +651,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "enriched_jobs": enriched_jobs,
                 "filter_results_by_job_url": filter_results_by_job_url,
                 "pre_enrichment_rejects": pre_enrichment_rejects,
+                "job_title_by_url": job_title_by_url,
+                "enriched_passed_count": enriched_passed_count,
+                "enriched_rejected_count": enriched_rejected_count,
                 "candidate_profile_parsed": candidate_profile_parsed,
                 "candidate_profile_pretty": candidate_profile_pretty,
             }
