@@ -263,7 +263,7 @@ def test_enrich_batch_retries_resource_exhausted_once(
 
     assert result == [{"job_url": "url1"}]
     assert attempts["count"] == 2
-    assert sleeps == [1.5]
+    assert sleeps == [1.5, 1.5]  # backoff sleep + success-path global rate-limit sleep
 
 
 def test_enrich_batch_retries_genai_client_error_429_once(
@@ -307,7 +307,7 @@ def test_enrich_batch_retries_genai_client_error_429_once(
 
     assert result == [{"job_url": "url1"}]
     assert attempts["count"] == 2
-    assert sleeps == [2.0]
+    assert sleeps == [2.0, 2.0]  # backoff sleep + success-path global rate-limit sleep
 
 
 def test_enrich_batch_uses_exponential_backoff_for_repeated_429s(
@@ -351,7 +351,7 @@ def test_enrich_batch_uses_exponential_backoff_for_repeated_429s(
 
     assert result == [{"job_url": "url1"}]
     assert attempts["count"] == 3
-    assert sleeps == [1.5, 3.0]
+    assert sleeps == [1.5, 3.0, 1.5]  # two backoff sleeps + success-path global rate-limit sleep
 
 
 def test_enrich_job_uses_google_genai_client(
