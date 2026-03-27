@@ -199,11 +199,31 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         upload_dir = Path("data/uploads")
         upload_dir.mkdir(parents=True, exist_ok=True)
 
+        from fitcv.candidate import load_profile_yaml as _load_profile_yaml, validate_profile as _validate_profile
+
         # ── Jobs input resolution ──────────────────────────────────────
         jobs_input_json_snapshot: str | None = None
         if jobs_input_mode == "path":
             if not jobs_path or not jobs_path.strip():
                 raise HTTPException(status_code=422, detail="jobs_path required for path mode")
+            # Task 1: Resolve and snapshot path-mode jobs input at trigger time
+            path_file = Path(jobs_path)
+            if not path_file.exists():
+                raise HTTPException(status_code=422, detail=f"Jobs file not found: {jobs_path}")
+            try:
+                raw_text = path_file.read_text(encoding="utf-8")
+            except OSError as exc:
+                raise HTTPException(status_code=422, detail=f"Cannot read jobs file {jobs_path}: {exc}")
+            try:
+                parsed_jobs = _json.loads(raw_text)
+            except _json.JSONDecodeError as exc:
+                raise HTTPException(status_code=422, detail=f"Invalid jobs JSON at {jobs_path}: {exc}")
+            if not isinstance(parsed_jobs, list):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Invalid jobs JSON at {jobs_path}: top-level value must be a JSON array",
+                )
+            jobs_input_json_snapshot = _json.dumps(parsed_jobs, ensure_ascii=False, indent=2)
             actual_jobs_path = jobs_path
             jobs_input_source = "path"
         elif jobs_input_mode == "upload":
@@ -297,6 +317,25 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         # ── Candidate profile resolution ─────────────────────────────────
         candidate_json_snapshot: str | None = None
         if candidate_profile_mode == "default_config":
+            # Task 2: Resolve and snapshot default_config candidate profile at trigger time
+            base_cfg_for_profile = load_config(config_path)
+            profile_path_str = base_cfg_for_profile.get("paths", {}).get("candidate_profile", "")
+            if not profile_path_str:
+                raise HTTPException(status_code=422, detail="No candidate_profile path configured")
+            try:
+                resolved_profile = _load_profile_yaml(profile_path_str)
+            except FileNotFoundError:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Candidate profile not found: {profile_path_str}",
+                )
+            profile_errors = _validate_profile(resolved_profile)
+            if profile_errors:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Candidate profile validation failed: {'; '.join(profile_errors)}",
+                )
+            candidate_json_snapshot = _json.dumps(resolved_profile, ensure_ascii=False, indent=2)
             candidate_profile_source = "default_config"
         elif candidate_profile_mode == "upload":
             if not candidate_profile_file or not candidate_profile_file.filename:
