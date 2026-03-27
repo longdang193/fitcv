@@ -243,7 +243,7 @@ def test_enrichment_parallelism_keys_registered():
 def test_enrichment_parallelism_defaults():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert schema_by_key["enrichment_batch_size"]["default"] == 10
-    assert schema_by_key["enrichment_concurrency"]["default"] == 2
+    assert schema_by_key["enrichment_concurrency"]["default"] == 1
 
 
 def test_enrichment_parallelism_group_is_timing():

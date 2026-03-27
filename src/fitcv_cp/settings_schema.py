@@ -91,9 +91,9 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "enrichment_concurrency",
         "type": "int",
-        "default": 2,
+        "default": 1,
         "label": "Enrichment Concurrency",
-        "description": "How many enrichment batches may run concurrently.",
+        "description": "How many enrichment batches may run concurrently. Default 1 (sequential). Higher values increase API throughput but risk provider rate-limit errors (429) because per-thread sleep is not a global rate limiter.",
         "group": "timing",
         "config_path": ["enrichment_concurrency"],
     },
