@@ -86,154 +86,175 @@
   </div>
 
   {# ── Group 1: Ranking Weights ─────────────────────────────────────────────── #}
-  <div style="margin-bottom:2rem">
-    <div class="section-title" style="margin-bottom:0.25rem">Ranking Weights</div>
-    <p class="section-helper" style="margin-bottom:0.75rem">All six weights must sum to exactly <strong>1.0</strong> (±0.01).
-      Current total: <span id="weights-total" class="meta">—</span>
-    </p>
-    {% if group_error and 'ranking-weights' in group_error %}
-    <div class="error-box" style="margin-bottom:0.75rem">
-      <strong>Validation error</strong>
-      <span>{{ group_error['ranking-weights'] }}</span>
+  <div class="sub-card">
+    <div class="sub-card-header">
+      <div>
+        <div class="sub-card-title">Ranking Weights</div>
+        <div class="sub-card-helper">All six weights must sum to exactly <strong>1.0</strong> (±0.01).
+          Current total: <span id="weights-total" class="meta">—</span>
+        </div>
+      </div>
+      {% if group_error and 'ranking-weights' in group_error %}
+      <div class="error-box" style="margin-bottom:0.75rem">
+        <strong>Validation error</strong>
+        <span>{{ group_error['ranking-weights'] }}</span>
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
-    <form method="post" action="/admin/settings/group/ranking-weights">
-      <table style="margin-bottom:0.75rem">
-        <thead>
-          <tr>
-            <th>Weight</th>
-            <th>Current</th>
-            <th>Default</th>
-            <th>Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for entry in schema if entry.key in ranking_weight_keys %}
-          {% set draft_val = group_draft['ranking-weights'][entry.key] if group_draft and 'ranking-weights' in group_draft and entry.key in group_draft['ranking-weights'] else none %}
-          <tr>
-            <td>
-              <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
-              <div class="section-helper">{{ entry.description }}</div>
-            </td>
-            <td>
-              {% if entry.key in active %}
-                <span class="current-value">{{ active[entry.key] }}</span>
-              {% else %}
-                <span class="empty-value">—</span>
-              {% endif %}
-            </td>
-            <td class="meta">{{ entry.default }}</td>
-            <td>
-              <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
-                     value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}"
-                     oninput="updateWeightsTotal()">
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <div class="section-actions">
-        <button type="submit" class="btn-primary">Save Ranking Weights</button>
+    <form id="form-ranking-weights" method="post" action="/admin/settings/group/ranking-weights">
+      <div class="sub-card-body">
+        <table>
+          <thead>
+            <tr>
+              <th>Weight</th>
+              <th>Current</th>
+              <th>Default</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in schema if entry.key in ranking_weight_keys %}
+            {% set draft_val = group_draft['ranking-weights'][entry.key] if group_draft and 'ranking-weights' in group_draft and entry.key in group_draft['ranking-weights'] else none %}
+            <tr>
+              <td>
+                <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
+                <div class="section-helper">{{ entry.description }}</div>
+              </td>
+              <td>
+                {% if entry.key in active %}
+                  <span class="current-value">{{ active[entry.key] }}</span>
+                {% else %}
+                  <span class="empty-value">—</span>
+                {% endif %}
+              </td>
+              <td class="meta">{{ entry.default }}</td>
+              <td>
+                <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
+                       value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}"
+                       oninput="updateWeightsTotal()">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="sub-card-footer">
+        <button type="submit" class="btn-section">Save Ranking Weights</button>
+
       </div>
     </form>
   </div>
 
   {# ── Group 2: Fit Label Thresholds ───────────────────────────────────────── #}
-  <div style="margin-bottom:2rem">
-    <div class="section-title" style="margin-bottom:0.25rem">Fit Label Thresholds</div>
-    <p class="section-helper" style="margin-bottom:0.75rem">Strong threshold must be greater than Stretch threshold.</p>
-    {% if group_error and 'fit-label-thresholds' in group_error %}
-    <div class="error-box" style="margin-bottom:0.75rem">
-      <strong>Validation error</strong>
-      <span>{{ group_error['fit-label-thresholds'] }}</span>
+  <div class="sub-card">
+    <div class="sub-card-header">
+      <div>
+        <div class="sub-card-title">Fit Label Thresholds</div>
+        <div class="sub-card-helper">Strong threshold must be greater than Stretch threshold.</div>
+      </div>
+      {% if group_error and 'fit-label-thresholds' in group_error %}
+      <div class="error-box" style="margin-bottom:0.75rem">
+        <strong>Validation error</strong>
+        <span>{{ group_error['fit-label-thresholds'] }}</span>
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
-    <form method="post" action="/admin/settings/group/fit-label-thresholds">
-      <table style="margin-bottom:0.75rem">
-        <thead>
-          <tr>
-            <th>Threshold</th>
-            <th>Current</th>
-            <th>Default</th>
-            <th>Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for entry in schema if entry.key in ranking_groups['fit-label-thresholds'] %}
-          {% set draft_val = group_draft['fit-label-thresholds'][entry.key] if group_draft and 'fit-label-thresholds' in group_draft and entry.key in group_draft['fit-label-thresholds'] else none %}
-          <tr>
-            <td>
-              <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
-              <div class="section-helper">{{ entry.description }}</div>
-            </td>
-            <td>
-              {% if entry.key in active %}
-                <span class="current-value">{{ active[entry.key] }}</span>
-              {% else %}
-                <span class="empty-value">—</span>
-              {% endif %}
-            </td>
-            <td class="meta">{{ entry.default }}</td>
-            <td>
-              <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
-                     value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}">
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <div class="section-actions">
-        <button type="submit" class="btn-primary">Save Fit Label Thresholds</button>
+    <form id="form-fit-label-thresholds" method="post" action="/admin/settings/group/fit-label-thresholds">
+      <div class="sub-card-body">
+        <table>
+          <thead>
+            <tr>
+              <th>Threshold</th>
+              <th>Current</th>
+              <th>Default</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in schema if entry.key in ranking_groups['fit-label-thresholds'] %}
+            {% set draft_val = group_draft['fit-label-thresholds'][entry.key] if group_draft and 'fit-label-thresholds' in group_draft and entry.key in group_draft['fit-label-thresholds'] else none %}
+            <tr>
+              <td>
+                <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
+                <div class="section-helper">{{ entry.description }}</div>
+              </td>
+              <td>
+                {% if entry.key in active %}
+                  <span class="current-value">{{ active[entry.key] }}</span>
+                {% else %}
+                  <span class="empty-value">—</span>
+                {% endif %}
+              </td>
+              <td class="meta">{{ entry.default }}</td>
+              <td>
+                <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
+                       value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="sub-card-footer">
+        <button type="submit" class="btn-section">Save Fit Label Thresholds</button>
+
       </div>
     </form>
   </div>
 
   {# ── Group 3: Gap Thresholds ─────────────────────────────────────────────── #}
-  <div style="margin-bottom:0.5rem">
-    <div class="section-title" style="margin-bottom:0.25rem">Gap Thresholds</div>
-    <p class="section-helper" style="margin-bottom:0.75rem">Strong skill-ratio limit must be greater than Stretch limit.</p>
-    {% if group_error and 'gap-thresholds' in group_error %}
-    <div class="error-box" style="margin-bottom:0.75rem">
-      <strong>Validation error</strong>
-      <span>{{ group_error['gap-thresholds'] }}</span>
+  <div class="sub-card">
+    <div class="sub-card-header">
+      <div>
+        <div class="sub-card-title">Gap Thresholds</div>
+        <div class="sub-card-helper">Strong skill-ratio limit must be greater than Stretch limit.</div>
+      </div>
+      {% if group_error and 'gap-thresholds' in group_error %}
+      <div class="error-box" style="margin-bottom:0.75rem">
+        <strong>Validation error</strong>
+        <span>{{ group_error['gap-thresholds'] }}</span>
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
-    <form method="post" action="/admin/settings/group/gap-thresholds">
-      <table style="margin-bottom:0.75rem">
-        <thead>
-          <tr>
-            <th>Threshold</th>
-            <th>Current</th>
-            <th>Default</th>
-            <th>Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for entry in schema if entry.key in ranking_groups['gap-thresholds'] %}
-          {% set draft_val = group_draft['gap-thresholds'][entry.key] if group_draft and 'gap-thresholds' in group_draft and entry.key in group_draft['gap-thresholds'] else none %}
-          <tr>
-            <td>
-              <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
-              <div class="section-helper">{{ entry.description }}</div>
-            </td>
-            <td>
-              {% if entry.key in active %}
-                <span class="current-value">{{ active[entry.key] }}</span>
-              {% else %}
-                <span class="empty-value">—</span>
-              {% endif %}
-            </td>
-            <td class="meta">{{ entry.default }}</td>
-            <td>
-              <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
-                     value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}">
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <div class="section-actions">
-        <button type="submit" class="btn-primary">Save Gap Thresholds</button>
+    <form id="form-gap-thresholds" method="post" action="/admin/settings/group/gap-thresholds">
+      <div class="sub-card-body">
+        <table>
+          <thead>
+            <tr>
+              <th>Threshold</th>
+              <th>Current</th>
+              <th>Default</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in schema if entry.key in ranking_groups['gap-thresholds'] %}
+            {% set draft_val = group_draft['gap-thresholds'][entry.key] if group_draft and 'gap-thresholds' in group_draft and entry.key in group_draft['gap-thresholds'] else none %}
+            <tr>
+              <td>
+                <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
+                <div class="section-helper">{{ entry.description }}</div>
+              </td>
+              <td>
+                {% if entry.key in active %}
+                  <span class="current-value">{{ active[entry.key] }}</span>
+                {% else %}
+                  <span class="empty-value">—</span>
+                {% endif %}
+              </td>
+              <td class="meta">{{ entry.default }}</td>
+              <td>
+                <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
+                       value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="sub-card-footer">
+        <button type="submit" class="btn-section">Save Gap Thresholds</button>
+
       </div>
     </form>
   </div>
