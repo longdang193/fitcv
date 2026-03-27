@@ -76,6 +76,13 @@ Recommended behavior:
 
 This preserves the current pipeline contract, which already expects one `jobs_path`.
 
+Deterministic merge order should be explicit:
+
+- preserve the order the files were submitted in
+- preserve row order within each file
+
+This makes the merged snapshot deterministic and easier to inspect.
+
 ---
 
 ### Snapshot Model
@@ -104,7 +111,13 @@ Validation expectations:
 
 - file must decode as UTF-8 JSON
 - top-level JSON value must be an array
-- arrays may be empty, but the final merged payload should not be empty
+- arrays may be empty, but the final merged payload must contain at least one job overall
+
+Validation order should be explicit:
+
+1. validate each uploaded file
+2. reject the whole request if any file fails validation
+3. only after all files validate successfully, merge them into the canonical payload
 
 If any file is invalid:
 
@@ -134,12 +147,16 @@ Parallelism should be implemented in the enrichment layer or worker-side enrichm
 
 Recommended model:
 
+- run cheap pre-enrichment global filters first
 - split the pre-enrichment survivors into bounded batches
 - enrich several batches concurrently
 - preserve a configurable concurrency ceiling
 - merge results back into one enriched result list before downstream storage
 
 This is bounded parallel enrichment, not unbounded fan-out.
+
+Parallel enrichment applies only after cheap pre-enrichment filtering has narrowed the candidate set.
+The system should not parallel-enrich jobs that would already be rejected by pre-enrichment global filters.
 
 ---
 
@@ -162,9 +179,16 @@ These settings should remain admin-managed and conservative by default.
 Recommended first defaults:
 
 - `enrichment_batch_size = 10`
-- `enrichment_concurrency = 2`
+- `enrichment_concurrency = 1`
 
 Exact defaults can be tuned later based on provider rate limits.
+The first default should preserve the reliability characteristics of the previous sequential enrichment path.
+
+Validation rules:
+
+- both settings must be positive integers
+- both settings should reject zero or negative values
+- the implementation may also enforce conservative upper bounds
 
 ---
 
@@ -180,6 +204,15 @@ Recommended rules:
 - catastrophic provider/config failures may still fail the run
 
 The implementation should remain explicit that throughput gains are constrained by upstream API/provider limits.
+`enrichment_sleep_secs` should not be treated as a true global rate limiter once `enrichment_concurrency > 1`, because per-thread sleeping does not prevent multiple concurrent requests from overlapping.
+Higher concurrency should therefore be treated as an admin-tuned optimization for providers and quotas that can tolerate it, not as a universally safe default.
+
+If enrichment partially fails:
+
+- each failed job must retain its stable identity
+- the failure should be recorded with an enrichment failure state or reason
+- failed jobs should be excluded from downstream steps that require enriched fields unless explicitly supported
+- the rest of the run should continue when the current enrichment contract allows partial progress
 
 ---
 
@@ -191,7 +224,8 @@ Recommended rules:
 
 - merged input snapshot is deterministic
 - downstream run-scoped writes still use the single `run_id`
-- final enriched result order should be stable enough for inspection and downstream joins
+- downstream correctness must not depend on concurrency-preserved list order
+- final persisted enriched rows should be written in a deterministic order for inspection and downstream joins
 
 If concurrent enrichment changes result ordering internally, the stored run-scoped rows should still be written in a deterministic order for admin display.
 
@@ -203,7 +237,7 @@ Run detail should continue to work as one run.
 
 Expected behavior:
 
-- `Original Job Input` shows the merged immutable upload snapshot
+- `Original Job Input` shows the canonical merged immutable upload snapshot for multi-file upload runs
 - `Enriched Jobs` shows the combined enriched result set
 - no child-run UI is introduced
 
@@ -240,9 +274,13 @@ This distinction should stay explicit in implementation decisions.
 - [ ] The system merges uploaded files into one canonical run-scoped jobs payload
 - [ ] The run stores one immutable merged jobs snapshot in `jobs_input_json`
 - [ ] Invalid uploaded files reject the whole request with a clear validation error
+- [ ] The canonical merged payload preserves submitted file order and original row order within each file
 - [ ] Existing normalization/deduplication remains the first dedup mechanism
 - [ ] Enrichment parallelism is implemented in the worker/enrichment layer, not BigQuery
 - [ ] Enrichment uses bounded concurrency with explicit config controls
+- [ ] Enrichment concurrency and batch size are validated as bounded positive values
+- [ ] Parallel enrichment runs only on jobs that survive pre-enrichment global filters
+- [ ] Failed enrichment of individual jobs is captured without corrupting the rest of the run
 - [ ] One run still produces one `run_id`, one run detail page, and one combined enriched jobs view
 - [ ] Run-detail inspection remains compatible with merged multi-file uploads
 - [ ] The design does not change downstream filtering or ranking semantics
