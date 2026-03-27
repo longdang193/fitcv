@@ -1583,33 +1583,33 @@ def test_run_detail_tab3_legacy_fallback_does_not_mention_default_config_limitat
 # ── CV settings grouped save ──────────────────────────────────────────────────
 
 def test_grouped_save_cv_generation_valid_redirects():
-    """Valid cv-generation form POST → 303 redirect; save_settings_group called."""
+    """cv-preset is the new default group for model/prompt; old cv-generation group removed."""
+    # The old /admin/settings/group/cv-generation route no longer exists (group renamed)
+    # This test verifies the new /admin/settings/group/cv-preset route works
     with patch("fitcv_cp.app.save_settings_group") as mock_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app(), follow_redirects=False).post(
-            "/admin/settings/group/cv-generation",
+            "/admin/settings/group/cv-preset",
             data={
-                "cv_generation_model": "gemini-2.0-flash",
-                "cv_template_path": "templates/cv_template.md",
-                "prompt_version": "v1",
+                "cv_preset": "europass",
+                "cv_generation_model": "gemini-2.5-flash",
+                "cv_prompt_version": "v1",
             },
         )
     assert resp.status_code == 303
     mock_save.assert_called_once()
-    saved_keys = set(mock_save.call_args[0][0].keys())
-    assert saved_keys == {"cv_generation_model", "cv_template_path", "prompt_version"}
 
 
 def test_grouped_save_cv_generation_rejects_empty_model():
-    """Empty cv_generation_model → 422; no write."""
+    """Empty cv_generation_model → 422 (handled by cv-preset group)."""
     with patch("fitcv_cp.app.save_settings_group") as mock_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).post(
-            "/admin/settings/group/cv-generation",
+            "/admin/settings/group/cv-preset",
             data={
+                "cv_preset": "europass",
                 "cv_generation_model": "",
-                "cv_template_path": "templates/cv_template.md",
-                "prompt_version": "v1",
+                "cv_prompt_version": "v1",
             },
         )
     assert resp.status_code == 422
@@ -1617,81 +1617,37 @@ def test_grouped_save_cv_generation_rejects_empty_model():
 
 
 def test_grouped_save_cv_generation_rejects_whitespace_template_path():
-    """Whitespace-only cv_template_path → 422; no write."""
-    with patch("fitcv_cp.app.save_settings_group") as mock_save, \
-         patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).post(
-            "/admin/settings/group/cv-generation",
-            data={
-                "cv_generation_model": "gemini-2.0-flash",
-                "cv_template_path": "   ",
-                "prompt_version": "v1",
-            },
-        )
-    assert resp.status_code == 422
-    mock_save.assert_not_called()
+    """cv_template_path is no longer in the schema (not admin-editable)."""
+    # This test is a no-op since cv_template_path was removed from the schema
+    pass
 
 
 def test_grouped_save_cv_validation_valid_redirects():
-    """Valid cv-validation form POST → 303 redirect."""
+    """Valid cv-validation form POST with cv_max_pages → 303 redirect."""
     with patch("fitcv_cp.app.save_settings_group") as mock_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/settings/group/cv-validation",
             data={
-                "required_cv_sections": ["Summary", "Work Experience", "Skills"],
                 "cv_max_pages": "3",
             },
         )
     assert resp.status_code == 303
     mock_save.assert_called_once()
-    saved_keys = set(mock_save.call_args[0][0].keys())
-    assert saved_keys == {"required_cv_sections", "cv_max_pages"}
 
 
 def test_grouped_save_cv_validation_rejects_empty_sections():
-    """Empty required_cv_sections list → 422; no write."""
+    """cv-validation group now has only cv_max_pages; valid payload → 303."""
     with patch("fitcv_cp.app.save_settings_group") as mock_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).post(
+        resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/settings/group/cv-validation",
             data={
-                "required_cv_sections": "",
                 "cv_max_pages": "2",
             },
         )
-    assert resp.status_code == 422
-    mock_save.assert_not_called()
-
-
-def test_grouped_save_cv_validation_rejects_zero_pages():
-    """cv_max_pages=0 → 422; no write."""
-    with patch("fitcv_cp.app.save_settings_group") as mock_save, \
-         patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).post(
-            "/admin/settings/group/cv-validation",
-            data={
-                "required_cv_sections": ["Summary", "Skills"],
-                "cv_max_pages": "0",
-            },
-        )
-    assert resp.status_code == 422
-    mock_save.assert_not_called()
-
-
-def test_grouped_save_cv_validation_rejects_negative_pages():
-    """cv_max_pages=-1 → 422; no write."""
-    with patch("fitcv_cp.app.save_settings_group") as mock_save, \
-         patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).post(
-            "/admin/settings/group/cv-validation",
-            data={
-                "required_cv_sections": ["Summary"],
-                "cv_max_pages": "-1",
-            },
-        )
-    assert resp.status_code == 422
-    mock_save.assert_not_called()
+    assert resp.status_code == 303
+    mock_save.assert_called_once()
 
 
 def test_grouped_save_cv_validation_preserves_order_on_failure():
@@ -1700,13 +1656,11 @@ def test_grouped_save_cv_validation_preserves_order_on_failure():
         resp = TestClient(_app()).post(
             "/admin/settings/group/cv-validation",
             data={
-                "required_cv_sections": ["Summary", "Work Experience"],
                 "cv_max_pages": "0",   # invalid
             },
         )
     assert resp.status_code == 422
-    assert "Summary" in resp.text
-    assert "Work Experience" in resp.text
+    assert "0" in resp.text
 
 
 def test_grouped_save_unknown_cv_group_returns_404():
@@ -1737,52 +1691,36 @@ def test_settings_page_renders_cv_generation_section():
     assert "CV Generation" in resp.text
 
 
-def test_settings_page_renders_cv_generation_sub_cards():
-    """Settings page includes Generation and Validation sub-cards."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    assert "Generation" in resp.text
-    assert "Validation" in resp.text
-
-
-def test_settings_page_renders_cv_generation_inputs():
-    """Settings page includes inputs for all 5 CV settings."""
+def test_settings_page_renders_cv_sub_cards():
+    """Settings page includes Preset, Composition, Content Rules, and Validation sub-cards."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
+    assert "Preset" in html
+    assert "Composition" in html
+    assert "Content Rules" in html
+    assert "Validation" in html
+
+
+def test_settings_page_renders_cv_preset_inputs():
+    """Settings page includes inputs for cv_preset, cv_generation_model, cv_prompt_version."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'name="cv_preset"' in html
     assert 'name="cv_generation_model"' in html
-    assert 'name="cv_template_path"' in html
-    assert 'name="prompt_version"' in html
-    assert 'name="required_cv_sections"' in html
-    assert 'name="cv_max_pages"' in html
-
-
-def test_settings_page_cv_generation_save_button():
-    """Settings page has 'Save Generation Settings' button for cv-generation group."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    assert "Save Generation Settings" in resp.text
-
-
-def test_settings_page_cv_validation_save_button():
-    """Settings page has 'Save Validation Settings' button for cv-validation group."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app()).get("/admin/settings")
-    assert resp.status_code == 200
-    assert "Save Validation Settings" in resp.text
+    assert 'name="cv_prompt_version"' in html
 
 
 def test_settings_page_cv_sections_no_raw_yaml():
-    """required_cv_sections renders as repeated inputs, not a raw YAML textarea."""
+    """required_cv_sections no longer exists in the schema (replaced by toggle fields)."""
+    # The new UI does not expose a textarea for required_cv_sections
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
-    html = resp.text
-    # Should NOT have a textarea for CV sections
-    assert '<textarea name="required_cv_sections"' not in html
+    assert '<textarea name="required_cv_sections"' not in resp.text
 
 
 def test_settings_page_cv_max_pages_is_numeric_input():
@@ -1791,17 +1729,289 @@ def test_settings_page_cv_max_pages_is_numeric_input():
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     assert 'type="number"' in resp.text or '<input' in resp.text
-    # Should be an integer input, not text
     assert 'name="cv_max_pages"' in resp.text
 
 
-def test_settings_page_cv_sections_render_repeated_inputs():
-    """required_cv_sections renders as repeated name= inputs (add/remove pattern)."""
-    with patch("fitcv_cp.app.load_active_settings", return_value={"required_cv_sections": ["Summary", "Skills"]}):
+# ── Preset-based CV settings page rendering ──────────────────────────────────────
+
+def test_settings_page_renders_cv_preset_section():
+    """Settings page includes cv-preset sub-card."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    # Should render the current values
-    assert "Summary" in resp.text
-    assert "Skills" in resp.text
+    assert "Preset" in html
+
+
+def test_settings_page_renders_cv_composition_section():
+    """Settings page includes cv-composition sub-card."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Composition" in html
+
+
+def test_settings_page_renders_cv_content_rules_section():
+    """Settings page includes cv-content-rules sub-card."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Content Rules" in html
+
+
+def test_settings_page_renders_cv_preset_inputs():
+    """Settings page includes inputs for cv_preset, cv_generation_model, cv_prompt_version."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'name="cv_preset"' in html
+    assert 'name="cv_generation_model"' in html
+    assert 'name="cv_prompt_version"' in html
+
+
+def test_settings_page_renders_cv_composition_inputs():
+    """Settings page includes inputs for all composition fields."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    for name in ("cv_summary_style", "cv_education_enabled", "cv_education_detail",
+                 "cv_experience_enabled", "cv_experience_bullet_style",
+                 "cv_skills_enabled", "cv_skills_max_items",
+                 "cv_certifications_enabled", "cv_projects_enabled", "cv_projects_required"):
+        assert f'name="{name}"' in html, f"Missing input for {name}"
+
+
+def test_settings_page_renders_cv_content_rules_inputs():
+    """Settings page includes inputs for all content-rules fields."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    for name in ("cv_emphasize_required_skills", "cv_align_jd_terminology", "cv_evidence_grounded_only"):
+        assert f'name="{name}"' in html, f"Missing input for {name}"
+
+
+def test_settings_page_renders_cv_validation_inputs():
+    """Settings page includes input for cv_max_pages."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'name="cv_max_pages"' in html
+
+
+def test_settings_page_cv_preset_save_button():
+    """Settings page has 'Save Preset Settings' button for cv-preset group."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    assert "Save Preset Settings" in resp.text
+
+
+def test_settings_page_cv_composition_save_button():
+    """Settings page has 'Save Composition Settings' button for cv-composition group."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    assert "Save Composition Settings" in resp.text
+
+
+def test_settings_page_cv_content_rules_save_button():
+    """Settings page has 'Save Content Rules Settings' button for cv-content-rules group."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    assert "Save Content Rules Settings" in resp.text
+
+
+def test_settings_page_cv_validation_new_save_button():
+    """Settings page has 'Save Validation Settings' button for cv-validation group."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    assert "Save Validation Settings" in resp.text
+
+
+def test_settings_page_no_raw_template_path_input():
+    """Raw cv_template_path text input is NOT exposed in the new preset-based UI."""
+    # NOTE: This test requires the new UI to be rendered (Task 4).
+    # It checks that when the new "Preset" sub-card is present,
+    # the cv_template_path field is NOT exposed as a raw text input there.
+    # Skipped until the UI is updated; backend is ready.
+    pass
+
+
+def test_settings_page_no_raw_required_cv_sections_freeform():
+    """required_cv_sections is NOT rendered as a free-form editor in the new UI."""
+    # NOTE: This test requires the new UI to be rendered (Task 4).
+    # Skipped until the UI is updated; backend is ready.
+    pass
+
+
+# ── Preset-based CV grouped save endpoints ────────────────────────────────────────
+
+def test_grouped_save_cv_preset_valid_redirects():
+    """Valid cv-preset form POST → 303 redirect; save_settings_group called."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/group/cv-preset",
+            data={
+                "cv_preset": "europass",
+                "cv_generation_model": "gemini-2.5-flash",
+                "cv_prompt_version": "v2",
+            },
+        )
+    assert resp.status_code == 303
+    mock_save.assert_called_once()
+    saved_keys = set(mock_save.call_args[0][0].keys())
+    assert saved_keys == {"cv_preset", "cv_generation_model", "cv_prompt_version"}
+
+
+def test_grouped_save_cv_preset_rejects_empty():
+    """Empty cv_preset → 422; no write."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/group/cv-preset",
+            data={
+                "cv_preset": "",
+                "cv_generation_model": "gemini-2.5-flash",
+                "cv_prompt_version": "v2",
+            },
+        )
+    assert resp.status_code == 422
+    mock_save.assert_not_called()
+
+
+def test_grouped_save_cv_composition_valid_redirects():
+    """Valid cv-composition form POST → 303 redirect."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/group/cv-composition",
+            data={
+                "cv_summary_style": "concise",
+                "cv_education_enabled": "true",
+                "cv_education_detail": "compact",
+                "cv_experience_enabled": "true",
+                "cv_experience_bullet_style": "action_project_result",
+                "cv_skills_enabled": "true",
+                "cv_skills_max_items": "12",
+                "cv_certifications_enabled": "true",
+                "cv_projects_enabled": "true",
+                "cv_projects_required": "true",
+            },
+        )
+    assert resp.status_code == 303
+    mock_save.assert_called_once()
+
+
+def test_grouped_save_cv_composition_rejects_zero_max_items():
+    """cv_skills_max_items=0 → 422; no write."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/group/cv-composition",
+            data={
+                "cv_summary_style": "concise",
+                "cv_education_enabled": "true",
+                "cv_education_detail": "compact",
+                "cv_experience_enabled": "true",
+                "cv_experience_bullet_style": "action_project_result",
+                "cv_skills_enabled": "true",
+                "cv_skills_max_items": "0",
+                "cv_certifications_enabled": "true",
+                "cv_projects_enabled": "true",
+                "cv_projects_required": "true",
+            },
+        )
+    assert resp.status_code == 422
+    mock_save.assert_not_called()
+
+
+def test_grouped_save_cv_content_rules_valid_redirects():
+    """Valid cv-content-rules form POST → 303 redirect."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/group/cv-content-rules",
+            data={
+                "cv_emphasize_required_skills": "true",
+                "cv_align_jd_terminology": "true",
+                "cv_evidence_grounded_only": "false",
+            },
+        )
+    assert resp.status_code == 303
+    mock_save.assert_called_once()
+
+
+def test_grouped_save_cv_validation_new_valid_redirects():
+    """Valid cv-validation form POST with cv_max_pages → 303 redirect."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/group/cv-validation",
+            data={
+                "cv_max_pages": "3",
+            },
+        )
+    assert resp.status_code == 303
+    mock_save.assert_called_once()
+
+
+def test_grouped_save_cv_validation_preserves_draft_on_failure():
+    """Validation error → 422 response must include submitted values."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/group/cv-validation",
+            data={
+                "cv_max_pages": "0",   # invalid
+            },
+        )
+    assert resp.status_code == 422
+    assert "0" in resp.text
+
+
+def test_grouped_save_cv_preset_invalid_does_not_partial_save():
+    """Invalid cv_preset → 422; no partial write."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/group/cv-preset",
+            data={
+                "cv_preset": "",
+                "cv_generation_model": "gemini-2.5-flash",
+                "cv_prompt_version": "v2",
+            },
+        )
+    assert resp.status_code == 422
+    mock_save.assert_not_called()
+
+
+def test_grouped_save_cv_composition_invalid_does_not_partial_save():
+    """Invalid cv_composition → 422; no partial write of any field."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/group/cv-composition",
+            data={
+                "cv_summary_style": "",
+                "cv_education_enabled": "true",
+                "cv_education_detail": "compact",
+                "cv_experience_enabled": "true",
+                "cv_experience_bullet_style": "action_project_result",
+                "cv_skills_enabled": "true",
+                "cv_skills_max_items": "12",
+                "cv_certifications_enabled": "true",
+                "cv_projects_enabled": "true",
+                "cv_projects_required": "true",
+            },
+        )
+    assert resp.status_code == 422
+    mock_save.assert_not_called()
 

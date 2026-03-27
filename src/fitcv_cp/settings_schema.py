@@ -211,11 +211,20 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
     {
         "key": "cv_generation_model",
         "type": "str",
-        "default": "gemini-2.0-flash",
+        "default": "gemini-2.5-flash",
         "label": "CV Generation Model",
         "description": "The LLM model used to generate candidate CV documents.",
-        "group": "cv_generation",
-        "config_path": ["cv_generation_model"],
+        "group": "cv_composition",
+        "config_path": ["cv", "generation", "model"],
+    },
+    {
+        "key": "cv_prompt_version",
+        "type": "str",
+        "default": "v1",
+        "label": "Prompt Version",
+        "description": "Version identifier for the CV generation prompt used.",
+        "group": "cv_composition",
+        "config_path": ["cv", "generation", "prompt_version"],
     },
     {
         "key": "cv_template_path",
@@ -227,31 +236,142 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "config_path": ["cv_template_path"],
     },
     {
-        "key": "prompt_version",
+        "key": "cv_preset",
         "type": "str",
-        "default": "v1",
-        "label": "Prompt Version",
-        "description": "Version identifier for the CV generation prompt used.",
-        "group": "cv_generation",
-        "config_path": ["prompt_version"],
+        "default": "europass",
+        "label": "CV Preset",
+        "description": "The CV preset to use for generation. Controls template, section order, and supported composition options.",
+        "group": "cv_preset",
+        "config_path": ["cv", "preset"],
+    },
+    # ── CV Composition ─────────────────────────────────────────────────────────
+    {
+        "key": "cv_summary_style",
+        "type": "str",
+        "default": "concise",
+        "label": "Summary Style",
+        "description": "Style of the professional summary section in generated CVs.",
+        "group": "cv_composition",
+        "config_path": ["cv", "composition", "summary", "style"],
     },
     {
-        "key": "required_cv_sections",
-        "type": "list[str]",
-        "default": ["Summary", "Work Experience", "Skills"],
-        "label": "Required CV Sections",
-        "description": "Ordered list of sections that every generated CV must contain.",
-        "group": "cv_generation",
-        "config_path": ["required_cv_sections"],
+        "key": "cv_education_enabled",
+        "type": "bool",
+        "default": True,
+        "label": "Include Education",
+        "description": "Whether to include an Education section in generated CVs.",
+        "group": "cv_composition",
+        "config_path": ["cv", "composition", "education", "enabled"],
     },
+    {
+        "key": "cv_education_detail",
+        "type": "str",
+        "default": "compact",
+        "label": "Education Detail Level",
+        "description": "How much detail to include in the Education section: compact, standard, or detailed.",
+        "group": "cv_composition",
+        "config_path": ["cv", "composition", "education", "detail"],
+    },
+    {
+        "key": "cv_experience_enabled",
+        "type": "bool",
+        "default": True,
+        "label": "Include Experience",
+        "description": "Whether to include a Work Experience section in generated CVs.",
+        "group": "cv_composition",
+        "config_path": ["cv", "composition", "experience", "enabled"],
+    },
+    {
+        "key": "cv_experience_bullet_style",
+        "type": "str",
+        "default": "action_project_result",
+        "label": "Experience Bullet Style",
+        "description": "Style of bullet points in work experience entries.",
+        "group": "cv_composition",
+        "config_path": ["cv", "composition", "experience", "bullet_style"],
+    },
+    {
+        "key": "cv_skills_enabled",
+        "type": "bool",
+        "default": True,
+        "label": "Include Skills",
+        "description": "Whether to include a Skills section in generated CVs.",
+        "group": "cv_composition",
+        "config_path": ["cv", "composition", "skills", "enabled"],
+    },
+    {
+        "key": "cv_skills_max_items",
+        "type": "int",
+        "default": 12,
+        "label": "Skills Max Items",
+        "description": "Maximum number of skills to include in the Skills section.",
+        "group": "cv_composition",
+        "config_path": ["cv", "composition", "skills", "max_items"],
+    },
+    {
+        "key": "cv_certifications_enabled",
+        "type": "bool",
+        "default": True,
+        "label": "Include Certifications",
+        "description": "Whether to include a Certifications section in generated CVs.",
+        "group": "cv_composition",
+        "config_path": ["cv", "composition", "certifications", "enabled"],
+    },
+    {
+        "key": "cv_projects_enabled",
+        "type": "bool",
+        "default": True,
+        "label": "Include Projects",
+        "description": "Whether to include a Projects section in generated CVs.",
+        "group": "cv_composition",
+        "config_path": ["cv", "composition", "projects", "enabled"],
+    },
+    {
+        "key": "cv_projects_required",
+        "type": "bool",
+        "default": True,
+        "label": "Projects Required",
+        "description": "Whether the Projects section is required (vs optional) in generated CVs.",
+        "group": "cv_composition",
+        "config_path": ["cv", "composition", "projects", "required"],
+    },
+    # ── CV Content Rules ──────────────────────────────────────────────────────
+    {
+        "key": "cv_emphasize_required_skills",
+        "type": "bool",
+        "default": True,
+        "label": "Emphasize Required Skills",
+        "description": "When enabled, required skills from the job description are prominently featured in the CV.",
+        "group": "cv_content_rules",
+        "config_path": ["cv", "content_rules", "emphasize_required_skills"],
+    },
+    {
+        "key": "cv_align_jd_terminology",
+        "type": "bool",
+        "default": True,
+        "label": "Align JD Terminology",
+        "description": "When enabled, the CV uses terminology matching the job description.",
+        "group": "cv_content_rules",
+        "config_path": ["cv", "content_rules", "align_jd_terminology"],
+    },
+    {
+        "key": "cv_evidence_grounded_only",
+        "type": "bool",
+        "default": True,
+        "label": "Evidence Grounded Only",
+        "description": "When enabled, only claims with evidence from the candidate profile are included in the CV.",
+        "group": "cv_content_rules",
+        "config_path": ["cv", "content_rules", "evidence_grounded_only"],
+    },
+    # ── CV Validation ────────────────────────────────────────────────────────
     {
         "key": "cv_max_pages",
         "type": "int",
         "default": 2,
         "label": "CV Maximum Pages",
         "description": "The maximum number of pages for a generated CV document.",
-        "group": "cv_generation",
-        "config_path": ["cv_max_pages"],
+        "group": "cv_validation",
+        "config_path": ["cv", "validation", "max_pages"],
     },
 ]
 
@@ -313,13 +433,29 @@ SETTINGS_SECTIONS: dict[str, list[str]] = {
 # of schema keys.  CV groups are validated and saved together, just like
 # ranking groups, but are kept in a separate namespace.
 CV_GROUPS: dict[str, list[str]] = {
-    "cv-generation": [
+    "cv-preset": [
+        "cv_preset",
         "cv_generation_model",
-        "cv_template_path",
-        "prompt_version",
+        "cv_prompt_version",
+    ],
+    "cv-composition": [
+        "cv_summary_style",
+        "cv_education_enabled",
+        "cv_education_detail",
+        "cv_experience_enabled",
+        "cv_experience_bullet_style",
+        "cv_skills_enabled",
+        "cv_skills_max_items",
+        "cv_certifications_enabled",
+        "cv_projects_enabled",
+        "cv_projects_required",
+    ],
+    "cv-content-rules": [
+        "cv_emphasize_required_skills",
+        "cv_align_jd_terminology",
+        "cv_evidence_grounded_only",
     ],
     "cv-validation": [
-        "required_cv_sections",
         "cv_max_pages",
     ],
 }
@@ -340,7 +476,7 @@ _WEIGHT_KEYS: frozenset[str] = frozenset(
 
 # ── coercion ──────────────────────────────────────────────────────────────────
 
-def coerce_value(key: str, raw: Any) -> int | float | str | list[str]:
+def coerce_value(key: str, raw: Any) -> int | float | str | bool | list[str]:
     """Cast raw value (string or numeric) to the type declared in the schema."""
     entry = _ALL_SCHEMA_BY_KEY[key]  # raises KeyError for unknown keys
     if entry["type"] == "int":
@@ -349,6 +485,15 @@ def coerce_value(key: str, raw: Any) -> int | float | str | list[str]:
         return float(raw)
     elif entry["type"] == "str":
         return str(raw).strip()
+    elif entry["type"] == "bool":
+        if isinstance(raw, bool):
+            return raw
+        s = str(raw).strip().lower()
+        if s in ("true", "1", "yes", "on"):
+            return True
+        if s in ("false", "0", "no", "off", ""):
+            return False
+        raise ValueError(f"{key} must be a boolean value, got {raw!r}")
     elif entry["type"] == "list[str]":
         if isinstance(raw, list):
             return [str(v).strip() for v in raw]
@@ -385,6 +530,9 @@ def validate_settings(settings: dict[str, Any]) -> None:
         elif entry["type"] == "str":
             if not value or not value.strip():
                 raise ValidationError(f"{key} must not be empty or whitespace-only")
+        elif entry["type"] == "bool":
+            if not isinstance(value, bool):
+                raise ValidationError(f"{key} must be a boolean, got {value!r}")
         elif entry["type"] == "list[str]":
             if not isinstance(value, list):
                 raise ValidationError(f"{key} must be a list of strings, got {type(value).__name__}")
