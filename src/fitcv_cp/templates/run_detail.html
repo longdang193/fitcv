@@ -91,15 +91,16 @@
 </div>
 {% endif %}
 
+<div class="inspection-card">
 <!-- ── Inspection Tab Bar ────────────────────────────────────────────────── -->
-<div class="tab-bar">
+<div class="tab-bar--attached">
   <button class="tab-btn active" id="tab-btn-enriched"   onclick="showTab('enriched')">📊 Enriched Jobs</button>
   <button class="tab-btn"        id="tab-btn-jobs-input" onclick="showTab('jobs-input')">📄 Original Job Input</button>
   <button class="tab-btn"        id="tab-btn-profile"    onclick="showTab('profile')">👤 Candidate Profile</button>
 </div>
 
 <!-- ── Tab 1: Enriched Jobs (default active) ─────────────────────────────── -->
-<div class="tab-pane active" id="pane-enriched" style="margin-bottom:2rem">
+<div class="pane-container tab-pane active" id="pane-enriched">
   {% if enriched_jobs %}
   <!-- Summary counts -->
   <div style="display:flex;gap:1rem;padding:0.75rem 1.25rem;border-bottom:1px solid var(--accent);flex-wrap:wrap;align-items:center">
@@ -193,7 +194,6 @@
   </div>
   {% endif %}
 </div>
-
 {% if pre_enrichment_rejects %}
 <div class="section-card" style="margin:1.5rem 0;padding:0;overflow:hidden">
   <details>
@@ -223,7 +223,7 @@
 {% endif %}
 
 <!-- ── Tab 2: Original Job Input ─────────────────────────────────────────── -->
-<div class="tab-pane" id="pane-jobs-input" style="margin-bottom:2rem">
+<div class="pane-container tab-pane" id="pane-jobs-input">
   {% if run.jobs_input_json %}
     <div class="card">
       <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.75rem">
@@ -247,7 +247,7 @@
 </div>
 
 <!-- ── Tab 3: Candidate Profile ──────────────────────────────────────────── -->
-<div class="tab-pane" id="pane-profile" style="margin-bottom:2rem">
+<div class="pane-container tab-pane" id="pane-profile">
   {% if candidate_profile_pretty %}
     <div class="card" style="margin-bottom:1rem">
       <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem">
@@ -298,6 +298,7 @@
     </div>
   {% endif %}
 </div>
+</div><!-- /.inspection-card -->
 
 <!-- ── Event Timeline (always visible) ──────────────────────────────────── -->
 <h2>Event Timeline</h2>
