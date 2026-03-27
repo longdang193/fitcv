@@ -149,6 +149,170 @@ def test_admin_upload_trigger_success(tmp_path):
     assert "run_id" in resp.json()
 
 
+# ── multi-file upload tests ────────────────────────────────────────────────────
+
+_UPLOAD_COMMON_PATCHES = {
+    "fitcv_cp.app.load_active_settings": lambda: {"return_value": {}},
+}
+
+
+def _upload_patches():
+    return (
+        patch("fitcv_cp.app.load_active_settings", return_value={}),
+        patch("fitcv_cp.app.insert_run"),
+        patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-multi", "rq-job-1")),
+        patch("fitcv_cp.app.update_run_queue_job_id"),
+        patch("fitcv_cp.app.load_config", return_value={
+            "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+            "pipeline": {"final_top_n": 10},
+        }),
+    )
+
+
+def test_admin_upload_trigger_merges_multiple_job_files():
+    """Two valid JSON files → 201, merged snapshot contains both jobs."""
+    file1 = b'[{"title": "Engineer", "job_url": "http://a.com"}]'
+    file2 = b'[{"title": "Analyst", "job_url": "http://b.com"}]'
+    captured = {}
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    p = _upload_patches()
+    with p[0], p[1], p[2], p[3], p[4]:
+        with patch("fitcv_cp.app.insert_run", side_effect=_capture_insert):
+            resp = TestClient(_app()).post(
+                "/admin/upload-trigger",
+                data={"jobs_input_mode": "upload", "candidate_profile_mode": "default_config"},
+                files=[
+                    ("jobs_files", ("file1.json", file1, "application/json")),
+                    ("jobs_files", ("file2.json", file2, "application/json")),
+                ],
+            )
+
+    assert resp.status_code == 201, resp.text
+    assert "run_id" in resp.json()
+    merged = json.loads(captured["run"].jobs_input_json)
+    urls = [j["job_url"] for j in merged]
+    assert "http://a.com" in urls
+    assert "http://b.com" in urls
+
+
+def test_admin_upload_trigger_multi_file_preserves_order():
+    """Merged snapshot preserves file order (file1 rows first, then file2)."""
+    file1 = b'[{"job_url": "http://first.com"}]'
+    file2 = b'[{"job_url": "http://second.com"}]'
+    captured = {}
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    p = _upload_patches()
+    with p[0], p[1], p[2], p[3], p[4]:
+        with patch("fitcv_cp.app.insert_run", side_effect=_capture_insert):
+            resp = TestClient(_app()).post(
+                "/admin/upload-trigger",
+                data={"jobs_input_mode": "upload", "candidate_profile_mode": "default_config"},
+                files=[
+                    ("jobs_files", ("a.json", file1, "application/json")),
+                    ("jobs_files", ("b.json", file2, "application/json")),
+                ],
+            )
+
+    assert resp.status_code == 201, resp.text
+    merged = json.loads(captured["run"].jobs_input_json)
+    assert [j["job_url"] for j in merged] == ["http://first.com", "http://second.com"]
+
+
+def test_admin_upload_trigger_one_invalid_file_rejects_entire_request():
+    """One file with invalid JSON → 422; run must NOT be created."""
+    file1 = b'[{"job_url": "http://good.com"}]'
+    file2 = b'THIS IS NOT JSON'
+    p = _upload_patches()
+    with p[0], p[1], p[2], p[3], p[4]:
+        with patch("fitcv_cp.app.insert_run") as mock_insert:
+            resp = TestClient(_app()).post(
+                "/admin/upload-trigger",
+                data={"jobs_input_mode": "upload", "candidate_profile_mode": "default_config"},
+                files=[
+                    ("jobs_files", ("good.json", file1, "application/json")),
+                    ("jobs_files", ("bad.json", file2, "application/json")),
+                ],
+            )
+    assert resp.status_code == 422
+    mock_insert.assert_not_called()
+
+
+def test_admin_upload_trigger_all_empty_arrays_rejected():
+    """Two files both containing empty arrays → 422 (total merged is empty)."""
+    file1 = b'[]'
+    file2 = b'[]'
+    p = _upload_patches()
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).post(
+            "/admin/upload-trigger",
+            data={"jobs_input_mode": "upload", "candidate_profile_mode": "default_config"},
+            files=[
+                ("jobs_files", ("a.json", file1, "application/json")),
+                ("jobs_files", ("b.json", file2, "application/json")),
+            ],
+        )
+    assert resp.status_code == 422
+
+
+def test_admin_upload_trigger_upload_mode_no_files_rejected():
+    """Upload mode with neither jobs_file nor jobs_files → 422."""
+    p = _upload_patches()
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).post(
+            "/admin/upload-trigger",
+            data={"jobs_input_mode": "upload", "candidate_profile_mode": "default_config"},
+        )
+    assert resp.status_code == 422
+
+
+def test_admin_upload_trigger_multi_file_non_array_rejected():
+    """A file whose top-level is not a JSON array → 422."""
+    file1 = b'{"title": "not an array"}'
+    p = _upload_patches()
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).post(
+            "/admin/upload-trigger",
+            data={"jobs_input_mode": "upload", "candidate_profile_mode": "default_config"},
+            files=[
+                ("jobs_files", ("dict.json", file1, "application/json")),
+            ],
+        )
+    assert resp.status_code == 422
+
+
+def test_admin_upload_trigger_effective_settings_includes_enrichment_parallelism():
+    """Trigger run with mocked active settings containing batch_size/concurrency → stored in effective_settings_json."""
+    active = {"enrichment_batch_size": 5, "enrichment_concurrency": 3}
+    captured = {}
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    p = _upload_patches()
+    with p[0], p[1], p[2], p[3], p[4]:
+        with patch("fitcv_cp.app.load_active_settings", return_value=active), \
+             patch("fitcv_cp.app.insert_run", side_effect=_capture_insert):
+            file1 = b'[{"job_url": "http://e.com"}]'
+            resp = TestClient(_app()).post(
+                "/admin/upload-trigger",
+                data={"jobs_input_mode": "upload", "candidate_profile_mode": "default_config"},
+                files=[
+                    ("jobs_files", ("e.json", file1, "application/json")),
+                ],
+            )
+
+    assert resp.status_code == 201, resp.text
+    effective = json.loads(captured["run"].effective_settings_json)
+    assert effective.get("enrichment_batch_size") == 5
+    assert effective.get("enrichment_concurrency") == 3
+
+
 
 # ── html routes ──────────────────────────────────────────────────────────────
 
