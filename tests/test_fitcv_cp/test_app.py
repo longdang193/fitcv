@@ -132,7 +132,7 @@ def test_admin_upload_trigger_success(tmp_path):
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
              "pipeline": {"final_top_n": 10},
-             "paths": {"candidate_profile": "/tmp/dummy.yaml"},
+             "paths": {"candidate_profile": "data/candidate_profile.yaml"},
          }):
 
         file_content = b'[{"title": "Engineer", "job_url": "http://x.com"}]'
@@ -165,6 +165,7 @@ def _upload_patches():
         patch("fitcv_cp.app.load_config", return_value={
             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
             "pipeline": {"final_top_n": 10},
+            "paths": {"candidate_profile": "data/candidate_profile.yaml"},
         }),
     )
 
@@ -1270,3 +1271,310 @@ def test_run_detail_no_page_local_tab_style_inside_inspection_area():
         "Page-local <style> tag found inside .inspection-card region — "
         "tab styling should use shared CSS from base.html"
     )
+
+
+# ── Task 1: path-mode snapshot capture ──────────────────────────────────────
+
+
+def _path_mode_patches(profile_path: str = "/tmp/dummy_profile.yaml"):
+    """Return standard patches for path-mode upload-trigger tests."""
+    base_config = {
+        "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+        "pipeline": {"final_top_n": 10},
+        "paths": {"candidate_profile": profile_path},
+    }
+    return (
+        patch("fitcv_cp.app.load_active_settings", return_value={}),
+        patch("fitcv_cp.app.insert_run"),
+        patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-path-1", "rq-job-1")),
+        patch("fitcv_cp.app.update_run_queue_job_id"),
+        patch("fitcv_cp.app.load_config", return_value=base_config),
+    )
+
+
+def test_admin_upload_trigger_path_mode_stores_jobs_snapshot(tmp_path):
+    """path mode: trigger must read the file and store its JSON in jobs_input_json."""
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_file = tmp_path / "profile.yaml"
+    profile_file.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    captured = {}
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    p = _path_mode_patches(profile_path=str(profile_file))
+    with p[0], p[1], p[2], p[3], p[4]:
+        with patch("fitcv_cp.app.insert_run", side_effect=_capture_insert):
+            resp = TestClient(_app()).post(
+                "/admin/upload-trigger",
+                data={
+                    "jobs_input_mode": "path",
+                    "jobs_path": str(jobs_file),
+                    "candidate_profile_mode": "default_config",
+                },
+            )
+
+    assert resp.status_code == 201, resp.text
+    assert "run_id" in resp.json()
+    assert captured["run"].jobs_input_source == "path"
+    assert json.loads(captured["run"].jobs_input_json) == [{"job_url": "http://a.com"}]
+
+
+def test_admin_upload_trigger_path_mode_missing_file_returns_422(tmp_path):
+    """path mode: missing file must fail the trigger with 422."""
+    profile_file = tmp_path / "profile.yaml"
+    profile_file.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+    p = _path_mode_patches(profile_path=str(profile_file))
+    with p[0], p[1], p[2], p[3], p[4]:
+        with patch("fitcv_cp.app.insert_run") as mock_insert:
+            resp = TestClient(_app()).post(
+                "/admin/upload-trigger",
+                data={
+                    "jobs_input_mode": "path",
+                    "jobs_path": str(tmp_path / "nonexistent.json"),
+                    "candidate_profile_mode": "default_config",
+                },
+            )
+    assert resp.status_code == 422
+    mock_insert.assert_not_called()
+
+
+def test_admin_upload_trigger_path_mode_invalid_json_returns_422(tmp_path):
+    """path mode: invalid JSON content must fail the trigger with 422."""
+    bad_file = tmp_path / "bad.json"
+    bad_file.write_text("NOT JSON AT ALL", encoding="utf-8")
+    profile_file = tmp_path / "profile.yaml"
+    profile_file.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    p = _path_mode_patches(profile_path=str(profile_file))
+    with p[0], p[1], p[2], p[3], p[4]:
+        with patch("fitcv_cp.app.insert_run") as mock_insert:
+            resp = TestClient(_app()).post(
+                "/admin/upload-trigger",
+                data={
+                    "jobs_input_mode": "path",
+                    "jobs_path": str(bad_file),
+                    "candidate_profile_mode": "default_config",
+                },
+            )
+    assert resp.status_code == 422
+    mock_insert.assert_not_called()
+
+
+def test_admin_upload_trigger_path_mode_non_array_json_returns_422(tmp_path):
+    """path mode: JSON that is not a top-level array must fail with 422."""
+    obj_file = tmp_path / "obj.json"
+    obj_file.write_text('{"job_url": "http://a.com"}', encoding="utf-8")
+    profile_file = tmp_path / "profile.yaml"
+    profile_file.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    p = _path_mode_patches(profile_path=str(profile_file))
+    with p[0], p[1], p[2], p[3], p[4]:
+        with patch("fitcv_cp.app.insert_run") as mock_insert:
+            resp = TestClient(_app()).post(
+                "/admin/upload-trigger",
+                data={
+                    "jobs_input_mode": "path",
+                    "jobs_path": str(obj_file),
+                    "candidate_profile_mode": "default_config",
+                },
+            )
+    assert resp.status_code == 422
+    mock_insert.assert_not_called()
+
+
+# ── Task 2: default_config profile snapshot capture ──────────────────────────
+
+
+def _minimal_valid_profile_yaml() -> str:
+    """Return a minimal YAML profile with required sections."""
+    return """
+name: Test Candidate
+skills:
+  - name: Python
+    level: expert
+    years: 5
+    evidence_refs: []
+experiences: []
+projects: []
+achievements: []
+preferences:
+  domains:
+    - fintech
+  location_types:
+    - remote
+"""
+
+
+def test_admin_upload_trigger_default_config_stores_profile_snapshot(tmp_path):
+    """default_config mode: trigger must load the configured profile and store snapshot."""
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+
+    captured = {}
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    config = {
+        "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+        "pipeline": {"final_top_n": 10},
+        "paths": {"candidate_profile": str(profile_path)},
+    }
+    p = (
+        patch("fitcv_cp.app.load_active_settings", return_value={}),
+        patch("fitcv_cp.app.insert_run"),
+        patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-dc-1", "rq-job-1")),
+        patch("fitcv_cp.app.update_run_queue_job_id"),
+        patch("fitcv_cp.app.load_config", return_value=config),
+    )
+    with p[0], p[1], p[2], p[3], p[4]:
+        with patch("fitcv_cp.app.insert_run", side_effect=_capture_insert):
+            resp = TestClient(_app()).post(
+                "/admin/upload-trigger",
+                data={
+                    "jobs_input_mode": "path",
+                    "jobs_path": str(jobs_file),
+                    "candidate_profile_mode": "default_config",
+                },
+            )
+
+    assert resp.status_code == 201, resp.text
+    assert "run_id" in resp.json()
+    assert captured["run"].candidate_profile_source == "default_config"
+    profile_snapshot = json.loads(captured["run"].candidate_profile_json)
+    assert profile_snapshot["preferences"]["domains"] == ["fintech"]
+
+
+def test_admin_upload_trigger_default_config_missing_profile_returns_422(tmp_path):
+    """default_config mode: missing profile file must fail the trigger with 422."""
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+
+    config = {
+        "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+        "pipeline": {"final_top_n": 10},
+        "paths": {"candidate_profile": str(tmp_path / "nonexistent.yaml")},
+    }
+    p = (
+        patch("fitcv_cp.app.load_active_settings", return_value={}),
+        patch("fitcv_cp.app.insert_run"),
+        patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-dc-2", "rq-job-1")),
+        patch("fitcv_cp.app.update_run_queue_job_id"),
+        patch("fitcv_cp.app.load_config", return_value=config),
+    )
+    with p[0], p[1], p[2], p[3], p[4]:
+        with patch("fitcv_cp.app.insert_run") as mock_insert:
+            resp = TestClient(_app()).post(
+                "/admin/upload-trigger",
+                data={
+                    "jobs_input_mode": "path",
+                    "jobs_path": str(jobs_file),
+                    "candidate_profile_mode": "default_config",
+                },
+            )
+    assert resp.status_code == 422
+    mock_insert.assert_not_called()
+
+
+# ── Task 3: Snapshot semantics – run detail display and legacy fallback ────────
+
+
+def test_run_detail_tab2_shows_snapshot_for_path_source():
+    """Tab 2 shows snapshot content when jobs_input_json is present for path source."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="snap-test-1", status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json", jobs_input_source="path",
+        jobs_input_json='[{"job_url": "http://a.com"}]',
+        triggered_by="admin", trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/snap-test-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Raw job payload captured at trigger time" in html
+    # Jinja2 auto-escapes " as &quot; in <pre> blocks
+    assert "job_url" in html
+    assert "http://a.com" in html
+
+
+def test_run_detail_tab2_legacy_fallback_does_not_mention_path_mode_limitation():
+    """Tab 2 fallback for legacy runs (no snapshot) must NOT say 'path-mode runs do not'."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="snap-test-2", status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json", jobs_input_source="path",
+        jobs_input_json=None,
+        triggered_by="admin", trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/snap-test-2")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "No immutable raw snapshot" in html
+    # Must NOT imply path-mode never has snapshots
+    assert "path-mode runs do not" not in html
+
+
+def test_run_detail_tab3_shows_snapshot_for_default_config_source():
+    """Tab 3 shows snapshot content when candidate_profile_json is present for default_config."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    profile_json = '{"preferences": {"domains": ["fintech"]}, "skills": [], "experiences": [], "projects": [], "achievements": []}'
+    run = PipelineRun(
+        run_id="snap-test-3", status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        candidate_profile_source="default_config",
+        candidate_profile_json=profile_json,
+        triggered_by="admin", trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/snap-test-3")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Candidate profile captured at trigger time" in html
+    assert "default_config" in html
+
+
+def test_run_detail_tab3_legacy_fallback_does_not_mention_default_config_limitation():
+    """Tab 3 fallback for legacy runs must NOT say 'Default-config and pre-feature runs do not'."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="snap-test-4", status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        candidate_profile_source="default_config",
+        candidate_profile_json=None,
+        triggered_by="admin", trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/snap-test-4")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "No candidate profile snapshot" in html
+    # Must NOT imply default_config never has snapshots
+    assert "Default-config and pre-feature runs do not" not in html
