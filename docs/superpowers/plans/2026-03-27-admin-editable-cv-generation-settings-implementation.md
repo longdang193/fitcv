@@ -8,6 +8,8 @@
 
 **Tech Stack:** Python 3.11, FastAPI, Jinja2, BigQuery-backed settings store, pytest
 
+**Status:** ✅ All tasks complete — committed at `ca1f111`
+
 ---
 
 ## File Map
@@ -31,7 +33,7 @@
 - Modify: `src/fitcv_cp/settings_schema.py`
 - Test: `tests/test_fitcv_cp/test_settings_schema.py`
 
-- [ ] **Step 1: Write failing settings-schema tests for CV keys**
+- [x] **Step 1: Write failing settings-schema tests for CV keys**
 
 Add tests proving:
 - CV settings are registered in `SETTINGS_SCHEMA`
@@ -50,7 +52,7 @@ def test_cv_settings_keys_registered():
     assert "cv_max_pages" in keys
 ```
 
-- [ ] **Step 2: Run the targeted schema tests to verify failure**
+- [x] **Step 2: Run the targeted schema tests to verify failure**
 
 Run:
 ```bash
@@ -60,7 +62,7 @@ Run:
 Expected:
 - FAIL because no CV settings are registered yet
 
-- [ ] **Step 3: Add CV-owned schema entries in `settings_schema.py`**
+- [x] **Step 3: Add CV-owned schema entries in `settings_schema.py`**
 
 Register:
 - `cv_generation_model`
@@ -82,7 +84,7 @@ If the schema currently only supports `int` / `float`, extend it carefully to su
 
 Do not overload numeric-only validation paths for CV text/list fields.
 
-- [ ] **Step 4: Add grouped registries for CV subgroup saves**
+- [x] **Step 4: Add grouped registries for CV subgroup saves**
 
 Add a dedicated grouped registry alongside `RANKING_GROUPS`, for example:
 ```python
@@ -101,7 +103,7 @@ CV_GROUPS = {
 
 This keeps CV grouped saves structurally separate from ranking while still using the same grouped-save machinery.
 
-- [ ] **Step 5: Re-run the targeted schema tests**
+- [x] **Step 5: Re-run the targeted schema tests**
 
 Run:
 ```bash
@@ -111,7 +113,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/fitcv_cp/settings_schema.py tests/test_fitcv_cp/test_settings_schema.py
@@ -126,7 +128,7 @@ git commit -m "feat(cp): add cv generation settings schema"
 - Modify: `src/fitcv_cp/settings_schema.py`
 - Test: `tests/test_fitcv_cp/test_settings_schema.py`
 
-- [ ] **Step 1: Write failing validation tests for CV fields**
+- [x] **Step 1: Write failing validation tests for CV fields**
 
 Add tests proving:
 - `cv_generation_model` rejects empty/whitespace-only values
@@ -144,7 +146,7 @@ def test_required_cv_sections_reject_duplicates():
         validate_settings({"required_cv_sections": ["Summary", "Summary"]})
 ```
 
-- [ ] **Step 2: Run the targeted validation tests to verify failure**
+- [x] **Step 2: Run the targeted validation tests to verify failure**
 
 Run:
 ```bash
@@ -154,7 +156,7 @@ Run:
 Expected:
 - FAIL because CV field validation does not exist yet
 
-- [ ] **Step 3: Extend `validate_settings()` for CV field types**
+- [x] **Step 3: Extend `validate_settings()` for CV field types**
 
 Implement explicit validation rules:
 - trim strings before emptiness checks
@@ -168,11 +170,11 @@ Implement explicit validation rules:
 
 Make validation messages field-specific and admin-readable.
 
-- [ ] **Step 4: Ensure config application preserves `required_cv_sections` order**
+- [x] **Step 4: Ensure config application preserves `required_cv_sections` order**
 
 `apply_settings_to_config()` must write the list in its validated order without sorting or deduplicating silently.
 
-- [ ] **Step 5: Re-run the targeted validation tests**
+- [x] **Step 5: Re-run the targeted validation tests**
 
 Run:
 ```bash
@@ -182,7 +184,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/fitcv_cp/settings_schema.py tests/test_fitcv_cp/test_settings_schema.py
@@ -197,7 +199,7 @@ git commit -m "feat(cp): validate cv settings fields and groups"
 - Modify: `src/fitcv_cp/app.py`
 - Test: `tests/test_fitcv_cp/test_app.py`
 
-- [ ] **Step 1: Write failing app tests for CV grouped saves**
+- [x] **Step 1: Write failing app tests for CV grouped saves**
 
 Add tests proving:
 - the grouped-save endpoint accepts CV generation group submissions
@@ -211,7 +213,7 @@ def test_post_admin_settings_group_cv_generation_saves_all_keys():
     ...
 ```
 
-- [ ] **Step 2: Run the targeted app tests to verify failure**
+- [x] **Step 2: Run the targeted app tests to verify failure**
 
 Run:
 ```bash
@@ -221,7 +223,7 @@ Run:
 Expected:
 - FAIL because the grouped-save route only knows ranking groups today
 
-- [ ] **Step 3: Generalize grouped-save route handling in `app.py`**
+- [x] **Step 3: Generalize grouped-save route handling in `app.py`**
 
 Refactor the route so it can work with:
 - ranking groups
@@ -235,7 +237,7 @@ Recommended approach:
 Important rule:
 - grouped saves must still validate the full subgroup before writing any keys
 
-- [ ] **Step 4: Support structured list input for `required_cv_sections`**
+- [x] **Step 4: Support structured list input for `required_cv_sections`**
 
 Decide one HTML form encoding pattern and use it consistently.
 
@@ -245,7 +247,7 @@ Recommended first pass:
 
 This keeps the form HTML simple and avoids inventing JSON blobs in the UI.
 
-- [ ] **Step 5: Re-run the targeted app tests**
+- [x] **Step 5: Re-run the targeted app tests**
 
 Run:
 ```bash
@@ -255,7 +257,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/fitcv_cp/app.py tests/test_fitcv_cp/test_app.py
@@ -271,7 +273,7 @@ git commit -m "feat(cp): support grouped cv settings saves"
 - Modify: `src/fitcv_cp/app.py`
 - Test: `tests/test_fitcv_cp/test_app.py`
 
-- [ ] **Step 1: Write failing rendering tests for the new section**
+- [x] **Step 1: Write failing rendering tests for the new section**
 
 Add tests proving the settings page renders:
 - top-level `CV Generation` section
@@ -290,7 +292,7 @@ def test_admin_settings_page_renders_cv_generation_section():
     assert "Save Validation Settings" in resp.text
 ```
 
-- [ ] **Step 2: Run the targeted rendering tests to verify failure**
+- [x] **Step 2: Run the targeted rendering tests to verify failure**
 
 Run:
 ```bash
@@ -300,7 +302,7 @@ Run:
 Expected:
 - FAIL because the section is not rendered yet
 
-- [ ] **Step 3: Add the top-level `CV Generation` section**
+- [x] **Step 3: Add the top-level `CV Generation` section**
 
 In `settings.html`:
 - render a new outer `section-card`
@@ -312,7 +314,7 @@ Inside it:
 
 Do not merge these into one uninterrupted block.
 
-- [ ] **Step 4: Render `Generation` controls**
+- [x] **Step 4: Render `Generation` controls**
 
 Use:
 - text input for `cv_generation_model`
@@ -323,7 +325,7 @@ Use:
 Label `CV Template Path` as an advanced setting with helper text.
 Label `Prompt Version` as a traceability/version setting, not prompt-editing UI.
 
-- [ ] **Step 5: Render `Validation` controls**
+- [x] **Step 5: Render `Validation` controls**
 
 Use:
 - repeated text inputs for `required_cv_sections`
@@ -335,14 +337,14 @@ The first pass may use small client-side JS to add/remove repeated inputs.
 
 Do not expose raw YAML editing for section names.
 
-- [ ] **Step 6: Surface subgroup errors without losing draft values**
+- [x] **Step 6: Surface subgroup errors without losing draft values**
 
 Reuse the existing grouped-save error pattern:
 - subgroup-level error message
 - preserve submitted values after validation failure
 - preserve section list order on failed submit
 
-- [ ] **Step 7: Re-run the targeted rendering tests**
+- [x] **Step 7: Re-run the targeted rendering tests**
 
 Run:
 ```bash
@@ -352,7 +354,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/fitcv_cp/templates/settings.html src/fitcv_cp/app.py \
@@ -367,7 +369,7 @@ git commit -m "feat(cp): render admin-editable cv settings section"
 **Files:**
 - No new product files
 
-- [ ] **Step 1: Run control-plane settings tests**
+- [x] **Step 1: Run control-plane settings tests**
 
 Run:
 ```bash
@@ -379,7 +381,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 2: Run broader control-plane suite**
+- [x] **Step 2: Run broader control-plane suite**
 
 Run:
 ```bash
@@ -389,7 +391,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 3: Manual verification**
+- [x] **Step 3: Manual verification**
 
 Check in browser:
 - settings page shows `CV Generation` as a top-level section
@@ -398,7 +400,7 @@ Check in browser:
 - invalid grouped submissions do not partially save
 - `CV Template Path` appears as an advanced field
 
-- [ ] **Step 4: Final commit**
+- [x] **Step 4: Final commit**
 
 ```bash
 git status --short
