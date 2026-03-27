@@ -58,3 +58,87 @@ def test_load_config_accepts_legacy_config_env_path_with_warning() -> None:
         cfg = load_config(legacy_path)
     assert cfg["gemini_model"] == "gemini-2.5-flash"
     assert cfg["vertex_location"] == "us-central1"
+
+
+# ── Task 1: cv.yaml config layer tests ────────────────────────────────────────
+
+
+def test_load_config_includes_cv_defaults() -> None:
+    """cv.yaml keys are present after loading the full config."""
+    cfg = load_config()
+    assert cfg["cv_generation_model"] == "gemini-2.5-flash"
+    assert cfg["cv_template_path"] == "templates/cv_template.md"
+    assert isinstance(cfg["required_cv_sections"], list)
+    assert len(cfg["required_cv_sections"]) > 0
+    assert int(cfg["cv_max_pages"]) > 0
+    assert cfg["prompt_version"]
+
+
+def test_load_config_cv_keys_missing_raises(tmp_path: Path) -> None:
+    """A config without cv.yaml keys should raise ValueError after loader validation."""
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
+    )
+    # No cv.yaml in the config dir → required CV keys missing → ValueError
+    with pytest.raises(ValueError, match="Missing CV config keys"):
+        load_config(env_yaml)
+
+
+def test_load_config_cv_required_sections_must_be_nonempty_list(tmp_path: Path) -> None:
+    """required_cv_sections must be a non-empty list."""
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv_generation_model: gemini-2.5-flash\n"
+        "cv_template_path: templates/cv_template.md\n"
+        "required_cv_sections: []\n"
+        "cv_max_pages: 2\n"
+        "prompt_version: v1\n"
+    )
+    with pytest.raises(ValueError, match="required_cv_sections"):
+        load_config(env_yaml)
+
+
+def test_load_config_cv_max_pages_must_be_positive(tmp_path: Path) -> None:
+    """cv_max_pages must be a positive integer."""
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv_generation_model: gemini-2.5-flash\n"
+        "cv_template_path: templates/cv_template.md\n"
+        "required_cv_sections: [Summary]\n"
+        "cv_max_pages: 0\n"
+        "prompt_version: v1\n"
+    )
+    with pytest.raises(ValueError, match="cv_max_pages"):
+        load_config(env_yaml)
+
+
+def test_load_config_env_yaml_overrides_cv_yaml(tmp_path: Path) -> None:
+    """.env.yaml / higher layer keys take precedence over cv.yaml."""
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
+        "cv_generation_model: my-custom-model\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv_generation_model: gemini-2.5-flash\n"
+        "cv_template_path: templates/cv_template.md\n"
+        "required_cv_sections: [Summary]\n"
+        "cv_max_pages: 2\n"
+        "prompt_version: v1\n"
+    )
+    cfg = load_config(env_yaml)
+    # env.yaml value wins
+    assert cfg["cv_generation_model"] == "my-custom-model"
