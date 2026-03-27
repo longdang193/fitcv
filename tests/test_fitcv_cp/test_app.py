@@ -1123,3 +1123,150 @@ def test_run_detail_enriched_unknown_filter_not_counted_as_rejected():
     assert 'data-filter="unknown"' in resp.text
     # Rejected count should be 0 (no explicit reject), not 1
     assert "Rejected: 0" in resp.text
+
+
+
+# ── Task 6: Composition consistency tests ──────────────────────────────────────
+
+def test_settings_ranking_section_has_no_tailwind_classes():
+    """The ranking section must not contain Tailwind class names in the rendered HTML."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    # Find the ranking section
+    ranking_start = html.index("Ranking Weights")
+    section_slice = html[ranking_start:ranking_start + 3000]
+    tailwind_prefixes = ("text-gray-", "bg-slate-", "bg-indigo-", "text-indigo-", "rounded-", "px-", "py-", "mb-", "mt-", "mr-", "ml-", "gap-", "border-")
+    for prefix in tailwind_prefixes:
+        assert prefix not in section_slice, f"Tailwind class '{prefix}' found in ranking section"
+
+
+def test_settings_ranking_contains_three_sub_cards():
+    """The ranking section must render exactly three .sub-card elements."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    # Count occurrences of class="sub-card" (each sub-card has exactly this class attribute)
+    count = html.count('class="sub-card"')
+    assert count >= 3, f"Expected at least 3 sub-card elements, got {count}"
+
+
+def test_settings_ranking_sub_cards_have_save_buttons_with_correct_form_targets():
+    """Each ranking sub-card must have a submit button inside its group form."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    for form_id in ("form-ranking-weights", "form-fit-label-thresholds", "form-gap-thresholds"):
+        # Locate the form element
+        form_open = f'<form id="{form_id}"'
+        form_start = html.index(form_open)
+        form_end = html.index("</form>", form_start)
+        form_body = html[form_start:form_end]
+        # The submit button must be nested inside the form (not using form= attribute)
+        assert '<button type="submit"' in form_body, f"Submit button inside form '{form_id}' not found"
+
+
+def test_run_detail_inspection_area_wrapped_in_inspection_card():
+    """The inspection area must be wrapped in .inspection-card, with tab bar inside."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    run = PipelineRun(
+        run_id="composition-test-1", status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json", triggered_by="admin",
+        trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/composition-test-1")
+    assert resp.status_code == 200
+    html = resp.text
+    # .inspection-card must appear in the HTML
+    assert 'class="inspection-card"' in html
+    # Verify the tab bar is actually INSIDE the card (not just later in the document).
+    # Find the card's opening position and its closing </div><!-- /.inspection-card -->.
+    card_pos = html.index('class="inspection-card"')
+    card_close_pos = html.index('</div><!-- /.inspection-card -->', card_pos)
+    # Now find the first tab button and verify it is between the open and close.
+    tab_btn_pos = html.index('id="tab-btn-enriched"')
+    assert card_pos < tab_btn_pos < card_close_pos, (
+        "Tab bar button is not inside .inspection-card. "
+        f"card={card_pos}, tab_btn={tab_btn_pos}, card_close={card_close_pos}"
+    )
+
+
+def test_run_detail_tab_bar_uses_attached_modifier():
+    """The tab bar must use .tab-bar--attached (not the old .tab-bar)."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    run = PipelineRun(
+        run_id="composition-test-2", status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json", triggered_by="admin",
+        trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/composition-test-2")
+    assert resp.status_code == 200
+    html = resp.text
+    # .tab-bar--attached must be present
+    assert 'tab-bar--attached' in html, 'class="tab-bar--attached" not found in rendered HTML'
+    # The bare "tab-bar" class (without --attached) must NOT appear as the opening class attribute
+    # Check around the tab-bar element: find a position where class= is followed by tab-bar
+    # Use token-level check: split on 'class="' and look at tokens
+    import re
+    class_tokens = re.findall(r'class="([^"]*)"', html)
+    bare_tab_bar_in_classes = any('tab-bar' in token and 'tab-bar--attached' not in token for token in class_tokens)
+    assert not bare_tab_bar_in_classes, "Bare 'tab-bar' class found in rendered HTML (should be 'tab-bar--attached')"
+
+
+def test_run_detail_panes_use_pane_container():
+    """All three inspection panes must use .pane-container alongside .tab-pane."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    run = PipelineRun(
+        run_id="composition-test-3", status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json", triggered_by="admin",
+        trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/composition-test-3")
+    assert resp.status_code == 200
+    html = resp.text
+    for pane_id in ("pane-enriched", "pane-jobs-input", "pane-profile"):
+        pane_pos = html.index(f'id="{pane_id}"')
+        # Check that "pane-container" appears within 100 chars before the pane id (it's on the same div's class attribute)
+        context = html[max(0, pane_pos - 100):pane_pos + len(pane_id) + 10]
+        assert "pane-container" in context, f"'pane-container' not found near {pane_id} pane"
+
+
+def test_run_detail_no_page_local_tab_style_inside_inspection_area():
+    """No <style> tag may appear between the inspection card open and the first tab button."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    run = PipelineRun(
+        run_id="composition-test-4", status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json", triggered_by="admin",
+        trigger_source="web", config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/composition-test-4")
+    assert resp.status_code == 200
+    html = resp.text
+    # Find the .inspection-card region (open to close)
+    card_pos = html.index('class="inspection-card"')
+    card_close_pos = html.index('</div><!-- /.inspection-card -->', card_pos)
+    card_region = html[card_pos:card_close_pos]
+    # No <style> tag may appear inside the inspection card region
+    assert "<style>" not in card_region, (
+        "Page-local <style> tag found inside .inspection-card region — "
+        "tab styling should use shared CSS from base.html"
+    )

@@ -1,5 +1,22 @@
 """Shared pytest fixtures for fitcv tests."""
 
+import multiprocessing
+
+# Python 3.13 on Windows does not support the 'fork' multiprocessing start method.
+# rq.scheduler unconditionally calls get_context('fork') at import time, which
+# raises ValueError.  Patch it here before the test module imports anything from
+# fitcv_cp (which transitively imports rq).
+_original_get_context = multiprocessing.get_context
+
+
+def _patched_get_context(method):
+    if method == "fork":
+        method = "spawn"
+    return _original_get_context(method)
+
+
+multiprocessing.get_context = _patched_get_context
+
 import os
 from pathlib import Path
 

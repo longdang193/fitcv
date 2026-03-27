@@ -1,9 +1,45 @@
 """RQ queue setup for background pipeline execution."""
+import importlib
+import multiprocessing
+import sys
+import types
 import uuid
 from typing import Optional
 
+# Set spawn context BEFORE rq is imported — rq's scheduler module uses
+# get_context('fork') at import time, which fails on Windows.
+_orig_get_context = multiprocessing.get_context
+_spawn_ctx = _orig_get_context("spawn")
+
+
+def _patched_get_context(method: str):
+    if method == "fork":
+        return _spawn_ctx
+    return _orig_get_context(method)
+
+
+multiprocessing.get_context = _patched_get_context
+
+# Pre-load a stub for rq.scheduler BEFORE any rq sub-module is imported.
+# rq/worker/__init__.py → rq/worker/base.py executes
+#   "from ..scheduler import RQScheduler" at module scope.
+# By injecting a stub into sys.modules first, Python finds it there and
+# returns it instead of executing the real module body (which would hit the
+# unpatched get_context).
+_rq_scheduler_stub = types.ModuleType("rq.scheduler")
+_rq_scheduler_stub.ForkProcess = _spawn_ctx.Process
+_rq_scheduler_stub.RQScheduler = object  # placeholder; replaced below
+sys.modules["rq.scheduler"] = _rq_scheduler_stub
+
 import redis
 from rq import Queue
+
+# Remove the stub so reload() can re-import the real module from disk.
+sys.modules.pop("rq.scheduler", None)
+import rq.scheduler as _real_scheduler_mod
+_real_scheduler = importlib.reload(_real_scheduler_mod)
+_rq_scheduler_stub.ForkProcess = _real_scheduler.ForkProcess
+_rq_scheduler_stub.RQScheduler = _real_scheduler.RQScheduler
 from rq.job import Job
 
 _queue: Optional[Queue] = None

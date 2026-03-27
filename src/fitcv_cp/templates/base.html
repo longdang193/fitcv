@@ -135,6 +135,105 @@
       flex-wrap: wrap;
     }
 
+    /* ── Sub-card (grouped sibling forms inside a section-card) ─────────────── */
+    /* Used by the three ranking groups inside the Ranking section.              */
+    .sub-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface-1);
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+    /* Last sub-card in a group: no bottom margin (flush with section bottom) */
+    .sub-card:last-child {
+      margin-bottom: 0;
+    }
+    .sub-card-header {
+      padding: 0.75rem 1rem 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .sub-card-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .sub-card-helper {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+    .sub-card-body {
+      padding: 0.75rem 1rem;
+    }
+    /* Pairs label + value in a row (scoped to sub-card internals — does not
+       override the existing .kv shared rule used by run-detail metadata grids) */
+    .sub-card .kv { display: grid; grid-template-columns: 12rem 1fr; gap: 0.25rem 0.5rem; font-size: 0.8rem; }
+    .sub-card-footer {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--border-soft);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
+    /* ── Inspection card with attached tab bar ────────────────────────────────── */
+    /* Used by the run-detail inspection area.                                      */
+    /* One shared container for tab bar + pane body.                               */
+    .inspection-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface-1);
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Tab bar sits flush on the top edge of the inspection card.                   */
+    .tab-bar--attached {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-1);
+      padding: 0 0.75rem;
+    }
+    .tab-bar--attached .tab-btn {
+      padding: 0.6rem 1rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      margin-bottom: -1px;    /* overlaps the card top border */
+    }
+    .tab-bar--attached .tab-btn:hover {
+      color: var(--text-primary);
+    }
+    .tab-bar--attached .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Pane container — one consistent border/radius/padding for all three panes.  */
+    .pane-container {
+      border: none;
+      border-top: none;
+      background: var(--surface-1);
+      padding: 1rem;
+    }
+    /* Default: hidden; .active: shown */
+    .pane-container.tab-pane {
+      display: none;
+    }
+    .pane-container.tab-pane.active {
+      display: block;
+    }
+    .pane-container .card { padding: 0; border: none; }
     /* ── Table ────────────────────────────────────────────────────────────── */
     table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
     th {
