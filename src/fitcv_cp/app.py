@@ -180,17 +180,21 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
     @app.post("/admin/upload-trigger", status_code=201)
     async def upload_trigger(
-        jobs_file: UploadFile = File(None),
+        jobs_files: list[UploadFile] = File(default_factory=list),
+        jobs_file: UploadFile | None = File(None),
         jobs_path: str = Form("data/sample_jobs.json"),
         jobs_input_mode: str = Form("path"),      # "path" | "upload" | "paste"
         jobs_text: str = Form(""),
         config_path: str = Form(".env.yaml"),
         candidate_profile_mode: str = Form("default_config"),  # "default_config" | "upload" | "paste"
-        candidate_profile_file: UploadFile = File(None),
+        candidate_profile_file: UploadFile | None = File(None),
         candidate_profile_text: str = Form(""),
     ) -> dict:
         from fitcv.candidate import load_profile_json_text as _load_json_profile
         from fastapi import HTTPException as _HTTPEx
+
+        _MAX_FILES = 20
+        _MAX_TOTAL_BYTES = 50 * 1024 * 1024  # 50 MB
 
         upload_dir = Path("data/uploads")
         upload_dir.mkdir(parents=True, exist_ok=True)
@@ -203,20 +207,75 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             actual_jobs_path = jobs_path
             jobs_input_source = "path"
         elif jobs_input_mode == "upload":
-            if not jobs_file or not jobs_file.filename:
+            # Normalize: accept multi-file (jobs_files) or legacy single-file (jobs_file)
+            effective_files: list[UploadFile] = []
+            valid_jobs_files = [f for f in (jobs_files or []) if f and f.filename]
+            if valid_jobs_files:
+                effective_files = valid_jobs_files
+            elif jobs_file and jobs_file.filename:
+                effective_files = [jobs_file]
+
+            if not effective_files:
                 raise HTTPException(status_code=422, detail="jobs_file required for upload mode")
-            raw_bytes = await jobs_file.read()
-            save_path = upload_dir / f"{uuid.uuid4().hex}_{jobs_file.filename}"
-            with open(save_path, "wb") as f:
-                f.write(raw_bytes)
+
+            if len(effective_files) > _MAX_FILES:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Too many files: {len(effective_files)} exceeds limit of {_MAX_FILES}",
+                )
+
+            # Read and validate each file individually before merging
+            validated_arrays: list[list] = []
+            total_bytes = 0
+            for upload in effective_files:
+                raw_bytes = await upload.read()
+                total_bytes += len(raw_bytes)
+                if total_bytes > _MAX_TOTAL_BYTES:
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"Total upload size exceeds limit of {_MAX_TOTAL_BYTES // (1024 * 1024)} MB",
+                    )
+                filename = upload.filename or "<unknown>"
+                try:
+                    decoded = raw_bytes.decode("utf-8")
+                except UnicodeDecodeError as exc:
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"Invalid jobs JSON in {filename}: {exc}",
+                    )
+                try:
+                    parsed = _json.loads(decoded)
+                except _json.JSONDecodeError as exc:
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"Invalid jobs JSON in {filename}: {exc}",
+                    )
+                if not isinstance(parsed, list):
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"Invalid jobs JSON in {filename}: top-level value must be a JSON array",
+                    )
+                validated_arrays.append(parsed)
+
+            # Merge in submitted file order, preserving row order within each file
+            merged_jobs: list = []
+            for arr in validated_arrays:
+                merged_jobs.extend(arr)
+
+            if not merged_jobs:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Merged upload is empty: all uploaded files contain empty arrays",
+                )
+
+            # Serialize once and write the canonical merged file
+            canonical_merged = _json.dumps(merged_jobs, ensure_ascii=False, indent=2)
+            merged_filename = f"{uuid.uuid4().hex}_merged_jobs.json"
+            save_path = upload_dir / merged_filename
+            save_path.write_text(canonical_merged, encoding="utf-8")
             actual_jobs_path = str(save_path)
             jobs_input_source = "upload"
-            # Capture immutable snapshot (same audit behaviour as paste mode)
-            try:
-                _parsed = _json.loads(raw_bytes.decode("utf-8"))
-                jobs_input_json_snapshot = _json.dumps(_parsed, ensure_ascii=False, indent=2)
-            except (_json.JSONDecodeError, UnicodeDecodeError):
-                jobs_input_json_snapshot = None  # invalid JSON upload; pipeline will surface the error
+            jobs_input_json_snapshot = canonical_merged
         elif jobs_input_mode == "paste":
             if not jobs_text or not jobs_text.strip():
                 raise HTTPException(status_code=422, detail="jobs_text required for paste mode")
