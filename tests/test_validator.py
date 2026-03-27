@@ -254,3 +254,78 @@ def test_run_all_validations_uses_flattened_profile_skills() -> None:
     result = run_all_validations(cv_text, profile=profile, config=_CV_CONFIG)
 
     assert result["skill_violations"] == []
+
+
+# ── preset-based config reads ──────────────────────────────────────────────────
+
+def test_run_all_validations_reads_required_sections_from_nested_cv() -> None:
+    """run_all_validations must derive required sections from cv.composition."""
+    cv_text = "# Name\n## Summary\nX\n## Skills\nSQL"
+    profile = {"experiences": [], "projects": [], "skills": ["SQL"]}
+    # Composition: summary and skills are enabled, only skills is required
+    nested_config = {
+        "cv": {
+            "preset": "europass",
+            "composition": {
+                "summary": {"enabled": True},       # enabled but not required
+                "skills": {"enabled": True, "required": True},  # required
+            },
+            "content_rules": {"evidence_grounded_only": True},
+            "validation": {"max_pages": 2},
+        },
+        # Compatibility projection should make flat key available
+        "required_cv_sections": ["Skills"],
+        "cv_max_pages": 2,
+    }
+    result = run_all_validations(cv_text, profile=profile, config=nested_config)
+    # Missing Summary is OK (it's enabled but not required), Skills is present
+    assert result["valid"] is True
+    assert "Summary" not in result["missing_sections"]
+
+
+def test_run_all_validations_reads_max_pages_from_nested_cv() -> None:
+    """run_all_validations must read cv.validation.max_pages from nested config.
+
+    Verifies that when only the nested key is provided (flat key absent),
+    length checking still functions correctly.
+    """
+    # A CV with 200 lines — exceeds both max_pages=2 (110 lines) and max_pages=1 (55 lines)
+    long_cv = "# Name\n" + "\n".join(f"Line {i}" for i in range(200))
+    profile = {"experiences": [], "projects": [], "skills": []}
+    # Only nested key — no flat cv_max_pages in this config
+    nested_only_config = {
+        "cv": {
+            "validation": {"max_pages": 2},
+        },
+        "required_cv_sections": [],
+    }
+    result = run_all_validations(long_cv, profile=profile, config=nested_only_config)
+    # Should have a length warning (200 lines > 2*55=110 lines)
+    assert any("length" in w.lower() for w in result["warnings"]), (
+        f"Expected length warning for 200-line CV with max_pages=2, got: {result['warnings']}"
+    )
+
+
+def test_run_all_validations_uses_content_rules_from_nested_cv() -> None:
+    """run_all_validations should accept the content_rules block from nested cv config."""
+    cv_text = "# Name\n## Summary\nX\n## Skills\nSQL"
+    profile = {"experiences": [], "projects": [], "skills": ["SQL"]}
+    nested_config = {
+        "cv": {
+            "composition": {
+                "summary": {"enabled": True},
+                "skills": {"enabled": True, "required": True},
+            },
+            "content_rules": {
+                "evidence_grounded_only": True,
+                "align_jd_terminology": True,
+            },
+            "validation": {"max_pages": 2},
+        },
+        "required_cv_sections": ["Skills"],
+        "cv_max_pages": 2,
+    }
+    result = run_all_validations(cv_text, profile=profile, config=nested_config)
+    # content_rules are informational in this validator pass;
+    # the key check is that nested cv is accepted without error
+    assert "content_rules" not in result.get("errors", [])

@@ -223,8 +223,17 @@ def test_generate_cv_uses_google_genai_client(
         config={
             "gcp_project": "fitcv-491123",
             "vertex_location": "us-central1",
-            "cv_template_path": str(template_path),
-            "cv_generation_model": "gemini-2.5-flash",
+            "cv": {
+                "generation": {
+                    "model": "gemini-2.5-flash",
+                    "prompt_version": "v1",
+                },
+                "preset": "europass",
+                "composition": {"summary": {"enabled": True}},
+                "content_rules": {"evidence_grounded_only": True},
+                "validation": {"max_pages": 2},
+            },
+            "_template_path": str(template_path),
         },
     )
 
@@ -234,3 +243,86 @@ def test_generate_cv_uses_google_genai_client(
     assert isinstance(client_kwargs, dict)
     assert client_kwargs["vertexai"] is True
     assert client_kwargs["location"] == "us-central1"
+
+
+# ── preset-based config reads ──────────────────────────────────────────────────
+
+def test_generate_cv_reads_model_from_nested_cv_config(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """generate_cv must read cv.generation.model, not flat cv_generation_model."""
+    from fitcv.cv_generator import generate_cv
+
+    template_path_str = "templates/cv_template.md"
+    captured_model: list[str] = []
+
+    class FakeResponse:
+        text = "# Test CV"
+
+    class FakeModels:
+        def generate_content(self, *, model: str, contents: str) -> FakeResponse:
+            captured_model.append(model)
+            return FakeResponse()
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            self.models = FakeModels()
+
+    fake_genai = types.SimpleNamespace(Client=FakeClient)
+    fake_google = types.SimpleNamespace(
+        auth=types.SimpleNamespace(default=lambda scopes=None: ("creds", "project"))
+    )
+
+    monkeypatch.setitem(sys.modules, "google", fake_google)
+    monkeypatch.setitem(sys.modules, "google.auth", fake_google.auth)
+    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
+    setattr(fake_google, "genai", fake_genai)
+
+    nested_config = {
+        "gcp_project": "fitcv-491123",
+        "vertex_location": "us-central1",
+        "cv": {
+            "generation": {
+                "model": "gemini-3-pro",
+                "prompt_version": "v2",
+            },
+            "preset": "europass",
+            "composition": {
+                "summary": {"enabled": True},
+                "experience": {"enabled": True},
+                "skills": {"enabled": True},
+            },
+            "content_rules": {
+                "evidence_grounded_only": True,
+                "align_jd_terminology": True,
+            },
+            "validation": {"max_pages": 2},
+        },
+        # Compatibility: flat key should NOT be used by generate_cv directly
+        "cv_generation_model": "WRONG_MODEL",
+    }
+
+    template_path = tmp_path / "cv_template.md"
+    template_path.write_text("# Template", encoding="utf-8")
+    nested_config["_template_path"] = str(template_path)
+
+    generate_cv(
+        jd={"title": "Data Engineer", "required_skills": ["SQL"]},
+        evidence=[{"name": "Project", "skills": ["SQL"]}],
+        gap={"matched": ["SQL"], "missing": []},
+        profile={"name": "Jane Doe"},
+        config=nested_config,
+    )
+
+    assert captured_model == ["gemini-3-pro"]
+
+
+def test_get_template_path_for_preset() -> None:
+    """cv_generator can resolve template path from preset via cv_presets registry."""
+    from fitcv.cv_presets import get_template_path
+
+    preset_path = get_template_path("europass")
+    # Both paths should resolve to the same template
+    resolved = preset_path
+    assert resolved == "templates/cv_template.md"
