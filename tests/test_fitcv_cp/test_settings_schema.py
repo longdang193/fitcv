@@ -287,3 +287,211 @@ def test_enrichment_parallelism_in_settings_sections_timing():
     from fitcv_cp.settings_schema import SETTINGS_SECTIONS
     assert "enrichment_batch_size" in SETTINGS_SECTIONS["timing"]
     assert "enrichment_concurrency" in SETTINGS_SECTIONS["timing"]
+
+
+# ── CV settings schema ────────────────────────────────────────────────────────
+
+def test_cv_settings_keys_registered():
+    keys = {s["key"] for s in SETTINGS_SCHEMA}
+    assert "cv_generation_model" in keys
+    assert "cv_template_path" in keys
+    assert "prompt_version" in keys
+    assert "required_cv_sections" in keys
+    assert "cv_max_pages" in keys
+
+
+def test_cv_settings_have_correct_group():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    for key in ("cv_generation_model", "cv_template_path", "prompt_version",
+                "required_cv_sections", "cv_max_pages"):
+        assert schema_by_key[key]["group"] == "cv_generation", f"{key} should be in cv_generation group"
+
+
+def test_cv_settings_defaults():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_generation_model"]["default"] == "gemini-2.0-flash"
+    assert schema_by_key["cv_template_path"]["default"] == "templates/cv_template.md"
+    assert schema_by_key["prompt_version"]["default"] == "v1"
+    assert schema_by_key["required_cv_sections"]["default"] == ["Summary", "Work Experience", "Skills"]
+    assert schema_by_key["cv_max_pages"]["default"] == 2
+
+
+def test_cv_settings_types():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_generation_model"]["type"] == "str"
+    assert schema_by_key["cv_template_path"]["type"] == "str"
+    assert schema_by_key["prompt_version"]["type"] == "str"
+    assert schema_by_key["required_cv_sections"]["type"] == "list[str]"
+    assert schema_by_key["cv_max_pages"]["type"] == "int"
+
+
+def test_pipeline_evidence_top_k_not_in_cv_group():
+    """evidence_top_k stays in retrieval, not in the CV section."""
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["pipeline.evidence_top_k"]["group"] != "cv_generation"
+
+
+def test_cv_generation_keys_in_cv_groups():
+    from fitcv_cp.settings_schema import CV_GROUPS
+    assert "cv_generation_model" in CV_GROUPS["cv-generation"]
+    assert "cv_template_path" in CV_GROUPS["cv-generation"]
+    assert "prompt_version" in CV_GROUPS["cv-generation"]
+    assert "required_cv_sections" in CV_GROUPS["cv-validation"]
+    assert "cv_max_pages" in CV_GROUPS["cv-validation"]
+
+
+def test_cv_groups_all_keys_in_schema():
+    from fitcv_cp.settings_schema import CV_GROUPS
+    schema_keys = {s["key"] for s in SETTINGS_SCHEMA}
+    for slug, keys in CV_GROUPS.items():
+        for key in keys:
+            assert key in schema_keys, f"{key!r} from CV_GROUPS[{slug!r}] not found in SETTINGS_SCHEMA"
+
+
+def test_cv_groups_no_key_appears_twice():
+    from fitcv_cp.settings_schema import CV_GROUPS
+    seen: set[str] = set()
+    for slug, keys in CV_GROUPS.items():
+        for key in keys:
+            assert key not in seen, f"{key!r} appears in multiple CV groups"
+            seen.add(key)
+
+
+# ── coerce_value for CV types ─────────────────────────────────────────────────
+
+def test_coerce_str():
+    from fitcv_cp.settings_schema import coerce_value
+    result = coerce_value("cv_generation_model", "  gemini-2.0-flash  ")
+    assert result == "gemini-2.0-flash"
+    assert isinstance(result, str)
+
+
+def test_coerce_list_str_from_list():
+    from fitcv_cp.settings_schema import coerce_value
+    result = coerce_value("required_cv_sections", ["  Summary  ", "  Experience  "])
+    assert result == ["Summary", "Experience"]
+
+
+def test_coerce_list_str_from_single_value():
+    from fitcv_cp.settings_schema import coerce_value
+    result = coerce_value("required_cv_sections", "Summary")
+    assert result == ["Summary"]
+
+
+# ── validate_settings for CV fields ───────────────────────────────────────────
+
+def test_cv_generation_model_rejects_empty():
+    with pytest.raises(ValidationError, match="cv_generation_model"):
+        validate_settings({"cv_generation_model": ""})
+
+
+def test_cv_generation_model_rejects_whitespace_only():
+    with pytest.raises(ValidationError, match="cv_generation_model"):
+        validate_settings({"cv_generation_model": "   "})
+
+
+def test_cv_template_path_rejects_empty():
+    with pytest.raises(ValidationError, match="cv_template_path"):
+        validate_settings({"cv_template_path": ""})
+
+
+def test_cv_template_path_rejects_whitespace_only():
+    with pytest.raises(ValidationError, match="cv_template_path"):
+        validate_settings({"cv_template_path": "   "})
+
+
+def test_prompt_version_rejects_empty():
+    with pytest.raises(ValidationError, match="prompt_version"):
+        validate_settings({"prompt_version": ""})
+
+
+def test_prompt_version_rejects_whitespace_only():
+    with pytest.raises(ValidationError, match="prompt_version"):
+        validate_settings({"prompt_version": "   "})
+
+
+def test_required_cv_sections_rejects_empty_list():
+    with pytest.raises(ValidationError, match="required_cv_sections"):
+        validate_settings({"required_cv_sections": []})
+
+
+def test_required_cv_sections_rejects_blank_items():
+    with pytest.raises(ValidationError, match="required_cv_sections"):
+        validate_settings({"required_cv_sections": ["Summary", "  ", "Skills"]})
+
+
+def test_required_cv_sections_rejects_duplicate():
+    with pytest.raises(ValidationError, match="required_cv_sections"):
+        validate_settings({"required_cv_sections": ["Summary", "Summary", "Skills"]})
+
+
+def test_required_cv_sections_preserves_order_without_sorting():
+    """validate_settings must not reorder the list; order is validated as-is."""
+    validated = {}
+    validate_settings({"required_cv_sections": ["Skills", "Summary", "Work Experience"]})
+    # No error means validation passed; order is preserved as-is (no sort applied)
+
+
+def test_cv_max_pages_rejects_zero():
+    with pytest.raises(ValidationError):
+        validate_settings({"cv_max_pages": 0})
+
+
+def test_cv_max_pages_rejects_negative():
+    with pytest.raises(ValidationError):
+        validate_settings({"cv_max_pages": -1})
+
+
+def test_cv_max_pages_accepts_positive():
+    validate_settings({"cv_max_pages": 5})  # must not raise
+
+
+def test_cv_max_pages_rejects_non_integer():
+    with pytest.raises(ValidationError):
+        validate_settings({"cv_max_pages": 2.5})
+
+
+def test_cv_settings_valid_payload_passes():
+    validate_settings({
+        "cv_generation_model": "gemini-2.0-flash",
+        "cv_template_path": "templates/cv_template.md",
+        "prompt_version": "v1",
+        "required_cv_sections": ["Summary", "Work Experience", "Skills"],
+        "cv_max_pages": 2,
+    })  # must not raise
+
+
+# ── apply_settings_to_config for CV fields ───────────────────────────────────
+
+def test_apply_settings_to_config_cv_str():
+    config: dict = {}
+    apply_settings_to_config(config, {
+        "cv_generation_model": "gemini-2.0-flash",
+        "prompt_version": "v2",
+    })
+    assert config["cv_generation_model"] == "gemini-2.0-flash"
+    assert config["prompt_version"] == "v2"
+
+
+def test_apply_settings_to_config_cv_list_preserves_order():
+    config: dict = {}
+    ordered = ["Skills", "Summary", "Work Experience"]
+    apply_settings_to_config(config, {"required_cv_sections": ordered})
+    assert config["required_cv_sections"] == ordered
+    # Must not silently sort or deduplicate
+    assert config["required_cv_sections"] == ["Skills", "Summary", "Work Experience"]
+
+
+def test_apply_settings_to_config_cv_int():
+    config: dict = {}
+    apply_settings_to_config(config, {"cv_max_pages": 3})
+    assert config["cv_max_pages"] == 3
+
+
+# ── ALL_GROUP_REGISTRIES ──────────────────────────────────────────────────────
+
+def test_all_group_registries_has_ranking_and_cv():
+    from fitcv_cp.settings_schema import ALL_GROUP_REGISTRIES
+    assert "ranking" in ALL_GROUP_REGISTRIES
+    assert "cv" in ALL_GROUP_REGISTRIES
+    assert ALL_GROUP_REGISTRIES["cv"] is not None
