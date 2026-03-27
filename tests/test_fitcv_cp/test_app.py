@@ -810,3 +810,152 @@ def test_run_detail_archived_shows_unarchive_and_badge():
     assert resp.status_code == 200
     assert "Unarchive Run" in resp.text
     assert "Archived" in resp.text
+
+
+# ── Component 1: app.py server-side enrichment ───────────────────────────────
+
+def _run_detail_patches(
+    status="succeeded",
+    cv_versions=None,
+    enriched_jobs=None,
+    filter_results=None,
+):
+    import datetime
+    from fitcv_cp.models import PipelineRun, RunStatus
+    run = PipelineRun(
+        run_id="run-detail-test",
+        status=RunStatus(status),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime(2026, 3, 27, 9, 0, 0, tzinfo=datetime.timezone.utc),
+    )
+    return (
+        patch("fitcv_cp.app.get_run", return_value=run),
+        patch("fitcv_cp.app.get_events", return_value=[]),
+        patch("fitcv_cp.app.list_cvs_for_run", return_value=cv_versions or []),
+        patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched_jobs or []),
+        patch("fitcv_cp.app.list_filter_results_for_run", return_value=filter_results or []),
+    )
+
+
+def test_run_detail_cv_versions_show_job_title():
+    """CV output link uses the enriched job title instead of generic 'View Job'."""
+    cv = {"version_id": "cv1", "job_url": "https://jobs.example.com/1",
+          "fit_classification": "strong",
+          "generated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc)}
+    enriched = [{"job_url": "https://jobs.example.com/1", "title": "Senior Data Engineer",
+                 "domain": "data", "job_family": "engineering", "required_skills": [],
+                 "location_type": "remote", "seniority": "senior"}]
+    patches = _run_detail_patches(cv_versions=[cv], enriched_jobs=enriched,
+                                  filter_results=[{"job_url": "https://jobs.example.com/1",
+                                                   "passed": True, "reasons": []}])
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+    assert resp.status_code == 200
+    assert "Senior Data Engineer" in resp.text
+    assert "View Job" not in resp.text.split("Senior Data Engineer")[0].split("Generated Outputs")[-1]
+
+
+def test_run_detail_cv_versions_fallback_when_no_title():
+    """CV output link falls back to 'View Job' when no enriched job matches the job_url."""
+    import datetime as _dt
+    cv = {"version_id": "cv2", "job_url": "https://jobs.example.com/orphan",
+          "fit_classification": "strong",
+          "generated_at": _dt.datetime.now(_dt.timezone.utc)}
+    # Run must have cvs_generated > 0 for the pipeline results section to render
+    patches = _run_detail_patches(cv_versions=[cv], enriched_jobs=[])
+    # Override the run object to have cvs_generated set
+    import datetime as _dt2
+    from fitcv_cp.models import PipelineRun, RunStatus
+    run_with_cv = PipelineRun(
+        run_id="run-detail-test",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt2.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt2.timezone.utc),
+        cvs_generated=1,
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run_with_cv), \
+         patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+    assert resp.status_code == 200
+    assert "View Job" in resp.text
+
+
+def test_run_detail_enriched_shows_summary_counts():
+    """Enriched tab renders Total, Passed, Rejected summary counts."""
+    enriched = [{"job_url": "https://j.test/1", "title": "A", "domain": "d",
+                 "job_family": "f", "required_skills": [], "location_type": None, "seniority": None}]
+    fr = [{"job_url": "https://j.test/1", "passed": True, "reasons": []}]
+    patches = _run_detail_patches(enriched_jobs=enriched, filter_results=fr)
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+    assert "Total:" in resp.text
+    assert "Passed:" in resp.text
+    assert "Rejected:" in resp.text
+
+
+def test_run_detail_enriched_shows_filter_controls():
+    """Filter buttons All, Passed, Rejected are present (only rendered when enriched_jobs is non-empty)."""
+    enriched = [{"job_url": "https://j.test/1", "title": "A", "domain": "d",
+                 "job_family": "f", "required_skills": [], "location_type": None, "seniority": None}]
+    patches = _run_detail_patches(enriched_jobs=enriched)
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+    assert "setFilter('all')" in resp.text or ">All<" in resp.text
+    assert "setFilter('passed')" in resp.text or ">Passed<" in resp.text
+    assert "setFilter('rejected')" in resp.text or ">Rejected<" in resp.text
+
+
+def test_run_detail_enriched_shows_search_box():
+    """Search input with id='enr-search' is present (only rendered when enriched_jobs is non-empty)."""
+    enriched = [{"job_url": "https://j.test/1", "title": "A", "domain": "d",
+                 "job_family": "f", "required_skills": [], "location_type": None, "seniority": None}]
+    patches = _run_detail_patches(enriched_jobs=enriched)
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+    assert 'id="enr-search"' in resp.text
+
+
+def test_run_detail_enriched_rows_have_data_attributes():
+    """Enriched job rows have data-filter, data-title, data-domain, data-family attributes."""
+    enriched = [{"job_url": "https://j.test/1", "title": "ML Engineer", "domain": "AI",
+                 "job_family": "engineering", "required_skills": [], "location_type": None, "seniority": None}]
+    fr = [{"job_url": "https://j.test/1", "passed": True, "reasons": []}]
+    patches = _run_detail_patches(enriched_jobs=enriched, filter_results=fr)
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+    assert 'data-filter=' in resp.text
+    assert 'data-title=' in resp.text
+    assert 'data-domain=' in resp.text
+    assert 'data-family=' in resp.text
+
+
+def test_run_detail_enriched_shows_pagination():
+    """Pagination controls are present for the enriched jobs tab."""
+    patches = _run_detail_patches()
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+    assert "enr-prev" in resp.text or "Prev" in resp.text
+
+
+def test_run_detail_enriched_unknown_filter_not_counted_as_rejected():
+    """A job with no filter result gets data-filter=unknown and is not counted as rejected."""
+    enriched = [
+        {"job_url": "https://j.test/pass", "title": "Engineer A", "domain": "d",
+         "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+        {"job_url": "https://j.test/no-fr", "title": "Engineer B", "domain": "d",
+         "job_family": "f", "required_skills": [], "location_type": None, "seniority": None},
+    ]
+    fr = [{"job_url": "https://j.test/pass", "passed": True, "reasons": []}]
+    # j.test/no-fr has no filter result → must be 'unknown', not 'rejected'
+    patches = _run_detail_patches(enriched_jobs=enriched, filter_results=fr)
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+    assert 'data-filter="unknown"' in resp.text
+    # Rejected count should be 0 (no explicit reject), not 1
+    assert "Rejected: 0" in resp.text
