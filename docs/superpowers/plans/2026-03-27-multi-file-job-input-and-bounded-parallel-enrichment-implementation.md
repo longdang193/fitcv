@@ -41,7 +41,7 @@
 - Modify: `src/fitcv_cp/settings_schema.py`
 - Test: `tests/test_fitcv_cp/test_settings_schema.py`
 
-- [ ] **Step 1: Write failing settings-schema tests**
+- [x] **Step 1: Write failing settings-schema tests**
 
 Add tests for:
 - `enrichment_batch_size` is registered
@@ -58,7 +58,7 @@ def test_enrichment_parallelism_keys_registered():
     assert "enrichment_concurrency" in keys
 ```
 
-- [ ] **Step 2: Run the targeted settings tests to verify failure**
+- [x] **Step 2: Run the targeted settings tests to verify failure**
 
 Run:
 ```bash
@@ -68,7 +68,7 @@ Run:
 Expected:
 - FAIL because the new keys do not exist yet
 
-- [ ] **Step 3: Add schema entries in `settings_schema.py`**
+- [x] **Step 3: Add schema entries in `settings_schema.py`**
 
 Add two `int` settings to the timing/throttling section:
 ```python
@@ -92,12 +92,12 @@ Add two `int` settings to the timing/throttling section:
 },
 ```
 
-- [ ] **Step 4: Keep validation simple and strict**
+- [x] **Step 4: Keep validation simple and strict**
 
 No new validator branch is needed if the existing `int >= 1` rule is reused.
 Confirm the new keys fit that existing rule cleanly.
 
-- [ ] **Step 5: Re-run the targeted settings tests**
+- [x] **Step 5: Re-run the targeted settings tests**
 
 Run:
 ```bash
@@ -107,7 +107,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/fitcv_cp/settings_schema.py tests/test_fitcv_cp/test_settings_schema.py
@@ -124,132 +124,15 @@ git commit -m "feat(cp): add bounded enrichment settings"
 - Modify: `src/fitcv_cp/models.py`
 - Test: `tests/test_fitcv_cp/test_app.py`
 
-- [ ] **Step 1: Write failing app tests for multi-file upload mode**
-
-Add tests for:
-- upload mode accepts two JSON files and returns `201`
-- uploaded files are validated individually before merge
-- one invalid file rejects the whole request with `422`
-- merged snapshot in `jobs_input_json` preserves file order and row order
-- empty arrays are allowed per-file, but an all-empty merged upload is rejected
-
-Example:
-```python
-def test_admin_upload_trigger_merges_multiple_job_files():
-    ...
-    assert resp.status_code == 201
-```
-
-- [ ] **Step 2: Run the targeted app tests to verify failure**
-
-Run:
-```bash
-/tmp/fitcv-test-env/bin/pytest -q tests/test_fitcv_cp/test_app.py -k "upload_trigger"
-```
-
-Expected:
-- FAIL because the route only accepts one jobs file
-
-- [ ] **Step 3: Update the upload route signature for backward-compatible multi-file support**
-
-In `app.py`, update `upload_trigger()` to accept both legacy single-file submissions and new multi-file submissions.
-
-One acceptable shape is:
-```python
-jobs_files: list[UploadFile] = File(default_factory=list)
-jobs_file: UploadFile | None = File(None)
-```
-
-Compatibility rule:
-- if `jobs_files` is empty and `jobs_file` is provided, treat it as a one-file list
-- if both are empty in upload mode, reject the request
-
-This preserves current clients while enabling the new UI.
-The exact FastAPI `File(...)` signature can be adjusted if needed, but the internal normalization rule must remain the same.
-
-- [ ] **Step 4: Validate all uploaded files before merge**
-
-In upload mode:
-- read each uploaded file
-- decode as UTF-8
-- parse JSON
-- require top-level array
-- track original filename for error reporting
-- reject the entire request if any file fails
-
-Use error messages that identify the failing file:
-```python
-raise HTTPException(status_code=422, detail=f"Invalid jobs JSON in {filename}: {exc}")
-```
-
-Also apply basic operational guardrails:
-- enforce a reasonable maximum number of uploaded files per request
-- enforce a reasonable maximum total upload size, or explicitly fail fast once a combined-size threshold is exceeded
-
-The exact thresholds can remain implementation-defined, but the first version should not allow unbounded upload fan-in.
-
-- [ ] **Step 5: Build the canonical merged upload**
-
-After all files validate:
-- concatenate arrays in submitted file order
-- preserve row order within each file
-- reject if merged result is empty
-- serialize canonical merged JSON once
-- write one merged file into `data/uploads/`
-- set:
-  - `actual_jobs_path` to the merged file path
-  - `jobs_input_source = "upload"`
-  - `jobs_input_json_snapshot` to the canonical merged JSON string
-
-Suggested filename pattern:
-```python
-f"{uuid.uuid4().hex}_merged_jobs.json"
-```
-
-Keep storing the canonical merged payload in `jobs_input_json` for this first version.
-That is acceptable for current expected run sizes, but if merged upload snapshots grow materially later, the system may need to evolve toward a lighter snapshot/reference model.
-
-- [ ] **Step 6: Update the upload UI control**
-
-In `runs_list.html`:
-- add `multiple` to the jobs file input
-- update the client-side JS to append all selected files to `FormData` under `jobs_files`
-
-Example:
-```javascript
-for (const f of document.getElementById('jobs_file').files) {
-  fd.append('jobs_files', f);
-}
-```
-
-Do not remove single-file usability; selecting one file should still work naturally.
-
-- [ ] **Step 7: Update the `PipelineRun` field comment**
-
-In `models.py`, update the comment on `jobs_input_json` so it no longer says paste-only semantics.
-
-Example:
-```python
-jobs_input_json: Optional[str] = None  # canonical JSON snapshot (paste/upload merged payload)
-```
-
-- [ ] **Step 8: Re-run the targeted app tests**
-
-Run:
-```bash
-/tmp/fitcv-test-env/bin/pytest -q tests/test_fitcv_cp/test_app.py -k "upload_trigger"
-```
-
-Expected:
-- PASS
-
-- [ ] **Step 9: Commit**
-
-```bash
-git add src/fitcv_cp/app.py src/fitcv_cp/templates/runs_list.html \
-  src/fitcv_cp/models.py tests/test_fitcv_cp/test_app.py
-git commit -m "feat(cp): support multi-file job uploads"
-```
+- [x] **Step 1: Write failing app tests for multi-file upload mode**
+- [x] **Step 2: Run the targeted app tests to verify failure**
+- [x] **Step 3: Update the upload route signature for backward-compatible multi-file support**
+- [x] **Step 4: Validate all uploaded files before merge**
+- [x] **Step 5: Build the canonical merged upload**
+- [x] **Step 6: Update the upload UI control**
+- [x] **Step 7: Update the `PipelineRun` field comment**
+- [x] **Step 8: Re-run the targeted app tests** — PASS (8 upload_trigger tests, 70 total CP tests)
+- [x] **Step 9: Commit** — `ca70b9f feat(cp): support multi-file job uploads`
 
 ---
 
@@ -259,107 +142,15 @@ git commit -m "feat(cp): support multi-file job uploads"
 - Modify: `src/fitcv/enrich.py`
 - Test: `tests/test_enrich.py`
 
-- [ ] **Step 1: Write failing enrichment tests for bounded parallelism**
-
-Add tests for:
-- batching respects `enrichment_batch_size`
-- concurrency uses `enrichment_concurrency`
-- result ordering remains deterministic and matches input order
-- jobs are not dropped when batches complete out of order
-- `enrichment_concurrency=1` still behaves like sequential bounded batching
-
-Example:
-```python
-def test_enrich_batch_preserves_input_order_under_parallel_batches():
-    jobs = [{"job_url": "u1"}, {"job_url": "u2"}, {"job_url": "u3"}]
-    ...
-    assert [row["job_url"] for row in result] == ["u1", "u2", "u3"]
-```
-
-- [ ] **Step 2: Run the targeted enrichment tests to verify failure**
-
-Run:
-```bash
-/tmp/fitcv-test-env/bin/pytest -q tests/test_enrich.py -k "enrich_batch"
-```
-
-Expected:
-- FAIL because `enrich_batch()` is currently purely sequential
-
-- [ ] **Step 3: Extract a small helper to enrich one bounded batch**
-
-In `enrich.py`, introduce a focused helper:
-```python
-def _enrich_chunk(chunk: list[dict[str, Any]], config: dict[str, Any]) -> list[dict[str, Any]]:
-    ...
-```
-
-This helper should preserve the current retry/backoff behavior for each job in the chunk.
-
-Do not duplicate retry logic across two code paths.
-
-- [ ] **Step 4: Add chunking logic**
-
-Split `normalized_jobs` into chunks using `enrichment_batch_size`.
-
-Example:
-```python
-chunks = [
-    normalized_jobs[i:i + batch_size]
-    for i in range(0, len(normalized_jobs), batch_size)
-]
-```
-
-- [ ] **Step 5: Run chunks with bounded concurrency**
-
-Use `ThreadPoolExecutor(max_workers=enrichment_concurrency)` because enrichment is network-bound.
-
-Recommended shape:
-```python
-with ThreadPoolExecutor(max_workers=concurrency) as ex:
-    futures = [ex.submit(_enrich_chunk, chunk, config) for chunk in chunks]
-```
-
-Important rule:
-- collect chunk results by original chunk index, not completion order
-
-This preserves deterministic merged output ordering.
-Bounded parallel enrichment still applies only to jobs that survive pre-enrichment global filtering; it must not expand enrichment back to the full normalized input set.
-
-- [ ] **Step 6: Flatten chunk results in original order**
-
-After all futures finish:
-- assemble chunk results in original chunk order
-- flatten to one enriched result list
-
-Do not let downstream correctness depend on future-completion order.
-
-- [ ] **Step 7: Preserve existing failure semantics**
-
-Keep the current contract explicit:
-- individual per-job retry handling stays intact
-- catastrophic provider/config failures may still raise and fail the run
-- if you introduce per-chunk exception handling, it must not silently swallow failures that the current function would raise
-- if any chunk raises a non-recoverable exception that would previously have failed `enrich_batch()`, the parallel version must still fail the enrichment stage rather than silently degrading to partial success
-
-If you decide to keep existing fail-fast semantics inside `enrich_batch()`, document that in a code comment.
-
-- [ ] **Step 8: Re-run the targeted enrichment tests**
-
-Run:
-```bash
-/tmp/fitcv-test-env/bin/pytest -q tests/test_enrich.py -k "enrich_batch"
-```
-
-Expected:
-- PASS
-
-- [ ] **Step 9: Commit**
-
-```bash
-git add src/fitcv/enrich.py tests/test_enrich.py
-git commit -m "feat: add bounded parallel enrichment"
-```
+- [x] **Step 1: Write failing enrichment tests for bounded parallelism**
+- [x] **Step 2: Run the targeted enrichment tests to verify failure**
+- [x] **Step 3: Extract `_enrich_chunk` helper** — added `threading.Lock` for global rate limiting (see Debug Log below)
+- [x] **Step 4: Add chunking logic**
+- [x] **Step 5: Run chunks with bounded concurrency** — `ThreadPoolExecutor(max_workers=concurrency)`
+- [x] **Step 6: Flatten chunk results in original order**
+- [x] **Step 7: Preserve existing failure semantics** — fail-fast via `future.result()` re-raise
+- [x] **Step 8: Re-run the targeted enrichment tests** — PASS (9 enrich_batch tests)
+- [x] **Step 9: Commit** — `3506b7a feat: add bounded parallel enrichment`
 
 ---
 
@@ -371,66 +162,12 @@ git commit -m "feat: add bounded parallel enrichment"
 - Modify: `tests/test_fitcv_cp/test_app.py`
 - Modify: `tests/test_pipeline.py`
 
-- [ ] **Step 1: Make `enrich_batch()` read the new config keys with safe defaults**
-
-Read:
-```python
-batch_size = int(config.get("enrichment_batch_size", 10))
-concurrency = int(config.get("enrichment_concurrency", 1))
-```
-
-These defaults must match the settings schema defaults.
-Keep `enrichment_concurrency=1` as the default so the first rollout preserves the reliability characteristics of the old sequential enrichment path.
-
-- [ ] **Step 2: Add one focused config-driven enrichment test**
-
-Add a test proving a custom config is used:
-```python
-def test_enrich_batch_uses_configured_batch_size_and_concurrency():
-    ...
-```
-
-- [ ] **Step 3: Add one control-plane test that the new settings can enter effective config**
-
-In `test_fitcv_cp/test_app.py`, add a trigger test with mocked active settings:
-- `enrichment_batch_size = 5`
-- `enrichment_concurrency = 3`
-
-Assert the stored `effective_settings_json` includes those values, just like other admin-managed settings do.
-
-- [ ] **Step 4: Add one pipeline regression test for pre-enrichment narrowing**
-
-In `tests/test_pipeline.py`, add a focused regression test showing:
-- pre-enrichment global filters still narrow the candidate set first
-- `enrich_batch()` receives only surviving normalized jobs
-- the new enrichment settings do not change that execution order
-
-Keep this test small by mocking:
-- `parse_jobs_file`
-- `prepare_raw_rows`
-- `apply_pre_enrichment_global_filters`
-- `enrich_batch`
-
-- [ ] **Step 5: Run focused tests**
-
-Run:
-```bash
-/tmp/fitcv-test-env/bin/pytest -q \
-  tests/test_enrich.py -k "enrich_batch" \
-  tests/test_fitcv_cp/test_app.py -k "effective_settings or upload_trigger" \
-  tests/test_pipeline.py -k "pre_enrichment or enrich_batch"
-```
-
-Expected:
-- PASS
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add src/fitcv/enrich.py tests/test_enrich.py \
-  tests/test_fitcv_cp/test_app.py tests/test_pipeline.py
-git commit -m "feat: wire bounded enrichment settings into runtime config"
-```
+- [x] **Step 1: Make `enrich_batch()` read the new config keys with safe defaults**
+- [x] **Step 2: Add one focused config-driven enrichment test**
+- [x] **Step 3: Add one control-plane test that the new settings can enter effective config**
+- [x] **Step 4: Add one pipeline regression test for pre-enrichment narrowing** — `test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch`
+- [x] **Step 5: Run focused tests** — PASS
+- [x] **Step 6: Commit** — `7093ffe test: add pipeline regression and enrichment parallelism tests`
 
 ---
 
@@ -439,56 +176,11 @@ git commit -m "feat: wire bounded enrichment settings into runtime config"
 **Files:**
 - No new product files
 
-- [ ] **Step 1: Run control-plane tests**
-
-Run:
-```bash
-/tmp/fitcv-test-env/bin/pytest -q --tb=short tests/test_fitcv_cp
-```
-
-Expected:
-- PASS
-
-- [ ] **Step 2: Run focused enrichment tests**
-
-Run:
-```bash
-/tmp/fitcv-test-env/bin/pytest -q --tb=short tests/test_enrich.py
-```
-
-Expected:
-- PASS
-
-- [ ] **Step 3: Run broader non-integration suite**
-
-Run:
-```bash
-/tmp/fitcv-test-env/bin/pytest -q --tb=short -m "not integration"
-```
-
-Expected:
-- PASS
-
-- [ ] **Step 4: Manual admin verification**
-
-Check in browser:
-- upload one jobs JSON file and confirm the run still works
-- upload multiple jobs JSON files and confirm one run is created
-- inspect `Original Job Input` and confirm it shows one merged canonical snapshot
-- confirm runs with larger inputs still populate one `Enriched Jobs` tab
-- lower `enrichment_batch_size` / raise `enrichment_concurrency` in settings and confirm the run still completes
-
-- [ ] **Step 5: Final commit**
-
-```bash
-git status --short
-git add src/fitcv_cp/app.py src/fitcv_cp/templates/runs_list.html \
-  src/fitcv_cp/settings_schema.py src/fitcv_cp/models.py \
-  src/fitcv/enrich.py tests/test_fitcv_cp/test_app.py \
-  tests/test_fitcv_cp/test_settings_schema.py tests/test_enrich.py \
-  tests/test_pipeline.py
-git commit -m "feat(cp): add multi-file job uploads and bounded parallel enrichment"
-```
+- [x] **Step 1: Run control-plane tests** — 70 passed
+- [x] **Step 2: Run focused enrichment tests** — 83 passed (2 pre-existing failures unrelated to this feature)
+- [x] **Step 3: Run broader non-integration suite** — 489 passed, 7 skipped
+- [x] **Step 4: Manual admin verification** — multi-file upload confirmed working in browser; 429 issue discovered and fixed (see Debug Log)
+- [x] **Step 5: Final commit** — `583addf` pushed to `origin/feat/admin-control-plane`
 
 ---
 
@@ -505,3 +197,35 @@ git commit -m "feat(cp): add multi-file job uploads and bounded parallel enrichm
 - **Per-thread sleep is not a global throttle.** `enrichment_sleep_secs` should not be documented or treated as a true global rate limiter once concurrency is greater than `1`.
 - **Fail fast on non-recoverable chunk errors.** Parallel chunk execution must not silently downgrade failures that the sequential `enrich_batch()` path would have raised.
 - **`jobs_input_json` is acceptable for current scope.** If merged upload snapshots become substantially larger later, revisit whether the run should store a lighter snapshot plus metadata instead of the full merged payload.
+
+---
+
+## Debug Log
+
+### Bug: `429 RESOURCE_EXHAUSTED` on first multi-file run
+
+**Date:** 2026-03-27  
+**Commit fixed:** `149e7cb fix(enrich): add global rate-limit lock; default concurrency to 1`
+
+**Symptom:**
+First live multi-file run (19 jobs, 2 merged files) failed after 156 seconds with:
+```
+429 RESOURCE_EXHAUSTED — Resource exhausted. Please try again later.
+```
+Pipeline stage: `layer1b_pre_filter (19 pass) → pipeline_failed`
+
+**Root cause:**
+The initial `_enrich_chunk` implementation used `time.sleep(enrichment_sleep_secs)` as a per-thread rate limiter between jobs within each chunk. This is not a global rate limiter when `enrichment_concurrency > 1`. With two concurrent chunks, two threads could both call the Vertex AI API simultaneously, effectively doubling the API call rate and exhausting quota faster than expected.
+
+Additionally, the `enrichment_concurrency` schema default was set to `2` (implementation error — plan spec required `1`).
+
+**Fixes applied:**
+1. **`src/fitcv_cp/settings_schema.py`** — corrected `enrichment_concurrency` default from `2` → `1`. Updated description to warn that higher values are provider-sensitive and per-thread sleep is not a global rate limiter.
+2. **`src/fitcv/enrich.py`** — added module-level `_ENRICH_RATE_LOCK: threading.Lock`. In `_enrich_chunk`, every `enrich_job` call + the subsequent success-path sleep is now wrapped in `with _ENRICH_RATE_LOCK:`, serializing all API calls across all concurrent chunk threads globally.
+3. **Hardcoded fallback default** in `enrich_batch()` corrected from `2` → `1`.
+4. **3 retry test assertions** updated: the success-path sleep now fires inside the lock on each successful call, so `sleeps` lists each include one extra `sleep_secs` entry at the end.
+
+**Verification:**
+```
+83 passed, 2 pre-existing failures (unrelated)
+```
