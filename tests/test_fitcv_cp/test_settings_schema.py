@@ -230,3 +230,60 @@ def test_settings_sections_retrieval_has_four_keys():
 def test_settings_sections_global_job_filters_has_two_keys():
     from fitcv_cp.settings_schema import SETTINGS_SECTIONS
     assert len(SETTINGS_SECTIONS["global-job-filters"]) == 2
+
+
+# ── enrichment parallelism settings ───────────────────────────────────────────
+
+def test_enrichment_parallelism_keys_registered():
+    keys = {s["key"] for s in SETTINGS_SCHEMA}
+    assert "enrichment_batch_size" in keys
+    assert "enrichment_concurrency" in keys
+
+
+def test_enrichment_parallelism_defaults():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["enrichment_batch_size"]["default"] == 10
+    assert schema_by_key["enrichment_concurrency"]["default"] == 2
+
+
+def test_enrichment_parallelism_group_is_timing():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["enrichment_batch_size"]["group"] == "timing"
+    assert schema_by_key["enrichment_concurrency"]["group"] == "timing"
+
+
+def test_enrichment_batch_size_validate_rejects_zero():
+    with pytest.raises(ValidationError):
+        validate_settings({"enrichment_batch_size": 0})
+
+
+def test_enrichment_batch_size_validate_rejects_negative():
+    with pytest.raises(ValidationError):
+        validate_settings({"enrichment_batch_size": -5})
+
+
+def test_enrichment_concurrency_validate_rejects_zero():
+    with pytest.raises(ValidationError):
+        validate_settings({"enrichment_concurrency": 0})
+
+
+def test_enrichment_concurrency_validate_accepts_one():
+    validate_settings({"enrichment_concurrency": 1})  # must not raise
+
+
+def test_enrichment_batch_size_apply_writes_correct_path():
+    config: dict = {}
+    apply_settings_to_config(config, {"enrichment_batch_size": 5})
+    assert config["enrichment_batch_size"] == 5
+
+
+def test_enrichment_concurrency_apply_writes_correct_path():
+    config: dict = {}
+    apply_settings_to_config(config, {"enrichment_concurrency": 3})
+    assert config["enrichment_concurrency"] == 3
+
+
+def test_enrichment_parallelism_in_settings_sections_timing():
+    from fitcv_cp.settings_schema import SETTINGS_SECTIONS
+    assert "enrichment_batch_size" in SETTINGS_SECTIONS["timing"]
+    assert "enrichment_concurrency" in SETTINGS_SECTIONS["timing"]
