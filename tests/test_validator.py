@@ -191,6 +191,13 @@ def test_check_skill_provenance_accepts_synonym_equivalent_skill() -> None:
 
 # ── run_all_validations ───────────────────────────────────────────────────────
 
+# Minimal CV config satisfying the centralized cv.yaml contract.
+_CV_CONFIG: dict = {
+    "required_cv_sections": ["Summary", "Skills", "Experience"],
+    "cv_max_pages": 2,
+}
+
+
 def test_run_all_validations_output_schema() -> None:
     """run_all_validations must return the full schema."""
     profile = {
@@ -199,7 +206,7 @@ def test_run_all_validations_output_schema() -> None:
         "skills": ["SQL", "Python"],
     }
     cv_text = "# Name\n## Summary\nX\n## Skills\nSQL, Python\n## Experience\nACME"
-    result = run_all_validations(cv_text, profile=profile, config={})
+    result = run_all_validations(cv_text, profile=profile, config=_CV_CONFIG)
     for key in ("valid", "missing_sections", "grounding_violations", "skill_violations", "warnings"):
         assert key in result
 
@@ -210,7 +217,7 @@ def test_run_all_validations_length_warning() -> None:
     long_cv = "# CV\n## Summary\nX\n## Skills\nSQL\n## Experience\nACME\n" + "\n".join(
         f"- Bullet {i}" for i in range(200)
     )
-    result = run_all_validations(long_cv, profile=profile, config={})
+    result = run_all_validations(long_cv, profile=profile, config=_CV_CONFIG)
     assert any("length" in w.lower() for w in result["warnings"])
 
 
@@ -225,7 +232,7 @@ def test_run_all_validations_accepts_skill_dicts_in_profile() -> None:
     }
     cv_text = "# Name\n## Summary\nX\n## Skills\nSQL, Python\n## Experience\nEngineer at ACME"
 
-    result = run_all_validations(cv_text, profile=profile, config={})
+    result = run_all_validations(cv_text, profile=profile, config=_CV_CONFIG)
 
     assert result["skill_violations"] == []
 
@@ -244,6 +251,6 @@ def test_run_all_validations_uses_flattened_profile_skills() -> None:
     }
     cv_text = "# Name\n## Summary\nX\n## Skills\nSQL, ETL, CI/CD, Gemini, Great Expectations\n## Experience\nEngineer at ACME"
 
-    result = run_all_validations(cv_text, profile=profile, config={})
+    result = run_all_validations(cv_text, profile=profile, config=_CV_CONFIG)
 
     assert result["skill_violations"] == []

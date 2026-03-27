@@ -210,6 +210,12 @@ def _minimal_config() -> dict:
             "final_top_n": 2,
             "evidence_top_k": 3,
         },
+        # CV generation config keys (required since fallback defaults were removed)
+        "cv_generation_model": "gemini-2.5-flash",
+        "cv_template_path": "templates/cv_template.md",
+        "required_cv_sections": ["Summary", "Skills", "Experience"],
+        "cv_max_pages": 2,
+        "prompt_version": "v1",
     }
 
 

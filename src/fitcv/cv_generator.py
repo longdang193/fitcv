@@ -200,7 +200,7 @@ def generate_cv(
 
     from fitcv.config import get_vertex_location
 
-    template_path = str(config.get("cv_template_path") or "templates/cv_template.md")
+    template_path = str(config["cv_template_path"])
     template_str = pathlib.Path(template_path).read_text(encoding="utf-8")
 
     prompt = build_generation_prompt(
@@ -221,6 +221,6 @@ def generate_cv(
         credentials=creds,
     )
 
-    model_name = str(config.get("cv_generation_model") or "gemini-2.5-flash")
+    model_name = str(config["cv_generation_model"])
     response = client.models.generate_content(model=model_name, contents=prompt)
     return str(response.text)

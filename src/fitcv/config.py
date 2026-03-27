@@ -7,6 +7,7 @@ Load order
 3. config/skill_synonyms.yaml — skill alias → canonical mapping
 4. config/pipeline.yaml      — model names, top_n limits, batch/sleep settings
 5. config/ranking.yaml        — ranking weights, fit-label thresholds, missing defaults
+6. config/cv.yaml             — CV generation and validation defaults
 
 Later files do NOT override .env.yaml keys. They only add new top-level keys.
 Missing config/*.yaml files → warning logged, not a crash (safe degradation).
@@ -36,6 +37,15 @@ _POLICY_FILES = [
     "skill_synonyms.yaml",
     "pipeline.yaml",
     "ranking.yaml",
+    "cv.yaml",
+]
+
+_REQUIRED_CV_KEYS = [
+    "cv_generation_model",
+    "cv_template_path",
+    "required_cv_sections",
+    "cv_max_pages",
+    "prompt_version",
 ]
 
 _DEFAULT_ENV_CANDIDATES = (".env.yaml", "config/env.yaml")
@@ -147,7 +157,33 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
             if key not in cfg:  # never overwrite .env.yaml values
                 cfg[key] = value
 
-    return _normalize_config_keys(cfg)
+    cfg = _normalize_config_keys(cfg)
+    _validate_cv_config(cfg)
+    return cfg
+
+
+def _validate_cv_config(cfg: dict[str, Any]) -> None:
+    """Validate CV-owned config keys after policy files are merged.
+
+    Raises ValueError with a descriptive message for any violation.
+    """
+    missing = [k for k in _REQUIRED_CV_KEYS if k not in cfg]
+    if missing:
+        raise ValueError(f"Missing CV config keys: {missing}")
+
+    sections = cfg["required_cv_sections"]
+    if not isinstance(sections, list) or len(sections) == 0:
+        raise ValueError(
+            "required_cv_sections must be a non-empty list, "
+            f"got: {sections!r}"
+        )
+
+    try:
+        max_pages = int(cfg["cv_max_pages"])
+    except (TypeError, ValueError):
+        raise ValueError(f"cv_max_pages must be an integer, got: {cfg['cv_max_pages']!r}")
+    if max_pages <= 0:
+        raise ValueError(f"cv_max_pages must be a positive integer, got: {max_pages}")
 
 
 def get_vertex_location(config: dict[str, Any]) -> str:

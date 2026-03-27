@@ -263,10 +263,8 @@ def run_all_validations(
     or when required sections are missing. Length issues add warnings but do not
     block validity.
     """
-    required_sections: list[str] = list(
-        config.get("required_cv_sections") or ["Summary", "Skills", "Experience"]
-    )
-    max_pages: int = int(config.get("cv_max_pages") or 2)
+    required_sections: list[str] = list(config["required_cv_sections"])
+    max_pages: int = int(config["cv_max_pages"])
 
     # Structural section check
     section_result = validate_output(cv_text, required_sections)

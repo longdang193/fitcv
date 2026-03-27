@@ -1,0 +1,14 @@
+# CV generation and validation defaults
+# Owned by this file — do not duplicate in env.yaml or pipeline.yaml.
+# Override any key in .env.yaml for environment-specific values.
+
+cv_generation_model: gemini-2.5-flash
+cv_template_path: templates/cv_template.md
+
+required_cv_sections:
+  - Summary
+  - Skills
+  - Experience
+
+cv_max_pages: 2
+prompt_version: v1
