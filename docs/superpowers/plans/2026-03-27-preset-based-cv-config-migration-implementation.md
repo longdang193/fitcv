@@ -8,6 +8,8 @@
 
 **Tech Stack:** Python 3.11, YAML, pytest
 
+**Status:** ✅ All tasks complete — committed at `49ce29b`
+
 ---
 
 ## File Map
@@ -44,7 +46,7 @@
 - Modify: `src/fitcv/config.py`
 - Modify: `tests/test_config.py`
 
-- [ ] **Step 1: Write failing config-shape tests**
+- [x] **Step 1: Write failing config-shape tests**
 
 Add tests proving:
 - `load_config()` returns a nested `cv` object
@@ -53,7 +55,7 @@ Add tests proving:
 - `cv.validation.max_pages` is present
 - temporary legacy flat CV keys are still projected for compatibility during the migration window
 
-- [ ] **Step 2: Run focused config tests to verify failure**
+- [x] **Step 2: Run focused config tests to verify failure**
 
 Run:
 ```bash
@@ -63,7 +65,7 @@ Run:
 Expected:
 - FAIL because runtime still expects the flat shape
 
-- [ ] **Step 3: Replace `config/cv.yaml` with the nested shape**
+- [x] **Step 3: Replace `config/cv.yaml` with the nested shape**
 
 Use the preset-based contract:
 ```yaml
@@ -116,7 +118,7 @@ cv:
     max_pages: 2
 ```
 
-- [ ] **Step 4: Update `src/fitcv/config.py` in the same slice**
+- [x] **Step 4: Update `src/fitcv/config.py` in the same slice**
 
 Add nested validation for:
 - `cv.preset`
@@ -133,7 +135,7 @@ The compatibility projection should be:
 - documented as transitional
 - removed once the preset-based admin settings plan is complete
 
-- [ ] **Step 5: Re-run focused config tests**
+- [x] **Step 5: Re-run focused config tests**
 
 Run:
 ```bash
@@ -142,7 +144,7 @@ Run:
 
 Expected:
 - PASS
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add config/cv.yaml src/fitcv/config.py tests/test_config.py
@@ -160,14 +162,14 @@ git commit -m "feat(config): migrate cv config to preset-based shape"
 - Modify: `src/fitcv/validator.py`
 - Modify: related tests as needed
 
-- [ ] **Step 1: Write failing preset-registry tests**
+- [x] **Step 1: Write failing preset-registry tests**
 
 Add tests proving:
 - supported preset names are centralized
 - supported sections/options are centralized
 - config validation, generation, and validation can all use the same registry contract
 
-- [ ] **Step 2: Add `src/fitcv/cv_presets.py`**
+- [x] **Step 2: Add `src/fitcv/cv_presets.py`**
 
 Define one internal preset owner for:
 - supported preset names
@@ -178,7 +180,7 @@ Define one internal preset owner for:
 
 Do not duplicate this mapping across `config.py`, `cv_generator.py`, and `validator.py`.
 
-- [ ] **Step 3: Re-run focused tests**
+- [x] **Step 3: Re-run focused tests**
 
 Run:
 ```bash
@@ -188,7 +190,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/fitcv/cv_presets.py src/fitcv/config.py src/fitcv/cv_generator.py \
@@ -204,7 +206,7 @@ git commit -m "feat(cv): add preset registry for cv composition"
 - Modify: `src/fitcv/cv_generator.py`
 - Modify: `tests/test_cv_generator.py`
 
-- [ ] **Step 1: Write failing generator tests**
+- [x] **Step 1: Write failing generator tests**
 
 Add tests proving:
 - generator reads `cv.preset`
@@ -213,7 +215,7 @@ Add tests proving:
 - generator reads content rules
 - generator no longer depends on `cv_template_path`
 
-- [ ] **Step 2: Update `cv_generator.py`**
+- [x] **Step 2: Update `cv_generator.py`**
 
 Refactor CV generation code to:
 - read from `config["cv"]`
@@ -225,7 +227,7 @@ If the compatibility projection still exists in `config.py`, `cv_generator.py` m
 
 Do not keep a parallel flat-key code path unless it is a short-lived, clearly marked migration shim.
 
-- [ ] **Step 3: Re-run focused generator tests**
+- [x] **Step 3: Re-run focused generator tests**
 
 Run:
 ```bash
@@ -235,7 +237,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/fitcv/cv_generator.py tests/test_cv_generator.py
@@ -250,7 +252,7 @@ git commit -m "refactor(cv): use preset-based generation config"
 - Modify: `src/fitcv/validator.py`
 - Modify: `tests/test_validator.py`
 
-- [ ] **Step 1: Write failing validator tests**
+- [x] **Step 1: Write failing validator tests**
 
 Add tests proving:
 - validator derives section expectations from `cv.composition`
@@ -258,7 +260,7 @@ Add tests proving:
 - validator respects `cv.content_rules.evidence_grounded_only`
 - validator no longer depends on `required_cv_sections`
 
-- [ ] **Step 2: Update `validator.py`**
+- [x] **Step 2: Update `validator.py`**
 
 Refactor validation code to:
 - derive expected sections from `composition`
@@ -268,7 +270,7 @@ Refactor validation code to:
 
 If the compatibility projection still exists in `config.py`, `validator.py` must ignore it and read the nested `cv` object directly.
 
-- [ ] **Step 3: Re-run focused validator tests**
+- [x] **Step 3: Re-run focused validator tests**
 
 Run:
 ```bash
@@ -278,7 +280,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/fitcv/validator.py tests/test_validator.py
@@ -295,24 +297,24 @@ git commit -m "refactor(cv): use preset-based validation config"
 - Modify: `tests/test_pipeline.py`
 - Modify: related tests if needed
 
-- [ ] **Step 1: Update prompt-version reads**
+- [x] **Step 1: Update prompt-version reads**
 
 Replace legacy reads with:
 ```python
 config["cv"]["generation"]["prompt_version"]
 ```
 
-- [ ] **Step 2: Align fixtures with nested CV config**
+- [x] **Step 2: Align fixtures with nested CV config**
 
 Use one shared fixture or helper only if it reduces duplication.
 Avoid a second config-loading path.
 
-- [ ] **Step 3: Update pipeline tests and helpers**
+- [x] **Step 3: Update pipeline tests and helpers**
 
 Replace flat CV config assumptions in pipeline tests/helpers with nested `cv` config assumptions.
 Do not let `tests/test_pipeline.py` become the last consumer of the flat runtime shape.
 
-- [ ] **Step 4: Re-run focused tests**
+- [x] **Step 4: Re-run focused tests**
 
 Run:
 ```bash
@@ -326,7 +328,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/fitcv/pipeline.py tests/conftest.py \
@@ -343,19 +345,19 @@ git commit -m "refactor(cv): align runtime and tests with nested cv config"
 - Modify: `src/fitcv/config.py`
 - Modify: control-plane tests only if needed to prove compatibility
 
-- [ ] **Step 1: Add one focused compatibility test**
+- [x] **Step 1: Add one focused compatibility test**
 
 Add a test proving the current control-plane flat CV reads still work through the compatibility projection after the nested `cv` migration.
 
 This is a temporary migration guard, not a long-term contract.
 
-- [ ] **Step 2: Document shim removal boundary**
+- [x] **Step 2: Document shim removal boundary**
 
 Add a code comment and plan note that this compatibility projection must be removed once:
 - the preset-based admin CV settings plan is complete
 - control-plane settings schema no longer reads the old flat CV keys
 
-- [ ] **Step 3: Re-run focused compatibility tests**
+- [x] **Step 3: Re-run focused compatibility tests**
 
 Run:
 ```bash
@@ -369,7 +371,7 @@ Expected:
 
 ## Task 7: Full verification
 
-- [ ] **Step 1: Run focused CV/config tests**
+- [x] **Step 1: Run focused CV/config tests**
 
 Run:
 ```bash
@@ -380,14 +382,14 @@ Run:
   tests/test_pipeline.py
 ```
 
-- [ ] **Step 2: Run broader non-integration suite**
+- [x] **Step 2: Run broader non-integration suite**
 
 Run:
 ```bash
 /tmp/fitcv-test-env/bin/pytest -q --tb=short -m "not integration"
 ```
 
-- [ ] **Step 3: Manual verification**
+- [x] **Step 3: Manual verification**
 
 Check:
 - config loads the nested `cv` contract
