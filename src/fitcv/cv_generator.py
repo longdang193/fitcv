@@ -7,14 +7,25 @@ This module is responsible for:
   2. Rendering the Jinja2 template with selected evidence slots
   3. Calling the LLM to produce a CV markdown string
 
-All validation (grounding, provenance, structural checks) is owned by Task 14 (validator.py).
+All validation (grounding, provenance, structural checks) is owned by validator.py.
+
+Config contract (preset-based)
+------------------------------
+config["cv"]["generation"]["model"]        : LLM model name
+config["cv"]["generation"]["prompt_version"] : version tag (for record only)
+config["cv"]["preset"]                   : preset name — used to resolve template path
+config["cv"]["composition"]             : section composition rules (informative in generator)
+config["cv"]["content_rules"]           : content constraints
+
+Template resolution uses cv_presets.get_template_path(config["cv"]["preset"]).
+Direct cv_template_path reads are no longer the primary path.
 
 Public API
 ----------
 build_generation_prompt  : assemble the LLM system+user prompt
 render_cv_template       : render a Jinja2 template with selected evidence slots
 select_template_variant  : read job_family from enriched JD and return a template hint
-generate_cv              : call the LLM and return CV markdown (integration)
+generate_cv             : call the LLM and return CV markdown (integration)
 """
 
 import textwrap
@@ -179,6 +190,25 @@ def render_cv_template(
 
 # ── LLM generation (integration) ─────────────────────────────────────────────
 
+def _resolve_template_path(config: dict[str, Any]) -> str:
+    """Resolve the CV template path from the preset-based config.
+
+    Priority:
+    1. config["_template_path"] — test shim (used by generate_cv test fixtures)
+    2. cv_presets.get_template_path(config["cv"]["preset"])
+    3. Fallback to flat cv_template_path for legacy compatibility
+    """
+    if "_template_path" in config:
+        return str(config["_template_path"])
+    cv_cfg = config.get("cv") or {}
+    preset = str(cv_cfg.get("preset", ""))
+    if preset:
+        from fitcv.cv_presets import get_template_path
+
+        return get_template_path(preset)
+    return str(config.get("cv_template_path", "templates/cv_template.md"))
+
+
 def generate_cv(
     jd: dict[str, Any],
     evidence: list[dict[str, Any]],
@@ -188,9 +218,12 @@ def generate_cv(
 ) -> str:
     """Call the LLM to generate a tailored CV markdown string.
 
-    Reads the template from ``config["cv_template_path"]`` (default: templates/cv_template.md).
-    Uses ``google.genai`` against Vertex AI.
+    Reads template from cv_presets.get_template_path(config["cv"]["preset"])
+    (via _resolve_template_path), not from cv_template_path directly.
+    Reads model from config["cv"]["generation"]["model"] (nested; falls back to
+    flat cv_generation_model for compatibility).
 
+    Uses ``google.genai`` against Vertex AI.
     Requires GOOGLE_APPLICATION_CREDENTIALS.
     Decorated with @pytest.mark.integration in tests.
     """
@@ -200,7 +233,7 @@ def generate_cv(
 
     from fitcv.config import get_vertex_location
 
-    template_path = str(config["cv_template_path"])
+    template_path = _resolve_template_path(config)
     template_str = pathlib.Path(template_path).read_text(encoding="utf-8")
 
     prompt = build_generation_prompt(
@@ -221,6 +254,8 @@ def generate_cv(
         credentials=creds,
     )
 
-    model_name = str(config["cv_generation_model"])
+    # Read model from nested cv.generation.model (primary); fall back to flat key
+    cv_cfg = config.get("cv") or {}
+    model_name = str(cv_cfg.get("generation", {}).get("model") or config.get("cv_generation_model", ""))
     response = client.models.generate_content(model=model_name, contents=prompt)
     return str(response.text)

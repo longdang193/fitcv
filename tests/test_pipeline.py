@@ -210,10 +210,24 @@ def _minimal_config() -> dict:
             "final_top_n": 2,
             "evidence_top_k": 3,
         },
-        # CV generation config keys (required since fallback defaults were removed)
+        # Nested CV config (preset-based)
+        "cv": {
+            "generation": {
+                "model": "gemini-2.5-flash",
+                "prompt_version": "v1",
+            },
+            "preset": "europass",
+            "composition": {
+                "summary": {"enabled": True},
+                "experience": {"enabled": True, "required": True},
+                "skills": {"enabled": True, "required": True},
+            },
+            "content_rules": {"evidence_grounded_only": True},
+            "validation": {"max_pages": 2},
+        },
+        # Compatibility flat keys (produced by _apply_cv_compatibility_projection)
         "cv_generation_model": "gemini-2.5-flash",
-        "cv_template_path": "templates/cv_template.md",
-        "required_cv_sections": ["Summary", "Skills", "Experience"],
+        "required_cv_sections": ["Experience", "Skills"],
         "cv_max_pages": 2,
         "prompt_version": "v1",
     }

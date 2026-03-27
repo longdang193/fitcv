@@ -330,7 +330,7 @@ def run_pipeline(
                 ai_score=float(job.get("ai_score") or 0.0),
                 final_score=float(job.get("final_score") or 0.0),
                 evidence_ids=[str(e.get("evidence_id") or "") for e in evidence],
-                prompt_version=str(config["prompt_version"]),
+                prompt_version=str(config["cv"]["generation"]["prompt_version"]),
                 cv_markdown=cv,
                 gap_summary=gap,
                 fit_classification=fit,

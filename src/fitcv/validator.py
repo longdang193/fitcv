@@ -264,7 +264,12 @@ def run_all_validations(
     block validity.
     """
     required_sections: list[str] = list(config["required_cv_sections"])
-    max_pages: int = int(config["cv_max_pages"])
+    # Read max_pages: prefer nested cv.validation.max_pages, fall back to flat cv_max_pages
+    cv_cfg = config.get("cv") or {}
+    max_pages: int = int(
+        cv_cfg.get("validation", {}).get("max_pages", 0)
+        or config.get("cv_max_pages", 2)
+    )
 
     # Structural section check
     section_result = validate_output(cv_text, required_sections)
