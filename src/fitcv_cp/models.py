@@ -51,9 +51,9 @@ class PipelineRun:
     effective_settings_json: Optional[str] = None  # merged config snapshot at trigger time
     # run-scoped input metadata
     jobs_input_source: Optional[str] = None           # "path" | "upload" | "paste"
-    jobs_input_json: Optional[str] = None             # canonical JSON snapshot (paste/upload merged payload)
+    jobs_input_json: Optional[str] = None             # canonical resolved jobs-input snapshot for supported trigger modes in new runs
     candidate_profile_source: Optional[str] = None    # "default_config" | "upload" | "paste"
-    candidate_profile_json: Optional[str] = None      # canonical JSON snapshot (upload/paste)
+    candidate_profile_json: Optional[str] = None      # canonical resolved candidate-profile snapshot for supported trigger modes in new runs
     # lifecycle controls
     queue_job_id: Optional[str] = None               # RQ job id for queued-run cancellation
     cancel_requested_at: Optional[datetime.datetime] = None
