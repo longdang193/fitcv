@@ -14,10 +14,17 @@ load_run_structured_jobs     : append run-scoped rows into fitcv.run_structured_
 import json
 import os
 import re
+import threading
 from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import BaseModel as _BaseModel, Field as _Field
+
+# ── global rate limiter ──────────────────────────────────────────────────────
+# Acquired around every enrich_job call so that concurrent chunks cannot
+# exceed one API request per enrichment_sleep_secs interval globally.
+# Per-chunk sleep alone is NOT a true rate limiter when concurrency > 1.
+_ENRICH_RATE_LOCK: threading.Lock = threading.Lock()
 
 # ── enum definitions (fallbacks — overridden by taxonomy.yaml via config) ──────
 
@@ -431,11 +438,11 @@ def _enrich_chunk(
     chunk: list[dict[str, Any]],
     config: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Enrich one bounded chunk of normalized jobs with rate limiting and retry.
+    """Enrich one bounded chunk of normalized jobs with global rate limiting and retry.
 
-    Preserves the current retry/backoff behavior for each job in the chunk.
-    Does NOT duplicate retry logic — it calls enrich_job (which already handles retries)
-    and only manages per-job inter-request sleep here.
+    Uses the module-level _ENRICH_RATE_LOCK to serialize API calls across all
+    concurrent chunks. This makes enrichment_sleep_secs a true global rate limit
+    rather than a per-thread-only delay, regardless of enrichment_concurrency.
 
     Raises:
         Any exception that enrich_job raises after exhausting retries (ResourceExhausted,
@@ -448,26 +455,27 @@ def _enrich_chunk(
     sleep_secs = float(config.get("enrichment_sleep_secs", 1.0))
     max_retries = int(config.get("enrichment_max_retries", 2))
     results: list[dict[str, Any]] = []
-    for i, job in enumerate(chunk):
+    for job in chunk:
         attempts = 0
         while True:
-            try:
-                enriched = enrich_job(job, config)
-                break
-            except ResourceExhausted:
-                if attempts >= max_retries:
-                    raise
-                attempts += 1
-                time.sleep(sleep_secs * (2 ** (attempts - 1)))
-            except ClientError as exc:
-                if getattr(exc, "status_code", None) != 429 or attempts >= max_retries:
-                    raise
-                attempts += 1
-                time.sleep(sleep_secs * (2 ** (attempts - 1)))
-        results.append(enriched)
-        # Simple rate limit between jobs within the chunk
-        if i < len(chunk) - 1:
-            time.sleep(sleep_secs)
+            with _ENRICH_RATE_LOCK:
+                # Hold the lock for the API call + inter-request sleep so that
+                # no other chunk thread can issue an API call during this window.
+                try:
+                    enriched = enrich_job(job, config)
+                    results.append(enriched)
+                    time.sleep(sleep_secs)  # global rate limit: one req per sleep_secs
+                    break
+                except ResourceExhausted:
+                    if attempts >= max_retries:
+                        raise
+                    attempts += 1
+                    time.sleep(sleep_secs * (2 ** (attempts - 1)))
+                except ClientError as exc:
+                    if getattr(exc, "status_code", None) != 429 or attempts >= max_retries:
+                        raise
+                    attempts += 1
+                    time.sleep(sleep_secs * (2 ** (attempts - 1)))
     return results
 
 
@@ -488,15 +496,17 @@ def enrich_batch(
 
     Config keys (read at call time with safe defaults):
         enrichment_batch_size  (int, default 10)
-        enrichment_concurrency (int, default 2)
+        enrichment_concurrency (int, default 1)
 
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
-    Decorated with @pytest.mark.integration in tests.
+    Rate limiting: all API calls across all concurrent chunks are serialized
+    through the module-level _ENRICH_RATE_LOCK, making enrichment_sleep_secs
+    a true global rate limiter. Higher concurrency values speed up wall-clock
+    time only when chunk processing overhead (not API latency) dominates.
     """
-    from concurrent.futures import ThreadPoolExecutor, as_completed
+    from concurrent.futures import ThreadPoolExecutor
 
     batch_size = int(config.get("enrichment_batch_size", 10))
-    concurrency = int(config.get("enrichment_concurrency", 2))
+    concurrency = int(config.get("enrichment_concurrency", 1))
 
     # Split into chunks of batch_size
     chunks = [
