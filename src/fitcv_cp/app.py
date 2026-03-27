@@ -21,6 +21,8 @@ from fitcv_cp.bq_store import (
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.queue import cancel_queued_run, enqueue_run, enqueue_run_with_job_id
 from fitcv_cp.settings_schema import (
+    ALL_GROUP_REGISTRIES,
+    CV_GROUPS,
     RANKING_GROUPS,
     SETTINGS_SCHEMA,
     SETTINGS_SECTIONS,
@@ -431,6 +433,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "active": active,
                 "ranking_weight_keys": RANKING_GROUPS["ranking-weights"],
                 "ranking_groups": RANKING_GROUPS,
+                "cv_groups": CV_GROUPS,
             }
         )
 
@@ -448,7 +451,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             return templates.TemplateResponse(
                 request=request,
                 name="settings.html",
-                context={"schema": SETTINGS_SCHEMA, "active": active, "error": str(exc)},
+                context={
+                    "schema": SETTINGS_SCHEMA,
+                    "active": active,
+                    "ranking_weight_keys": RANKING_GROUPS["ranking-weights"],
+                    "ranking_groups": RANKING_GROUPS,
+                    "cv_groups": CV_GROUPS,
+                    "error": str(exc)
+                },
                 status_code=422,
             )
         save_setting(key, coerced, updated_by="admin", bq=bq, project=project, dataset=dataset)
@@ -461,17 +471,23 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         from uuid import uuid4
         from fastapi.responses import RedirectResponse
 
-        if group_name not in RANKING_GROUPS:
+        # Resolve group across both namespaces (ranking + cv)
+        target_registry: dict[str, list[str]] | None = None
+        for registry in ALL_GROUP_REGISTRIES.values():
+            if group_name in registry:
+                target_registry = registry
+                break
+        if target_registry is None:
             raise HTTPException(status_code=404, detail=f"Unknown group: {group_name!r}")
 
-        keys = RANKING_GROUPS[group_name]
+        keys = target_registry[group_name]
         form = await request.form()
 
         # Coerce all keys in the group
         coerced: dict = {}
         coerce_errors: list[str] = []
         for key in keys:
-            raw = form.get(key, "")
+            raw = form.getlist(key) if key == "required_cv_sections" else form.get(key, "")
             try:
                 coerced[key] = coerce_value(key, raw)
             except (KeyError, ValueError) as exc:
@@ -490,6 +506,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "active": active,
                     "ranking_weight_keys": RANKING_GROUPS["ranking-weights"],
                     "ranking_groups": RANKING_GROUPS,
+                    "cv_groups": CV_GROUPS,
                     "group_error": {group_name: msg},
                     "group_draft": {group_name: dict(form)},
                 },
@@ -565,6 +582,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "active": active,
                     "ranking_weight_keys": RANKING_GROUPS["ranking-weights"],
                     "ranking_groups": RANKING_GROUPS,
+                    "cv_groups": CV_GROUPS,
                     "section_errors": errors,
                     "section_draft": {key: form.get(key, "") for key in keys},
                 },

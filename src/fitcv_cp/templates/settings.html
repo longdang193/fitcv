@@ -282,4 +282,201 @@ function updateWeightsTotal() {
 document.addEventListener('DOMContentLoaded', updateWeightsTotal);
 </script>
 
+{# ── CV Generation section ──────────────────────────────────────────────────── #}
+<div class="section-card">
+  <div class="page-header" style="margin-bottom:1.5rem">
+    <div>
+      <div class="section-title">CV Generation</div>
+      <div class="section-helper">Settings governing how candidate CV documents are generated from ranked results.</div>
+    </div>
+  </div>
+
+  {# ── Group 1: Generation ─────────────────────────────────────────────────── #}
+  <div class="sub-card">
+    <div class="sub-card-header">
+      <div>
+        <div class="sub-card-title">Generation</div>
+        <div class="sub-card-helper">Model and template configuration for CV document generation.</div>
+      </div>
+      {% if group_error and 'cv-generation' in group_error %}
+      <div class="error-box" style="margin-bottom:0.75rem">
+        <strong>Validation error</strong>
+        <span>{{ group_error['cv-generation'] }}</span>
+      </div>
+      {% endif %}
+    </div>
+    <form id="form-cv-generation" method="post" action="/admin/settings/group/cv-generation">
+      <div class="sub-card-body">
+        <table>
+          <thead>
+            <tr>
+              <th>Setting</th>
+              <th>Current</th>
+              <th>Default</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in schema if entry.key in cv_groups['cv-generation'] %}
+            {% set draft_val = group_draft['cv-generation'][entry.key] if group_draft and 'cv-generation' in group_draft and entry.key in group_draft['cv-generation'] else none %}
+            <tr>
+              <td>
+                <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
+                <div class="section-helper">{{ entry.description }}</div>
+              </td>
+              <td>
+                {% if entry.key in active %}
+                  <span class="current-value">{{ active[entry.key] }}</span>
+                {% else %}
+                  <span class="empty-value">—</span>
+                {% endif %}
+              </td>
+              <td class="meta">{{ entry.default }}</td>
+              <td>
+                {% if entry.type == 'list[str]' %}
+                  {# repeated inputs managed by client-side JS #}
+                  <div id="cv-sections-list">
+                    {% set sections_vals = (draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default)) %}
+                    {% if sections_vals is iterable and sections_vals is not string %}
+                      {% for item in sections_vals %}
+                      <div class="cv-section-row">
+                        <input type="text" name="{{ entry.key }}" value="{{ item }}">
+                        <button type="button" class="btn-icon btn-remove-section" aria-label="Remove">&#x2715;</button>
+                      </div>
+                      {% endfor %}
+                    {% else %}
+                      <div class="cv-section-row">
+                        <input type="text" name="{{ entry.key }}" value="">
+                        <button type="button" class="btn-icon btn-remove-section" aria-label="Remove">&#x2715;</button>
+                      </div>
+                    {% endif %}
+                  </div>
+                  <button type="button" id="btn-add-cv-section" class="btn-section" style="margin-top:0.5rem">+ Add Section</button>
+                {% else %}
+                  <input type="text" name="{{ entry.key }}"
+                         value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}">
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="sub-card-footer">
+        <button type="submit" class="btn-section">Save Generation Settings</button>
+      </div>
+    </form>
+  </div>
+
+  {# ── Group 2: Validation ────────────────────────────────────────────────── #}
+  <div class="sub-card">
+    <div class="sub-card-header">
+      <div>
+        <div class="sub-card-title">Validation</div>
+        <div class="sub-card-helper">Constraints applied to the generated CV documents.</div>
+      </div>
+      {% if group_error and 'cv-validation' in group_error %}
+      <div class="error-box" style="margin-bottom:0.75rem">
+        <strong>Validation error</strong>
+        <span>{{ group_error['cv-validation'] }}</span>
+      </div>
+      {% endif %}
+    </div>
+    <form id="form-cv-validation" method="post" action="/admin/settings/group/cv-validation">
+      <div class="sub-card-body">
+        <table>
+          <thead>
+            <tr>
+              <th>Setting</th>
+              <th>Current</th>
+              <th>Default</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in schema if entry.key in cv_groups['cv-validation'] %}
+            {% set draft_val = group_draft['cv-validation'][entry.key] if group_draft and 'cv-validation' in group_draft and entry.key in group_draft['cv-validation'] else none %}
+            <tr>
+              <td>
+                <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
+                <div class="section-helper">{{ entry.description }}</div>
+              </td>
+              <td>
+                {% if entry.key in active %}
+                  <span class="current-value">{{ active[entry.key] }}</span>
+                {% else %}
+                  <span class="empty-value">—</span>
+                {% endif %}
+              </td>
+              <td class="meta">{{ entry.default }}</td>
+              <td>
+                {% if entry.type == 'list[str]' %}
+                  <div id="cv-sections-list-validation">
+                    {% set sections_vals = (draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default)) %}
+                    {% if sections_vals is iterable and sections_vals is not string %}
+                      {% for item in sections_vals %}
+                      <div class="cv-section-row">
+                        <input type="text" name="{{ entry.key }}" value="{{ item }}">
+                        <button type="button" class="btn-icon btn-remove-section" aria-label="Remove">&#x2715;</button>
+                      </div>
+                      {% endfor %}
+                    {% else %}
+                      <div class="cv-section-row">
+                        <input type="text" name="{{ entry.key }}" value="">
+                        <button type="button" class="btn-icon btn-remove-section" aria-label="Remove">&#x2715;</button>
+                      </div>
+                    {% endif %}
+                  </div>
+                  <button type="button" class="btn-section btn-add-cv-section-val" style="margin-top:0.5rem">+ Add Section</button>
+                {% elif entry.type == 'int' %}
+                  <input type="number" name="{{ entry.key }}" min="1"
+                         value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}">
+                {% else %}
+                  <input type="text" name="{{ entry.key }}"
+                         value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}">
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="sub-card-footer">
+        <button type="submit" class="btn-section">Save Validation Settings</button>
+      </div>
+    </form>
+  </div>
+
+</div>
+
+<script>
+// Add/remove rows for required_cv_sections
+document.addEventListener('DOMContentLoaded', function() {
+  // Attach to both "Add Section" buttons
+  var addBtns = document.querySelectorAll('[id="btn-add-cv-section"], .btn-add-cv-section-val');
+  addBtns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var container = btn.previousElementSibling;
+      var row = document.createElement('div');
+      row.className = 'cv-section-row';
+      row.innerHTML = '<input type="text" name="required_cv_sections" value="">' +
+        ' <button type="button" class="btn-icon btn-remove-section" aria-label="Remove">&#x2715;</button>';
+      container.appendChild(row);
+      row.querySelector('input').focus();
+    });
+  });
+
+  // Delegate remove clicks to the document
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('btn-remove-section')) {
+      var container = e.target.closest('.cv-section-row').parentElement;
+      var rows = container.querySelectorAll('.cv-section-row');
+      if (rows.length > 1) {
+        e.target.closest('.cv-section-row').remove();
+      }
+    }
+  });
+});
+</script>
+
 {% endblock %}

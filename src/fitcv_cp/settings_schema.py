@@ -207,6 +207,52 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "group": "global_job_filters",
         "config_path": ["global_job_filters", "max_age_days"],
     },
+    # ── CV Generation ──────────────────────────────────────────────────────
+    {
+        "key": "cv_generation_model",
+        "type": "str",
+        "default": "gemini-2.0-flash",
+        "label": "CV Generation Model",
+        "description": "The LLM model used to generate candidate CV documents.",
+        "group": "cv_generation",
+        "config_path": ["cv_generation_model"],
+    },
+    {
+        "key": "cv_template_path",
+        "type": "str",
+        "default": "templates/cv_template.md",
+        "label": "CV Template Path",
+        "description": "Path to the Jinja2 template used for CV generation.",
+        "group": "cv_generation",
+        "config_path": ["cv_template_path"],
+    },
+    {
+        "key": "prompt_version",
+        "type": "str",
+        "default": "v1",
+        "label": "Prompt Version",
+        "description": "Version identifier for the CV generation prompt used.",
+        "group": "cv_generation",
+        "config_path": ["prompt_version"],
+    },
+    {
+        "key": "required_cv_sections",
+        "type": "list[str]",
+        "default": ["Summary", "Work Experience", "Skills"],
+        "label": "Required CV Sections",
+        "description": "Ordered list of sections that every generated CV must contain.",
+        "group": "cv_generation",
+        "config_path": ["required_cv_sections"],
+    },
+    {
+        "key": "cv_max_pages",
+        "type": "int",
+        "default": 2,
+        "label": "CV Maximum Pages",
+        "description": "The maximum number of pages for a generated CV document.",
+        "group": "cv_generation",
+        "config_path": ["cv_max_pages"],
+    },
 ]
 
 # ── Ranking group registry ────────────────────────────────────────────────────
@@ -257,8 +303,36 @@ SETTINGS_SECTIONS: dict[str, list[str]] = {
     ],
 }
 
+# ── CV Generation settings schema ──────────────────────────────────────────
+# Kept for reference and documentation only.  The actual schema entries live
+# inside SETTINGS_SCHEMA so they appear alongside all other settings.
+# _CV_GENERATION_SCHEMA was removed to avoid duplication.
+
+# ── CV group registry ───────────────────────────────────────────────────────
+# Maps URL group slug (used in /admin/settings/group/{slug}) → ordered list
+# of schema keys.  CV groups are validated and saved together, just like
+# ranking groups, but are kept in a separate namespace.
+CV_GROUPS: dict[str, list[str]] = {
+    "cv-generation": [
+        "cv_generation_model",
+        "cv_template_path",
+        "prompt_version",
+    ],
+    "cv-validation": [
+        "required_cv_sections",
+        "cv_max_pages",
+    ],
+}
+
+# ── Combined grouped-registry lookup ───────────────────────────────────────
+# Used by the grouped-save endpoint to validate any group request.
+ALL_GROUP_REGISTRIES: dict[str, dict[str, list[str]]] = {
+    "ranking": RANKING_GROUPS,
+    "cv": CV_GROUPS,
+}
+
 # Build lookup maps once
-_SCHEMA_BY_KEY: dict[str, dict[str, Any]] = {s["key"]: s for s in SETTINGS_SCHEMA}
+_ALL_SCHEMA_BY_KEY: dict[str, dict[str, Any]] = {s["key"]: s for s in SETTINGS_SCHEMA}
 _WEIGHT_KEYS: frozenset[str] = frozenset(
     s["key"] for s in SETTINGS_SCHEMA if s["key"].startswith("ranking_weights.")
 )
@@ -266,12 +340,20 @@ _WEIGHT_KEYS: frozenset[str] = frozenset(
 
 # ── coercion ──────────────────────────────────────────────────────────────────
 
-def coerce_value(key: str, raw: Any) -> int | float:
+def coerce_value(key: str, raw: Any) -> int | float | str | list[str]:
     """Cast raw value (string or numeric) to the type declared in the schema."""
-    entry = _SCHEMA_BY_KEY[key]  # raises KeyError for unknown keys
+    entry = _ALL_SCHEMA_BY_KEY[key]  # raises KeyError for unknown keys
     if entry["type"] == "int":
         return int(raw)
-    return float(raw)
+    elif entry["type"] == "float":
+        return float(raw)
+    elif entry["type"] == "str":
+        return str(raw).strip()
+    elif entry["type"] == "list[str]":
+        if isinstance(raw, list):
+            return [str(v).strip() for v in raw]
+        return [str(raw).strip()]
+    raise TypeError(f"Unsupported type {entry['type']!r} for key {key!r}")
 
 
 # ── validation ────────────────────────────────────────────────────────────────
@@ -283,9 +365,9 @@ def validate_settings(settings: dict[str, Any]) -> None:
     settings values must already be coerced to their declared Python types.
     """
     for key, value in settings.items():
-        if key not in _SCHEMA_BY_KEY:
+        if key not in _ALL_SCHEMA_BY_KEY:
             raise ValidationError(f"Unknown setting key: '{key}'")
-        entry = _SCHEMA_BY_KEY[key]
+        entry = _ALL_SCHEMA_BY_KEY[key]
 
         if entry["type"] == "int":
             if not isinstance(value, int) or value < 1:
@@ -300,6 +382,24 @@ def validate_settings(settings: dict[str, Any]) -> None:
                     raise ValidationError(
                         f"{key} must be in range [0.0, 1.0], got {fval}"
                     )
+        elif entry["type"] == "str":
+            if not value or not value.strip():
+                raise ValidationError(f"{key} must not be empty or whitespace-only")
+        elif entry["type"] == "list[str]":
+            if not isinstance(value, list):
+                raise ValidationError(f"{key} must be a list of strings, got {type(value).__name__}")
+            if len(value) == 0:
+                raise ValidationError(f"{key} must not be empty")
+            for item in value:
+                if not isinstance(item, str) or not item.strip():
+                    raise ValidationError(f"{key} contains a blank entry: {value!r}")
+            seen: list[str] = []
+            for item in value:
+                if item in seen:
+                    raise ValidationError(
+                        f"{key} contains duplicate entries (order preserved, duplicates rejected): {value!r}"
+                    )
+                seen.append(item)
 
     # ── relational constraints ────────────────────────────────────────────────
     vs = settings.get("pipeline.vector_search_top_n")
@@ -346,7 +446,7 @@ def apply_settings_to_config(config: dict[str, Any], settings: dict[str, Any]) -
     settings values must already be coerced to their declared Python types.
     """
     for key, value in settings.items():
-        path = _SCHEMA_BY_KEY[key]["config_path"]
+        path = _ALL_SCHEMA_BY_KEY[key]["config_path"]
         target = config
         for part in path[:-1]:
             target = target.setdefault(part, {})
