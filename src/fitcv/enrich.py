@@ -427,14 +427,19 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     return merge_scraped_and_enriched(job, extraction["parsed"], config)
 
 
-def enrich_batch(
-    normalized_jobs: list[dict[str, Any]],
+def _enrich_chunk(
+    chunk: list[dict[str, Any]],
     config: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    """Enrich a batch of normalized jobs with rate limiting.
+    """Enrich one bounded chunk of normalized jobs with rate limiting and retry.
 
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
-    Decorated with @pytest.mark.integration in tests.
+    Preserves the current retry/backoff behavior for each job in the chunk.
+    Does NOT duplicate retry logic — it calls enrich_job (which already handles retries)
+    and only manages per-job inter-request sleep here.
+
+    Raises:
+        Any exception that enrich_job raises after exhausting retries (ResourceExhausted,
+        ClientError, etc.) — non-recoverable failures propagate to the caller.
     """
     import time
     from google.api_core.exceptions import ResourceExhausted  # type: ignore[import-untyped]
@@ -443,7 +448,7 @@ def enrich_batch(
     sleep_secs = float(config.get("enrichment_sleep_secs", 1.0))
     max_retries = int(config.get("enrichment_max_retries", 2))
     results: list[dict[str, Any]] = []
-    for i, job in enumerate(normalized_jobs):
+    for i, job in enumerate(chunk):
         attempts = 0
         while True:
             try:
@@ -460,9 +465,65 @@ def enrich_batch(
                 attempts += 1
                 time.sleep(sleep_secs * (2 ** (attempts - 1)))
         results.append(enriched)
-        # Simple rate limit: 1 req/s to stay within Gemini free-tier limits
-        if i < len(normalized_jobs) - 1:
+        # Simple rate limit between jobs within the chunk
+        if i < len(chunk) - 1:
             time.sleep(sleep_secs)
+    return results
+
+
+def enrich_batch(
+    normalized_jobs: list[dict[str, Any]],
+    config: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Enrich a batch of normalized jobs with bounded parallel execution.
+
+    Splits normalized_jobs into chunks of enrichment_batch_size, then submits
+    up to enrichment_concurrency chunks in parallel via ThreadPoolExecutor.
+    Results are collected BY ORIGINAL CHUNK INDEX (not completion order) to
+    guarantee deterministic output ordering matching the input.
+
+    Fail-fast semantics: any non-recoverable exception from a chunk propagates
+    immediately — the parallel version does not silently degrade to partial success
+    when a chunk raises an exception that the sequential path would have raised.
+
+    Config keys (read at call time with safe defaults):
+        enrichment_batch_size  (int, default 10)
+        enrichment_concurrency (int, default 2)
+
+    Requires GOOGLE_APPLICATION_CREDENTIALS.
+    Decorated with @pytest.mark.integration in tests.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    batch_size = int(config.get("enrichment_batch_size", 10))
+    concurrency = int(config.get("enrichment_concurrency", 2))
+
+    # Split into chunks of batch_size
+    chunks = [
+        normalized_jobs[i:i + batch_size]
+        for i in range(0, len(normalized_jobs), batch_size)
+    ]
+
+    if not chunks:
+        return []
+
+    # Submit all chunks; collect futures in original order
+    with ThreadPoolExecutor(max_workers=concurrency) as executor:
+        futures = [executor.submit(_enrich_chunk, chunk, config) for chunk in chunks]
+
+        # Collect results by original chunk index, not completion order.
+        # This preserves deterministic merged output ordering.
+        chunk_results: list[list[dict[str, Any]]] = [None] * len(futures)  # type: ignore[list-item]
+        for idx, future in enumerate(futures):
+            # Calling .result() re-raises any exception from the chunk.
+            # This preserves fail-fast semantics: if any chunk raises a
+            # non-recoverable exception, it propagates here immediately.
+            chunk_results[idx] = future.result()
+
+    # Flatten chunk results in original chunk order
+    results: list[dict[str, Any]] = []
+    for chunk_result in chunk_results:
+        results.extend(chunk_result)
     return results
 
 
