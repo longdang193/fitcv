@@ -1,0 +1,27 @@
+---
+alwaysApply: true
+---
+# Project Operating System Rules
+
+This set of rules cover the full project methodology for documentation,
+feature lifecycle, and planning dispatch. Read them together; they are
+designed to be applied as a unified system.
+
+1. `operating-system/doc-system-lifecycle.md` — 4-layer doc system, artifact conventions, naming
+2. `operating-system/feature-lifecycle.md` — feature types, status lifecycle, triage, rollout, post-execution review
+3. `operating-system/planning-dispatch.md` — which skill to use when, triage gate, dispatch scenarios
+
+## How to Use
+
+When starting any task that involves planning, features, or documentation:
+
+1. Read all three files in `operating-system/` (they cross-reference each other)
+2. Apply them in order:
+   - Does it need a doc? → doc-system-lifecycle
+   - Does it need a feature entry? → feature-lifecycle
+   - Which skill dispatches it? → planning-dispatch
+
+## Rule Priority
+
+- Project-specific rules override these.
+- These define the **default project methodology baseline**.
