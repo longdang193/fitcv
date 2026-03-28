@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Use when you have a spec or requirements for a multi-step task, before touching code
+description: Use when you have a confirmed spec with triage block for a multi-step task, before touching code. Enforces the triage gate: do not proceed without a completed triage block from planning-dispatch. Consolidates project_plan_generation duties.
 ---
 
 # Writing Plans
@@ -15,8 +15,16 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 
 **Context:** This should be run in a dedicated worktree (created by brainstorming skill).
 
-**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
+**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<feature-name>.md`
 - (User preferences for plan location override this default)
+
+## Pre-Plan Triage Check
+
+**Do NOT proceed without completing this check first.**
+
+1. Invoke `planning-dispatch` to confirm the triage gate was passed. The triage block (feature type, law, decree, impacted layers, migration, rollback, risk) must be at the top of the spec.
+2. Check that `FEATURES.md` has been updated with the feature entry (or note in the plan that it will be updated before work begins).
+3. If triage is absent or incomplete: invoke `planning-dispatch` now and do not write the plan until triage is complete.
 
 ## Scope Check
 
@@ -36,6 +44,7 @@ This structure informs the task decomposition. Each task should produce self-con
 ## Bite-Sized Task Granularity
 
 **Each step is one action (2-5 minutes):**
+
 - "Write the failing test" - step
 - "Run it to make sure it fails" - step
 - "Implement the minimal code to make the test pass" - step
@@ -49,13 +58,26 @@ This structure informs the task decomposition. Each task should produce self-con
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+[Triage block — copied from the spec, must be present]
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** [One sentence describing what this builds]
 
 **Architecture:** [2-3 sentences about approach]
 
 **Tech Stack:** [Key technologies/libraries]
+
+**Rollout:**
+- rollback_trigger: [metric or condition that signals failure]
+- rollback_method: [how to revert — config revert, migration rollback, feature flag off]
+- monitoring_window: [how long before rollback window closes]
+
+**Post-Execution Review:**
+- Classification accurate: yes | no | partially
+- Decree constraints valid: still valid | wrong — [reason]
+- Lessons: [actionable lessons learned]
+- FEATURES.md updated: yes
 
 ---
 ```
@@ -104,6 +126,7 @@ git commit -m "feat: add specific feature"
 ````
 
 ## Remember
+
 - Exact file paths always
 - Complete code in plan (not "add validation")
 - Exact commands with expected output
@@ -120,6 +143,7 @@ After writing the complete plan:
 3. If ✅ Approved: proceed to execution handoff
 
 **Review loop guidance:**
+
 - Same agent that wrote the plan fixes it (preserves context)
 - If loop exceeds 3 iterations, surface to human for guidance
 - Reviewers are advisory — explain disagreements if you believe feedback is incorrect
@@ -137,9 +161,11 @@ After saving the plan, offer execution choice:
 **Which approach?"**
 
 **If Subagent-Driven chosen:**
-- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
+
+- **REQUIRED SUB-SKILL:** Use subagent-driven-development
 - Fresh subagent per task + two-stage review
 
 **If Inline Execution chosen:**
-- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
+
+- **REQUIRED SUB-SKILL:** Use executing-plans
 - Batch execution with checkpoints for review

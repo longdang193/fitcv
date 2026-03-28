@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
+description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation. Before writing the spec doc, invokes doc-system-lifecycle for the 4-layer system and planning-dispatch for the triage block."
 ---
 
 # Brainstorming Ideas Into Designs
@@ -26,10 +26,12 @@ You MUST create a task for each of these items and complete them in order:
 3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
 5. **Present design** — in sections scaled to their complexity, get user approval after each section
-6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
-7. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 3 iterations, then surface to human)
-8. **User reviews written spec** — ask user to review the spec file before proceeding
-9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
+6. **Invoke doc-system-lifecycle** — before writing the spec doc, ensure the 4-layer system conventions are active (naming, frontmatter, size constraints)
+7. **Invoke planning-dispatch** — after user approves the design, produce the triage block and confirm routing to writing-plans
+8. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<topic>-design.md` and commit
+9. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 3 iterations, then surface to human)
+10. **User reviews written spec** — ask user to review the spec file before proceeding
+11. **Transition to implementation** — invoke writing-plans skill to create implementation plan
 
 ## Process Flow
 
@@ -42,6 +44,8 @@ digraph brainstorming {
     "Propose 2-3 approaches" [shape=box];
     "Present design sections" [shape=box];
     "User approves design?" [shape=diamond];
+    "Invoke doc-system-lifecycle\n(4-layer conventions)" [shape=box];
+    "Invoke planning-dispatch\n(produce triage, route)" [shape=box];
     "Write design doc" [shape=box];
     "Spec review loop" [shape=box];
     "Spec review passed?" [shape=diamond];
@@ -56,7 +60,9 @@ digraph brainstorming {
     "Propose 2-3 approaches" -> "Present design sections";
     "Present design sections" -> "User approves design?";
     "User approves design?" -> "Present design sections" [label="no, revise"];
-    "User approves design?" -> "Write design doc" [label="yes"];
+    "User approves design?" -> "Invoke doc-system-lifecycle\n(4-layer conventions)" [label="yes"];
+    "Invoke doc-system-lifecycle\n(4-layer conventions)" -> "Invoke planning-dispatch\n(produce triage, route)";
+    "Invoke planning-dispatch\n(produce triage, route)" -> "Write design doc";
     "Write design doc" -> "Spec review loop";
     "Spec review loop" -> "Spec review passed?";
     "Spec review passed?" -> "Spec review loop" [label="issues found,\nfix and re-dispatch"];
@@ -111,9 +117,9 @@ digraph brainstorming {
 
 **Documentation:**
 
-- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md`
-  - (User preferences for spec location override this default)
-- Use elements-of-style:writing-clearly-and-concisely skill if available
+- Write the validated design (spec) to `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<topic>-design.md`
+  - User preferences for spec location override this default
+  - Frontmatter, naming, and size constraints are governed by `doc-system-lifecycle` (invoke it before writing)
 - Commit the design document to git
 
 **Spec Review Loop:**
@@ -132,7 +138,8 @@ Wait for the user's response. If they request changes, make them and re-run the 
 
 **Implementation:**
 
-- Invoke the writing-plans skill to create a detailed implementation plan
+- Before invoking writing-plans, invoke `planning-dispatch` to produce the triage block and confirm routing
+- Then invoke the writing-plans skill to create a detailed implementation plan
 - Do NOT invoke any other skill. writing-plans is the next step.
 
 ## Key Principles

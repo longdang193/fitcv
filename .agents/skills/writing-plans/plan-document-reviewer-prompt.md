@@ -19,19 +19,21 @@ Task tool (general-purpose):
 
     | Category | What to Look For |
     |----------|------------------|
-    | Completeness | TODOs, placeholders, incomplete tasks, missing steps |
-    | Spec Alignment | Plan covers spec requirements, no major scope creep |
-    | Task Decomposition | Tasks have clear boundaries, steps are actionable |
-    | Buildability | Could an engineer follow this plan without getting stuck? |
+    | **Triage Check** | Triage block (or link to spec's triage block) is present at top of plan. If linked, verify the spec exists and triage is complete there. Missing = hard block. |
+    | **FEATURES.md Update** | Plan notes whether FEATURES.md has been updated with the feature entry or will be updated before work begins. If neither is noted = advisory flag. |
+    | **Rollout Controls** | For MODIFY and REPLACE plans: rollback_trigger, rollback_method, and monitoring_window are defined. For ADD plans: these are optional. Missing for MODIFY/REPLACE = hard block. |
+    | **Completeness** | TODOs, placeholders, incomplete tasks, missing steps |
+    | **Spec Alignment** | Plan covers spec requirements, no major scope creep |
+    | **Task Decomposition** | Tasks have clear boundaries, steps are actionable |
+    | **Buildability** | Could an engineer follow this plan without getting stuck? |
 
     ## Calibration
 
-    **Only flag issues that would cause real problems during implementation.**
-    An implementer building the wrong thing or getting stuck is an issue.
-    Minor wording, stylistic preferences, and "nice to have" suggestions are not.
+    **Two-tier approval:**
+    - **Hard blocks (must fix before approval):** Missing triage block; missing rollout controls for MODIFY/REPLACE plans.
+    - **Soft blocks (advisory):** FEATURES.md not noted; TODOs; scope creep; vague steps.
 
-    Approve unless there are serious gaps — missing requirements from the spec,
-    contradictory steps, placeholder content, or tasks so vague they can't be acted on.
+    **Overall:** Approve only when triage is present AND rollout controls are defined (for MODIFY/REPLACE) AND design quality passes.
 
     ## Output Format
 
@@ -39,8 +41,12 @@ Task tool (general-purpose):
 
     **Status:** Approved | Issues Found
 
+    **Triage:** Present | Missing
+    **Rollout Controls:** Defined | Missing (for MODIFY/REPLACE)
+    **FEATURES.md Update:** Noted | Not noted
+
     **Issues (if any):**
-    - [Task X, Step Y]: [specific issue] - [why it matters for implementation]
+    - [Task X, Step Y]: [specific issue] - [why it matters for implementation] — [Hard block | Advisory]
 
     **Recommendations (advisory, do not block approval):**
     - [suggestions for improvement]
