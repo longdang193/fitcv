@@ -395,6 +395,11 @@ def test_required_cv_sections_includes_education_when_enabled() -> None:
     assert "Education" in cfg["required_cv_sections"]
 
 
+def test_required_cv_sections_includes_summary_when_enabled() -> None:
+    cfg = load_config()
+    assert "Summary" in cfg["required_cv_sections"]
+
+
 def test_required_cv_sections_excludes_education_when_disabled(tmp_path: Path) -> None:
     """Education must NOT appear in required_cv_sections when enabled:false."""
     env_yaml = tmp_path / ".env.yaml"
@@ -421,4 +426,33 @@ def test_required_cv_sections_excludes_education_when_disabled(tmp_path: Path) -
     )
     cfg = load_config(env_yaml)
     assert "Education" not in cfg["required_cv_sections"]
+    assert "Experience" in cfg["required_cv_sections"]
+
+
+def test_required_cv_sections_excludes_summary_when_disabled(tmp_path: Path) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: false\n"
+        "      style: concise\n"
+        "    experience:\n"
+        "      enabled: true\n"
+        "  content_rules:\n"
+        "    evidence_grounded_only: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    cfg = load_config(env_yaml)
+    assert "Summary" not in cfg["required_cv_sections"]
     assert "Experience" in cfg["required_cv_sections"]

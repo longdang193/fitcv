@@ -15,9 +15,23 @@ from __future__ import annotations
 
 from typing import Any
 
+from fitcv.cv_presets import SUPPORTED_PRESETS
+
 
 class ValidationError(ValueError):
     pass
+
+
+_CV_GENERATION_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro",
+]
+_CV_PROMPT_VERSIONS = ["v1"]
+_CV_PRESET_OPTIONS = sorted(SUPPORTED_PRESETS)
+_CV_DETAIL_OPTIONS = ["compact", "standard", "detailed"]
+_CV_SUMMARY_STYLE_OPTIONS = ["concise", "achievement_focused", "skills_focused"]
+_CV_EXPERIENCE_BULLET_OPTIONS = ["standard", "action_project_result"]
 
 
 # ── schema registry ──────────────────────────────────────────────────────────
@@ -214,6 +228,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "default": "gemini-2.5-flash",
         "label": "CV Generation Model",
         "description": "The LLM model used to generate candidate CV documents.",
+        "options": _CV_GENERATION_MODELS,
         "group": "cv_composition",
         "config_path": ["cv", "generation", "model"],
     },
@@ -223,6 +238,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "default": "v1",
         "label": "Prompt Version",
         "description": "Version identifier for the CV generation prompt used.",
+        "options": _CV_PROMPT_VERSIONS,
         "group": "cv_composition",
         "config_path": ["cv", "generation", "prompt_version"],
     },
@@ -241,16 +257,27 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "default": "europass",
         "label": "CV Preset",
         "description": "The CV preset to use for generation. Controls template, section order, and supported composition options.",
+        "options": _CV_PRESET_OPTIONS,
         "group": "cv_preset",
         "config_path": ["cv", "preset"],
     },
     # ── CV Composition ─────────────────────────────────────────────────────────
+    {
+        "key": "cv_summary_enabled",
+        "type": "bool",
+        "default": True,
+        "label": "Include Summary",
+        "description": "Whether to include a professional summary section in generated CVs.",
+        "group": "cv_composition",
+        "config_path": ["cv", "composition", "summary", "enabled"],
+    },
     {
         "key": "cv_summary_style",
         "type": "str",
         "default": "concise",
         "label": "Summary Style",
         "description": "Style of the professional summary section in generated CVs.",
+        "options": _CV_SUMMARY_STYLE_OPTIONS,
         "group": "cv_composition",
         "config_path": ["cv", "composition", "summary", "style"],
     },
@@ -269,6 +296,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "default": "compact",
         "label": "Education Detail Level",
         "description": "How much detail to include in the Education section: compact, standard, or detailed.",
+        "options": _CV_DETAIL_OPTIONS,
         "group": "cv_composition",
         "config_path": ["cv", "composition", "education", "detail"],
     },
@@ -287,6 +315,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "default": "action_project_result",
         "label": "Experience Bullet Style",
         "description": "Style of bullet points in work experience entries.",
+        "options": _CV_EXPERIENCE_BULLET_OPTIONS,
         "group": "cv_composition",
         "config_path": ["cv", "composition", "experience", "bullet_style"],
     },
@@ -341,6 +370,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "default": "compact",
         "label": "Publications Detail Level",
         "description": "How much detail to include in the Publications section: compact, standard, or detailed.",
+        "options": _CV_DETAIL_OPTIONS,
         "group": "cv_composition",
         "config_path": ["cv", "composition", "publications", "detail"],
     },
@@ -359,6 +389,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "default": "compact",
         "label": "Languages Detail Level",
         "description": "How much detail to include in the Languages section: compact, standard, or detailed.",
+        "options": _CV_DETAIL_OPTIONS,
         "group": "cv_composition",
         "config_path": ["cv", "composition", "languages", "detail"],
     },
@@ -466,6 +497,7 @@ CV_GROUPS: dict[str, list[str]] = {
         "cv_prompt_version",
     ],
     "cv-composition": [
+        "cv_summary_enabled",
         "cv_summary_style",
         "cv_education_enabled",
         "cv_education_detail",
@@ -560,6 +592,11 @@ def validate_settings(settings: dict[str, Any]) -> None:
         elif entry["type"] == "str":
             if not value or not value.strip():
                 raise ValidationError(f"{key} must not be empty or whitespace-only")
+            options = entry.get("options")
+            if options is not None and value not in options:
+                raise ValidationError(
+                    f"{key} must be one of {', '.join(options)}, got {value!r}"
+                )
         elif entry["type"] == "bool":
             if not isinstance(value, bool):
                 raise ValidationError(f"{key} must be a boolean, got {value!r}")

@@ -10,6 +10,8 @@
     {% endif %}
     {% if run.status.value in ('queued', 'running') %}
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'stop', this)">Stop Run</button>
+    {% elif run.status.value == 'cancelling' and not run.started_at and not run.finished_at %}
+      <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'repair-cancellation', this)">Repair Status</button>
     {% elif run.status.value == 'cancelling' %}
       <span class="meta" title="Waiting for next pipeline checkpoint">Cancellation pending…</span>
     {% elif run.status.value in ('succeeded', 'failed', 'cancelled') and not run.archived_at %}

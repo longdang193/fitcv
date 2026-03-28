@@ -594,6 +594,7 @@ def test_cv_groups_preset_has_correct_keys():
 def test_cv_groups_composition_has_all_composition_keys():
     from fitcv_cp.settings_schema import CV_GROUPS
     expected = {
+        "cv_summary_enabled",
         "cv_summary_style", "cv_education_enabled", "cv_education_detail",
         "cv_experience_enabled", "cv_experience_bullet_style",
         "cv_skills_enabled", "cv_skills_max_items",
@@ -750,7 +751,7 @@ def test_valid_cv_preset_group_payload_passes():
     validate_settings({
         "cv_preset": "europass",
         "cv_generation_model": "gemini-2.5-flash",
-        "cv_prompt_version": "v2",
+        "cv_prompt_version": "v1",
     })  # must not raise
 
 
@@ -794,9 +795,23 @@ def test_cv_generation_model_default_uses_25_flash():
     assert schema_by_key["cv_generation_model"]["default"] == "gemini-2.5-flash"
 
 
+def test_cv_generation_model_options_are_constrained() -> None:
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_generation_model"]["options"] == [
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-pro",
+    ]
+
+
 def test_cv_prompt_version_default():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert schema_by_key["cv_prompt_version"]["default"] == "v1"
+
+
+def test_cv_summary_enabled_default() -> None:
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_summary_enabled"]["default"] is True
 
 
 def test_cv_summary_style_default():
@@ -922,6 +937,11 @@ def test_coerce_cv_generation_model_strips_whitespace():
     assert isinstance(result, str)
 
 
+def test_validate_settings_rejects_unknown_cv_generation_model() -> None:
+    with pytest.raises(ValidationError, match="cv_generation_model"):
+        validate_settings({"cv_generation_model": "gemini-3-flash"})
+
+
 def test_coerce_bool_from_string():
     from fitcv_cp.settings_schema import coerce_value
     result = coerce_value("cv_education_enabled", "true")
@@ -993,6 +1013,12 @@ def test_apply_settings_to_config_cv_preset_nested():
     })
     assert config["cv"]["generation"]["model"] == "gemini-2.5-flash"
     assert config["cv"]["generation"]["prompt_version"] == "v2"
+
+
+def test_apply_settings_to_config_cv_summary_enabled_nested() -> None:
+    config: dict = {}
+    apply_settings_to_config(config, {"cv_summary_enabled": False})
+    assert config["cv"]["composition"]["summary"]["enabled"] is False
 
 
 def test_apply_settings_to_config_cv_list_removed():
