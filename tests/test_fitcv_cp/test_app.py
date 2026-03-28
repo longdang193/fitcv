@@ -827,6 +827,34 @@ def test_admin_stop_queued_run_returns_json():
     assert "cancelled" in resp.json().get("status", "")
 
 
+def test_admin_stop_queued_run_without_worker_claim_marks_cancelled() -> None:
+    run = _make_run_mock(status="queued")
+    run.started_at = None
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.cancel_queued_run", return_value=False), \
+         patch("fitcv_cp.app.request_run_cancel") as mock_request_cancel, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/stop")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "cancelled"
+    assert mock_request_cancel.call_args.args[2] == "cancelled"
+
+
+def test_admin_stop_claimed_run_falls_back_to_cancelling() -> None:
+    import datetime
+
+    run = _make_run_mock(status="queued")
+    run.started_at = datetime.datetime.now(datetime.timezone.utc)
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.cancel_queued_run", return_value=False), \
+         patch("fitcv_cp.app.request_run_cancel") as mock_request_cancel, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/stop")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "cancelling"
+    assert mock_request_cancel.call_args.args[2] == "cancelling"
+
+
 def test_admin_stop_succeeded_run_returns_409():
     run = _make_run_mock(status="succeeded")
     with patch("fitcv_cp.app.get_run", return_value=run):
@@ -838,6 +866,26 @@ def test_admin_stop_unknown_run_returns_404():
     with patch("fitcv_cp.app.get_run", return_value=None):
         resp = TestClient(_app()).post("/admin/runs/nonexistent/stop")
     assert resp.status_code == 404
+
+
+def test_admin_repair_cancellation_stale_run_returns_cancelled() -> None:
+    run = _make_run_mock(status="cancelling")
+    run.started_at = None
+    run.finished_at = None
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/repair-cancellation")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "cancelled"
+    assert mock_update_status.call_args.args[1].value == "cancelled"
+
+
+def test_admin_repair_cancellation_running_run_returns_409() -> None:
+    run = _make_run_mock(status="running")
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/repair-cancellation")
+    assert resp.status_code == 409
 
 
 def test_admin_archive_succeeded_run_returns_json():
@@ -931,6 +979,15 @@ def test_runs_list_running_row_shows_stop_button():
     assert "Stop Run" in resp.text
 
 
+def test_runs_list_stale_cancelling_row_shows_repair_button():
+    run = _make_full_run_mock(status="cancelling")
+    run.started_at = None
+    run.finished_at = None
+    with patch("fitcv_cp.app.list_runs", return_value=[run]):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert "Repair Status" in resp.text
+
+
 def test_runs_list_succeeded_row_shows_archive_button():
     run = _make_full_run_mock(status="succeeded")
     with patch("fitcv_cp.app.list_runs", return_value=[run]):
@@ -975,6 +1032,20 @@ def test_run_detail_archived_shows_unarchive_and_badge():
     assert resp.status_code == 200
     assert "Unarchive Run" in resp.text
     assert "Archived" in resp.text
+
+
+def test_run_detail_stale_cancelling_shows_repair_status() -> None:
+    run = _make_full_run_mock(status="cancelling")
+    run.started_at = None
+    run.finished_at = None
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-ui-1")
+    assert resp.status_code == 200
+    assert "Repair Status" in resp.text
 
 
 # ── Component 1: app.py server-side enrichment ───────────────────────────────
@@ -1149,8 +1220,7 @@ def test_settings_ranking_contains_three_sub_cards():
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    # Count occurrences of class="sub-card" (each sub-card has exactly this class attribute)
-    count = html.count('class="sub-card"')
+    count = html.count('class="sub-card settings-panel"')
     assert count >= 3, f"Expected at least 3 sub-card elements, got {count}"
 
 
@@ -1771,6 +1841,68 @@ def test_settings_page_renders_cv_composition_section_cards() -> None:
         assert f'<div class="composition-section-title">{label}</div>' in html
 
 
+def test_settings_page_renders_summary_visibility_toggle() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'name="cv_summary_enabled"' in html
+    assert "Always shown" not in html
+
+
+def test_settings_page_renders_cv_model_as_select_with_supported_options() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'name="cv_generation_model"' in html
+    assert "<select" in html
+    assert '<option value="gemini-2.5-flash"' in html
+    assert '<option value="gemini-2.5-flash-lite"' in html
+    assert '<option value="gemini-2.5-pro"' in html
+    assert 'name="cv_generation_model"' in html
+    assert 'type="text" name="cv_generation_model"' not in html
+
+
+def test_settings_page_uses_shared_cv_setting_row_class_across_blocks() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'class="settings-field-row"' in html
+    assert html.count('class="settings-field-row"') >= 10
+
+
+def test_settings_page_hides_default_column_for_settings_blocks() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "<th>Default</th>" not in html
+
+
+def test_settings_page_renders_use_defaults_button_per_cv_block() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert html.count("Use Defaults") >= 4
+    assert 'data-reset-form="form-cv-preset"' in html
+    assert 'data-reset-form="form-cv-composition"' in html
+    assert 'data-reset-form="form-cv-content-rules"' in html
+    assert 'data-reset-form="form-cv-validation"' in html
+
+
+def test_settings_page_exposes_default_values_for_browser_reset() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'data-default-value="gemini-2.5-flash"' in html
+    assert 'data-default-value="true"' in html
+    assert 'data-default-value="concise"' in html
+
+
 def test_settings_page_hides_legacy_required_controls() -> None:
     """Composition UI no longer exposes separate required checkboxes."""
     active = {"cv_education_enabled": False}
@@ -1901,14 +2033,14 @@ def test_grouped_save_cv_preset_valid_redirects():
     """Valid cv-preset form POST → 303 redirect; save_settings_group called."""
     with patch("fitcv_cp.app.save_settings_group") as mock_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
-        resp = TestClient(_app(), follow_redirects=False).post(
-            "/admin/settings/group/cv-preset",
-            data={
-                "cv_preset": "europass",
-                "cv_generation_model": "gemini-2.5-flash",
-                "cv_prompt_version": "v2",
-            },
-        )
+            resp = TestClient(_app(), follow_redirects=False).post(
+                "/admin/settings/group/cv-preset",
+                data={
+                    "cv_preset": "europass",
+                    "cv_generation_model": "gemini-2.5-flash",
+                    "cv_prompt_version": "v1",
+                },
+            )
     assert resp.status_code == 303
     mock_save.assert_called_once()
     saved_keys = set(mock_save.call_args[0][0].keys())

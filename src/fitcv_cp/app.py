@@ -16,7 +16,7 @@ from fitcv_cp.bq_store import (
     archive_run,
     get_events, get_run, insert_run, list_filter_results_for_run,
     list_runs, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs,
-    request_run_cancel, unarchive_run, update_run_queue_job_id,
+    request_run_cancel, unarchive_run, update_run_queue_job_id, update_run_status,
 )
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.queue import cancel_queued_run, enqueue_run, enqueue_run_with_job_id
@@ -65,8 +65,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "id": "summary",
             "title": "Summary",
             "helper": "Professional summary tone and emphasis.",
-            "include_key": None,
+            "include_key": "cv_summary_enabled",
             "groups": [
+                {"title": "Visibility", "keys": ["cv_summary_enabled"]},
                 {"title": "Formatting", "keys": ["cv_summary_style"]},
             ],
         },
@@ -161,6 +162,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         }
         context.update(extra)
         return context
+
+    def _is_stale_cancelling(run: PipelineRun) -> bool:
+        return (
+            run.status == RunStatus.CANCELLING
+            and run.started_at is None
+            and run.finished_at is None
+        )
 
     def _execute_trigger(jobs_path: str, config_path: str, triggered_by: str, config_overrides: dict[str, Any]) -> dict:
         # Build effective config: YAML → BQ settings → per-run overrides
@@ -735,6 +743,25 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     bq, project=project, dataset=dataset,
                 )
                 return {"status": "cancelled", "run_id": run_id}
+        if run.status == RunStatus.QUEUED and run.started_at is None:
+            request_run_cancel(run_id, "admin", RunStatus.CANCELLED.value, bq, project=project, dataset=dataset)
+            append_event(
+                RunEvent(
+                    run_id=run_id, event_id=event_id, stage="cancel_requested",
+                    level="warning", message="Stop requested — cancelled before worker claim",
+                    created_at=now,
+                ),
+                bq, project=project, dataset=dataset,
+            )
+            append_event(
+                RunEvent(
+                    run_id=run_id, event_id=str(uuid.uuid4()), stage="run_cancelled",
+                    level="warning", message="Run cancelled before pipeline execution",
+                    created_at=now,
+                ),
+                bq, project=project, dataset=dataset,
+            )
+            return {"status": "cancelled", "run_id": run_id}
         # Running (or queued but already claimed) — set cancelling
         request_run_cancel(run_id, "admin", RunStatus.CANCELLING.value, bq, project=project, dataset=dataset)
         append_event(
@@ -771,6 +798,41 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             bq, project=project, dataset=dataset,
         )
         return {"status": "archived", "run_id": run_id}
+
+    @app.post("/admin/runs/{run_id}/repair-cancellation")
+    def admin_repair_cancellation(run_id: str) -> dict:
+        """Repair a stale cancelling run that never actually started."""
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if not _is_stale_cancelling(run):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot repair run with status '{run.status.value}'",
+            )
+        now = datetime.datetime.now(datetime.timezone.utc)
+        update_run_status(
+            run_id,
+            RunStatus.CANCELLED,
+            bq,
+            project=project,
+            dataset=dataset,
+            finished_at=now,
+        )
+        append_event(
+            RunEvent(
+                run_id=run_id,
+                event_id=str(uuid.uuid4()),
+                stage="run_cancelled",
+                level="warning",
+                message="Run repaired from stale cancelling state",
+                created_at=now,
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        return {"status": "cancelled", "run_id": run_id}
 
     @app.post("/admin/runs/{run_id}/unarchive")
     def admin_unarchive_run(run_id: str) -> dict:
