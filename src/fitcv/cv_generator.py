@@ -47,6 +47,16 @@ _TEMPLATE_VARIANTS: dict[str, str] = {
 }
 
 _DEFAULT_VARIANT = "standard"
+_SECTION_DISPLAY_NAMES: dict[str, str] = {
+    "summary": "Summary",
+    "education": "Education",
+    "experience": "Experience",
+    "skills": "Skills",
+    "certifications": "Certifications",
+    "projects": "Projects",
+    "publications": "Publications",
+    "languages": "Languages",
+}
 
 
 # ── template variant selector ─────────────────────────────────────────────────
@@ -62,6 +72,106 @@ def select_template_variant(jd: dict[str, Any]) -> str:
     return _TEMPLATE_VARIANTS.get(family, _DEFAULT_VARIANT)
 
 
+def _get_enabled_section_names(config: dict[str, Any] | None) -> list[str]:
+    if config is None:
+        return []
+    composition = (config.get("cv") or {}).get("composition") or {}
+    enabled_sections: list[str] = []
+    for section_key, section_cfg in composition.items():
+        if isinstance(section_cfg, dict) and section_cfg.get("enabled", True):
+            enabled_sections.append(_SECTION_DISPLAY_NAMES.get(section_key, section_key.title()))
+    return enabled_sections
+
+
+def _filter_template_by_enabled_sections(template: str, enabled_sections: list[str]) -> str:
+    if not enabled_sections:
+        return template
+
+    preamble_lines: list[str] = []
+    section_blocks: dict[str, list[str]] = {}
+    current_section: str | None = None
+    has_seen_section = False
+
+    for line in template.splitlines():
+        if line.startswith("## "):
+            has_seen_section = True
+            current_section = line[3:].strip()
+            section_blocks[current_section] = [line]
+            continue
+        if not has_seen_section:
+            preamble_lines.append(line)
+            continue
+        if current_section is not None:
+            section_blocks[current_section].append(line)
+
+    filtered_blocks: list[str] = []
+    for section_name in enabled_sections:
+        block = section_blocks.get(section_name)
+        if block:
+            filtered_blocks.append("\n".join(block).strip())
+
+    if not filtered_blocks:
+        return template
+
+    preamble = "\n".join(preamble_lines).strip()
+    parts = [part for part in [preamble, *filtered_blocks] if part]
+    return "\n\n".join(parts) + "\n"
+
+
+def _format_certification_lines(profile: dict[str, Any] | None) -> list[str]:
+    if not profile:
+        return []
+
+    lines: list[str] = []
+    for cert in profile.get("certifications") or []:
+        if not isinstance(cert, dict):
+            continue
+        name = str(cert.get("name") or "").strip()
+        if not name:
+            continue
+        issuer = str(cert.get("issuer") or "").strip()
+        year = cert.get("year")
+        parts = [name]
+        if issuer:
+            parts.append(issuer)
+        line = " — ".join(parts)
+        if year:
+            line = f"{line} ({year})"
+        lines.append(line)
+    return lines
+
+
+def _format_language_lines(profile: dict[str, Any] | None) -> list[str]:
+    if not profile:
+        return []
+
+    lines: list[str] = []
+    for language in profile.get("languages") or []:
+        if not isinstance(language, dict):
+            continue
+        name = str(language.get("name") or "").strip()
+        if not name:
+            continue
+        if language.get("native"):
+            lines.append(f"{name} (native)")
+            continue
+
+        proficiency_parts: list[str] = []
+        for label, key in (("read", "read"), ("write", "write"), ("speak", "speak")):
+            level = str(language.get(key) or "").strip()
+            if level:
+                proficiency_parts.append(f"{label}: {level}")
+
+        line = name
+        if proficiency_parts:
+            line = f"{line} ({', '.join(proficiency_parts)})"
+        notes = str(language.get("notes") or "").strip()
+        if notes:
+            line = f"{line} — {notes}"
+        lines.append(line)
+    return lines
+
+
 # ── prompt assembly ───────────────────────────────────────────────────────────
 
 def build_generation_prompt(
@@ -70,6 +180,9 @@ def build_generation_prompt(
     gap: dict[str, Any],
     template: str,
     profile: dict[str, Any] | None = None,
+    *,
+    config: dict[str, Any] | None = None,
+    repair_missing_sections: list[str] | None = None,
 ) -> str:
     """Assemble the full LLM prompt for CV generation.
 
@@ -129,7 +242,50 @@ def build_generation_prompt(
                 "In the Skills section, only use skills from this approved list: "
                 + ", ".join(approved_skills)
             )
+    enabled_section_names = _get_enabled_section_names(config)
+    if enabled_section_names:
+        constraint_lines.append(
+            "The generated CV MUST include these sections in this order: "
+            + ", ".join(enabled_section_names)
+        )
+    if repair_missing_sections:
+        constraint_lines.append(
+            "Regenerate the CV and fix the previous structural failure by including these missing sections with grounded content: "
+            + ", ".join(repair_missing_sections)
+        )
+        constraint_lines.append(
+            "Do not leave required sections empty. Each required section must contain at least one grounded line or bullet."
+        )
+
+    # Disabled-section constraints: tell the LLM to omit sections the
+    # admin has turned off in the composition config.
+    if config is not None:
+        composition = (config.get("cv") or {}).get("composition") or {}
+        for section_key, section_cfg in composition.items():
+            if isinstance(section_cfg, dict) and not section_cfg.get("enabled", True):
+                display_name = _SECTION_DISPLAY_NAMES.get(section_key, section_key.title())
+                constraint_lines.append(
+                    f"Do NOT include a '{display_name}' section."
+                )
+
     constraints = "\n".join(constraint_lines) or "(no specific constraints)"
+    filtered_template = _filter_template_by_enabled_sections(template, enabled_section_names)
+    section_evidence_lines: list[str] = []
+    if "Certifications" in enabled_section_names:
+        certification_lines = _format_certification_lines(profile)
+        if certification_lines:
+            section_evidence_lines.append(
+                "Use these candidate certifications when filling the Certifications section:\n"
+                + "\n".join(f"- {line}" for line in certification_lines)
+            )
+    if "Languages" in enabled_section_names:
+        language_lines = _format_language_lines(profile)
+        if language_lines:
+            section_evidence_lines.append(
+                "Use these candidate languages when filling the Languages section:\n"
+                + "\n".join(f"- {line}" for line in language_lines)
+            )
+    section_evidence = "\n\n".join(section_evidence_lines) or "(no additional section-specific evidence)"
 
     return textwrap.dedent(f"""\
         You are a professional CV writer. Generate a tailored CV in markdown format.
@@ -144,8 +300,11 @@ def build_generation_prompt(
         ## Constraints
         {constraints}
 
+        ## Section-Specific Evidence
+        {section_evidence}
+
         ## Output Template
-        {template}
+        {filtered_template}
 
         Write only the completed CV markdown. Do not add commentary.
     """)
@@ -215,6 +374,8 @@ def generate_cv(
     gap: dict[str, Any],
     profile: dict[str, Any],
     config: dict[str, Any],
+    *,
+    repair_missing_sections: list[str] | None = None,
 ) -> str:
     """Call the LLM to generate a tailored CV markdown string.
 
@@ -242,6 +403,8 @@ def generate_cv(
         gap=gap,
         template=template_str,
         profile=profile,
+        config=config,
+        repair_missing_sections=repair_missing_sections,
     )
 
     creds, _ = google.auth.default(

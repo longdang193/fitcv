@@ -54,6 +54,7 @@ from fitcv.validator import run_all_validations
 from fitcv.vector_search import run_vector_search
 
 logger = logging.getLogger(__name__)
+_REPAIRABLE_VALIDATION_FIELDS = ("grounding_violations", "skill_violations")
 
 
 class PipelineCancelled(Exception):
@@ -65,6 +66,13 @@ class PipelineCancelled(Exception):
 def create_run_id() -> str:
     """Return a new UUID4 string to identify this pipeline run."""
     return str(uuid.uuid4())
+
+
+def _should_retry_missing_sections(validation: dict[str, Any]) -> bool:
+    missing_sections = list(validation.get("missing_sections") or [])
+    if not missing_sections:
+        return False
+    return all(not validation.get(field) for field in _REPAIRABLE_VALIDATION_FIELDS)
 
 def build_ranking_features(
     shortlist: list[dict[str, Any]],
@@ -301,8 +309,24 @@ def run_pipeline(
                 continue
 
             cv = generate_cv(job, evidence, gap, profile, config)
-
             validation = run_all_validations(cv, profile, config)
+            if not validation["valid"] and _should_retry_missing_sections(validation):
+                missing_sections = list(validation.get("missing_sections") or [])
+                logger.info(
+                    "[run_id=%s] Retrying CV for %s with missing sections: %s",
+                    run_id,
+                    job.get("job_url"),
+                    missing_sections,
+                )
+                cv = generate_cv(
+                    job,
+                    evidence,
+                    gap,
+                    profile,
+                    config,
+                    repair_missing_sections=missing_sections,
+                )
+                validation = run_all_validations(cv, profile, config)
             if not validation["valid"]:
                 failure_details = {
                     "missing_sections": validation.get("missing_sections") or [],

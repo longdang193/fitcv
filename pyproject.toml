@@ -39,4 +39,7 @@ dev = [
     "redis>=7.4.0",
     "rq>=2.7.0",
     "python-multipart",
+    "google-genai>=1.69.0",
+    "google-cloud-aiplatform>=1.143.0",
+    "uvicorn>=0.42.0",
 ]

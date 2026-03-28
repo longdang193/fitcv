@@ -86,14 +86,14 @@ def test_load_config_cv_keys_missing_raises(tmp_path: Path) -> None:
 
 
 def test_load_config_cv_required_sections_must_be_nonempty_list(tmp_path: Path) -> None:
-    """required_cv_sections must be derivable from composition (at least one required section)."""
+    """required_cv_sections must be derivable from enabled composition sections."""
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
     )
     cfg_dir = tmp_path / "config"
     cfg_dir.mkdir()
-    # composition with a required section → required_cv_sections will be non-empty
+    # composition with an enabled section → required_cv_sections will be non-empty
     (cfg_dir / "cv.yaml").write_text(
         "cv:\n"
         "  preset: europass\n"
@@ -105,7 +105,6 @@ def test_load_config_cv_required_sections_must_be_nonempty_list(tmp_path: Path) 
         "      enabled: true\n"
         "    experience:\n"
         "      enabled: true\n"
-        "      required: true\n"
         "  content_rules:\n"
         "    evidence_grounded_only: true\n"
         "  validation:\n"
@@ -240,7 +239,7 @@ def test_load_config_compatibility_projection_prompt_version() -> None:
 def test_load_config_compatibility_projection_required_cv_sections() -> None:
     cfg = load_config()
     assert "required_cv_sections" in cfg
-    # required_cv_sections is derived from composition.sections with enabled:true, required:true
+    # required_cv_sections is derived from enabled composition sections
     assert isinstance(cfg["required_cv_sections"], list)
     assert len(cfg["required_cv_sections"]) > 0
 
@@ -264,7 +263,6 @@ def test_load_config_nested_cv_validation_max_pages_positive(tmp_path: Path) -> 
         "      enabled: true\n"
         "    experience:\n"
         "      enabled: true\n"
-        "      required: true\n"
         "  content_rules:\n"
         "    evidence_grounded_only: true\n"
         "  validation:\n"
@@ -326,15 +324,6 @@ def test_preset_registry_maps_template_path_for_europass() -> None:
     assert europass["template_path"] == "templates/cv_template.md"
 
 
-def test_get_required_sections_returns_europass_required() -> None:
-    from fitcv import cv_presets
-    sections = cv_presets.get_required_sections("europass")
-    assert isinstance(sections, list)
-    # europass default_required = experience, skills
-    assert "experience" in sections
-    assert "skills" in sections
-
-
 def test_get_section_order_returns_europass_order() -> None:
     from fitcv import cv_presets
     order = cv_presets.get_section_order("europass")
@@ -392,9 +381,44 @@ def test_load_config_compatibility_flat_keys_work_after_nested_migration() -> No
 
 
 def test_load_config_compatibility_required_cv_sections_from_composition() -> None:
-    """required_cv_sections is derived from composition (enabled:true AND required:true)."""
+    """required_cv_sections is derived from enabled composition sections."""
     cfg = load_config()
-    # projects has required:true in cv.yaml, so it should appear in required_cv_sections
+    # projects is enabled in cv.yaml, so it should appear in required_cv_sections
     assert "Projects" in cfg["required_cv_sections"]
     # publications has enabled:false, so it should NOT appear
     assert "Publications" not in cfg["required_cv_sections"]
+
+
+def test_required_cv_sections_includes_education_when_enabled() -> None:
+    """Education appears in required_cv_sections when enabled:true."""
+    cfg = load_config()
+    assert "Education" in cfg["required_cv_sections"]
+
+
+def test_required_cv_sections_excludes_education_when_disabled(tmp_path: Path) -> None:
+    """Education must NOT appear in required_cv_sections when enabled:false."""
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    education:\n"
+        "      enabled: false\n"
+        "    experience:\n"
+        "      enabled: true\n"
+        "  content_rules:\n"
+        "    evidence_grounded_only: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    cfg = load_config(env_yaml)
+    assert "Education" not in cfg["required_cv_sections"]
+    assert "Experience" in cfg["required_cv_sections"]

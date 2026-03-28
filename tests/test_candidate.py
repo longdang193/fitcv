@@ -83,6 +83,20 @@ def test_validate_profile_rejects_dangling_evidence_ref() -> None:
     assert any("proj_99" in e for e in errors)
 
 
+def test_validate_profile_accepts_education_evidence_ref() -> None:
+    """Skills may reference education IDs without being flagged as dangling."""
+    profile = {
+        "experiences": [],
+        "projects": [],
+        "achievements": [],
+        "education": [{"id": "edu_1", "degree": "M.Sc.", "institution": "TU Berlin"}],
+        "skills": [{"name": "Apache Spark", "evidence_refs": ["edu_1"]}],
+        "preferences": {},
+    }
+    errors = validate_profile(profile)
+    assert errors == [], f"Unexpected errors: {errors}"
+
+
 # ── flatten_skills ────────────────────────────────────────────────────────────
 
 def test_flatten_skills_extracts_unique() -> None:

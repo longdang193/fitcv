@@ -85,6 +85,13 @@ def test_build_vector_search_query_filters_passed_universe() -> None:
     assert "url1" in query or "rule_filter_results" in query or "passed" in query.lower()
 
 
+def test_build_vector_search_query_filters_job_universe_inside_vector_search() -> None:
+    """Universe restriction must happen inside VECTOR_SEARCH, not only afterward."""
+    query = build_vector_search_query(top_n=50, passed_job_urls=["url1", "url2"])
+    assert "VECTOR_SEARCH(\n    (SELECT * FROM `PROJECT.fitcv.job_embeddings`" in query
+    assert "chunk_type = 'job_summary' AND job_url IN ('url1', 'url2')" in query
+
+
 def test_build_vector_search_query_outputs_job_url() -> None:
     query = build_vector_search_query(top_n=50, passed_job_urls=["url1"])
     assert "job_url" in query

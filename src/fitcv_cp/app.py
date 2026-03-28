@@ -32,6 +32,7 @@ from fitcv_cp.settings_schema import (
     validate_settings,
 )
 from fitcv_cp.settings_store import load_active_settings, save_setting, save_settings_group
+from fitcv.config import apply_cv_compatibility_projection
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -58,10 +59,108 @@ class SettingUpdate(BaseModel):
 def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     app = FastAPI(title="FitCV Admin Control Plane")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+    schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
+    composition_sections = [
+        {
+            "id": "summary",
+            "title": "Summary",
+            "helper": "Professional summary tone and emphasis.",
+            "include_key": None,
+            "groups": [
+                {"title": "Formatting", "keys": ["cv_summary_style"]},
+            ],
+        },
+        {
+            "id": "education",
+            "title": "Education",
+            "helper": "Visibility and detail settings for education.",
+            "include_key": "cv_education_enabled",
+            "groups": [
+                {"title": "Visibility", "keys": ["cv_education_enabled"]},
+                {"title": "Formatting", "keys": ["cv_education_detail"]},
+            ],
+        },
+        {
+            "id": "experience",
+            "title": "Experience",
+            "helper": "Whether experience appears and how bullets are written.",
+            "include_key": "cv_experience_enabled",
+            "groups": [
+                {"title": "Visibility", "keys": ["cv_experience_enabled"]},
+                {"title": "Formatting", "keys": ["cv_experience_bullet_style"]},
+            ],
+        },
+        {
+            "id": "skills",
+            "title": "Skills",
+            "helper": "Visibility and limits for the skills section.",
+            "include_key": "cv_skills_enabled",
+            "groups": [
+                {"title": "Visibility", "keys": ["cv_skills_enabled"]},
+                {"title": "Formatting", "keys": ["cv_skills_max_items"]},
+            ],
+        },
+        {
+            "id": "certifications",
+            "title": "Certifications",
+            "helper": "Whether certifications are shown.",
+            "include_key": "cv_certifications_enabled",
+            "groups": [
+                {"title": "Visibility", "keys": ["cv_certifications_enabled"]},
+            ],
+        },
+        {
+            "id": "projects",
+            "title": "Projects",
+            "helper": "Visibility settings for projects.",
+            "include_key": "cv_projects_enabled",
+            "groups": [
+                {"title": "Visibility", "keys": ["cv_projects_enabled"]},
+            ],
+        },
+        {
+            "id": "publications",
+            "title": "Publications",
+            "helper": "Visibility and detail settings for publications.",
+            "include_key": "cv_publications_enabled",
+            "groups": [
+                {"title": "Visibility", "keys": ["cv_publications_enabled"]},
+                {"title": "Formatting", "keys": ["cv_publications_detail"]},
+            ],
+        },
+        {
+            "id": "languages",
+            "title": "Languages",
+            "helper": "Visibility and detail settings for languages.",
+            "include_key": "cv_languages_enabled",
+            "groups": [
+                {"title": "Visibility", "keys": ["cv_languages_enabled"]},
+                {"title": "Formatting", "keys": ["cv_languages_detail"]},
+            ],
+        },
+    ]
 
     @app.get("/healthz")
     def healthz() -> dict:
         return {"status": "ok"}
+
+    def _build_settings_context(active: dict[str, Any], **extra: Any) -> dict[str, Any]:
+        effective = {
+            entry["key"]: active.get(entry["key"], entry["default"])
+            for entry in SETTINGS_SCHEMA
+        }
+        context: dict[str, Any] = {
+            "schema": SETTINGS_SCHEMA,
+            "schema_by_key": schema_by_key,
+            "active": active,
+            "effective": effective,
+            "ranking_weight_keys": RANKING_GROUPS["ranking-weights"],
+            "ranking_groups": RANKING_GROUPS,
+            "cv_groups": CV_GROUPS,
+            "composition_sections": composition_sections,
+        }
+        context.update(extra)
+        return context
 
     def _execute_trigger(jobs_path: str, config_path: str, triggered_by: str, config_overrides: dict[str, Any]) -> dict:
         # Build effective config: YAML → BQ settings → per-run overrides
@@ -86,6 +185,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         effective_config = dict(base_config)
         apply_settings_to_config(effective_config, active_settings)
         apply_settings_to_config(effective_config, coerced_overrides)
+        # Recompute derived fields (required_cv_sections, etc.) from effective composition
+        effective_config = apply_cv_compatibility_projection(effective_config)
 
         run_id = str(uuid.uuid4())
         # Insert FIRST — then enqueue. DB is the source of truth.
@@ -140,6 +241,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         effective_config = dict(base_config)
         apply_settings_to_config(effective_config, active_settings)
         apply_settings_to_config(effective_config, coerced_overrides)
+        # Recompute derived fields (required_cv_sections, etc.) from effective composition
+        effective_config = apply_cv_compatibility_projection(effective_config)
 
         # Inject runtime candidate profile override
         if candidate_profile_json:
@@ -428,13 +531,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         return templates.TemplateResponse(
             request=request,
             name="settings.html",
-            context={
-                "schema": SETTINGS_SCHEMA,
-                "active": active,
-                "ranking_weight_keys": RANKING_GROUPS["ranking-weights"],
-                "ranking_groups": RANKING_GROUPS,
-                "cv_groups": CV_GROUPS,
-            }
+            context=_build_settings_context(active),
         )
 
     @app.post("/admin/settings/{key}", response_class=HTMLResponse)
@@ -451,14 +548,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             return templates.TemplateResponse(
                 request=request,
                 name="settings.html",
-                context={
-                    "schema": SETTINGS_SCHEMA,
-                    "active": active,
-                    "ranking_weight_keys": RANKING_GROUPS["ranking-weights"],
-                    "ranking_groups": RANKING_GROUPS,
-                    "cv_groups": CV_GROUPS,
-                    "error": str(exc)
-                },
+                context=_build_settings_context(active, error=str(exc)),
                 status_code=422,
             )
         save_setting(key, coerced, updated_by="admin", bq=bq, project=project, dataset=dataset)
@@ -501,15 +591,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             return templates.TemplateResponse(
                 request=request,
                 name="settings.html",
-                context={
-                    "schema": SETTINGS_SCHEMA,
-                    "active": active,
-                    "ranking_weight_keys": RANKING_GROUPS["ranking-weights"],
-                    "ranking_groups": RANKING_GROUPS,
-                    "cv_groups": CV_GROUPS,
-                    "group_error": {group_name: msg},
-                    "group_draft": {group_name: dict(form)},
-                },
+                context=_build_settings_context(
+                    active,
+                    group_error={group_name: msg},
+                    group_draft={group_name: dict(form)},
+                ),
                 status_code=422,
             )
 
@@ -577,15 +663,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             return templates.TemplateResponse(
                 request=request,
                 name="settings.html",
-                context={
-                    "schema": SETTINGS_SCHEMA,
-                    "active": active,
-                    "ranking_weight_keys": RANKING_GROUPS["ranking-weights"],
-                    "ranking_groups": RANKING_GROUPS,
-                    "cv_groups": CV_GROUPS,
-                    "section_errors": errors,
-                    "section_draft": {key: form.get(key, "") for key in keys},
-                },
+                context=_build_settings_context(
+                    active,
+                    section_errors=errors,
+                    section_draft={key: form.get(key, "") for key in keys},
+                ),
                 status_code=422,
             )
 

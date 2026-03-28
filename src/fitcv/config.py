@@ -26,11 +26,11 @@ Backward-compatibility projection (TEMPORARY — remove after plan 2 lands)
   config["cv_generation_model"]   → cv.generation.model
   config["prompt_version"]        → cv.generation.prompt_version
   config["cv_max_pages"]           → cv.validation.max_pages
-  config["required_cv_sections"]   → list derived from composition (enabled:true AND required:true)
+  config["required_cv_sections"]   → list derived from composition (enabled:true)
 """
 
 import logging
-from fitcv.cv_presets import PRESET_REGISTRY, SUPPORTED_PRESETS
+from fitcv.cv_presets import SUPPORTED_PRESETS
 import warnings
 from pathlib import Path
 from typing import Any
@@ -168,7 +168,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
 
     cfg = _normalize_config_keys(cfg)
     _validate_nested_cv_config(cfg)
-    cfg = _apply_cv_compatibility_projection(cfg)
+    cfg = apply_cv_compatibility_projection(cfg)
     return cfg
 
 
@@ -236,7 +236,7 @@ def _validate_nested_cv_config(cfg: dict[str, Any]) -> None:
 
 # ── Compatibility projection (TEMPORARY — remove after preset-based admin settings plan lands) ─
 
-def _apply_cv_compatibility_projection(cfg: dict[str, Any]) -> dict[str, Any]:
+def apply_cv_compatibility_projection(cfg: dict[str, Any]) -> dict[str, Any]:
     """Project nested cv keys back to flat legacy keys for the migration window.
 
     This lets control-plane code (settings_schema, etc.) that still reads
@@ -253,21 +253,14 @@ def _apply_cv_compatibility_projection(cfg: dict[str, Any]) -> dict[str, Any]:
     cfg["prompt_version"] = str(cv_cfg.get("generation", {}).get("prompt_version", ""))
     cfg["cv_max_pages"] = int(cv_cfg.get("validation", {}).get("max_pages", 2))
 
-    # required_cv_sections: sections where enabled:true AND required:true,
-    # plus preset defaults where the user has not overridden the required flag.
-    preset = str(cv_cfg.get("preset", ""))
+    # required_cv_sections: enabled composition sections only.
     required: list[str] = []
     comp = cv_cfg.get("composition") or {}
-    preset_default_required: set[str] = set()
-    if preset in PRESET_REGISTRY:
-        preset_default_required = PRESET_REGISTRY[preset].get("default_required", set())
     for section_name, section_cfg in comp.items():
         if not isinstance(section_cfg, dict):
             continue
         enabled = section_cfg.get("enabled", False)
-        explicitly_required = section_cfg.get("required", None)
-        is_required = explicitly_required if explicitly_required is not None else (section_name in preset_default_required)
-        if enabled and is_required:
+        if enabled:
             required.append(section_name.title())
     cfg["required_cv_sections"] = required
 

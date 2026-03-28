@@ -199,6 +199,105 @@ def test_run_pipeline_logs_full_validation_reasons(
     )
 
 
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.create_cv_version_record")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_retries_once_for_missing_sections_only(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_create_version: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_enrich.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_ai.return_value = [job]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = [job]
+    mock_evidence.return_value = [{"evidence_id": "e1", "text": "built pipelines"}]
+    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+    mock_classify.return_value = "strong"
+    mock_gen_cv.side_effect = ["# First Draft", "# Repaired Draft"]
+    mock_validate.side_effect = [
+        {
+            "valid": False,
+            "missing_sections": ["Certifications"],
+            "grounding_violations": [],
+            "skill_violations": [],
+            "warnings": [],
+        },
+        {
+            "valid": True,
+            "missing_sections": [],
+            "grounding_violations": [],
+            "skill_violations": [],
+            "warnings": [],
+        },
+    ]
+    mock_create_version.return_value = {"version_id": "cv-1"}
+
+    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+
+    assert result["cvs_generated"] == 1
+    assert mock_gen_cv.call_count == 2
+    assert mock_validate.call_count == 2
+    retry_call = mock_gen_cv.call_args_list[1]
+    assert retry_call.kwargs["repair_missing_sections"] == ["Certifications"]
+    mock_store_ver.assert_called_once()
+
+
 # ── run_pipeline (integrated, with all I/O mocked) ───────────────────────────
 
 def _minimal_config() -> dict:
