@@ -15,7 +15,6 @@ Usage
 from fitcv.cv_presets import (
     SUPPORTED_PRESETS,
     PRESET_REGISTRY,
-    get_required_sections,
     get_section_order,
     get_template_path,
     validate_composition,
@@ -105,26 +104,11 @@ PRESET_REGISTRY: dict[str, dict[str, Any]] = {
         ],
         # Allowed enum values — used by validate_composition().
         "allowed_values": _make_europass_allowed_values(),
-        # Sections that count as "required" by default for this preset.
-        "default_required": frozenset(["experience", "skills"]),
     },
 }
 
 
 # ── query helpers ─────────────────────────────────────────────────────────────
-
-def get_required_sections(preset: str) -> list[str]:
-    """Return the canonical required-section list for the given preset.
-
-    Returns all preset sections where ``required`` is true, or the preset's
-    default_required set if not specified.
-    """
-    if preset not in PRESET_REGISTRY:
-        raise ValueError(f"Unknown preset: {preset!r}")
-    # Return a list in canonical section order
-    registry = PRESET_REGISTRY[preset]
-    default_req = registry.get("default_required", frozenset())
-    return [s for s in registry["section_order"] if s in default_req]
 
 
 def get_section_order(preset: str) -> list[str]:

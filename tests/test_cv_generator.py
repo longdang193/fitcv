@@ -326,3 +326,150 @@ def test_get_template_path_for_preset() -> None:
     # Both paths should resolve to the same template
     resolved = preset_path
     assert resolved == "templates/cv_template.md"
+
+
+# ── disabled-section constraints via config ───────────────────────────────────
+
+
+def test_build_generation_prompt_excludes_disabled_sections() -> None:
+    """When config has a section with enabled:false, prompt must contain a 'Do NOT include' constraint."""
+    config = {
+        "cv": {
+            "composition": {
+                "education": {"enabled": False},
+                "publications": {"enabled": False},
+                "experience": {"enabled": True},
+                "summary": {"enabled": True},
+            }
+        }
+    }
+    prompt = build_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["SQL"]},
+        evidence=[],
+        gap={"matched": [], "missing": []},
+        template="",
+        config=config,
+    )
+    assert "Do NOT include a 'Education' section" in prompt
+    assert "Do NOT include a 'Publications' section" in prompt
+    # Enabled sections must NOT have a negative constraint
+    assert "Do NOT include a 'Experience' section" not in prompt
+    assert "Do NOT include a 'Summary' section" not in prompt
+
+
+def test_build_generation_prompt_omits_constraint_for_enabled_sections() -> None:
+    """When all sections are enabled, no 'Do NOT include' constraint should appear."""
+    config = {
+        "cv": {
+            "composition": {
+                "education": {"enabled": True},
+                "experience": {"enabled": True},
+                "skills": {"enabled": True},
+                "summary": {"enabled": True},
+            }
+        }
+    }
+    prompt = build_generation_prompt(
+        jd={"title": "DE", "required_skills": []},
+        evidence=[],
+        gap={"matched": [], "missing": []},
+        template="",
+        config=config,
+    )
+    assert "Do NOT include" not in prompt
+
+
+def test_build_generation_prompt_requires_enabled_sections_and_filters_template() -> None:
+    """Prompt should explicitly require enabled sections and show only enabled template sections."""
+    config = {
+        "cv": {
+            "composition": {
+                "summary": {"enabled": True},
+                "education": {"enabled": False},
+                "experience": {"enabled": True},
+                "skills": {"enabled": False},
+                "certifications": {"enabled": True},
+                "projects": {"enabled": True},
+                "publications": {"enabled": False},
+                "languages": {"enabled": True},
+            }
+        }
+    }
+    template = """# {{ candidate.name }}
+
+## Summary
+{{ summary }}
+
+## Experience
+...
+
+## Education
+...
+
+## Skills
+...
+
+## Certifications
+...
+
+## Projects
+...
+
+## Publications
+...
+
+## Languages
+...
+"""
+    prompt = build_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["SQL"]},
+        evidence=[],
+        gap={"matched": [], "missing": []},
+        template=template,
+        config=config,
+    )
+    assert "The generated CV MUST include these sections in this order: Summary, Experience, Certifications, Projects, Languages" in prompt
+    assert "## Summary" in prompt
+    assert "## Experience" in prompt
+    assert "## Certifications" in prompt
+    assert "## Projects" in prompt
+    assert "## Languages" in prompt
+    assert "## Education" not in prompt
+    assert "## Skills" not in prompt
+    assert "## Publications" not in prompt
+
+
+def test_build_generation_prompt_includes_certification_and_language_evidence() -> None:
+    config = {
+        "cv": {
+            "composition": {
+                "certifications": {"enabled": True},
+                "languages": {"enabled": True},
+            }
+        }
+    }
+    profile = {
+        "certifications": [
+            {"name": "Google Professional Data Engineer", "issuer": "Google Cloud", "year": 2023},
+        ],
+        "languages": [
+            {"name": "English", "read": "C2", "write": "C2", "speak": "C2"},
+        ],
+    }
+    prompt = build_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["SQL"]},
+        evidence=[],
+        gap={"matched": [], "missing": []},
+        template="## Certifications\n...\n## Languages\n...",
+        profile=profile,
+        config=config,
+    )
+    assert "Use these candidate certifications when filling the Certifications section" in prompt
+    assert "Google Professional Data Engineer — Google Cloud (2023)" in prompt
+    assert "Use these candidate languages when filling the Languages section" in prompt
+    assert "English (read: C2, write: C2, speak: C2)" in prompt
+
+
+def test_europass_template_includes_publications_section() -> None:
+    template = Path("templates/cv_template.md").read_text(encoding="utf-8")
+    assert "## Publications" in template

@@ -42,6 +42,7 @@ from fitcv.rule_filter import _canonicalise_skill
 # ── constants ─────────────────────────────────────────────────────────────────
 
 _LINES_PER_PAGE: int = 55  # A4 estimate at standard font size
+_SECTION_HEADING_PATTERN = r"^##?\s+{section}\s*$"
 
 
 # ── structural checks ─────────────────────────────────────────────────────────
@@ -55,10 +56,26 @@ def validate_output(cv_text: str, required_sections: list[str]) -> dict[str, Any
 
     ``valid`` is False when any required section is absent.
     """
-    missing: list[str] = [
-        section for section in required_sections
-        if not re.search(rf"^##?\s+{re.escape(section)}", cv_text, re.MULTILINE | re.IGNORECASE)
-    ]
+    missing: list[str] = []
+    for section in required_sections:
+        section_pattern = re.compile(
+            _SECTION_HEADING_PATTERN.format(section=re.escape(section)),
+            re.MULTILINE | re.IGNORECASE,
+        )
+        heading_match = section_pattern.search(cv_text)
+        if heading_match is None:
+            missing.append(section)
+            continue
+
+        next_heading_match = re.search(r"^##?\s+", cv_text[heading_match.end():], re.MULTILINE)
+        section_end = (
+            heading_match.end() + next_heading_match.start()
+            if next_heading_match is not None
+            else len(cv_text)
+        )
+        section_body = cv_text[heading_match.end():section_end].strip()
+        if not section_body:
+            missing.append(section)
     return {
         "valid": len(missing) == 0,
         "missing_sections": missing,
@@ -120,9 +137,15 @@ def check_chronology(experiences: list[dict[str, Any]]) -> list[str]:
 def check_employer_grounding(cv_text: str, known_employers: list[str]) -> list[str]:
     """Return violations for any employer mentioned in the CV text that is not in known_employers.
 
-    Detection strategy: look for patterns like "at <Name>" or "— <Name>" in the CV.
-    Checks each known employer for presence; if fewer employers appear than mentioned
-    in the text, return a conservative warning.
+    Detection strategies (combined):
+
+    1. **Generic patterns** — ``at <Name>``, ``@ <Name>`` anywhere in the text.
+       Em-dashes (``—``, ``–``) are intentionally excluded here because they
+       appear in project titles (e.g. ``FitCV — AI-Powered CV Generation
+       Pipeline``) and cause false positives.
+    2. **Experience heading pattern** — ``### Role — Company (dates)`` lines
+       within the ``## Experience`` section.  This is the only context where
+       an em-dash reliably separates role from employer.
 
     If ``known_employers`` is empty, no check is possible → returns [].
     """
@@ -130,14 +153,33 @@ def check_employer_grounding(cv_text: str, known_employers: list[str]) -> list[s
         return []
 
     violations: list[str] = []
-
-    # Find candidate employer tokens: capitalised words/phrases near "at", "—", "@"
-    employer_pattern = re.compile(
-        r"(?:\bat\b|@|–|—)\s+([A-Z][A-Za-z0-9&\s\-'\.]+?)(?:\s*[\(\[\,\n]|$)",
-    )
-    mentioned: list[str] = employer_pattern.findall(cv_text)
-
     known_lower = {e.strip().lower() for e in known_employers}
+
+    # ── Strategy 1: generic "at / @" patterns (no em-dash) ────────────────
+    generic_pattern = re.compile(
+        r"(?:\bat\b|@)\s+([A-Z][A-Za-z0-9&\s\-'\.]+?)(?:\s*[\(\[\,\n]|$)",
+    )
+    mentioned: list[str] = generic_pattern.findall(cv_text)
+
+    # ── Strategy 2: experience heading "### Role — Company (dates)" ────────
+    # Only scan lines under the ## Experience section.
+    in_experience = False
+    heading_pattern = re.compile(
+        r"^###\s+.+?\s*[—–]\s+(.+?)(?:\s*\(|\s*$)",
+    )
+    for line in cv_text.splitlines():
+        stripped = line.strip()
+        # Track whether we're inside ## Experience
+        if re.match(r"^##\s+Experience", stripped, re.IGNORECASE):
+            in_experience = True
+            continue
+        if re.match(r"^##\s+", stripped) and in_experience:
+            in_experience = False
+            continue
+        if in_experience:
+            m = heading_pattern.match(stripped)
+            if m:
+                mentioned.append(m.group(1).strip())
 
     for mention in mentioned:
         mention = mention.strip()

@@ -1752,6 +1752,47 @@ def test_settings_page_renders_cv_composition_section():
     assert "Composition" in html
 
 
+def test_settings_page_renders_cv_composition_section_cards() -> None:
+    """Composition settings are grouped into per-section cards, not a flat table only."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    for label in (
+        "Summary",
+        "Education",
+        "Experience",
+        "Skills",
+        "Certifications",
+        "Projects",
+        "Publications",
+        "Languages",
+    ):
+        assert f'<div class="composition-section-title">{label}</div>' in html
+
+
+def test_settings_page_hides_legacy_required_controls() -> None:
+    """Composition UI no longer exposes separate required checkboxes."""
+    active = {"cv_education_enabled": False}
+    with patch("fitcv_cp.app.load_active_settings", return_value=active):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'name="cv_education_required"' not in html
+    assert 'name="cv_projects_required"' not in html
+
+
+def test_settings_page_shows_effective_current_values_for_composition_defaults() -> None:
+    """Current column should show effective default-backed values, not blanks."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert '<span class="current-value">Yes</span>' in html
+    assert '<span class="current-value">compact</span>' in html
+    assert '<span class="current-value">concise</span>' in html
+
+
 def test_settings_page_renders_cv_content_rules_section():
     """Settings page includes cv-content-rules sub-card."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
@@ -1781,7 +1822,9 @@ def test_settings_page_renders_cv_composition_inputs():
     for name in ("cv_summary_style", "cv_education_enabled", "cv_education_detail",
                  "cv_experience_enabled", "cv_experience_bullet_style",
                  "cv_skills_enabled", "cv_skills_max_items",
-                 "cv_certifications_enabled", "cv_projects_enabled", "cv_projects_required"):
+                 "cv_certifications_enabled", "cv_projects_enabled",
+                 "cv_publications_enabled", "cv_publications_detail",
+                 "cv_languages_enabled", "cv_languages_detail"):
         assert f'name="{name}"' in html, f"Missing input for {name}"
 
 
@@ -1904,7 +1947,10 @@ def test_grouped_save_cv_composition_valid_redirects():
                 "cv_skills_max_items": "12",
                 "cv_certifications_enabled": "true",
                 "cv_projects_enabled": "true",
-                "cv_projects_required": "true",
+                "cv_publications_enabled": "false",
+                "cv_publications_detail": "compact",
+                "cv_languages_enabled": "true",
+                "cv_languages_detail": "compact",
             },
         )
     assert resp.status_code == 303
@@ -1927,7 +1973,10 @@ def test_grouped_save_cv_composition_rejects_zero_max_items():
                 "cv_skills_max_items": "0",
                 "cv_certifications_enabled": "true",
                 "cv_projects_enabled": "true",
-                "cv_projects_required": "true",
+                "cv_publications_enabled": "false",
+                "cv_publications_detail": "compact",
+                "cv_languages_enabled": "true",
+                "cv_languages_detail": "compact",
             },
         )
     assert resp.status_code == 422
@@ -2009,9 +2058,11 @@ def test_grouped_save_cv_composition_invalid_does_not_partial_save():
                 "cv_skills_max_items": "12",
                 "cv_certifications_enabled": "true",
                 "cv_projects_enabled": "true",
-                "cv_projects_required": "true",
+                "cv_publications_enabled": "false",
+                "cv_publications_detail": "compact",
+                "cv_languages_enabled": "true",
+                "cv_languages_detail": "compact",
             },
         )
     assert resp.status_code == 422
     mock_save.assert_not_called()
-

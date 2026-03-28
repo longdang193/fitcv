@@ -337,7 +337,6 @@ def test_cv_settings_types():
     assert schema_by_key["cv_skills_max_items"]["type"] == "int"
     assert schema_by_key["cv_certifications_enabled"]["type"] == "bool"
     assert schema_by_key["cv_projects_enabled"]["type"] == "bool"
-    assert schema_by_key["cv_projects_required"]["type"] == "bool"
     assert schema_by_key["cv_emphasize_required_skills"]["type"] == "bool"
     assert schema_by_key["cv_align_jd_terminology"]["type"] == "bool"
     assert schema_by_key["cv_evidence_grounded_only"]["type"] == "bool"
@@ -442,7 +441,14 @@ def test_cv_composition_fields_registered():
     assert "cv_certifications_enabled" in keys
     # Projects
     assert "cv_projects_enabled" in keys
-    assert "cv_projects_required" in keys
+    # Publications
+    assert "cv_publications_enabled" in keys
+    assert "cv_publications_detail" in keys
+    # Languages
+    assert "cv_languages_enabled" in keys
+    assert "cv_languages_detail" in keys
+    assert "cv_education_required" not in keys
+    assert "cv_projects_required" not in keys
 
 
 def test_cv_summary_style_type():
@@ -490,9 +496,24 @@ def test_cv_projects_enabled_type():
     assert schema_by_key["cv_projects_enabled"]["type"] == "bool"
 
 
-def test_cv_projects_required_type():
+def test_cv_publications_enabled_type():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["cv_projects_required"]["type"] == "bool"
+    assert schema_by_key["cv_publications_enabled"]["type"] == "bool"
+
+
+def test_cv_publications_detail_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_publications_detail"]["type"] == "str"
+
+
+def test_cv_languages_enabled_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_languages_enabled"]["type"] == "bool"
+
+
+def test_cv_languages_detail_type():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_languages_detail"]["type"] == "str"
 
 
 def test_cv_composition_fields_have_correct_group():
@@ -500,7 +521,9 @@ def test_cv_composition_fields_have_correct_group():
     for key in ("cv_summary_style", "cv_education_enabled", "cv_education_detail",
                 "cv_experience_enabled", "cv_experience_bullet_style",
                 "cv_skills_enabled", "cv_skills_max_items",
-                "cv_certifications_enabled", "cv_projects_enabled", "cv_projects_required"):
+                "cv_certifications_enabled", "cv_projects_enabled",
+                "cv_publications_enabled", "cv_publications_detail",
+                "cv_languages_enabled", "cv_languages_detail"):
         assert schema_by_key[key]["group"] == "cv_composition", f"{key} should be in cv_composition group"
 
 
@@ -574,7 +597,9 @@ def test_cv_groups_composition_has_all_composition_keys():
         "cv_summary_style", "cv_education_enabled", "cv_education_detail",
         "cv_experience_enabled", "cv_experience_bullet_style",
         "cv_skills_enabled", "cv_skills_max_items",
-        "cv_certifications_enabled", "cv_projects_enabled", "cv_projects_required",
+        "cv_certifications_enabled", "cv_projects_enabled",
+        "cv_publications_enabled", "cv_publications_detail",
+        "cv_languages_enabled", "cv_languages_detail",
     }
     assert set(CV_GROUPS["cv-composition"]) == expected
 
@@ -741,7 +766,10 @@ def test_valid_cv_composition_group_payload_passes():
         "cv_skills_max_items": 12,
         "cv_certifications_enabled": True,
         "cv_projects_enabled": True,
-        "cv_projects_required": True,
+        "cv_publications_enabled": False,
+        "cv_publications_detail": "compact",
+        "cv_languages_enabled": True,
+        "cv_languages_detail": "compact",
     })  # must not raise
 
 
@@ -816,9 +844,24 @@ def test_cv_projects_enabled_default():
     assert schema_by_key["cv_projects_enabled"]["default"] is True
 
 
-def test_cv_projects_required_default():
+def test_cv_publications_enabled_default():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["cv_projects_required"]["default"] is True
+    assert schema_by_key["cv_publications_enabled"]["default"] is False
+
+
+def test_cv_publications_detail_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_publications_detail"]["default"] == "compact"
+
+
+def test_cv_languages_enabled_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_languages_enabled"]["default"] is True
+
+
+def test_cv_languages_detail_default():
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["cv_languages_detail"]["default"] == "compact"
 
 
 def test_cv_emphasize_required_skills_default():
@@ -970,3 +1013,9 @@ def test_all_group_registries_has_ranking_and_cv():
     assert "ranking" in ALL_GROUP_REGISTRIES
     assert "cv" in ALL_GROUP_REGISTRIES
     assert ALL_GROUP_REGISTRIES["cv"] is not None
+
+
+def test_legacy_cv_required_toggles_are_removed_from_schema() -> None:
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert "cv_education_required" not in schema_by_key
+    assert "cv_projects_required" not in schema_by_key

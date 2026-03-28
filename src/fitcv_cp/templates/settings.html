@@ -2,6 +2,80 @@
 {% block title %}Pipeline Settings — FitCV Admin{% endblock %}
 {% block content %}
 
+<style>
+  .composition-grid { display: grid; gap: 1rem; }
+  .composition-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-1);
+    padding: 1rem;
+  }
+  .composition-card[data-included="false"] .composition-section-group[data-visibility="conditional"] {
+    display: none;
+  }
+  .composition-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
+  .composition-section-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .composition-section-helper {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+  }
+  .composition-section-status {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .composition-section-group {
+    border-top: 1px solid var(--border-soft);
+    padding-top: 0.75rem;
+    margin-top: 0.75rem;
+  }
+  .composition-group-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+  }
+  .composition-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 10rem 7rem minmax(180px, 220px);
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.5rem 0;
+  }
+  .composition-field + .composition-field {
+    border-top: 1px solid var(--border-soft);
+  }
+  .composition-field-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .composition-field-helper {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+  }
+  .composition-field-control select,
+  .composition-field-control input[type="number"],
+  .composition-field-control input[type="text"] { width: 100%; }
+  @media (max-width: 980px) {
+    .composition-field { grid-template-columns: 1fr; }
+  }
+</style>
+
 <div class="page-header">
   <div>
     <h1>Pipeline Settings</h1>
@@ -50,13 +124,7 @@
             <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
             <div class="section-helper">{{ entry.description }}</div>
           </td>
-          <td>
-            {% if entry.key in active %}
-              <span class="current-value">{{ active[entry.key] }}</span>
-            {% else %}
-              <span class="empty-value">—</span>
-            {% endif %}
-          </td>
+          <td><span class="current-value">{{ effective[entry.key] }}</span></td>
           <td class="meta">{{ entry.default }}</td>
           <td>
             <input type="number" name="{{ entry.key }}" step="any"
@@ -120,13 +188,7 @@
                 <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
                 <div class="section-helper">{{ entry.description }}</div>
               </td>
-              <td>
-                {% if entry.key in active %}
-                  <span class="current-value">{{ active[entry.key] }}</span>
-                {% else %}
-                  <span class="empty-value">—</span>
-                {% endif %}
-              </td>
+              <td><span class="current-value">{{ effective[entry.key] }}</span></td>
               <td class="meta">{{ entry.default }}</td>
               <td>
                 <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
@@ -178,13 +240,7 @@
                 <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
                 <div class="section-helper">{{ entry.description }}</div>
               </td>
-              <td>
-                {% if entry.key in active %}
-                  <span class="current-value">{{ active[entry.key] }}</span>
-                {% else %}
-                  <span class="empty-value">—</span>
-                {% endif %}
-              </td>
+              <td><span class="current-value">{{ effective[entry.key] }}</span></td>
               <td class="meta">{{ entry.default }}</td>
               <td>
                 <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
@@ -235,13 +291,7 @@
                 <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
                 <div class="section-helper">{{ entry.description }}</div>
               </td>
-              <td>
-                {% if entry.key in active %}
-                  <span class="current-value">{{ active[entry.key] }}</span>
-                {% else %}
-                  <span class="empty-value">—</span>
-                {% endif %}
-              </td>
+              <td><span class="current-value">{{ effective[entry.key] }}</span></td>
               <td class="meta">{{ entry.default }}</td>
               <td>
                 <input type="number" name="{{ entry.key }}" step="0.01" min="0" max="1"
@@ -324,13 +374,7 @@ document.addEventListener('DOMContentLoaded', updateWeightsTotal);
                 <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
                 <div class="section-helper">{{ entry.description }}</div>
               </td>
-              <td>
-                {% if entry.key in active %}
-                  <span class="current-value">{{ active[entry.key] }}</span>
-                {% else %}
-                  <span class="empty-value">—</span>
-                {% endif %}
-              </td>
+              <td><span class="current-value">{{ effective[entry.key] }}</span></td>
               <td class="meta">{{ entry.default }}</td>
               <td>
                 {% if entry.key == 'cv_preset' %}
@@ -371,86 +415,100 @@ document.addEventListener('DOMContentLoaded', updateWeightsTotal);
     </div>
     <form id="form-cv-composition" method="post" action="/admin/settings/group/cv-composition">
       <div class="sub-card-body">
-        <table>
-          <thead>
-            <tr>
-              <th>Setting</th>
-              <th>Current</th>
-              <th>Default</th>
-              <th>Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for entry in schema if entry.key in cv_groups['cv-composition'] %}
-            {% set draft_val = group_draft['cv-composition'][entry.key] if group_draft and 'cv-composition' in group_draft and entry.key in group_draft['cv-composition'] else none %}
-            <tr>
-              <td>
-                <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
-                <div class="section-helper">{{ entry.description }}</div>
-              </td>
-              <td>
-                {% if entry.key in active %}
+        <div class="composition-grid">
+          {% for section in composition_sections %}
+          {% set include_key = section.include_key %}
+          {% set include_val = effective[include_key] if include_key else true %}
+          <div class="composition-card" data-section="{{ section.id }}" data-included="{{ 'true' if include_val else 'false' }}">
+            <div class="composition-section-head">
+              <div>
+                <div class="composition-section-title">{{ section.title }}</div>
+                <div class="composition-section-helper">{{ section.helper }}</div>
+              </div>
+              <div class="composition-section-status">
+                {% if include_key %}
+                  {{ 'Included' if include_val else 'Hidden' }}
+                {% else %}
+                  Always shown
+                {% endif %}
+              </div>
+            </div>
+            {% for group in section.groups %}
+            <div class="composition-section-group" {% if include_key and group.title != 'Visibility' %}data-visibility="conditional"{% endif %}>
+              <div class="composition-group-title">{{ group.title }}</div>
+              {% for key in group['keys'] %}
+              {% set entry = schema_by_key[key] %}
+              {% set draft_val = group_draft['cv-composition'][key] if group_draft and 'cv-composition' in group_draft and key in group_draft['cv-composition'] else none %}
+              {% set current_val = draft_val if draft_val is not none else effective[key] %}
+              <div class="composition-field">
+                <div>
+                  <div class="composition-field-title">{{ entry.label }}</div>
+                  <div class="composition-field-helper">{{ entry.description }}</div>
+                </div>
+                <div>
                   <span class="current-value">
                     {%- if entry.type == 'bool' -%}
-                      {{ 'Yes' if active[entry.key] else 'No' }}
+                      {{ 'Yes' if effective[key] else 'No' }}
                     {%- else -%}
-                      {{ active[entry.key] }}
+                      {{ effective[key] }}
                     {%- endif -%}
                   </span>
-                {% else %}
-                  <span class="empty-value">—</span>
-                {% endif %}
-              </td>
-              <td class="meta">
-                {%- if entry.type == 'bool' -%}
-                  {{ 'Yes' if entry.default else 'No' }}
-                {%- else -%}
-                  {{ entry.default }}
-                {%- endif -%}
-              </td>
-              <td>
-                {% if entry.type == 'bool' %}
-                  {# Checkbox toggle: hidden field ensures 'false' is submitted when unchecked #}
-                  {% set current_bool = draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) %}
-                  <input type="hidden" name="{{ entry.key }}" value="{{ 'true' if current_bool else 'false' }}">
-                  <input type="checkbox" name="{{ entry.key }}" value="true"
-                         id="chk-{{ entry.key }}"
-                         {% if current_bool %}checked{% endif %}
-                         onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
-                {% elif entry.key in ('cv_summary_style', 'cv_education_detail', 'cv_experience_bullet_style') %}
-                  {# Select for enum-like str fields #}
-                  {% set current_str = draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) %}
-                  {% if entry.key == 'cv_summary_style' %}
-                    <select name="{{ entry.key }}">
-                      {% for opt in ['concise', 'achievement_focused', 'skills_focused'] %}
-                        <option value="{{ opt }}" {% if current_str == opt %}selected{% endif %}>{{ opt | replace('_', ' ') | title }}</option>
-                      {% endfor %}
-                    </select>
-                  {% elif entry.key == 'cv_education_detail' %}
-                    <select name="{{ entry.key }}">
-                      {% for opt in ['compact', 'standard', 'detailed'] %}
-                        <option value="{{ opt }}" {% if current_str == opt %}selected{% endif %}>{{ opt | title }}</option>
-                      {% endfor %}
-                    </select>
-                  {% elif entry.key == 'cv_experience_bullet_style' %}
-                    <select name="{{ entry.key }}">
-                      {% for opt in ['standard', 'action_project_result'] %}
-                        <option value="{{ opt }}" {% if current_str == opt %}selected{% endif %}>{{ opt | replace('_', ' ') | title }}</option>
-                      {% endfor %}
-                    </select>
+                </div>
+                <div class="meta">
+                  {%- if entry.type == 'bool' -%}
+                    {{ 'Yes' if entry.default else 'No' }}
+                  {%- else -%}
+                    {{ entry.default }}
+                  {%- endif -%}
+                </div>
+                <div class="composition-field-control">
+                  {% if entry.type == 'bool' %}
+                    {% set current_bool = draft_val if draft_val is not none else effective[key] %}
+                    <input type="hidden" name="{{ key }}" value="{{ 'true' if current_bool else 'false' }}">
+                    <input type="checkbox" name="{{ key }}" value="true"
+                           id="chk-{{ key }}"
+                           {% if include_key %}data-controller="{{ include_key }}"{% endif %}
+                           {% if current_bool %}checked{% endif %}
+                           onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+                  {% elif key in ('cv_summary_style', 'cv_education_detail', 'cv_experience_bullet_style', 'cv_publications_detail', 'cv_languages_detail') %}
+                    {% if key == 'cv_summary_style' %}
+                      <select name="{{ key }}">
+                        {% for opt in ['concise', 'achievement_focused', 'skills_focused'] %}
+                          <option value="{{ opt }}" {% if current_val == opt %}selected{% endif %}>{{ opt | replace('_', ' ') | title }}</option>
+                        {% endfor %}
+                      </select>
+                    {% elif key == 'cv_education_detail' %}
+                      <select name="{{ key }}">
+                        {% for opt in ['compact', 'standard', 'detailed'] %}
+                          <option value="{{ opt }}" {% if current_val == opt %}selected{% endif %}>{{ opt | title }}</option>
+                        {% endfor %}
+                      </select>
+                    {% elif key == 'cv_experience_bullet_style' %}
+                      <select name="{{ key }}">
+                        {% for opt in ['standard', 'action_project_result'] %}
+                          <option value="{{ opt }}" {% if current_val == opt %}selected{% endif %}>{{ opt | replace('_', ' ') | title }}</option>
+                        {% endfor %}
+                      </select>
+                    {% elif key in ('cv_publications_detail', 'cv_languages_detail') %}
+                      <select name="{{ key }}">
+                        {% for opt in ['compact', 'standard', 'detailed'] %}
+                          <option value="{{ opt }}" {% if current_val == opt %}selected{% endif %}>{{ opt | title }}</option>
+                        {% endfor %}
+                      </select>
+                    {% endif %}
+                  {% elif entry.type == 'int' %}
+                    <input type="number" name="{{ key }}" min="1" value="{{ current_val }}">
+                  {% else %}
+                    <input type="text" name="{{ key }}" value="{{ current_val }}">
                   {% endif %}
-                {% elif entry.type == 'int' %}
-                  <input type="number" name="{{ entry.key }}" min="1"
-                         value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}">
-                {% else %}
-                  <input type="text" name="{{ entry.key }}"
-                         value="{{ draft_val if draft_val is not none else (active[entry.key] if entry.key in active else entry.default) }}">
-                {% endif %}
-              </td>
-            </tr>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
             {% endfor %}
-          </tbody>
-        </table>
+          </div>
+          {% endfor %}
+        </div>
       </div>
       <div class="sub-card-footer">
         <button type="submit" class="btn-section">Save Composition Settings</button>
@@ -491,13 +549,7 @@ document.addEventListener('DOMContentLoaded', updateWeightsTotal);
                 <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
                 <div class="section-helper">{{ entry.description }}</div>
               </td>
-              <td>
-                {% if entry.key in active %}
-                  <span class="current-value">{{ 'Yes' if active[entry.key] else 'No' }}</span>
-                {% else %}
-                  <span class="empty-value">—</span>
-                {% endif %}
-              </td>
+              <td><span class="current-value">{{ 'Yes' if effective[entry.key] else 'No' }}</span></td>
               <td class="meta">{{ 'Yes' if entry.default else 'No' }}</td>
               <td>
                 {# Checkbox toggle for bool fields #}
@@ -552,13 +604,7 @@ document.addEventListener('DOMContentLoaded', updateWeightsTotal);
                 <div class="section-title" style="font-size:0.875rem">{{ entry.label }}</div>
                 <div class="section-helper">{{ entry.description }}</div>
               </td>
-              <td>
-                {% if entry.key in active %}
-                  <span class="current-value">{{ active[entry.key] }}</span>
-                {% else %}
-                  <span class="empty-value">—</span>
-                {% endif %}
-              </td>
+              <td><span class="current-value">{{ effective[entry.key] }}</span></td>
               <td class="meta">{{ entry.default }}</td>
               <td>
                 {% if entry.type == 'int' %}
@@ -581,5 +627,24 @@ document.addEventListener('DOMContentLoaded', updateWeightsTotal);
   </div>
 
 </div>
+
+<script>
+  (() => {
+    const syncCompositionCards = () => {
+      document.querySelectorAll('.composition-card[data-section]').forEach((card) => {
+        const section = card.dataset.section;
+        const includeCheckbox = card.querySelector(`#chk-cv_${section}_enabled`);
+        const included = includeCheckbox ? includeCheckbox.checked : true;
+        card.dataset.included = included ? 'true' : 'false';
+
+      });
+    };
+
+    document.querySelectorAll('.composition-card input[type="checkbox"]').forEach((checkbox) => {
+      checkbox.addEventListener('change', syncCompositionCards);
+    });
+    syncCompositionCards();
+  })();
+</script>
 
 {% endblock %}

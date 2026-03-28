@@ -35,7 +35,6 @@ cv:
       max_items: 5
     projects:
       enabled: true
-      required: true
       detail: standard
     publications:
       enabled: false

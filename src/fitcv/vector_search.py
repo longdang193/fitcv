@@ -106,9 +106,15 @@ def build_vector_search_query(
     """
     if passed_job_urls:
         url_list = ", ".join(f"'{u}'" for u in passed_job_urls)
-        universe_filter = f"AND base.job_url IN ({url_list})"
+        filtered_relation = (
+            f"SELECT * FROM `{project}.{dataset}.job_embeddings` "
+            f"WHERE chunk_type = 'job_summary' AND job_url IN ({url_list})"
+        )
     else:
-        universe_filter = "-- no passed_job_urls: empty universe, query returns no rows"
+        filtered_relation = (
+            f"SELECT * FROM `{project}.{dataset}.job_embeddings` "
+            f"WHERE 1 = 0"
+        )
 
     return f"""
 SELECT
@@ -117,15 +123,12 @@ SELECT
   RANK() OVER (ORDER BY distance ASC)       AS vector_rank
 FROM
   VECTOR_SEARCH(
-    TABLE `{project}.{dataset}.job_embeddings`,
+    ({filtered_relation}),
     'embedding',
     (SELECT @candidate_embedding AS embedding),
     top_k => {top_n},
     distance_type => 'COSINE'
   )
-WHERE
-  base.chunk_type = 'job_summary'
-  {universe_filter}
 ORDER BY vector_rank
 LIMIT {top_n}
 """.strip()

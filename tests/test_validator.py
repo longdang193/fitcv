@@ -48,6 +48,23 @@ def test_validate_output_passes_complete_cv() -> None:
     assert result["missing_sections"] == []
 
 
+def test_validate_output_rejects_empty_required_list_sections() -> None:
+    cv = "# Name\n## Summary\nX\n## Certifications\n\n## Languages\n"
+    required_sections = ["Summary", "Certifications", "Languages"]
+    result = validate_output(cv, required_sections)
+    assert result["valid"] is False
+    assert "Certifications" in result["missing_sections"]
+    assert "Languages" in result["missing_sections"]
+
+
+def test_validate_output_accepts_non_empty_required_list_sections() -> None:
+    cv = "# Name\n## Summary\nX\n## Certifications\n- Cert A\n## Languages\n- English (C2)"
+    required_sections = ["Summary", "Certifications", "Languages"]
+    result = validate_output(cv, required_sections)
+    assert result["valid"] is True
+    assert result["missing_sections"] == []
+
+
 def test_validate_output_empty_required_sections() -> None:
     """No required sections → always valid."""
     result = validate_output("any text", [])
@@ -127,6 +144,34 @@ def test_check_employer_grounding_ignores_great_expectations_tool_name() -> None
     cv_text = "Used Great Expectations, dbt, and SQL for data quality workflows."
     violations = check_employer_grounding(cv_text, known_employers=["ACME", "TechCo"])
     assert violations == []
+
+
+def test_check_employer_grounding_skips_project_name_with_em_dash() -> None:
+    """Em-dash–separated project titles must not be flagged as employer names."""
+    cv_text = (
+        "## Projects\n"
+        "### FitCV — AI-Powered CV Generation Pipeline\n"
+        "Built an end-to-end CV generation system using Python and Vertex AI.\n"
+        "## Experience\n"
+        "### Data Engineer — ACME (2019–2022)\n"
+        "- Built data pipelines"
+    )
+    violations = check_employer_grounding(cv_text, known_employers=["ACME"])
+    assert violations == []
+
+
+def test_check_employer_grounding_catches_unknown_in_experience_heading() -> None:
+    """Unknown employer in Experience heading must be caught."""
+    cv_text = (
+        "## Experience\n"
+        "### Data Engineer — InventedCorp (2020–2022)\n"
+        "- Built things\n"
+        "### Analyst — ACME (2018–2020)\n"
+        "- Did stuff"
+    )
+    violations = check_employer_grounding(cv_text, known_employers=["ACME"])
+    assert len(violations) == 1
+    assert "InventedCorp" in violations[0]
 
 
 # ── check_project_existence ───────────────────────────────────────────────────
