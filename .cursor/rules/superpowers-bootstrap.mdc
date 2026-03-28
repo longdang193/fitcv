@@ -1,0 +1,138 @@
+﻿---
+alwaysApply: true
+---
+
+# Superpowers Bootstrap
+
+You have superpowers.
+
+**IMPORTANT: The `using-superpowers` skill content is already loaded. Do not read it again -- it is the authoritative source for how to invoke and follow skills.**
+
+## Skills Directory
+
+Skills live at `.agents/skills/` (a symlink at `.agents` in the project root).
+
+## Available Skills
+
+**Process skills** -- determine HOW to approach a task:
+
+- `brainstorming` -- Interactive design refinement before implementation
+- `systematic-debugging` -- 4-phase root cause process
+- `writing-plans` -- Detailed implementation plans
+- `project_plan_generation` -- Structured planning documents
+
+**Execution skills** -- guide task execution:
+
+- `executing-plans` -- Batch execution with checkpoints
+- `subagent-driven-development` -- Fast iteration with two-stage review
+- `dispatching-parallel-agents` -- Concurrent subagent workflows
+- `using-git-worktrees` -- Parallel development branches
+
+**Review skills** -- quality and integration:
+
+- `requesting-code-review` -- Pre-review checklist
+- `receiving-code-review` -- Responding to feedback
+- `finishing-a-development-branch` -- Merge/PR decision workflow
+- `verification-before-completion` -- Ensure fixes work
+
+**Quality skills** -- engineering discipline:
+
+- `test-driven-development` -- RED-GREEN-REFACTOR cycle
+- `writing-skills` -- Create new skills
+
+**Domain skills** -- project-specific knowledge:
+
+- `format_rules` -- Markdown and mathematical notation standards
+- `central-config-layer` -- Configuration and policy management
+- `python-code-standards` -- Python conventions and patterns
+- `python-file-metadata` -- File metadata handling
+- `python-refactoring-expert` -- Python refactoring techniques
+- `tag_management` -- Tag operations in markdown files
+
+## How to Load a Skill
+
+Use the `Read` tool on the skill file:
+
+```bash
+Read .agents/skills/{skill-name}/SKILL.md
+```
+
+For example:
+
+```bash
+Read .agents/skills/brainstorming/SKILL.md
+Read .agents/skills/systematic-debugging/SKILL.md
+Read .agents/skills/test-driven-development/SKILL.md
+```
+
+## Tool Mapping for Cursor
+
+When skills reference generic tools, use these Cursor equivalents:
+
+| Generic Tool | Cursor Equivalent |
+|---|---|
+| `Skill` tool | `Read` on `.agents/skills/{skill-name}/SKILL.md` |
+| `TodoWrite` | `TodoWrite` (identical) |
+| `Task` with subagents | `Task` tool with `subagent_type` parameter |
+| `Read`, `Write`, `Edit` | `Read`, `Write`, `StrReplace` |
+| `Bash` | `Shell` |
+
+## Workflow
+
+1. User message received
+2. Ask: `Might any skill apply?`
+   - If yes (even 1% chance) -- `Read` the skill file
+   - If definitely not -- Respond directly
+3. Announce: `Using [skill] to [purpose]`
+4. If skill has checklist -- Create `TodoWrite` todo per item
+5. Follow skill exactly
+6. Respond (including clarifications)
+
+## Red Flags
+
+These thoughts mean STOP--you are rationalizing:
+
+| Thought | Reality |
+|---------|---------|
+| `This is just a simple question` | Questions are tasks. Check for skills. |
+| `I need more context first` | Skill check comes BEFORE clarifying questions. |
+| `Let me explore the codebase first` | Skills tell you HOW to explore. Check first. |
+| `I can check git/files quickly` | Files lack conversation context. Check for skills. |
+| `Let me gather information first` | Skills tell you HOW to gather information. |
+| `This doesn't need a formal skill` | If a skill exists, use it. |
+| `I remember this skill` | Skills evolve. Read current version. |
+| `This doesn't count as a task` | Action = task. Check for skills. |
+| `The skill is overkill` | Simple things become complex. Use it. |
+| `I'll just do this one thing first` | Check BEFORE doing anything. |
+| `This feels productive` | Undisciplined action wastes time. Skills prevent this. |
+| `I know what that means` | Knowing the concept = using the skill. Read it. |
+
+## Skill Priority
+
+When multiple skills could apply, use this order:
+
+1. **Process skills first** (brainstorming, systematic-debugging) -- determine HOW to approach the task
+2. **Implementation skills second** -- guide execution
+
+`Let's build X` -- brainstorming first, then implementation skills.
+`Fix this bug` -- systematic-debugging first, then domain-specific skills.
+
+## Skill Types
+
+**Rigid** (TDD, systematic-debugging): Follow exactly. Do not adapt away discipline.
+
+**Flexible** (patterns): Adapt principles to context.
+
+The skill itself tells you which.
+
+## User Instructions
+
+Instructions say WHAT, not HOW. `Add X` or `Fix Y` does not mean skip workflows.
+
+## Related Rules
+
+This bootstrap works together with other project rules:
+
+- `format-rules.mdc` -- Markdown, LaTeX, and list formatting standards
+- `project-plan-rule.mdc` -- How to structure and file plans
+- `tools-usage-rule.mdc` -- Tag-related operations in markdown files
