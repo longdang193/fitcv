@@ -3,7 +3,7 @@ inspection_debugging:
   version: 1.2.0
   status: active
   type: add
-  summary: Admins can see what the pipeline did for a run: enriched jobs, filter outcomes, inputs used, and generated CVs.
+  summary: "Admins can see what the pipeline did for a run: enriched jobs, filter outcomes, inputs used, and generated CVs."
   owner: fitcv_cp
   domains:
     - admin_ui

@@ -3,7 +3,7 @@ trigger_run_management:
   version: 1.1.0
   status: active
   type: add
-  summary: Admins can trigger runs via path reference, file upload, or pasted JSON — and inspect runs from a status-aware list page.
+  summary: "Admins can trigger runs via path reference, file upload, or pasted JSON — and inspect runs from a status-aware list page."
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -12,9 +12,9 @@ trigger_run_management:
     - admin_control_plane_core
   capabilities:
     - Runs list page with status badges, timestamps, and per-run action buttons
-    - Archive filter: Active / All / Archived
-    - Three job-input modes: path, upload, paste
-    - Three candidate-profile modes: default_config, upload, paste
+    - "Archive filter: Active / All / Archived"
+    - "Three job-input modes: path, upload, paste"
+    - "Three candidate-profile modes: default_config, upload, paste"
     - Server-side mode resolution
     - Canonical snapshot capture for pasted and uploaded inputs
     - CV results banner on run detail
