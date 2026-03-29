@@ -30,11 +30,12 @@ Docs must not attempt to fully mirror code.
 The system has five layers:
 
 ```text
-code/            → real truth
-docs/features/*.yaml  → structured truth (current state)
-docs/features/<feature_id>/  → explanation and history
-README.md        → overview
-docs/generated/  → generated discovery
+code/                       → real truth
+docs/features/*.yaml        → structured truth (current state)
+docs/features/<feature_id>/ → feature-specific explanation and history
+docs/*.md                   → cross-cutting explanation
+README.md                   → overview
+docs/generated/             → generated discovery
 ```
 
 Rules:
@@ -51,13 +52,14 @@ Avoid duplicating the same fact manually across layers.
 
 ## The 5-Layer Doc System
 
-| Layer                   | Form               | Purpose                                   | Rule                                               |
-| ----------------------- | ------------------ | ----------------------------------------- | -------------------------------------------------- |
-| **Real Truth**          | code               | Actual implementation and behavior        | Deepest truth                                      |
-| **Structured Truth**    | `docs/features/*.yaml` | Current feature contracts               | One file per real feature; small and stable        |
-| **Explanation + History** | `docs/features/<feature_id>/*` | Architecture, flows, specs, plans, feature history | Explain how and why; feature history goes in its own directory
-| **Overview**            | `README.md`        | Purpose, scope, navigation                | Entry point only                                   |
-| **Generated Discovery** | `docs/generated/*` | Fast lookup surfaces                      | Generated from code/YAML/docs; never edit manually |
+| Layer                     | Form                           | Purpose                                   | Rule                                               |
+| ------------------------- | ------------------------------ | ----------------------------------------- | -------------------------------------------------- |
+| **Real Truth**            | code                           | Actual implementation and behavior        | Deepest truth                                      |
+| **Structured Truth**      | `docs/features/*.yaml`         | Current feature contracts                 | One file per real feature; small and stable        |
+| **Feature Docs + History**| `docs/features/<feature_id>/*` | Feature-specific architecture, flows, history | Explain one feature; do not duplicate code     |
+| **Cross-Cutting Docs**    | `docs/*.md`                    | Shared architecture, pipelines, setup     | Cross-feature only                                 |
+| **Overview**              | `README.md`                    | Purpose, scope, navigation                | Entry point only                                   |
+| **Generated Discovery**   | `docs/generated/*`             | Fast lookup surfaces                      | Generated from code/YAML/docs; never edit manually |
 
 ---
 
@@ -118,7 +120,7 @@ Guidance:
 - use `invariants`
 - keep YAML focused on identity and contract
 - do not turn feature YAML into a design document
-- keep feature history in the same directory: `docs/features/<feature_id>/`
+- keep feature history in `docs/features/<feature_id>/`
 
 ---
 
@@ -140,7 +142,22 @@ Rules:
 - rationale belongs in docs, not YAML
 - prefer multiple focused docs over one large file
 
-Each feature directory contains its own explanation and history alongside its contract.
+### Placement Table
+
+Use this default placement:
+
+| Information kind | Default location |
+| ---------------- | ---------------- |
+| Current feature contract | `docs/features/<feature_id>.yaml` |
+| Feature-specific history / post-execution review | `docs/features/<feature_id>/history.md` |
+| Other feature-specific explanation | `docs/features/<feature_id>/*.md` |
+| Cross-cutting architecture / pipelines / shared ops | `docs/*.md` |
+| Project overview / navigation | `README.md` |
+| Generated lookup surfaces | `docs/generated/*` |
+
+Do not treat `docs/*.md` as the default home for feature-specific history.
+
+Each feature keeps its contract at `docs/features/<feature_id>.yaml` and its explanation/history under `docs/features/<feature_id>/`.
 
 If docs grow large, split by subsystem instead of expanding one giant file.
 
@@ -221,18 +238,19 @@ Generation guidance:
 | Situation                             | Update                           |
 | ------------------------------------- | -------------------------------- |
 | Behavior changes                      | code                             |
-| Feature added or changed              | `docs/features/*.yaml`             |
-| Architecture or cross-feature changes | `docs/*.md`                       |
-| Project purpose or navigation changes | `README.md`                       |
+| Feature added or changed              | `docs/features/*.yaml`                  |
+| Feature-specific explanation changes  | `docs/features/<feature_id>/*.md`       |
+| Architecture or cross-feature changes | `docs/*.md`                             |
+| Project purpose or navigation changes | `README.md`                             |
 | Feature evolution needs human history | `docs/features/<feature_id>/history.md` |
-| Lookup surfaces need refresh          | `docs/generated/*` via generator |
+| Lookup surfaces need refresh          | `docs/generated/*` via generator        |
 
 ---
 
 ## Naming Conventions
 
-- feature contracts: `docs/features/<feature_id>/<feature_id>.yaml` (inside the feature directory alongside its explanation and history)
-- feature explanation and history: `docs/features/<feature_id>/` (one directory per feature; put the YAML contract alongside its history)
+- feature contracts: `docs/features/<feature_id>.yaml`
+- feature explanation and history: `docs/features/<feature_id>/`
 - specs: `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<feature>-spec.md`
 - implementation plans: `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<feature>-plan.md`
 - generated artifacts: descriptive names under `docs/generated/`
@@ -270,6 +288,14 @@ invariants:
 - regenerate `docs/generated/` whenever source layers change
 - docs must not lag behind the system
 
+Before marking work complete, name the exact docs touched:
+
+- affected `docs/features/<feature_id>.yaml`
+- `docs/features/<feature_id>/history.md` or other focused docs under `docs/features/<feature_id>/`
+- any cross-feature docs under `docs/*.md`
+- `README.md` if navigation changed
+- generated outputs refreshed
+
 If a fact is generated, update the source and regenerate; do not hand-edit the generated artifact.
 
 ---
@@ -278,7 +304,7 @@ If a fact is generated, update the source and regenerate; do not hand-edit the g
 
 - `README.md` links to key docs and generated discovery surfaces
 - feature files link to docs, specs, plans, and history
-- feature directories link their contract to their history
+- feature directories link their history and focused docs back to the contract
 - generated indexes point back to authoritative files
 - no orphan docs
 - no conflicting current-state sources

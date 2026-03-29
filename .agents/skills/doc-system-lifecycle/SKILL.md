@@ -26,20 +26,22 @@ Docs should explain code, not mirror it.
 ## 5-Layer Doc System
 
 ```text
-code/                        → real truth
-docs/features/*.yaml         → structured truth
-docs/features/<feature_id>/  → explanation + history
-README.md                    → overview
-docs/generated/              → generated discovery
+code/                       → real truth
+docs/features/*.yaml        → structured truth
+docs/features/<feature_id>/ → feature-specific explanation + history
+docs/*.md                   → cross-cutting explanation
+README.md                   → overview
+docs/generated/             → generated discovery
 ````
 
-| Layer                 | Form                           | Purpose                   | Rule                                |
-| --------------------- | ------------------------------ | ------------------------- | ----------------------------------- |
-| Real Truth            | code                           | Actual behavior           | Deepest truth                       |
-| Structured Truth      | `docs/features/*.yaml`         | Current feature contracts | One small file per feature          |
-| Explanation + History | `docs/features/<feature_id>/*` | Design, flow, history     | Explain; do not duplicate code      |
-| Overview              | `README.md`                    | Purpose and navigation    | Entry point only                    |
-| Generated Discovery   | `docs/generated/*`             | Fast lookup               | Generated only; never edit manually |
+| Layer                   | Form                           | Purpose                            | Rule                                |
+| ----------------------- | ------------------------------ | ---------------------------------- | ----------------------------------- |
+| Real Truth              | code                           | Actual behavior                    | Deepest truth                       |
+| Structured Truth        | `docs/features/*.yaml`         | Current feature contracts          | One small file per feature          |
+| Feature Explanation     | `docs/features/<feature_id>/*` | Design, flow, ops notes, history   | Feature-specific only               |
+| Cross-Cutting Docs      | `docs/*.md`                    | Architecture, pipelines, shared ops| Cross-feature only                  |
+| Overview                | `README.md`                    | Purpose and navigation             | Entry point only                    |
+| Generated Discovery     | `docs/generated/*`             | Fast lookup                        | Generated only; never edit manually |
 
 ### Layer 1 — Code
 
@@ -81,7 +83,7 @@ keywords: []
 
 ### Layer 3 — Explanation + History
 
-Use `docs/features/<feature_id>/` for focused docs: design, flow, spec, plan, ops notes, and history.
+Use `docs/features/<feature_id>/` for focused docs such as design, flow, ops notes, and history for one feature. Use `docs/*.md` only for cross-feature architecture docs. Specs and plans continue to live under `docs/superpowers/`.
 
 Rules:
 
@@ -89,6 +91,21 @@ Rules:
 - current-state docs describe current behavior
 - rationale belongs here, not in YAML
 - prefer small focused docs over one large doc
+
+### Placement Table
+
+Use this default placement:
+
+| Information kind | Default location |
+| ---------------- | ---------------- |
+| Current feature contract | `docs/features/<feature_id>.yaml` |
+| Feature-specific history / post-execution review | `docs/features/<feature_id>/history.md` |
+| Other feature-specific explanation | `docs/features/<feature_id>/*.md` |
+| Cross-cutting architecture / pipeline / shared ops | `docs/*.md` |
+| Project overview / navigation | `README.md` |
+| Generated lookup surfaces | `docs/generated/*` |
+
+Do not treat `docs/*.md` as the default home for feature-specific history.
 
 ### Layer 4 — README
 
@@ -135,14 +152,15 @@ Rules:
 | ------------------------------------------------- | --------------------------------------- |
 | Behavior changes                                  | code                                    |
 | Feature added/changed                             | `docs/features/*.yaml`                  |
-| Architecture or cross-feature explanation changes | docs                                    |
+| Feature-specific explanation changes              | `docs/features/<feature_id>/*.md`       |
+| Architecture or cross-feature explanation changes | `docs/*.md`                             |
 | Purpose/navigation changes                        | `README.md`                             |
 | Feature history changes                           | `docs/features/<feature_id>/history.md` |
 | Lookup surfaces stale                             | regenerate `docs/generated/*`           |
 
 ## Naming
 
-- feature contract: `docs/features/<feature_id>/<feature_id>.yaml`
+- feature contract: `docs/features/<feature_id>.yaml`
 - feature docs/history: `docs/features/<feature_id>/`
 - spec: `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<feature>-spec.md`
 - plan: `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<feature>-plan.md`
@@ -173,6 +191,14 @@ invariants:
 - update docs before or with design/reasoning changes
 - update README when navigation changes
 - regenerate `docs/generated/` whenever sources change
+
+Before marking work complete, name the exact docs touched:
+
+- affected `docs/features/<feature_id>.yaml`
+- `docs/features/<feature_id>/history.md` or other focused docs under `docs/features/<feature_id>/`
+- any cross-feature docs under `docs/*.md`
+- `README.md` if navigation changed
+- generated outputs to refresh
 
 If a fact is generated, update the source and regenerate.
 

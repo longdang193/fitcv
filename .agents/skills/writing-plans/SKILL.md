@@ -13,7 +13,7 @@ Assume the engineer is capable but unfamiliar with the codebase and domain.
 
 **Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
 
-**Default save path:** `docs/plans/YYYY-MM-DD-HH-MM-<topic>-plan.md`  
+**Default save path:** `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<topic>-plan.md`  
 (User preference overrides this.)
 
 ---
@@ -23,16 +23,19 @@ Assume the engineer is capable but unfamiliar with the codebase and domain.
 Use the project doc system:
 
 ```text
-code/            → real truth
-features/*.yaml  → structured truth
-docs/*.md        → explanation
-README.md        → overview
-docs/generated/  → generated discovery
+code/                       → real truth
+docs/features/*.yaml        → structured truth
+docs/features/<feature_id>/ → feature-specific explanation + history
+docs/*.md                   → cross-cutting explanation
+README.md                   → overview
+docs/generated/             → generated discovery
 ```
 
 Rules:
 
-- The affected `features/*.yaml` file is the current-state anchor
+- The affected `docs/features/<feature_id>.yaml` file is the current-state anchor
+- Feature-specific history belongs under `docs/features/<feature_id>/`
+- Cross-cutting architecture belongs under `docs/*.md`
 - The plan must link back to the feature contract and spec
 - Generated discovery is refreshed after source updates; do not edit it manually
 
@@ -44,7 +47,7 @@ Do not write the plan until these are true:
 
 1. `planning-dispatch` triage exists
 2. the affected feature is identified
-3. the relevant `features/<feature_id>.yaml` exists, or the plan explicitly says it must be created before implementation starts
+3. the relevant `docs/features/<feature_id>.yaml` exists, or the plan explicitly says it must be created before implementation starts
 4. the spec exists if the design is non-trivial
 
 Minimum triage:
@@ -57,7 +60,17 @@ Invariants:
   - <must hold true>
 Dependencies:
   - <if known>
-Docs needed: yes | no
+Affected docs:
+  feature_yaml: `docs/features/<feature_id>.yaml` | none
+  feature_history: `docs/features/<feature_id>/history.md` | none
+  feature_docs:
+    - `docs/features/<feature_id>/<doc>.md`
+  cross_cutting_docs:
+    - `docs/<doc>.md`
+  readme: `README.md` | none
+  generated:
+    - `docs/generated/<file>`
+Generated refresh required: yes | no
 Spec needed: yes | no
 Plan needed: yes | no
 ```
@@ -118,8 +131,8 @@ Every plan should start like this:
 ```md
 # [Feature Name] Implementation Plan
 
-**Feature:** `features/<feature_id>.yaml`  
-**Spec:** `docs/specs/YYYY-MM-DD-HH-MM-<topic>-spec.md`  
+**Feature:** `docs/features/<feature_id>.yaml`  
+**Spec:** `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<topic>-spec.md`  
 **Type:** add | modify | replace  
 **Status:** planned | building  
 
@@ -140,6 +153,19 @@ Every plan should start like this:
 ---
 ```
 
+Every plan must also include this section near the top:
+
+```md
+## Doc Update Matrix
+
+- Feature contract: `docs/features/<feature_id>.yaml`
+- Feature history: `docs/features/<feature_id>/history.md` | none
+- Feature-specific docs: `docs/features/<feature_id>/<doc>.md` | none
+- Cross-cutting docs: `docs/<doc>.md` | none
+- README: `README.md` | none
+- Generated discovery: `docs/generated/<file>` | none
+```
+
 ---
 
 ## Task Structure
@@ -153,7 +179,7 @@ Use this shape:
 - Create: `path/to/new_file.py`
 - Modify: `path/to/existing_file.py`
 - Test: `tests/path/test_file.py`
-- Docs: `features/<feature_id>.yaml`, `docs/features/<feature_id>.md`
+- Docs: exact entries from the Doc Update Matrix
 
 - [ ] Step 1: Write the failing test
 - [ ] Step 2: Run it and confirm failure
@@ -174,8 +200,8 @@ A complete plan should specify:
 
 - exact file paths
 - test files and commands
-- docs to update
-- whether `features/*.yaml` changes
+- doc targets split by contract / feature history / feature-specific docs / cross-cutting docs / README / generated discovery
+- which `docs/features/*.yaml` files change
 - whether `docs/generated/` must be regenerated
 - commit points
 
@@ -204,7 +230,7 @@ Provide the reviewer only:
 
 After saving the plan, offer:
 
-**"Plan complete and saved to `docs/plans/YYYY-MM-DD-HH-MM-<topic>-plan.md`. Two execution options:**
+**"Plan complete and saved to `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<topic>-plan.md`. Two execution options:**
 
 1. **Subagent-Driven (recommended)** — fresh subagent per task
 2. **Inline Execution** — execute in this session with `executing-plans`
@@ -217,7 +243,7 @@ After saving the plan, offer:
 
 - writing a plan before reading the feature YAML
 - assuming `FEATURES.md`
-- saving plans under old `docs/superpowers/plans/`
+- saving plans under `docs/plans/`
 - writing vague tasks without file paths or test commands
 - forgetting doc updates
 - forgetting `docs/generated/` refresh when source layers changed

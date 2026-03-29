@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate cross-feature views from docs/features/<feature_id>/<feature_id>.yaml.
+Generate cross-feature views from docs/features/*.yaml.
 
 Run this whenever a feature YAML changes:
     python .cursor/rules/operating-system/generate_features.py
@@ -117,7 +117,7 @@ def generate_features_index(features: list[Feature]) -> str:
     """Generate features_index.yaml matching the current format."""
     lines = [
         "# Generated Discovery — Do not edit manually",
-        "# Source: docs/features/<feature_id>/*.yaml",
+        "# Source: docs/features/*.yaml",
         "# Regenerate when any feature YAML changes",
         "",
         "features:",
@@ -203,7 +203,7 @@ def generate_feature_overview_md(features: list[Feature]) -> str:
     lines = [
         "# Feature Overview",
         "",
-        "> Generated — do not edit manually. Source: `docs/features/<feature_id>/*.yaml`",
+        "> Generated — do not edit manually. Source: `docs/features/*.yaml`",
     ]
 
     # Group by status
@@ -248,12 +248,11 @@ def generate_feature_overview_md(features: list[Feature]) -> str:
     lines.append("")
     lines.append("## Feature Contracts")
     lines.append("")
-    lines.append("Each feature has a contract and history at `docs/features/<feature_id>/`:")
+    lines.append("Each feature has a contract at `docs/features/<feature_id>.yaml` and optional focused docs under `docs/features/<feature_id>/`:")
     lines.append("")
     lines.append("```text")
-    lines.append("docs/features/<feature_id>/")
-    lines.append("  <feature_id>.yaml   # structured truth — current state")
-    lines.append("  history.md          # changelog and post-execution reviews")
+    lines.append("docs/features/<feature_id>.yaml")
+    lines.append("docs/features/<feature_id>/history.md")
     lines.append("```")
     lines.append("")
     lines.append("For the machine-friendly index, see `docs/generated/features_index.yaml`.")
@@ -398,8 +397,8 @@ GENERATED_DIR = ROOT / "docs" / "generated"
 def main() -> int:
     GENERATED_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Glob: docs/features/<feature_id>/<feature_id>.yaml
-    feature_files = sorted(FEATURES_DIR.glob("*/*.yaml"))
+    # Glob: docs/features/*.yaml
+    feature_files = sorted(FEATURES_DIR.glob("*.yaml"))
     if not feature_files:
         print("WARNING: no feature YAML files found in docs/features/", file=sys.stderr)
         return 0
@@ -410,7 +409,7 @@ def main() -> int:
         model = Feature.model_validate(raw)
         model.contract_path = str(path.relative_to(ROOT))
         model.history_path = str(
-            path.parent / "history.md"
+            FEATURES_DIR / path.stem / "history.md"
         ).replace(str(ROOT) + "/", "")
         # Normalize to relative path from project root
         model.history_path = str(Path(model.history_path).relative_to(ROOT)) \

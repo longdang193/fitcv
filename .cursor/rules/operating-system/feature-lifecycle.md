@@ -138,6 +138,11 @@ Domains:
 Dependencies:
   - <if known>
 
+Affected docs:
+  - <exact docs/features/*.yaml or docs/*.md paths>
+
+Generated refresh required: yes | no
+
 Impacted layers: Data | Pipeline | API | UI | None
 Migration needed: yes | no
 Rollback complexity: low | medium | high
@@ -182,6 +187,8 @@ Trigger rollback when:
 ## Post-Execution Review
 
 Filled immediately after status transitions to `active`.
+
+Before a feature can be considered complete, name the exact feature contract, explanation/history docs, and generated outputs that were updated or intentionally left unchanged.
 
 ### Purpose
 

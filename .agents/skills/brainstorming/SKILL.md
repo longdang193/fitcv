@@ -30,17 +30,21 @@ It does NOT produce implementation.
 Before writing any spec or doc, align with the 5-layer system:
 
 ```text
-code/                        → real truth
-docs/features/*.yaml         → feature contract (current state)
-docs/features/<feature_id>/  → design + history
-docs/generated/              → discovery (auto)
-README.md                    → overview
+code/                       → real truth
+docs/features/*.yaml        → feature contract (current state)
+docs/features/<feature_id>/ → feature-specific explanation + history
+docs/*.md                   → cross-cutting explanation
+docs/generated/             → discovery (auto)
+README.md                   → overview
 ```
 
 Rules:
 
-- Specs live **inside the feature folder**
+- Specs live under `docs/superpowers/specs/`
 - Feature YAML must exist before spec (or be planned)
+- The spec must link back to the affected `docs/features/<feature_id>.yaml`
+- Feature-specific explanation/history belongs under `docs/features/<feature_id>/`
+- Cross-cutting explanation belongs under `docs/*.md`
 
 ---
 
@@ -73,6 +77,13 @@ Rules:
 
 - identify `feature_id`
 - classify: add / modify / replace
+- name doc targets:
+- feature contract → `docs/features/<feature_id>.yaml`
+- feature history → `docs/features/<feature_id>/history.md` or `none`
+- feature-specific docs → `docs/features/<feature_id>/<doc>.md` or `none`
+- cross-cutting docs → `docs/<doc>.md` or `none`
+- README → `README.md` or `none`
+- generated discovery → `docs/generated/<file>` or `none`
 - confirm:
 - new feature → create YAML
 - existing → update YAML
@@ -84,8 +95,9 @@ Rules:
 
 7. **Write spec**
 
-- save to `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<topic>-spec.md` and commit
+- save to `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<topic>-spec.md`
 - follow frontmatter rules
+- link the spec to the affected `docs/features/<feature_id>.yaml`
 
 8. **Spec review loop**
 
@@ -145,9 +157,11 @@ Each unit must answer:
 
 ## Spec Writing Rules
 
-- spec belongs to **feature directory**
+- spec belongs in `docs/superpowers/specs/`
 - YAML = current state
 - spec = explanation + design
+- spec must name the affected `docs/features/<feature_id>.yaml`
+- spec should name any feature-specific docs or cross-cutting docs it expects to be updated
 
 ### Required frontmatter
 
@@ -172,7 +186,7 @@ invariants:
 ## Anti-Patterns
 
 - writing spec before feature classification
-- writing spec outside feature folder
+- writing spec without linking the affected feature YAML
 - assuming `FEATURES.md`
 - mixing design + implementation
 - skipping YAML alignment

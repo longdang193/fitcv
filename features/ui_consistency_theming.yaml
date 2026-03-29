@@ -1,0 +1,57 @@
+feature_id: ui_consistency_theming
+name: "UI Consistency & Theming"
+version: 0.5.0
+status: building
+type: add
+summary: Shared design system and dark/light theme toggle across all admin pages.
+
+law: The admin UI has a shared design system so all pages feel like one coherent control plane. Admins can switch between dark and light themes.
+
+owner: fitcv_cp
+
+domains:
+  - admin_ui
+
+depends_on:
+  - admin_control_plane_core
+
+used_by: []
+
+entrypoints:
+  routes: []
+  templates:
+    - src/fitcv_cp/templates/base.html
+
+implementation:
+  files:
+    - src/fitcv_cp/templates/base.html
+    - src/fitcv_cp/templates/runs_list.html
+    - src/fitcv_cp/templates/run_detail.html
+    - src/fitcv_cp/templates/settings.html
+
+capabilities:
+  - CSS custom properties design tokens
+  - Shared component classes
+  - Dark/light theme toggle with localStorage persistence
+  - Flash-free theme application
+  - Consistent action hierarchy (primary, secondary, section)
+  - Human-readable section headings
+  - Attached-tab inspection card pattern
+  - Responsive wrapping
+
+spec_refs:
+  - docs/superpowers/specs/2026-03-26-admin-ui-consistency-and-theme-toggle-design.md
+  - docs/superpowers/specs/2026-03-27-settings-and-run-detail-composition-consistency-design.md
+
+plan_refs:
+  - docs/superpowers/plans/2026-03-26-admin-ui-consistency-and-theme-toggle-implementation.md
+  - docs/superpowers/plans/2026-03-27-settings-and-run-detail-composition-consistency-implementation.md
+
+history_ref: docs/features/history/ui_consistency_theming.md
+
+discovery_keywords:
+  - theming
+  - dark mode
+  - design system
+  - css tokens
+  - consistency

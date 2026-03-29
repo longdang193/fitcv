@@ -1,0 +1,67 @@
+feature_id: inspection_debugging
+name: "Inspection & Debugging"
+version: 1.2.0
+status: active
+type: add
+summary: "Admins can see what the pipeline did for a run: enriched jobs, filter outcomes, inputs used, and generated CVs."
+
+law: "Admins can see what the pipeline did for a run: enriched jobs, filter outcomes, inputs used, and generated CVs."
+
+owner: fitcv_cp
+
+domains:
+  - admin_ui
+  - run_orchestration
+
+depends_on:
+  - admin_control_plane_core
+
+used_by: []
+
+entrypoints:
+  routes:
+    - /runs/{run_id}
+  templates:
+    - src/fitcv_cp/templates/run_detail.html
+
+implementation:
+  files:
+    - src/fitcv/pipeline.py
+    - src/fitcv_cp/bq_store.py
+    - src/fitcv_cp/app.py
+    - src/fitcv_cp/templates/run_detail.html
+
+capabilities:
+  - Run detail page with 3-tab inspection interface
+  - Client-side tab switching
+  - Filter outcome display with reasons
+  - Pre-enrichment rejects visible separately
+  - Immutable snapshots for all trigger modes
+  - CV download links
+  - Client-side filtering, search, and pagination for large tables
+  - Job title as link label in generated outputs
+
+spec_refs:
+  - docs/superpowers/specs/2026-03-25-run-scoped-enrichment-inspection-design.md
+  - docs/superpowers/specs/2026-03-26-run-detail-inspection-tabs-design.md
+  - docs/superpowers/specs/2026-03-26-admin-run-inspection-and-json-inputs-design.md
+  - docs/superpowers/specs/2026-03-27-run-input-snapshot-consistency-design.md
+  - docs/superpowers/specs/2026-03-27-run-detail-results-and-large-table-usability-design.md
+
+plan_refs:
+  - docs/superpowers/plans/2026-03-25-run-scoped-enrichment-inspection-implementation.md
+  - docs/superpowers/plans/2026-03-26-run-detail-inspection-tabs-implementation.md
+  - docs/superpowers/plans/2026-03-26-admin-run-inspection-and-json-inputs-implementation.md
+  - docs/superpowers/plans/2026-03-27-run-input-snapshot-consistency-implementation.md
+  - docs/superpowers/plans/2026-03-27-run-detail-results-and-large-table-usability-implementation.md
+
+history_ref: docs/features/history/inspection_debugging.md
+
+discovery_keywords:
+  - inspection
+  - run detail
+  - debugging
+  - enriched jobs
+  - filter outcomes
+  - snapshots
+  - tabs
