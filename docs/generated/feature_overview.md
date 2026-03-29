@@ -21,12 +21,12 @@
 
 ```text
 admin_control_plane_core
-├── trigger_run_management
-│   └── multi_file_job_input
+├── cv_system
 ├── inspection_debugging
 ├── run_lifecycle_controls
 ├── settings_system
-│   └── cv_system
+├── trigger_run_management
+│   └── multi_file_job_input
 └── ui_consistency_theming
 
 pipeline_performance

@@ -1,0 +1,18 @@
+active:
+- admin_control_plane_core
+- bounded_parallel_enrichment
+- cv_system
+- inspection_debugging
+- multi_file_job_input
+- pipeline_performance
+- run_lifecycle_controls
+- settings_system
+- trigger_run_management
+- ui_consistency_theming
+building: []
+planned: []
+deprecated: []
+retired: []
+_meta:
+  generated_by: generate_features.py
+  note: 'status_order: [''active'', ''building'', ''planned'', ''deprecated'', ''retired'']'

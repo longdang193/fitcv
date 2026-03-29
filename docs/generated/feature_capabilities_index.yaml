@@ -1,0 +1,254 @@
+capabilities:
+- capability: Admin settings UI for CV configuration
+  feature_id: cv_system
+- capability: All-or-nothing rejection on validation failure
+  feature_id: multi_file_job_input
+- capability: Archive and unarchive terminal runs
+  feature_id: run_lifecycle_controls
+- capability: 'Archive filter: Active / All / Archived'
+  feature_id: trigger_run_management
+- capability: Attached-tab inspection card pattern
+  feature_id: ui_consistency_theming
+- capability: BigQuery-backed pipeline settings store
+  feature_id: settings_system
+- capability: CSS custom properties design tokens
+  feature_id: ui_consistency_theming
+- capability: CV composition model (visibility, detail level per section)
+  feature_id: cv_system
+- capability: CV composition settings
+  feature_id: settings_system
+- capability: CV download links
+  feature_id: inspection_debugging
+- capability: CV downloads
+  feature_id: trigger_run_management
+- capability: CV generation settings
+  feature_id: settings_system
+- capability: CV results banner on run detail
+  feature_id: trigger_run_management
+- capability: CV validation against composition rules
+  feature_id: cv_system
+- capability: Cancel queued runs directly from the queue via RQ
+  feature_id: run_lifecycle_controls
+- capability: Canonical merge preserving order
+  feature_id: multi_file_job_input
+- capability: Canonical snapshot capture for pasted and uploaded inputs
+  feature_id: trigger_run_management
+- capability: Client-side filtering, search, and pagination for large tables
+  feature_id: inspection_debugging
+- capability: Client-side tab switching
+  feature_id: inspection_debugging
+- capability: Compatibility projection for flat-to-nested migration
+  feature_id: cv_system
+- capability: Conservative defaults (batch_size=10, concurrency=1)
+  feature_id: bounded_parallel_enrichment
+- capability: Consistent action hierarchy (primary, secondary, section)
+  feature_id: ui_consistency_theming
+- capability: Content rules (evidence_grounded_only, JD terminology alignment)
+  feature_id: cv_system
+- capability: Cooperative cancellation at safe checkpoints for running jobs
+  feature_id: run_lifecycle_controls
+- capability: Dark/light theme toggle with localStorage persistence
+  feature_id: ui_consistency_theming
+- capability: Deterministic output order
+  feature_id: bounded_parallel_enrichment
+- capability: Explicit rejection reasons in rule_filter_results
+  feature_id: pipeline_performance
+- capability: Fallback path for unparseable responses
+  feature_id: pipeline_performance
+- capability: FastAPI web server
+  feature_id: admin_control_plane_core
+- capability: Filter outcome display with reasons
+  feature_id: inspection_debugging
+- capability: Flash-free theme application
+  feature_id: ui_consistency_theming
+- capability: Full audit trail in pipeline_run_events
+  feature_id: run_lifecycle_controls
+- capability: Gemini structured output with response_schema and Pydantic
+  feature_id: pipeline_performance
+- capability: Global job filters
+  feature_id: settings_system
+- capability: Grouped form validation
+  feature_id: settings_system
+- capability: Human-readable section headings
+  feature_id: ui_consistency_theming
+- capability: Immutable snapshots for all trigger modes
+  feature_id: inspection_debugging
+- capability: Jinja2 admin pages
+  feature_id: admin_control_plane_core
+- capability: Job title as link label in generated outputs
+  feature_id: inspection_debugging
+- capability: Multiple file inputs in trigger form
+  feature_id: multi_file_job_input
+- capability: One immutable snapshot stored per run
+  feature_id: multi_file_job_input
+- capability: Per-file server-side validation
+  feature_id: multi_file_job_input
+- capability: Per-job failure isolation
+  feature_id: bounded_parallel_enrichment
+- capability: Per-run overrides
+  feature_id: settings_system
+- capability: PipelineReporter integration
+  feature_id: admin_control_plane_core
+- capability: Pre-enrichment global filters run first
+  feature_id: bounded_parallel_enrichment
+- capability: Pre-enrichment global job filters (applications_count_max, max_age_days)
+  feature_id: pipeline_performance
+- capability: Pre-enrichment rejects visible separately
+  feature_id: inspection_debugging
+- capability: Preset registry for template binding
+  feature_id: cv_system
+- capability: RQ background worker integration
+  feature_id: admin_control_plane_core
+- capability: Ranking settings with cross-field validation
+  feature_id: settings_system
+- capability: Responsive wrapping
+  feature_id: ui_consistency_theming
+- capability: Retrieval settings
+  feature_id: settings_system
+- capability: Run detail page with 3-tab inspection interface
+  feature_id: inspection_debugging
+- capability: Runs list page with status badges, timestamps, and per-run action buttons
+  feature_id: trigger_run_management
+- capability: Server-side mode resolution
+  feature_id: trigger_run_management
+- capability: Settings schema registry
+  feature_id: settings_system
+- capability: Shared component classes
+  feature_id: ui_consistency_theming
+- capability: Stale cancellation repair endpoint
+  feature_id: run_lifecycle_controls
+- capability: 'Three candidate-profile modes: default_config, upload, paste'
+  feature_id: trigger_run_management
+- capability: 'Three job-input modes: path, upload, paste'
+  feature_id: trigger_run_management
+- capability: Timing and throttling settings
+  feature_id: settings_system
+- capability: Trigger-time effective settings snapshot
+  feature_id: settings_system
+- capability: enrichment_batch_size setting
+  feature_id: bounded_parallel_enrichment
+- capability: enrichment_concurrency setting
+  feature_id: bounded_parallel_enrichment
+- capability: insert-before-enqueue invariant
+  feature_id: admin_control_plane_core
+- capability: pipeline_run_events BigQuery table
+  feature_id: admin_control_plane_core
+- capability: pipeline_runs BigQuery table
+  feature_id: admin_control_plane_core
+keywords:
+  admin editable settings:
+  - settings_system
+  admin ui:
+  - admin_control_plane_core
+  api cost:
+  - pipeline_performance
+  archive:
+  - run_lifecycle_controls
+  - trigger_run_management
+  batch:
+  - bounded_parallel_enrichment
+  cancel:
+  - run_lifecycle_controls
+  composition:
+  - cv_system
+  concurrency:
+  - bounded_parallel_enrichment
+  config overrides:
+  - settings_system
+  consistency:
+  - ui_consistency_theming
+  control plane:
+  - admin_control_plane_core
+  cooperative cancellation:
+  - run_lifecycle_controls
+  css tokens:
+  - ui_consistency_theming
+  cv:
+  - cv_system
+  cv downloads:
+  - trigger_run_management
+  cv generation:
+  - cv_system
+  cv settings:
+  - settings_system
+  dark mode:
+  - ui_consistency_theming
+  debugging:
+  - inspection_debugging
+  design system:
+  - ui_consistency_theming
+  enriched jobs:
+  - inspection_debugging
+  enrichment:
+  - bounded_parallel_enrichment
+  - pipeline_performance
+  europass:
+  - cv_system
+  filter outcomes:
+  - inspection_debugging
+  global filters:
+  - pipeline_performance
+  inspection:
+  - inspection_debugging
+  job input:
+  - multi_file_job_input
+  lifecycle:
+  - run_lifecycle_controls
+  merge:
+  - multi_file_job_input
+  multi-file:
+  - multi_file_job_input
+  parallel:
+  - bounded_parallel_enrichment
+  parallel enrichment:
+  - pipeline_performance
+  paste:
+  - trigger_run_management
+  performance:
+  - pipeline_performance
+  pipeline runs:
+  - admin_control_plane_core
+  pipeline settings:
+  - settings_system
+  preset:
+  - cv_system
+  ranking settings:
+  - settings_system
+  reporter:
+  - admin_control_plane_core
+  resume:
+  - cv_system
+  run detail:
+  - inspection_debugging
+  run management:
+  - admin_control_plane_core
+  - trigger_run_management
+  runs list:
+  - trigger_run_management
+  schema registry:
+  - settings_system
+  settings:
+  - settings_system
+  snapshots:
+  - inspection_debugging
+  stop:
+  - run_lifecycle_controls
+  structured output:
+  - pipeline_performance
+  tabs:
+  - inspection_debugging
+  theming:
+  - ui_consistency_theming
+  throughput:
+  - bounded_parallel_enrichment
+  trigger:
+  - trigger_run_management
+  upload:
+  - multi_file_job_input
+  - trigger_run_management
+  worker:
+  - admin_control_plane_core
+_meta:
+  generated_by: generate_features.py
+  note: capabilities are verbatim from feature YAMLs; keywords are from feature keywords
+    fields.
