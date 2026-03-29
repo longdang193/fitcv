@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator
 
@@ -164,11 +164,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         return context
 
     def _is_stale_cancelling(run: PipelineRun) -> bool:
-        return (
-            run.status == RunStatus.CANCELLING
-            and run.started_at is None
-            and run.finished_at is None
-        )
+        if run.status != RunStatus.CANCELLING or run.finished_at is not None:
+            return False
+        if run.started_at is None:
+            return True
+        if run.cancel_requested_at is None:
+            return False
+        now = datetime.datetime.now(datetime.timezone.utc)
+        return (now - run.cancel_requested_at) >= datetime.timedelta(minutes=2)
 
     def _execute_trigger(jobs_path: str, config_path: str, triggered_by: str, config_overrides: dict[str, Any]) -> dict:
         # Build effective config: YAML → BQ settings → per-run overrides
@@ -704,7 +707,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             runs = list_runs(bq, project=project, dataset=dataset, include_archived=False)
         return templates.TemplateResponse(
             request=request, name="runs_list.html",
-            context={"runs": runs, "view": view}
+            context={"runs": runs, "view": view, "is_stale_cancelling": _is_stale_cancelling}
         )
 
     @app.post("/admin/runs/{run_id}/stop")
@@ -874,6 +877,21 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             row for row in filter_results
             if row["job_url"] not in enriched_job_urls and row.get("reasons")
         ]
+        deduplicated_before_enrichment: list[dict[str, str | list[str] | None]] = []
+        if run.results_export_json:
+            try:
+                export_payload = _json.loads(run.results_export_json)
+                deduplicated_before_enrichment = [
+                    {
+                        "job_url": row.get("job_url"),
+                        "job_title": row.get("job_title"),
+                        "reasons": row.get("reject_reasons") or [],
+                    }
+                    for row in export_payload.get("results", [])
+                    if row.get("pipeline_status") == "deduplicated_before_enrichment"
+                ]
+            except (_json.JSONDecodeError, TypeError, AttributeError):
+                deduplicated_before_enrichment = []
 
         # Build job title lookup: job_url → title (used for cv_versions generated output labels)
         job_title_by_url: dict[str, str] = {
@@ -911,17 +929,18 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "enriched_jobs": enriched_jobs,
                 "filter_results_by_job_url": filter_results_by_job_url,
                 "pre_enrichment_rejects": pre_enrichment_rejects,
+                "deduplicated_before_enrichment": deduplicated_before_enrichment,
                 "job_title_by_url": job_title_by_url,
                 "enriched_passed_count": enriched_passed_count,
                 "enriched_rejected_count": enriched_rejected_count,
                 "candidate_profile_parsed": candidate_profile_parsed,
                 "candidate_profile_pretty": candidate_profile_pretty,
+                "is_stale_cancelling": _is_stale_cancelling,
             }
         )
 
     @app.get("/admin/cvs/{version_id}/download")
     def download_cv(version_id: str):
-        from fastapi import Response
         content = get_cv_markdown(version_id, bq, project=project, dataset=dataset)
         if content is None:
             raise HTTPException(status_code=404, detail="CV not found")
@@ -929,6 +948,22 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             content=content,
             media_type="text/markdown",
             headers={"Content-Disposition": f'attachment; filename="cv_{version_id}.md"'}
+        )
+
+    @app.get("/admin/runs/{run_id}/export.json")
+    def download_run_results_json(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status != RunStatus.SUCCEEDED:
+            raise HTTPException(status_code=409, detail="Run results export is only available for succeeded runs")
+        if not run.results_export_json:
+            raise HTTPException(status_code=404, detail="Run results export is not available for this run")
+        pretty_json = _json.dumps(_json.loads(run.results_export_json), ensure_ascii=False, indent=2)
+        return Response(
+            content=pretty_json,
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-results.json"'},
         )
 
     return app

@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs
+from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, update_run_results_export
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import datetime
 import uuid
@@ -205,6 +205,7 @@ def test_row_to_run_handles_missing_input_metadata_fields() -> None:
     assert result.jobs_input_json is None
     assert result.candidate_profile_source is None
     assert result.candidate_profile_json is None
+    assert result.results_export_json is None
 
 
 # ── Lifecycle fields ────────────────────────────────────────────────────────
@@ -240,6 +241,30 @@ def test_insert_run_includes_queue_job_id():
     bq.query.assert_called_once()
     sql_arg = bq.query.call_args[0][0]
     assert "queue_job_id" in sql_arg
+
+
+def test_update_run_results_export_uses_parameterized_query() -> None:
+    bq = MagicMock()
+    update_run_results_export("rid", '{"results":[]}', bq, project="p", dataset="d")
+    bq.query.assert_called_once()
+    sql_arg = bq.query.call_args[0][0]
+    assert "rid" not in sql_arg
+    assert '"results":[]' not in sql_arg
+
+
+def test_row_to_run_maps_results_export_json() -> None:
+    from fitcv_cp.bq_store import _row_to_run
+
+    row = {
+        "run_id": "r3",
+        "status": "succeeded",
+        "jobs_path": "data/jobs.json",
+        "config_path": ".env.yaml",
+        "created_at": datetime.datetime.now(datetime.timezone.utc),
+        "results_export_json": '{"run_id":"r3","results":[]}',
+    }
+    result = _row_to_run(row)
+    assert result.results_export_json == '{"run_id":"r3","results":[]}'
 
 
 # ──  Lifecycle update helpers ───────────────────────────────────────────────

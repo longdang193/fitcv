@@ -34,6 +34,42 @@ def test_load_config_raises_for_missing_keys(tmp_path: Path) -> None:
         load_config(bad_yaml)
 
 
+def test_load_config_prefers_standard_env_vars_for_infra_keys(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: file-project\n"
+        "bigquery_dataset: file-dataset\n"
+        "service_account_key: file-key.json\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "  content_rules:\n"
+        "    evidence_grounded_only: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    monkeypatch.setenv("GCP_PROJECT", "env-project")
+    monkeypatch.setenv("BIGQUERY_DATASET", "env-dataset")
+    monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/tmp/env-key.json")
+
+    cfg = load_config(env_yaml)
+
+    assert cfg["gcp_project"] == "env-project"
+    assert cfg["bigquery_dataset"] == "env-dataset"
+    assert cfg["service_account_key"] == "/tmp/env-key.json"
+
+
 def test_get_vertex_location_prefers_vertex_location() -> None:
     cfg = {"location": "US", "vertex_location": "us-central1"}
     assert get_vertex_location(cfg) == "us-central1"

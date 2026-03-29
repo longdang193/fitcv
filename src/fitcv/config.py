@@ -30,6 +30,7 @@ Backward-compatibility projection (TEMPORARY — remove after plan 2 lands)
 """
 
 import logging
+import os
 from fitcv.cv_presets import SUPPORTED_PRESETS
 import warnings
 from pathlib import Path
@@ -58,6 +59,11 @@ _POLICY_FILES = [
 ]
 
 _DEFAULT_ENV_CANDIDATES = (".env.yaml", "config/env.yaml")
+_INFRA_ENV_OVERRIDES = {
+    "gcp_project": "GCP_PROJECT",
+    "bigquery_dataset": "BIGQUERY_DATASET",
+    "service_account_key": "GOOGLE_APPLICATION_CREDENTIALS",
+}
 
 
 def _load_yaml_file(path: Path) -> dict[str, Any]:
@@ -115,6 +121,15 @@ def _normalize_config_keys(cfg: dict[str, Any]) -> dict[str, Any]:
     return cfg
 
 
+def _apply_infra_env_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Prefer standard environment variables for portable runtime configuration."""
+    for cfg_key, env_key in _INFRA_ENV_OVERRIDES.items():
+        env_value = os.environ.get(env_key, "").strip()
+        if env_value:
+            cfg[cfg_key] = env_value
+    return cfg
+
+
 def load_config(path: str | Path | None = None) -> dict[str, Any]:
     """Load and validate config from .env.yaml, then merge policy YAML files.
 
@@ -154,6 +169,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
             cfg = _merge_missing_keys(cfg, _load_yaml_file(root_env_path))
 
     cfg = _normalize_config_keys(cfg)
+    cfg = _apply_infra_env_overrides(cfg)
 
     missing = [k for k in _REQUIRED_KEYS if k not in cfg]
     if missing:

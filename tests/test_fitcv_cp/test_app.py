@@ -347,6 +347,26 @@ def test_admin_run_detail_success_banner():
     assert "Refresh Status" in resp.text  # still present on run_detail page
 
 
+def test_admin_run_detail_shows_download_results_json_button():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
+        run_id="test-export-btn", status=RunStatus.SUCCEEDED,
+        cvs_generated=1, total_jobs=10, jobs_path="",
+        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
+        created_at=datetime.now(timezone.utc),
+        results_export_json='{"run_id":"test-export-btn","results":[]}',
+    )), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/test-export-btn")
+    assert resp.status_code == 200
+    assert 'href="/admin/runs/test-export-btn/export.json"' in resp.text
+    assert "Download Results JSON" in resp.text
+
+
 def test_admin_run_detail_warning_banner():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -373,6 +393,66 @@ def test_download_cv_endpoint_200():
 def test_download_cv_endpoint_404():
     with patch("fitcv_cp.app.get_cv_markdown", return_value=None):
         resp = TestClient(_app()).get("/admin/cvs/missing/download")
+    assert resp.status_code == 404
+
+
+def test_download_results_json_endpoint_200():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-export-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        results_export_json='{"run_id":"run-export-1","results":[]}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-export-1/export.json")
+    assert resp.status_code == 200
+    assert resp.json()["run_id"] == "run-export-1"
+    assert resp.headers["content-type"] == "application/json"
+    assert 'attachment; filename="fitcv-run-run-export-1-results.json"' in resp.headers["content-disposition"]
+    assert "\n  \"run_id\"" in resp.text
+
+
+def test_download_results_json_endpoint_409_for_running_run():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-export-2",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-export-2/export.json")
+    assert resp.status_code == 409
+
+
+def test_download_results_json_endpoint_404_if_snapshot_missing():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-export-3",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        results_export_json=None,
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-export-3/export.json")
     assert resp.status_code == 404
 
 
@@ -881,6 +961,23 @@ def test_admin_repair_cancellation_stale_run_returns_cancelled() -> None:
     assert mock_update_status.call_args.args[1].value == "cancelled"
 
 
+def test_admin_repair_cancellation_started_stale_run_returns_cancelled() -> None:
+    import datetime
+
+    run = _make_run_mock(status="cancelling")
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run.started_at = now - datetime.timedelta(minutes=15)
+    run.cancel_requested_at = now - datetime.timedelta(minutes=5)
+    run.finished_at = None
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/repair-cancellation")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "cancelled"
+    assert mock_update_status.call_args.args[1].value == "cancelled"
+
+
 def test_admin_repair_cancellation_running_run_returns_409() -> None:
     run = _make_run_mock(status="running")
     with patch("fitcv_cp.app.get_run", return_value=run):
@@ -988,6 +1085,19 @@ def test_runs_list_stale_cancelling_row_shows_repair_button():
     assert "Repair Status" in resp.text
 
 
+def test_runs_list_started_stale_cancelling_row_shows_repair_button():
+    import datetime
+
+    run = _make_full_run_mock(status="cancelling")
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run.started_at = now - datetime.timedelta(minutes=15)
+    run.cancel_requested_at = now - datetime.timedelta(minutes=5)
+    run.finished_at = None
+    with patch("fitcv_cp.app.list_runs", return_value=[run]):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert "Repair Status" in resp.text
+
+
 def test_runs_list_succeeded_row_shows_archive_button():
     run = _make_full_run_mock(status="succeeded")
     with patch("fitcv_cp.app.list_runs", return_value=[run]):
@@ -1048,6 +1158,24 @@ def test_run_detail_stale_cancelling_shows_repair_status() -> None:
     assert "Repair Status" in resp.text
 
 
+def test_run_detail_started_stale_cancelling_shows_repair_status() -> None:
+    import datetime
+
+    run = _make_full_run_mock(status="cancelling")
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run.started_at = now - datetime.timedelta(minutes=15)
+    run.cancel_requested_at = now - datetime.timedelta(minutes=5)
+    run.finished_at = None
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-ui-1")
+    assert resp.status_code == 200
+    assert "Repair Status" in resp.text
+
+
 # ── Component 1: app.py server-side enrichment ───────────────────────────────
 
 def _run_detail_patches(
@@ -1055,6 +1183,7 @@ def _run_detail_patches(
     cv_versions=None,
     enriched_jobs=None,
     filter_results=None,
+    results_export_json=None,
 ):
     import datetime
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -1066,6 +1195,7 @@ def _run_detail_patches(
         jobs_path="data/jobs.json",
         config_path=".env.yaml",
         created_at=datetime.datetime(2026, 3, 27, 9, 0, 0, tzinfo=datetime.timezone.utc),
+        results_export_json=results_export_json,
     )
     return (
         patch("fitcv_cp.app.get_run", return_value=run),
@@ -1074,6 +1204,32 @@ def _run_detail_patches(
         patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched_jobs or []),
         patch("fitcv_cp.app.list_filter_results_for_run", return_value=filter_results or []),
     )
+
+
+def test_run_detail_shows_deduplicated_before_enrichment_section():
+    import json as _json
+
+    export_payload = _json.dumps({
+        "results": [
+            {
+                "job_url": "https://jobs.example.com/2",
+                "job_title": "Duplicated Analyst",
+                "pipeline_status": "deduplicated_before_enrichment",
+                "reject_reasons": ["near_duplicate_job_posting"],
+            }
+        ]
+    })
+    patches = _run_detail_patches(
+        enriched_jobs=[{"job_url": "https://jobs.example.com/1", "title": "Kept Job", "domain": "d", "job_family": "f", "required_skills": [], "location_type": None, "seniority": None}],
+        filter_results=[{"job_url": "https://jobs.example.com/1", "passed": True, "reasons": []}],
+        results_export_json=export_payload,
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+    assert resp.status_code == 200
+    assert "Post-dedupe enriched jobs" in resp.text
+    assert "Deduplicated before enrichment: 1" in resp.text
+    assert "Duplicated Analyst" in resp.text
 
 
 def test_run_detail_cv_versions_show_job_title():
@@ -1120,6 +1276,53 @@ def test_run_detail_cv_versions_fallback_when_no_title():
         resp = TestClient(_app()).get("/admin/runs/run-detail-test")
     assert resp.status_code == 200
     assert "View Job" in resp.text
+
+
+def test_run_detail_zero_cvs_and_zero_ranked_shows_ranking_threshold_message():
+    import datetime as _dt
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-detail-zero-ranked",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
+        ranked=0,
+        cvs_generated=0,
+    )
+    patches = _run_detail_patches(cv_versions=[], enriched_jobs=[])
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-zero-ranked")
+    assert resp.status_code == 200
+    assert "No candidates passed the final AI ranking threshold." in resp.text
+
+
+def test_run_detail_zero_cvs_and_ranked_jobs_shows_post_ranking_message():
+    import datetime as _dt
+    from fitcv_cp.models import PipelineRun, RunStatus
+
+    run = PipelineRun(
+        run_id="run-detail-ranked-no-cv",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
+        ranked=2,
+        cvs_generated=0,
+    )
+    patches = _run_detail_patches(cv_versions=[], enriched_jobs=[])
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-ranked-no-cv")
+    assert resp.status_code == 200
+    assert "2 ranked job(s) did not produce a valid CV output." in resp.text
+    assert "No candidates passed the final AI ranking threshold." not in resp.text
 
 
 def test_run_detail_enriched_shows_summary_counts():

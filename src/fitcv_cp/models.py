@@ -49,6 +49,7 @@ class PipelineRun:
     error_message: Optional[str] = None
     error_stage: Optional[str] = None   # which stage the run failed at
     effective_settings_json: Optional[str] = None  # merged config snapshot at trigger time
+    results_export_json: Optional[str] = None      # immutable run-results export snapshot for completed runs
     # run-scoped input metadata
     jobs_input_source: Optional[str] = None           # "path" | "upload" | "paste"
     jobs_input_json: Optional[str] = None             # canonical resolved jobs-input snapshot for supported trigger modes in new runs

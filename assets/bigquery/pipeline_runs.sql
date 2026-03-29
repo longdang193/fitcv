@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS `{project}.{dataset}.pipeline_runs` (
   error_message   STRING,
   error_stage     STRING    OPTIONS(description="stage name where the run failed"),
   effective_settings_json STRING    OPTIONS(description="Merged config snapshot at trigger time"),
+  results_export_json STRING OPTIONS(description="Immutable run-results export snapshot for completed runs"),
   -- lifecycle controls
   queue_job_id          STRING    OPTIONS(description="RQ job id for queued run cancellation"),
   cancel_requested_at   TIMESTAMP,
