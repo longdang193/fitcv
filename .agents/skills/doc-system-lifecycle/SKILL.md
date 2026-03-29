@@ -1,206 +1,201 @@
 ---
 name: doc-system-lifecycle
-description: Apply whenever designing, updating, or auditing project documentation — encodes the 4-layer doc system, artifact conventions, frontmatter schema, size constraints, and sync principles. Enforces rules on NEW documents only; existing documents are grandfathered.
+description: Use for designing, updating, or auditing project docs. Defines the 5-layer doc system, naming, frontmatter, sync rules, and generated discovery. Applies to NEW documents; existing docs are grandfathered
 ---
 
-<SUPERPOWERS-SKILL>
+
+# Doc System Lifecycle
 
 ## When to Apply
 
-**Apply this skill whenever designing, updating, or auditing project documentation.**
+Apply when:
 
-This includes:
-
-- Creating or revising project docs (README, DESIGN, specs, plans)
-- Designing doc structure for a new project
-- Adding or modifying features
-- Reviewing docs for clarity, completeness, and consistency
+- creating or revising docs
+- designing doc structure
+- adding or changing features
+- changing architecture, routes, settings, or schemas
+- reviewing docs for clarity, discoverability, or consistency
 
 ## Core Principle
 
-> Docs are the project's memory system.
-> They must allow a reader (human or AI) to answer: **what exists, what is current, what changed, and why — without reading code.**
+> Documentation is the project’s navigation, discovery, and explanation system.  
+> It should let a human or agent answer: what exists, what is current, what changed, why it changed, and where the real source of truth lives.
 
-## The 4-Layer Doc System
+Docs should explain code, not mirror it.
 
-Every project should maintain these four layers:
+## 5-Layer Doc System
 
-| Layer | File | Purpose | Rule |
-|---|---|---|---|
-| **Overview** | `README.md` | Why + What + Navigation | Update when goals or major capabilities change |
-| **System** | `DESIGN.md` | Current architecture snapshot | Current state only (no history) |
-| **Lifecycle** | `FEATURES.md` | Feature lifecycle + evolution | Every significant change tracked; history accumulates |
-| **Decisions** | `/docs/decisions/` | Why decisions were made | Capture context, alternatives, consequences |
+```text
+code/                        → real truth
+docs/features/*.yaml         → structured truth
+docs/features/<feature_id>/  → explanation + history
+README.md                    → overview
+docs/generated/              → generated discovery
+````
 
-> `FEATURES.md` is the authoritative source for feature lifecycle (ADD/MODIFY/REPLACE types, status transitions, entry fields, and rollout rules). See `planning-dispatch` for how to manage feature entries.
+| Layer                 | Form                           | Purpose                   | Rule                                |
+| --------------------- | ------------------------------ | ------------------------- | ----------------------------------- |
+| Real Truth            | code                           | Actual behavior           | Deepest truth                       |
+| Structured Truth      | `docs/features/*.yaml`         | Current feature contracts | One small file per feature          |
+| Explanation + History | `docs/features/<feature_id>/*` | Design, flow, history     | Explain; do not duplicate code      |
+| Overview              | `README.md`                    | Purpose and navigation    | Entry point only                    |
+| Generated Discovery   | `docs/generated/*`             | Fast lookup               | Generated only; never edit manually |
 
----
+### Layer 1 — Code
 
-### Layer 1 — Overview (`README.md`)
+Authoritative for behavior, routes/APIs, and schema/data logic.
 
-Must answer in order:
+### Layer 2 — Feature YAML
 
-- **Why** — problem, purpose, value
-- **What** — what the system does (plain language)
-- **How to navigate** — where to find docs
+Authoritative for current feature state.
 
-Must NOT:
+Rules:
 
-- Describe code internals
-- Duplicate design details
-- Become stale
+- one file per real feature
+- current state only
+- small and stable
+- keep `depends_on`
+- generate inverse links like `used_by`
 
----
-
-### Layer 2 — System (`DESIGN.md`)
-
-- Represents **current system only**
-- No history, no rationale (belongs to DECISIONS)
-- Visual when possible: pipelines, architecture diagrams, data models
-
-> If the system changes → update `DESIGN.md` **before or alongside implementation**
-
----
-
-### Layer 3 — Lifecycle (`FEATURES.md`)
-
-- The single source of truth for feature lifecycle and history
-- Every significant change gets an entry before work begins
-- History accumulates here — do not delete or overwrite entries
-- Status transitions are the only state changes; every entry has a clear trail
-
----
-
-### Layer 4 — Decisions
-
-Store in `/docs/decisions/`.
-
-Each entry:
+Recommended shape:
 
 ```yaml
----
-date: YYYY-MM-DD-HH-MM
-decision:
-context:
-alternatives:
-consequences:
----
+feature_id:
+name:
+version:
+status:
+type:
+owner:
+summary:
+invariants: []
+domains: []
+depends_on: []
+capabilities: []
+refs:
+  docs: []
+  spec: []
+  plan: []
+  history:
+keywords: []
 ```
 
-> If a decision requires explanation → it must be recorded
+### Layer 3 — Explanation + History
 
----
+Use `docs/features/<feature_id>/` for focused docs: design, flow, spec, plan, ops notes, and history.
+
+Rules:
+
+- explanation, not duplication
+- current-state docs describe current behavior
+- rationale belongs here, not in YAML
+- prefer small focused docs over one large doc
+
+### Layer 4 — README
+
+Must answer:
+
+- Why
+- What
+- Where
+
+Must not become:
+
+- a feature registry
+- a design dump
+- a changelog
+
+### Layer 5 — Generated Discovery
+
+Required for fast lookup.
+
+Minimum outputs:
+
+```text
+docs/generated/features_index.yaml
+docs/generated/feature_overview.md
+```
+
+Add more only when needed, such as:
+
+- `feature_dependency_graph.yaml`
+- `feature_file_map.yaml`
+- `routes_index.yaml`
+- `settings_index.yaml`
+
+Rules:
+
+- generate from code/YAML/docs
+- never edit manually
+- not a source of truth
+- always point back to the source
 
 ## Artifact Conventions
 
-### When to Create Additional Artifacts
+| Situation                                         | Update                                  |
+| ------------------------------------------------- | --------------------------------------- |
+| Behavior changes                                  | code                                    |
+| Feature added/changed                             | `docs/features/*.yaml`                  |
+| Architecture or cross-feature explanation changes | docs                                    |
+| Purpose/navigation changes                        | `README.md`                             |
+| Feature history changes                           | `docs/features/<feature_id>/history.md` |
+| Lookup surfaces stale                             | regenerate `docs/generated/*`           |
 
-| Situation | Artifact | Rule |
-|---|---|---|
-| System goal, architecture, or navigation changes | Overview doc | Update existing README |
-| Architecture or pipeline changes | Design doc | Replace current-state snapshot |
-| Any significant feature or change | Feature entry in `FEATURES.md` | Add entry before work begins |
-| Design decision with rationale | Decision record in `/docs/decisions/` | Date-stamped, context + consequences |
-| Complex feature design | Spec in `docs/superpowers/specs/` | Only for non-trivial features |
-| Multi-step execution | Plan in `docs/superpowers/plans/` | Only if not obvious from code |
-| Schema change | Migration in `/docs/superpowers/migrations/` | Required if persistent data changes |
-| Investigation or failure | Log in `/docs/superpowers/logs/` | Only for meaningful learnings |
+## Naming
 
----
+- feature contract: `docs/features/<feature_id>/<feature_id>.yaml`
+- feature docs/history: `docs/features/<feature_id>/`
+- spec: `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<feature>-spec.md`
+- plan: `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<feature>-plan.md`
+- generated files: descriptive names under `docs/generated/`
 
-### Artifact Naming
-
-- Specs: `YYYY-MM-DD-HH-MM-<feature>-design.md`
-- Plans: `YYYY-MM-DD-HH-MM-<feature>-plan.md`
-- Decisions: `YYYY-MM-DD-HH-MM-<decision>.md`
-- Migrations: `YYYY-MM-DD-HH-MM-<change>.sql`
-
----
-
-### Frontmatter for Specs and Plans
-
-Every spec and plan must include this YAML frontmatter at the top:
+## Frontmatter for Specs and Plans
 
 ```yaml
 ---
 feature_type: modify   # add | modify | replace
-feature_name: <kebab-case-name>
-law: "<1-sentence business goal>"
-status: draft          # planned | draft | building | rollout | active | deprecated
+feature_name: run-input-snapshot-consistency
+status: building
+summary: "<1-sentence goal>"
 ---
 ```
 
-The `feature_name` must match the triage block's `feature_name`. The `status` must match the current lifecycle status.
+Optional:
 
----
+```yaml
+invariants:
+  - non-negotiable constraints
+```
 
-### Size Constraints
+## Sync Principle
 
-| Artifact | Maximum Size |
-|---|---|
-| Feature entry in `FEATURES.md` | 15 lines |
-| Decision record | 1 page |
-| Spec | 2 pages |
+- update code when behavior changes
+- update feature YAML before or with feature changes
+- update docs before or with design/reasoning changes
+- update README when navigation changes
+- regenerate `docs/generated/` whenever sources change
 
-If a spec exceeds 2 pages, consider whether it needs to be decomposed into sub-project specs.
-
----
-
-## Doc Sync Principle
-
-- `FEATURES.md` updated **before work begins**
-- `DESIGN.md` updated **before or with system change**
-- `/docs/decisions/` updated when reasoning matters
-- Docs must never lag behind system state
-
----
+If a fact is generated, update the source and regenerate.
 
 ## Cross-Reference Discipline
 
-- `FEATURES.md` ↔ SPEC ↔ PLAN ↔ DECISIONS
-- `README.md` links to `DESIGN.md` + `FEATURES.md`
-- No orphan documents
-
----
-
-## Optional Docs (Demand-Driven Only)
-
-Optional docs are created **only when needed**.
-
-| Doc | When to create |
-|---|---|
-| `API.md` | External interface exists |
-| `DATA.md` | Schema is complex or critical |
-| `EVAL.md` | ML / experiments exist |
-| `DEPLOYMENT.md` | Setup is non-trivial |
-| `USER_GUIDE.md` | Non-engineers use the system |
-
-> Do NOT create optional docs upfront. Create them when:
->
-> - an interface stabilizes
-> - confusion repeats
-> - another system depends on it
-
----
-
-## Migration Policy
-
-**This skill enforces rules on NEW documents only.**
-
-- Rules govern documents created after this skill is activated
-- Existing documents in `docs/superpowers/specs/` and `docs/superpowers/plans/` are **grandfathered** — correct as-is, not required to be rewritten
-- This skill does not flag existing documents as non-compliant
-- When editing an existing document, you may optionally bring it into compliance but must not be blocked by non-compliance
-
----
+- README links to key docs and generated discovery
+- feature YAML links to docs/spec/plan/history
+- generated indexes point to authoritative files
+- no orphan docs
+- no conflicting current-state sources
 
 ## Anti-Patterns
 
-- `README.md` describing code instead of purpose
-- `DESIGN.md` containing history or rationale
-- Feature implemented without `FEATURES.md` entry
-- Multiple conflicting sources of truth
-- Over-documentation (too many unused docs)
-- Docs written only after implementation
+- duplicating facts across code, YAML, docs, and generated files
+- putting long history into YAML
+- putting implementation detail into README
+- manually maintaining generated relationships
+- editing generated files manually
+- treating docs as more authoritative than code
+- changing code without updating feature YAML
 
-</SUPERPOWERS-SKILL>
+## Migration Policy
+
+Applies to NEW documents only.
+
+Existing docs are grandfathered. They do not need to be rewritten. When a feature YAML exists, it becomes the current structured truth for that feature.

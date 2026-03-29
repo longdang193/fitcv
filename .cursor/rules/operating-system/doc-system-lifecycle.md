@@ -2,185 +2,323 @@
 
 ## When to Apply
 
-**Apply this rule whenever designing, updating, or auditing project documentation.**
+Apply this rule whenever designing, updating, or auditing project documentation.
 
 This includes:
 
-- Creating or revising project docs (README, DESIGN, etc.)
-- Designing doc structure for a new project
-- Adding or modifying features
-- Reviewing docs for clarity, completeness, and consistency
+- creating or revising project docs
+- designing doc structure for a new project
+- adding or modifying features
+- changing architecture, routes, settings, or schemas
+- reviewing docs for clarity, discoverability, completeness, and consistency
+- ensuring both humans and agents can quickly find the right source
 
 ---
 
 ## Core Principle
 
-> Docs are the project's memory system.
-> They must allow a reader (human or AI) to answer: **what exists, what is current, what changed, and why — without reading code.**
+> Documentation is the project’s navigation, discovery, and explanation system.
+> It must allow a reader, human or AI, to answer:
+> **what exists, what is current, what changed, why it changed, and where the real source of truth lives.**
+
+Docs must not attempt to fully mirror code.
 
 ---
 
-## The 4-Layer Doc System
+## Source-of-Truth Model
 
-Every project should maintain these four layers:
+The system has five layers:
 
-| Layer         | File             | Purpose                       | Rule                                                          |
-| ------------- | ---------------- | ----------------------------- | ------------------------------------------------------------- |
-| **Overview**  | README.md        | Why + What + Navigation       | Update when goals or major capabilities change               |
-| **System**    | DESIGN.md        | Current architecture snapshot | Current state only (no history)                               |
-| **Lifecycle** | FEATURES.md      | Feature lifecycle + evolution | Every significant change is tracked; history accumulates here  |
-| **Decisions** | /docs/decisions/ | Why decisions were made       | Capture context, alternatives, and consequences               |
-
-> FEATURES.md is the authoritative source for feature lifecycle (ADD/MODIFY/REPLACE types, status transitions, entry fields, and rollout rules). See `operating-system/feature-lifecycle.md`.
-
----
-
-### Layer 1 — Overview (README)
-
-Must answer in order:
-
-- **Why** — problem, purpose, value
-- **What** — what the system does (plain language)
-- **How to navigate** — where to find docs
-
-Must NOT:
-
-- Describe code internals
-- Duplicate design details
-- Become stale
-
----
-
-### Layer 2 — System (DESIGN)
-
-- Represents **current system only**
-- No history, no rationale (belongs to DECISIONS)
-- Visual when possible: pipelines, architecture diagrams, data models
-
-> If the system changes → update DESIGN **before or alongside implementation**
-
----
-
-### Layer 3 — Lifecycle (FEATURES)
-
-- The single source of truth for feature lifecycle and history
-- Every significant change gets an entry before work begins
-- History accumulates here — do not delete or overwrite entries
-- Status transitions are the only state changes; every entry has a clear trail
-
----
-
-### Layer 4 — Decisions
-
-Store in `/docs/decisions/`.
-
-Each entry:
-
-```yaml
----
-date: YYYY-MM-DD-HH-MM
-decision:
-context:
-alternatives:
-consequences:
----
+```text
+code/            → real truth
+docs/features/*.yaml  → structured truth (current state)
+docs/features/<feature_id>/  → explanation and history
+README.md        → overview
+docs/generated/  → generated discovery
 ```
 
-> If a decision requires explanation → it must be recorded
+Rules:
+
+- **code** defines actual behavior
+- **feature YAML** defines what exists now
+- **docs** explain how and why
+- **README** helps navigation
+- **generated discovery** provides fast lookup surfaces for humans and agents
+
+Avoid duplicating the same fact manually across layers.
+
+---
+
+## The 5-Layer Doc System
+
+| Layer                   | Form               | Purpose                                   | Rule                                               |
+| ----------------------- | ------------------ | ----------------------------------------- | -------------------------------------------------- |
+| **Real Truth**          | code               | Actual implementation and behavior        | Deepest truth                                      |
+| **Structured Truth**    | `docs/features/*.yaml` | Current feature contracts               | One file per real feature; small and stable        |
+| **Explanation + History** | `docs/features/<feature_id>/*` | Architecture, flows, specs, plans, feature history | Explain how and why; feature history goes in its own directory
+| **Overview**            | `README.md`        | Purpose, scope, navigation                | Entry point only                                   |
+| **Generated Discovery** | `docs/generated/*` | Fast lookup surfaces                      | Generated from code/YAML/docs; never edit manually |
+
+---
+
+## Layer 1 — Real Truth (Code)
+
+Code is the authoritative source for:
+
+- execution behavior
+- routes and APIs
+- schemas and data logic
+- settings resolution
+- validation rules
+
+Rules:
+
+- if code and docs disagree, code wins
+- docs should explain code, not replicate it
+
+---
+
+## Layer 2 — Structured Truth (`docs/features/*.yaml`)
+
+Feature files are the authoritative source for **current feature state**.
+
+Rules:
+
+- one file per real feature
+- current state only
+- small, structured, and stable
+- avoid large volatile inventories unless truly necessary
+- maintain `depends_on`
+- do not manually maintain inverse relationships like `used_by`
+
+Recommended shape:
+
+```yaml
+feature_id:
+name:
+version:
+status:
+type:
+owner:
+summary:
+invariants: []
+domains: []
+depends_on: []
+capabilities: []
+refs:
+  docs: []
+  spec: []
+  plan: []
+  history:
+keywords: []
+```
+
+Guidance:
+
+- use `invariants`
+- keep YAML focused on identity and contract
+- do not turn feature YAML into a design document
+- keep feature history in the same directory: `docs/features/<feature_id>/`
+
+---
+
+## Layer 3 — Explanation + History (`docs/features/<feature_id>/*`)
+
+Docs explain the system.
+
+They include:
+
+- architecture
+- subsystem behavior
+- flows and pipelines
+- operational guidance
+
+Rules:
+
+- explanation, not duplication
+- current-state docs describe the current system
+- rationale belongs in docs, not YAML
+- prefer multiple focused docs over one large file
+
+Each feature directory contains its own explanation and history alongside its contract.
+
+If docs grow large, split by subsystem instead of expanding one giant file.
+
+---
+
+## Layer 4 — Overview (`README.md`)
+
+README is the entry point.
+
+Must answer:
+
+- **Why** — purpose and value
+- **What** — what the system does
+- **Where** — how to navigate
+
+Must not become:
+
+- feature registry
+- architecture dump
+- changelog
+
+---
+
+## Layer 5 — Generated Discovery (`docs/generated/`)
+
+Generated discovery artifacts are required lookup surfaces for humans and agents.
+
+Purpose:
+
+- accelerate navigation
+- improve retrieval
+- avoid repeated manual lookup
+- provide compact searchable summaries of current state
+
+Rules:
+
+- generated from code, feature YAML, and/or docs
+- never edited manually
+- not the primary source of truth
+- must always point back to the authoritative source
+- should favor compact, predictable, machine-friendly formats
+
+Every project should generate at least:
+
+```text
+docs/generated/features_index.yaml
+docs/generated/feature_overview.md
+```
+
+These provide:
+
+- list of all features
+- status and type
+- quick navigation entry points
+
+Add more generated artifacts only when real friction appears. Examples:
+
+- dependency unclear → `feature_dependency_graph.yaml`
+- ownership unclear → `feature_file_map.yaml`
+- too many routes → `routes_index.yaml`
+- too many settings → `settings_index.yaml`
+
+Do not generate these upfront.
+
+Generation guidance:
+
+- generate repetitive inventories instead of hand-maintaining them in prose
+- generate inverse relationships like `used_by`
+- generate indexes that help answer “where should I look?”
+- generated files should include a clear “do not edit manually” header when practical
 
 ---
 
 ## Artifact Conventions
 
-### When to Create Additional Artifacts
+### When to Update Which Layer
 
-| Situation                                        | Artifact                            | Rule                                 |
-| ------------------------------------------------ | ----------------------------------- | ------------------------------------ |
-| System goal, architecture, or navigation changes | Overview doc                        | Update existing README               |
-| Architecture or pipeline changes                 | Design doc                          | Replace current-state snapshot       |
-| Any significant feature or change                | Feature entry in FEATURES.md        | Add entry before work begins         |
-| Design decision with rationale                   | Decision record in /docs/decisions/ | Date-stamped, context + consequences |
-| Complex feature design                           | Spec in docs/specs/                 | Only for non-trivial features        |
-| Multi-step execution                             | Plan in docs/plans/                 | Only if not obvious from code        |
-| Schema change                                    | Migration in docs/migrations/       | Required if persistent data changes  |
-| Investigation or failure                         | Log in docs/logs/                   | Only for meaningful learnings        |
+| Situation                             | Update                           |
+| ------------------------------------- | -------------------------------- |
+| Behavior changes                      | code                             |
+| Feature added or changed              | `docs/features/*.yaml`             |
+| Architecture or cross-feature changes | `docs/*.md`                       |
+| Project purpose or navigation changes | `README.md`                       |
+| Feature evolution needs human history | `docs/features/<feature_id>/history.md` |
+| Lookup surfaces need refresh          | `docs/generated/*` via generator |
 
 ---
 
-### Artifact Naming
+## Naming Conventions
 
-- Specs: `YYYY-MM-DD-HH-MM-<feature>-design.md`
-- Plans: `YYYY-MM-DD-HH-MM-<feature>-plan.md`
-- Decisions: `YYYY-MM-DD-HH-MM-<decision>.md`
-- Migrations: `YYYY-MM-DD-HH-MM-<change>.sql`
+- feature contracts: `docs/features/<feature_id>/<feature_id>.yaml` (inside the feature directory alongside its explanation and history)
+- feature explanation and history: `docs/features/<feature_id>/` (one directory per feature; put the YAML contract alongside its history)
+- specs: `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<feature>-spec.md`
+- implementation plans: `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<feature>-plan.md`
+- generated artifacts: descriptive names under `docs/generated/`
+
+Keep naming predictable and searchable.
 
 ---
 
-### Frontmatter for Specs and Plans
-
-Every spec and plan should include:
+## Frontmatter for Specs and Plans
 
 ```yaml
 ---
 feature_type: modify   # add | modify | replace
 feature_name: run-input-snapshot-consistency
-law: "<1-sentence business goal>"
 status: building       # planned | draft | building | rollout | active | deprecated
+summary: "<1-sentence goal>"
 ---
+```
+
+Optional:
+
+```yaml
+invariants:
+  - non-negotiable constraints
 ```
 
 ---
 
-### Size Constraints
+## Sync Principle
 
-- Feature entry: ≤ 15 lines
-- Decision: ≤ 1 page
-- Spec: ≤ 2 pages
+- update code when behavior changes
+- update feature YAML before or with feature changes
+- update docs before or with architecture or reasoning changes
+- update README when purpose or navigation changes
+- regenerate `docs/generated/` whenever source layers change
+- docs must not lag behind the system
 
----
-
-## Optional Docs (Demand-Driven Only)
-
-Optional docs are created **only when needed**.
-
-| Doc           | When to create                |
-| ------------- | ----------------------------- |
-| API.md        | External interface exists     |
-| DATA.md       | Schema is complex or critical |
-| EVAL.md       | ML / experiments exist        |
-| DEPLOYMENT.md | Setup is non-trivial          |
-| USER_GUIDE.md | Non-engineers use the system  |
-
-> Do NOT create optional docs upfront. Create them when:
->
-> - an interface stabilizes
-> - confusion repeats
-> - another system depends on it
-
----
-
-## Doc Sync Principle
-
-- FEATURES updated **before work begins**
-- DESIGN updated **before or with system change**
-- DECISIONS updated when reasoning matters
-- Docs must never lag behind system state
+If a fact is generated, update the source and regenerate; do not hand-edit the generated artifact.
 
 ---
 
 ## Cross-Reference Discipline
 
-- FEATURES ↔ SPEC ↔ PLAN ↔ DECISIONS
-- README links to DESIGN + FEATURES
-- No orphan documents
+- `README.md` links to key docs and generated discovery surfaces
+- feature files link to docs, specs, plans, and history
+- feature directories link their contract to their history
+- generated indexes point back to authoritative files
+- no orphan docs
+- no conflicting current-state sources
 
 ---
 
 ## Anti-Patterns
 
-- README describing code instead of purpose
-- DESIGN containing history or rationale
-- Feature implemented without FEATURES entry
-- Multiple conflicting sources of truth
-- Over-documentation (too many unused docs)
-- Docs written only after implementation
+- one giant `docs/features/` directory (one file per feature instead)
+- duplicating the same fact across code, YAML, docs, and generated files
+- putting long history into feature YAML
+- putting implementation detail into README
+- manually maintaining inverse relationships that should be generated
+- editing generated artifacts manually
+- treating docs as more authoritative than code
+- updating code without updating feature YAML
+- letting generated discovery drift from its sources
+
+---
+
+## Practical Heuristics
+
+Default placement:
+
+- behavior → code
+- current feature state → `docs/features/*.yaml`
+- explanation and rationale → `docs/features/<feature_id>/` for feature-specific; `docs/*.md` for cross-cutting architecture
+- project entry point → `README.md`
+- fast lookup and retrieval surfaces → `docs/generated/*`
+
+When unsure, place information in the **deepest layer that owns it**, then generate any higher-level discovery view from that source.
+
+---
+
+## Minimum Healthy System
+
+A healthy project should have at least:
+
+- code as real truth
+- one YAML per major feature
+- docs explaining architecture or key subsystems
+- a README for purpose and navigation
+- generated discovery artifacts that index the current system

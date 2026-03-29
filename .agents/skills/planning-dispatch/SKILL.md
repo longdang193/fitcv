@@ -1,93 +1,101 @@
 ---
 name: planning-dispatch
-description: Apply at the start of any task that requires planning, implementation, or design work — encodes the triage gate and routing decision tree. Determines which skill to use and ensures FEATURES.md is read and triage is produced before any spec or plan is written.
+description: Apply at the start of any task requiring planning, design, or implementation — enforces the triage gate and routing decision tree. Determines the correct next skill and ensures feature YAML (`features/*.yaml`) is checked and a triage block is produced before any spec or plan is written.
 ---
-
-<SUPERPOWERS-SKILL>
+# Planning Dispatch
 
 ## When to Apply
 
-**Apply this skill at the start of any task that requires planning, implementation, or design work.**
+Apply this skill at the start of any task involving planning, design, or implementation routing.
 
-This rule determines which skill to use and how to structure the initial output before proceeding.
+It decides:
+
+- what to read first
+- whether the work is a managed feature change
+- which skill should handle the next step
 
 ## Core Principle
 
-> Plan before building.
-> Classify before planning.
-> Classify by reading `FEATURES.md` first.
+> Plan before building.  
+> Classify before planning.  
+> Classify by reading the current feature contract first.
+
+Read in this order:
+
+1. `code/`
+2. `features/*.yaml`
+3. `docs/*.md`
+4. `docs/generated/*`
+5. `README.md`
 
 ## Ownership Clarification
 
-This skill does **not** create specs or plans. It routes to the correct skill:
+This skill does **not** write specs or plans. It routes work.
 
-- **`brainstorming`** owns spec creation: it explores ideas, proposes designs, writes the design doc, and hands off to `writing-plans`.
-- **`planning-dispatch`** is invoked AFTER brainstorming approval — it produces the triage block and routes to `writing-plans`.
-- **`writing-plans`** receives a confirmed spec and produces the implementation plan.
+- **`brainstorming`** explores options, presents design, writes the spec, then hands off
+- **`planning-dispatch`** produces the triage block and routes to the next skill
+- **`writing-plans`** writes the implementation plan from a confirmed design/spec
 
 ## Pre-Planning Triage Gate
 
-Before using any planning skill, produce the pre-planning triage output. **This triage output must exist before any spec or plan is written. It is the gate.**
+Before writing a spec or plan, produce triage. This is the gate.
 
----
+### Step 1 — Find the current feature source
 
-### Step 1 — Read FEATURES.md
-
-- [ ] Read the current `FEATURES.md`
-- [ ] Check if a related feature already exists
-- [ ] If yes: this is MODIFY or REPLACE, not ADD
-- [ ] If no: this is ADD
-
----
+- [ ] Check `features/*.yaml` for an existing related feature
+- [ ] Use `docs/generated/*` only for lookup if needed
+- [ ] Read `docs/*.md` only if explanation or rationale is needed
+- [ ] If related feature exists: this is usually `MODIFY` or `REPLACE`
+- [ ] If not: this is `ADD`
 
 ### Step 2 — Produce Triage Block
 
-Fill in all fields. Every field is required.
+Required:
 
-```
+```text
 Feature type: ADD | MODIFY | REPLACE
+Summary: <1 sentence>
 Reasoning: <why this classification>
+Invariants:
+  - <must hold true>
+Dependencies:
+  - <if known>
+Docs needed: yes | no
+Spec needed: yes | no
+Plan needed: yes | no
+````
 
-Law: <1-sentence business goal>
+Optional for risky work:
 
-Decree:
-  must_reuse:
-    - <component that must not change>
-  must_not_break:
-    - <constraint that must hold>
-
-Impacted layers: Data | Pipeline | API | UI | None
+```text
+Rollback trigger:
+Rollback method:
 Migration needed: yes | no
-Rollback complexity: low | medium | high
 Risk level: low | medium | high
-Risk reason: <what makes this risky>
-Rollback trigger: <metric or condition>
 ```
 
 ### Triage Gate Rules
 
-- A spec cannot be written without a completed triage
-- A plan cannot be approved without a completed triage
-- The triage output goes at the top of every spec and plan
-- If `FEATURES.md` has not been updated with this feature entry, update it before proceeding
+- a spec cannot be written without triage
+- a plan cannot be written without triage
+- if an affected feature exists, its `features/<feature_id>.yaml` must be identified before proceeding
+- generated files are never the source of truth; use them only to find the source
 
 ## Routing Decision Tree
 
-After completing triage, route to the correct skill:
+After triage, route to the correct skill:
 
 ```text
-What are you doing?
+Exploring an idea or comparing approaches
+└── brainstorming
 
-Exploring idea, comparing approaches
-└── brainstorming → writes spec → handoff to writing-plans
+Design is clear enough; implementation plan needed
+└── writing-plans
 
-Writing spec (brainstorming output exists, triage complete)
-└── writing-plans → produces plan → handoff to execution
-
-Executing plan with checkpoints (approved plan exists)
+Approved plan exists; execute with checkpoints
 └── executing-plans
 
-Running multiple parallel independent workstreams
+Multiple independent workstreams
 └── dispatching-parallel-agents
 ```
 
@@ -95,39 +103,47 @@ Running multiple parallel independent workstreams
 
 ### New Feature Request
 
-1. Read `FEATURES.md`
-2. Classify using this skill's triage (ADD / MODIFY / REPLACE)
-3. Produce triage block → update `FEATURES.md` with the entry
-4. Dispatch: brainstorming → writing-plans → executing-plans
-5. If REPLACE: deprecate the old feature in the same cycle
+1. Check `features/*.yaml`
+2. Classify as `ADD`
+3. Produce triage
+4. Create or plan creation of the new feature YAML
+5. Dispatch: brainstorming → writing-plans → execution
+6. Refresh `docs/generated/*` after source changes
+
+### Existing Feature Change
+
+1. Find the existing feature YAML
+2. Classify as `MODIFY` or `REPLACE`
+3. Produce triage
+4. Update existing feature YAML or create replacement feature YAML
+5. Dispatch as needed
+6. Refresh `docs/generated/*` after source changes
 
 ### Bug Fix
 
-1. Read `FEATURES.md` to find the affected feature entry
-2. If the fix changes behavior → produce triage → follow MODIFY flow
-3. If it corrects a defect without behavior change → apply fix, document in the existing entry
+1. Check affected feature YAML
+2. If behavior changes meaningfully, follow `MODIFY`
+3. If not, fix code and update docs only if needed
 
 ### Exploration Before Commitment
 
-1. Use **brainstorming** to generate options and tradeoffs
-2. If direction is clear → produce triage → proceed to spec
-3. If unclear → present options before proceeding
+1. Use `brainstorming`
+2. Once direction is clear, produce triage
+3. Then route to spec/plan as needed
 
 ## Anti-Patterns
 
-- Writing a plan before reading `FEATURES.md` → leads to ADD when it should be MODIFY
-- Skipping the triage block and going straight to tasks
-- Using brainstorming when the question is "should we do this?" (use brainstorming for the design, but triage gate is still required first)
-- Using writing-plans when design is not finalized
-- Dispatching parallel agents when tasks have dependencies → sequence first, parallelize second
-- Creating a feature entry after the feature is already built (feature entries must be created before work begins)
+- planning before reading current feature YAML
+- skipping triage
+- writing a plan before the design is clear
+- using generated files as the source of truth
+- forgetting to refresh `docs/generated/*` after source-layer changes
+- creating or updating feature contracts after implementation instead of before or with it
 
 ## Related Skills
 
-- **`doc-system-lifecycle`**: governs the 4-layer doc system, frontmatter schema, artifact naming, and size constraints. Invoke it before writing any spec or plan.
-- **`brainstorming`**: explores ideas and writes the design spec. Invokes `planning-dispatch` after user approves the design.
-- **`writing-plans`**: produces the implementation plan from a confirmed spec. Invokes `planning-dispatch` at the top to confirm triage was passed.
-- **`subagent-driven-development`**: fast iteration with two-stage review. Recommended execution path after a plan is approved.
-- **`executing-plans`**: batch execution with checkpoints. Alternative execution path.
-
-</SUPERPOWERS-SKILL>
+- **`doc-system-lifecycle`**: governs the 5-layer doc system, naming, frontmatter, and generated discovery
+- **`brainstorming`**: explores ideas and writes the spec
+- **`writing-plans`**: writes the implementation plan
+- **`executing-plans`**: executes an approved plan
+- **`subagent-driven-development`**: recommended execution path when task-by-task delegation is helpful

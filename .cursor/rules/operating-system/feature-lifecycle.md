@@ -10,7 +10,7 @@ Every significant change to the system must have a lifecycle state.
 
 ## Core Principle
 
-> A feature does not exist until it has a FEATURES.md entry.
+> A feature does not exist until it has a `docs/features/*.yaml` entry.
 > A feature is not complete until it has a post-execution review.
 
 ---
@@ -42,7 +42,7 @@ Does this capability exist in the system?
 
 - New capability that has no existing equivalent
 - No backward compatibility concern
-- Requires: FEATURES.md entry, spec, plan, rollout tracking
+- Requires: `docs/features/*.yaml` entry, spec, plan, rollout tracking
 
 ---
 
@@ -50,7 +50,7 @@ Does this capability exist in the system?
 
 - Changes behavior of an existing feature
 - Backward compatibility must be maintained unless explicitly deprecated
-- Requires: FEATURES.md entry updating existing feature, migration plan if schema changes, rollback trigger
+- Requires: `docs/features/*.yaml` entry updating existing feature, migration plan if schema changes, rollback trigger
 
 ---
 
@@ -58,7 +58,7 @@ Does this capability exist in the system?
 
 - New capability that makes an existing one obsolete
 - Old feature must be marked deprecated with `replaced_by` pointing to the new one
-- Requires: FEATURES.md REPLACE entry, deprecation notice in old entry, migration path documented
+- Requires: `docs/features/*.yaml` REPLACE entry, deprecation notice in old entry, migration path documented
 
 ---
 
@@ -70,8 +70,8 @@ planned -> draft -> building -> rollout -> active -> deprecated
 
 | Status     | Meaning                                | Required Action                          |
 | ---------- | -------------------------------------- | ---------------------------------------- |
-| planned    | Idea exists; FEATURES.md entry created | Entry added with Law, Decree, Impact     |
-| draft      | Spec written; design finalized         | Spec linked in FEATURES.md entry         |
+| planned    | Idea exists; `docs/features/*.yaml` entry created | Entry added with invariants, domains   |
+| draft      | Spec written; design finalized         | Spec linked in `docs/features/*.yaml` entry  |
 | building   | Implementation started                 | Plan linked; tasks underway              |
 | rollout    | Staged release in progress             | Rollout plan active; % tracked in entry  |
 | active     | Post-execution review complete         | Lessons recorded; no open items          |
@@ -81,45 +81,40 @@ planned -> draft -> building -> rollout -> active -> deprecated
 
 ## Required Fields Per Entry
 
-Every FEATURES.md entry must contain:
+Every `docs/features/*.yaml` entry must contain:
 
 ```yaml
-Feature: <name>
-Version: <semver>
-Status: <lifecycle status>
+feature_id:
+name:
+version:
+status:          # planned | draft | building | rollout | active | deprecated
+type:            # ADD | MODIFY | REPLACE
 
-Law: <1-sentence business goal>
-Type: ADD | MODIFY | REPLACE
+summary:         # 1-sentence goal
+invariants: []  # non-negotiable constraints
 
-Decree:
-  must_reuse:
-    - <component that must not change>
-  must_not_break:
-    - <constraint that must hold>
+domains: []
+depends_on: []
+capabilities: []
 
-Impact:
-  Data:     <schema or data layer changes>
-  Pipeline: <pipeline changes>
-  API:      <API contract changes>
-  UI:       <UI changes>
+refs:
+  docs: []
+  spec: []
+  plan: []
+  history: []
 
-Dependencies:
-  - <prerequisite feature or component>
+keywords: []
+```
 
-Replaces:
-  - <if REPLACE: what it replaces>
+Additional fields for MODIFY and REPLACE:
 
-Rollout:
-  - <shadow mode / A/B / full rollout>
-  - rollback_trigger: <metric or condition>
-  - rollback_method: <how to revert>
+```yaml
+rollback_trigger: <metric or condition>
+rollback_method:  <how to revert>
 
-Post-Execution Review:
-  # filled after status -> active
-  Classification accurate: yes | no
-  Lessons:
-    - <what was learned>
-  FEATURES.md updated: yes
+replaced_by:      # only for deprecated
+deprecation_reason:
+migration_path:
 ```
 
 ---
@@ -132,13 +127,16 @@ Field definitions are in this section; planning-dispatch references them:
 ```
 Feature type: ADD | MODIFY | REPLACE
 Reasoning: <why this classification>
-Law: <1-sentence business goal>
+Summary: <1-sentence goal>
 
-Decree:
-  must_reuse:
-    - <component that must not change>
-  must_not_break:
-    - <constraint that must hold>
+Invariants:
+  - <must hold true>
+
+Domains:
+  - <affected domain(s)>
+
+Dependencies:
+  - <if known>
 
 Impacted layers: Data | Pipeline | API | UI | None
 Migration needed: yes | no
@@ -146,6 +144,7 @@ Rollback complexity: low | medium | high
 Risk level: low | medium | high
 Risk reason: <what makes this risky>
 Rollback trigger: <metric or condition>
+Rollback method: <how to revert>
 ```
 
 ---
@@ -176,7 +175,7 @@ Trigger rollback when:
 - Error rate increases beyond threshold
 - Output quality degrades (measurable)
 - A specific metric violates defined constraint
-- A decree constraint is violated
+- An invariant constraint is violated
 
 ---
 
@@ -188,7 +187,7 @@ Filled immediately after status transitions to `active`.
 
 - Validate classification correctness
 - Capture lessons while context is fresh
-- Update decree constraints if needed
+- Update invariants if needed
 - Improve future feature execution
 
 ---
@@ -199,9 +198,8 @@ Filled immediately after status transitions to `active`.
 Post-Execution Review:
   Classification accurate: yes | no | partially
 
-  Decree constraints valid:
-    must_reuse: still valid | wrong — <reason>
-    must_not_break: all held | one violated — <which, why>
+  Invariants valid:
+    all held | one violated — <which, why>
 
   Lessons:
     - <actionable lesson>
@@ -210,7 +208,7 @@ Post-Execution Review:
   Rule updates needed: yes | no
     - <which rule, what changed>
 
-  FEATURES.md updated: yes
+  docs/features/*.yaml updated: yes
 ```
 
 ---
@@ -228,10 +226,10 @@ A feature moves to `deprecated` when:
 ### Required Fields
 
 ```yaml
-Status: deprecated
-Replaced_by: <new feature name>
-Deprecation_reason: <why it was replaced>
-Migration_path: <how to migrate>
+status: deprecated
+replaced_by: <new feature_id>
+deprecation_reason: <why it was replaced>
+migration_path: <how to migrate>
 ```
 
 ---
@@ -242,5 +240,5 @@ Migration_path: <how to migrate>
 - Setting status to `active` without a post-execution review
 - MODIFY without defining rollback trigger and method upfront
 - REPLACE without marking the old feature as deprecated
-- Skipping Law/Decree fields (loses reasoning)
+- Skipping invariants fields (loses reasoning)
 - Treating `planned` as final — update if classification changes
