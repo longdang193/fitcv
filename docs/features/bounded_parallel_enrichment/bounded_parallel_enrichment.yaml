@@ -1,7 +1,7 @@
 bounded_parallel_enrichment:
   name: Bounded Parallel Enrichment
-  version: 0.1.0
-  status: planned
+  version: 1.0.0
+  status: active
   type: add
   summary: Enrichment runs in bounded parallel batches with admin-controlled concurrency settings.
   owner: fitcv

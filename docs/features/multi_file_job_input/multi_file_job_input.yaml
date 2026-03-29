@@ -1,7 +1,7 @@
 multi_file_job_input:
   name: Multi-File Job Input
-  version: 0.1.0
-  status: planned
+  version: 1.0.0
+  status: active
   type: add
   summary: Admins can upload multiple JSON job files in one trigger request.
   owner: fitcv_cp

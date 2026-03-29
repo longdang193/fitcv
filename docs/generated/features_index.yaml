@@ -13,8 +13,8 @@ features:
     history: docs/features/admin_control_plane_core/history.md
 
   - feature_id: bounded_parallel_enrichment
-    version: 0.1.0
-    status: planned
+    version: 1.0.0
+    status: active
     type: add
     owner: fitcv
     domains: [pipeline, api_optimization]
@@ -40,8 +40,8 @@ features:
     history: docs/features/inspection_debugging/history.md
 
   - feature_id: multi_file_job_input
-    version: 0.1.0
-    status: planned
+    version: 1.0.0
+    status: active
     type: add
     owner: fitcv_cp
     domains: [admin_ui, run_orchestration]
@@ -58,8 +58,8 @@ features:
     history: docs/features/pipeline_performance/history.md
 
   - feature_id: run_lifecycle_controls
-    version: 0.4.0
-    status: building
+    version: 1.0.0
+    status: active
     type: add
     owner: fitcv_cp
     domains: [admin_ui, run_orchestration]
@@ -85,8 +85,8 @@ features:
     history: docs/features/trigger_run_management/history.md
 
   - feature_id: ui_consistency_theming
-    version: 0.5.0
-    status: building
+    version: 1.0.0
+    status: active
     type: add
     owner: fitcv_cp
     domains: [admin_ui]
