@@ -1,7 +1,7 @@
 ui_consistency_theming:
   name: UI Consistency & Theming
-  version: 0.5.0
-  status: building
+  version: 1.0.0
+  status: active
   type: add
   summary: Shared design system and dark/light theme toggle across all admin pages.
   owner: fitcv_cp
