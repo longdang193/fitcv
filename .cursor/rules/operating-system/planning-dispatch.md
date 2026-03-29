@@ -115,6 +115,19 @@ Domains:
 Dependencies:
   - <if known>
 
+Affected docs:
+  feature_yaml: `docs/features/<feature_id>.yaml` | none
+  feature_history: `docs/features/<feature_id>/history.md` | none
+  feature_docs:
+    - `docs/features/<feature_id>/<doc>.md`
+  cross_cutting_docs:
+    - `docs/<doc>.md`
+  readme: `README.md` | none
+  generated:
+    - `docs/generated/<file>`
+
+Generated refresh required: yes | no
+
 Impacted layers: Data | Pipeline | API | UI | None
 Migration needed: yes | no
 Rollback complexity: low | medium | high
@@ -137,6 +150,7 @@ Keep triage short. It should help dispatch, not become a mini spec.
 - if the design is still unclear, use `brainstorming` first to generate options
 - if implementation is obvious, a spec may be skipped
 - triage should reference the current affected feature YAML when one exists
+- triage should name the exact doc targets, not just whether docs are needed
 
 ---
 
@@ -200,6 +214,7 @@ You should know:
 
 - classification (`ADD`, `MODIFY`, or `REPLACE`)
 - affected feature
+- affected docs
 - whether spec is needed
 - whether plan is needed
 
@@ -225,7 +240,9 @@ You must update:
 
 - code
 - `docs/features/*.yaml`
-- `docs/*.md` if needed
+- `docs/features/<feature_id>/` if feature-specific docs changed
+- `docs/*.md` if cross-cutting docs changed
+- `README.md` if navigation changed
 - `docs/generated/*` via generator
 
 ---

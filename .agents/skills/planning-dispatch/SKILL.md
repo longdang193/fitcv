@@ -1,6 +1,6 @@
 ---
 name: planning-dispatch
-description: Apply at the start of any task requiring planning, design, or implementation — enforces the triage gate and routing decision tree. Determines the correct next skill and ensures feature YAML (`features/*.yaml`) is checked and a triage block is produced before any spec or plan is written.
+description: Apply at the start of any task requiring planning, design, or implementation — enforces the triage gate and routing decision tree. Determines the correct next skill and ensures feature YAML (`docs/features/*.yaml`) is checked and a triage block is produced before any spec or plan is written.
 ---
 # Planning Dispatch
 
@@ -23,10 +23,11 @@ It decides:
 Read in this order:
 
 1. `code/`
-2. `features/*.yaml`
-3. `docs/*.md`
+2. `docs/features/*.yaml`
+3. `docs/features/<feature_id>/*`
 4. `docs/generated/*`
-5. `README.md`
+5. `docs/*.md`
+6. `README.md`
 
 ## Ownership Clarification
 
@@ -42,7 +43,7 @@ Before writing a spec or plan, produce triage. This is the gate.
 
 ### Step 1 — Find the current feature source
 
-- [ ] Check `features/*.yaml` for an existing related feature
+- [ ] Check `docs/features/*.yaml` for an existing related feature
 - [ ] Use `docs/generated/*` only for lookup if needed
 - [ ] Read `docs/*.md` only if explanation or rationale is needed
 - [ ] If related feature exists: this is usually `MODIFY` or `REPLACE`
@@ -60,7 +61,17 @@ Invariants:
   - <must hold true>
 Dependencies:
   - <if known>
-Docs needed: yes | no
+Affected docs:
+  feature_yaml: `docs/features/<feature_id>.yaml` | none
+  feature_history: `docs/features/<feature_id>/history.md` | none
+  feature_docs:
+    - `docs/features/<feature_id>/<doc>.md`
+  cross_cutting_docs:
+    - `docs/<doc>.md`
+  readme: `README.md` | none
+  generated:
+    - `docs/generated/<file>`
+Generated refresh required: yes | no
 Spec needed: yes | no
 Plan needed: yes | no
 ````
@@ -78,7 +89,8 @@ Risk level: low | medium | high
 
 - a spec cannot be written without triage
 - a plan cannot be written without triage
-- if an affected feature exists, its `features/<feature_id>.yaml` must be identified before proceeding
+- if an affected feature exists, its `docs/features/<feature_id>.yaml` must be identified before proceeding
+- triage should name the exact doc targets, not just whether docs are needed
 - generated files are never the source of truth; use them only to find the source
 
 ## Routing Decision Tree
@@ -103,7 +115,7 @@ Multiple independent workstreams
 
 ### New Feature Request
 
-1. Check `features/*.yaml`
+1. Check `docs/features/*.yaml`
 2. Classify as `ADD`
 3. Produce triage
 4. Create or plan creation of the new feature YAML
@@ -112,7 +124,7 @@ Multiple independent workstreams
 
 ### Existing Feature Change
 
-1. Find the existing feature YAML
+1. Find the existing `docs/features/<feature_id>.yaml`
 2. Classify as `MODIFY` or `REPLACE`
 3. Produce triage
 4. Update existing feature YAML or create replacement feature YAML

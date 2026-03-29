@@ -5,6 +5,10 @@ description: "Generate project plans in Markdown format with proper structure an
 
 # Project Plan Generation Skill
 
+## Status
+
+This skill is a compatibility layer. Prefer `writing-plans` when available.
+
 ## When to Apply
 
 **Only apply this rule when the user explicitly requests to create a plan, roadmap, implementation plan, or structured planning document.**
@@ -15,18 +19,39 @@ Do not apply this rule to general documentation or other file generation tasks.
 
 ### File Locations
 
-- **Main plans**: `./plans/<plan-name>.md` (kebab-case filenames)
-- **Supporting docs**: `./plans/audit/<doc-name>.md`
+- **Main plans**: `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<topic>-plan.md`
+- **Supporting docs**: `docs/superpowers/plans/audit/<doc-name>.md`
 - **All files MUST be `.md` format** (unless user explicitly requests otherwise)
 
 ### File Structure
 
 ```text
-./plans/
-    ├── <main-plan>.md
+docs/superpowers/plans/
+    ├── YYYY-MM-DD-HH-MM-<topic>-plan.md
     └── audit/
         └── <supporting-docs>.md
 ```
+
+### Doc-System Alignment
+
+Every plan must anchor to the source-of-truth layers:
+
+- `code/` → real truth
+- `docs/features/<feature_id>.yaml` → current feature contract
+- `docs/features/<feature_id>/` → feature-specific explanation and history
+- `docs/*.md` → cross-cutting explanation and rationale
+- `README.md` → navigation
+- `docs/generated/*` → generated discovery
+
+Before saving the plan, explicitly name:
+
+- the affected `docs/features/<feature_id>.yaml`
+- `docs/features/<feature_id>/history.md` or other focused docs under `docs/features/<feature_id>/`
+- any cross-feature docs under `docs/*.md`
+- `README.md` if navigation changes
+- generated outputs that must be refreshed
+
+Do not write a plan that says only "update docs". Name exact doc targets.
 
 ### Markdown Standards
 

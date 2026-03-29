@@ -20,11 +20,12 @@ Load the plan, review it critically, execute task by task, update source-of-trut
 During execution, keep these layers in sync:
 
 ```text
-code/            → real truth
-features/*.yaml  → structured truth
-docs/*.md        → explanation
-README.md        → overview
-docs/generated/  → generated discovery
+code/                       → real truth
+docs/features/*.yaml        → structured truth
+docs/features/<feature_id>/ → feature-specific explanation + history
+docs/*.md                   → cross-cutting explanation
+README.md                   → overview
+docs/generated/             → generated discovery
 ```
 
 Do not treat the plan as the source of truth.
@@ -37,7 +38,7 @@ The plan guides execution; the source layers must be updated as changes are comp
 ### Step 1: Load and Review Plan
 
 1. Read the plan file
-2. Read the linked spec and affected `features/<feature_id>.yaml`
+2. Read the linked spec and affected `docs/features/<feature_id>.yaml`
 3. Review critically for gaps, ambiguity, or missing prerequisites
 4. If concerns exist, raise them before starting
 5. If clear, create TodoWrite and proceed
@@ -52,8 +53,10 @@ For each task:
 4. Update affected source layers as part of the task:
 
 - code
-- `features/*.yaml` if current feature state changed
-- `docs/*.md` if explanation/history changed
+- `docs/features/*.yaml` if current feature state changed
+- `docs/features/<feature_id>/history.md` or other focused docs if feature-specific explanation/history changed
+- `docs/*.md` if cross-cutting explanation changed
+- `README.md` if navigation changed
 
 1. Mark task `completed`
 
@@ -91,11 +94,31 @@ Before execution is considered complete, the agent must update docs as needed.
 Minimum required checks:
 
 - if behavior changed → update code
-- if current feature state changed → update `features/*.yaml`
-- if explanation/history changed → update `docs/*.md`
+- if current feature state changed → update `docs/features/*.yaml`
+- if feature-specific explanation/history changed → update `docs/features/<feature_id>/`
+- if cross-cutting explanation changed → update `docs/*.md`
+- if navigation changed → update `README.md`
 - after source changes → regenerate `docs/generated/*`
 
 Do not finish execution with stale feature YAML or stale generated discovery.
+
+Before completion, list the exact files updated or intentionally left unchanged for:
+
+- `docs/features/<feature_id>.yaml`
+- `docs/features/<feature_id>/history.md`
+- any other focused docs under `docs/features/<feature_id>/`
+- any cross-feature docs under `docs/*.md`
+- `README.md`
+- regenerated `docs/generated/*`
+
+Use this completion checklist:
+
+- contract updated?
+- feature history updated?
+- other feature-specific docs updated?
+- cross-cutting docs updated?
+- README updated?
+- generated docs refreshed?
 
 ---
 

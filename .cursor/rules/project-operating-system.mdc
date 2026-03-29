@@ -6,7 +6,7 @@ alwaysApply: true
 These rules define the default project method for docs, features, and planning. Use them together.
 
 1. `operating-system/doc-system-lifecycle.md` — 5-layer doc system, source-of-truth model, naming, generated discovery
-2. `operating-system/feature-lifecycle.md` — feature classification, lifecycle states, `features/*.yaml`, review
+2. `operating-system/feature-lifecycle.md` — feature classification, lifecycle states, `docs/features/*.yaml`, review
 3. `operating-system/planning-dispatch.md` — triage, skill selection, dispatch flow
 
 ## How to Use
@@ -22,8 +22,16 @@ For any task involving planning, features, or docs:
 Use the source-of-truth model:
 
 ```text
-code/            → real truth
-features/*.yaml  → structured truth
-docs/*.md        → explanation
-README.md        → overview
-docs/generated/  → generated discovery
+code/                       → real truth
+docs/features/*.yaml        → structured truth
+docs/features/<feature_id>/ → feature-specific explanation + history
+docs/*.md                   → cross-cutting explanation
+README.md                   → overview
+docs/generated/             → generated discovery
+```
+
+Interpretation:
+
+- `docs/features/<feature_id>.yaml` is the current feature contract
+- `docs/features/<feature_id>/` holds feature-specific history and focused docs
+- `docs/*.md` is for cross-feature architecture, pipelines, setup, and shared operational guidance
