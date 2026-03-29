@@ -17,6 +17,39 @@ def test_worker_marks_succeeded_on_success():
     assert bq.query.call_count >= 2  # running + succeeded
 
 
+def test_worker_persists_results_export_json_on_success():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r1",
+        "total_jobs": 5,
+        "passed_filter": 3,
+        "ranked": 2,
+        "cvs_generated": 1,
+        "export_results": [{"job_url": "https://example.com/1", "pipeline_status": "ranked_with_cv"}],
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
+                             config_path=".env.yaml")
+
+    mock_store_export.assert_called_once()
+    stored_json = mock_store_export.call_args.args[1]
+    payload = json.loads(stored_json)
+    assert payload["run_id"] == "r1"
+    assert payload["summary"]["ranked"] == 2
+    assert payload["results"][0]["job_url"] == "https://example.com/1"
+
+
 def test_worker_marks_failed_on_exception():
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])

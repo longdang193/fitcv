@@ -10,7 +10,7 @@
     {% endif %}
     {% if run.status.value in ('queued', 'running') %}
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'stop', this)">Stop Run</button>
-    {% elif run.status.value == 'cancelling' and not run.started_at and not run.finished_at %}
+    {% elif is_stale_cancelling(run) %}
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'repair-cancellation', this)">Repair Status</button>
     {% elif run.status.value == 'cancelling' %}
       <span class="meta" title="Waiting for next pipeline checkpoint">Cancellation pending…</span>
@@ -20,6 +20,9 @@
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'unarchive', this)">Unarchive Run</button>
     {% endif %}
     <a href="/admin/runs/{{ run.run_id }}" class="btn-secondary">⟳ Refresh Status</a>
+    {% if run.status.value == 'succeeded' and run.results_export_json %}
+      <a href="/admin/runs/{{ run.run_id }}/export.json" class="btn-secondary">⬇ Download Results JSON</a>
+    {% endif %}
     <a href="/admin/runs" class="btn-secondary">← All Runs</a>
   </div>
 </div>
@@ -87,7 +90,12 @@
     {% endif %}
   {% else %}
     <p style="font-size:0.9rem;color:var(--badge-error-fg)">
-      <strong>0</strong> candidate CVs were generated. No candidates passed the final AI ranking threshold.
+      <strong>0</strong> candidate CVs were generated.
+      {% if run.ranked %}
+        {{ run.ranked }} ranked job(s) did not produce a valid CV output.
+      {% else %}
+        No candidates passed the final AI ranking threshold.
+      {% endif %}
     </p>
   {% endif %}
 </div>
@@ -106,9 +114,13 @@
   {% if enriched_jobs %}
   <!-- Summary counts -->
   <div style="display:flex;gap:1rem;padding:0.75rem 1.25rem;border-bottom:1px solid var(--accent);flex-wrap:wrap;align-items:center">
-    <span class="meta">Total: <strong>{{ enriched_jobs | length }}</strong></span>
+    <span class="meta">Post-dedupe enriched jobs: <strong>{{ enriched_jobs | length }}</strong></span>
     <span class="badge badge-success" style="padding:0.2rem 0.6rem;font-size:0.8rem">Passed: {{ enriched_passed_count }}</span>
     <span class="badge badge-error" style="padding:0.2rem 0.6rem;font-size:0.8rem">Rejected: {{ enriched_rejected_count }}</span>
+    {% if deduplicated_before_enrichment %}
+    <span class="badge badge-warning" style="padding:0.2rem 0.6rem;font-size:0.8rem">Deduplicated before enrichment: {{ deduplicated_before_enrichment | length }}</span>
+    {% endif %}
+    <span class="meta" style="margin-left:auto">This tab shows jobs after normalization dedupe.</span>
   </div>
   <!-- Filter + search controls -->
   <div id="enr-controls" style="display:flex;gap:0.75rem;padding:0.75rem 1.25rem;border-bottom:1px solid var(--accent);flex-wrap:wrap;align-items:center">
@@ -216,6 +228,40 @@
         {% for row in pre_enrichment_rejects %}
         <tr>
           <td><a href="{{ row.job_url }}" target="_blank" class="meta">{{ row.job_url }}</a></td>
+          <td class="field-error">{{ row.reasons | join(', ') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </details>
+</div>
+{% endif %}
+
+{% if deduplicated_before_enrichment %}
+<div class="section-card" style="margin:1.5rem 0;padding:0;overflow:hidden">
+  <details>
+    <summary style="padding:0.75rem 1.25rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;user-select:none">
+      <span class="badge badge-warning">↺ Deduplicated before enrichment</span>
+      <span class="badge badge-warning" style="border-radius:999px">{{ deduplicated_before_enrichment | length }}</span>
+      <span class="meta" style="margin-left:auto">Removed during normalization before enrichment/filtering.</span>
+    </summary>
+    <table>
+      <thead>
+        <tr>
+          <th>Job</th>
+          <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in deduplicated_before_enrichment %}
+        <tr>
+          <td>
+            {% if row.job_url %}
+            <a href="{{ row.job_url }}" target="_blank" class="meta">{{ row.job_title or row.job_url }}</a>
+            {% else %}
+            <span class="meta">{{ row.job_title or 'Unknown job' }}</span>
+            {% endif %}
+          </td>
           <td class="field-error">{{ row.reasons | join(', ') }}</td>
         </tr>
         {% endfor %}

@@ -173,6 +173,28 @@ def update_run_queue_job_id(
     bq.query(sql, job_config=job_config).result()
 
 
+def update_run_results_export(
+    run_id: str,
+    results_export_json: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    """Persist the immutable run-results export snapshot for a completed run."""
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET results_export_json = @results_export_json WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("results_export_json", "STRING", results_export_json),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    bq.query(sql, job_config=job_config).result()
+
+
 def request_run_cancel(
     run_id: str,
     requested_by: str,
@@ -278,6 +300,7 @@ def _row_to_run(row: Any) -> PipelineRun:
         error_message=r.get("error_message"),
         error_stage=r.get("error_stage"),
         effective_settings_json=r.get("effective_settings_json"),
+        results_export_json=r.get("results_export_json"),
         jobs_input_source=r.get("jobs_input_source"),
         jobs_input_json=r.get("jobs_input_json"),
         candidate_profile_source=r.get("candidate_profile_source"),

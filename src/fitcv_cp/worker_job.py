@@ -14,11 +14,12 @@ import json
 import logging
 import os
 import uuid
+from typing import Any
 
 from google.cloud import bigquery
 
 from fitcv.pipeline import PipelineCancelled, run_pipeline
-from fitcv_cp.bq_store import append_event, get_run, update_run_status
+from fitcv_cp.bq_store import append_event, get_run, update_run_results_export, update_run_status
 from fitcv_cp.models import RunEvent, RunStatus
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,56 @@ def _run_cancelled_event(run_id: str, message: str) -> RunEvent:
         message=message,
         created_at=datetime.datetime.now(datetime.timezone.utc),
     )
+
+
+def _build_results_export_payload(
+    *,
+    run_id: str,
+    run_record: Any,
+    summary: dict[str, Any],
+    export_results: list[dict[str, Any]],
+    finished_at: datetime.datetime,
+) -> str:
+    def _json_safe(value: Any) -> Any:
+        if isinstance(value, datetime.datetime):
+            return value.isoformat()
+        if isinstance(value, datetime.date):
+            return value.isoformat()
+        if isinstance(value, dict):
+            return {str(k): _json_safe(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [_json_safe(item) for item in value]
+        if isinstance(value, tuple):
+            return [_json_safe(item) for item in value]
+        if isinstance(value, set):
+            return [_json_safe(item) for item in sorted(value)]
+        return value
+
+    def _string_or_none(value: Any) -> str | None:
+        return value if isinstance(value, str) else None
+
+    def _iso_or_none(value: Any) -> str | None:
+        return value.isoformat() if isinstance(value, datetime.datetime) else None
+
+    payload = {
+        "run_id": run_id,
+        "status": RunStatus.SUCCEEDED.value,
+        "triggered_by": _string_or_none(getattr(run_record, "triggered_by", "")) or "",
+        "created_at": _iso_or_none(getattr(run_record, "created_at", None)),
+        "started_at": _iso_or_none(getattr(run_record, "started_at", None)),
+        "finished_at": finished_at.isoformat(),
+        "jobs_path": _string_or_none(getattr(run_record, "jobs_path", "")) or "",
+        "jobs_input_source": _string_or_none(getattr(run_record, "jobs_input_source", None)),
+        "candidate_profile_source": _string_or_none(getattr(run_record, "candidate_profile_source", None)),
+        "summary": {
+            "total_jobs": int(summary.get("total_jobs", 0)),
+            "passed_filter": int(summary.get("passed_filter", 0)),
+            "ranked": int(summary.get("ranked", 0)),
+            "cvs_generated": int(summary.get("cvs_generated", 0)),
+        },
+        "results": _json_safe(export_results),
+    }
+    return json.dumps(payload, ensure_ascii=False)
 
 
 def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
@@ -105,10 +156,28 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
         )
 
         # ── Step 5: Success ───────────────────────────────────────────────────
+        finished_at = datetime.datetime.now(datetime.timezone.utc)
         update_run_status(
             run_id, RunStatus.SUCCEEDED, bq, project=project, dataset=dataset,
-            finished_at=datetime.datetime.now(datetime.timezone.utc), summary=summary,
+            finished_at=finished_at, summary=summary,
         )
+        export_results = list(summary.get("export_results") or [])
+        try:
+            update_run_results_export(
+                run_id,
+                _build_results_export_payload(
+                    run_id=run_id,
+                    run_record=run_record,
+                    summary=summary,
+                    export_results=export_results,
+                    finished_at=finished_at,
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+        except Exception as exc:
+            logger.warning("[run_id=%s] Failed to persist results export snapshot: %s", run_id, exc)
 
     except PipelineCancelled as exc:
         # ── Step 5 (alt): Pipeline was cancelled at a checkpoint ──────────────

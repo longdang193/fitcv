@@ -12,6 +12,7 @@ Public API
 normalize_whitespace        : collapse excessive whitespace/newlines
 deduplicate_jobs            : exact dedupe by job_url
 deduplicate_near_duplicates : group by company_id + title + SHA-256(description)
+normalize_batch_with_exclusions : normalize + dedupe while tracking dropped rows
 parse_applications_count    : "61 applicants" → 61
 parse_salary                : "€45,000/yr - €55,000/yr" → {min, max, currency, period}
 normalize_job               : orchestrate cleaning on one job dict
@@ -73,6 +74,57 @@ def deduplicate_near_duplicates(jobs: list[dict[str, Any]]) -> list[dict[str, An
             seen.add(key)
             result.append(job)
     return result
+
+
+def normalize_batch_with_exclusions(
+    jobs: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Normalize and deduplicate jobs while tracking rows removed from the run.
+
+    Returns:
+        A tuple of:
+        - normalized jobs that continue in the pipeline
+        - excluded normalized jobs annotated with ``dedupe_reason`` and ``input_index``
+    """
+    normalized = [normalize_job(job) for job in jobs]
+
+    exact_kept_indices: set[int] = set()
+    excluded: list[dict[str, Any]] = []
+    seen_urls: set[str] = set()
+    for input_index, job in enumerate(normalized):
+        url = str(job.get("job_url", ""))
+        if url in seen_urls:
+            excluded.append({
+                **job,
+                "input_index": input_index,
+                "dedupe_reason": "duplicate_job_url",
+            })
+            continue
+        seen_urls.add(url)
+        exact_kept_indices.add(input_index)
+
+    final_kept: list[dict[str, Any]] = []
+    seen_keys: set[tuple[str, str, str]] = set()
+    for input_index, job in enumerate(normalized):
+        if input_index not in exact_kept_indices:
+            continue
+        key = (
+            str(job.get("company_id", "")),
+            str(job.get("title", "")),
+            _description_hash(str(job.get("description", ""))),
+        )
+        if key in seen_keys:
+            excluded.append({
+                **job,
+                "input_index": input_index,
+                "dedupe_reason": "near_duplicate_job_posting",
+            })
+            continue
+        seen_keys.add(key)
+        final_kept.append(job)
+
+    excluded.sort(key=lambda row: int(row.get("input_index", 0)))
+    return final_kept, excluded
 
 
 # ── applicationsCount parsing ─────────────────────────────────────────────────
@@ -189,7 +241,5 @@ def normalize_batch(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     2. Exact dedupe by job_url
     3. Near-duplicate dedupe by company_id + title + description hash
     """
-    normalized = [normalize_job(job) for job in jobs]
-    deduped = deduplicate_jobs(normalized)
-    deduped = deduplicate_near_duplicates(deduped)
+    deduped, _excluded = normalize_batch_with_exclusions(jobs)
     return deduped

@@ -42,7 +42,7 @@ from fitcv.enrich import enrich_batch, load_run_structured_jobs, load_structured
 from fitcv.evidence import retrieve_evidence
 from fitcv.gap_analysis import classify_fit, compute_gap
 from fitcv.ingest import load_to_bigquery, parse_jobs_file, prepare_raw_rows
-from fitcv.normalize import normalize_batch
+from fitcv.normalize import normalize_batch, normalize_batch_with_exclusions
 from fitcv.ranking import compute_final_score, rank_jobs, store_final_ranking
 from fitcv.rule_filter import (
     apply_pre_enrichment_global_filters,
@@ -55,6 +55,187 @@ from fitcv.vector_search import run_vector_search
 
 logger = logging.getLogger(__name__)
 _REPAIRABLE_VALIDATION_FIELDS = ("grounding_violations", "skill_violations")
+_EXPORT_ENRICHED_JOB_FIELDS = (
+    "seniority",
+    "required_skills",
+    "preferred_skills",
+    "responsibilities",
+    "tech_stack",
+    "years_experience_min",
+    "years_experience_max",
+    "keywords",
+    "job_family",
+    "description_cleaned",
+    "enrichment_version",
+    "enrichment_model",
+    "enriched_at",
+)
+_DEDUPE_REASON_LABELS = {
+    "duplicate_job_url": "duplicate_job_url",
+    "near_duplicate_job_posting": "near_duplicate_job_posting",
+}
+
+
+def _extract_job_url(job: dict[str, Any]) -> str:
+    return str(job.get("job_url") or job.get("jobUrl") or "")
+
+
+def _extract_job_title(job: dict[str, Any]) -> str:
+    return str(job.get("title") or job.get("job_title") or "")
+
+
+def _normalize_shortlist_row(shortlist_row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "vector_similarity": shortlist_row.get("vector_similarity", shortlist_row.get("similarity_score")),
+        "vector_rank": shortlist_row.get("vector_rank", shortlist_row.get("rank")),
+    }
+
+
+def _build_export_enriched_job(enriched_job: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not enriched_job:
+        return None
+    return {
+        key: enriched_job[key]
+        for key in _EXPORT_ENRICHED_JOB_FIELDS
+        if key in enriched_job
+    }
+
+
+def _build_export_results(
+    *,
+    raw_jobs: list[dict[str, Any]],
+    enriched: list[dict[str, Any]],
+    deduplicated_jobs: list[dict[str, Any]],
+    pre_filter_rejected: list[dict[str, Any]],
+    candidate_filter_rejected: list[dict[str, Any]],
+    passed_jobs: list[dict[str, Any]],
+    shortlist: list[dict[str, Any]],
+    ranking_inputs: list[dict[str, Any]],
+    ranked: list[dict[str, Any]],
+    cv_results: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    original_by_url = {_extract_job_url(job): job for job in raw_jobs if _extract_job_url(job)}
+    enriched_by_url = {_extract_job_url(job): job for job in enriched if _extract_job_url(job)}
+    passed_by_url = {_extract_job_url(job): job for job in passed_jobs if _extract_job_url(job)}
+    shortlist_by_url = {
+        _extract_job_url(job): _normalize_shortlist_row(job)
+        for job in shortlist
+        if _extract_job_url(job)
+    }
+    scoring_by_url = {_extract_job_url(job): job for job in ranking_inputs if _extract_job_url(job)}
+    ranked_by_url = {_extract_job_url(job): job for job in ranked if _extract_job_url(job)}
+    cv_by_url = {str(item["job_url"]): item for item in cv_results if item.get("job_url")}
+    deduplicated_by_input_index = {
+        int(job.get("input_index", -1)): job
+        for job in deduplicated_jobs
+        if job.get("input_index") is not None
+    }
+
+    reject_reasons_by_url: dict[str, list[str]] = {}
+    rejected_before_enrichment_urls: set[str] = set()
+    rejected_after_enrichment_urls: set[str] = set()
+    for rejected in pre_filter_rejected:
+        job_url = str(rejected.get("job_url") or "")
+        if not job_url:
+            continue
+        reject_reasons_by_url[job_url] = list(rejected.get("reasons") or [])
+        rejected_before_enrichment_urls.add(job_url)
+    for rejected in candidate_filter_rejected:
+        job_url = str(rejected.get("job_url") or "")
+        if not job_url:
+            continue
+        reject_reasons_by_url[job_url] = list(rejected.get("reasons") or [])
+        rejected_after_enrichment_urls.add(job_url)
+
+    def _status_for(job_url: str) -> str:
+        if job_url in cv_by_url:
+            return "ranked_with_cv"
+        if job_url in ranked_by_url:
+            return "ranked_no_cv"
+        if job_url in rejected_before_enrichment_urls:
+            return "rejected_before_enrichment"
+        if job_url in rejected_after_enrichment_urls:
+            return "rejected_after_enrichment"
+        if job_url in passed_by_url:
+            return "passed_not_ranked"
+        return "unknown_pipeline_state"
+
+    def _sort_key(row: dict[str, Any]) -> tuple[int, float, float, float, int, int]:
+        status = str(row["pipeline_status"])
+        category = {
+            "ranked_with_cv": 0,
+            "ranked_no_cv": 1,
+            "passed_not_ranked": 2,
+            "rejected_after_enrichment": 3,
+            "rejected_before_enrichment": 4,
+            "deduplicated_before_enrichment": 5,
+            "unknown_pipeline_state": 6,
+        }.get(status, 7)
+        scores = dict(row.get("scores") or {})
+        final_score = float(scores.get("final_score") or 0.0)
+        ai_score = float(scores.get("ai_score") or 0.0)
+        vector_score = float(scores.get("vector_score") or 0.0)
+        rank = int(row.get("rank") or 0) or 999999
+        input_index = int(row.get("_input_index") or 0)
+        return (category, -final_score, -ai_score, -vector_score, rank, input_index)
+
+    rows: list[dict[str, Any]] = []
+    for input_index, raw_job in enumerate(raw_jobs):
+        job_url = _extract_job_url(raw_job)
+        original_job = raw_job
+        enriched_job = enriched_by_url.get(job_url)
+        deduplicated_job = deduplicated_by_input_index.get(input_index)
+        score_source = {
+            **shortlist_by_url.get(job_url, {}),
+            **scoring_by_url.get(job_url, {}),
+            **ranked_by_url.get(job_url, {}),
+        }
+        cv_row = cv_by_url.get(job_url)
+        cv_payload = None
+        if cv_row is not None:
+            cv_payload = {
+                "version_id": cv_row.get("cv_version_id"),
+                "fit_classification": cv_row.get("fit_classification"),
+                "markdown": cv_row.get("cv_markdown"),
+                "created_at": cv_row.get("generated_at"),
+            }
+        pipeline_status = _status_for(job_url)
+        reject_reasons = reject_reasons_by_url.get(job_url, [])
+        if deduplicated_job is not None:
+            pipeline_status = "deduplicated_before_enrichment"
+            reject_reasons = [
+                _DEDUPE_REASON_LABELS.get(str(deduplicated_job.get("dedupe_reason") or ""), "deduplicated_before_enrichment")
+            ]
+            score_source = {}
+
+        rows.append(
+            {
+                "job_url": job_url,
+                "job_title": _extract_job_title(enriched_job or original_job or {}),
+                "company": (enriched_job or original_job or {}).get("company_name")
+                or (enriched_job or original_job or {}).get("companyName"),
+                "location_type": (enriched_job or {}).get("location_type"),
+                "domain": (enriched_job or {}).get("domain"),
+                "original_job": original_job,
+                "enriched_job": _build_export_enriched_job(enriched_job),
+                "pipeline_status": pipeline_status,
+                "reject_reasons": reject_reasons,
+                "scores": {
+                    "final_score": score_source.get("final_score"),
+                    "ai_score": score_source.get("ai_score"),
+                    "vector_score": score_source.get("vector_similarity"),
+                    "fit_label": score_source.get("fit_label"),
+                },
+                "rank": score_source.get("final_rank"),
+                "cv": cv_payload,
+                "_input_index": input_index,
+            }
+        )
+
+    rows.sort(key=_sort_key)
+    for row in rows:
+        row.pop("_input_index", None)
+    return rows
 
 
 class PipelineCancelled(Exception):
@@ -105,10 +286,13 @@ def build_ranking_features(
         if sl_row is None:
             continue  # not in shortlist — skip
 
+        vector_rank = sl_row.get("vector_rank", sl_row.get("rank"))
+        vector_similarity = sl_row.get("vector_similarity", sl_row.get("similarity_score"))
+
         feature: dict[str, Any] = {
             **ai_row,
-            "vector_rank": int(sl_row.get("rank") or 0),
-            "vector_similarity": float(sl_row.get("similarity_score") or 0.0),
+            "vector_rank": int(vector_rank or 0),
+            "vector_similarity": float(vector_similarity or 0.0),
         }
         # Compute deterministic final_score using the ranking module
         null_defaults: dict[str, float] = dict(config.get("ranking_null_defaults") or {
@@ -170,6 +354,13 @@ def run_pipeline(
     # ── Layer 1: ingest + normalise ───────────────────────────────────────────
     raw_jobs = parse_jobs_file(jobs_path)
     normalized = normalize_batch(raw_jobs)
+    _normalized_with_exclusions, deduplicated_jobs = normalize_batch_with_exclusions(raw_jobs)
+    if reporter is not None and deduplicated_jobs:
+        reporter.emit(  # type: ignore[union-attr]
+            "layer1_normalize",
+            "info",
+            f"Normalization dedupe: kept {len(normalized)} of {len(raw_jobs)} jobs, removed {len(deduplicated_jobs)} duplicate(s)",
+        )
 
     raw_rows = prepare_raw_rows(raw_jobs)
     load_to_bigquery(raw_rows, config)
@@ -240,6 +431,8 @@ def run_pipeline(
         if url in enriched_by_url
     ]
     rejected_jobs: list[dict[str, Any]] = list(combined_filter_result["rejected"])
+    candidate_filter_rejected_jobs: list[dict[str, Any]] = list(filter_result["rejected"])
+    pre_filter_rejected_jobs: list[dict[str, Any]] = list(pre_filter["rejected"])
     store_filter_results(combined_filter_result, run_id, config)
     if reporter is not None:
         reporter.emit("layer3_filter", "info", f"{len(passed_jobs)} passed rule filter")  # type: ignore[union-attr]
@@ -257,6 +450,8 @@ def run_pipeline(
         config,
         top_n=vector_top_n,
     )
+    if reporter is not None:
+        reporter.emit("layer3_shortlist", "info", f"Vector shortlist: {len(shortlist)} jobs")  # type: ignore[union-attr]
 
     ai_top_n = int(config["pipeline"]["ai_score_top_n"])
     from fitcv.vector_search import build_candidate_query_text
@@ -270,6 +465,8 @@ def run_pipeline(
         config,
         top_n=ai_top_n,
     )
+    if reporter is not None:
+        reporter.emit("layer3_ai_score", "info", f"AI scored: {len(ai_scores)} jobs")  # type: ignore[union-attr]
 
     ranking_inputs = build_ranking_features(shortlist, ai_scores, profile, config)
     final_top_n = int(config["pipeline"]["final_top_n"])
@@ -365,11 +562,20 @@ def run_pipeline(
                 "fit": fit,
                 "cv_version_id": version["version_id"],
                 "gap": gap,
+                "cv_markdown": cv,
+                "generated_at": version.get("generated_at"),
+                "fit_classification": fit,
             })
             logger.info("[run_id=%s] CV generated for %s (fit=%s)", run_id, job.get("job_url"), fit)
 
         except Exception as exc:  # per-job failure — log and skip, don't crash the run
             logger.error("[run_id=%s] Failed for %s: %s", run_id, job.get("job_url"), exc)
+            if reporter is not None:
+                reporter.emit(
+                    "layer4_cv_error",
+                    "error",
+                    f"CV generation failed for {job.get('job_url')}: {exc}",
+                )  # type: ignore[union-attr]
             continue
 
     summary: dict[str, Any] = {
@@ -378,8 +584,27 @@ def run_pipeline(
         "passed_filter": len(passed_jobs),
         "ranked": len(ranked),
         "cvs_generated": len(results),
+        "export_results": _build_export_results(
+            raw_jobs=raw_jobs,
+            enriched=enriched,
+            deduplicated_jobs=deduplicated_jobs,
+            pre_filter_rejected=pre_filter_rejected_jobs,
+            candidate_filter_rejected=candidate_filter_rejected_jobs,
+            passed_jobs=passed_jobs,
+            shortlist=shortlist,
+            ranking_inputs=ranking_inputs,
+            ranked=ranked,
+            cv_results=results,
+        ),
     }
     logger.info("Pipeline run complete [run_id=%s] summary=%s", run_id, summary)
     if reporter is not None:
-        reporter.emit("pipeline_complete", "info", str(summary))  # type: ignore[union-attr]
+        event_summary = {
+            "run_id": run_id,
+            "total_jobs": summary["total_jobs"],
+            "passed_filter": summary["passed_filter"],
+            "ranked": summary["ranked"],
+            "cvs_generated": summary["cvs_generated"],
+        }
+        reporter.emit("pipeline_complete", "info", str(event_summary))  # type: ignore[union-attr]
     return summary
