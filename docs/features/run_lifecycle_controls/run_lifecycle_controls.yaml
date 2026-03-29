@@ -1,0 +1,32 @@
+run_lifecycle_controls:
+  name: Run Lifecycle Controls
+  version: 0.4.0
+  status: building
+  type: add
+  summary: Admins can stop queued or running runs and archive or unarchive completed runs.
+  owner: fitcv_cp
+  domains:
+    - admin_ui
+    - run_orchestration
+  depends_on:
+    - admin_control_plane_core
+  capabilities:
+    - Cancel queued runs directly from the queue via RQ
+    - Cooperative cancellation at safe checkpoints for running jobs
+    - Stale cancellation repair endpoint
+    - Archive and unarchive terminal runs
+    - Full audit trail in pipeline_run_events
+  refs:
+    docs: []
+    spec:
+      - docs/superpowers/specs/2026-03-26-run-lifecycle-controls-design.md
+    plan:
+      - docs/superpowers/plans/2026-03-26-run-lifecycle-controls-implementation.md
+    history:
+      - docs/features/run_lifecycle_controls/history.md
+  keywords:
+    - cancel
+    - stop
+    - archive
+    - lifecycle
+    - cooperative cancellation

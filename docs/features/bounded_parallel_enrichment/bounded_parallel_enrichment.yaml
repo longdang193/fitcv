@@ -1,0 +1,33 @@
+bounded_parallel_enrichment:
+  name: Bounded Parallel Enrichment
+  version: 0.1.0
+  status: planned
+  type: add
+  summary: Enrichment runs in bounded parallel batches with admin-controlled concurrency settings.
+  owner: fitcv
+  domains:
+    - pipeline
+    - api_optimization
+  depends_on:
+    - pipeline_performance
+  capabilities:
+    - enrichment_batch_size setting
+    - enrichment_concurrency setting
+    - Pre-enrichment global filters run first
+    - Conservative defaults (batch_size=10, concurrency=1)
+    - Deterministic output order
+    - Per-job failure isolation
+  refs:
+    docs: []
+    spec:
+      - docs/superpowers/specs/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-design.md
+    plan:
+      - docs/superpowers/plans/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-implementation.md
+    history:
+      - docs/features/bounded_parallel_enrichment/history.md
+  keywords:
+    - parallel
+    - enrichment
+    - batch
+    - concurrency
+    - throughput

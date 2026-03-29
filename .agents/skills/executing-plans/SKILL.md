@@ -7,64 +7,139 @@ description: Use when you have a written implementation plan to execute in a sep
 
 ## Overview
 
-Load plan, review critically, execute all tasks, report when complete.
+Load the plan, review it critically, execute task by task, update source-of-truth docs as work lands, then finish the branch.
 
 **Announce at start:** "I'm using the executing-plans skill to implement this plan."
 
-**Note:** Tell your human partner that Superpowers works much better with access to subagents. The quality of its work will be significantly higher if run on a platform with subagent support (such as Claude Code or Codex). If subagents are available, use superpowers:subagent-driven-development instead of this skill.
+**If subagents are available:** prefer `superpowers:subagent-driven-development` for higher quality. Otherwise use this skill.
+
+---
+
+## Source-of-Truth Rule
+
+During execution, keep these layers in sync:
+
+```text
+code/            → real truth
+features/*.yaml  → structured truth
+docs/*.md        → explanation
+README.md        → overview
+docs/generated/  → generated discovery
+```
+
+Do not treat the plan as the source of truth.
+The plan guides execution; the source layers must be updated as changes are completed.
+
+---
 
 ## The Process
 
 ### Step 1: Load and Review Plan
-1. Read plan file
-2. Review critically - identify any questions or concerns about the plan
-3. If concerns: Raise them with your human partner before starting
-4. If no concerns: Create TodoWrite and proceed
+
+1. Read the plan file
+2. Read the linked spec and affected `features/<feature_id>.yaml`
+3. Review critically for gaps, ambiguity, or missing prerequisites
+4. If concerns exist, raise them before starting
+5. If clear, create TodoWrite and proceed
 
 ### Step 2: Execute Tasks
 
 For each task:
-1. Mark as in_progress
-2. Follow each step exactly (plan has bite-sized steps)
-3. Run verifications as specified
-4. Mark as completed
 
-### Step 3: Complete Development
+1. Mark it `in_progress`
+2. Follow plan steps exactly
+3. Run required verifications
+4. Update affected source layers as part of the task:
 
-After all tasks complete and verified:
+- code
+- `features/*.yaml` if current feature state changed
+- `docs/*.md` if explanation/history changed
+
+1. Mark task `completed`
+
+Do not postpone all doc updates until the end if the task changes current feature state.
+
+### Step 3: Final Sync and Verification
+
+After all tasks are complete:
+
+1. Run all final checks in the plan
+2. Confirm source layers are in sync:
+
+- code matches shipped behavior
+- feature YAML reflects current state
+- docs reflect final explanation/history where needed
+
+1. Regenerate `docs/generated/*`
+2. Verify generated files were not edited manually
+3. Review diffs for completeness
+
+### Step 4: Complete Development
+
+After code, docs, and generated discovery are all updated and verified:
+
 - Announce: "I'm using the finishing-a-development-branch skill to complete this work."
-- **REQUIRED SUB-SKILL:** Use superpowers:finishing-a-development-branch
-- Follow that skill to verify tests, present options, execute choice
+- **REQUIRED SUB-SKILL:** Use `superpowers:finishing-a-development-branch`
+- Follow that skill to verify tests, present options, and complete the branch
+
+---
+
+## Required Doc Update Rule
+
+Before execution is considered complete, the agent must update docs as needed.
+
+Minimum required checks:
+
+- if behavior changed → update code
+- if current feature state changed → update `features/*.yaml`
+- if explanation/history changed → update `docs/*.md`
+- after source changes → regenerate `docs/generated/*`
+
+Do not finish execution with stale feature YAML or stale generated discovery.
+
+---
 
 ## When to Stop and Ask for Help
 
-**STOP executing immediately when:**
-- Hit a blocker (missing dependency, test fails, instruction unclear)
-- Plan has critical gaps preventing starting
-- You don't understand an instruction
-- Verification fails repeatedly
+Stop immediately when:
 
-**Ask for clarification rather than guessing.**
+- blocked by missing dependency or access
+- plan has critical gaps
+- an instruction is unclear
+- verification fails repeatedly
+- feature/doc updates required by the change are unclear
 
-## When to Revisit Earlier Steps
+Ask instead of guessing.
 
-**Return to Review (Step 1) when:**
-- Partner updates the plan based on your feedback
-- Fundamental approach needs rethinking
+---
 
-**Don't force through blockers** - stop and ask.
+## When to Revisit Review
+
+Return to review when:
+
+- the plan is updated
+- the spec changed
+- the feature contract changed materially
+- the implementation approach no longer matches the plan
+
+---
 
 ## Remember
-- Review plan critically first
-- Follow plan steps exactly
-- Don't skip verifications
-- Reference skills when plan says to
-- Stop when blocked, don't guess
-- Never start implementation on main/master branch without explicit user consent
+
+- review first
+- execute task by task
+- do not skip verifications
+- keep source-of-truth layers updated during execution
+- regenerate `docs/generated/*` before finishing
+- stop when blocked
+- never implement on main/master without explicit user consent
+
+---
 
 ## Integration
 
 **Required workflow skills:**
-- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
-- **superpowers:writing-plans** - Creates the plan this skill executes
-- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+
+- `superpowers:using-git-worktrees` — set up isolated workspace before starting
+- `superpowers:writing-plans` — creates the plan
+- `superpowers:finishing-a-development-branch` — completes the work after execution

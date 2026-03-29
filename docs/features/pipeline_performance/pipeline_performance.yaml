@@ -1,0 +1,35 @@
+pipeline_performance:
+  name: Pipeline Performance
+  version: 1.1.0
+  status: active
+  type: modify
+  summary: Reduced API costs by filtering jobs before enrichment and using reliable structured output parsing.
+  owner: fitcv
+  domains:
+    - pipeline
+    - api_optimization
+  depends_on: []
+  capabilities:
+    - Pre-enrichment global job filters (applications_count_max, max_age_days)
+    - Explicit rejection reasons in rule_filter_results
+    - Gemini structured output with response_schema and Pydantic
+    - Fallback path for unparseable responses
+  refs:
+    docs:
+      - docs/FitCV-pipeline.md
+    spec:
+      - docs/superpowers/specs/2026-03-26-cheap-first-pipeline-narrowing-design.md
+      - docs/superpowers/specs/2026-03-26-gemini-structured-output-enrichment-design.md
+    plan:
+      - docs/superpowers/plans/2026-03-26-global-job-filters-implementation.md
+      - docs/superpowers/plans/2026-03-26-cheap-first-pipeline-narrowing-implementation.md
+      - docs/superpowers/plans/2026-03-26-gemini-structured-output-enrichment-implementation.md
+    history:
+      - docs/features/pipeline_performance/history.md
+  keywords:
+    - performance
+    - enrichment
+    - structured output
+    - global filters
+    - api cost
+    - parallel enrichment

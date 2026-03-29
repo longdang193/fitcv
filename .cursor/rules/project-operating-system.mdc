@@ -3,25 +3,27 @@ alwaysApply: true
 ---
 # Project Operating System Rules
 
-This set of rules cover the full project methodology for documentation,
-feature lifecycle, and planning dispatch. Read them together; they are
-designed to be applied as a unified system.
+These rules define the default project method for docs, features, and planning. Use them together.
 
-1. `operating-system/doc-system-lifecycle.md` — 4-layer doc system, artifact conventions, naming
-2. `operating-system/feature-lifecycle.md` — feature types, status lifecycle, triage, rollout, post-execution review
-3. `operating-system/planning-dispatch.md` — which skill to use when, triage gate, dispatch scenarios
+1. `operating-system/doc-system-lifecycle.md` — 5-layer doc system, source-of-truth model, naming, generated discovery
+2. `operating-system/feature-lifecycle.md` — feature classification, lifecycle states, `features/*.yaml`, review
+3. `operating-system/planning-dispatch.md` — triage, skill selection, dispatch flow
 
 ## How to Use
 
-When starting any task that involves planning, features, or documentation:
+For any task involving planning, features, or docs:
 
-1. Read all three files in `operating-system/` (they cross-reference each other)
-2. Apply them in order:
-   - Does it need a doc? → doc-system-lifecycle
-   - Does it need a feature entry? → feature-lifecycle
-   - Which skill dispatches it? → planning-dispatch
+1. Read the relevant rules.
+2. Apply them in this order:
+   - **Where does this belong?** → `doc-system-lifecycle`
+   - **Is this a managed feature change?** → `feature-lifecycle`
+   - **What is the lightest correct planning path?** → `planning-dispatch`
 
-## Rule Priority
+Use the source-of-truth model:
 
-- Project-specific rules override these.
-- These define the **default project methodology baseline**.
+```text
+code/            → real truth
+features/*.yaml  → structured truth
+docs/*.md        → explanation
+README.md        → overview
+docs/generated/  → generated discovery
