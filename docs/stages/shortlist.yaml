@@ -1,0 +1,36 @@
+shortlist:
+  stage_id: shortlist
+  name: Shortlist
+  summary: Turn passed jobs into a job-level scoring shortlist by retrieving unique `job_summary` hits, excluding raw-hit anomalies, and backfilling only passed jobs when needed.
+  boundaries:
+    - passed jobs and candidate query context enter and the scoring shortlist leaves
+    - raw retrieval rows are diagnostic inputs, not independent shortlist membership authority
+    - shortlist ranks and counts should be explainable at unique-job level here
+  inputs:
+    - passed jobs
+    - candidate query text
+    - raw vector search rows
+  outputs:
+    - unique-job raw vector hits
+    - scoring shortlist
+    - shortlist transition reasons including backfill and raw-hit anomalies
+    - bounded `stage_transition_artifacts.shortlist` runtime block with raw-row counts, unique-job counts, output samples, and changed-state samples
+  depends_on:
+    - rule_filter
+  primary_features:
+    - cv_system
+  related_features:
+    - inspection_debugging
+  refs:
+    docs: []
+    spec:
+      - docs/superpowers/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+    plan:
+      - docs/superpowers/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+    history: []
+  keywords:
+    - shortlist
+    - vector search
+    - retrieval
+    - backfill
+    - diagnostics
