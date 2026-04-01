@@ -1,9 +1,9 @@
 pipeline_performance:
   name: Pipeline Performance
-  version: 1.1.0
+  version: 1.2.0
   status: active
   type: modify
-  summary: Reduced API costs by filtering jobs before enrichment and using reliable structured output parsing.
+  summary: Reduced API costs by filtering jobs before enrichment, using reliable structured output parsing, and emitting raw-plus-canonical enrich outputs so downstream stages reuse one shared semantic contract.
   owner: fitcv
   domains:
     - pipeline
@@ -14,6 +14,9 @@ pipeline_performance:
     - Explicit rejection reasons in rule_filter_results
     - Gemini structured output with response_schema and Pydantic
     - Fallback path for unparseable responses
+    - Enrich-stage raw-plus-canonical semantic companions for repeated downstream fields
+    - Canonical skill companion lists and entity payloads for required/preferred skills
+    - Enrich-stage mapping suggestion capture for review/debug surfaces
   refs:
     docs:
       - docs/FitCV-pipeline.md

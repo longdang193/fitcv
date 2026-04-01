@@ -1,6 +1,6 @@
 cv_system:
   name: CV System
-  version: 1.11.0
+  version: 1.11.1
   status: active
   type: add
   summary: CV generation uses a structured preset-based configuration, keeps reranker fit as the sole post-filter fit authority, validates structured and markdown sections against one shared section contract, persists both a schema-versioned structured CV artifact and rendered markdown, and supports richer bounded stage-transition plus settings-used artifacts for runtime inspection.
@@ -32,6 +32,7 @@ cv_system:
     - Phase 1 active ranking contract limited to runtime-computed `ai_score` and `vector_similarity`
     - Reranker fit is the sole post-filter authority for ranking-time fit and CV-generation eligibility
     - Gap analysis provides grounded explanation/support context without acting as a competing fit classifier
+    - Ranking and later CV-facing inspection can reuse enrich-stage canonical skill companions instead of reinterpreting raw required-skill phrases
     - Structured normalization and markdown validation share one config-driven required-section contract with bounded completeness checks
     - Run summaries emit bounded stage-transition artifact blocks for `normalize`, `enrich`, `rule_filter`, `shortlist`, `ranking`, and `cv_generation`
     - Stage-transition artifacts now preserve bounded input, output, and changed-state context per stage rather than summary-only stage results

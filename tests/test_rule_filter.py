@@ -222,6 +222,16 @@ def test_must_have_skills_case_insensitive() -> None:
     )
 
 
+def test_must_have_skills_prefers_canonical_skill_list_when_present() -> None:
+    assert check_must_have_skills(
+        _job(
+            required_skills=["Python programming for data science"],
+            required_skills_canonical=["python"],
+        ),
+        _prefs(must_have_skills=["Python"]),
+    )
+
+
 # ── freshness (now reads from global_settings) ───────────────────────────────
 
 def _gs(**kwargs) -> dict:

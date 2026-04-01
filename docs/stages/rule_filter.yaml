@@ -5,6 +5,7 @@ rule_filter:
   boundaries:
     - deterministic pass/reject ownership belongs to this stage
     - reject reasons should be finalized here
+    - canonical enrich outputs should be consumed here instead of reinterpreting raw extracted phrases when available
     - later stages should only consider the passed set as retrieval-eligible
   inputs:
     - enriched job rows

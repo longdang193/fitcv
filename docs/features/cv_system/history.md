@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 1.11.1 — active
+
+- Ranking can now prefer enrich-stage canonical required-skill companions when computing must-have overlap
+- This rollout keeps CV-generation authority unchanged while reducing repeated raw-skill reinterpretation upstream of CV composition
+
 ### 1.11.0 — active
 
 - Stage-transition artifacts now preserve bounded input, output, and changed-state context for `normalize`, `enrich`, `rule_filter`, `shortlist`, `ranking`, and `cv_generation`

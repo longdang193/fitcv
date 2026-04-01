@@ -511,7 +511,26 @@ def list_run_structured_jobs(
         use_query_cache=False,
     )
     rows = bq.query(sql, job_config=job_config).result()
-    return [dict(row.items()) for row in rows]
+    results: list[dict[str, Any]] = []
+    json_fields = (
+        "required_skill_entities_json",
+        "preferred_skill_entities_json",
+        "mapping_suggestions_json",
+    )
+    for row in rows:
+        row_dict = dict(row.items())
+        for field_name in json_fields:
+            raw_value = row_dict.get(field_name)
+            if isinstance(raw_value, str) and raw_value.strip():
+                try:
+                    parsed_value = json.loads(raw_value)
+                except json.JSONDecodeError:
+                    parsed_value = None
+            else:
+                parsed_value = None
+            row_dict[field_name.removesuffix("_json")] = parsed_value
+        results.append(row_dict)
+    return results
 
 
 def list_filter_results_for_run(

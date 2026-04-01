@@ -218,8 +218,13 @@ def check_must_have_skills(
     must_haves = prefs.get("must_have_skills", [])
     if not must_haves:
         return True
+    canonical_job_skills = job.get("required_skills_canonical")
+    if isinstance(canonical_job_skills, list) and canonical_job_skills:
+        job_skills = canonical_job_skills
+    else:
+        job_skills = job.get("required_skills") or []
     job_skills_canonical = {
-        _canonicalise_skill(s, config) for s in (job.get("required_skills") or [])
+        _canonicalise_skill(s, config) for s in job_skills
     }
     return all(_canonicalise_skill(skill, config) in job_skills_canonical for skill in must_haves)
 

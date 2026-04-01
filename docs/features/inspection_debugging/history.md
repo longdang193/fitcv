@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 1.9.2 — active
+
+- Run-scoped enriched-job reads now deserialize canonical skill entity JSON companions and mapping suggestions for inspection/debug surfaces
+- Enriched exports can carry raw-plus-canonical enrich context without forcing downstream readers to reinterpret those JSON blobs manually
+
 ### 1.9.1 — active
 
 - Newly generated stage-transition artifacts now report `schema_version: "stage_transition_artifacts_v3"` so the six-feature ranking artifact shape is version-detectable

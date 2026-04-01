@@ -1,6 +1,6 @@
 inspection_debugging:
   name: Inspection & Debugging
-  version: 1.9.1
+  version: 1.9.2
   status: active
   type: add
   summary: "Admins can see what the pipeline did for a run: enriched jobs, filter outcomes, inputs used, generated CVs, and explicit stage-local decision detail from run exports, richer stage-transition artifacts, settings-used snapshots, and CV debug snapshots."
@@ -37,6 +37,7 @@ inspection_debugging:
     - CV-generation debug snapshots separate authoritative ranking fit from explanatory gap output
     - Shortlist artifacts now distinguish raw vector row counts from unique-job raw-hit counts
     - Shortlist debug payloads now report observed raw-hit status without overstating retrieval root causes
+    - Run-scoped enriched job rows can now include canonical skill companions and parsed mapping suggestions for richer inspection/debug export
   refs:
     docs: []
     spec:
