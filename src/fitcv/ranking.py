@@ -1,4 +1,4 @@
-"""Composite final ranking — weighted combination of rule filters, vector similarity, and AI score.
+"""Composite final ranking — weighted combination of supported runtime ranking features.
 
 Public API
 ----------
@@ -6,6 +6,8 @@ compute_must_have_match  : compute ratio of candidate skills to required job ski
 compute_seniority_fit    : map seniority closeness to [0.0, 1.0]
 compute_title_relevance  : compute token overlap between job title and candidate target role
 compute_preference_fit   : compute overlap of preferred domains/locations
+get_active_ranking_weights          : resolve config weights for the supported runtime contract
+get_active_missing_value_defaults   : resolve missing-value defaults for supported features
 compute_final_score      : compute weighted sum of features using config weights
 rank_jobs                : sort jobs by final_score (then ai_score, then vector similarity)
 store_final_ranking      : persist ranked list to BigQuery (integration)
@@ -13,6 +15,63 @@ store_final_ranking      : persist ranked list to BigQuery (integration)
 
 from datetime import datetime, timezone
 from typing import Any
+
+SUPPORTED_RANKING_FEATURES = (
+    "ai_score",
+    "must_have_match",
+    "vector_similarity",
+    "title_relevance",
+    "seniority_fit",
+    "preference_fit",
+)
+DEFAULT_ACTIVE_RANKING_WEIGHTS = {
+    "ai_score": 0.40,
+    "must_have_match": 0.20,
+    "vector_similarity": 0.15,
+    "title_relevance": 0.10,
+    "seniority_fit": 0.10,
+    "preference_fit": 0.05,
+}
+DEFAULT_ACTIVE_MISSING_VALUE_DEFAULTS = {
+    "ai_score": 0.0,
+    "must_have_match": 0.5,
+    "vector_similarity": 0.0,
+    "title_relevance": 0.5,
+    "seniority_fit": 0.5,
+    "preference_fit": 0.5,
+}
+LEGACY_MISSING_VALUE_DEFAULTS_KEY = "ranking_null_defaults"
+
+
+def get_active_ranking_weights(config: dict[str, Any] | None = None) -> dict[str, float]:
+    """Return the supported runtime ranking weights."""
+    configured = (config or {}).get("ranking_weights") or {}
+    if not isinstance(configured, dict):
+        return dict(DEFAULT_ACTIVE_RANKING_WEIGHTS)
+
+    resolved = dict(DEFAULT_ACTIVE_RANKING_WEIGHTS)
+    for feature_name in SUPPORTED_RANKING_FEATURES:
+        raw_weight = configured.get(feature_name)
+        if raw_weight is not None:
+            resolved[feature_name] = float(raw_weight)
+    return resolved
+
+
+def get_active_missing_value_defaults(config: dict[str, Any] | None = None) -> dict[str, float]:
+    """Return missing-value defaults for the supported runtime ranking contract."""
+    cfg = config or {}
+    configured = cfg.get("missing_value_defaults")
+    if configured is None:
+        configured = cfg.get(LEGACY_MISSING_VALUE_DEFAULTS_KEY)
+    if not isinstance(configured, dict):
+        return dict(DEFAULT_ACTIVE_MISSING_VALUE_DEFAULTS)
+
+    resolved = dict(DEFAULT_ACTIVE_MISSING_VALUE_DEFAULTS)
+    for feature_name in SUPPORTED_RANKING_FEATURES:
+        raw_default = configured.get(feature_name)
+        if raw_default is not None:
+            resolved[feature_name] = float(raw_default)
+    return resolved
 
 
 # ── feature computation ───────────────────────────────────────────────────────

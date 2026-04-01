@@ -1,6 +1,8 @@
 import pytest
 
 from fitcv.ranking import (
+    get_active_missing_value_defaults,
+    get_active_ranking_weights,
     compute_final_score,
     compute_must_have_match,
     compute_preference_fit,
@@ -22,7 +24,7 @@ _DEFAULT_WEIGHTS = {
 
 _NULL_DEFAULTS = {
     "ai_score": 0.0,
-    "must_have_match": 0.0,
+    "must_have_match": 0.5,
     "vector_similarity": 0.0,
     "title_relevance": 0.5,
     "seniority_fit": 0.5,
@@ -35,14 +37,21 @@ _NULL_DEFAULTS = {
 def test_compute_final_score_weighted():
     features = {
         "ai_score": 0.8,
-        "must_have_match": 0.9,
+        "must_have_match": 1.0,
         "vector_similarity": 0.7,
-        "title_relevance": 0.6,
+        "title_relevance": 0.5,
         "seniority_fit": 1.0,
-        "preference_fit": 0.5,
+        "preference_fit": 0.0,
     }
     score = compute_final_score(features, _DEFAULT_WEIGHTS, _NULL_DEFAULTS)
-    expected = 0.40 * 0.8 + 0.20 * 0.9 + 0.15 * 0.7 + 0.10 * 0.6 + 0.10 * 1.0 + 0.05 * 0.5
+    expected = (
+        0.40 * 0.8
+        + 0.20 * 1.0
+        + 0.15 * 0.7
+        + 0.10 * 0.5
+        + 0.10 * 1.0
+        + 0.05 * 0.0
+    )
     assert abs(score - expected) < 0.001
 
 
@@ -56,24 +65,21 @@ def test_compute_final_score_handles_missing_ai_score():
         "preference_fit": 1.0,
     }
     score = compute_final_score(features, _DEFAULT_WEIGHTS, _NULL_DEFAULTS)
-    # Without ai_score (0.0 default), score must be < 1.0
-    assert score < 1.0
-    # Expected: sum of all other weights = 0.60
-    assert abs(score - 0.60) < 0.001
+    expected = 0.20 + 0.15 + 0.10 + 0.10 + 0.05
+    assert abs(score - expected) < 0.001
 
 
-def test_compute_final_score_handles_missing_title_relevance():
-    """Missing title_relevance → fallback 0.5 (neutral)."""
+def test_compute_final_score_handles_missing_vector_similarity():
+    """Missing vector_similarity → fallback 0.0 (conservative)."""
     features = {
         "ai_score": 0.8,
-        "must_have_match": 0.8,
-        "vector_similarity": 0.8,
-        "seniority_fit": 0.8,
-        "preference_fit": 0.8,
+        "must_have_match": 1.0,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 1.0,
     }
     score = compute_final_score(features, _DEFAULT_WEIGHTS, _NULL_DEFAULTS)
-    # title_relevance defaults to 0.5
-    expected = (0.4+0.2+0.15+0.1+0.05)*0.8 + 0.1*0.5
+    expected = (0.40 * 0.8) + 0.20 + 0.10 + 0.10 + 0.05
     assert abs(score - expected) < 0.001
 
 
@@ -88,7 +94,6 @@ def test_compute_final_score_accepts_config_weights():
         "preference_fit": 0.0,
     }
     custom_weights = {
-        **_DEFAULT_WEIGHTS,
         "ai_score": 1.0,
         "must_have_match": 0.0,
         "vector_similarity": 0.0,
@@ -98,6 +103,82 @@ def test_compute_final_score_accepts_config_weights():
     }
     # With weight fully on ai_score=1.0, final score should be 1.0
     assert abs(compute_final_score(features, custom_weights, _NULL_DEFAULTS) - 1.0) < 0.001
+
+
+def test_get_active_ranking_weights_returns_full_six_feature_contract() -> None:
+    config = {
+        "ranking_weights": {
+            "ai_score": 0.4,
+            "must_have_match": 0.2,
+            "vector_similarity": 0.15,
+            "title_relevance": 0.1,
+            "seniority_fit": 0.1,
+            "preference_fit": 0.05,
+        }
+    }
+
+    weights = get_active_ranking_weights(config)
+
+    assert weights == {
+        "ai_score": 0.4,
+        "must_have_match": 0.2,
+        "vector_similarity": 0.15,
+        "title_relevance": 0.1,
+        "seniority_fit": 0.1,
+        "preference_fit": 0.05,
+    }
+
+
+def test_get_active_ranking_weights_preserves_zero_weight_features() -> None:
+    config = {
+        "ranking_weights": {
+            "ai_score": 0.73,
+            "must_have_match": 0.0,
+            "vector_similarity": 0.27,
+            "title_relevance": 0.0,
+            "seniority_fit": 0.0,
+            "preference_fit": 0.0,
+        }
+    }
+
+    weights = get_active_ranking_weights(config)
+
+    assert weights == {
+        "ai_score": 0.73,
+        "must_have_match": 0.0,
+        "vector_similarity": 0.27,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.0,
+    }
+
+
+def test_get_active_missing_value_defaults_prefers_canonical_key() -> None:
+    config = {
+        "missing_value_defaults": {
+            "ai_score": 0.0,
+            "must_have_match": 0.5,
+            "vector_similarity": 0.25,
+            "title_relevance": 0.5,
+            "seniority_fit": 0.5,
+            "preference_fit": 0.25,
+        },
+        "ranking_null_defaults": {
+            "ai_score": 0.0,
+            "vector_similarity": 0.99,
+        },
+    }
+
+    defaults = get_active_missing_value_defaults(config)
+
+    assert defaults == {
+        "ai_score": 0.0,
+        "must_have_match": 0.5,
+        "vector_similarity": 0.25,
+        "title_relevance": 0.5,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.25,
+    }
 
 
 # ── compute_must_have_match ───────────────────────────────────────────────────

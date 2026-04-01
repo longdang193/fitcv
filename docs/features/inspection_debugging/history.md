@@ -2,6 +2,45 @@
 
 ## Changelog
 
+### 1.8.0 — active
+
+- Ranking-stage artifacts now expose the full six-feature ranking contract used by a run, including configured weights, missing-value defaults, zero-weight features, and contributing features
+- Ranking `inputs_sample`, `outputs_sample`, and scored-not-ranked samples now carry all six ranking feature values plus `final_score`
+
+### 1.7.0 — active
+
+- Stage-transition artifacts now carry bounded input, output, and changed-state samples for each stage instead of summary-only handoff counts
+- The richer artifact contract makes stage downloads more useful for debugging failed retrieval, ranking, filtering, and CV-generation transitions
+- This rollout keeps `settings-used.json` separate and does not introduce `run-bundle.json`
+
+### 1.6.0 — active
+
+- Added a dedicated run-scoped `settings-used.json` download so effective run settings can be inspected without opening stage artifacts or internal snapshots
+- Event timeline rows for recognized stage-boundary events can now download the corresponding stage-slice JSON directly
+- This rollout stays download-only and does not add an in-page artifact viewer
+
+### 1.5.0 — active
+
+- Added a run-scoped stage-transition artifact download so major pipeline handoffs can be inspected without reconstructing them from later exports
+- Inspection surfaces now explicitly distinguish stage-transition artifacts from the heavier CV-generation debug snapshot
+- This rollout keeps the stage-transition artifact bounded and summary-first rather than duplicating full downstream payloads
+
+### 1.4.1 — active
+
+- Adopted the stage-aware doc system by mapping `inspection_debugging` to `primary_stage: cv_generation`
+- Declared bounded stage participation across `enrich`, `rule_filter`, `shortlist`, `ranking`, and `cv_generation`
+- This was a documentation-structure adoption only; no inspection runtime behavior changed by itself
+
+### 1.4.0 — active
+
+- Run detail can now show explicit decision-chain detail from run-results export instead of only a generic outcome badge
+- CV-generation debug snapshots now separate authoritative ranking fit from secondary gap explanation so the decision path is easier to inspect
+
+### 1.3.0 — active
+
+- Run detail now exposes an admin-only `Download CV Debug JSON` action when a run-scoped CV-generation debug snapshot exists
+- Completed runs can persist a bounded run-scoped CV-generation debug snapshot with live Layer 4 artifacts and failure-path details
+
 ### 1.2.0 — active
 
 - Run detail results tab and large table usability improvements
