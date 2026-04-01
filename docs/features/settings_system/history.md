@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 2.4.1 — active
+
+- Ranking settings copy now matches runtime semantics for title-to-target-role similarity and domain/location preference alignment
+- Specs/plans: see `refs` in the feature contract
+
 ### 2.4.0 — active
 
 - Ranking settings now map to a real six-feature runtime contract instead of a hidden two-feature subset

@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 1.8.1 — active
+
+- Newly generated stage-transition artifacts now report `schema_version: "stage_transition_artifacts_v3"` so the six-feature ranking artifact shape is version-detectable
+- Specs/plans: see `refs` in the feature contract
+
 ### 1.8.0 — active
 
 - Ranking-stage artifacts now expose the full six-feature ranking contract used by a run, including configured weights, missing-value defaults, zero-weight features, and contributing features
