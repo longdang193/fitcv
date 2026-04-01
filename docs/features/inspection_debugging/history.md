@@ -2,6 +2,19 @@
 
 ## Changelog
 
+### 1.9.1 — active
+
+- Newly generated stage-transition artifacts now report `schema_version: "stage_transition_artifacts_v3"` so the six-feature ranking artifact shape is version-detectable
+- Shortlist stage artifacts now separate raw vector row counts from unique-job raw-hit counts
+- Shortlist debug payloads now describe observed raw-hit status using `not_returned_in_raw_hits` wording instead of implying stronger retrieval causes
+- Raw retrieval anomalies that fail to rejoin `passed_jobs` are exposed diagnostically instead of silently entering the scoring shortlist
+
+### 1.9.0 — active
+
+- Shortlist stage artifacts now separate raw vector row counts from unique-job raw-hit counts
+- Shortlist debug payloads now describe observed raw-hit status using `not_returned_in_raw_hits` wording instead of implying stronger retrieval causes
+- Raw retrieval anomalies that fail to rejoin `passed_jobs` are exposed diagnostically instead of silently entering the scoring shortlist
+
 ### 1.8.1 — active
 
 - Newly generated stage-transition artifacts now report `schema_version: "stage_transition_artifacts_v3"` so the six-feature ranking artifact shape is version-detectable

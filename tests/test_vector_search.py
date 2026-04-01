@@ -88,8 +88,13 @@ def test_build_vector_search_query_filters_passed_universe() -> None:
 def test_build_vector_search_query_filters_job_universe_inside_vector_search() -> None:
     """Universe restriction must happen inside VECTOR_SEARCH, not only afterward."""
     query = build_vector_search_query(top_n=50, passed_job_urls=["url1", "url2"])
-    assert "VECTOR_SEARCH(\n    (SELECT * FROM `PROJECT.fitcv.job_embeddings`" in query
+    assert "VECTOR_SEARCH(\n    (SELECT job_url, chunk_type, chunk_text, embedding, created_at" in query
     assert "chunk_type = 'job_summary' AND job_url IN ('url1', 'url2')" in query
+
+
+def test_build_vector_search_query_selects_latest_job_summary_row_per_job_url() -> None:
+    query = build_vector_search_query(top_n=50, passed_job_urls=["url1", "url2"])
+    assert "ROW_NUMBER() OVER (PARTITION BY job_url ORDER BY created_at DESC) = 1" in query
 
 
 def test_build_vector_search_query_outputs_job_url() -> None:
@@ -120,7 +125,22 @@ def test_dedupe_shortlist_rows_keeps_best_rank_per_job_url() -> None:
 
     assert deduped == [
         {"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1},
-        {"job_url": "https://example.com/2", "vector_similarity": 0.7, "vector_rank": 3},
+        {"job_url": "https://example.com/2", "vector_similarity": 0.7, "vector_rank": 2},
+    ]
+
+
+def test_dedupe_shortlist_rows_exposes_unique_job_ranks() -> None:
+    rows = [
+        {"job_url": "https://example.com/1", "vector_similarity": 0.92, "vector_rank": 1},
+        {"job_url": "https://example.com/1", "vector_similarity": 0.91, "vector_rank": 2},
+        {"job_url": "https://example.com/2", "vector_similarity": 0.88, "vector_rank": 7},
+    ]
+
+    deduped = _dedupe_shortlist_rows(rows)
+
+    assert deduped == [
+        {"job_url": "https://example.com/1", "vector_similarity": 0.92, "vector_rank": 1},
+        {"job_url": "https://example.com/2", "vector_similarity": 0.88, "vector_rank": 2},
     ]
 
 

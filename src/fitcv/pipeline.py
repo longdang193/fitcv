@@ -111,6 +111,29 @@ def _normalize_shortlist_row(shortlist_row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _unique_job_urls(rows: list[dict[str, Any]]) -> list[str]:
+    urls: list[str] = []
+    seen_urls: set[str] = set()
+    for row in rows:
+        job_url = _extract_job_url(row)
+        if not job_url or job_url in seen_urls:
+            continue
+        seen_urls.add(job_url)
+        urls.append(job_url)
+    return urls
+
+
+def _raw_shortlist_anomaly_urls(
+    raw_shortlist: list[dict[str, Any]],
+    passed_jobs: list[dict[str, Any]],
+) -> list[str]:
+    passed_job_urls = {_extract_job_url(job) for job in passed_jobs if _extract_job_url(job)}
+    return [
+        job_url for job_url in _unique_job_urls(raw_shortlist)
+        if job_url not in passed_job_urls
+    ]
+
+
 def _materialize_scoring_shortlist(
     raw_shortlist: list[dict[str, Any]],
     passed_jobs: list[dict[str, Any]],
@@ -139,20 +162,21 @@ def _materialize_scoring_shortlist(
         job_url = _extract_job_url(row)
         if not job_url or job_url in seen_urls:
             continue
+        passed_job = passed_by_url.get(job_url)
+        if passed_job is None:
+            continue
         seen_urls.add(job_url)
         scoring_shortlist.append(
             {
-                **passed_by_url.get(job_url, {}),
+                **passed_job,
                 "job_url": job_url,
                 **_normalize_shortlist_row(row),
+                "vector_rank": len(scoring_shortlist) + 1,
                 "shortlist_origin": "vector_search",
             }
         )
 
-    next_rank = max(
-        (int(item.get("vector_rank") or 0) for item in scoring_shortlist),
-        default=0,
-    ) + 1
+    next_rank = len(scoring_shortlist) + 1
     for job in passed_jobs:
         if len(scoring_shortlist) >= vector_search_top_n:
             break
@@ -356,7 +380,7 @@ def _build_export_results(
                 "reason": (
                     None
                     if raw_shortlist_row is not None
-                    else "job_url_not_returned_by_vector_search"
+                    else "job_url_not_returned_in_raw_hits"
                 ),
                 "vector_search_top_n": vector_search_top_n,
                 "vector_rank": raw_shortlist_row.get("vector_rank") if raw_shortlist_row is not None else None,
@@ -520,7 +544,7 @@ def _shortlist_status_for_export_row(
         return "backfilled_for_scoring"
     if scoring_shortlist_row is not None:
         return "advanced_to_scoring"
-    return "not_returned_by_vector_search"
+    return "not_returned_in_raw_hits"
 
 
 def _shortlist_status_for_ranked_job(job: dict[str, Any]) -> str:
@@ -824,7 +848,8 @@ def _build_stage_transition_artifacts(
     shortlist_reached = len(passed_jobs) > 0
     ranking_reached = shortlist_reached and (len(shortlist) > 0 or len(ai_scores) > 0 or len(ranking_inputs) > 0)
     cv_generation_reached = len(ranked) > 0 or len(cv_generation_debug_records) > 0
-    raw_shortlist_urls = {_extract_job_url(job) for job in raw_shortlist if _extract_job_url(job)}
+    raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
+    raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
     ranked_urls = {_extract_job_url(job) for job in ranked if _extract_job_url(job)}
     dedupe_reason_counts: dict[str, int] = {}
     for job in deduplicated_jobs:
@@ -951,14 +976,16 @@ def _build_stage_transition_artifacts(
                 status="completed" if shortlist_reached else "not_reached",
                 input_counts={"passed_jobs": len(passed_jobs)},
                 output_counts={
-                    "raw_vector_hits": len(raw_shortlist),
+                    "raw_vector_rows": len(raw_shortlist),
+                    "raw_vector_hits": len(raw_shortlist_urls),
                     "scoring_shortlist_jobs": len(shortlist),
                     "backfilled_jobs": len(backfilled_job_urls),
+                    "retrieval_anomalies": len(raw_shortlist_anomaly_urls),
                 },
                 decision_summary={
                     "candidate_query_text": candidate_summary,
                     "vector_search_top_n": vector_top_n,
-                    "jobs_not_returned_by_vector_search": len(
+                    "jobs_not_returned_in_raw_hits": len(
                         [job for job in passed_jobs if _extract_job_url(job) not in raw_shortlist_urls]
                     ),
                 },
@@ -984,6 +1011,14 @@ def _build_stage_transition_artifacts(
                                 "change_type": "backfilled_for_scoring",
                             }
                             for job_url in backfilled_job_urls
+                        ],
+                        *[
+                            {
+                                "job_url": job_url,
+                                "title": "",
+                                "change_type": "raw_hit_excluded_from_scoring",
+                            }
+                            for job_url in raw_shortlist_anomaly_urls
                         ],
                     ],
                     lambda item: {
@@ -1261,15 +1296,19 @@ def run_pipeline(
         top_n=vector_top_n,
     )
     shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_top_n)
+    raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
+    raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
     backfilled_job_urls = [
         str(job.get("job_url") or "")
         for job in shortlist
-        if str(job.get("job_url") or "") not in {str(item.get("job_url") or "") for item in raw_shortlist}
+        if str(job.get("job_url") or "") not in raw_shortlist_urls
     ]
     if reporter is not None:
-        shortlist_message = f"Vector shortlist: {len(raw_shortlist)} raw hits"
+        shortlist_message = f"Vector shortlist: {len(raw_shortlist_urls)} raw hits"
         if backfilled_job_urls:
             shortlist_message += f", {len(shortlist)} scoring jobs ({len(backfilled_job_urls)} backfilled)"
+        if raw_shortlist_anomaly_urls:
+            shortlist_message += f", {len(raw_shortlist_anomaly_urls)} raw-hit anomalies"
         reporter.emit("layer3_shortlist", "info", shortlist_message)  # type: ignore[union-attr]
 
     ai_top_n = int(config["pipeline"]["ai_score_top_n"])
@@ -1527,13 +1566,15 @@ def run_pipeline(
         "shortlist_debug": {
             "vector_search_top_n": vector_top_n,
             "passed_jobs_total": len(passed_jobs),
-            "shortlisted_jobs_total": len(raw_shortlist),
+            "raw_vector_rows_total": len(raw_shortlist),
+            "shortlisted_jobs_total": len(raw_shortlist_urls),
             "scoring_shortlisted_jobs_total": len(shortlist),
             "backfilled_jobs_total": len(backfilled_job_urls),
+            "retrieval_anomaly_urls": raw_shortlist_anomaly_urls,
             "candidate_query_text": candidate_summary,
             "not_shortlisted_job_urls": [
                 url for url in passed_job_urls
-                if url not in {str(job.get("job_url") or "") for job in raw_shortlist}
+                if url not in raw_shortlist_urls
             ],
             "backfilled_job_urls": backfilled_job_urls,
         },
