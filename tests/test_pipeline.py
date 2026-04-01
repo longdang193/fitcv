@@ -21,7 +21,12 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
-from fitcv.pipeline import _build_stage_transition_artifacts, build_ranking_features, create_run_id
+from fitcv.pipeline import (
+    _build_stage_transition_artifacts,
+    _materialize_scoring_shortlist,
+    build_ranking_features,
+    create_run_id,
+)
 
 
 # ── create_run_id ─────────────────────────────────────────────────────────────
@@ -116,6 +121,58 @@ def test_build_ranking_features_carries_ai_score_fields() -> None:
     assert job1["title_relevance"] == pytest.approx(1.0)
     assert job1["seniority_fit"] == pytest.approx(1.0)
     assert job1["preference_fit"] == pytest.approx(0.5)
+
+
+def test_materialize_scoring_shortlist_excludes_raw_hits_absent_from_passed_jobs() -> None:
+    passed_jobs = [
+        {"job_url": "https://example.com/1", "title": "Data Engineer"},
+    ]
+    raw_shortlist = [
+        {"job_url": "https://example.com/1", "vector_similarity": 0.91, "vector_rank": 1},
+        {"job_url": "https://example.com/999", "vector_similarity": 0.89, "vector_rank": 2},
+    ]
+
+    shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_search_top_n=5)
+
+    assert shortlist == [
+        {
+            "job_url": "https://example.com/1",
+            "title": "Data Engineer",
+            "vector_similarity": 0.91,
+            "vector_rank": 1,
+            "shortlist_origin": "vector_search",
+        }
+    ]
+
+
+def test_materialize_scoring_shortlist_renumbers_sparse_raw_ranks_to_job_level_order() -> None:
+    passed_jobs = [
+        {"job_url": "https://example.com/1", "title": "Data Engineer"},
+        {"job_url": "https://example.com/2", "title": "Analytics Engineer"},
+    ]
+    raw_shortlist = [
+        {"job_url": "https://example.com/1", "vector_similarity": 0.91, "vector_rank": 1},
+        {"job_url": "https://example.com/2", "vector_similarity": 0.87, "vector_rank": 33},
+    ]
+
+    shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_search_top_n=5)
+
+    assert shortlist == [
+        {
+            "job_url": "https://example.com/1",
+            "title": "Data Engineer",
+            "vector_similarity": 0.91,
+            "vector_rank": 1,
+            "shortlist_origin": "vector_search",
+        },
+        {
+            "job_url": "https://example.com/2",
+            "title": "Analytics Engineer",
+            "vector_similarity": 0.87,
+            "vector_rank": 2,
+            "shortlist_origin": "vector_search",
+        },
+    ]
 
 
 def test_build_ranking_features_uses_all_supported_weighted_features() -> None:
@@ -1552,6 +1609,50 @@ def test_build_stage_transition_artifacts_includes_changed_state_samples() -> No
     assert ranking_block["dropped_or_changed_sample"][0]["title_relevance"] == pytest.approx(0.5)
 
 
+def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortlist_counts() -> None:
+    passed_jobs = [
+        {"job_url": "https://example.com/1", "title": "Data Analyst"},
+        {"job_url": "https://example.com/2", "title": "ML Analyst"},
+    ]
+    raw_shortlist = [
+        {"job_url": "https://example.com/1", "vector_similarity": 0.91, "vector_rank": 1},
+        {"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 2},
+        {"job_url": "https://example.com/2", "vector_similarity": 0.83, "vector_rank": 33},
+    ]
+    shortlist = [
+        {"job_url": "https://example.com/1", "title": "Data Analyst", "vector_similarity": 0.91, "vector_rank": 1, "shortlist_origin": "vector_search"},
+        {"job_url": "https://example.com/2", "title": "ML Analyst", "vector_similarity": 0.83, "vector_rank": 2, "shortlist_origin": "vector_search"},
+    ]
+
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=passed_jobs,
+        normalized=passed_jobs,
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=passed_jobs,
+        passed_jobs=passed_jobs,
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=raw_shortlist,
+        shortlist=shortlist,
+        backfilled_job_urls=[],
+        vector_top_n=50,
+        candidate_summary="Candidate: Analyst",
+        ai_scores=[],
+        ranking_inputs=[],
+        ranked=[],
+        final_top_n=10,
+        cv_generation_debug_records=[],
+        profile={"preferences": {"target_role": "Data Analyst"}, "skills": ["SQL", "Python"]},
+        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+    )
+
+    shortlist_block = artifacts["stages"]["shortlist"]
+
+    assert shortlist_block["output_counts"]["raw_vector_rows"] == 3
+    assert shortlist_block["output_counts"]["raw_vector_hits"] == 2
+    assert shortlist_block["outputs_sample"][1]["vector_rank"] == 2
+
+
 def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract() -> None:
     ranking_inputs = [
         {
@@ -1882,9 +1983,11 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
     assert result["shortlist_debug"] == {
         "vector_search_top_n": 5,
         "passed_jobs_total": 2,
+        "raw_vector_rows_total": 1,
         "shortlisted_jobs_total": 1,
         "scoring_shortlisted_jobs_total": 2,
         "backfilled_jobs_total": 1,
+        "retrieval_anomaly_urls": [],
         "candidate_query_text": "Candidate: Data Engineer\nTarget role: Data Engineer\nRecent roles: DE\nSkills: SQL, Python",
         "not_shortlisted_job_urls": [second_job["job_url"]],
         "backfilled_job_urls": [second_job["job_url"]],
@@ -2917,11 +3020,11 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
     assert export_results[2]["shortlist_debug"] == {
         "passed_rule_filter": True,
         "returned_by_vector_search": False,
-        "reason": "job_url_not_returned_by_vector_search",
+        "reason": "job_url_not_returned_in_raw_hits",
         "vector_search_top_n": 2,
         "vector_rank": None,
         "vector_similarity": None,
-        "shortlist_origin": "not_returned_by_vector_search",
+        "shortlist_origin": "not_returned_in_raw_hits",
     }
     assert export_results[3]["pipeline_status"] == "shortlisted_not_scored"
     assert export_results[3]["scores"]["vector_score"] == pytest.approx(0.55)

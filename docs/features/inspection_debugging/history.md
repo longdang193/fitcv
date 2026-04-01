@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.9.0 — active
+
+- Shortlist stage artifacts now separate raw vector row counts from unique-job raw-hit counts
+- Shortlist debug payloads now describe observed raw-hit status using `not_returned_in_raw_hits` wording instead of implying stronger retrieval causes
+- Raw retrieval anomalies that fail to rejoin `passed_jobs` are exposed diagnostically instead of silently entering the scoring shortlist
+
 ### 1.8.0 — active
 
 - Ranking-stage artifacts now expose the full six-feature ranking contract used by a run, including configured weights, missing-value defaults, zero-weight features, and contributing features
