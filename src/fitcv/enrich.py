@@ -16,7 +16,7 @@ import os
 import re
 import threading
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, TypedDict
 
 from pydantic import BaseModel as _BaseModel, Field as _Field
 
@@ -56,6 +56,12 @@ _ARRAY_FIELDS: frozenset[str] = frozenset({
     "tech_stack",
     "keywords",
 })
+_SKILL_LIKE_FIELDS: frozenset[str] = frozenset({
+    "required_skills",
+    "preferred_skills",
+    "tech_stack",
+    "keywords",
+})
 
 _SCALAR_FIELDS: frozenset[str] = frozenset({
     "location_type",
@@ -68,15 +74,38 @@ _SCALAR_FIELDS: frozenset[str] = frozenset({
 
 _KNOWN_FIELDS: frozenset[str] = _ARRAY_FIELDS | _SCALAR_FIELDS
 
+
+class SkillEntity(TypedDict):
+    raw_text: str
+    canonical: str
+
+
+class MappingSuggestion(TypedDict):
+    field: str
+    alias: str
+    canonical: str
+    confidence: float
+
 # ── Markdown fence stripper ───────────────────────────────────────────────────
 
 _FENCE_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)\s*```", re.IGNORECASE)
+_MISSING_STRING_COMMA_RE = re.compile(r'"([^"\\]*(?:\\.[^"\\]*)*)"\s+"([^"\\]*(?:\\.[^"\\]*)*)"')
 
 
 def _strip_markdown_fences(text: str) -> str:
     """Strip ```json ... ``` or ``` ... ``` fences if present."""
     match = _FENCE_RE.search(text)
     return match.group(1).strip() if match else text.strip()
+
+
+def _repair_common_json_issues(text: str) -> str:
+    """Repair a small set of common model JSON mistakes before giving up."""
+    repaired = text
+    while True:
+        updated = _MISSING_STRING_COMMA_RE.sub(r'"\1", "\2"', repaired)
+        if updated == repaired:
+            return repaired
+        repaired = updated
 
 
 # ── field coercion ────────────────────────────────────────────────────────────
@@ -88,12 +117,99 @@ def _normalize_enum(value: Any, valid: frozenset[str]) -> str | None:
     return lowered if lowered in valid else None
 
 
+def _normalize_text_item(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _get_skill_synonyms(config: dict | None) -> dict[str, str]:
+    raw_synonyms = (config or {}).get("skill_synonyms")
+    if not isinstance(raw_synonyms, dict):
+        return {}
+    return {
+        str(alias).strip().lower(): str(canonical).strip().lower()
+        for alias, canonical in raw_synonyms.items()
+        if str(alias).strip() and str(canonical).strip()
+    }
+
+
+def _canonicalize_text_item(field_name: str, raw_text: str, config: dict | None) -> str:
+    normalized = raw_text.strip().lower()
+    if field_name in _SKILL_LIKE_FIELDS:
+        return _get_skill_synonyms(config).get(normalized, normalized)
+    return normalized
+
+
+def _normalize_array_values(values: list[Any] | None) -> list[str]:
+    normalized: list[str] = []
+    for value in values or []:
+        text = _normalize_text_item(value)
+        if text is not None:
+            normalized.append(text)
+    return normalized
+
+
+def _build_canonical_list(raw_values: list[str], field_name: str, config: dict | None) -> list[str]:
+    return [_canonicalize_text_item(field_name, raw_value, config) for raw_value in raw_values]
+
+
+def _build_skill_entities(raw_values: list[str], field_name: str, config: dict | None) -> list[SkillEntity]:
+    if field_name not in {"required_skills", "preferred_skills"}:
+        return []
+    return [
+        {"raw_text": raw_value, "canonical": _canonicalize_text_item(field_name, raw_value, config)}
+        for raw_value in raw_values
+    ]
+
+
+def _build_mapping_suggestions(
+    *,
+    field_name: str,
+    raw_values: list[str],
+    config: dict | None,
+) -> list[MappingSuggestion]:
+    suggestions: list[MappingSuggestion] = []
+    for raw_value in raw_values:
+        normalized_alias = raw_value.strip().lower()
+        canonical = _canonicalize_text_item(field_name, raw_value, config)
+        if canonical == normalized_alias:
+            continue
+        suggestions.append(
+            {
+                "field": field_name,
+                "alias": normalized_alias,
+                "canonical": canonical,
+                "confidence": 1.0,
+            }
+        )
+    return suggestions
+
+
+def _build_array_companions(
+    *,
+    field_name: str,
+    raw_values: list[str],
+    config: dict | None,
+) -> dict[str, Any]:
+    canonical_values = _build_canonical_list(raw_values, field_name, config)
+    companions: dict[str, Any] = {
+        field_name: raw_values,
+        f"{field_name}_canonical": canonical_values,
+    }
+    if field_name in {"required_skills", "preferred_skills"}:
+        singular_prefix = "required_skill" if field_name == "required_skills" else "preferred_skill"
+        companions[f"{singular_prefix}_entities"] = _build_skill_entities(raw_values, field_name, config)
+    return companions
+
+
 def _coerce_field(key: str, value: Any, config: dict | None = None) -> Any:
     """Coerce a raw LLM value to its canonical Python type."""
     if key in _ARRAY_FIELDS:
         if value is None or not isinstance(value, list):
             return []
-        return [str(v) for v in value if v is not None]
+        return _normalize_array_values(value)
 
     if key == "location_type":
         return _normalize_enum(value, _get_valid_location_types(config))
@@ -147,22 +263,39 @@ def _apply_structured_normalization(
     - domain, job_family: lowercased and stripped
     - list fields: None values removed, items coerced to str
     """
+    required_skills = _normalize_array_values(output.required_skills)
+    preferred_skills = _normalize_array_values(output.preferred_skills)
+    responsibilities = _normalize_array_values(output.responsibilities)
+    tech_stack = _normalize_array_values(output.tech_stack)
+    keywords = _normalize_array_values(output.keywords)
+    mapping_suggestions = [
+        *_build_mapping_suggestions(field_name="required_skills", raw_values=required_skills, config=config),
+        *_build_mapping_suggestions(field_name="preferred_skills", raw_values=preferred_skills, config=config),
+        *_build_mapping_suggestions(field_name="tech_stack", raw_values=tech_stack, config=config),
+        *_build_mapping_suggestions(field_name="keywords", raw_values=keywords, config=config),
+    ]
+
     return {
+        "location_type_raw": _normalize_text_item(output.location_type),
         "location_type": _normalize_enum(
             output.location_type, _get_valid_location_types(config)
         ),
+        "seniority_raw": _normalize_text_item(output.seniority),
         "seniority": _normalize_enum(
             output.seniority, _get_valid_seniority_enrich(config)
         ),
-        "domain":     output.domain.lower().strip() if output.domain else None,
+        "domain_raw": output.domain,
+        "domain": output.domain.lower().strip() if output.domain else None,
+        "job_family_raw": output.job_family,
         "job_family": output.job_family.lower().strip() if output.job_family else None,
         "years_experience_min": output.years_experience_min,
         "years_experience_max": output.years_experience_max,
-        "required_skills":  [str(s) for s in output.required_skills  if s is not None],
-        "preferred_skills": [str(s) for s in output.preferred_skills if s is not None],
-        "responsibilities": [str(s) for s in output.responsibilities if s is not None],
-        "tech_stack":       [str(s) for s in output.tech_stack       if s is not None],
-        "keywords":         [str(s) for s in output.keywords         if s is not None],
+        **_build_array_companions(field_name="required_skills", raw_values=required_skills, config=config),
+        **_build_array_companions(field_name="preferred_skills", raw_values=preferred_skills, config=config),
+        **_build_array_companions(field_name="responsibilities", raw_values=responsibilities, config=config),
+        **_build_array_companions(field_name="tech_stack", raw_values=tech_stack, config=config),
+        **_build_array_companions(field_name="keywords", raw_values=keywords, config=config),
+        "mapping_suggestions": mapping_suggestions,
     }
 
 # ── prompt construction ───────────────────────────────────────────────────────
@@ -253,17 +386,30 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
     try:
         raw: Any = json.loads(cleaned)
     except json.JSONDecodeError as exc:
+        repaired = _repair_common_json_issues(cleaned)
+        if repaired != cleaned:
+            try:
+                raw = json.loads(repaired)
+            except json.JSONDecodeError:
+                raw = None
+            else:
+                cleaned = repaired
+        else:
+            raw = None
+        if raw is not None:
+            pass
+        else:
         # Thinking models (e.g. gemini-2.5-flash) sometimes emit malformed JSON
         # (missing commas, trailing commas, etc.). Try json_repair before giving up.
-        try:
-            from json_repair import repair_json  # type: ignore[import-untyped]
-            raw = json.loads(repair_json(cleaned))
-        except Exception:
-            return {
-                "parsed": {},
-                "errors": [f"JSON parse error: {exc}"],
-                "raw_response": response_text,
-            }
+            try:
+                from json_repair import repair_json  # type: ignore[import-untyped]
+                raw = json.loads(repair_json(cleaned))
+            except Exception:
+                return {
+                    "parsed": {},
+                    "errors": [f"JSON parse error: {exc}"],
+                    "raw_response": response_text,
+                }
 
     if not isinstance(raw, dict):
         return {
@@ -276,6 +422,23 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
     for field in _KNOWN_FIELDS:
         raw_value = raw.get(field)
         parsed[field] = _coerce_field(field, raw_value, config)
+
+    parsed["location_type_raw"] = _normalize_text_item(raw.get("location_type"))
+    parsed["seniority_raw"] = _normalize_text_item(raw.get("seniority"))
+    parsed["domain_raw"] = raw.get("domain") if isinstance(raw.get("domain"), str) else None
+    parsed["job_family_raw"] = raw.get("job_family") if isinstance(raw.get("job_family"), str) else None
+
+    mapping_suggestions: list[MappingSuggestion] = []
+    for field_name in _ARRAY_FIELDS:
+        raw_values = list(parsed.get(field_name) or [])
+        parsed[f"{field_name}_canonical"] = _build_canonical_list(raw_values, field_name, config)
+        if field_name in {"required_skills", "preferred_skills"}:
+            singular_prefix = "required_skill" if field_name == "required_skills" else "preferred_skill"
+            parsed[f"{singular_prefix}_entities"] = _build_skill_entities(raw_values, field_name, config)
+        mapping_suggestions.extend(
+            _build_mapping_suggestions(field_name=field_name, raw_values=raw_values, config=config)
+        )
+    parsed["mapping_suggestions"] = mapping_suggestions
 
     return {
         "parsed": parsed,
@@ -322,17 +485,29 @@ def merge_scraped_and_enriched(
         "published_at":       scraped.get("published_at"),
         "description_cleaned": scraped.get("description", ""),
         # ── LLM-enriched fields ───────────────────────────────────────
+        "location_type_raw":    enriched.get("location_type_raw"),
         "location_type":        enriched.get("location_type"),
+        "seniority_raw":        enriched.get("seniority_raw"),
         "seniority":            enriched.get("seniority"),
         "required_skills":      enriched.get("required_skills", []),
+        "required_skills_canonical": enriched.get("required_skills_canonical", []),
+        "required_skill_entities": enriched.get("required_skill_entities", []),
         "preferred_skills":     enriched.get("preferred_skills", []),
+        "preferred_skills_canonical": enriched.get("preferred_skills_canonical", []),
+        "preferred_skill_entities": enriched.get("preferred_skill_entities", []),
         "responsibilities":     enriched.get("responsibilities", []),
+        "responsibilities_canonical": enriched.get("responsibilities_canonical", []),
+        "domain_raw":           enriched.get("domain_raw"),
         "domain":               enriched.get("domain"),
         "tech_stack":           enriched.get("tech_stack", []),
+        "tech_stack_canonical": enriched.get("tech_stack_canonical", []),
         "years_experience_min": enriched.get("years_experience_min"),
         "years_experience_max": enriched.get("years_experience_max"),
         "keywords":             enriched.get("keywords", []),
+        "keywords_canonical":   enriched.get("keywords_canonical", []),
+        "job_family_raw":       enriched.get("job_family_raw"),
         "job_family":           enriched.get("job_family"),
+        "mapping_suggestions":  enriched.get("mapping_suggestions", []),
         # ── audit fields ──────────────────────────────────────────────
         "enrichment_version": version,
         "enrichment_model":   model,
@@ -424,7 +599,7 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
         "Structured output unavailable for %r — falling back to json_repair",
         title_for_log,
     )
-    extraction = parse_extraction_response(str(response.text or ""))
+    extraction = parse_extraction_response(str(response.text or ""), config)
     if extraction["errors"]:
         _log.warning(
             "Enrichment parse errors for job %r: %s",
@@ -542,11 +717,14 @@ def enrich_batch(
 _MERGE_COLUMNS = [
     "title", "company_name", "company_id", "location", "contract_type",
     "experience_level", "sector", "salary_min", "salary_max", "salary_currency",
-    "applications_count", "published_at", "location_type", "seniority",
-    "required_skills", "preferred_skills", "responsibilities", "domain",
-    "tech_stack", "years_experience_min", "years_experience_max", "keywords",
-    "job_family", "description_cleaned", "enrichment_version", "enrichment_model",
-    "enriched_at",
+    "applications_count", "published_at", "location_type_raw", "location_type",
+    "seniority_raw", "seniority", "required_skills", "required_skills_canonical",
+    "required_skill_entities_json", "preferred_skills", "preferred_skills_canonical",
+    "preferred_skill_entities_json", "responsibilities", "responsibilities_canonical",
+    "domain_raw", "domain", "tech_stack", "tech_stack_canonical",
+    "years_experience_min", "years_experience_max", "keywords", "keywords_canonical",
+    "job_family_raw", "job_family", "mapping_suggestions_json", "description_cleaned",
+    "enrichment_version", "enrichment_model", "enriched_at",
 ]
 
 _STAGING_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
@@ -563,22 +741,55 @@ _STAGING_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("salary_currency", "STRING", "NULLABLE"),
     ("applications_count", "INT64", "NULLABLE"),
     ("published_at", "DATE", "NULLABLE"),
+    ("location_type_raw", "STRING", "NULLABLE"),
     ("location_type", "STRING", "NULLABLE"),
+    ("seniority_raw", "STRING", "NULLABLE"),
     ("seniority", "STRING", "NULLABLE"),
     ("required_skills", "STRING", "REPEATED"),
+    ("required_skills_canonical", "STRING", "REPEATED"),
+    ("required_skill_entities_json", "STRING", "NULLABLE"),
     ("preferred_skills", "STRING", "REPEATED"),
+    ("preferred_skills_canonical", "STRING", "REPEATED"),
+    ("preferred_skill_entities_json", "STRING", "NULLABLE"),
     ("responsibilities", "STRING", "REPEATED"),
+    ("responsibilities_canonical", "STRING", "REPEATED"),
+    ("domain_raw", "STRING", "NULLABLE"),
     ("domain", "STRING", "NULLABLE"),
     ("tech_stack", "STRING", "REPEATED"),
+    ("tech_stack_canonical", "STRING", "REPEATED"),
     ("years_experience_min", "INT64", "NULLABLE"),
     ("years_experience_max", "INT64", "NULLABLE"),
     ("keywords", "STRING", "REPEATED"),
+    ("keywords_canonical", "STRING", "REPEATED"),
+    ("job_family_raw", "STRING", "NULLABLE"),
     ("job_family", "STRING", "NULLABLE"),
+    ("mapping_suggestions_json", "STRING", "NULLABLE"),
     ("description_cleaned", "STRING", "NULLABLE"),
     ("enrichment_version", "STRING", "NULLABLE"),
     ("enrichment_model", "STRING", "NULLABLE"),
     ("enriched_at", "TIMESTAMP", "NULLABLE"),
 )
+
+_STRUCTURED_JSON_LIST_FIELDS: tuple[tuple[str, str], ...] = (
+    ("required_skill_entities", "required_skill_entities_json"),
+    ("preferred_skill_entities", "preferred_skill_entities_json"),
+    ("mapping_suggestions", "mapping_suggestions_json"),
+)
+
+_STRUCTURED_SCHEMA_KEYS: frozenset[str] = frozenset(
+    ["job_url", *_MERGE_COLUMNS]
+)
+
+
+def _map_to_structured_jobs_row(row: dict[str, Any]) -> dict[str, Any]:
+    mapped: dict[str, Any] = {}
+    for key in _STRUCTURED_SCHEMA_KEYS:
+        if key in row:
+            mapped[key] = row[key]
+    for source_key, target_key in _STRUCTURED_JSON_LIST_FIELDS:
+        if source_key in row:
+            mapped[target_key] = json.dumps(row.get(source_key, []), ensure_ascii=False)
+    return mapped
 
 
 def load_structured_jobs(
@@ -623,8 +834,9 @@ def load_structured_jobs(
         source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
         schema=schema,
     )
+    load_rows = [_map_to_structured_jobs_row(row) for row in enriched]
     load_job = client.load_table_from_json(
-        enriched,
+        load_rows,
         staging_ref,
         job_config=job_config,
     )
@@ -655,17 +867,29 @@ _RUN_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("contract_type",        "STRING",    "NULLABLE"),
     ("experience_level",     "STRING",    "NULLABLE"),
     ("published_at",         "DATE",      "NULLABLE"),
+    ("location_type_raw",    "STRING",    "NULLABLE"),
     ("location_type",        "STRING",    "NULLABLE"),
+    ("seniority_raw",        "STRING",    "NULLABLE"),
     ("seniority",            "STRING",    "NULLABLE"),
     ("required_skills",      "STRING",    "REPEATED"),
+    ("required_skills_canonical", "STRING", "REPEATED"),
+    ("required_skill_entities_json", "STRING", "NULLABLE"),
     ("preferred_skills",     "STRING",    "REPEATED"),
+    ("preferred_skills_canonical", "STRING", "REPEATED"),
+    ("preferred_skill_entities_json", "STRING", "NULLABLE"),
     ("responsibilities",     "STRING",    "REPEATED"),
+    ("responsibilities_canonical", "STRING", "REPEATED"),
+    ("domain_raw",           "STRING",    "NULLABLE"),
     ("domain",               "STRING",    "NULLABLE"),
-    ("tech_stack",            "STRING",   "REPEATED"),
+    ("tech_stack",           "STRING",    "REPEATED"),
+    ("tech_stack_canonical", "STRING",    "REPEATED"),
     ("years_experience_min", "INT64",     "NULLABLE"),
     ("years_experience_max", "INT64",     "NULLABLE"),
     ("keywords",             "STRING",    "REPEATED"),
+    ("keywords_canonical",   "STRING",    "REPEATED"),
+    ("job_family_raw",       "STRING",    "NULLABLE"),
     ("job_family",           "STRING",    "NULLABLE"),
+    ("mapping_suggestions_json", "STRING", "NULLABLE"),
     ("description_cleaned",  "STRING",    "NULLABLE"),
     ("enrichment_version",   "STRING",    "NULLABLE"),
     ("enrichment_model",     "STRING",    "NULLABLE"),
@@ -684,6 +908,9 @@ def _map_to_run_structured_jobs_row(
     for key in _RUN_SCHEMA_KEYS - {"run_id"}:
         if key in row:
             mapped[key] = row[key]
+    for source_key, target_key in _STRUCTURED_JSON_LIST_FIELDS:
+        if source_key in row:
+            mapped[target_key] = json.dumps(row.get(source_key, []), ensure_ascii=False)
     return mapped
 
 

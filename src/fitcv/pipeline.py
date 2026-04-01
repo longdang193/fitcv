@@ -71,15 +71,29 @@ from fitcv.vector_search import run_vector_search
 logger = logging.getLogger(__name__)
 _REPAIRABLE_VALIDATION_FIELDS = ("grounding_violations", "skill_violations")
 _EXPORT_ENRICHED_JOB_FIELDS = (
+    "location_type_raw",
+    "location_type",
+    "seniority_raw",
     "seniority",
     "required_skills",
+    "required_skills_canonical",
+    "required_skill_entities",
     "preferred_skills",
+    "preferred_skills_canonical",
+    "preferred_skill_entities",
     "responsibilities",
+    "responsibilities_canonical",
+    "domain_raw",
+    "domain",
     "tech_stack",
+    "tech_stack_canonical",
     "years_experience_min",
     "years_experience_max",
     "keywords",
+    "keywords_canonical",
+    "job_family_raw",
     "job_family",
+    "mapping_suggestions",
     "description_cleaned",
     "enrichment_version",
     "enrichment_model",
@@ -1123,7 +1137,11 @@ def build_ranking_features(
             **sl_row,
             **ai_row,
         }
-        required_skills = list(ranking_source.get("required_skills") or [])
+        required_skills = list(
+            ranking_source.get("required_skills_canonical")
+            or ranking_source.get("required_skills")
+            or []
+        )
         must_have_match = compute_must_have_match(required_skills, candidate_skills, config)
         title_relevance = compute_title_relevance(
             _extract_job_title(ranking_source),

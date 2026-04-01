@@ -342,6 +342,28 @@ def test_build_ranking_features_preserves_structured_job_fields_from_shortlist()
     assert job1["years_required"] == 4
 
 
+def test_build_ranking_features_prefers_required_skills_canonical_when_present() -> None:
+    profile: dict = {
+        "skills": [{"name": "Python"}],
+        "preferences": {"target_role": "Data Engineer"},
+    }
+    shortlist = [
+        {
+            "job_url": "https://example.com/1",
+            "vector_similarity": 0.93,
+            "vector_rank": 1,
+            "required_skills": ["Python programming for data science"],
+            "required_skills_canonical": ["python"],
+            "title": "Structured Data Engineer",
+        },
+    ]
+    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.85, "fit_label": "strong"}]
+
+    features = build_ranking_features(shortlist, ai_scores, profile, {})
+
+    assert features[0]["must_have_match"] == pytest.approx(1.0)
+
+
 @patch("fitcv.pipeline.logger")
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")

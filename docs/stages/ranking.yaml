@@ -5,6 +5,7 @@ ranking:
   boundaries:
     - shortlist candidates enter and ranked jobs leave
     - authoritative post-filter ranking fit ownership belongs to this stage
+    - canonical enrich outputs should be the default semantic input contract for ranking features when available
     - final ranking inputs and ranked-job selection should be explainable here
   inputs:
     - scoring shortlist

@@ -181,6 +181,41 @@ def test_list_run_structured_jobs_queries_correct_table():
     assert "run_structured_jobs" in sql_arg, "SQL must reference run_structured_jobs table"
 
 
+def test_list_run_structured_jobs_parses_canonical_json_companions():
+    bq = MagicMock()
+
+    class FakeRow:
+        def items(self):
+            return [
+                ("run_id", "run-abc"),
+                ("job_url", "https://example.com/1"),
+                (
+                    "required_skill_entities_json",
+                    '[{"raw_text":"Python programming for data science","canonical":"python"}]',
+                ),
+                (
+                    "mapping_suggestions_json",
+                    '[{"field":"required_skills","alias":"gcp","canonical":"google cloud","confidence":1.0}]',
+                ),
+            ]
+
+    bq.query.return_value.result.return_value = iter([FakeRow()])
+
+    result = list_run_structured_jobs("run-abc", bq, project="p", dataset="d")
+
+    assert result[0]["required_skill_entities"] == [
+        {"raw_text": "Python programming for data science", "canonical": "python"}
+    ]
+    assert result[0]["mapping_suggestions"] == [
+        {
+            "field": "required_skills",
+            "alias": "gcp",
+            "canonical": "google cloud",
+            "confidence": 1.0,
+        }
+    ]
+
+
 # ── Task 1: run-scoped input metadata fields ──────────────────────────────────
 
 def test_insert_run_includes_input_metadata_params() -> None:

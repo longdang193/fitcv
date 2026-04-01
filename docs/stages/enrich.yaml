@@ -1,18 +1,19 @@
 enrich:
   stage_id: enrich
   name: Enrich
-  summary: Filter normalized jobs through pre-enrichment global checks, then enrich surviving jobs into the stable downstream job contract used by later stages.
+  summary: Filter normalized jobs through pre-enrichment global checks, then enrich surviving jobs into a shared raw-plus-canonical downstream contract used by later stages.
   boundaries:
     - normalized jobs enter and enriched job rows leave
     - pre-enrichment global filter ownership belongs to this stage in the current runtime flow
-    - canonical downstream fields such as required skills, job family, and years fields become usable here
+    - canonical downstream fields such as required skills, canonical skill companions, raw scalar companions, job family, and years fields become usable here
     - downstream scoring and CV work should rely on the enriched contract rather than raw input shape
   inputs:
     - normalized job rows
     - pre-enrichment global filter settings from runtime config
   outputs:
     - enriched job rows
-    - canonical downstream job fields
+    - raw-plus-canonical downstream job fields
+    - enrich-stage mapping suggestions for review/debug export
     - pre-enrichment rejects with reasons
     - bounded `stage_transition_artifacts.enrich` runtime block with input, output, and changed-state samples
   depends_on:

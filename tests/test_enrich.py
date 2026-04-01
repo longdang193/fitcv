@@ -160,6 +160,42 @@ def test_merge_scraped_and_enriched_uses_config_model() -> None:
     assert merged["enrichment_version"] == "v1"
 
 
+def test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields() -> None:
+    scraped = {"job_url": "url1", "title": "DE"}
+    enriched = {
+        "required_skills": ["Python programming for data science"],
+        "required_skills_canonical": ["python"],
+        "required_skill_entities": [
+            {"raw_text": "Python programming for data science", "canonical": "python"}
+        ],
+        "mapping_suggestions": [
+            {
+                "field": "required_skills",
+                "alias": "python programming for data science",
+                "canonical": "python",
+                "confidence": 1.0,
+            }
+        ],
+        "location_type_raw": "Remote",
+        "location_type": "remote",
+        "domain_raw": "FinTech",
+        "domain": "fintech",
+    }
+
+    merged = merge_scraped_and_enriched(scraped, enriched)
+
+    assert merged["required_skills"] == ["Python programming for data science"]
+    assert merged["required_skills_canonical"] == ["python"]
+    assert merged["required_skill_entities"] == [
+        {"raw_text": "Python programming for data science", "canonical": "python"}
+    ]
+    assert merged["mapping_suggestions"][0]["alias"] == "python programming for data science"
+    assert merged["location_type_raw"] == "Remote"
+    assert merged["location_type"] == "remote"
+    assert merged["domain_raw"] == "FinTech"
+    assert merged["domain"] == "fintech"
+
+
 def test_load_structured_jobs_uses_explicit_staging_schema(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -802,6 +838,85 @@ def test_apply_structured_normalization_strips_whitespace() -> None:
     result = _apply_structured_normalization(output, config=None)
     assert result["domain"] == "fintech"
     assert result["job_family"] == "ml engineering"
+
+
+def test_apply_structured_normalization_emits_canonical_skill_companions() -> None:
+    output = EnrichmentOutput(
+        required_skills=["GCP", "Python programming for data science"],
+        preferred_skills=["PowerBI"],
+        tech_stack=["BigQuery"],
+        keywords=["LLM"],
+    )
+
+    result = _apply_structured_normalization(
+        output,
+        config={
+            "skill_synonyms": {
+                "gcp": "google cloud",
+                "powerbi": "power bi",
+                "llm": "genai",
+            }
+        },
+    )
+
+    assert result["required_skills"] == ["GCP", "Python programming for data science"]
+    assert result["required_skills_canonical"] == [
+        "google cloud",
+        "python programming for data science",
+    ]
+    assert result["preferred_skills_canonical"] == ["power bi"]
+    assert result["tech_stack_canonical"] == ["bigquery"]
+    assert result["keywords_canonical"] == ["genai"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "GCP", "canonical": "google cloud"},
+        {
+            "raw_text": "Python programming for data science",
+            "canonical": "python programming for data science",
+        },
+    ]
+    assert result["preferred_skill_entities"] == [
+        {"raw_text": "PowerBI", "canonical": "power bi"}
+    ]
+    assert result["mapping_suggestions"] == [
+        {
+            "field": "required_skills",
+            "alias": "gcp",
+            "canonical": "google cloud",
+            "confidence": 1.0,
+        },
+        {
+            "field": "preferred_skills",
+            "alias": "powerbi",
+            "canonical": "power bi",
+            "confidence": 1.0,
+        },
+        {
+            "field": "keywords",
+            "alias": "llm",
+            "canonical": "genai",
+            "confidence": 1.0,
+        },
+    ]
+
+
+def test_apply_structured_normalization_preserves_raw_scalar_companions() -> None:
+    output = EnrichmentOutput(
+        location_type="Remote",
+        seniority="Senior",
+        domain=" FinTech ",
+        job_family=" Data_Engineering ",
+    )
+
+    result = _apply_structured_normalization(output, config=None)
+
+    assert result["location_type_raw"] == "Remote"
+    assert result["location_type"] == "remote"
+    assert result["seniority_raw"] == "Senior"
+    assert result["seniority"] == "senior"
+    assert result["domain_raw"] == " FinTech "
+    assert result["domain"] == "fintech"
+    assert result["job_family_raw"] == " Data_Engineering "
+    assert result["job_family"] == "data_engineering"
 
 
 # ── enrich_job primary and fallback paths ─────────────────────────────────────
