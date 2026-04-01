@@ -35,6 +35,131 @@ from fitcv_cp.settings_store import load_active_settings, save_setting, save_set
 from fitcv.config import apply_cv_compatibility_projection
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+PIPELINE_OUTCOME_META: dict[str, dict[str, str]] = {
+    "ranked_with_cv": {
+        "label": "CV created",
+        "badge_class": "badge-success",
+    },
+    "ranked_skipped_fit_gate": {
+        "label": "Ranked, skipped by fit gate",
+        "badge_class": "badge-warning",
+    },
+    "ranked_no_cv": {
+        "label": "Ranked, CV failed",
+        "badge_class": "badge-warning",
+    },
+    "not_shortlisted": {
+        "label": "Passed filter, not shortlisted",
+        "badge_class": "badge-info",
+    },
+    "shortlisted_not_scored": {
+        "label": "Shortlisted, not AI scored",
+        "badge_class": "badge-info",
+    },
+    "scored_not_ranked": {
+        "label": "Scored, not final top-N",
+        "badge_class": "badge-info",
+    },
+    "rejected_after_enrichment": {
+        "label": "Rejected after enrichment",
+        "badge_class": "badge-error",
+    },
+    "rejected_before_enrichment": {
+        "label": "Rejected before enrichment",
+        "badge_class": "badge-error",
+    },
+    "deduplicated_before_enrichment": {
+        "label": "Deduplicated before enrichment",
+        "badge_class": "badge-warning",
+    },
+}
+DECISION_CHAIN_LABELS: dict[str, str] = {
+    "returned_by_vector_search": "returned by vector search",
+    "backfilled_for_scoring": "backfilled for scoring",
+    "advanced_to_scoring": "advanced to scoring",
+    "not_returned_by_vector_search": "not returned by vector search",
+    "accepted": "accepted",
+    "validation_failed": "validation failed",
+    "generation_failed": "generation failed",
+    "persistence_failed": "persistence failed",
+    "skipped_fit_gate": "skipped by fit gate",
+    "not_attempted": "not attempted",
+    "not_run": "not run",
+    "failed": "failed",
+}
+TIMELINE_STAGE_DOWNLOADS: dict[str, str] = {
+    "layer1_normalize": "normalize",
+    "layer1_jobs": "enrich",
+    "layer3_filter": "rule_filter",
+    "layer3_shortlist": "shortlist",
+    "layer3_ranking": "ranking",
+    "pipeline_complete": "cv_generation",
+    "layer4_cv_skip": "cv_generation",
+    "layer4_cv_validation_failed": "cv_generation",
+}
+STAGE_DOWNLOAD_LABELS: dict[str, str] = {
+    "normalize": "Download Normalize JSON",
+    "enrich": "Download Enrich JSON",
+    "rule_filter": "Download Rule Filter JSON",
+    "shortlist": "Download Shortlist JSON",
+    "ranking": "Download Ranking JSON",
+    "cv_generation": "Download CV Generation JSON",
+}
+
+
+def _decision_chain_label(value: Any) -> str | None:
+    normalized = str(value or "").strip()
+    if not normalized:
+        return None
+    return DECISION_CHAIN_LABELS.get(normalized, normalized.replace("_", " "))
+
+
+def _format_pipeline_outcome_detail(row: dict[str, Any]) -> str | None:
+    decision_chain = row.get("decision_chain")
+    if not isinstance(decision_chain, dict):
+        return None
+
+    detail_parts: list[str] = []
+    shortlist = decision_chain.get("shortlist")
+    if isinstance(shortlist, dict):
+        shortlist_status = _decision_chain_label(shortlist.get("status"))
+        if shortlist_status and shortlist_status != "not applicable":
+            detail_parts.append(f"Shortlist: {shortlist_status}")
+
+    primary_fit = decision_chain.get("primary_fit")
+    if isinstance(primary_fit, dict):
+        fit_label = str(primary_fit.get("label") or "").strip()
+        if fit_label:
+            detail_parts.append(f"Primary fit: {fit_label}")
+
+    cv_generation = decision_chain.get("cv_generation")
+    if isinstance(cv_generation, dict):
+        cv_status = _decision_chain_label(cv_generation.get("status"))
+        if cv_status and cv_status != "not applicable":
+            detail_parts.append(f"CV: {cv_status}")
+
+    validation = decision_chain.get("validation")
+    if isinstance(validation, dict):
+        validation_status = _decision_chain_label(validation.get("status"))
+        if validation_status and validation_status != "not run":
+            detail_parts.append(f"Validation: {validation_status}")
+
+    if not detail_parts:
+        return None
+    return " | ".join(detail_parts)
+
+
+def _timeline_stage_download_for_event(event_stage: str) -> str | None:
+    normalized = str(event_stage or "").strip()
+    if not normalized:
+        return None
+    return TIMELINE_STAGE_DOWNLOADS.get(normalized)
+
+
+def _stage_download_label(stage_id: str | None) -> str | None:
+    if not stage_id:
+        return None
+    return STAGE_DOWNLOAD_LABELS.get(stage_id, f"Download {stage_id.replace('_', ' ').title()} JSON")
 
 
 class TriggerRequest(BaseModel):
@@ -862,6 +987,24 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if run is None:
             raise HTTPException(status_code=404)
         events = get_events(run_id, bq, project=project, dataset=dataset)
+        timeline_events: list[dict[str, Any]] = []
+        for ev in events:
+            stage_id = _timeline_stage_download_for_event(ev.stage)
+            timeline_events.append(
+                {
+                    "created_at": ev.created_at,
+                    "stage": ev.stage,
+                    "level": ev.level,
+                    "message": ev.message,
+                    "stage_id": stage_id,
+                    "stage_download_url": (
+                        f"/admin/runs/{run_id}/stage-artifacts/{stage_id}.json"
+                        if stage_id and run.stage_transition_artifacts_json
+                        else None
+                    ),
+                    "stage_download_label": _stage_download_label(stage_id),
+                }
+            )
         cv_versions = list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
         enriched_jobs = list_run_structured_jobs(run_id, bq, project=project, dataset=dataset)
         filter_results = list_filter_results_for_run(run_id, bq, project=project, dataset=dataset)
@@ -878,9 +1021,26 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             if row["job_url"] not in enriched_job_urls and row.get("reasons")
         ]
         deduplicated_before_enrichment: list[dict[str, str | list[str] | None]] = []
+        pipeline_outcomes_by_job_url: dict[str, dict[str, str | None]] = {}
         if run.results_export_json:
             try:
                 export_payload = _json.loads(run.results_export_json)
+                pipeline_outcomes_by_job_url = {
+                    str(row.get("job_url") or ""): {
+                        "status": str(row.get("pipeline_status") or ""),
+                        "label": PIPELINE_OUTCOME_META.get(
+                            str(row.get("pipeline_status") or ""),
+                            {"label": str(row.get("pipeline_status") or "Unknown pipeline outcome")},
+                        )["label"],
+                        "badge_class": PIPELINE_OUTCOME_META.get(
+                            str(row.get("pipeline_status") or ""),
+                            {"badge_class": "badge-info"},
+                        )["badge_class"],
+                        "detail": _format_pipeline_outcome_detail(row),
+                    }
+                    for row in export_payload.get("results", [])
+                    if row.get("job_url")
+                }
                 deduplicated_before_enrichment = [
                     {
                         "job_url": row.get("job_url"),
@@ -892,6 +1052,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 ]
             except (_json.JSONDecodeError, TypeError, AttributeError):
                 deduplicated_before_enrichment = []
+                pipeline_outcomes_by_job_url = {}
 
         # Build job title lookup: job_url → title (used for cv_versions generated output labels)
         job_title_by_url: dict[str, str] = {
@@ -924,10 +1085,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
                 "run": run,
-                "events": events,
+                "events": timeline_events,
                 "cv_versions": cv_versions,
                 "enriched_jobs": enriched_jobs,
                 "filter_results_by_job_url": filter_results_by_job_url,
+                "pipeline_outcomes_by_job_url": pipeline_outcomes_by_job_url,
                 "pre_enrichment_rejects": pre_enrichment_rejects,
                 "deduplicated_before_enrichment": deduplicated_before_enrichment,
                 "job_title_by_url": job_title_by_url,
@@ -964,6 +1126,84 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             content=pretty_json,
             media_type="application/json",
             headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-results.json"'},
+        )
+
+    @app.get("/admin/runs/{run_id}/cv-debug.json")
+    def download_run_cv_debug_json(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status != RunStatus.SUCCEEDED:
+            raise HTTPException(status_code=409, detail="CV debug export is only available for succeeded runs")
+        if not run.cv_generation_debug_json:
+            raise HTTPException(status_code=404, detail="CV debug export is not available for this run")
+        pretty_json = _json.dumps(_json.loads(run.cv_generation_debug_json), ensure_ascii=False, indent=2)
+        return Response(
+            content=pretty_json,
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-cv-debug.json"'},
+        )
+
+    @app.get("/admin/runs/{run_id}/stage-artifacts.json")
+    def download_run_stage_transition_artifacts_json(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status != RunStatus.SUCCEEDED:
+            raise HTTPException(status_code=409, detail="Stage transition artifacts export is only available for succeeded runs")
+        if not run.stage_transition_artifacts_json:
+            raise HTTPException(status_code=404, detail="Stage transition artifacts export is not available for this run")
+        pretty_json = _json.dumps(_json.loads(run.stage_transition_artifacts_json), ensure_ascii=False, indent=2)
+        return Response(
+            content=pretty_json,
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-stage-artifacts.json"'},
+        )
+
+    @app.get("/admin/runs/{run_id}/stage-artifacts/{stage_id}.json")
+    def download_run_stage_transition_artifact_stage_json(run_id: str, stage_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status != RunStatus.SUCCEEDED:
+            raise HTTPException(status_code=409, detail="Stage transition artifact download is only available for succeeded runs")
+        if not run.stage_transition_artifacts_json:
+            raise HTTPException(status_code=404, detail="Stage transition artifacts export is not available for this run")
+        if stage_id not in {"normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_generation"}:
+            raise HTTPException(status_code=404, detail="Unknown stage artifact")
+        artifact_payload = _json.loads(run.stage_transition_artifacts_json)
+        artifacts = artifact_payload.get("artifacts") or {}
+        stages = artifacts.get("stages") or {}
+        stage_artifact = stages.get(stage_id)
+        if not isinstance(stage_artifact, dict):
+            raise HTTPException(status_code=404, detail="Stage artifact is not available for this run")
+        payload = {
+            "run_id": run_id,
+            "stage_id": stage_id,
+            "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+            "created_at": artifact_payload.get("created_at"),
+            "stage_artifact": stage_artifact,
+        }
+        return Response(
+            content=_json.dumps(payload, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-{stage_id}.json"'},
+        )
+
+    @app.get("/admin/runs/{run_id}/settings-used.json")
+    def download_run_settings_used_json(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status != RunStatus.SUCCEEDED:
+            raise HTTPException(status_code=409, detail="Settings-used export is only available for succeeded runs")
+        if not run.settings_used_json:
+            raise HTTPException(status_code=404, detail="Settings-used export is not available for this run")
+        pretty_json = _json.dumps(_json.loads(run.settings_used_json), ensure_ascii=False, indent=2)
+        return Response(
+            content=pretty_json,
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-settings-used.json"'},
         )
 
     return app

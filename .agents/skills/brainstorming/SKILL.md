@@ -31,6 +31,7 @@ Before writing any spec or doc, align with the 5-layer system:
 
 ```text
 code/                       → real truth
+docs/stages/*.yaml          → stage contracts (when stage-aware docs are in scope)
 docs/features/*.yaml        → feature contract (current state)
 docs/features/<feature_id>/ → feature-specific explanation + history
 docs/*.md                   → cross-cutting explanation
@@ -41,8 +42,9 @@ README.md                   → overview
 Rules:
 
 - Specs live under `docs/superpowers/specs/`
-- Feature YAML must exist before spec (or be planned)
-- The spec must link back to the affected `docs/features/<feature_id>.yaml`
+- Feature YAML must exist before spec when a managed feature is changing; cross-cutting operating-system work may use `feature_yaml: none`
+- The spec must link back to the affected `docs/features/<feature_id>.yaml` when one exists
+- Use stage classification when the work is pipeline-heavy, architecture-heavy, or boundary-heavy
 - Feature-specific explanation/history belongs under `docs/features/<feature_id>/`
 - Cross-cutting explanation belongs under `docs/*.md`
 
@@ -73,9 +75,11 @@ Rules:
 - constraints / invariants
 - confirm with user
 
-5. **Feature Alignment**
+5. **Feature and Stage Alignment**
 
 - identify `feature_id`
+- identify affected stages when relevant
+- decide the primary lens: stage | feature | mixed
 - classify: add / modify / replace
 - name doc targets:
 - feature contract → `docs/features/<feature_id>.yaml`
@@ -87,6 +91,7 @@ Rules:
 - confirm:
 - new feature → create YAML
 - existing → update YAML
+- cross-cutting operating-system or method change → `feature_yaml: none` is allowed
 
 6. **Invoke planning-dispatch**
 
@@ -125,7 +130,7 @@ Present design
   ↓
 User approval
   ↓
-Feature alignment (YAML + classification)
+Feature and stage alignment
   ↓
 planning-dispatch (triage)
   ↓
@@ -160,7 +165,8 @@ Each unit must answer:
 - spec belongs in `docs/superpowers/specs/`
 - YAML = current state
 - spec = explanation + design
-- spec must name the affected `docs/features/<feature_id>.yaml`
+- spec must name the affected `docs/features/<feature_id>.yaml` when one exists
+- stage-heavy specs should also name affected stages and the primary lens
 - spec should name any feature-specific docs or cross-cutting docs it expects to be updated
 
 ### Required frontmatter
@@ -186,7 +192,8 @@ invariants:
 ## Anti-Patterns
 
 - writing spec before feature classification
-- writing spec without linking the affected feature YAML
+- writing spec without classifying affected stages when the work is clearly boundary-heavy
+- writing spec without linking the affected feature YAML when one exists
 - assuming `FEATURES.md`
 - mixing design + implementation
 - skipping YAML alignment

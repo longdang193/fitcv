@@ -23,6 +23,12 @@
     {% if run.status.value == 'succeeded' and run.results_export_json %}
       <a href="/admin/runs/{{ run.run_id }}/export.json" class="btn-secondary">⬇ Download Results JSON</a>
     {% endif %}
+    {% if run.status.value == 'succeeded' and run.cv_generation_debug_json %}
+      <a href="/admin/runs/{{ run.run_id }}/cv-debug.json" class="btn-secondary">⬇ Download CV Debug JSON</a>
+    {% endif %}
+    {% if run.status.value == 'succeeded' and run.settings_used_json %}
+      <a href="/admin/runs/{{ run.run_id }}/settings-used.json" class="btn-secondary">⬇ Download Settings Used JSON</a>
+    {% endif %}
     <a href="/admin/runs" class="btn-secondary">← All Runs</a>
   </div>
 </div>
@@ -152,11 +158,13 @@
           <th>Domain</th>
           <th>Required Skills (top 5)</th>
           <th>Filter</th>
+          <th>Pipeline Outcome</th>
         </tr>
       </thead>
       <tbody id="enr-tbody">
         {% for job in enriched_jobs %}
         {% set fr = filter_results_by_job_url.get(job.job_url) %}
+        {% set outcome = pipeline_outcomes_by_job_url.get(job.job_url) %}
         <tr data-filter="{% if fr is not none %}{{ 'passed' if fr.passed else 'rejected' }}{% else %}unknown{% endif %}"
             data-title="{{ (job.title or '') | lower }}"
             data-domain="{{ (job.domain or '') | lower }}"
@@ -185,10 +193,20 @@
               <span class="empty-value">—</span>
             {% endif %}
           </td>
+          <td style="white-space:nowrap">
+            {% if outcome is not none %}
+              <span class="badge {{ outcome.badge_class }}" {% if outcome.detail %}title="{{ outcome.detail }}"{% endif %}>{{ outcome.label }}</span>
+              {% if outcome.detail %}
+              <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">{{ outcome.detail }}</div>
+              {% endif %}
+            {% else %}
+              <span class="empty-value">—</span>
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
         <tr id="enr-empty-row" style="display:none">
-          <td colspan="7" style="text-align:center;padding:1.5rem">
+          <td colspan="8" style="text-align:center;padding:1.5rem">
             No jobs match the current controls.
             <a href="#" style="margin-left:0.5rem" onclick="EnrichedTable.resetControls();return false;">Show all</a>
           </td>
@@ -339,6 +357,7 @@
         <th>Stage</th>
         <th>Level</th>
         <th>Message</th>
+        <th>Artifacts</th>
       </tr>
     </thead>
     <tbody>
@@ -348,13 +367,25 @@
         <td><code>{{ ev.stage }}</code></td>
         <td><span class="badge badge-{{ ev.level }}">{{ ev.level }}</span></td>
         <td class="meta" style="max-width:600px;word-break:break-word">{{ ev.message }}</td>
+        <td class="meta">
+          {% if ev.stage_download_url %}
+          <a href="{{ ev.stage_download_url }}">{{ ev.stage_download_label or 'Download Stage JSON' }}</a>
+          {% else %}
+          <span class="empty-value">—</span>
+          {% endif %}
+        </td>
       </tr>
       {% else %}
-      <tr class="empty-row"><td colspan="4">No events yet</td></tr>
+      <tr class="empty-row"><td colspan="5">No events yet</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
+{% if run.status.value == 'succeeded' and run.stage_transition_artifacts_json %}
+<div style="display:flex;justify-content:flex-end;margin-top:0.75rem">
+  <a href="/admin/runs/{{ run.run_id }}/stage-artifacts.json" class="btn-secondary">⬇ Download Stage Artifacts JSON</a>
+</div>
+{% endif %}
 
 <script>
 function showTab(id) {

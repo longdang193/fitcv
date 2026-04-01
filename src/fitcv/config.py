@@ -64,6 +64,32 @@ _INFRA_ENV_OVERRIDES = {
     "bigquery_dataset": "BIGQUERY_DATASET",
     "service_account_key": "GOOGLE_APPLICATION_CREDENTIALS",
 }
+CV_STRUCTURED_SECTION_KEYS = (
+    "header",
+    "summary",
+    "experience",
+    "projects",
+    "education",
+    "skills",
+    "certifications",
+    "publications",
+    "languages",
+)
+CV_SECTION_KEY_TO_NAME = {
+    "header": "Header",
+    "summary": "Summary",
+    "education": "Education",
+    "experience": "Experience",
+    "skills": "Skills",
+    "certifications": "Certifications",
+    "projects": "Projects",
+    "publications": "Publications",
+    "languages": "Languages",
+}
+CV_SECTION_NAME_TO_KEY = {
+    display_name.lower(): section_key
+    for section_key, display_name in CV_SECTION_KEY_TO_NAME.items()
+}
 
 
 def _load_yaml_file(path: Path) -> dict[str, Any]:
@@ -281,6 +307,43 @@ def apply_cv_compatibility_projection(cfg: dict[str, Any]) -> dict[str, Any]:
     cfg["required_cv_sections"] = required
 
     return cfg
+
+
+def get_required_cv_section_names(config: dict[str, Any]) -> list[str]:
+    """Return the configured display names for required CV sections."""
+    flat_required = [
+        str(section_name)
+        for section_name in list(config.get("required_cv_sections") or [])
+        if section_name
+    ]
+    if flat_required:
+        return flat_required
+
+    cv_cfg = config.get("cv") or {}
+    composition = cv_cfg.get("composition") or {}
+    derived_required: list[str] = []
+    for section_key, section_cfg in composition.items():
+        if not isinstance(section_cfg, dict):
+            continue
+        if not section_cfg.get("enabled", False):
+            continue
+        display_name = CV_SECTION_KEY_TO_NAME.get(section_key)
+        if display_name:
+            derived_required.append(display_name)
+    return derived_required
+
+
+def get_required_structured_section_keys(config: dict[str, Any]) -> list[str]:
+    """Return structured section keys mapped from the required section names."""
+    keys: list[str] = []
+    seen: set[str] = set()
+    for section_name in get_required_cv_section_names(config):
+        key = CV_SECTION_NAME_TO_KEY.get(section_name.strip().lower())
+        if key is None or key in seen:
+            continue
+        seen.add(key)
+        keys.append(key)
+    return keys
 
 
 def get_vertex_location(config: dict[str, Any]) -> str:

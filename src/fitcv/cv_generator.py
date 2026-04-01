@@ -28,12 +28,18 @@ select_template_variant  : read job_family from enriched JD and return a templat
 generate_cv             : call the LLM and return CV markdown (integration)
 """
 
+import json
 import textwrap
 from typing import Any
 
 from jinja2 import BaseLoader, Environment, TemplateError
 
 from fitcv.candidate import flatten_skills
+from fitcv.config import (
+    CV_SECTION_KEY_TO_NAME,
+    CV_STRUCTURED_SECTION_KEYS,
+    get_required_structured_section_keys,
+)
 
 # ── template variant map ─────────────────────────────────────────────────────
 # Maps job_family values (populated by enrichment) to styling hints.
@@ -47,16 +53,9 @@ _TEMPLATE_VARIANTS: dict[str, str] = {
 }
 
 _DEFAULT_VARIANT = "standard"
-_SECTION_DISPLAY_NAMES: dict[str, str] = {
-    "summary": "Summary",
-    "education": "Education",
-    "experience": "Experience",
-    "skills": "Skills",
-    "certifications": "Certifications",
-    "projects": "Projects",
-    "publications": "Publications",
-    "languages": "Languages",
-}
+STRUCTURED_CV_SCHEMA_VERSION = "cv_doc_v1"
+DEFAULT_CV_LOCALE = "en"
+DEFAULT_SUPPORTING_EVIDENCE_PER_ROLE = 1
 
 
 # ── template variant selector ─────────────────────────────────────────────────
@@ -79,7 +78,7 @@ def _get_enabled_section_names(config: dict[str, Any] | None) -> list[str]:
     enabled_sections: list[str] = []
     for section_key, section_cfg in composition.items():
         if isinstance(section_cfg, dict) and section_cfg.get("enabled", True):
-            enabled_sections.append(_SECTION_DISPLAY_NAMES.get(section_key, section_key.title()))
+            enabled_sections.append(CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title()))
     return enabled_sections
 
 
@@ -172,6 +171,525 @@ def _format_language_lines(profile: dict[str, Any] | None) -> list[str]:
     return lines
 
 
+def _format_evidence_block(item: dict[str, Any]) -> str:
+    evidence_type = str(item.get("evidence_type") or "")
+    if evidence_type == "experience_entry":
+        role = str(item.get("role") or "").strip()
+        company = str(item.get("company") or "").strip()
+        start = str(item.get("start") or "").strip()
+        end = str(item.get("end") or "").strip()
+        dates = " to ".join(part for part in (start, end) if part) or "(dates unavailable)"
+        bullet_lines = [
+            f"- {bullet}"
+            for bullet in item.get("bullets") or []
+            if isinstance(bullet, str) and bullet.strip()
+        ]
+        skills = ", ".join(str(skill).strip() for skill in item.get("skills") or [] if str(skill).strip())
+        parts = [
+            "Experience Entry",
+            f"Role: {role or '(role unavailable)'}",
+            f"Company: {company or '(company unavailable)'}",
+            f"Dates: {dates}",
+        ]
+        if skills:
+            parts.append(f"Skills: {skills}")
+        if bullet_lines:
+            parts.append("Relevant bullets:")
+            parts.extend(bullet_lines)
+        return "\n".join(parts)
+    if evidence_type == "project_entry":
+        name = str(item.get("name") or "").strip()
+        duration = str(item.get("duration") or "").strip()
+        business_value = str(item.get("business_value") or "").strip()
+        tech_stack = [
+            f"- {line}"
+            for line in item.get("tech_stack") or []
+            if isinstance(line, str) and line.strip()
+        ]
+        highlights = [
+            f"- {line}"
+            for line in item.get("highlights") or []
+            if isinstance(line, str) and line.strip()
+        ]
+        parts = [
+            "Project Entry",
+            f"Name: {name or '(name unavailable)'}",
+        ]
+        if duration:
+            parts.append(f"Duration: {duration}")
+        if business_value:
+            parts.append(f"Business value: {business_value}")
+        if tech_stack:
+            parts.append("Relevant stack:")
+            parts.extend(tech_stack)
+        if highlights:
+            parts.append("Relevant highlights:")
+            parts.extend(highlights)
+        return "\n".join(parts)
+
+    name = str(item.get("name", "Unknown"))
+    skills = ", ".join(item.get("skills") or [])
+    return f"- {name}: {skills}"
+
+
+def _supporting_evidence_priority(evidence_type: str) -> int:
+    priorities = {
+        "achievement": 0,
+        "project_entry": 1,
+        "project": 2,
+    }
+    return priorities.get(evidence_type, 9)
+
+
+def _supporting_evidence_score(
+    *,
+    experience_item: dict[str, Any],
+    support_item: dict[str, Any],
+    jd_skills: list[str],
+) -> int:
+    experience_skills = {
+        str(skill).strip().lower()
+        for skill in experience_item.get("skills") or []
+        if str(skill).strip()
+    }
+    support_skills = {
+        str(skill).strip().lower()
+        for skill in support_item.get("skills") or []
+        if str(skill).strip()
+    }
+    jd_skill_set = {str(skill).strip().lower() for skill in jd_skills if str(skill).strip()}
+    return len(experience_skills & support_skills) + len(jd_skill_set & support_skills)
+
+
+def _format_supporting_evidence_line(item: dict[str, Any]) -> str:
+    evidence_type = str(item.get("evidence_type") or "")
+    name = str(item.get("name") or "").strip() or "Unknown"
+    label = {
+        "achievement": "Achievement",
+        "project_entry": "Related project",
+        "project": "Related project",
+    }.get(evidence_type, "Supporting evidence")
+    return f"- {label}: {name}"
+
+
+def _select_supporting_evidence_for_experience(
+    *,
+    experience_item: dict[str, Any],
+    evidence: list[dict[str, Any]],
+    jd_skills: list[str],
+    enabled_section_names: list[str],
+) -> list[dict[str, Any]]:
+    projects_enabled = "Projects" in enabled_section_names
+    candidates: list[dict[str, Any]] = []
+    for item in evidence:
+        evidence_type = str(item.get("evidence_type") or "")
+        if evidence_type not in {"achievement", "project_entry", "project"}:
+            continue
+        if evidence_type in {"project_entry", "project"} and projects_enabled:
+            continue
+        score = _supporting_evidence_score(
+            experience_item=experience_item,
+            support_item=item,
+            jd_skills=jd_skills,
+        )
+        if score <= 0:
+            continue
+        candidates.append(item)
+
+    candidates.sort(
+        key=lambda item: (
+            -_supporting_evidence_score(
+                experience_item=experience_item,
+                support_item=item,
+                jd_skills=jd_skills,
+            ),
+            _supporting_evidence_priority(str(item.get("evidence_type") or "")),
+            str(item.get("name") or ""),
+        )
+    )
+    return candidates[:DEFAULT_SUPPORTING_EVIDENCE_PER_ROLE]
+
+
+def _build_selected_evidence_lines(
+    evidence: list[dict[str, Any]],
+    *,
+    jd_skills: list[str],
+    enabled_section_names: list[str],
+) -> str:
+    lines: list[str] = []
+    has_experience_entries = any(str(item.get("evidence_type") or "") == "experience_entry" for item in evidence)
+    for item in evidence:
+        evidence_type = str(item.get("evidence_type") or "")
+        if evidence_type == "achievement" and has_experience_entries:
+            continue
+        if evidence_type in {"project_entry", "project"} and has_experience_entries and "Projects" not in enabled_section_names:
+            continue
+
+        block = _format_evidence_block(item)
+        if evidence_type == "experience_entry":
+            supporting_items = _select_supporting_evidence_for_experience(
+                experience_item=item,
+                evidence=evidence,
+                jd_skills=jd_skills,
+                enabled_section_names=enabled_section_names,
+            )
+            if supporting_items:
+                support_lines = [_format_supporting_evidence_line(support_item) for support_item in supporting_items]
+                block = "\n".join([block, "Supporting evidence:", *support_lines])
+        lines.append(block)
+    return "\n".join(lines) or "(none)"
+
+
+def _profile_contact_value(profile: dict[str, Any] | None, key: str) -> str | None:
+    if not profile:
+        return None
+    direct_value = profile.get(key)
+    if isinstance(direct_value, str) and direct_value.strip():
+        return direct_value.strip()
+    contact = profile.get("contact")
+    if isinstance(contact, dict):
+        nested_value = contact.get(key)
+        if isinstance(nested_value, str) and nested_value.strip():
+            return nested_value.strip()
+    return None
+
+
+def _coerce_string_list(values: Any) -> list[str]:
+    if not isinstance(values, list):
+        return []
+    result: list[str] = []
+    for value in values:
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped:
+                result.append(stripped)
+    return result
+
+
+def _build_default_sections(
+    *,
+    profile: dict[str, Any] | None,
+    jd: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "header": {
+            "name": str((profile or {}).get("name") or "").strip(),
+            "title": str(jd.get("title") or "").strip(),
+            "location": _profile_contact_value(profile, "location"),
+            "contact": {
+                "email": _profile_contact_value(profile, "email"),
+                "phone": _profile_contact_value(profile, "phone"),
+                "linkedin": _profile_contact_value(profile, "linkedin"),
+            },
+        },
+        "summary": {"text": ""},
+        "experience": [],
+        "projects": [],
+        "education": [],
+        "skills": {"groups": []},
+        "certifications": [],
+        "publications": [],
+        "languages": [],
+    }
+
+
+def build_empty_structured_cv(
+    *,
+    jd: dict[str, Any],
+    profile: dict[str, Any] | None,
+    config: dict[str, Any],
+    fit_classification: str,
+) -> dict[str, Any]:
+    """Return the canonical empty structured CV document for one generation run."""
+    cv_cfg = config.get("cv") or {}
+    return {
+        "schema_version": STRUCTURED_CV_SCHEMA_VERSION,
+        "preset": str(cv_cfg.get("preset") or ""),
+        "locale": str(cv_cfg.get("locale") or DEFAULT_CV_LOCALE),
+        "job_url": str(jd.get("job_url") or ""),
+        "fit_classification": str(fit_classification or "unclassified"),
+        "target_role": str(jd.get("title") or ""),
+        "sections": _build_default_sections(profile=profile, jd=jd),
+    }
+
+
+def validate_structured_cv(
+    structured_cv: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> None:
+    """Validate the canonical structured CV document shape."""
+    required_keys = (
+        "schema_version",
+        "preset",
+        "locale",
+        "job_url",
+        "fit_classification",
+        "target_role",
+        "sections",
+    )
+    missing_keys = [key for key in required_keys if key not in structured_cv]
+    if missing_keys:
+        raise ValueError(f"Structured CV missing required keys: {', '.join(missing_keys)}")
+
+    sections = structured_cv.get("sections")
+    if not isinstance(sections, dict):
+        raise ValueError("Structured CV sections must be an object")
+
+    required_sections = set(CV_STRUCTURED_SECTION_KEYS)
+    if config is not None:
+        required_sections = {"header", *get_required_structured_section_keys(config)}
+    missing_sections = [key for key in required_sections if key not in sections]
+    if missing_sections:
+        raise ValueError(f"Structured CV missing required sections: {', '.join(missing_sections)}")
+
+    if not isinstance(sections["header"], dict):
+        raise ValueError("Structured CV header section must be an object")
+    if "summary" in sections and not isinstance(sections["summary"], dict):
+        raise ValueError("Structured CV summary section must be an object")
+    if "skills" in sections and not isinstance(sections["skills"], dict):
+        raise ValueError("Structured CV skills section must be an object")
+
+    for list_section in ("experience", "projects", "education", "certifications", "publications", "languages"):
+        if list_section in sections and not isinstance(sections[list_section], list):
+            raise ValueError(f"Structured CV {list_section} section must be a list")
+
+    if "skills" in sections:
+        groups = sections["skills"].get("groups")
+        if not isinstance(groups, list):
+            raise ValueError("Structured CV skills.groups must be a list")
+        for group in groups:
+            if not isinstance(group, dict):
+                raise ValueError("Structured CV skills.groups entries must be objects")
+            if not isinstance(group.get("label"), str) or not group.get("label", "").strip():
+                raise ValueError("Structured CV skills.groups entries require a non-empty label")
+            if not isinstance(group.get("items"), list):
+                raise ValueError("Structured CV skills.groups entries require list items")
+            if not all(isinstance(item, str) for item in group["items"]):
+                raise ValueError("Structured CV skills.groups items must be strings")
+
+
+def _extract_json_payload(response_text: str) -> dict[str, Any]:
+    stripped = response_text.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if len(lines) >= 3:
+            stripped = "\n".join(lines[1:-1]).strip()
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError:
+        start = stripped.find("{")
+        end = stripped.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            raise ValueError("Model response did not contain a JSON object") from None
+        parsed = json.loads(stripped[start:end + 1])
+    if not isinstance(parsed, dict):
+        raise ValueError("Structured CV response must be a JSON object")
+    return parsed
+
+
+def _normalize_contact(raw_header: dict[str, Any], default_header: dict[str, Any]) -> dict[str, Any]:
+    raw_contact = raw_header.get("contact")
+    default_contact = default_header["contact"]
+    if not isinstance(raw_contact, dict):
+        raw_contact = {}
+    return {
+        "email": str(raw_contact.get("email") or default_contact.get("email") or "").strip() or None,
+        "phone": str(raw_contact.get("phone") or default_contact.get("phone") or "").strip() or None,
+        "linkedin": str(raw_contact.get("linkedin") or default_contact.get("linkedin") or "").strip() or None,
+    }
+
+
+def _normalize_bullets(values: Any) -> list[str]:
+    return _coerce_string_list(values)
+
+
+def _coerce_object_list(values: Any) -> list[dict[str, Any]]:
+    if not isinstance(values, list):
+        return []
+    result: list[dict[str, Any]] = []
+    for value in values:
+        if isinstance(value, dict):
+            result.append(value)
+    return result
+
+
+def _normalize_structured_cv(
+    raw_structured_cv: dict[str, Any],
+    *,
+    jd: dict[str, Any],
+    profile: dict[str, Any] | None,
+    config: dict[str, Any],
+    fit_classification: str,
+) -> dict[str, Any]:
+    normalized = build_empty_structured_cv(
+        jd=jd,
+        profile=profile,
+        config=config,
+        fit_classification=fit_classification,
+    )
+    raw_sections = raw_structured_cv.get("sections")
+    if not isinstance(raw_sections, dict):
+        raw_sections = {}
+    default_sections = normalized["sections"]
+
+    raw_header = raw_sections.get("header")
+    if not isinstance(raw_header, dict):
+        raw_header = {}
+    normalized["sections"]["header"] = {
+        "name": str(raw_header.get("name") or default_sections["header"]["name"]).strip(),
+        "title": str(raw_header.get("title") or default_sections["header"]["title"]).strip(),
+        "location": str(raw_header.get("location") or default_sections["header"]["location"] or "").strip() or None,
+        "contact": _normalize_contact(raw_header, default_sections["header"]),
+    }
+
+    raw_summary = raw_sections.get("summary")
+    if isinstance(raw_summary, dict):
+        summary_text = str(raw_summary.get("text") or "").strip()
+    elif isinstance(raw_summary, str):
+        summary_text = raw_summary.strip()
+    else:
+        summary_text = ""
+    normalized["sections"]["summary"] = {"text": summary_text}
+
+    normalized["sections"]["experience"] = []
+    for item in _coerce_object_list(raw_sections.get("experience")):
+        normalized["sections"]["experience"].append(
+            {
+                "role": str(item.get("role") or "").strip(),
+                "company": str(item.get("company") or "").strip(),
+                "start": str(item.get("start") or "").strip() or None,
+                "end": str(item.get("end") or "").strip() or None,
+                "location": str(item.get("location") or "").strip() or None,
+                "bullets": _normalize_bullets(item.get("bullets")),
+            }
+        )
+
+    normalized["sections"]["projects"] = []
+    for item in _coerce_object_list(raw_sections.get("projects")):
+        normalized["sections"]["projects"].append(
+            {
+                "name": str(item.get("name") or "").strip(),
+                "context": str(item.get("context") or "").strip() or None,
+                "bullets": _normalize_bullets(item.get("bullets")),
+            }
+        )
+
+    normalized["sections"]["education"] = []
+    for item in _coerce_object_list(raw_sections.get("education")):
+        normalized["sections"]["education"].append(
+            {
+                "degree": str(item.get("degree") or "").strip(),
+                "institution": str(item.get("institution") or "").strip(),
+                "field": str(item.get("field") or "").strip() or None,
+                "start": str(item.get("start") or "").strip() or None,
+                "end": str(item.get("end") or "").strip() or None,
+            }
+        )
+
+    raw_skills = raw_sections.get("skills")
+    raw_groups = raw_skills.get("groups") if isinstance(raw_skills, dict) else []
+    normalized_groups: list[dict[str, Any]] = []
+    if isinstance(raw_groups, list):
+        for group in raw_groups:
+            if not isinstance(group, dict):
+                continue
+            normalized_groups.append(
+                {
+                    "label": str(group.get("label") or "").strip(),
+                    "items": _coerce_string_list(group.get("items")),
+                }
+            )
+    normalized["sections"]["skills"] = {"groups": normalized_groups}
+
+    normalized["sections"]["certifications"] = []
+    for item in _coerce_object_list(raw_sections.get("certifications")):
+        normalized["sections"]["certifications"].append(
+            {
+                "name": str(item.get("name") or "").strip(),
+                "issuer": str(item.get("issuer") or "").strip() or None,
+                "year": str(item.get("year") or "").strip() or None,
+            }
+        )
+
+    normalized["sections"]["publications"] = []
+    for item in _coerce_object_list(raw_sections.get("publications")):
+        normalized["sections"]["publications"].append(
+            {
+                "title": str(item.get("title") or "").strip(),
+                "publisher": str(item.get("publisher") or "").strip() or None,
+                "year": str(item.get("year") or "").strip() or None,
+            }
+        )
+
+    normalized["sections"]["languages"] = []
+    for item in _coerce_object_list(raw_sections.get("languages")):
+        normalized["sections"]["languages"].append(
+            {
+                "name": str(item.get("name") or "").strip(),
+                "level": str(item.get("level") or "").strip() or None,
+            }
+        )
+
+    validate_structured_cv(normalized, config=config)
+    return normalized
+
+
+def build_structured_generation_prompt(
+    jd: dict[str, Any],
+    evidence: list[dict[str, Any]],
+    gap: dict[str, Any],
+    template: str,
+    profile: dict[str, Any] | None = None,
+    *,
+    config: dict[str, Any] | None = None,
+    repair_missing_sections: list[str] | None = None,
+) -> str:
+    base_prompt = build_generation_prompt(
+        jd=jd,
+        evidence=evidence,
+        gap=gap,
+        template=template,
+        profile=profile,
+        config=config,
+        repair_missing_sections=repair_missing_sections,
+    )
+    structured_schema = textwrap.dedent(
+        """\
+        {
+          "sections": {
+            "header": {
+              "name": "...",
+              "title": "...",
+              "location": null,
+              "contact": {"email": null, "phone": null, "linkedin": null}
+            },
+            "summary": {"text": "..."},
+            "experience": [{"role": "...", "company": "...", "start": null, "end": null, "location": null, "bullets": ["..."]}],
+            "projects": [{"name": "...", "context": null, "bullets": ["..."]}],
+            "education": [{"degree": "...", "institution": "...", "field": null, "start": null, "end": null}],
+            "skills": {"groups": [{"label": "...", "items": ["..."]}]},
+            "certifications": [{"name": "...", "issuer": null, "year": null}],
+            "publications": [{"title": "...", "publisher": null, "year": null}],
+            "languages": [{"name": "...", "level": null}]
+          }
+        }
+        """
+    )
+    return (
+        base_prompt
+        .replace(
+            "You are a professional CV writer. Generate a tailored CV in markdown format.",
+            "You are a professional CV writer. Generate a tailored CV as a structured JSON document.",
+        )
+        .replace("## Output Template", "## Rendering Reference Template")
+        .replace(
+            "Write only the completed CV markdown. Do not add commentary.",
+            "Write only valid JSON matching the schema below. Do not add commentary. Do not wrap the JSON in markdown code fences.\n\n"
+            f"## Structured JSON Schema\n{structured_schema}",
+        )
+    )
+
+
 # ── prompt assembly ───────────────────────────────────────────────────────────
 
 def build_generation_prompt(
@@ -197,10 +715,12 @@ def build_generation_prompt(
     title = str(jd.get("title") or "")
     required_skills = list(jd.get("required_skills") or [])
 
-    evidence_lines = "\n".join(
-        f"- {item.get('name', 'Unknown')}: {', '.join(item.get('skills') or [])}"
-        for item in evidence
-    ) or "(none)"
+    enabled_section_names = _get_enabled_section_names(config)
+    evidence_lines = _build_selected_evidence_lines(
+        evidence,
+        jd_skills=required_skills,
+        enabled_section_names=enabled_section_names,
+    )
 
     matched_skills = list(gap.get("matched") or [])
     missing_skills = list(gap.get("missing") or [])
@@ -242,7 +762,6 @@ def build_generation_prompt(
                 "In the Skills section, only use skills from this approved list: "
                 + ", ".join(approved_skills)
             )
-    enabled_section_names = _get_enabled_section_names(config)
     if enabled_section_names:
         constraint_lines.append(
             "The generated CV MUST include these sections in this order: "
@@ -263,10 +782,17 @@ def build_generation_prompt(
         composition = (config.get("cv") or {}).get("composition") or {}
         for section_key, section_cfg in composition.items():
             if isinstance(section_cfg, dict) and not section_cfg.get("enabled", True):
-                display_name = _SECTION_DISPLAY_NAMES.get(section_key, section_key.title())
+                display_name = CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title())
                 constraint_lines.append(
                     f"Do NOT include a '{display_name}' section."
                 )
+    if any(str(item.get("evidence_type") or "") == "experience_entry" for item in evidence):
+        constraint_lines.append(
+            "For the Experience section, emphasize the bullets most relevant to the target JD."
+        )
+        constraint_lines.append(
+            "For the Experience section, summarize or combine grounded facts where helpful."
+        )
 
     constraints = "\n".join(constraint_lines) or "(no specific constraints)"
     filtered_template = _filter_template_by_enabled_sections(template, enabled_section_names)
@@ -320,6 +846,10 @@ def render_cv_template(
     candidate: dict[str, Any],
     headline: str,
     summary: str,
+    selected_education: list[dict[str, Any]] | None = None,
+    selected_publications: list[dict[str, Any]] | None = None,
+    selected_certifications: list[dict[str, Any]] | None = None,
+    selected_languages: list[dict[str, Any]] | None = None,
 ) -> str:
     """Render a Jinja2 CV template with the selected evidence slots.
 
@@ -341,6 +871,10 @@ def render_cv_template(
         selected_skills=selected_skills,
         selected_experiences=selected_experiences,
         selected_projects=selected_projects,
+        selected_education=selected_education or [],
+        selected_publications=selected_publications or [],
+        selected_certifications=selected_certifications or [],
+        selected_languages=selected_languages or [],
         candidate=candidate,
         headline=headline,
         summary=summary,
@@ -368,26 +902,88 @@ def _resolve_template_path(config: dict[str, Any]) -> str:
     return str(config.get("cv_template_path", "templates/cv_template.md"))
 
 
-def generate_cv(
+def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) -> str:
+    """Render markdown from a validated structured CV document."""
+    import pathlib
+
+    validate_structured_cv(structured_cv, config=config)
+    template_path = _resolve_template_path(config)
+    template_str = pathlib.Path(template_path).read_text(encoding="utf-8")
+    enabled_section_names = _get_enabled_section_names(config)
+    template_str = _filter_template_by_enabled_sections(template_str, enabled_section_names)
+    sections = structured_cv["sections"]
+    header = sections["header"]
+    flattened_skills = [
+        item
+        for group in sections["skills"]["groups"]
+        for item in group["items"]
+    ]
+    selected_projects = [
+        {
+            "name": project.get("name"),
+            "description": project.get("context") or "\n".join(project.get("bullets") or []),
+        }
+        for project in sections["projects"]
+    ]
+    selected_education = [
+        {
+            "degree": item.get("degree"),
+            "institution": item.get("institution"),
+            "field": item.get("field"),
+            "start": item.get("start"),
+            "end": item.get("end"),
+        }
+        for item in sections["education"]
+    ]
+    selected_publications = [
+        {
+            "title": item.get("title"),
+            "publisher": item.get("publisher"),
+            "year": item.get("year"),
+        }
+        for item in sections["publications"]
+    ]
+    selected_certifications = [
+        {
+            "name": item.get("name"),
+            "issuer": item.get("issuer"),
+            "year": item.get("year"),
+        }
+        for item in sections["certifications"]
+    ]
+    selected_languages = [
+        {
+            "name": item.get("name"),
+            "level": item.get("level"),
+        }
+        for item in sections["languages"]
+    ]
+    return render_cv_template(
+        template_str=template_str,
+        selected_skills=flattened_skills,
+        selected_experiences=sections["experience"],
+        selected_projects=selected_projects,
+        selected_education=selected_education,
+        selected_publications=selected_publications,
+        selected_certifications=selected_certifications,
+        selected_languages=selected_languages,
+        candidate={"name": header.get("name", "")},
+        headline=str(header.get("title") or ""),
+        summary=str(sections["summary"].get("text") or ""),
+    )
+
+
+def generate_structured_cv(
     jd: dict[str, Any],
     evidence: list[dict[str, Any]],
     gap: dict[str, Any],
     profile: dict[str, Any],
     config: dict[str, Any],
     *,
+    fit_classification: str,
     repair_missing_sections: list[str] | None = None,
-) -> str:
-    """Call the LLM to generate a tailored CV markdown string.
-
-    Reads template from cv_presets.get_template_path(config["cv"]["preset"])
-    (via _resolve_template_path), not from cv_template_path directly.
-    Reads model from config["cv"]["generation"]["model"] (nested; falls back to
-    flat cv_generation_model for compatibility).
-
-    Uses ``google.genai`` against Vertex AI.
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
-    Decorated with @pytest.mark.integration in tests.
-    """
+) -> dict[str, Any]:
+    """Call the LLM to generate a structured CV document."""
     import pathlib
     import google.auth  # type: ignore[import-untyped]
     from google import genai  # type: ignore[import-untyped]
@@ -396,8 +992,7 @@ def generate_cv(
 
     template_path = _resolve_template_path(config)
     template_str = pathlib.Path(template_path).read_text(encoding="utf-8")
-
-    prompt = build_generation_prompt(
+    prompt = build_structured_generation_prompt(
         jd=jd,
         evidence=evidence,
         gap=gap,
@@ -417,8 +1012,44 @@ def generate_cv(
         credentials=creds,
     )
 
-    # Read model from nested cv.generation.model (primary); fall back to flat key
     cv_cfg = config.get("cv") or {}
     model_name = str(cv_cfg.get("generation", {}).get("model") or config.get("cv_generation_model", ""))
     response = client.models.generate_content(model=model_name, contents=prompt)
-    return str(response.text)
+    response_payload = _extract_json_payload(str(response.text))
+    return _normalize_structured_cv(
+        response_payload,
+        jd=jd,
+        profile=profile,
+        config=config,
+        fit_classification=fit_classification,
+    )
+
+
+def generate_cv(
+    jd: dict[str, Any],
+    evidence: list[dict[str, Any]],
+    gap: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+    *,
+    fit_classification: str = "unclassified",
+    repair_missing_sections: list[str] | None = None,
+) -> dict[str, Any]:
+    """Generate structured CV content and render markdown from it.
+
+    Temporary compatibility wrapper during rollout.
+    """
+    structured_cv = generate_structured_cv(
+        jd=jd,
+        evidence=evidence,
+        gap=gap,
+        profile=profile,
+        config=config,
+        fit_classification=fit_classification,
+        repair_missing_sections=repair_missing_sections,
+    )
+    markdown = render_cv_markdown(structured_cv, config)
+    return {
+        "structured_cv": structured_cv,
+        "markdown": markdown,
+    }

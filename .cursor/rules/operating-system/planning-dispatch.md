@@ -22,11 +22,12 @@ This rule determines:
 
 > Plan before building.
 > Classify before planning.
-> Classify by reading the current feature contract first.
+> Classify by reading the current feature contract first, and by naming affected stages when the work is stage-heavy.
 
 Read:
 
 - `docs/features/*.yaml` for current feature state
+- `operating-system/stage-lifecycle.md` when architectural or pipeline stages are central to the work
 - `docs/features/<feature_id>/*` for feature-specific explanation and history
 - `docs/*.md` for cross-cutting architecture and decisions only when needed
 - `docs/generated/*` for fast lookup and discovery
@@ -47,13 +48,13 @@ What are you doing?
 |
 ├── Writing a new spec or design doc
 |   |
-|   └── → Use writing-plans
+|   └── → Use brainstorming
 |        Prerequisite: triage exists (use brainstorming first if design is unclear)
 |        Output: structured spec/design doc
 |
 ├── Writing an implementation plan
 |   |
-|   └── → Use project_plan_generation
+|   └── → Use writing-plans
 |        Prerequisite: triage exists, design is clear enough
 |        Output: step-by-step implementation plan
 |
@@ -91,6 +92,8 @@ Questions to answer:
 - does a related feature already exist?
 - is this `ADD`, `MODIFY`, or `REPLACE`?
 - which current feature contract is affected?
+- which stages are affected?
+- is the primary lens stage, feature, or mixed?
 - do docs/spec/plan already exist?
 
 Do not rely on memory or old prose summaries when a current YAML contract exists.
@@ -114,6 +117,14 @@ Domains:
 
 Dependencies:
   - <if known>
+
+Affected stages:
+  - <stage_id> | none
+
+Affected features:
+  - <feature_id> | none
+
+Primary lens: stage | feature | mixed
 
 Affected docs:
   feature_yaml: `docs/features/<feature_id>.yaml` | none
@@ -150,6 +161,8 @@ Keep triage short. It should help dispatch, not become a mini spec.
 - if the design is still unclear, use `brainstorming` first to generate options
 - if implementation is obvious, a spec may be skipped
 - triage should reference the current affected feature YAML when one exists
+- triage should name affected stages when the work is pipeline-heavy, boundary-heavy, or architecture-heavy
+- cross-cutting operating-system or method changes may use `Affected features: none`
 - triage should name the exact doc targets, not just whether docs are needed
 
 ---
@@ -165,8 +178,8 @@ Keep triage short. It should help dispatch, not become a mini spec.
 5. Dispatch:
 
    - brainstorming if options are unclear
-   - writing-plans if design needs a spec
-   - project_plan_generation if implementation needs sequencing
+   - brainstorming if a design/spec still needs to be written
+   - writing-plans if implementation needs sequencing
    - executing-plans when ready
 
 6. Create new feature contract in `docs/features/*.yaml`
@@ -213,7 +226,9 @@ Keep triage short. It should help dispatch, not become a mini spec.
 You should know:
 
 - classification (`ADD`, `MODIFY`, or `REPLACE`)
+- affected stages
 - affected feature
+- primary lens
 - affected docs
 - whether spec is needed
 - whether plan is needed
@@ -250,6 +265,7 @@ You must update:
 ## Anti-Patterns
 
 - planning before reading the current feature contract
+- skipping stage classification when the work is obviously stage-heavy
 - creating a new feature when the change is really a `MODIFY`
 - skipping triage and jumping straight to tasks
 - writing a spec when the real question is still "which direction should we choose?"
@@ -264,8 +280,8 @@ You must update:
 Use the shallowest process that is still correct:
 
 - unclear direction → brainstorming
-- clear direction, non-trivial design → writing-plans
-- clear design, non-trivial execution → project_plan_generation
+- clear direction, non-trivial design → brainstorming then spec
+- clear design, non-trivial execution → writing-plans
 - confirmed plan → executing-plans
 
-Always anchor planning on the current feature contract first.
+Always anchor planning on the current feature contract first, and add stage classification when the work crosses architectural boundaries.

@@ -367,6 +367,136 @@ def test_admin_run_detail_shows_download_results_json_button():
     assert "Download Results JSON" in resp.text
 
 
+def test_admin_run_detail_shows_download_cv_debug_json_button():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
+        run_id="test-debug-btn", status=RunStatus.SUCCEEDED,
+        cvs_generated=1, total_jobs=10, jobs_path="",
+        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json='{"run_id":"test-debug-btn","debug_records":[]}',
+    )), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/test-debug-btn")
+    assert resp.status_code == 200
+    assert 'href="/admin/runs/test-debug-btn/cv-debug.json"' in resp.text
+    assert "Download CV Debug JSON" in resp.text
+
+
+def test_admin_run_detail_shows_download_stage_artifacts_json_button():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
+        run_id="test-stage-artifacts-btn", status=RunStatus.SUCCEEDED,
+        cvs_generated=1, total_jobs=10, jobs_path="",
+        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json='{"run_id":"test-stage-artifacts-btn","artifacts":{"stages":{}}}',
+    )), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/test-stage-artifacts-btn")
+    assert resp.status_code == 200
+    assert 'href="/admin/runs/test-stage-artifacts-btn/stage-artifacts.json"' in resp.text
+    assert "Download Stage Artifacts JSON" in resp.text
+    assert resp.text.index("Event Timeline") < resp.text.index("Download Stage Artifacts JSON")
+
+
+def test_admin_run_detail_shows_download_settings_used_json_button():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
+        run_id="test-settings-btn", status=RunStatus.SUCCEEDED,
+        cvs_generated=1, total_jobs=10, jobs_path="",
+        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
+        created_at=datetime.now(timezone.utc),
+        settings_used_json='{"run_id":"test-settings-btn","effective_settings":{"pipeline":{"final_top_n":10}}}',
+    )), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/test-settings-btn")
+    assert resp.status_code == 200
+    assert 'href="/admin/runs/test-settings-btn/settings-used.json"' in resp.text
+    assert "Download Settings Used JSON" in resp.text
+
+
+def test_run_detail_timeline_shows_stage_download_for_mapped_event():
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-stage-link",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json='{"run_id":"run-stage-link","artifacts":{"stages":{"ranking":{"status":"completed"}}}}',
+    )
+    events = [
+        RunEvent(
+            run_id="run-stage-link",
+            event_id="e1",
+            stage="layer3_ranking",
+            level="info",
+            message="Final ranking: top 3 jobs",
+            created_at=datetime.now(timezone.utc),
+        )
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-stage-link")
+    assert resp.status_code == 200
+    assert 'href="/admin/runs/run-stage-link/stage-artifacts/ranking.json"' in resp.text
+    assert "Download Ranking JSON" in resp.text
+
+
+def test_run_detail_timeline_hides_stage_download_for_unmapped_event():
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-stage-link-2",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json='{"run_id":"run-stage-link-2","artifacts":{"stages":{"ranking":{"status":"completed"}}}}',
+    )
+    events = [
+        RunEvent(
+            run_id="run-stage-link-2",
+            event_id="e1",
+            stage="pipeline_start",
+            level="info",
+            message="Run started",
+            created_at=datetime.now(timezone.utc),
+        )
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-stage-link-2")
+    assert resp.status_code == 200
+    assert 'href="/admin/runs/run-stage-link-2/stage-artifacts/' not in resp.text
+
+
 def test_admin_run_detail_warning_banner():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -453,6 +583,169 @@ def test_download_results_json_endpoint_404_if_snapshot_missing():
     )
     with patch("fitcv_cp.app.get_run", return_value=run):
         resp = TestClient(_app()).get("/admin/runs/run-export-3/export.json")
+    assert resp.status_code == 404
+
+
+def test_download_stage_transition_artifacts_json_endpoint_200():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-stage-artifacts-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json='{"run_id":"run-stage-artifacts-1","artifacts":{"stages":{"normalize":{"status":"completed"}}}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-stage-artifacts-1/stage-artifacts.json")
+    assert resp.status_code == 200
+    assert resp.json()["run_id"] == "run-stage-artifacts-1"
+    assert resp.headers["content-type"] == "application/json"
+    assert 'attachment; filename="fitcv-run-run-stage-artifacts-1-stage-artifacts.json"' in resp.headers["content-disposition"]
+
+
+def test_download_stage_transition_artifacts_json_endpoint_404_if_snapshot_missing():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-stage-artifacts-2",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-stage-artifacts-2/stage-artifacts.json")
+    assert resp.status_code == 404
+
+
+def test_download_settings_used_json_endpoint_200():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-settings-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        settings_used_json='{"run_id":"run-settings-1","effective_settings":{"pipeline":{"final_top_n":10}}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-settings-1/settings-used.json")
+    assert resp.status_code == 200
+    assert resp.json()["run_id"] == "run-settings-1"
+    assert resp.headers["content-type"] == "application/json"
+    assert 'attachment; filename="fitcv-run-run-settings-1-settings-used.json"' in resp.headers["content-disposition"]
+
+
+def test_download_settings_used_json_endpoint_404_if_snapshot_missing():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-settings-2",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-settings-2/settings-used.json")
+    assert resp.status_code == 404
+
+
+def test_download_stage_slice_endpoint_200():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-stage-slice-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json='{"run_id":"run-stage-slice-1","created_at":"2026-03-31T20:00:00+00:00","artifacts":{"stages":{"normalize":{"stage_id":"normalize","status":"completed","input_counts":{"raw_jobs":7},"output_counts":{"normalized_jobs":6},"decision_summary":{},"inputs_sample":[],"outputs_sample":[],"dropped_or_changed_sample":[]}}}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-stage-slice-1/stage-artifacts/normalize.json")
+    assert resp.status_code == 200
+    assert resp.json()["run_id"] == "run-stage-slice-1"
+    assert resp.json()["stage_id"] == "normalize"
+    assert resp.json()["stage_artifact"]["input_counts"]["raw_jobs"] == 7
+
+
+def test_download_stage_slice_endpoint_404_for_unknown_stage():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-stage-slice-2",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json='{"run_id":"run-stage-slice-2","artifacts":{"stages":{"normalize":{"status":"completed"}}}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-stage-slice-2/stage-artifacts/unknown.json")
+    assert resp.status_code == 404
+
+
+def test_download_cv_debug_json_endpoint_200():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-debug-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json='{"run_id":"run-debug-1","debug_records":[]}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-debug-1/cv-debug.json")
+    assert resp.status_code == 200
+    assert resp.json()["run_id"] == "run-debug-1"
+    assert resp.headers["content-type"] == "application/json"
+    assert 'attachment; filename="fitcv-run-run-debug-1-cv-debug.json"' in resp.headers["content-disposition"]
+    assert "\n  \"run_id\"" in resp.text
+
+
+def test_download_cv_debug_json_endpoint_404_if_snapshot_missing():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-debug-2",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=None,
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-debug-2/cv-debug.json")
     assert resp.status_code == 404
 
 
@@ -1232,6 +1525,84 @@ def test_run_detail_shows_deduplicated_before_enrichment_section():
     assert "Duplicated Analyst" in resp.text
 
 
+def test_run_detail_enriched_shows_pipeline_outcome_for_passed_non_ranked_job():
+    import json as _json
+
+    export_payload = _json.dumps({
+        "results": [
+            {
+                "job_url": "https://jobs.example.com/1",
+                "job_title": "Retail Banking Analyst",
+                "pipeline_status": "not_shortlisted",
+                "reject_reasons": [],
+            }
+        ]
+    })
+    enriched = [{
+        "job_url": "https://jobs.example.com/1",
+        "title": "Retail Banking Analyst",
+        "domain": "banking",
+        "job_family": "analytics",
+        "required_skills": [],
+        "location_type": "hybrid",
+        "seniority": "mid",
+    }]
+    filter_results = [{"job_url": "https://jobs.example.com/1", "passed": True, "reasons": []}]
+    patches = _run_detail_patches(
+        enriched_jobs=enriched,
+        filter_results=filter_results,
+        results_export_json=export_payload,
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+    assert resp.status_code == 200
+    assert "Pipeline Outcome" in resp.text
+    assert "Passed filter, not shortlisted" in resp.text
+
+
+def test_run_detail_enriched_shows_pipeline_outcome_for_ranked_fit_skip_job():
+    import json as _json
+
+    export_payload = _json.dumps({
+        "results": [
+            {
+                "job_url": "https://jobs.example.com/1",
+                "job_title": "Skipped After Ranking",
+                "pipeline_status": "ranked_skipped_fit_gate",
+                "decision_chain": {
+                    "shortlist": {"status": "returned_by_vector_search", "advanced_to_scoring": True},
+                    "primary_fit": {"source": "reranker", "label": "skip"},
+                    "cv_generation": {"status": "skipped_fit_gate", "attempted": False},
+                    "validation": {"status": "not_run"},
+                },
+                "reject_reasons": [],
+            }
+        ]
+    })
+    enriched = [{
+        "job_url": "https://jobs.example.com/1",
+        "title": "Skipped After Ranking",
+        "domain": "banking",
+        "job_family": "analytics",
+        "required_skills": [],
+        "location_type": "hybrid",
+        "seniority": "mid",
+    }]
+    filter_results = [{"job_url": "https://jobs.example.com/1", "passed": True, "reasons": []}]
+    patches = _run_detail_patches(
+        enriched_jobs=enriched,
+        filter_results=filter_results,
+        results_export_json=export_payload,
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+    assert resp.status_code == 200
+    assert "Pipeline Outcome" in resp.text
+    assert "Ranked, skipped by fit gate" in resp.text
+    assert "Primary fit: skip" in resp.text
+    assert "CV: skipped by fit gate" in resp.text
+
+
 def test_run_detail_cv_versions_show_job_title():
     """CV output link uses the enriched job title instead of generic 'View Job'."""
     cv = {"version_id": "cv1", "job_url": "https://jobs.example.com/1",
@@ -1326,14 +1697,14 @@ def test_run_detail_zero_cvs_and_ranked_jobs_shows_post_ranking_message():
 
 
 def test_run_detail_enriched_shows_summary_counts():
-    """Enriched tab renders Total, Passed, Rejected summary counts."""
+    """Enriched tab renders post-dedupe total, Passed, Rejected summary counts."""
     enriched = [{"job_url": "https://j.test/1", "title": "A", "domain": "d",
                  "job_family": "f", "required_skills": [], "location_type": None, "seniority": None}]
     fr = [{"job_url": "https://j.test/1", "passed": True, "reasons": []}]
     patches = _run_detail_patches(enriched_jobs=enriched, filter_results=fr)
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-test")
-    assert "Total:" in resp.text
+    assert "Post-dedupe enriched jobs:" in resp.text
     assert "Passed:" in resp.text
     assert "Rejected:" in resp.text
 

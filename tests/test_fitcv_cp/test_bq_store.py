@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, update_run_results_export
+from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, update_run_results_export, update_run_cv_generation_debug, update_run_stage_transition_artifacts, update_run_settings_used
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import datetime
 import uuid
@@ -64,6 +64,58 @@ def test_list_cvs_for_run_parameterized():
     bq.query.assert_called_once()
     sql_arg = bq.query.call_args[0][0]
     assert "rid" not in sql_arg, "SQL must use query parameters"
+
+
+def test_list_cvs_for_run_maps_structured_cv_fields() -> None:
+    bq = MagicMock()
+
+    class FakeRow:
+        def items(self):
+            return [
+                ("version_id", "v1"),
+                ("job_url", "https://example.com/1"),
+                ("fit_classification", "strong"),
+                ("generated_at", datetime.datetime.now(datetime.timezone.utc)),
+                ("cv_generation_model", "gemini-2.5-pro"),
+                ("cv_prompt_version", "cv_prompt_v3"),
+                ("cv_schema_version", "cv_doc_v1"),
+                ("cv_structured_json", '{"schema_version":"cv_doc_v1","sections":{"summary":{"text":"Grounded summary."}}}'),
+            ]
+
+    bq.query.return_value.result.return_value = iter([FakeRow()])
+    result = list_cvs_for_run("rid", bq, project="p", dataset="d")
+    assert result[0]["cv_generation_model"] == "gemini-2.5-pro"
+    assert result[0]["cv_prompt_version"] == "cv_prompt_v3"
+    assert result[0]["cv_schema_version"] == "cv_doc_v1"
+    assert result[0]["cv_structured"]["sections"]["summary"]["text"] == "Grounded summary."
+
+
+def test_list_cvs_for_run_falls_back_when_structured_columns_missing() -> None:
+    from google.api_core.exceptions import BadRequest
+
+    bq = MagicMock()
+
+    legacy_row = {
+        "version_id": "v1",
+        "job_url": "https://example.com/1",
+        "fit_classification": "strong",
+        "generated_at": datetime.datetime.now(datetime.timezone.utc),
+    }
+
+    first_query = MagicMock()
+    first_query.result.side_effect = BadRequest("Unrecognized name: cv_generation_model")
+    second_query = MagicMock()
+    second_query.result.return_value = iter([legacy_row])
+    bq.query.side_effect = [first_query, second_query]
+
+    result = list_cvs_for_run("rid", bq, project="p", dataset="d")
+
+    assert len(result) == 1
+    assert result[0]["version_id"] == "v1"
+    assert result[0]["cv_generation_model"] is None
+    assert result[0]["cv_prompt_version"] is None
+    assert result[0]["cv_schema_version"] is None
+    assert result[0]["cv_structured"] is None
 
 def test_get_cv_markdown_returns_string_or_none():
     bq = MagicMock()
@@ -206,6 +258,114 @@ def test_row_to_run_handles_missing_input_metadata_fields() -> None:
     assert result.candidate_profile_source is None
     assert result.candidate_profile_json is None
     assert result.results_export_json is None
+
+
+def test_row_to_run_maps_cv_generation_debug_json() -> None:
+    """_row_to_run maps the run-scoped CV generation debug snapshot field."""
+    from fitcv_cp.bq_store import _row_to_run
+    row = {
+        "run_id": "r3",
+        "status": "succeeded",
+        "jobs_path": "data/jobs.json",
+        "config_path": ".env.yaml",
+        "created_at": datetime.datetime.now(datetime.timezone.utc),
+        "cv_generation_debug_json": '{"run_id":"r3","debug_records":[]}',
+    }
+    result = _row_to_run(row)
+    assert result.cv_generation_debug_json == '{"run_id":"r3","debug_records":[]}'
+
+
+def test_row_to_run_maps_stage_transition_artifacts_json() -> None:
+    """_row_to_run maps the run-scoped stage transition artifacts snapshot field."""
+    from fitcv_cp.bq_store import _row_to_run
+    row = {
+        "run_id": "r4",
+        "status": "succeeded",
+        "jobs_path": "data/jobs.json",
+        "config_path": ".env.yaml",
+        "created_at": datetime.datetime.now(datetime.timezone.utc),
+        "stage_transition_artifacts_json": '{"run_id":"r4","stages":{}}',
+    }
+    result = _row_to_run(row)
+    assert result.stage_transition_artifacts_json == '{"run_id":"r4","stages":{}}'
+
+
+def test_row_to_run_maps_settings_used_json() -> None:
+    """_row_to_run maps the run-scoped settings-used snapshot field."""
+    from fitcv_cp.bq_store import _row_to_run
+    row = {
+        "run_id": "r5",
+        "status": "succeeded",
+        "jobs_path": "data/jobs.json",
+        "config_path": ".env.yaml",
+        "created_at": datetime.datetime.now(datetime.timezone.utc),
+        "settings_used_json": '{"run_id":"r5","effective_settings":{"pipeline":{"final_top_n":10}}}',
+    }
+    result = _row_to_run(row)
+    assert result.settings_used_json == '{"run_id":"r5","effective_settings":{"pipeline":{"final_top_n":10}}}'
+
+
+def test_update_run_cv_generation_debug_updates_only_debug_snapshot_field() -> None:
+    """Dedicated helper updates cv_generation_debug_json without reusing results_export_json."""
+    bq = MagicMock()
+    update_run_cv_generation_debug(
+        "rid",
+        '{"run_id":"rid","debug_records":[]}',
+        bq,
+        project="p",
+        dataset="d",
+    )
+    bq.query.assert_called_once()
+    sql_arg = bq.query.call_args[0][0]
+    assert "cv_generation_debug_json" in sql_arg
+    assert "results_export_json" not in sql_arg
+
+    job_config = bq.query.call_args[1]["job_config"]
+    param_names = {p.name for p in job_config.query_parameters}
+    assert param_names == {"cv_generation_debug_json", "run_id"}
+
+
+def test_update_run_stage_transition_artifacts_updates_only_stage_artifacts_field() -> None:
+    """Dedicated helper updates stage_transition_artifacts_json without reusing other snapshot fields."""
+    bq = MagicMock()
+    update_run_stage_transition_artifacts(
+        "rid",
+        '{"run_id":"rid","stages":{}}',
+        bq,
+        project="p",
+        dataset="d",
+    )
+    bq.query.assert_called_once()
+    sql_arg = bq.query.call_args[0][0]
+    assert "stage_transition_artifacts_json" in sql_arg
+    assert "results_export_json" not in sql_arg
+    assert "cv_generation_debug_json" not in sql_arg
+
+    job_config = bq.query.call_args[1]["job_config"]
+    param_names = {p.name for p in job_config.query_parameters}
+    assert param_names == {"stage_transition_artifacts_json", "run_id"}
+
+
+def test_update_run_settings_used_updates_only_settings_snapshot_field() -> None:
+    """Dedicated helper updates settings_used_json without touching other snapshot fields."""
+    bq = MagicMock()
+    update_run_settings_used(
+        "rid",
+        '{"run_id":"rid","effective_settings":{"pipeline":{"final_top_n":10}}}',
+        bq,
+        project="p",
+        dataset="d",
+    )
+    bq.query.assert_called_once()
+    sql_arg = bq.query.call_args[0][0]
+    assert "settings_used_json" in sql_arg
+    assert "results_export_json" not in sql_arg
+    assert "cv_generation_debug_json" not in sql_arg
+    assert "stage_transition_artifacts_json" not in sql_arg
+
+    job_config = bq.query.call_args[1]["job_config"]
+    param_names = {p.name for p in job_config.query_parameters}
+    assert param_names == {"settings_used_json", "run_id"}
 
 
 # ── Lifecycle fields ────────────────────────────────────────────────────────

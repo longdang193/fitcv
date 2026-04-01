@@ -17,11 +17,21 @@ tags:
 
 import sys
 import types
+import json
 from pathlib import Path
 
 import pytest
 
-from fitcv.cv_generator import build_generation_prompt, render_cv_template, select_template_variant
+from fitcv.cv_generator import (
+    build_empty_structured_cv,
+    build_generation_prompt,
+    generate_cv,
+    render_cv_markdown,
+    _normalize_structured_cv,
+    render_cv_template,
+    select_template_variant,
+    validate_structured_cv,
+)
 
 
 # ── build_generation_prompt ───────────────────────────────────────────────────
@@ -102,6 +112,143 @@ def test_build_generation_prompt_restricts_skills_section_to_candidate_skill_whi
     assert "SQL, Python" in prompt
 
 
+def test_build_generation_prompt_includes_grouped_experience_blocks() -> None:
+    prompt = build_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["SQL", "BigQuery"]},
+        evidence=[
+            {
+                "evidence_type": "experience_entry",
+                "role": "Senior Data Engineer",
+                "company": "Acme Analytics GmbH",
+                "start": "2023-01",
+                "end": "present",
+                "bullets": [
+                    "Built GA4 to BigQuery pipeline processing 2M daily events.",
+                    "Designed Pub/Sub to Dataflow streaming architecture.",
+                ],
+                "skills": ["BigQuery", "SQL", "Python"],
+                "name": "Senior Data Engineer — Acme Analytics GmbH",
+            }
+        ],
+        gap={"matched": ["SQL"], "missing": []},
+        template="",
+    )
+    assert "Experience Entry" in prompt
+    assert "Role: Senior Data Engineer" in prompt
+    assert "Company: Acme Analytics GmbH" in prompt
+    assert "Dates: 2023-01 to present" in prompt
+    assert "Built GA4 to BigQuery pipeline processing 2M daily events." in prompt
+
+
+def test_build_generation_prompt_keeps_project_evidence_available() -> None:
+    prompt = build_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["SQL", "Python"]},
+        evidence=[
+            {
+                "evidence_type": "project",
+                "name": "FitCV",
+                "skills": ["Python", "SQL"],
+                "business_value": "End-to-end CV generation pipeline",
+            }
+        ],
+        gap={"matched": ["SQL"], "missing": []},
+        template="",
+    )
+    assert "Selected Evidence" in prompt
+    assert "- FitCV: Python, SQL" in prompt
+
+
+def test_build_generation_prompt_includes_grouped_project_blocks() -> None:
+    prompt = build_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["Python", "BigQuery"]},
+        evidence=[
+            {
+                "evidence_type": "project_entry",
+                "name": "FitCV — AI-Powered CV Generation Pipeline",
+                "duration": "2024-01 — present",
+                "skills": ["Python", "BigQuery", "Gemini"],
+                "tech_stack": [
+                    "Backend: Python, FastAPI",
+                    "Data: BigQuery",
+                    "AI: Gemini",
+                ],
+                "business_value": "Reduced manual CV tailoring time from 2 hours to under 5 minutes.",
+                "highlights": [
+                    "Ingested 5000+ postings",
+                    "Achieved 89% relevance score",
+                ],
+            }
+        ],
+        gap={"matched": ["Python"], "missing": []},
+        template="",
+    )
+    assert "Project Entry" in prompt
+    assert "Name: FitCV — AI-Powered CV Generation Pipeline" in prompt
+    assert "Duration: 2024-01 — present" in prompt
+    assert "Business value: Reduced manual CV tailoring time from 2 hours to under 5 minutes." in prompt
+    assert "Relevant stack:" in prompt
+    assert "- Backend: Python, FastAPI" in prompt
+    assert "Relevant highlights:" in prompt
+    assert "- Ingested 5000+ postings" in prompt
+
+
+def test_build_generation_prompt_sparse_project_entry_degrades_gracefully() -> None:
+    prompt = build_generation_prompt(
+        jd={"title": "Analytics Engineer", "required_skills": ["Python"]},
+        evidence=[
+            {
+                "evidence_type": "project_entry",
+                "name": "Internal Reporting Tool",
+                "duration": "2022",
+                "skills": ["Python", "SQL"],
+                "tech_stack": [],
+                "business_value": "",
+                "highlights": [],
+            }
+        ],
+        gap={"matched": ["Python"], "missing": []},
+        template="",
+    )
+    assert "Project Entry" in prompt
+    assert "Name: Internal Reporting Tool" in prompt
+    assert "Duration: 2022" in prompt
+    assert "Relevant stack:" not in prompt
+    assert "Relevant highlights:" not in prompt
+    assert "Business value:" not in prompt
+
+
+def test_build_generation_prompt_includes_role_level_supporting_evidence_and_adaptive_guidance() -> None:
+    prompt = build_generation_prompt(
+        jd={"title": "Analytics Engineer", "required_skills": ["Analytics", "Python"]},
+        evidence=[
+            {
+                "evidence_type": "experience_entry",
+                "role": "Data Engineer",
+                "company": "Fintech Startup GmbH",
+                "start": "2021-06",
+                "end": "2022-12",
+                "bullets": [
+                    "Built self-service Looker dashboards for KPI monitoring.",
+                    "Automated KPI reporting workflows for analytics stakeholders.",
+                ],
+                "skills": ["Analytics", "Python", "Looker"],
+            },
+            {
+                "evidence_type": "achievement",
+                "name": "Reduced ad-hoc reporting requests by 60%",
+                "skills": ["Analytics"],
+                "business_value": "",
+            },
+        ],
+        gap={"matched": ["Analytics"], "missing": []},
+        template="",
+    )
+    assert "Supporting evidence:" in prompt
+    assert "- Achievement: Reduced ad-hoc reporting requests by 60%" in prompt
+    assert "summarize or combine grounded facts where helpful" in prompt
+    assert "emphasize the bullets most relevant to the target JD" in prompt
+
+
 # ── select_template_variant ───────────────────────────────────────────────────
 
 def test_select_template_variant_returns_known_string() -> None:
@@ -180,19 +327,266 @@ def test_render_cv_template_experience_bullets() -> None:
     assert "Acme" in rendered
 
 
+def test_build_empty_structured_cv_preserves_empty_section_defaults() -> None:
+    doc = build_empty_structured_cv(
+        jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+    assert doc["schema_version"] == "cv_doc_v1"
+    assert doc["sections"]["experience"] == []
+    assert doc["sections"]["projects"] == []
+    assert doc["sections"]["education"] == []
+    assert doc["sections"]["skills"]["groups"] == []
+    assert doc["sections"]["certifications"] == []
+    assert doc["sections"]["languages"] == []
+
+
+def test_validate_structured_cv_accepts_valid_shape() -> None:
+    doc = build_empty_structured_cv(
+        jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+    doc["sections"]["summary"] = {"text": "Experienced analyst."}
+    doc["sections"]["skills"] = {
+        "groups": [{"label": "Core", "items": ["SQL", "Python"]}],
+    }
+    validate_structured_cv(doc)
+
+
+def test_validate_structured_cv_rejects_missing_required_sections() -> None:
+    doc = build_empty_structured_cv(
+        jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+    del doc["sections"]["summary"]
+    with pytest.raises(ValueError, match="summary"):
+        validate_structured_cv(doc)
+
+
+def test_validate_structured_cv_respects_config_required_sections_when_provided() -> None:
+    doc = build_empty_structured_cv(
+        jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+    del doc["sections"]["summary"]
+
+    config = {
+        "cv": {
+            "composition": {
+                "summary": {"enabled": False},
+                "experience": {"enabled": True, "required": True},
+                "skills": {"enabled": True, "required": True},
+            }
+        },
+        "required_cv_sections": ["Experience", "Skills"],
+    }
+
+    validate_structured_cv(doc, config=config)
+
+
+def test_validate_structured_cv_rejects_malformed_skills_groups() -> None:
+    doc = build_empty_structured_cv(
+        jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+    doc["sections"]["skills"] = {"groups": [{"label": "Core", "items": "SQL"}]}
+    with pytest.raises(ValueError, match="skills.groups"):
+        validate_structured_cv(doc)
+
+
+def test_render_cv_markdown_consumes_structured_cv(tmp_path: Path) -> None:
+    template_path = tmp_path / "cv_template.md"
+    template_path.write_text(
+        "# {{ candidate.name }}\n"
+        "**{{ headline }}**\n\n"
+        "## Summary\n"
+        "{{ summary }}\n\n"
+        "## Skills\n"
+        "{{ selected_skills | join(', ') }}\n\n"
+        "## Experience\n"
+        "{% for exp in selected_experiences %}- {{ exp.role }} at {{ exp.company }}\n{% endfor %}",
+        encoding="utf-8",
+    )
+    structured_cv = build_empty_structured_cv(
+        jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+    structured_cv["sections"]["header"] = {
+        "name": "Jane Doe",
+        "title": "Senior Data Analyst",
+        "location": "Berlin",
+        "contact": {"email": None, "phone": None, "linkedin": None},
+    }
+    structured_cv["sections"]["summary"] = {"text": "Builds decision-grade analytics."}
+    structured_cv["sections"]["skills"] = {
+        "groups": [{"label": "Core", "items": ["SQL", "Python"]}],
+    }
+    structured_cv["sections"]["experience"] = [
+        {
+            "role": "Data Analyst",
+            "company": "Acme",
+            "start": "2022-01",
+            "end": "2025-03",
+            "location": None,
+            "bullets": ["Built KPI reporting."],
+        }
+    ]
+
+    rendered = render_cv_markdown(
+        structured_cv,
+        {"cv": {"preset": "europass"}, "_template_path": str(template_path)},
+    )
+
+    assert "Jane Doe" in rendered
+    assert "Senior Data Analyst" in rendered
+    assert "Builds decision-grade analytics." in rendered
+    assert "SQL, Python" in rendered
+    assert "Data Analyst at Acme" in rendered
+
+
+def test_render_cv_markdown_omits_disabled_sections_from_final_markdown(tmp_path: Path) -> None:
+    template_path = tmp_path / "cv_template.md"
+    template_path.write_text(
+        "# {{ candidate.name }}\n"
+        "**{{ headline }}**\n\n"
+        "## Summary\n"
+        "{{ summary }}\n\n"
+        "## Skills\n"
+        "{{ selected_skills | join(', ') }}\n\n"
+        "## Experience\n"
+        "{% for exp in selected_experiences %}- {{ exp.role }} at {{ exp.company }}\n{% endfor %}\n"
+        "## Education\n"
+        "{% for edu in selected_education %}- {{ edu.degree }}\n{% endfor %}\n",
+        encoding="utf-8",
+    )
+    structured_cv = build_empty_structured_cv(
+        jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+    structured_cv["sections"]["header"] = {
+        "name": "Jane Doe",
+        "title": "Senior Data Analyst",
+        "location": "Berlin",
+        "contact": {"email": None, "phone": None, "linkedin": None},
+    }
+    structured_cv["sections"]["summary"] = {"text": "Builds decision-grade analytics."}
+    structured_cv["sections"]["skills"] = {
+        "groups": [{"label": "Core", "items": ["SQL", "Python"]}],
+    }
+    structured_cv["sections"]["experience"] = [
+        {
+            "role": "Data Analyst",
+            "company": "Acme",
+            "start": "2022-01",
+            "end": "2025-03",
+            "location": None,
+            "bullets": ["Built KPI reporting."],
+        }
+    ]
+    structured_cv["sections"]["education"] = [
+        {
+            "degree": "MSc Data Science",
+            "institution": "TU Berlin",
+            "field": None,
+            "start": "2019",
+            "end": "2021",
+        }
+    ]
+
+    rendered = render_cv_markdown(
+        structured_cv,
+        {
+            "cv": {
+                "preset": "europass",
+                "composition": {
+                    "summary": {"enabled": False},
+                    "skills": {"enabled": False},
+                    "experience": {"enabled": True},
+                    "education": {"enabled": False},
+                },
+            },
+            "_template_path": str(template_path),
+        },
+    )
+
+    assert "## Experience" in rendered
+    assert "Data Analyst at Acme" in rendered
+    assert "## Summary" not in rendered
+    assert "Builds decision-grade analytics." not in rendered
+    assert "## Skills" not in rendered
+    assert "SQL, Python" not in rendered
+    assert "## Education" not in rendered
+    assert "MSc Data Science" not in rendered
+
+
+def test_normalize_structured_cv_coerces_null_section_lists() -> None:
+    normalized = _normalize_structured_cv(
+        {
+            "sections": {
+                "header": {"name": "Jane Doe", "title": "Data Analyst"},
+                "summary": {"text": "Grounded summary."},
+                "experience": None,
+                "projects": None,
+                "education": None,
+                "skills": {"groups": None},
+                "certifications": None,
+                "publications": None,
+                "languages": None,
+            }
+        },
+        jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+
+    assert normalized["sections"]["experience"] == []
+    assert normalized["sections"]["projects"] == []
+    assert normalized["sections"]["education"] == []
+    assert normalized["sections"]["skills"]["groups"] == []
+    assert normalized["sections"]["certifications"] == []
+    assert normalized["sections"]["publications"] == []
+    assert normalized["sections"]["languages"] == []
+
+
 def test_generate_cv_uses_google_genai_client(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from fitcv.cv_generator import generate_cv
-
     template_path = tmp_path / "cv_template.md"
-    template_path.write_text("# CV Template", encoding="utf-8")
+    template_path.write_text(
+        "# {{ candidate.name }}\n"
+        "**{{ headline }}**\n\n"
+        "## Summary\n"
+        "{{ summary }}\n",
+        encoding="utf-8",
+    )
 
     captured: dict[str, object] = {}
 
     class FakeResponse:
-        text = "# Generated CV"
+        text = json.dumps(
+            {
+                "sections": {
+                    "header": {"name": "Jane Doe", "title": "Senior Data Engineer"},
+                    "summary": {"text": "Designs reliable data platforms."},
+                }
+            }
+        )
 
     class FakeModels:
         def generate_content(self, *, model: str, contents: str) -> FakeResponse:
@@ -235,9 +629,12 @@ def test_generate_cv_uses_google_genai_client(
             },
             "_template_path": str(template_path),
         },
+        fit_classification="strong",
     )
 
-    assert result == "# Generated CV"
+    assert result["structured_cv"]["schema_version"] == "cv_doc_v1"
+    assert result["structured_cv"]["sections"]["header"]["name"] == "Jane Doe"
+    assert "Designs reliable data platforms." in result["markdown"]
     assert captured["model"] == "gemini-2.5-flash"
     client_kwargs = captured["client_kwargs"]
     assert isinstance(client_kwargs, dict)
@@ -252,13 +649,19 @@ def test_generate_cv_reads_model_from_nested_cv_config(
     tmp_path: Path,
 ) -> None:
     """generate_cv must read cv.generation.model, not flat cv_generation_model."""
-    from fitcv.cv_generator import generate_cv
 
     template_path_str = "templates/cv_template.md"
     captured_model: list[str] = []
 
     class FakeResponse:
-        text = "# Test CV"
+        text = json.dumps(
+            {
+                "sections": {
+                    "header": {"name": "Jane Doe", "title": "Data Engineer"},
+                    "summary": {"text": "Grounded summary."},
+                }
+            }
+        )
 
     class FakeModels:
         def generate_content(self, *, model: str, contents: str) -> FakeResponse:
@@ -313,6 +716,7 @@ def test_generate_cv_reads_model_from_nested_cv_config(
         gap={"matched": ["SQL"], "missing": []},
         profile={"name": "Jane Doe"},
         config=nested_config,
+        fit_classification="strong",
     )
 
     assert captured_model == ["gemini-3-pro"]

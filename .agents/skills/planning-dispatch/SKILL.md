@@ -18,16 +18,17 @@ It decides:
 
 > Plan before building.  
 > Classify before planning.  
-> Classify by reading the current feature contract first.
+> Classify by reading the current feature contract first, and by naming affected stages when the work is stage-heavy.
 
 Read in this order:
 
 1. `code/`
 2. `docs/features/*.yaml`
-3. `docs/features/<feature_id>/*`
-4. `docs/generated/*`
-5. `docs/*.md`
-6. `README.md`
+3. `operating-system/stage-lifecycle.md` when architectural or pipeline stages are central to the work
+4. `docs/features/<feature_id>/*`
+5. `docs/generated/*`
+6. `docs/*.md`
+7. `README.md`
 
 ## Ownership Clarification
 
@@ -44,6 +45,7 @@ Before writing a spec or plan, produce triage. This is the gate.
 ### Step 1 — Find the current feature source
 
 - [ ] Check `docs/features/*.yaml` for an existing related feature
+- [ ] Identify affected stages when the work is pipeline-heavy, boundary-heavy, or architecture-heavy
 - [ ] Use `docs/generated/*` only for lookup if needed
 - [ ] Read `docs/*.md` only if explanation or rationale is needed
 - [ ] If related feature exists: this is usually `MODIFY` or `REPLACE`
@@ -61,6 +63,11 @@ Invariants:
   - <must hold true>
 Dependencies:
   - <if known>
+Affected stages:
+  - <stage_id> | none
+Affected features:
+  - <feature_id> | none
+Primary lens: stage | feature | mixed
 Affected docs:
   feature_yaml: `docs/features/<feature_id>.yaml` | none
   feature_history: `docs/features/<feature_id>/history.md` | none
@@ -90,6 +97,7 @@ Risk level: low | medium | high
 - a spec cannot be written without triage
 - a plan cannot be written without triage
 - if an affected feature exists, its `docs/features/<feature_id>.yaml` must be identified before proceeding
+- stage-heavy work must name affected stages before proceeding
 - triage should name the exact doc targets, not just whether docs are needed
 - generated files are never the source of truth; use them only to find the source
 
@@ -131,6 +139,14 @@ Multiple independent workstreams
 5. Dispatch as needed
 6. Refresh `docs/generated/*` after source changes
 
+### Cross-Cutting Operating-System or Method Change
+
+1. Confirm no managed feature contract is the primary lifecycle owner yet
+2. Use `Affected features: none` if this is truly cross-cutting
+3. Name affected stages if the work is stage-aware by design
+4. Keep docs under cross-cutting paths rather than inventing a fake feature
+5. Dispatch as needed
+
 ### Bug Fix
 
 1. Check affected feature YAML
@@ -146,6 +162,7 @@ Multiple independent workstreams
 ## Anti-Patterns
 
 - planning before reading current feature YAML
+- skipping stage classification when the work is obviously stage-heavy
 - skipping triage
 - writing a plan before the design is clear
 - using generated files as the source of truth

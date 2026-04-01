@@ -26,11 +26,12 @@ config["retrieval_strategy"]        : stored in vector_shortlist (default "job_s
 from datetime import datetime, timezone
 from typing import Any
 
+
 DEFAULT_RECENT_ROLE_COUNT = 3
 
 
 def _dedupe_shortlist_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Keep the best-ranked row per job_url and renumber to unique-job ranks."""
+    """Keep the best-ranked row per job_url, preserving shortlist order."""
     deduped: list[dict[str, Any]] = []
     seen_job_urls: set[str] = set()
     for row in rows:
@@ -38,12 +39,7 @@ def _dedupe_shortlist_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not job_url or job_url in seen_job_urls:
             continue
         seen_job_urls.add(job_url)
-        deduped.append(
-            {
-                **row,
-                "vector_rank": len(deduped) + 1,
-            }
-        )
+        deduped.append(row)
     return deduped
 
 
@@ -130,10 +126,8 @@ def build_vector_search_query(
     if passed_job_urls:
         url_list = ", ".join(f"'{u}'" for u in passed_job_urls)
         filtered_relation = (
-            "SELECT job_url, chunk_type, chunk_text, embedding, created_at "
-            f"FROM `{project}.{dataset}.job_embeddings` "
-            f"WHERE chunk_type = 'job_summary' AND job_url IN ({url_list}) "
-            "QUALIFY ROW_NUMBER() OVER (PARTITION BY job_url ORDER BY created_at DESC) = 1"
+            f"SELECT * FROM `{project}.{dataset}.job_embeddings` "
+            f"WHERE chunk_type = 'job_summary' AND job_url IN ({url_list})"
         )
     else:
         filtered_relation = (

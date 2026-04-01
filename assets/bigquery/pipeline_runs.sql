@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS `{project}.{dataset}.pipeline_runs` (
   error_stage     STRING    OPTIONS(description="stage name where the run failed"),
   effective_settings_json STRING    OPTIONS(description="Merged config snapshot at trigger time"),
   results_export_json STRING OPTIONS(description="Immutable run-results export snapshot for completed runs"),
+  cv_generation_debug_json STRING OPTIONS(description="Immutable run-scoped CV-generation debug snapshot for completed runs"),
+  stage_transition_artifacts_json STRING OPTIONS(description="Immutable run-scoped stage transition artifacts snapshot for completed runs"),
+  settings_used_json STRING OPTIONS(description="Immutable run-scoped effective-settings snapshot for completed runs"),
   -- lifecycle controls
   queue_job_id          STRING    OPTIONS(description="RQ job id for queued run cancellation"),
   cancel_requested_at   TIMESTAMP,

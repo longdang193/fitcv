@@ -1,0 +1,97 @@
+{
+  "run_id": "3051f55f-6e55-483f-ba36-d2056eef8c80",
+  "stage_id": "ranking",
+  "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+  "created_at": "2026-03-31T22:26:56.404222+00:00",
+  "stage_artifact": {
+    "stage_id": "ranking",
+    "stage": "ranking",
+    "status": "completed",
+    "input_counts": {
+      "ai_scores": 3,
+      "ranking_inputs": 3
+    },
+    "output_counts": {
+      "ranked_jobs": 3,
+      "final_top_n": 10
+    },
+    "decision_summary": {
+      "ranking_fit_label_counts": {
+        "skip": 1,
+        "stretch": 2
+      },
+      "active_ranking_weights": {
+        "ai_score": 0.4,
+        "vector_similarity": 0.2
+      },
+      "active_missing_value_defaults": {
+        "ai_score": 0.0,
+        "vector_similarity": 0.0
+      }
+    },
+    "inputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+        "ai_score": 0.25,
+        "vector_similarity": 0.7529643145314188,
+        "final_score": 0.2505928629062838,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst - Data Quality",
+        "ai_score": 0.48,
+        "vector_similarity": 0.7288160421015552,
+        "final_score": 0.33776320842031105,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst - Retail Banking",
+        "ai_score": 0.55,
+        "vector_similarity": 0.7269973781121963,
+        "final_score": 0.3653994756224393,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      }
+    ],
+    "outputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst - Retail Banking",
+        "ai_score": 0.55,
+        "vector_similarity": 0.7269973781121963,
+        "final_score": 0.3653994756224393,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst - Data Quality",
+        "ai_score": 0.48,
+        "vector_similarity": 0.7288160421015552,
+        "final_score": 0.33776320842031105,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+        "ai_score": 0.25,
+        "vector_similarity": 0.7529643145314188,
+        "final_score": 0.2505928629062838,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      }
+    ],
+    "dropped_or_changed_sample": [],
+    "settings_refs": [
+      "ranking_weights",
+      "missing_value_defaults",
+      "pipeline.final_top_n"
+    ]
+  }
+}

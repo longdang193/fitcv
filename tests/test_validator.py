@@ -328,6 +328,54 @@ def test_run_all_validations_reads_required_sections_from_nested_cv() -> None:
     assert "Summary" not in result["missing_sections"]
 
 
+def test_run_all_validations_flags_empty_required_summary_from_structured_cv() -> None:
+    cv_text = "# Name\n## Summary\n\n## Skills\nSQL\n## Experience\nACME"
+    profile = {"experiences": [], "projects": [], "skills": ["SQL"]}
+    structured_cv = {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://example.com/jobs/1",
+        "fit_classification": "strong",
+        "target_role": "Data Analyst",
+        "sections": {
+            "header": {"name": "Jane Doe", "title": "Data Analyst", "location": None, "contact": {}},
+            "summary": {"text": ""},
+            "experience": [{"role": "Analyst", "company": "ACME"}],
+            "projects": [],
+            "education": [],
+            "skills": {"groups": [{"label": "Core", "items": ["SQL"]}]},
+            "certifications": [],
+            "publications": [],
+            "languages": [],
+        },
+    }
+    nested_config = {
+        "cv": {
+            "preset": "europass",
+            "composition": {
+                "summary": {"enabled": True, "required": True},
+                "skills": {"enabled": True, "required": True},
+                "experience": {"enabled": True, "required": True},
+            },
+            "content_rules": {"evidence_grounded_only": True},
+            "validation": {"max_pages": 2},
+        },
+        "required_cv_sections": ["Summary", "Skills", "Experience"],
+        "cv_max_pages": 2,
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=nested_config,
+        structured_cv=structured_cv,
+    )
+
+    assert result["valid"] is False
+    assert "Summary" in result["missing_sections"]
+
+
 def test_run_all_validations_reads_max_pages_from_nested_cv() -> None:
     """run_all_validations must read cv.validation.max_pages from nested config.
 

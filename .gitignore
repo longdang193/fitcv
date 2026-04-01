@@ -17,3 +17,4 @@ start_admin_cp.sh
 dump.rdb
 .worktrees/
 data/uploads/
+.worktrees/
