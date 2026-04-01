@@ -190,6 +190,17 @@ def test_ranking_weights_group_has_six_keys():
     assert len(RANKING_GROUPS["ranking-weights"]) == 6
 
 
+def test_ranking_weight_copy_matches_runtime_semantics():
+    schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
+    assert schema_by_key["ranking_weights.title_relevance"]["description"] == (
+        "How much influence the similarity between the job title and the candidate's target role has on the final ranking."
+    )
+    assert schema_by_key["ranking_weights.preference_fit"]["label"] == "Weight: Preference Alignment"
+    assert schema_by_key["ranking_weights.preference_fit"]["description"] == (
+        "How much influence candidate preference alignment such as domain and location type has on the final candidate ranking."
+    )
+
+
 def test_ranking_groups_threshold_groups_have_two_keys_each():
     from fitcv_cp.settings_schema import RANKING_GROUPS
     assert len(RANKING_GROUPS["fit-label-thresholds"]) == 2

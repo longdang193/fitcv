@@ -874,7 +874,7 @@ def _build_stage_transition_artifacts(
             cv_status_counts["persistence_failed_count"] += 1
 
     return {
-        "schema_version": "stage_transition_artifacts_v2",
+        "schema_version": "stage_transition_artifacts_v3",
         "stages": {
             "normalize": _stage_block(
                 stage_id="normalize",

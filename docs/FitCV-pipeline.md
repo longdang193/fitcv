@@ -178,7 +178,7 @@ A good pattern is:
 ```text
 final_score =
 0.40 * ai_score
-+ 0.20 * must_have_skill_match
++ 0.20 * must_have_match
 + 0.15 * vector_similarity
 + 0.10 * title_relevance
 + 0.10 * seniority_fit

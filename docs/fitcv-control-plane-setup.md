@@ -15,7 +15,7 @@ Both `web` and `worker` must be running for pipeline runs to execute.
 Use one mode at a time. Do not mix a local web or worker process with the Docker worker.
 
 - Local mode: run `.\start_web.ps1` and `.\start_worker.ps1`
-- Docker mode: run `docker compose up -d redis web worker`
+- Docker mode: from the checkout or worktree you want to run, use `docker compose up -d --build redis web worker`
 
 If the Docker worker is already running and you want local mode:
 
@@ -100,15 +100,32 @@ The worker is healthy when you see:
 
 Use Docker mode when you want `redis`, `web`, and `worker` all inside containers.
 
+Important: run Docker commands from the repo checkout or git worktree whose files you want Docker to use.
+
+Examples:
+
+- main checkout: `C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT`
+- ranking worktree: `C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\ranking-six-feature-reactivation`
+
+Docker uses the current build context directory. If you run `docker compose up -d --build redis web worker` from the ranking worktree, the containers are built from that worktree's files, not from another branch or worktree.
+
 If your service-account key is outside the repo, point Docker at it first:
 
 ```powershell
 $env:GCP_SA_KEY_PATH="C:\secure\your-service-account.json"
 ```
 
-Then start everything:
+Then change into the checkout or worktree you want to run and start everything:
 
 ```powershell
+cd "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\ranking-six-feature-reactivation"
+docker compose up -d --build redis web worker
+```
+
+If you want to run the main checkout instead, use:
+
+```powershell
+cd "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT"
 docker compose up -d --build redis web worker
 ```
 
@@ -187,6 +204,7 @@ Use one of these:
 Rebuild and restart the containers:
 
 ```powershell
+cd "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\ranking-six-feature-reactivation"
 docker compose down
 docker compose up -d --build redis web worker
 ```

@@ -1295,7 +1295,7 @@ def test_run_pipeline_returns_correct_schema(
     assert result["total_jobs"] == 1
     assert result["cvs_generated"] == 1
     stage_artifacts = result["stage_transition_artifacts"]
-    assert stage_artifacts["schema_version"] == "stage_transition_artifacts_v2"
+    assert stage_artifacts["schema_version"] == "stage_transition_artifacts_v3"
     assert set(stage_artifacts["stages"]) == {
         "normalize",
         "enrich",

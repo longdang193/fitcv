@@ -1,6 +1,6 @@
 inspection_debugging:
   name: Inspection & Debugging
-  version: 1.8.0
+  version: 1.8.1
   status: active
   type: add
   summary: "Admins can see what the pipeline did for a run: enriched jobs, filter outcomes, inputs used, generated CVs, and explicit stage-local decision detail from run exports, richer stage-transition artifacts, settings-used snapshots, and CV debug snapshots."
@@ -29,6 +29,7 @@ inspection_debugging:
     - Timeline-linked per-stage stage-artifact downloads for recognized stage-boundary events
     - Stage-transition artifacts now include bounded pre-decision inputs, decision summaries, and output/change-state samples for each major stage
     - Ranking-stage artifacts report the full six-feature ranking contract, zero-weight features, and ranked-vs-not-ranked scoring context
+    - Newly generated stage-transition artifacts now version the six-feature ranking artifact shape as `stage_transition_artifacts_v3`
     - Run-scoped CV-generation debug snapshot download for succeeded runs when available
     - Client-side filtering, search, and pagination for large tables
     - Job title as link label in generated outputs
@@ -48,6 +49,7 @@ inspection_debugging:
       - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
       - docs/superpowers/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
       - docs/superpowers/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+      - docs/superpowers/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-run-scoped-enrichment-inspection-implementation.md
       - docs/superpowers/plans/2026-03-26-run-detail-inspection-tabs-implementation.md
@@ -60,6 +62,7 @@ inspection_debugging:
       - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
       - docs/superpowers/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
       - docs/superpowers/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+      - docs/superpowers/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     history:
       - docs/features/inspection_debugging/history.md
   keywords:

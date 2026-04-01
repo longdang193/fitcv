@@ -1,7 +1,7 @@
 ranking:
   stage_id: ranking
   name: Ranking
-  summary: Score shortlist candidates with the six-feature ranking contract, assign the authoritative post-filter ranking fit, and select the ranked jobs eligible to proceed toward CV generation.
+  summary: Score shortlist candidates with the six-feature ranking contract, assign the authoritative post-filter ranking fit, and select the ranked jobs eligible to proceed toward CV generation with versioned stage-transition artifacts.
   boundaries:
     - shortlist candidates enter and ranked jobs leave
     - authoritative post-filter ranking fit ownership belongs to this stage
@@ -14,7 +14,7 @@ ranking:
     - scored ranking inputs
     - authoritative ranking fit labels
     - final ranked jobs
-    - bounded `stage_transition_artifacts.ranking` runtime block with six-feature weights, defaults, input samples, output samples, and scored-not-ranked samples
+    - bounded `stage_transition_artifacts_v3.ranking` runtime block with six-feature weights, defaults, input samples, output samples, and scored-not-ranked samples
   depends_on:
     - shortlist
   primary_features:
@@ -28,10 +28,12 @@ ranking:
       - docs/superpowers/specs/2026-03-31-stage-transition-artifacts-design.md
       - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
       - docs/superpowers/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+      - docs/superpowers/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
     plan:
       - docs/superpowers/plans/2026-03-31-stage-transition-artifacts-implementation.md
       - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
       - docs/superpowers/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+      - docs/superpowers/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     history: []
   keywords:
     - ranking
