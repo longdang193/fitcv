@@ -27,10 +27,11 @@ Docs must not attempt to fully mirror code.
 
 ## Source-of-Truth Model
 
-The system has five layers:
+The system has five layers, with an optional stage-aware extension for projects that need stage contracts:
 
 ```text
 code/                       → real truth
+docs/stages/*.yaml          → stage contracts (when stage-aware docs are in scope)
 docs/features/*.yaml        → structured truth (current state)
 docs/features/<feature_id>/ → feature-specific explanation and history
 docs/*.md                   → cross-cutting explanation
@@ -41,6 +42,7 @@ docs/generated/             → generated discovery
 Rules:
 
 - **code** defines actual behavior
+- **stage contracts** define architectural boundaries when the project adopts stage-aware docs
 - **feature YAML** defines what exists now
 - **docs** explain how and why
 - **README** helps navigation
@@ -55,6 +57,7 @@ Avoid duplicating the same fact manually across layers.
 | Layer                     | Form                           | Purpose                                   | Rule                                               |
 | ------------------------- | ------------------------------ | ----------------------------------------- | -------------------------------------------------- |
 | **Real Truth**            | code                           | Actual implementation and behavior        | Deepest truth                                      |
+| **Stage Contracts**       | `docs/stages/*.yaml`           | Stage boundaries and ownership hints      | Optional layer; architectural only                 |
 | **Structured Truth**      | `docs/features/*.yaml`         | Current feature contracts                 | One file per real feature; small and stable        |
 | **Feature Docs + History**| `docs/features/<feature_id>/*` | Feature-specific architecture, flows, history | Explain one feature; do not duplicate code     |
 | **Cross-Cutting Docs**    | `docs/*.md`                    | Shared architecture, pipelines, setup     | Cross-feature only                                 |
@@ -77,6 +80,31 @@ Rules:
 
 - if code and docs disagree, code wins
 - docs should explain code, not replicate it
+
+---
+
+## Stage Contracts (`docs/stages/*.yaml`) When In Scope
+
+Stage-aware projects may add:
+
+```text
+docs/stages/*.yaml
+```
+
+Use this layer only for:
+
+- architectural boundaries
+- stage identity
+- stage inputs / outputs
+- stage-to-feature relationships
+
+Rules:
+
+- stages are above features for navigation, not replacement lifecycle units
+- stage contracts must not duplicate full feature truth
+- if stage-aware docs are not yet adopted for a project slice, do not create placeholder stage files prematurely
+
+The stage model itself is defined in `operating-system/stage-lifecycle.md`.
 
 ---
 
@@ -148,6 +176,7 @@ Use this default placement:
 
 | Information kind | Default location |
 | ---------------- | ---------------- |
+| Stage boundary contract (when stage-aware docs are adopted) | `docs/stages/<stage_id>.yaml` |
 | Current feature contract | `docs/features/<feature_id>.yaml` |
 | Feature-specific history / post-execution review | `docs/features/<feature_id>/history.md` |
 | Other feature-specific explanation | `docs/features/<feature_id>/*.md` |
@@ -219,6 +248,7 @@ Add more generated artifacts only when real friction appears. Examples:
 - ownership unclear → `feature_file_map.yaml`
 - too many routes → `routes_index.yaml`
 - too many settings → `settings_index.yaml`
+- stage navigation unclear → stage-aware discovery derived from stage and feature sources
 
 Do not generate these upfront.
 
@@ -238,6 +268,7 @@ Generation guidance:
 | Situation                             | Update                           |
 | ------------------------------------- | -------------------------------- |
 | Behavior changes                      | code                             |
+| Stage boundary contract changes       | `docs/stages/*.yaml` when in scope |
 | Feature added or changed              | `docs/features/*.yaml`                  |
 | Feature-specific explanation changes  | `docs/features/<feature_id>/*.md`       |
 | Architecture or cross-feature changes | `docs/*.md`                             |
@@ -250,6 +281,7 @@ Generation guidance:
 ## Naming Conventions
 
 - feature contracts: `docs/features/<feature_id>.yaml`
+- stage contracts when adopted: `docs/stages/<stage_id>.yaml`
 - feature explanation and history: `docs/features/<feature_id>/`
 - specs: `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<feature>-spec.md`
 - implementation plans: `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<feature>-plan.md`
@@ -291,6 +323,7 @@ invariants:
 Before marking work complete, name the exact docs touched:
 
 - affected `docs/features/<feature_id>.yaml`
+- affected `docs/stages/<stage_id>.yaml` when stage-aware docs are in scope
 - `docs/features/<feature_id>/history.md` or other focused docs under `docs/features/<feature_id>/`
 - any cross-feature docs under `docs/*.md`
 - `README.md` if navigation changed
@@ -305,6 +338,7 @@ If a fact is generated, update the source and regenerate; do not hand-edit the g
 - `README.md` links to key docs and generated discovery surfaces
 - feature files link to docs, specs, plans, and history
 - feature directories link their history and focused docs back to the contract
+- stage contracts link to the most relevant docs/features when that layer is adopted
 - generated indexes point back to authoritative files
 - no orphan docs
 - no conflicting current-state sources
@@ -314,6 +348,7 @@ If a fact is generated, update the source and regenerate; do not hand-edit the g
 ## Anti-Patterns
 
 - one giant `docs/features/` directory (one file per feature instead)
+- treating stage contracts as a replacement for feature contracts
 - duplicating the same fact across code, YAML, docs, and generated files
 - putting long history into feature YAML
 - putting implementation detail into README
@@ -331,6 +366,7 @@ Default placement:
 
 - behavior → code
 - current feature state → `docs/features/*.yaml`
+- stage boundaries when adopted → `docs/stages/*.yaml`
 - explanation and rationale → `docs/features/<feature_id>/` for feature-specific; `docs/*.md` for cross-cutting architecture
 - project entry point → `README.md`
 - fast lookup and retrieval surfaces → `docs/generated/*`

@@ -3,7 +3,8 @@
 v1 design:
 - Shortlist-only: only re-rank top 20-50 jobs from VECTOR_SEARCH
 - Primary path: Python Vertex AI call (not BigQuery AI.SCORE)
-- Evidence-grounded: each job prompt includes top matched evidence chunks
+- Optional prompt evidence support exists, but the current runtime path does not
+  depend on evidence retrieval before reranking
 
 Scoring rubric (enforced in prompt):
 - Score 0.0 (no fit) → 1.0 (perfect fit)
@@ -66,7 +67,7 @@ def build_scoring_prompt(
     Inputs:
         jd_summary        : labelled-section text from build_job_summary_text()
         candidate_summary : brief candidate paragraph (skills, experience level)
-        top_evidence      : top 0-2 candidate evidence chunk_text strings
+        top_evidence      : optional top 0-2 candidate evidence chunk_text strings
 
     Returns:
         A prompt string with rubric embedded. Model must return JSON only.
@@ -233,7 +234,8 @@ def run_ai_scoring(
     sleep between calls is config["rerank_sleep_secs"] (0.5 if missing).
 
     shortlist: list of job dicts from VECTOR_SEARCH (must include job_url and
-               structured JD fields). Each item may include "top_evidence" (list[str]).
+               structured JD fields). Each item may optionally include
+               "top_evidence" (list[str]).
 
     Requires GOOGLE_APPLICATION_CREDENTIALS.
     """

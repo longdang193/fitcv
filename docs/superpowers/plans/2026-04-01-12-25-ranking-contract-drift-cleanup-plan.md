@@ -187,12 +187,12 @@ The work is complete when:
 
 ## Task Status
 
-Status: complete
+Status: pending
 
-- [x] Task 1: Version the changed ranking artifact contract
-- [x] Task 2: Update in-repo artifact version expectations
-- [x] Task 3: Align ranking settings copy with runtime semantics
-- [x] Task 4: Correct stale cross-cutting ranking terminology
-- [x] Task 5: Sync feature, stage, and history docs
-- [x] Run targeted verification
-- [x] Update plan status after implementation
+- [ ] Task 1: Version the changed ranking artifact contract
+- [ ] Task 2: Update in-repo artifact version expectations
+- [ ] Task 3: Align ranking settings copy with runtime semantics
+- [ ] Task 4: Correct stale cross-cutting ranking terminology
+- [ ] Task 5: Sync feature, stage, and history docs
+- [ ] Run targeted verification
+- [ ] Update plan status after implementation

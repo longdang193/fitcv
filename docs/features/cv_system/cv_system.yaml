@@ -1,15 +1,20 @@
 cv_system:
   name: CV System
-  version: 1.3.0
+  version: 1.11.0
   status: active
   type: add
-  summary: CV generation uses a structured preset-based configuration, and the shortlist stage now keeps a strict job-level contract from passed jobs to scoring shortlist rows with unique-job retrieval counts and clearer shortlist diagnostics.
+  summary: CV generation uses a structured preset-based configuration, keeps reranker fit as the sole post-filter fit authority, validates structured and markdown sections against one shared section contract, persists both a schema-versioned structured CV artifact and rendered markdown, and supports richer bounded stage-transition plus settings-used artifacts for runtime inspection.
   owner: fitcv
   domains:
     - pipeline
     - cv_generation
   depends_on:
     - admin_control_plane_core
+  primary_stage: cv_generation
+  stages:
+    - enrich
+    - ranking
+    - cv_generation
   capabilities:
     - Preset registry for template binding
     - CV composition model (visibility, detail level per section)
@@ -17,23 +22,50 @@ cv_system:
     - CV validation against composition rules
     - Admin settings UI for CV configuration
     - Compatibility projection for flat-to-nested migration
-    - Single-chunk `job_summary` shortlist retrieval for jobs
-    - Shortlist scoring membership stays grounded in `passed_jobs`
-    - Latest active `job_summary` embedding row per `job_url` is used for shortlist retrieval
-    - Shortlist ranks and counts now reflect unique jobs rather than duplicate embedding rows
+    - Structured CV document generation aligned to preset/composition/content rules
+    - Dual-artifact persistence: structured CV JSON plus rendered markdown
+    - CV generation metadata persistence (schema version, model, prompt version)
+    - Section-aware evidence retrieval for CV composition
+    - Grouped experience-entry preservation for richer Experience sections
+    - Grouped project-entry preservation for richer Projects sections
+    - Adaptive Experience composition with JD-sensitive role-level bullet selection
+    - Phase 1 active ranking contract limited to runtime-computed `ai_score` and `vector_similarity`
+    - Reranker fit is the sole post-filter authority for ranking-time fit and CV-generation eligibility
+    - Gap analysis provides grounded explanation/support context without acting as a competing fit classifier
+    - Structured normalization and markdown validation share one config-driven required-section contract with bounded completeness checks
+    - Run summaries emit bounded stage-transition artifact blocks for `normalize`, `enrich`, `rule_filter`, `shortlist`, `ranking`, and `cv_generation`
+    - Stage-transition artifacts now preserve bounded input, output, and changed-state context per stage rather than summary-only stage results
+    - Effective run settings can be exported once as a dedicated settings-used snapshot instead of being duplicated into every stage block
+    - Live run-scoped CV-generation debug snapshot capture for ranked jobs, including initial structured output, validation state, repair metadata, and final accepted artifact when available
   refs:
     docs:
       - docs/FitCV-pipeline.md
     spec:
       - docs/superpowers/specs/2026-03-27-preset-based-cv-composition-design.md
       - docs/superpowers/specs/2026-03-27-admin-editable-cv-generation-settings-design.md
-      - docs/superpowers/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+      - docs/superpowers/specs/2026-03-29-structured-cv-representation-design.md
+      - docs/superpowers/specs/2026-03-30-experience-evidence-preservation-design.md
+      - docs/superpowers/specs/2026-03-31-project-evidence-preservation-design.md
+      - docs/superpowers/specs/2026-03-31-adaptive-experience-composition-design.md
+      - docs/superpowers/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+      - docs/superpowers/specs/2026-03-31-stage-transition-artifacts-design.md
+      - docs/superpowers/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+      - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
+      - docs/superpowers/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
     plan:
       - docs/superpowers/plans/2026-03-27-centralized-cv-generation-config-implementation.md
       - docs/superpowers/plans/2026-03-27-preset-based-cv-config-migration-implementation.md
       - docs/superpowers/plans/2026-03-27-admin-editable-cv-generation-settings-implementation.md
       - docs/superpowers/plans/2026-03-27-preset-based-admin-cv-settings-implementation.md
-      - docs/superpowers/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+      - docs/superpowers/plans/2026-03-29-structured-cv-representation-implementation.md
+      - docs/superpowers/plans/2026-03-30-experience-evidence-preservation-implementation.md
+      - docs/superpowers/plans/2026-03-31-project-evidence-preservation-implementation.md
+      - docs/superpowers/plans/2026-03-31-adaptive-experience-composition-implementation.md
+      - docs/superpowers/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+      - docs/superpowers/plans/2026-03-31-stage-transition-artifacts-implementation.md
+      - docs/superpowers/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+      - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
+      - docs/superpowers/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
     history:
       - docs/features/cv_system/history.md
   keywords:

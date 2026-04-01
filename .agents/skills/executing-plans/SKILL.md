@@ -21,6 +21,7 @@ During execution, keep these layers in sync:
 
 ```text
 code/                       → real truth
+docs/stages/*.yaml          → stage contracts when stage-aware docs are in scope
 docs/features/*.yaml        → structured truth
 docs/features/<feature_id>/ → feature-specific explanation + history
 docs/*.md                   → cross-cutting explanation
@@ -53,6 +54,7 @@ For each task:
 4. Update affected source layers as part of the task:
 
 - code
+- `docs/stages/*.yaml` when stage-aware contracts are in scope
 - `docs/features/*.yaml` if current feature state changed
 - `docs/features/<feature_id>/history.md` or other focused docs if feature-specific explanation/history changed
 - `docs/*.md` if cross-cutting explanation changed
@@ -70,6 +72,7 @@ After all tasks are complete:
 2. Confirm source layers are in sync:
 
 - code matches shipped behavior
+- stage contracts reflect the current architectural boundary model when they are in scope
 - feature YAML reflects current state
 - docs reflect final explanation/history where needed
 
@@ -94,6 +97,7 @@ Before execution is considered complete, the agent must update docs as needed.
 Minimum required checks:
 
 - if behavior changed → update code
+- if stage-aware boundary docs changed → update `docs/stages/*.yaml` when in scope
 - if current feature state changed → update `docs/features/*.yaml`
 - if feature-specific explanation/history changed → update `docs/features/<feature_id>/`
 - if cross-cutting explanation changed → update `docs/*.md`
@@ -104,6 +108,7 @@ Do not finish execution with stale feature YAML or stale generated discovery.
 
 Before completion, list the exact files updated or intentionally left unchanged for:
 
+- `docs/stages/<stage_id>.yaml` when in scope
 - `docs/features/<feature_id>.yaml`
 - `docs/features/<feature_id>/history.md`
 - any other focused docs under `docs/features/<feature_id>/`
@@ -113,6 +118,7 @@ Before completion, list the exact files updated or intentionally left unchanged 
 
 Use this completion checklist:
 
+- stage contracts updated?
 - contract updated?
 - feature history updated?
 - other feature-specific docs updated?

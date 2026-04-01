@@ -163,6 +163,16 @@ The export should be a single JSON object with run metadata plus an ordered `res
     "ranked": 2,
     "cvs_generated": 1
   },
+  "shortlist_debug": {
+    "vector_search_top_n": 50,
+    "passed_jobs_total": 3,
+    "shortlisted_jobs_total": 1,
+    "scoring_shortlisted_jobs_total": 2,
+    "backfilled_jobs_total": 1,
+    "candidate_query_text": "Candidate: Senior Data Engineer\nSkills: Python, SQL, BigQuery",
+    "not_shortlisted_job_urls": ["https://example.com/job-2", "https://example.com/job-3"],
+    "backfilled_job_urls": ["https://example.com/job-2"]
+  },
   "results": []
 }
 ```
@@ -190,6 +200,14 @@ Each element in `results` should include a stable superset of fields, with `null
     "vector_score": 0.76,
     "fit_label": "strong"
   },
+  "shortlist_debug": {
+    "passed_rule_filter": true,
+    "returned_by_vector_search": true,
+    "reason": null,
+    "vector_search_top_n": 50,
+    "vector_rank": 1,
+    "vector_similarity": 0.76
+  },
   "rank": 1,
   "cv": {
     "version_id": "string",
@@ -206,13 +224,18 @@ Recommended normalized statuses:
 
 - `rejected_before_enrichment`
 - `rejected_after_enrichment`
-- `passed_not_ranked`
+- `not_shortlisted`
+- `shortlisted_not_scored`
+- `scored_not_ranked`
+- `ranked_skipped_fit_gate`
 - `ranked_no_cv`
 - `ranked_with_cv`
 
 These statuses should make it easy to interpret one row without cross-referencing the UI.
 
 `pipeline_status` must be derived from persisted run-scoped facts such as filter outcome, enrichment presence, ranking presence, and CV presence. It must not be assigned through loose heuristic inference.
+
+When a passed job is backfilled into the scoring shortlist after a vector-search miss, the row-level `shortlist_debug` must still truthfully report `returned_by_vector_search = false`; backfill is reflected only in the top-level shortlist summary and later pipeline outcome fields.
 
 ## Ordering Rules
 
@@ -297,6 +320,7 @@ The export must still be useful when some parts are missing.
 
 Rules:
 
+- if a ranked job is skipped by the Layer 4 fit gate, include the job with `pipeline_status = "ranked_skipped_fit_gate"`
 - if a ranked job has no CV, include the job with `pipeline_status = "ranked_no_cv"`
 - if a job was rejected, include reject reasons when available
 - if a score field is unavailable, include `null`

@@ -19,10 +19,19 @@ from typing import Any
 from google.cloud import bigquery
 
 from fitcv.pipeline import PipelineCancelled, run_pipeline
-from fitcv_cp.bq_store import append_event, get_run, update_run_results_export, update_run_status
+from fitcv_cp.bq_store import (
+    append_event,
+    get_run,
+    update_run_cv_generation_debug,
+    update_run_results_export,
+    update_run_settings_used,
+    update_run_stage_transition_artifacts,
+    update_run_status,
+)
 from fitcv_cp.models import RunEvent, RunStatus
 
 logger = logging.getLogger(__name__)
+_MAX_DEBUG_MARKDOWN_CHARS = 4000
 
 
 def _get_bq() -> bigquery.Client:
@@ -85,7 +94,80 @@ def _build_results_export_payload(
             "ranked": int(summary.get("ranked", 0)),
             "cvs_generated": int(summary.get("cvs_generated", 0)),
         },
+        "shortlist_debug": _json_safe(summary.get("shortlist_debug") or {}),
         "results": _json_safe(export_results),
+    }
+    return json.dumps(payload, ensure_ascii=False)
+
+
+def _build_cv_generation_debug_payload(
+    *,
+    run_id: str,
+    summary: dict[str, Any],
+    finished_at: datetime.datetime,
+) -> str:
+    def _truncate_large_fields(record: dict[str, Any]) -> dict[str, Any]:
+        truncated = dict(record)
+        markdown_final = truncated.get("markdown_final")
+        if isinstance(markdown_final, str) and len(markdown_final) > _MAX_DEBUG_MARKDOWN_CHARS:
+            truncated["markdown_final"] = markdown_final[:_MAX_DEBUG_MARKDOWN_CHARS] + "\n...[truncated]"
+        return truncated
+
+    debug_records = [
+        _truncate_large_fields(record)
+        for record in list(summary.get("cv_generation_debug_records") or [])
+    ]
+    ranked_jobs_total = int(summary.get("ranked", 0))
+    payload = {
+        "run_id": run_id,
+        "status": RunStatus.SUCCEEDED.value,
+        "debug_schema_version": "cv_generation_debug_v1",
+        "created_at": finished_at.isoformat(),
+        "ranked_jobs_total": ranked_jobs_total,
+        "debug_records_captured": len(debug_records),
+        "snapshot_complete": len(debug_records) == ranked_jobs_total,
+        "debug_records": debug_records,
+    }
+    return json.dumps(payload, ensure_ascii=False)
+
+
+def _build_stage_transition_artifacts_payload(
+    *,
+    run_id: str,
+    summary: dict[str, Any],
+    finished_at: datetime.datetime,
+) -> str:
+    stage_artifacts = dict(summary.get("stage_transition_artifacts") or {})
+    payload = {
+        "run_id": run_id,
+        "status": RunStatus.SUCCEEDED.value,
+        "artifact_schema_version": "stage_transition_artifacts_run_v1",
+        "created_at": finished_at.isoformat(),
+        "snapshot_complete": bool(stage_artifacts),
+        "artifacts": stage_artifacts,
+    }
+    return json.dumps(payload, ensure_ascii=False)
+
+
+def _build_settings_used_payload(
+    *,
+    run_id: str,
+    run_record: Any,
+    effective_config: dict[str, Any] | None,
+    config_path: str,
+    finished_at: datetime.datetime,
+) -> str:
+    payload = {
+        "run_id": run_id,
+        "settings_schema_version": "settings_used_v1",
+        "created_at": finished_at.isoformat(),
+        "effective_settings": effective_config or {},
+        "sources": {
+            "config_path": str(config_path or getattr(run_record, "config_path", "") or ""),
+            "effective_settings_snapshot_present": effective_config is not None,
+            "jobs_input_source": getattr(run_record, "jobs_input_source", None),
+            "candidate_profile_source": getattr(run_record, "candidate_profile_source", None),
+        },
     }
     return json.dumps(payload, ensure_ascii=False)
 
@@ -178,6 +260,50 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             )
         except Exception as exc:
             logger.warning("[run_id=%s] Failed to persist results export snapshot: %s", run_id, exc)
+        try:
+            update_run_cv_generation_debug(
+                run_id,
+                _build_cv_generation_debug_payload(
+                    run_id=run_id,
+                    summary=summary,
+                    finished_at=finished_at,
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+        except Exception as exc:
+            logger.warning("[run_id=%s] Failed to persist CV generation debug snapshot: %s", run_id, exc)
+        try:
+            update_run_stage_transition_artifacts(
+                run_id,
+                _build_stage_transition_artifacts_payload(
+                    run_id=run_id,
+                    summary=summary,
+                    finished_at=finished_at,
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+        except Exception as exc:
+            logger.warning("[run_id=%s] Failed to persist stage transition artifacts snapshot: %s", run_id, exc)
+        try:
+            update_run_settings_used(
+                run_id,
+                _build_settings_used_payload(
+                    run_id=run_id,
+                    run_record=run_record,
+                    effective_config=effective_config,
+                    config_path=config_path,
+                    finished_at=finished_at,
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+        except Exception as exc:
+            logger.warning("[run_id=%s] Failed to persist settings-used snapshot: %s", run_id, exc)
 
     except PipelineCancelled as exc:
         # ── Step 5 (alt): Pipeline was cancelled at a checkpoint ──────────────

@@ -23,10 +23,11 @@ Apply when:
 
 Docs should explain code, not mirror it.
 
-## 5-Layer Doc System
+## 5-Layer Doc System with Stage-Aware Extension
 
 ```text
 code/                       → real truth
+docs/stages/*.yaml          → stage contracts (when stage-aware docs are in scope)
 docs/features/*.yaml        → structured truth
 docs/features/<feature_id>/ → feature-specific explanation + history
 docs/*.md                   → cross-cutting explanation
@@ -36,6 +37,7 @@ docs/generated/             → generated discovery
 
 | Layer                   | Form                           | Purpose                            | Rule                                |
 | ----------------------- | ------------------------------ | ---------------------------------- | ----------------------------------- |
+| Stage Contracts         | `docs/stages/*.yaml`           | Stage boundaries and ownership hints | Optional; architectural only      |
 | Real Truth              | code                           | Actual behavior                    | Deepest truth                       |
 | Structured Truth        | `docs/features/*.yaml`         | Current feature contracts          | One small file per feature          |
 | Feature Explanation     | `docs/features/<feature_id>/*` | Design, flow, ops notes, history   | Feature-specific only               |
@@ -58,6 +60,28 @@ Rules:
 - small and stable
 - keep `depends_on`
 - generate inverse links like `used_by`
+
+### Stage Contracts When In Scope
+
+Stage-aware projects may add:
+
+```text
+docs/stages/*.yaml
+```
+
+Use this layer only for:
+
+- stage identity
+- purpose
+- inputs / outputs
+- architectural boundaries
+- stage-to-feature relationships
+
+Rules:
+
+- stages are above features for navigation, not replacement lifecycle units
+- stage contracts must not duplicate full feature truth
+- do not create placeholder stage files before a project-specific rollout is ready
 
 Recommended shape:
 
@@ -98,6 +122,7 @@ Use this default placement:
 
 | Information kind | Default location |
 | ---------------- | ---------------- |
+| Stage boundary contract (when adopted) | `docs/stages/<stage_id>.yaml` |
 | Current feature contract | `docs/features/<feature_id>.yaml` |
 | Feature-specific history / post-execution review | `docs/features/<feature_id>/history.md` |
 | Other feature-specific explanation | `docs/features/<feature_id>/*.md` |
@@ -161,6 +186,7 @@ Rules:
 ## Naming
 
 - feature contract: `docs/features/<feature_id>.yaml`
+- stage contract when adopted: `docs/stages/<stage_id>.yaml`
 - feature docs/history: `docs/features/<feature_id>/`
 - spec: `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<feature>-spec.md`
 - plan: `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<feature>-plan.md`
@@ -195,6 +221,7 @@ invariants:
 Before marking work complete, name the exact docs touched:
 
 - affected `docs/features/<feature_id>.yaml`
+- affected `docs/stages/<stage_id>.yaml` when stage-aware docs are in scope
 - `docs/features/<feature_id>/history.md` or other focused docs under `docs/features/<feature_id>/`
 - any cross-feature docs under `docs/*.md`
 - `README.md` if navigation changed
@@ -213,6 +240,7 @@ If a fact is generated, update the source and regenerate.
 ## Anti-Patterns
 
 - duplicating facts across code, YAML, docs, and generated files
+- treating stage contracts as a replacement for feature contracts
 - putting long history into YAML
 - putting implementation detail into README
 - manually maintaining generated relationships

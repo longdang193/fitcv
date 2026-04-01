@@ -3,6 +3,7 @@
 All mutating queries use query parameters — never string interpolation.
 """
 import datetime
+import json
 import logging
 from typing import Any, Optional
 
@@ -195,6 +196,76 @@ def update_run_results_export(
     bq.query(sql, job_config=job_config).result()
 
 
+def update_run_cv_generation_debug(
+    run_id: str,
+    cv_generation_debug_json: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    """Persist the immutable run-scoped CV-generation debug snapshot."""
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET cv_generation_debug_json = @cv_generation_debug_json WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter(
+                "cv_generation_debug_json", "STRING", cv_generation_debug_json
+            ),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    bq.query(sql, job_config=job_config).result()
+
+
+def update_run_stage_transition_artifacts(
+    run_id: str,
+    stage_transition_artifacts_json: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    """Persist the immutable run-scoped stage transition artifacts snapshot."""
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET stage_transition_artifacts_json = @stage_transition_artifacts_json WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter(
+                "stage_transition_artifacts_json", "STRING", stage_transition_artifacts_json
+            ),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    bq.query(sql, job_config=job_config).result()
+
+
+def update_run_settings_used(
+    run_id: str,
+    settings_used_json: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    """Persist the immutable run-scoped settings-used snapshot."""
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET settings_used_json = @settings_used_json WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("settings_used_json", "STRING", settings_used_json),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    bq.query(sql, job_config=job_config).result()
+
+
 def request_run_cancel(
     run_id: str,
     requested_by: str,
@@ -301,6 +372,9 @@ def _row_to_run(row: Any) -> PipelineRun:
         error_stage=r.get("error_stage"),
         effective_settings_json=r.get("effective_settings_json"),
         results_export_json=r.get("results_export_json"),
+        cv_generation_debug_json=r.get("cv_generation_debug_json"),
+        stage_transition_artifacts_json=r.get("stage_transition_artifacts_json"),
+        settings_used_json=r.get("settings_used_json"),
         jobs_input_source=r.get("jobs_input_source"),
         jobs_input_json=r.get("jobs_input_json"),
         candidate_profile_source=r.get("candidate_profile_source"),
@@ -329,7 +403,15 @@ def _row_to_event(row: Any) -> RunEvent:
 def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> list[dict[str, Any]]:
     table = f"{project}.{dataset}.cv_versions"
     sql = f"""
-        SELECT version_id, job_url, fit_classification, generated_at
+        SELECT
+            version_id,
+            job_url,
+            fit_classification,
+            generated_at,
+            cv_generation_model,
+            cv_prompt_version,
+            cv_schema_version,
+            cv_structured_json
         FROM `{table}`
         WHERE run_id = @run_id
         ORDER BY generated_at DESC
@@ -340,8 +422,47 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
         ],
         use_query_cache=False,
     )
-    rows = bq.query(sql, job_config=job_config).result()
-    return [dict(row.items()) for row in rows]
+    legacy_sql = f"""
+        SELECT
+            version_id,
+            job_url,
+            fit_classification,
+            generated_at,
+            NULL AS cv_generation_model,
+            NULL AS cv_prompt_version,
+            NULL AS cv_schema_version,
+            NULL AS cv_structured_json
+        FROM `{table}`
+        WHERE run_id = @run_id
+        ORDER BY generated_at DESC
+    """
+    try:
+        rows = bq.query(sql, job_config=job_config).result()
+    except Exception as exc:
+        if "Unrecognized name:" not in str(exc):
+            raise
+        logger.warning(
+            "cv_versions structured CV columns missing; falling back to legacy read path: %s",
+            exc,
+        )
+        rows = bq.query(legacy_sql, job_config=job_config).result()
+    results: list[dict[str, Any]] = []
+    for row in rows:
+        row_dict = dict(row.items())
+        row_dict.setdefault("cv_generation_model", None)
+        row_dict.setdefault("cv_prompt_version", None)
+        row_dict.setdefault("cv_schema_version", None)
+        row_dict.setdefault("cv_structured_json", None)
+        structured_raw = row_dict.get("cv_structured_json")
+        if isinstance(structured_raw, str) and structured_raw.strip():
+            try:
+                row_dict["cv_structured"] = json.loads(structured_raw)
+            except json.JSONDecodeError:
+                row_dict["cv_structured"] = None
+        else:
+            row_dict["cv_structured"] = None
+        results.append(row_dict)
+    return results
 
 
 def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> Optional[str]:

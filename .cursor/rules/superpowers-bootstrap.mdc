@@ -18,6 +18,8 @@ Skills live at `.agents/skills/` (a symlink at `.agents` in the project root).
 
 - `brainstorming` -- Interactive design refinement before implementation
 - `systematic-debugging` -- 4-phase root cause process
+- `planning-dispatch` -- Triage gate for planning, design, and implementation work
+- `doc-system-lifecycle` -- Rules for creating, updating, and auditing project docs
 - `writing-plans` -- Detailed implementation plans
 - `project_plan_generation` -- Structured planning documents
 
@@ -49,6 +51,10 @@ Skills live at `.agents/skills/` (a symlink at `.agents` in the project root).
 - `python-refactoring-expert` -- Python refactoring techniques
 - `tag_management` -- Tag operations in markdown files
 
+**Bootstrap skill** -- session startup behavior:
+
+- `using-superpowers` -- Establishes mandatory skill discovery and invocation rules at conversation start
+
 ## How to Load a Skill
 
 Use the `Read` tool on the skill file:
@@ -62,6 +68,7 @@ For example:
 ```bash
 Read .agents/skills/brainstorming/SKILL.md
 Read .agents/skills/systematic-debugging/SKILL.md
+Read .agents/skills/planning-dispatch/SKILL.md
 Read .agents/skills/test-driven-development/SKILL.md
 ```
 
@@ -105,7 +112,7 @@ These thoughts mean STOP--you are rationalizing:
 | `The skill is overkill` | Simple things become complex. Use it. |
 | `I'll just do this one thing first` | Check BEFORE doing anything. |
 | `This feels productive` | Undisciplined action wastes time. Skills prevent this. |
-| `I know what that means` | Knowing the concept = using the skill. Read it. |
+| `I know what that means` | Knowing the concept != using the skill. Read it. |
 
 ## Skill Priority
 

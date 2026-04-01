@@ -13,6 +13,8 @@ Every significant change to the system must have a lifecycle state.
 > A feature does not exist until it has a `docs/features/*.yaml` entry.
 > A feature is not complete until it has a post-execution review.
 
+Feature lifecycle remains anchored on features even when stage-aware planning is used.
+
 ---
 
 ## Feature Type Classification
@@ -138,6 +140,14 @@ Domains:
 Dependencies:
   - <if known>
 
+Affected stages:
+  - <stage_id> | none
+
+Affected features:
+  - <feature_id> | none
+
+Primary lens: stage | feature | mixed
+
 Affected docs:
   - <exact docs/features/*.yaml or docs/*.md paths>
 
@@ -151,6 +161,13 @@ Risk reason: <what makes this risky>
 Rollback trigger: <metric or condition>
 Rollback method: <how to revert>
 ```
+
+Rules:
+
+- use `Affected stages` when the work is boundary-heavy, pipeline-heavy, or architecture-heavy
+- use `Affected features` to name the capability lifecycle owner when one exists
+- `Primary lens` clarifies whether the work is mostly about stage boundaries, feature behavior, or both
+- stages do not replace feature classification; they add planning clarity
 
 ---
 
@@ -244,6 +261,7 @@ migration_path: <how to migrate>
 ## Anti-Patterns
 
 - Creating a feature entry after the feature is already built
+- Treating stages as if they replace feature lifecycle
 - Setting status to `active` without a post-execution review
 - MODIFY without defining rollback trigger and method upfront
 - REPLACE without marking the old feature as deprecated

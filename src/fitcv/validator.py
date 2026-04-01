@@ -37,6 +37,7 @@ import re
 from typing import Any
 
 from fitcv.candidate import flatten_skills
+from fitcv.config import CV_SECTION_KEY_TO_NAME, get_required_structured_section_keys
 from fitcv.rule_filter import _canonicalise_skill
 
 # ── constants ─────────────────────────────────────────────────────────────────
@@ -83,6 +84,61 @@ def validate_output(cv_text: str, required_sections: list[str]) -> dict[str, Any
         "skill_violations": [],
         "warnings": [],
     }
+
+
+def _structured_section_has_content(section_key: str, section_value: Any) -> bool:
+    if section_key == "summary":
+        return (
+            isinstance(section_value, dict)
+            and isinstance(section_value.get("text"), str)
+            and bool(section_value.get("text", "").strip())
+        )
+    if section_key == "skills":
+        if not isinstance(section_value, dict):
+            return False
+        groups = section_value.get("groups")
+        if not isinstance(groups, list) or not groups:
+            return False
+        for group in groups:
+            if not isinstance(group, dict):
+                continue
+            items = group.get("items")
+            if isinstance(items, list) and any(isinstance(item, str) and item.strip() for item in items):
+                return True
+        return False
+    if section_key in {
+        "experience",
+        "projects",
+        "education",
+        "certifications",
+        "publications",
+        "languages",
+    }:
+        return isinstance(section_value, list) and len(section_value) > 0
+    return True
+
+
+def _find_missing_required_structured_sections(
+    structured_cv: dict[str, Any] | None,
+    config: dict[str, Any],
+) -> list[str]:
+    if structured_cv is None:
+        return []
+
+    required_keys = get_required_structured_section_keys(config)
+    if not required_keys:
+        return []
+
+    sections = structured_cv.get("sections")
+    if not isinstance(sections, dict):
+        return [CV_SECTION_KEY_TO_NAME.get(key, key.title()) for key in required_keys]
+
+    missing_sections: list[str] = []
+    for section_key in required_keys:
+        section_value = sections.get(section_key)
+        if not _structured_section_has_content(section_key, section_value):
+            missing_sections.append(CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title()))
+    return missing_sections
 
 
 def check_length_constraints(cv_text: str, max_pages: int = 2) -> bool:
@@ -288,6 +344,7 @@ def run_all_validations(
     cv_text: str,
     profile: dict[str, Any],
     config: dict[str, Any],
+    structured_cv: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Aggregate all validation checks and return the full output schema.
 
@@ -315,7 +372,9 @@ def run_all_validations(
 
     # Structural section check
     section_result = validate_output(cv_text, required_sections)
-    missing_sections: list[str] = section_result["missing_sections"]
+    missing_sections = list(section_result["missing_sections"])
+    missing_sections.extend(_find_missing_required_structured_sections(structured_cv, config))
+    missing_sections = list(dict.fromkeys(missing_sections))
 
     # Grounding checks
     known_employers: list[str] = [

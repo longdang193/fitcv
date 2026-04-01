@@ -24,6 +24,7 @@ Use the project doc system:
 
 ```text
 code/                       → real truth
+docs/stages/*.yaml          → stage contracts when stage-aware docs are in scope
 docs/features/*.yaml        → structured truth
 docs/features/<feature_id>/ → feature-specific explanation + history
 docs/*.md                   → cross-cutting explanation
@@ -33,10 +34,12 @@ docs/generated/             → generated discovery
 
 Rules:
 
-- The affected `docs/features/<feature_id>.yaml` file is the current-state anchor
+- The affected `docs/features/<feature_id>.yaml` file is the current-state anchor when a managed feature exists
+- Cross-cutting operating-system work may use `Feature: none`
+- Stage-heavy plans should name affected stages and the primary lens
 - Feature-specific history belongs under `docs/features/<feature_id>/`
 - Cross-cutting architecture belongs under `docs/*.md`
-- The plan must link back to the feature contract and spec
+- The plan must link back to the feature contract when one exists, and to the spec
 - Generated discovery is refreshed after source updates; do not edit it manually
 
 ---
@@ -46,8 +49,8 @@ Rules:
 Do not write the plan until these are true:
 
 1. `planning-dispatch` triage exists
-2. the affected feature is identified
-3. the relevant `docs/features/<feature_id>.yaml` exists, or the plan explicitly says it must be created before implementation starts
+2. the affected feature is identified, or the plan explicitly records that this is cross-cutting work with `Feature: none`
+3. the relevant `docs/features/<feature_id>.yaml` exists when a managed feature is changing, or the plan explicitly says it must be created before implementation starts
 4. the spec exists if the design is non-trivial
 
 Minimum triage:
@@ -60,6 +63,11 @@ Invariants:
   - <must hold true>
 Dependencies:
   - <if known>
+Affected stages:
+  - <stage_id> | none
+Affected features:
+  - <feature_id> | none
+Primary lens: stage | feature | mixed
 Affected docs:
   feature_yaml: `docs/features/<feature_id>.yaml` | none
   feature_history: `docs/features/<feature_id>/history.md` | none
@@ -159,6 +167,7 @@ Every plan must also include this section near the top:
 ## Doc Update Matrix
 
 - Feature contract: `docs/features/<feature_id>.yaml`
+- Stage contracts: `docs/stages/<stage_id>.yaml` | none
 - Feature history: `docs/features/<feature_id>/history.md` | none
 - Feature-specific docs: `docs/features/<feature_id>/<doc>.md` | none
 - Cross-cutting docs: `docs/<doc>.md` | none
@@ -201,7 +210,8 @@ A complete plan should specify:
 - exact file paths
 - test files and commands
 - doc targets split by contract / feature history / feature-specific docs / cross-cutting docs / README / generated discovery
-- which `docs/features/*.yaml` files change
+- which `docs/features/*.yaml` files change, or whether this is validly `Feature: none`
+- which `docs/stages/*.yaml` files change when stage-aware docs are in scope
 - whether `docs/generated/` must be regenerated
 - commit points
 
@@ -242,6 +252,7 @@ After saving the plan, offer:
 ## Anti-Patterns
 
 - writing a plan before reading the feature YAML
+- forcing a fake feature contract onto cross-cutting operating-system work
 - assuming `FEATURES.md`
 - saving plans under `docs/plans/`
 - writing vague tasks without file paths or test commands

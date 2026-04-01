@@ -54,8 +54,12 @@ _FALLBACK_SKILL_SYNONYMS: dict[str, str] = {
     "ga4": "google analytics", "google analytics (ga4)": "google analytics",
     "bigquery": "google bigquery", "big query": "google bigquery",
     "k8s": "kubernetes", "aws": "amazon web services", "azure": "microsoft azure",
-    "ml": "machine learning", "nlp": "natural language processing",
+    "ml": "machine learning", "bigquery ml": "machine learning", "nlp": "natural language processing",
+    "gemini": "genai", "vertex ai": "genai",
+    "llm": "genai", "llms": "genai", "large language models": "genai",
+    "rag": "genai", "prompt engineering": "genai", "vector databases": "genai",
     "postgres": "postgresql", "pg": "postgresql",
+    "powerbi": "power bi", "github": "git", "git / github": "git",
 }
 
 
