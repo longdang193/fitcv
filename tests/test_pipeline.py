@@ -21,7 +21,7 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
-from fitcv.pipeline import build_ranking_features, create_run_id
+from fitcv.pipeline import _build_stage_transition_artifacts, build_ranking_features, create_run_id
 
 
 # ── create_run_id ─────────────────────────────────────────────────────────────
@@ -102,11 +102,152 @@ def test_build_ranking_features_accepts_vector_search_field_names() -> None:
 
 
 def test_build_ranking_features_carries_ai_score_fields() -> None:
-    profile: dict = {"preferences": {}}
+    profile: dict = {
+        "skills": [{"name": "SQL"}, {"name": "Python"}],
+        "preferences": {
+            "target_role": "Data Engineer",
+            "seniority_target": "senior",
+        },
+    }
     features = build_ranking_features(_make_shortlist(), _make_ai_scores(), profile, {})
     job1 = next(f for f in features if f["job_url"] == "https://example.com/1")
     assert job1["ai_score"] == pytest.approx(0.85)
     assert job1["must_have_match"] == pytest.approx(1.0)
+    assert job1["title_relevance"] == pytest.approx(1.0)
+    assert job1["seniority_fit"] == pytest.approx(1.0)
+    assert job1["preference_fit"] == pytest.approx(0.5)
+
+
+def test_build_ranking_features_uses_all_supported_weighted_features() -> None:
+    profile: dict = {
+        "skills": [{"name": "SQL"}, {"name": "Python"}],
+        "preferences": {
+            "target_role": "Data Engineer",
+            "seniority_target": "senior",
+            "domains": ["data_science"],
+            "location_types": ["remote"],
+        },
+    }
+    shortlist = [
+        {
+            "job_url": "https://example.com/1",
+            "vector_similarity": 0.9,
+            "vector_rank": 1,
+            "required_skills": ["SQL", "Python"],
+            "title": "Senior Data Engineer",
+            "seniority": "senior",
+            "job_family": "data_science",
+            "location_type": "remote",
+        },
+    ]
+    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.85, "fit_label": "strong"}]
+    config = {
+        "ranking_weights": {
+            "ai_score": 0.40,
+            "must_have_match": 0.20,
+            "vector_similarity": 0.15,
+            "title_relevance": 0.10,
+            "seniority_fit": 0.10,
+            "preference_fit": 0.05,
+        },
+        "missing_value_defaults": {
+            "ai_score": 0.0,
+            "must_have_match": 0.5,
+            "vector_similarity": 0.0,
+            "title_relevance": 0.5,
+            "seniority_fit": 0.5,
+            "preference_fit": 0.5,
+        },
+    }
+
+    features = build_ranking_features(shortlist, ai_scores, profile, config)
+    job1 = features[0]
+
+    assert job1["must_have_match"] == pytest.approx(1.0)
+    assert job1["title_relevance"] == pytest.approx(1.0)
+    assert job1["seniority_fit"] == pytest.approx(1.0)
+    assert job1["preference_fit"] == pytest.approx(1.0)
+    assert job1["final_score"] == pytest.approx(
+        (0.85 * 0.40) + (1.0 * 0.20) + (0.9 * 0.15) + (1.0 * 0.10) + (1.0 * 0.10) + (1.0 * 0.05)
+    )
+
+
+def test_build_ranking_features_preserves_zero_weight_features_in_payload() -> None:
+    profile: dict = {
+        "skills": [{"name": "SQL"}, {"name": "Python"}],
+        "preferences": {
+            "target_role": "Data Engineer",
+            "seniority_target": "senior",
+            "domains": ["data_science"],
+            "location_types": ["remote"],
+        },
+    }
+    shortlist = [
+        {
+            "job_url": "https://example.com/1",
+            "vector_similarity": 0.9,
+            "vector_rank": 1,
+            "required_skills": ["SQL", "Python"],
+            "title": "Senior Data Engineer",
+            "seniority": "senior",
+            "job_family": "data_science",
+            "location_type": "remote",
+        },
+    ]
+    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.85, "fit_label": "strong"}]
+    config = {
+        "ranking_weights": {
+            "ai_score": 0.73,
+            "must_have_match": 0.0,
+            "vector_similarity": 0.27,
+            "title_relevance": 0.0,
+            "seniority_fit": 0.0,
+            "preference_fit": 0.0,
+        },
+    }
+
+    features = build_ranking_features(shortlist, ai_scores, profile, config)
+    job1 = features[0]
+
+    assert job1["must_have_match"] == pytest.approx(1.0)
+    assert job1["title_relevance"] == pytest.approx(1.0)
+    assert job1["seniority_fit"] == pytest.approx(1.0)
+    assert job1["preference_fit"] == pytest.approx(1.0)
+    assert job1["final_score"] == pytest.approx((0.85 * 0.73) + (0.9 * 0.27))
+
+
+def test_build_ranking_features_prefers_missing_value_defaults_key() -> None:
+    profile: dict = {"preferences": {}}
+    shortlist = [{"job_url": "https://example.com/1", "vector_similarity": None, "vector_rank": 1}]
+    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.4, "fit_label": "stretch"}]
+    config = {
+        "ranking_weights": {
+            "ai_score": 0.4,
+            "must_have_match": 0.2,
+            "vector_similarity": 0.15,
+            "title_relevance": 0.1,
+            "seniority_fit": 0.1,
+            "preference_fit": 0.05,
+        },
+        "missing_value_defaults": {
+            "ai_score": 0.0,
+            "vector_similarity": 0.25,
+            "must_have_match": 0.5,
+            "title_relevance": 0.25,
+            "seniority_fit": 0.25,
+            "preference_fit": 0.25,
+        },
+        "ranking_null_defaults": {
+            "ai_score": 0.0,
+            "vector_similarity": 0.99,
+        },
+    }
+
+    features = build_ranking_features(shortlist, ai_scores, profile, config)
+
+    assert features[0]["final_score"] == pytest.approx(
+        (0.4 * 0.4) + (0.5 * 0.2) + (0.25 * 0.15) + (0.5 * 0.1) + (0.5 * 0.1) + (0.5 * 0.05)
+    )
 
 
 def test_build_ranking_features_drops_jobs_missing_from_ai_scores() -> None:
@@ -115,6 +256,33 @@ def test_build_ranking_features_drops_jobs_missing_from_ai_scores() -> None:
     profile: dict = {"preferences": {}}
     features = build_ranking_features(shortlist, _make_ai_scores(), profile, {})
     assert all(f["job_url"] != "https://example.com/99" for f in features)
+
+
+def test_build_ranking_features_preserves_structured_job_fields_from_shortlist() -> None:
+    profile: dict = {"preferences": {}}
+    shortlist = [
+        {
+            "job_url": "https://example.com/1",
+            "vector_similarity": 0.93,
+            "vector_rank": 1,
+            "required_skills": ["SQL", "Python"],
+            "title": "Structured Data Engineer",
+            "years_required": 4,
+        },
+        {
+            "job_url": "https://example.com/2",
+            "vector_similarity": 0.71,
+            "vector_rank": 2,
+            "required_skills": ["Spark"],
+            "title": "Structured ML Engineer",
+            "years_required": 3,
+        },
+    ]
+    features = build_ranking_features(shortlist, _make_ai_scores(), profile, {})
+    job1 = next(f for f in features if f["job_url"] == "https://example.com/1")
+    assert job1["required_skills"] == ["SQL", "Python"]
+    assert job1["title"] == "Structured Data Engineer"
+    assert job1["years_required"] == 4
 
 
 @patch("fitcv.pipeline.logger")
@@ -179,7 +347,7 @@ def test_run_pipeline_logs_full_validation_reasons(
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
-    mock_filter.return_value = {"passed": [job], "rejected": []}
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
     mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
@@ -273,7 +441,7 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
-    mock_filter.return_value = {"passed": [job], "rejected": []}
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
     mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
@@ -486,6 +654,565 @@ def test_run_pipeline_uses_supplied_run_id_for_summary_and_cv_records(
 
 
 @patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.create_cv_version_record")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_profile_json_text")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+def test_run_pipeline_uses_runtime_profile_json_without_touching_profile_path(
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_profile_json: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_pre_filter: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_create_version: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = {
+        **_minimal_job(),
+        "fit_label": "skip",
+        "ai_score": 0.2,
+        "final_score": 0.2,
+    }
+    profile = _minimal_profile()
+    cfg = _minimal_config()
+    cfg["runtime_inputs"] = {"candidate_profile_json": "{\"name\": \"Runtime Candidate\"}"}
+
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_enrich.return_value = [job]
+    mock_profile_json.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_pre_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_ai.return_value = [job]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = [job]
+    mock_evidence.return_value = [{"evidence_id": "e1"}]
+    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+    mock_classify.return_value = "strong"
+    mock_gen_cv.return_value = "# CV Markdown"
+    mock_validate.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+    }
+    mock_create_version.return_value = {"version_id": "v1"}
+
+    run_pipeline("data/sample_jobs.json", config=cfg, run_id="runtime-profile")
+
+    mock_profile_json.assert_called_once_with("{\"name\": \"Runtime Candidate\"}")
+    mock_profile_yaml.assert_not_called()
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.create_cv_version_record")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_persists_structured_cv_and_includes_it_in_export(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_create_version: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+    structured_cv = {
+        "schema_version": "cv_doc_v1",
+        "sections": {
+            "header": {"name": "Jane Doe", "title": "Data Engineer", "location": None, "contact": {"email": None, "phone": None, "linkedin": None}},
+            "summary": {"text": "Grounded summary."},
+            "experience": [],
+            "projects": [],
+            "education": [],
+            "skills": {"groups": []},
+            "certifications": [],
+            "publications": [],
+            "languages": [],
+        },
+    }
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_enrich.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_ai.return_value = [job]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = [job]
+    mock_evidence.return_value = [{"evidence_id": "e1"}]
+    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+    mock_classify.return_value = "strong"
+    mock_gen_cv.return_value = {"structured_cv": structured_cv, "markdown": "# CV Markdown"}
+    mock_validate.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+    }
+    mock_create_version.return_value = {
+        "version_id": "v-structured",
+        "generated_at": "2026-03-29T12:00:00+00:00",
+    }
+
+    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="structured-run")
+
+    create_kwargs = mock_create_version.call_args.kwargs
+    assert create_kwargs["cv_structured"] == structured_cv
+    assert create_kwargs["cv_generation_model"] == "gemini-2.5-flash"
+    assert create_kwargs["cv_prompt_version"] == "v1"
+    export_cv = result["export_results"][0]["cv"]
+    assert export_cv["structured"] == structured_cv
+    assert export_cv["schema_version"] == "cv_doc_v1"
+    assert export_cv["model_used"] == "gemini-2.5-flash"
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.create_cv_version_record")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch_with_exclusions")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_returns_debug_record_for_accepted_cv(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_norm_with_exclusions: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_create_version: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+    structured_cv = {
+        "schema_version": "cv_doc_v1",
+        "sections": {
+            "header": {"name": "Jane Doe", "title": "Data Engineer", "location": None, "contact": {"email": None, "phone": None, "linkedin": None}},
+            "summary": {"text": "Grounded summary."},
+            "experience": [],
+            "projects": [],
+            "education": [],
+            "skills": {"groups": []},
+            "certifications": [],
+            "publications": [],
+            "languages": [],
+        },
+    }
+    evidence = [
+        {
+            "evidence_id": "e1",
+            "evidence_type": "experience_entry",
+            "source_ref": "experience[0]",
+            "name": "Data Engineer at Fintech Startup GmbH",
+            "skills": ["SQL", "Python"],
+        }
+    ]
+    gap = {"matched": ["SQL"], "partial": [], "missing": []}
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_norm_with_exclusions.return_value = ([job], [])
+    mock_enrich.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_ai.return_value = [job]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = [job]
+    mock_evidence.return_value = evidence
+    mock_gap.return_value = gap
+    mock_classify.return_value = "strong"
+    mock_gen_cv.return_value = {"structured_cv": structured_cv, "markdown": "# CV Markdown"}
+    mock_validate.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+    }
+    mock_create_version.return_value = {
+        "version_id": "v-debug",
+        "generated_at": "2026-03-31T12:00:00+00:00",
+    }
+
+    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="debug-accepted")
+
+    debug_records = result["cv_generation_debug_records"]
+    assert len(debug_records) == 1
+    record = debug_records[0]
+    assert record["job_url"] == job["job_url"]
+    assert record["status"] == "accepted"
+    assert record["fit_classification"] == "strong"
+    assert record["evidence_used"] == [
+        {
+            "evidence_type": "experience_entry",
+            "source_ref": "experience[0]",
+            "name": "Data Engineer at Fintech Startup GmbH",
+        }
+    ]
+    assert record["gap_summary"] == gap
+    assert record["structured_cv_initial"] == structured_cv
+    assert record["validation_initial"]["valid"] is True
+    assert record["repair_attempt"] == {"performed": False, "missing_sections": []}
+    assert record["structured_cv_final"] == structured_cv
+    assert record["markdown_final"] == "# CV Markdown"
+    assert record["error"] is None
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch_with_exclusions")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_norm_with_exclusions: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+    structured_cv = {
+        "schema_version": "cv_doc_v1",
+        "sections": {
+            "header": {"name": "Jane Doe", "title": "Data Engineer", "location": None, "contact": {"email": None, "phone": None, "linkedin": None}},
+            "summary": {"text": "Grounded summary."},
+            "experience": [],
+            "projects": [],
+            "education": [],
+            "skills": {"groups": []},
+            "certifications": [],
+            "publications": [],
+            "languages": [],
+        },
+    }
+    validation = {
+        "valid": False,
+        "missing_sections": ["experience"],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+    }
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_norm_with_exclusions.return_value = ([job], [])
+    mock_enrich.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_ai.return_value = [job]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = [job]
+    mock_evidence.return_value = [{"evidence_id": "e1"}]
+    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+    mock_classify.return_value = "strong"
+    mock_gen_cv.return_value = {"structured_cv": structured_cv, "markdown": "# Broken CV"}
+    mock_validate.return_value = validation
+
+    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="debug-validation")
+
+    debug_records = result["cv_generation_debug_records"]
+    assert len(debug_records) == 1
+    record = debug_records[0]
+    assert record["status"] == "validation_failed"
+    assert record["structured_cv_initial"] == structured_cv
+    assert record["validation_initial"] == validation
+    assert record["structured_cv_final"] is None
+    assert record["markdown_final"] is None
+    assert record["error"]["stage"] == "validation"
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.create_cv_version_record")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch_with_exclusions")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_returns_debug_record_for_persistence_failed_cv(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_norm_with_exclusions: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_create_version: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+    structured_cv = {
+        "schema_version": "cv_doc_v1",
+        "sections": {
+            "header": {"name": "Jane Doe", "title": "Data Engineer", "location": None, "contact": {"email": None, "phone": None, "linkedin": None}},
+            "summary": {"text": "Grounded summary."},
+            "experience": [],
+            "projects": [],
+            "education": [],
+            "skills": {"groups": []},
+            "certifications": [],
+            "publications": [],
+            "languages": [],
+        },
+    }
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_norm_with_exclusions.return_value = ([job], [])
+    mock_enrich.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_ai.return_value = [job]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = [job]
+    mock_evidence.return_value = [{"evidence_id": "e1"}]
+    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+    mock_classify.return_value = "strong"
+    mock_gen_cv.return_value = {"structured_cv": structured_cv, "markdown": "# CV Markdown"}
+    mock_validate.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+    }
+    mock_create_version.return_value = {
+        "version_id": "v-debug",
+        "generated_at": "2026-03-31T12:00:00+00:00",
+    }
+    mock_store_ver.side_effect = RuntimeError("BigQuery insert errors for cv_versions: boom")
+
+    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="debug-persist")
+
+    debug_records = result["cv_generation_debug_records"]
+    assert len(debug_records) == 1
+    record = debug_records[0]
+    assert record["status"] == "persistence_failed"
+    assert record["structured_cv_initial"] == structured_cv
+    assert record["structured_cv_final"] == structured_cv
+    assert record["markdown_final"] == "# CV Markdown"
+    assert record["error"]["stage"] == "persistence"
+
+
+@patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")
 @patch("fitcv.pipeline.generate_cv")
 @patch("fitcv.pipeline.classify_fit")
@@ -545,7 +1272,7 @@ def test_run_pipeline_returns_correct_schema(
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
-    mock_filter.return_value = {"passed": [job], "rejected": []}
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
     mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
@@ -564,8 +1291,31 @@ def test_run_pipeline_returns_correct_schema(
     assert "passed_filter" in result
     assert "ranked" in result
     assert "cvs_generated" in result
+    assert "stage_transition_artifacts" in result
     assert result["total_jobs"] == 1
     assert result["cvs_generated"] == 1
+    stage_artifacts = result["stage_transition_artifacts"]
+    assert stage_artifacts["schema_version"] == "stage_transition_artifacts_v2"
+    assert set(stage_artifacts["stages"]) == {
+        "normalize",
+        "enrich",
+        "rule_filter",
+        "shortlist",
+        "ranking",
+        "cv_generation",
+    }
+    for stage_id, block in stage_artifacts["stages"].items():
+        assert block["stage_id"] == stage_id
+        assert "input_counts" in block
+        assert "output_counts" in block
+        assert "decision_summary" in block
+        assert "inputs_sample" in block
+        assert "outputs_sample" in block
+        assert "dropped_or_changed_sample" in block
+    assert stage_artifacts["stages"]["normalize"]["input_counts"]["raw_jobs"] == 1
+    assert stage_artifacts["stages"]["ranking"]["output_counts"]["ranked_jobs"] == 1
+    assert stage_artifacts["stages"]["cv_generation"]["output_counts"]["accepted"] == 1
+    assert stage_artifacts["stages"]["cv_generation"]["outputs_sample"][0]["job_url"] == job["job_url"]
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -715,12 +1465,234 @@ def test_run_pipeline_passes_job_dicts_to_embeddings_and_urls_to_vector_search(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []
 
-    run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
+    result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     embed_jobs_arg = mock_embed_jobs.call_args.args[0]
     vector_urls_arg = mock_vec.call_args.args[1]
     assert embed_jobs_arg == [job]
     assert vector_urls_arg == [job["job_url"]]
+    cv_block = result["stage_transition_artifacts"]["stages"]["cv_generation"]
+    assert cv_block["status"] == "not_reached"
+    assert cv_block["input_counts"] == {}
+    assert cv_block["output_counts"] == {}
+    assert cv_block["inputs_sample"] == []
+    assert cv_block["outputs_sample"] == []
+    assert cv_block["dropped_or_changed_sample"] == []
+
+
+def test_build_stage_transition_artifacts_includes_changed_state_samples() -> None:
+    passed_jobs = [
+        {"job_url": "https://example.com/1", "title": "Data Analyst"},
+        {"job_url": "https://example.com/2", "title": "ML Analyst"},
+    ]
+    raw_shortlist = [
+        {"job_url": "https://example.com/1", "vector_similarity": 0.91, "vector_rank": 1},
+    ]
+    shortlist = [
+        {"job_url": "https://example.com/1", "title": "Data Analyst", "vector_similarity": 0.91, "vector_rank": 1, "shortlist_origin": "vector_search"},
+        {"job_url": "https://example.com/2", "title": "ML Analyst", "vector_similarity": 0.0, "vector_rank": 2, "shortlist_origin": "backfill"},
+    ]
+    ranking_inputs = [
+        {
+            "job_url": "https://example.com/1",
+            "title": "Data Analyst",
+            "ai_score": 0.9,
+            "must_have_match": 1.0,
+            "vector_similarity": 0.91,
+            "title_relevance": 1.0,
+            "seniority_fit": 1.0,
+            "preference_fit": 0.5,
+            "fit_label": "strong",
+            "final_score": 0.905,
+        },
+        {
+            "job_url": "https://example.com/2",
+            "title": "ML Analyst",
+            "ai_score": 0.5,
+            "must_have_match": 0.5,
+            "vector_similarity": 0.0,
+            "title_relevance": 0.5,
+            "seniority_fit": 0.5,
+            "preference_fit": 0.5,
+            "fit_label": "stretch",
+            "final_score": 0.25,
+        },
+    ]
+    ranked = [ranking_inputs[0]]
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=passed_jobs,
+        normalized=passed_jobs,
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=passed_jobs,
+        passed_jobs=passed_jobs,
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=raw_shortlist,
+        shortlist=shortlist,
+        backfilled_job_urls=["https://example.com/2"],
+        vector_top_n=50,
+        candidate_summary="Candidate: Analyst",
+        ai_scores=ranking_inputs,
+        ranking_inputs=ranking_inputs,
+        ranked=ranked,
+        final_top_n=10,
+        cv_generation_debug_records=[],
+        profile={"preferences": {"target_role": "Data Analyst"}, "skills": ["SQL", "Python"]},
+        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+    )
+
+    shortlist_block = artifacts["stages"]["shortlist"]
+    ranking_block = artifacts["stages"]["ranking"]
+
+    assert shortlist_block["dropped_or_changed_sample"][0]["change_type"] == "missed_by_vector_search"
+    assert shortlist_block["dropped_or_changed_sample"][1]["change_type"] == "backfilled_for_scoring"
+    assert ranking_block["dropped_or_changed_sample"][0]["change_type"] == "scored_not_ranked"
+    assert ranking_block["outputs_sample"][0]["job_url"] == "https://example.com/1"
+    assert ranking_block["outputs_sample"][0]["must_have_match"] == pytest.approx(1.0)
+    assert ranking_block["dropped_or_changed_sample"][0]["title_relevance"] == pytest.approx(0.5)
+
+
+def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract() -> None:
+    ranking_inputs = [
+        {
+            "job_url": "https://example.com/1",
+            "title": "Data Engineer",
+            "ai_score": 0.85,
+            "must_have_match": 1.0,
+            "vector_similarity": 0.9,
+            "title_relevance": 1.0,
+            "seniority_fit": 1.0,
+            "preference_fit": 1.0,
+            "fit_label": "strong",
+            "final_score": 0.925,
+            "shortlist_origin": "vector_search",
+        }
+    ]
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=ranking_inputs,
+        normalized=ranking_inputs,
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=ranking_inputs,
+        passed_jobs=ranking_inputs,
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=ranking_inputs,
+        shortlist=ranking_inputs,
+        backfilled_job_urls=[],
+        vector_top_n=10,
+        candidate_summary="Candidate: Data Engineer",
+        ai_scores=ranking_inputs,
+        ranking_inputs=ranking_inputs,
+        ranked=ranking_inputs,
+        final_top_n=10,
+        cv_generation_debug_records=[],
+        profile={"preferences": {"target_role": "Data Engineer"}},
+        config={
+            "ranking_weights": {
+                "ai_score": 0.73,
+                "must_have_match": 0.0,
+                "vector_similarity": 0.27,
+                "title_relevance": 0.0,
+                "seniority_fit": 0.0,
+                "preference_fit": 0.0,
+            },
+            "missing_value_defaults": {
+                "ai_score": 0.0,
+                "must_have_match": 0.5,
+                "vector_similarity": 0.0,
+                "title_relevance": 0.5,
+                "seniority_fit": 0.5,
+                "preference_fit": 0.5,
+            },
+            "cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}},
+        },
+    )
+
+    ranking_block = artifacts["stages"]["ranking"]
+    decision_summary = ranking_block["decision_summary"]
+
+    assert decision_summary["configured_ranking_weights"] == {
+        "ai_score": 0.73,
+        "must_have_match": 0.0,
+        "vector_similarity": 0.27,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.0,
+    }
+    assert decision_summary["configured_missing_value_defaults"] == {
+        "ai_score": 0.0,
+        "must_have_match": 0.5,
+        "vector_similarity": 0.0,
+        "title_relevance": 0.5,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.5,
+    }
+    assert decision_summary["zero_weight_features"] == [
+        "must_have_match",
+        "title_relevance",
+        "seniority_fit",
+        "preference_fit",
+    ]
+    assert decision_summary["contributing_features"] == [
+        "ai_score",
+        "vector_similarity",
+    ]
+    assert ranking_block["inputs_sample"][0]["must_have_match"] == pytest.approx(1.0)
+    assert ranking_block["inputs_sample"][0]["preference_fit"] == pytest.approx(1.0)
+
+
+def test_build_stage_transition_artifacts_caps_samples_at_20_and_truncates_text() -> None:
+    raw_jobs = [
+        {
+            "job_url": f"https://example.com/{i}",
+            "title": f"Role {i}",
+            "description_cleaned": "x" * 800,
+        }
+        for i in range(25)
+    ]
+    debug_records = [
+        {
+            "job_url": f"https://example.com/{i}",
+            "job_title": f"Role {i}",
+            "status": "accepted",
+            "decision_chain": {"primary_fit": {"label": "strong"}},
+            "markdown_final": "y" * 1000,
+            "validation_initial": {"valid": True},
+            "repair_attempt": {"performed": False, "missing_sections": []},
+            "gap_summary": {"matched": ["SQL"]},
+            "evidence_used": [],
+            "error": None,
+        }
+        for i in range(25)
+    ]
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=raw_jobs,
+        normalized=raw_jobs,
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=raw_jobs,
+        passed_jobs=raw_jobs,
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=[],
+        shortlist=[],
+        backfilled_job_urls=[],
+        vector_top_n=50,
+        candidate_summary="Candidate: Analyst",
+        ai_scores=[],
+        ranking_inputs=[],
+        ranked=raw_jobs,
+        final_top_n=10,
+        cv_generation_debug_records=debug_records,
+        profile={"preferences": {"target_role": "Data Analyst"}, "skills": ["SQL"]},
+        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+    )
+
+    normalize_block = artifacts["stages"]["normalize"]
+    cv_block = artifacts["stages"]["cv_generation"]
+    assert len(normalize_block["inputs_sample"]) == 20
+    assert len(cv_block["outputs_sample"]) == 20
+    assert normalize_block["inputs_sample"][0]["description_cleaned"].endswith("...[truncated]")
+    assert cv_block["outputs_sample"][0]["markdown_final"].endswith("...[truncated]")
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -747,7 +1719,7 @@ def test_run_pipeline_passes_job_dicts_to_embeddings_and_urls_to_vector_search(
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
-def test_run_pipeline_skips_skip_fit_jobs(
+def test_run_pipeline_passes_enriched_shortlist_rows_to_ai_scoring(
     mock_config: MagicMock,
     mock_parse: MagicMock,
     mock_norm: MagicMock,
@@ -775,7 +1747,393 @@ def test_run_pipeline_skips_skip_fit_jobs(
 ) -> None:
     from fitcv.pipeline import run_pipeline
 
-    job = _minimal_job()
+    job = {
+        **_minimal_job(),
+        "title": "Structured Data Engineer",
+        "required_skills": ["SQL", "Python"],
+        "responsibilities": ["Build data pipelines"],
+        "job_family": "data_engineering",
+    }
+    profile = _minimal_profile()
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [_raw_scraper_job()]
+    mock_norm.return_value = [job]
+    mock_enrich.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_ai.return_value = [job]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = []
+
+    run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
+
+    shortlist_arg = mock_ai.call_args.args[0]
+    assert shortlist_arg == [
+        {
+            **job,
+            "vector_similarity": 0.9,
+            "vector_rank": 1,
+            "shortlist_origin": "vector_search",
+        }
+    ]
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity_allows(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    first_job = {
+        **_minimal_job("https://example.com/1"),
+        "title": "Structured Data Engineer",
+    }
+    second_job = {
+        **_minimal_job("https://example.com/2"),
+        "title": "Retail Banking Analyst",
+        "required_skills": ["SQL", "Power BI"],
+        "job_family": "analytics",
+    }
+    profile = _minimal_profile()
+    cfg = _minimal_config()
+    cfg["pipeline"]["vector_search_top_n"] = 5
+
+    mock_config.return_value = cfg
+    mock_parse.return_value = [_raw_scraper_job(first_job["job_url"]), _raw_scraper_job(second_job["job_url"])]
+    mock_norm.return_value = [first_job, second_job]
+    mock_enrich.return_value = [first_job, second_job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [first_job["job_url"], second_job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": first_job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_ai.return_value = [first_job, second_job]
+    mock_build_feat.return_value = [first_job, second_job]
+    mock_rank.return_value = []
+
+    result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
+
+    shortlist_arg = mock_ai.call_args.args[0]
+    assert shortlist_arg == [
+        {
+            **first_job,
+            "vector_similarity": 0.9,
+            "vector_rank": 1,
+            "shortlist_origin": "vector_search",
+        },
+        {
+            **second_job,
+            "vector_similarity": 0.0,
+            "vector_rank": 2,
+            "shortlist_origin": "backfill",
+        },
+    ]
+    second_export_row = next(
+        row for row in result["export_results"]
+        if row["job_url"] == second_job["job_url"]
+    )
+    assert second_export_row["pipeline_status"] != "not_shortlisted"
+    assert result["shortlist_debug"] == {
+        "vector_search_top_n": 5,
+        "passed_jobs_total": 2,
+        "shortlisted_jobs_total": 1,
+        "scoring_shortlisted_jobs_total": 2,
+        "backfilled_jobs_total": 1,
+        "candidate_query_text": "Candidate: Data Engineer\nTarget role: Data Engineer\nRecent roles: DE\nSkills: SQL, Python",
+        "not_shortlisted_job_urls": [second_job["job_url"]],
+        "backfilled_job_urls": [second_job["job_url"]],
+    }
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.create_cv_version_record")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_uses_ranked_fit_label_as_floor_for_layer4_fit_gate(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_create_version: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = {
+        **_minimal_job(),
+        "fit_label": "stretch",
+        "ai_score": 0.5,
+        "final_score": 0.4,
+        "title": "Retail Banking Analyst",
+    }
+    profile = _minimal_profile()
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [_raw_scraper_job()]
+    mock_norm.return_value = [job]
+    mock_enrich.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = []
+    mock_ai.return_value = [job]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = [job]
+    mock_evidence.return_value = [{"evidence_id": "e1"}]
+    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": ["Power BI"]}
+    mock_classify.return_value = "skip"
+    mock_gen_cv.return_value = "# CV Markdown"
+    mock_validate.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+    }
+    mock_create_version.return_value = {
+        "version_id": "v1",
+        "generated_at": "2026-03-29T16:11:40Z",
+    }
+
+    result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
+
+    assert result["cvs_generated"] == 1
+    assert result["cv_generation_debug_records"][0]["status"] == "accepted"
+    assert result["cv_generation_debug_records"][0]["fit_classification"] == "stretch"
+    assert result["export_results"][0]["pipeline_status"] == "ranked_with_cv"
+    assert result["export_results"][0]["cv"]["fit_classification"] == "stretch"
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.create_cv_version_record")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_create_version: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = {
+        **_minimal_job(),
+        "fit_label": "skip",
+        "ai_score": 0.2,
+        "final_score": 0.2,
+        "title": "Retail Banking Analyst",
+    }
+    profile = _minimal_profile()
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [_raw_scraper_job()]
+    mock_norm.return_value = [job]
+    mock_enrich.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = []
+    mock_ai.return_value = [job]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = [job]
+    mock_evidence.return_value = [{"evidence_id": "e1"}]
+    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+    mock_classify.return_value = "strong"
+
+    result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
+
+    mock_gen_cv.assert_not_called()
+    mock_validate.assert_not_called()
+    mock_classify.assert_not_called()
+    assert result["cv_generation_debug_records"][0]["status"] == "skipped_fit_gate"
+    assert result["cv_generation_debug_records"][0]["fit_classification"] == "skip"
+    assert result["export_results"][0]["pipeline_status"] == "ranked_skipped_fit_gate"
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_skips_reranker_skip_fit_jobs(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = {
+        **_minimal_job(),
+        "fit_label": "skip",
+        "ai_score": 0.2,
+        "final_score": 0.2,
+    }
     profile = _minimal_profile()
 
     mock_config.return_value = _minimal_config()
@@ -790,7 +2148,7 @@ def test_run_pipeline_skips_skip_fit_jobs(
     mock_rank.return_value = [job]
     mock_evidence.return_value = []
     mock_gap.return_value = {"matched": [], "partial": [], "missing": ["SQL"]}
-    mock_classify.return_value = "skip"   # <── should be excluded
+    mock_classify.return_value = "strong"
     result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
     assert result["cvs_generated"] == 0
 
@@ -1009,7 +2367,12 @@ def test_run_pipeline_emits_layer4_cv_error_for_per_job_exception(
         def emit(self, stage: str, level: str, message: str) -> None:
             self.events.append((stage, level, message))
 
-    job = _minimal_job()
+    job = {
+        **_minimal_job(),
+        "fit_label": "skip",
+        "ai_score": 0.2,
+        "final_score": 0.2,
+    }
     profile = _minimal_profile()
     reporter = _Reporter()
 
@@ -1018,7 +2381,7 @@ def test_run_pipeline_emits_layer4_cv_error_for_per_job_exception(
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
     mock_profile_yaml.return_value = profile
-    mock_filter.return_value = {"passed": [job], "rejected": []}
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
     mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
@@ -1130,7 +2493,7 @@ def test_run_pipeline_emits_shortlist_and_ai_score_counts(
 
     run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
 
-    assert ("layer3_shortlist", "info", "Vector shortlist: 2 jobs") in reporter.events
+    assert ("layer3_shortlist", "info", "Vector shortlist: 2 raw hits") in reporter.events
     assert ("layer3_ai_score", "info", "AI scored: 1 jobs") in reporter.events
 
 
@@ -1393,40 +2756,91 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "title": "Ranked No CV",
         "job_title": "Ranked No CV",
         "required_skills": ["Python"],
-        "ai_score": 0.75,
+        "ai_score": 0.20,
         "final_score": 0.80,
         "vector_similarity": 0.70,
-        "fit_label": "stretch",
+        "fit_label": "skip",
         "final_rank": 2,
     }
-    passed_not_ranked = {
+    not_shortlisted = {
         **_minimal_job("https://example.com/3"),
-        "title": "Passed Not Ranked",
-        "job_title": "Passed Not Ranked",
+        "title": "Not Shortlisted",
+        "job_title": "Not Shortlisted",
         "required_skills": ["Spark"],
+    }
+    shortlisted_not_scored = {
+        **_minimal_job("https://example.com/5"),
+        "title": "Shortlisted Not Scored",
+        "job_title": "Shortlisted Not Scored",
+        "required_skills": ["dbt"],
+    }
+    scored_not_ranked = {
+        **_minimal_job("https://example.com/6"),
+        "title": "Scored Not Ranked",
+        "job_title": "Scored Not Ranked",
+        "required_skills": ["Airflow"],
+        "ai_score": 0.44,
+        "final_score": 0.45,
+        "vector_similarity": 0.52,
+        "fit_label": "stretch",
     }
     rejected_raw = _raw_scraper_job("https://example.com/4")
 
-    mock_config.return_value = _minimal_config()
-    mock_parse.return_value = [ranked_with_cv, ranked_no_cv, passed_not_ranked, rejected_raw]
-    mock_norm.return_value = [ranked_with_cv, ranked_no_cv, passed_not_ranked, {"job_url": "https://example.com/4", "title": "Rejected Raw"}]
-    mock_enrich.return_value = [ranked_with_cv, ranked_no_cv, passed_not_ranked]
+    cfg = _minimal_config()
+    cfg["pipeline"]["final_top_n"] = 2
+    mock_config.return_value = cfg
+    mock_parse.return_value = [
+        ranked_with_cv,
+        ranked_no_cv,
+        not_shortlisted,
+        rejected_raw,
+        shortlisted_not_scored,
+        scored_not_ranked,
+    ]
+    mock_norm.return_value = [
+        ranked_with_cv,
+        ranked_no_cv,
+        not_shortlisted,
+        {"job_url": "https://example.com/4", "title": "Rejected Raw"},
+        shortlisted_not_scored,
+        scored_not_ranked,
+    ]
+    mock_enrich.return_value = [
+        ranked_with_cv,
+        ranked_no_cv,
+        not_shortlisted,
+        shortlisted_not_scored,
+        scored_not_ranked,
+    ]
     mock_profile_yaml.return_value = _minimal_profile()
     mock_pre_filter.return_value = {
-        "passed": [ranked_with_cv["job_url"], ranked_no_cv["job_url"], passed_not_ranked["job_url"]],
+        "passed": [
+            ranked_with_cv["job_url"],
+            ranked_no_cv["job_url"],
+            not_shortlisted["job_url"],
+            shortlisted_not_scored["job_url"],
+            scored_not_ranked["job_url"],
+        ],
         "rejected": [{"job_url": "https://example.com/4", "reasons": ["applications_count_exceeded"]}],
     }
     mock_filter.return_value = {
-        "passed": [ranked_with_cv["job_url"], ranked_no_cv["job_url"], passed_not_ranked["job_url"]],
+        "passed": [
+            ranked_with_cv["job_url"],
+            ranked_no_cv["job_url"],
+            not_shortlisted["job_url"],
+            shortlisted_not_scored["job_url"],
+            scored_not_ranked["job_url"],
+        ],
         "rejected": [],
     }
     mock_vec.return_value = [
         {"job_url": ranked_with_cv["job_url"], "vector_similarity": 0.88, "vector_rank": 1},
         {"job_url": ranked_no_cv["job_url"], "vector_similarity": 0.70, "vector_rank": 2},
-        {"job_url": passed_not_ranked["job_url"], "vector_similarity": 0.55, "vector_rank": 3},
+        {"job_url": shortlisted_not_scored["job_url"], "vector_similarity": 0.55, "vector_rank": 3},
+        {"job_url": scored_not_ranked["job_url"], "vector_similarity": 0.52, "vector_rank": 4},
     ]
-    mock_ai.return_value = [ranked_with_cv, ranked_no_cv, passed_not_ranked]
-    mock_build_feat.return_value = [ranked_with_cv, ranked_no_cv, passed_not_ranked]
+    mock_ai.return_value = [ranked_with_cv, ranked_no_cv, scored_not_ranked]
+    mock_build_feat.return_value = [ranked_with_cv, ranked_no_cv, scored_not_ranked]
     mock_rank.return_value = [ranked_with_cv, ranked_no_cv]
     mock_evidence.return_value = [{"evidence_id": "e1", "text": "built pipelines"}]
     mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
@@ -1451,19 +2865,234 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "https://example.com/1",
         "https://example.com/2",
         "https://example.com/3",
+        "https://example.com/5",
+        "https://example.com/6",
         "https://example.com/4",
     ]
     assert export_results[0]["pipeline_status"] == "ranked_with_cv"
     assert export_results[0]["cv"]["version_id"] == "v1"
+    assert export_results[0]["cv"]["ranking_fit_label"] == "strong"
     assert export_results[0]["enriched_job"]["required_skills"] == ["SQL"]
     assert "title" not in export_results[0]["enriched_job"]
     assert "job_url" not in export_results[0]["enriched_job"]
     assert "location_type" not in export_results[0]["enriched_job"]
     assert "domain" not in export_results[0]["enriched_job"]
-    assert export_results[1]["pipeline_status"] == "ranked_no_cv"
-    assert export_results[2]["pipeline_status"] == "passed_not_ranked"
-    assert export_results[2]["scores"]["vector_score"] == pytest.approx(0.55)
-    assert export_results[3]["pipeline_status"] == "rejected_before_enrichment"
+    assert export_results[0]["decision_chain"] == {
+        "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": True,
+        },
+        "primary_fit": {
+            "source": "reranker",
+            "label": "strong",
+        },
+        "cv_generation": {
+            "status": "accepted",
+            "attempted": True,
+        },
+        "validation": {
+            "status": "accepted",
+        },
+    }
+    assert export_results[1]["pipeline_status"] == "ranked_skipped_fit_gate"
+    assert export_results[1]["decision_chain"] == {
+        "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": True,
+        },
+        "primary_fit": {
+            "source": "reranker",
+            "label": "skip",
+        },
+        "cv_generation": {
+            "status": "skipped_fit_gate",
+            "attempted": False,
+        },
+        "validation": {
+            "status": "not_run",
+        },
+    }
+    assert export_results[2]["pipeline_status"] == "not_shortlisted"
+    assert export_results[2]["scores"]["vector_score"] is None
+    assert export_results[2]["shortlist_debug"] == {
+        "passed_rule_filter": True,
+        "returned_by_vector_search": False,
+        "reason": "job_url_not_returned_by_vector_search",
+        "vector_search_top_n": 2,
+        "vector_rank": None,
+        "vector_similarity": None,
+        "shortlist_origin": "not_returned_by_vector_search",
+    }
+    assert export_results[3]["pipeline_status"] == "shortlisted_not_scored"
+    assert export_results[3]["scores"]["vector_score"] == pytest.approx(0.55)
+    assert export_results[3]["shortlist_debug"] == {
+        "passed_rule_filter": True,
+        "returned_by_vector_search": True,
+        "reason": None,
+        "vector_search_top_n": 2,
+        "vector_rank": 3,
+        "vector_similarity": pytest.approx(0.55),
+        "shortlist_origin": "returned_by_vector_search",
+    }
+    assert export_results[4]["pipeline_status"] == "scored_not_ranked"
+    assert export_results[4]["scores"]["final_score"] == pytest.approx(0.45)
+    assert export_results[5]["pipeline_status"] == "rejected_before_enrichment"
+    debug_records = result["cv_generation_debug_records"]
+    assert len(debug_records) == 2
+    assert debug_records[0]["status"] == "accepted"
+    assert debug_records[0]["ranking_fit_label"] == "strong"
+    assert debug_records[0]["decision_chain"] == {
+        "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": True,
+        },
+        "primary_fit": {
+            "source": "reranker",
+            "label": "strong",
+        },
+        "cv_generation": {
+            "status": "accepted",
+            "attempted": True,
+        },
+        "validation": {
+            "status": "accepted",
+        },
+    }
+    assert debug_records[1]["status"] == "skipped_fit_gate"
+    assert debug_records[1]["ranking_fit_label"] == "skip"
+    assert debug_records[1]["decision_chain"] == {
+        "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": True,
+        },
+        "primary_fit": {
+            "source": "reranker",
+            "label": "skip",
+        },
+        "cv_generation": {
+            "status": "skipped_fit_gate",
+            "attempted": False,
+        },
+        "validation": {
+            "status": "not_run",
+        },
+    }
+    assert debug_records[1]["error"] == {
+        "stage": "fit_gate",
+        "message": f"Skipped {ranked_no_cv['job_url']} (fit=skip)",
+    }
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.create_cv_version_record")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_layer4_uses_enriched_job_fields_for_gap_and_debug(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_pre_filter: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_create_version: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    raw_job = _raw_scraper_job("https://example.com/1")
+    enriched_job = {
+        **_minimal_job("https://example.com/1"),
+        "title": "Enriched Title",
+        "required_skills": ["Python", "SQL"],
+        "years_experience_min": 4,
+        "years_experience_max": 6,
+    }
+    ranked_feature = {
+        "job_url": "https://example.com/1",
+        "ai_score": 0.91,
+        "final_score": 0.95,
+        "vector_similarity": 0.88,
+        "fit_label": "strong",
+        "final_rank": 1,
+    }
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [raw_job]
+    mock_norm.return_value = [{"job_url": "https://example.com/1", "title": "Normalized"}]
+    mock_pre_filter.return_value = {"passed": ["https://example.com/1"], "rejected": []}
+    mock_enrich.return_value = [enriched_job]
+    mock_profile_yaml.return_value = _minimal_profile()
+    mock_filter.return_value = {"passed": ["https://example.com/1"], "rejected": []}
+    mock_vec.return_value = [{"job_url": "https://example.com/1", "vector_similarity": 0.88, "vector_rank": 1}]
+    mock_ai.return_value = [{"job_url": "https://example.com/1", "ai_score": 0.91, "fit_label": "strong"}]
+    mock_build_feat.return_value = [ranked_feature]
+    mock_rank.return_value = [dict(ranked_feature)]
+    mock_evidence.return_value = [{"evidence_id": "e1", "text": "built pipelines"}]
+    mock_gap.return_value = {"matched": ["Python"], "partial": [], "missing": ["SQL"]}
+    mock_classify.return_value = "strong"
+    mock_gen_cv.return_value = {"structured_cv": {"schema_version": "cv_doc_v1"}, "markdown": "# CV Markdown"}
+    mock_validate.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+    }
+    mock_create_version.return_value = {"version_id": "v1", "generated_at": "2026-03-29T16:11:40Z"}
+
+    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-gap")
+
+    assert mock_gap.call_args.kwargs["required_skills"] == ["Python", "SQL"]
+    assert mock_gap.call_args.kwargs["candidate_skills"] == ["SQL", "Python"]
+    assert mock_gap.call_args.kwargs["years_experience_min"] == 4
+    assert mock_gap.call_args.kwargs["years_experience_max"] == 6
+    assert mock_gen_cv.call_args.args[0]["title"] == "Enriched Title"
+    assert result["cv_generation_debug_records"][0]["job_title"] == "Enriched Title"
+    assert result["cv_generation_debug_records"][0]["gap_summary"] == {
+        "matched": ["Python"],
+        "partial": [],
+        "missing": ["SQL"],
+    }
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -1541,7 +3170,7 @@ def test_run_pipeline_export_marks_deduplicated_rows_explicitly(
     result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
 
     assert len(result["export_results"]) == 2
-    assert result["export_results"][0]["pipeline_status"] == "passed_not_ranked"
+    assert result["export_results"][0]["pipeline_status"] == "scored_not_ranked"
     assert result["export_results"][1]["pipeline_status"] == "deduplicated_before_enrichment"
     assert result["export_results"][1]["reject_reasons"] == ["near_duplicate_job_posting"]
 

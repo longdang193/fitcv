@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.4.0 — active
+
+- Ranking settings now map to a real six-feature runtime contract instead of a hidden two-feature subset
+- Supported ranking features can be made non-contributing explicitly with weight `0.0` while still remaining visible in runtime and artifacted config
+- Specs/plans: see `refs` in the feature contract
+
 ### 2.3.0 — active
 
 - Admin-editable CV generation and composition settings
