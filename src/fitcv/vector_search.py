@@ -26,8 +26,11 @@ config["retrieval_strategy"]        : stored in vector_shortlist (default "job_s
 from datetime import datetime, timezone
 from typing import Any
 
+DEFAULT_RECENT_ROLE_COUNT = 3
+
+
 def _dedupe_shortlist_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Keep the best-ranked row per job_url, preserving shortlist order."""
+    """Keep the best-ranked row per job_url and renumber to unique-job ranks."""
     deduped: list[dict[str, Any]] = []
     seen_job_urls: set[str] = set()
     for row in rows:
@@ -35,7 +38,12 @@ def _dedupe_shortlist_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not job_url or job_url in seen_job_urls:
             continue
         seen_job_urls.add(job_url)
-        deduped.append(row)
+        deduped.append(
+            {
+                **row,
+                "vector_rank": len(deduped) + 1,
+            }
+        )
     return deduped
 
 
@@ -47,7 +55,8 @@ def build_candidate_query_text(
 ) -> str:
     """Build the single candidate query string for v1 Option A retrieval.
 
-    Combines: headline + top skills (up to vector_max_candidate_skills) + preferred domains.
+    Combines: headline + target role + recent roles + top skills
+    (up to vector_max_candidate_skills) + preferred domains.
     Deterministic — same profile always produces the same text.
     No embedding call; used as input to generate_embedding().
 
@@ -63,12 +72,26 @@ def build_candidate_query_text(
     if headline:
         parts.append(f"Candidate: {headline}")
 
+    prefs = profile.get("preferences", {}) or {}
+    target_role = str(prefs.get("target_role") or "").strip()
+    if target_role:
+        parts.append(f"Target role: {target_role}")
+
+    recent_roles: list[str] = []
+    for experience in profile.get("experiences", []) or []:
+        role = str(experience.get("role") or "").strip()
+        if role and role not in recent_roles:
+            recent_roles.append(role)
+        if len(recent_roles) >= DEFAULT_RECENT_ROLE_COUNT:
+            break
+    if recent_roles:
+        parts.append(f"Recent roles: {', '.join(recent_roles)}")
+
     skills = profile.get("skills", []) or []
     skill_names = [str(s.get("name", "")) for s in skills if s.get("name")][:max_skills]
     if skill_names:
         parts.append(f"Skills: {', '.join(skill_names)}")
 
-    prefs = profile.get("preferences", {}) or {}
     domains = prefs.get("domains", []) or []
     if domains:
         parts.append(f"Target domains: {', '.join(str(d) for d in domains)}")
@@ -107,8 +130,10 @@ def build_vector_search_query(
     if passed_job_urls:
         url_list = ", ".join(f"'{u}'" for u in passed_job_urls)
         filtered_relation = (
-            f"SELECT * FROM `{project}.{dataset}.job_embeddings` "
-            f"WHERE chunk_type = 'job_summary' AND job_url IN ({url_list})"
+            "SELECT job_url, chunk_type, chunk_text, embedding, created_at "
+            f"FROM `{project}.{dataset}.job_embeddings` "
+            f"WHERE chunk_type = 'job_summary' AND job_url IN ({url_list}) "
+            "QUALIFY ROW_NUMBER() OVER (PARTITION BY job_url ORDER BY created_at DESC) = 1"
         )
     else:
         filtered_relation = (

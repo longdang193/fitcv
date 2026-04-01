@@ -1,6 +1,6 @@
 inspection_debugging:
   name: Inspection & Debugging
-  version: 1.8.0
+  version: 1.9.0
   status: active
   type: add
   summary: "Admins can see what the pipeline did for a run: enriched jobs, filter outcomes, inputs used, generated CVs, and explicit stage-local decision detail from run exports, richer stage-transition artifacts, settings-used snapshots, and CV debug snapshots."
@@ -34,6 +34,8 @@ inspection_debugging:
     - Job title as link label in generated outputs
     - Run detail pipeline outcomes can show explicit decision-chain detail when present in the run-results export
     - CV-generation debug snapshots separate authoritative ranking fit from explanatory gap output
+    - Shortlist artifacts now distinguish raw vector row counts from unique-job raw-hit counts
+    - Shortlist debug payloads now report observed raw-hit status without overstating retrieval root causes
   refs:
     docs: []
     spec:
@@ -48,6 +50,7 @@ inspection_debugging:
       - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
       - docs/superpowers/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
       - docs/superpowers/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+      - docs/superpowers/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-run-scoped-enrichment-inspection-implementation.md
       - docs/superpowers/plans/2026-03-26-run-detail-inspection-tabs-implementation.md
@@ -60,6 +63,7 @@ inspection_debugging:
       - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
       - docs/superpowers/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
       - docs/superpowers/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+      - docs/superpowers/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
     history:
       - docs/features/inspection_debugging/history.md
   keywords:
