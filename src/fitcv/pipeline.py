@@ -136,6 +136,22 @@ def _normalize_shortlist_row(shortlist_row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _shortlist_outcome_for_row(
+    *,
+    raw_hit_present: bool,
+    shortlist_origin: str,
+    retrieval_anomaly_present: bool = False,
+) -> str:
+    normalized_origin = shortlist_origin.strip().lower()
+    if retrieval_anomaly_present:
+        return "raw_hit_excluded_from_scoring"
+    if normalized_origin == "backfill":
+        return "backfilled_for_scoring"
+    if raw_hit_present:
+        return "returned_by_vector_search"
+    return "not_returned_in_raw_hits"
+
+
 def _unique_job_urls(rows: list[dict[str, Any]]) -> list[str]:
     urls: list[str] = []
     seen_urls: set[str] = set()
@@ -406,17 +422,22 @@ def _build_export_results(
                 raw_shortlist_row=raw_shortlist_row,
                 scoring_shortlist_row=scoring_shortlist_row,
             )
+            raw_hit_present = raw_shortlist_row is not None
+            retrieval_anomaly_present = False
+            shortlist_source_row = raw_shortlist_row or scoring_shortlist_row or {}
             shortlist_debug = {
                 "passed_rule_filter": True,
-                "returned_by_vector_search": raw_shortlist_row is not None,
+                "returned_by_vector_search": raw_hit_present,
+                "raw_hit_present": raw_hit_present,
+                "retrieval_anomaly_present": retrieval_anomaly_present,
                 "reason": (
                     None
-                    if raw_shortlist_row is not None
+                    if raw_hit_present
                     else "job_url_not_returned_in_raw_hits"
                 ),
                 "vector_search_top_n": vector_search_top_n,
-                "vector_rank": raw_shortlist_row.get("vector_rank") if raw_shortlist_row is not None else None,
-                "vector_similarity": raw_shortlist_row.get("vector_similarity") if raw_shortlist_row is not None else None,
+                "vector_rank": shortlist_source_row.get("vector_rank"),
+                "vector_similarity": shortlist_source_row.get("vector_similarity"),
                 "shortlist_origin": shortlist_status,
             }
         else:
@@ -958,12 +979,22 @@ def _shortlist_row_sample(row: dict[str, Any]) -> dict[str, Any] | None:
     job_url = _extract_job_url(row)
     if not job_url:
         return None
+    shortlist_origin = str(row.get("shortlist_origin") or "vector_search")
+    raw_hit_present = bool(row.get("raw_hit_present", shortlist_origin != "backfill"))
+    retrieval_anomaly_present = bool(row.get("retrieval_anomaly_present", False))
     sample = {
         "job_url": job_url,
         "job_title": _extract_job_title(row),
         "vector_similarity": row.get("vector_similarity", row.get("similarity_score")),
         "vector_rank": row.get("vector_rank", row.get("rank")),
-        "shortlist_origin": str(row.get("shortlist_origin") or "vector_search"),
+        "shortlist_origin": shortlist_origin,
+        "shortlist_outcome": _shortlist_outcome_for_row(
+            raw_hit_present=raw_hit_present,
+            shortlist_origin=shortlist_origin,
+            retrieval_anomaly_present=retrieval_anomaly_present,
+        ),
+        "raw_hit_present": raw_hit_present,
+        "retrieval_anomaly_present": retrieval_anomaly_present,
     }
     return {key: value for key, value in sample.items() if value not in (None, "")}
 
@@ -1266,6 +1297,7 @@ def _build_stage_transition_artifacts(
                 input_counts={"passed_jobs": len(passed_jobs)},
                 output_counts={
                     "raw_vector_rows": len(raw_shortlist),
+                    "raw_vector_unique_jobs": len(raw_shortlist_urls),
                     "raw_vector_hits": len(raw_shortlist_urls),
                     "scoring_shortlist_jobs": len(shortlist),
                     "backfilled_jobs": len(backfilled_job_urls),
@@ -1277,6 +1309,8 @@ def _build_stage_transition_artifacts(
                     "jobs_not_returned_in_raw_hits": len(
                         [job for job in passed_jobs if _extract_job_url(job) not in raw_shortlist_urls]
                     ),
+                    "raw_shortlist_anomaly_urls": _sample_strings(raw_shortlist_anomaly_urls),
+                    "backfilled_job_urls": _sample_strings(backfilled_job_urls),
                 },
                 inputs_sample=_sample_rows(passed_jobs, _job_sample),
                 outputs_sample=_sample_rows(shortlist, _shortlist_row_sample),
@@ -1285,19 +1319,31 @@ def _build_stage_transition_artifacts(
                         *[
                             {
                                 **job,
-                                "change_type": "missed_by_vector_search",
+                                "change_type": "not_returned_in_raw_hits",
+                                "shortlist_outcome": "not_returned_in_raw_hits",
+                                "raw_hit_present": False,
+                                "retrieval_anomaly_present": False,
                             }
                             for job in passed_jobs
-                            if _extract_job_url(job) not in raw_shortlist_urls
+                            if (
+                                _extract_job_url(job) not in raw_shortlist_urls
+                                and _extract_job_url(job) not in backfilled_job_urls
+                            )
                         ],
                         *[
                             {
                                 "job_url": job_url,
-                                "title": next(
-                                    (_extract_job_title(job) for job in passed_jobs if _extract_job_url(job) == job_url),
-                                    "",
+                                **next(
+                                    (job for job in shortlist if _extract_job_url(job) == job_url),
+                                    {"title": next(
+                                        (_extract_job_title(job) for job in passed_jobs if _extract_job_url(job) == job_url),
+                                        "",
+                                    )},
                                 ),
                                 "change_type": "backfilled_for_scoring",
+                                "shortlist_outcome": "backfilled_for_scoring",
+                                "raw_hit_present": False,
+                                "retrieval_anomaly_present": False,
                             }
                             for job_url in backfilled_job_urls
                         ],
@@ -1306,6 +1352,9 @@ def _build_stage_transition_artifacts(
                                 "job_url": job_url,
                                 "title": "",
                                 "change_type": "raw_hit_excluded_from_scoring",
+                                "shortlist_outcome": "raw_hit_excluded_from_scoring",
+                                "raw_hit_present": True,
+                                "retrieval_anomaly_present": True,
                             }
                             for job_url in raw_shortlist_anomaly_urls
                         ],
@@ -1313,6 +1362,18 @@ def _build_stage_transition_artifacts(
                     lambda item: {
                         **(_job_sample(item) or {"job_url": str(item.get("job_url") or ""), "job_title": str(item.get("title") or "")}),
                         "change_type": str(item.get("change_type") or ""),
+                        "shortlist_outcome": str(item.get("shortlist_outcome") or ""),
+                        "raw_hit_present": bool(item.get("raw_hit_present", False)),
+                        "retrieval_anomaly_present": bool(item.get("retrieval_anomaly_present", False)),
+                        **(
+                            {
+                                "vector_similarity": item.get("vector_similarity"),
+                                "vector_rank": item.get("vector_rank"),
+                                "shortlist_origin": item.get("shortlist_origin"),
+                            }
+                            if item.get("vector_rank") is not None or item.get("vector_similarity") is not None
+                            else {}
+                        ),
                     }
                     if str(item.get("job_url") or "")
                     else None,
@@ -1979,6 +2040,7 @@ def run_pipeline(
             "vector_search_top_n": vector_top_n,
             "passed_jobs_total": len(passed_jobs),
             "raw_vector_rows_total": len(raw_shortlist),
+            "raw_vector_unique_jobs_total": len(raw_shortlist_urls),
             "shortlisted_jobs_total": len(raw_shortlist_urls),
             "scoring_shortlisted_jobs_total": len(shortlist),
             "backfilled_jobs_total": len(backfilled_job_urls),

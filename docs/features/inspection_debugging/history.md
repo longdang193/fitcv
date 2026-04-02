@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.3.0 — active
+
+- Shortlist artifacts now report both raw row counts and raw unique-job counts while keeping the older unique-hit summary available for compatibility
+- Shortlist output and changed-state samples now carry explicit retrieval facts such as `raw_hit_present`, `retrieval_anomaly_present`, and clearer shortlist outcomes
+- This rollout improves shortlist inspection clarity without adding a new in-browser artifact viewer
+
 ### 2.2.0 — active
 
 - Run detail now shows non-blocking rule-filter marks on passed rows instead of making selectable-screening passes look completely clean

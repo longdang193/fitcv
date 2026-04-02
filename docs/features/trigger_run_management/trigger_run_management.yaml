@@ -1,6 +1,6 @@
 trigger_run_management:
   name: Trigger & Run Management
-  version: 2.2.0
+  version: 2.3.0
   status: active
   type: add
   summary: "Admins can trigger runs via path reference, file upload, or pasted JSON in either automatic or staged/manual mode, continue paused manual runs one stage at a time from persisted checkpoints, upload a run-scoped synonym overlay after enrich before continuing into rule filter, inspect run progress from a status-aware list/detail UI, and export structured run artifacts when available."
@@ -44,6 +44,7 @@ trigger_run_management:
     - Run-results export and run detail distinguish ranked jobs skipped by the Layer 4 fit gate as `ranked_skipped_fit_gate`
     - Run-results export includes shortlist debug context so `not_shortlisted` rows show whether the job URL was returned by vector search
     - Top-level shortlist debug distinguishes raw vector-search hits from the later scoring shortlist after any backfill
+    - Shortlist debug now reports raw unique-job counts separately from raw row counts and carries explicit raw-hit flags for passed jobs in run-results export
     - Run-results export exposes an explicit decision chain per job covering shortlist path, primary fit authority, CV attempt/skip, and validation outcome
     - Ranked jobs now use reranker fit as the sole post-filter authority for ranking and CV eligibility
     - Run detail enriched-jobs table shows a compact pipeline outcome label plus decision-chain detail in addition to filter pass/reject state
@@ -62,6 +63,7 @@ trigger_run_management:
       - docs/superpowers/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
       - docs/superpowers/specs/2026-04-02-14-35-staged-manual-pipeline-mode-spec.md
       - docs/superpowers/specs/2026-04-02-21-05-run-scoped-synonym-overlay-upload-spec.md
+      - docs/superpowers/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-runs-list-enhancements-implementation.md
       - docs/superpowers/plans/2026-03-25-admin-ux-improvements-implementation.md
@@ -74,6 +76,7 @@ trigger_run_management:
       - docs/superpowers/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
       - docs/superpowers/plans/2026-04-02-14-50-staged-manual-pipeline-mode-plan.md
       - docs/superpowers/plans/2026-04-02-21-20-run-scoped-synonym-overlay-upload-plan.md
+      - docs/superpowers/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
     history:
       - docs/features/trigger_run_management/history.md
   keywords:

@@ -17,7 +17,7 @@ status: []
 6. Create two matching layers
    - rule / feature matching
    - semantic retrieval with embeddings
-7. Use BigQuery VECTOR_SEARCH to shortlist jobs
+7. Use BigQuery VECTOR_SEARCH to shortlist jobs, searching only the latest active persistent `job_summary` embedding per canonical `job_url`
 8. Use BigQuery AI.SCORE to rerank shortlisted jobs
 9. Select top jobs
 10. Retrieve best candidate evidence for each job

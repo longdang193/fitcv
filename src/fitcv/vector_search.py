@@ -123,26 +123,57 @@ def build_vector_search_query(
     Returns:
         A BigQuery SQL string (not yet executed).
     """
+    temp_table_name = "_latest_job_embeddings"
+
     if passed_job_urls:
         url_list = ", ".join(f"'{u}'" for u in passed_job_urls)
-        filtered_relation = (
-            f"SELECT * FROM `{project}.{dataset}.job_embeddings` "
-            f"WHERE chunk_type = 'job_summary' AND job_url IN ({url_list})"
-        )
+        latest_rows_query = f"""
+CREATE TEMP TABLE {temp_table_name} AS
+SELECT
+  job_url,
+  chunk_type,
+  chunk_text,
+  embedding,
+  created_at
+FROM (
+  SELECT
+    job_url,
+    chunk_type,
+    chunk_text,
+    embedding,
+    created_at,
+    ROW_NUMBER() OVER (
+      PARTITION BY job_url
+      ORDER BY created_at DESC, chunk_text DESC, job_url DESC
+    ) AS rn
+  FROM `{project}.{dataset}.job_embeddings`
+  WHERE chunk_type = 'job_summary' AND job_url IN ({url_list})
+)
+WHERE rn = 1;
+""".strip()
     else:
-        filtered_relation = (
-            f"SELECT * FROM `{project}.{dataset}.job_embeddings` "
-            f"WHERE 1 = 0"
-        )
+        latest_rows_query = f"""
+CREATE TEMP TABLE {temp_table_name} AS
+SELECT
+  job_url,
+  chunk_type,
+  chunk_text,
+  embedding,
+  created_at
+FROM `{project}.{dataset}.job_embeddings`
+WHERE 1 = 0;
+""".strip()
 
     return f"""
+{latest_rows_query}
+
 SELECT
   base.job_url                              AS job_url,
   1 - distance                              AS vector_similarity,
   RANK() OVER (ORDER BY distance ASC)       AS vector_rank
 FROM
   VECTOR_SEARCH(
-    ({filtered_relation}),
+    TABLE {temp_table_name},
     'embedding',
     (SELECT @candidate_embedding AS embedding),
     top_k => {top_n},

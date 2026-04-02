@@ -1718,8 +1718,9 @@ def test_build_stage_transition_artifacts_includes_changed_state_samples() -> No
     shortlist_block = artifacts["stages"]["shortlist"]
     ranking_block = artifacts["stages"]["ranking"]
 
-    assert shortlist_block["dropped_or_changed_sample"][0]["change_type"] == "missed_by_vector_search"
-    assert shortlist_block["dropped_or_changed_sample"][1]["change_type"] == "backfilled_for_scoring"
+    assert shortlist_block["dropped_or_changed_sample"][0]["change_type"] == "backfilled_for_scoring"
+    assert shortlist_block["dropped_or_changed_sample"][0]["shortlist_outcome"] == "backfilled_for_scoring"
+    assert shortlist_block["dropped_or_changed_sample"][0]["raw_hit_present"] is False
     assert ranking_block["dropped_or_changed_sample"][0]["change_type"] == "scored_not_ranked"
     assert ranking_block["outputs_sample"][0]["job_url"] == "https://example.com/1"
     assert ranking_block["outputs_sample"][0]["must_have_match"] == pytest.approx(1.0)
@@ -2060,8 +2061,11 @@ def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortli
     shortlist_block = artifacts["stages"]["shortlist"]
 
     assert shortlist_block["output_counts"]["raw_vector_rows"] == 3
+    assert shortlist_block["output_counts"]["raw_vector_unique_jobs"] == 2
     assert shortlist_block["output_counts"]["raw_vector_hits"] == 2
     assert shortlist_block["outputs_sample"][1]["vector_rank"] == 2
+    assert shortlist_block["outputs_sample"][1]["shortlist_outcome"] == "returned_by_vector_search"
+    assert shortlist_block["outputs_sample"][1]["raw_hit_present"] is True
 
 
 def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract() -> None:
@@ -2375,12 +2379,14 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
     assert shortlist_arg == [
         {
             **first_job,
+            "marks": [],
             "vector_similarity": 0.9,
             "vector_rank": 1,
             "shortlist_origin": "vector_search",
         },
         {
             **second_job,
+            "marks": [],
             "vector_similarity": 0.0,
             "vector_rank": 2,
             "shortlist_origin": "backfill",
@@ -2395,6 +2401,7 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
         "vector_search_top_n": 5,
         "passed_jobs_total": 2,
         "raw_vector_rows_total": 1,
+        "raw_vector_unique_jobs_total": 1,
         "shortlisted_jobs_total": 1,
         "scoring_shortlisted_jobs_total": 2,
         "backfilled_jobs_total": 1,
@@ -3450,6 +3457,8 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
     assert export_results[2]["shortlist_debug"] == {
         "passed_rule_filter": True,
         "returned_by_vector_search": False,
+        "raw_hit_present": False,
+        "retrieval_anomaly_present": False,
         "reason": "job_url_not_returned_in_raw_hits",
         "vector_search_top_n": 2,
         "vector_rank": None,
@@ -3461,6 +3470,8 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
     assert export_results[3]["shortlist_debug"] == {
         "passed_rule_filter": True,
         "returned_by_vector_search": True,
+        "raw_hit_present": True,
+        "retrieval_anomaly_present": False,
         "reason": None,
         "vector_search_top_n": 2,
         "vector_rank": 3,
