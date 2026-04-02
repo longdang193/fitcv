@@ -9,9 +9,9 @@
 | `admin_control_plane_core` | 1.0.0 | add | fitcv_cp | Internal admin UI and REST API to manage FitCV pipeline runs without terminal access. |
 | `bounded_parallel_enrichment` | 1.0.0 | add | fitcv | Enrichment runs in bounded parallel batches with admin-controlled concurrency settings. |
 | `cv_system` | 1.2.0 | add | fitcv | CV generation uses a structured preset-based configuration and is fully visible and editable from the admin settings UI. |
-| `inspection_debugging` | 1.2.0 | add | fitcv_cp | Admins can see what the pipeline did for a run: enriched jobs, filter outcomes, inputs used, and generated CVs. |
+| `inspection_debugging` | 2.1.0 | add | fitcv_cp | Admins can see what the pipeline did for a run, including paused manual checkpoints, next-stage state, enriched jobs, filter outcomes, inputs used, generated CVs, and explicit stage-local decision detail from exports, stage artifacts, settings-used snapshots, and CV debug snapshots. |
 | `multi_file_job_input` | 1.0.0 | add | fitcv_cp | Admins can upload multiple JSON job files in one trigger request. |
-| `pipeline_performance` | 1.1.0 | modify | fitcv | Reduced API costs by filtering jobs before enrichment and using reliable structured output parsing. |
+| `pipeline_performance` | 1.4.0 | modify | fitcv | Reduced API costs by filtering jobs before enrichment, using reliable structured output parsing, centralizing enrich prompt management, and reusing unchanged enrich results safely via raw-job and enrich-contract fingerprints. |
 | `run_lifecycle_controls` | 1.0.0 | add | fitcv_cp | Admins can stop queued or running runs and archive or unarchive completed runs. |
 | `settings_system` | 2.3.0 | add | fitcv_cp | Admins can view and edit pipeline tuning defaults through the admin UI, persisted in BigQuery. |
 | `trigger_run_management` | 1.1.0 | add | fitcv_cp | Admins can trigger runs via path reference, file upload, or pasted JSON — and inspect runs from a status-aware list page. |

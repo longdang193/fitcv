@@ -3,6 +3,7 @@ from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_r
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import datetime
 import uuid
+from google.api_core.exceptions import BadRequest
 
 
 def _make_run() -> PipelineRun:
@@ -26,6 +27,25 @@ def test_update_run_status_uses_parameterized_query():
     # Verify parameterized: run_id must NOT appear literally in the SQL string
     sql_arg = bq.query.call_args[0][0]
     assert "rid" not in sql_arg, "SQL must use query parameters, not string interpolation"
+
+
+def test_update_run_status_retries_on_pipeline_runs_concurrent_update(monkeypatch) -> None:
+    bq = MagicMock()
+    first_job = MagicMock()
+    first_job.result.side_effect = BadRequest(
+        "Could not serialize access to table fitcv-491123:fitcv.pipeline_runs due to concurrent update"
+    )
+    second_job = MagicMock()
+    second_job.result.return_value = None
+    bq.query.side_effect = [first_job, second_job]
+
+    sleep_calls: list[float] = []
+    monkeypatch.setattr("fitcv_cp.bq_store.time.sleep", lambda seconds: sleep_calls.append(seconds))
+
+    update_run_status("rid", RunStatus.RUNNING, bq, project="p", dataset="d")
+
+    assert bq.query.call_count == 2
+    assert sleep_calls == [0.25]
 
 
 def test_append_event_calls_bq():
@@ -215,6 +235,28 @@ def test_list_run_structured_jobs_parses_canonical_json_companions():
             "confidence": 1.0,
         }
     ]
+
+
+def test_list_run_structured_jobs_preserves_reuse_provenance_fields() -> None:
+    bq = MagicMock()
+
+    class FakeRow:
+        def items(self):
+            return [
+                ("run_id", "run-abc"),
+                ("job_url", "https://example.com/1"),
+                ("raw_job_fingerprint", "raw-123"),
+                ("enrich_contract_fingerprint", "contract-123"),
+                ("enrich_reuse_status", "reused_cached_enrichment"),
+            ]
+
+    bq.query.return_value.result.return_value = iter([FakeRow()])
+
+    result = list_run_structured_jobs("run-abc", bq, project="p", dataset="d")
+
+    assert result[0]["raw_job_fingerprint"] == "raw-123"
+    assert result[0]["enrich_contract_fingerprint"] == "contract-123"
+    assert result[0]["enrich_reuse_status"] == "reused_cached_enrichment"
 
 
 # ── Task 1: run-scoped input metadata fields ──────────────────────────────────

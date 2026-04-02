@@ -12,6 +12,8 @@ load_run_structured_jobs     : append run-scoped rows into fitcv.run_structured_
 """
 
 import json
+import hashlib
+import logging
 import os
 import re
 import threading
@@ -20,6 +22,8 @@ from typing import Any, TypedDict
 
 from pydantic import BaseModel as _BaseModel, Field as _Field
 from fitcv.prompts import get_prompt_definition, render_prompt
+
+logger = logging.getLogger(__name__)
 
 # ── global rate limiter ──────────────────────────────────────────────────────
 # Acquired around every enrich_job call so that concurrent chunks cannot
@@ -152,6 +156,46 @@ class MappingSuggestion(TypedDict):
     alias: str
     canonical: str
     confidence: float
+
+
+class RawJobFingerprintPayload(TypedDict):
+    fingerprint_version: str
+    job_url: str
+    title: str | None
+    company_name: str | None
+    location: str | None
+    description_cleaned: str | None
+    contract_type: str | None
+    experience_level: str | None
+    source: str | None
+
+
+class RawJobFingerprintResult(TypedDict):
+    payload: RawJobFingerprintPayload
+    fingerprint: str
+
+
+class EnrichContractFingerprintPayload(TypedDict):
+    contract_version: str
+    prompt_id: str
+    prompt_version: str
+    template_path: str
+    model: str
+    response_schema_version: str
+    skill_postprocessing_version: str
+
+
+class EnrichContractFingerprintResult(TypedDict):
+    payload: EnrichContractFingerprintPayload
+    fingerprint: str
+
+
+RAW_JOB_FINGERPRINT_VERSION = "raw_job_fingerprint_v1"
+ENRICH_RESPONSE_SCHEMA_VERSION = "enrichment_output_v1"
+ENRICH_SKILL_POSTPROCESSING_VERSION = "canonical_skill_entities_v1"
+ENRICH_CONTRACT_VERSION = "enrich_contract_v1"
+FRESH_ENRICHMENT_STATUS = "fresh_enrichment"
+REUSED_CACHED_ENRICHMENT_STATUS = "reused_cached_enrichment"
 
 # ── Markdown fence stripper ───────────────────────────────────────────────────
 
@@ -573,6 +617,57 @@ def get_enrich_prompt_provenance(config: dict[str, Any] | None = None) -> dict[s
     }
 
 
+def _normalize_fingerprint_text(value: Any) -> str | None:
+    text = _normalize_text_item(value)
+    if text is None:
+        return None
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def _fingerprint_hash(payload: dict[str, Any]) -> str:
+    serialized = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def build_raw_job_fingerprint(job: dict[str, Any]) -> RawJobFingerprintResult:
+    payload: RawJobFingerprintPayload = {
+        "fingerprint_version": RAW_JOB_FINGERPRINT_VERSION,
+        "job_url": str(job.get("job_url") or "").strip(),
+        "title": _normalize_fingerprint_text(job.get("title")),
+        "company_name": _normalize_fingerprint_text(job.get("company_name")),
+        "location": _normalize_fingerprint_text(job.get("location")),
+        "description_cleaned": _normalize_fingerprint_text(
+            job.get("description_cleaned") or job.get("description")
+        ),
+        "contract_type": _normalize_fingerprint_text(job.get("contract_type")),
+        "experience_level": _normalize_fingerprint_text(job.get("experience_level")),
+        "source": _normalize_fingerprint_text(job.get("source")),
+    }
+    return {
+        "payload": payload,
+        "fingerprint": _fingerprint_hash(payload),
+    }
+
+
+def build_enrich_contract_fingerprint(
+    config: dict[str, Any] | None = None,
+) -> EnrichContractFingerprintResult:
+    prompt_provenance = get_enrich_prompt_provenance(config)
+    payload: EnrichContractFingerprintPayload = {
+        "contract_version": ENRICH_CONTRACT_VERSION,
+        "prompt_id": prompt_provenance["prompt_id"],
+        "prompt_version": prompt_provenance["prompt_version"],
+        "template_path": prompt_provenance["template_path"],
+        "model": prompt_provenance["model"],
+        "response_schema_version": ENRICH_RESPONSE_SCHEMA_VERSION,
+        "skill_postprocessing_version": ENRICH_SKILL_POSTPROCESSING_VERSION,
+    }
+    return {
+        "payload": payload,
+        "fingerprint": _fingerprint_hash(payload),
+    }
+
+
 # ── response parsing ──────────────────────────────────────────────────────────
 
 def parse_extraction_response(response_text: str, config: dict | None = None) -> dict[str, Any]:
@@ -689,8 +784,8 @@ def merge_scraped_and_enriched(
         Merged dict matching fitcv.structured_jobs schema including audit fields.
     """
     cfg = config or {}
-    model = str(cfg.get("ai_score_model", ""))
-    version = str(cfg.get("enrichment_version", "v1"))
+    model = str(enriched.get("enrichment_model") or cfg.get("gemini_model") or cfg.get("ai_score_model") or "")
+    version = str(enriched.get("enrichment_version") or cfg.get("enrichment_version", "v1"))
 
     merged: dict[str, Any] = {
         # ── scraped fields ────────────────────────────────────────────
@@ -732,9 +827,149 @@ def merge_scraped_and_enriched(
         # ── audit fields ──────────────────────────────────────────────
         "enrichment_version": version,
         "enrichment_model":   model,
-        "enriched_at":        datetime.now(tz=timezone.utc).isoformat(),
+        "enriched_at":        _normalise_enriched_at(enriched.get("enriched_at")) or datetime.now(tz=timezone.utc).isoformat(),
+        "raw_job_fingerprint": enriched.get("raw_job_fingerprint"),
+        "enrich_contract_fingerprint": enriched.get("enrich_contract_fingerprint"),
+        "enrich_reuse_status": enriched.get("enrich_reuse_status"),
     }
     return merged
+
+
+def _parse_json_field(raw_value: Any) -> Any:
+    if isinstance(raw_value, str) and raw_value.strip():
+        try:
+            return json.loads(raw_value)
+        except json.JSONDecodeError:
+            return None
+    return None
+
+
+def _normalise_enriched_at(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
+def _cached_structured_row_to_enriched_payload(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "location_type_raw": row.get("location_type_raw"),
+        "location_type": row.get("location_type"),
+        "seniority_raw": row.get("seniority_raw"),
+        "seniority": row.get("seniority"),
+        "required_skills": list(row.get("required_skills") or []),
+        "required_skills_canonical": list(row.get("required_skills_canonical") or []),
+        "required_skill_entities": _parse_json_field(row.get("required_skill_entities_json")) or [],
+        "preferred_skills": list(row.get("preferred_skills") or []),
+        "preferred_skills_canonical": list(row.get("preferred_skills_canonical") or []),
+        "preferred_skill_entities": _parse_json_field(row.get("preferred_skill_entities_json")) or [],
+        "responsibilities": list(row.get("responsibilities") or []),
+        "domain_raw": row.get("domain_raw"),
+        "domain": row.get("domain"),
+        "tech_stack": list(row.get("tech_stack") or []),
+        "years_experience_min": row.get("years_experience_min"),
+        "years_experience_max": row.get("years_experience_max"),
+        "keywords": list(row.get("keywords") or []),
+        "job_family_raw": row.get("job_family_raw"),
+        "job_family": row.get("job_family"),
+        "mapping_suggestions": _parse_json_field(row.get("mapping_suggestions_json")) or [],
+        "enrichment_version": row.get("enrichment_version"),
+        "enrichment_model": row.get("enrichment_model"),
+        "enriched_at": _normalise_enriched_at(row.get("enriched_at")),
+        "raw_job_fingerprint": row.get("raw_job_fingerprint"),
+        "enrich_contract_fingerprint": row.get("enrich_contract_fingerprint"),
+        "enrich_reuse_status": row.get("enrich_reuse_status"),
+    }
+
+
+def lookup_reusable_structured_jobs(
+    normalized_jobs: list[dict[str, Any]],
+    config: dict[str, Any],
+    *,
+    raw_job_fingerprints: dict[str, str],
+    enrich_contract_fingerprint: str,
+) -> dict[str, dict[str, Any]]:
+    if not normalized_jobs:
+        return {}
+
+    project = str(config.get("gcp_project") or "").strip()
+    dataset = str(config.get("bigquery_dataset") or "").strip()
+    key_path = str(config.get("service_account_key") or "").strip()
+    if not project or not dataset or not key_path:
+        logger.info(
+            "Skipping enrich reuse lookup because BigQuery reuse config is incomplete",
+            extra={
+                "has_gcp_project": bool(project),
+                "has_bigquery_dataset": bool(dataset),
+                "has_service_account_key": bool(key_path),
+            },
+        )
+        return {}
+
+    from google.cloud import bigquery  # type: ignore[import-untyped]
+    from google.oauth2 import service_account  # type: ignore[import-untyped]
+
+    credentials = service_account.Credentials.from_service_account_file(key_path)
+    client = bigquery.Client(project=project, credentials=credentials)
+
+    job_urls = [
+        str(job.get("job_url") or "")
+        for job in normalized_jobs
+        if str(job.get("job_url") or "")
+    ]
+    if not job_urls:
+        return {}
+
+    table = f"`{project}.{dataset}.structured_jobs`"
+    sql = f"""
+        SELECT *
+        FROM {table}
+        WHERE job_url IN UNNEST(@job_urls)
+    """
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ArrayQueryParameter("job_urls", "STRING", job_urls),
+        ],
+        use_query_cache=False,
+    )
+    try:
+        rows = client.query(sql, job_config=job_config).result()
+    except Exception as exc:
+        logger.warning("Enrich reuse lookup failed; falling back to fresh enrichment: %s", exc)
+        return {}
+
+    normalized_by_url = {
+        str(job.get("job_url") or ""): job
+        for job in normalized_jobs
+        if str(job.get("job_url") or "")
+    }
+    reusable_rows: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        row_dict = dict(row.items())
+        job_url = str(row_dict.get("job_url") or "")
+        if not job_url or job_url in reusable_rows:
+            continue
+        if row_dict.get("raw_job_fingerprint") != raw_job_fingerprints.get(job_url):
+            continue
+        if row_dict.get("enrich_contract_fingerprint") != enrich_contract_fingerprint:
+            continue
+        normalized_job = normalized_by_url.get(job_url)
+        if normalized_job is None:
+            continue
+        reusable_rows[job_url] = merge_scraped_and_enriched(
+            normalized_job,
+            {
+                **_cached_structured_row_to_enriched_payload(row_dict),
+                "raw_job_fingerprint": raw_job_fingerprints[job_url],
+                "enrich_contract_fingerprint": enrich_contract_fingerprint,
+                "enrich_reuse_status": REUSED_CACHED_ENRICHMENT_STATUS,
+            },
+            config,
+        )
+    return reusable_rows
 
 
 # ── integration: LLM call ─────────────────────────────────────────────────────
@@ -947,6 +1182,7 @@ _MERGE_COLUMNS = [
     "years_experience_min", "years_experience_max", "keywords", "keywords_canonical",
     "job_family_raw", "job_family", "mapping_suggestions_json", "description_cleaned",
     "enrichment_version", "enrichment_model", "enriched_at",
+    "raw_job_fingerprint", "enrich_contract_fingerprint", "enrich_reuse_status",
 ]
 
 _STAGING_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
@@ -990,6 +1226,9 @@ _STAGING_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("enrichment_version", "STRING", "NULLABLE"),
     ("enrichment_model", "STRING", "NULLABLE"),
     ("enriched_at", "TIMESTAMP", "NULLABLE"),
+    ("raw_job_fingerprint", "STRING", "NULLABLE"),
+    ("enrich_contract_fingerprint", "STRING", "NULLABLE"),
+    ("enrich_reuse_status", "STRING", "NULLABLE"),
 )
 
 _STRUCTURED_JSON_LIST_FIELDS: tuple[tuple[str, str], ...] = (
@@ -1116,6 +1355,9 @@ _RUN_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("enrichment_version",   "STRING",    "NULLABLE"),
     ("enrichment_model",     "STRING",    "NULLABLE"),
     ("enriched_at",          "TIMESTAMP", "NULLABLE"),
+    ("raw_job_fingerprint",  "STRING",    "NULLABLE"),
+    ("enrich_contract_fingerprint", "STRING", "NULLABLE"),
+    ("enrich_reuse_status",  "STRING",    "NULLABLE"),
 )
 
 _RUN_SCHEMA_KEYS: frozenset[str] = frozenset(name for name, _, _ in _RUN_SCHEMA_FIELDS)
