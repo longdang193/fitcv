@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.0.0 — active
+
+- Inspection surfaces now expose manual staged-run checkpoint state, including execution mode, checkpoint status, completed stages, and next stage
+- Paused manual runs can inspect stage artifacts before continuation, and stage-artifact downloads remain available while a run is `awaiting_continue`
+- Run detail and runs list now expose `Run Next Stage` actions for paused manual runs without introducing a separate debug viewer
+
 ### 1.9.2 — active
 
 - Run-scoped enriched-job reads now deserialize canonical skill entity JSON companions and mapping suggestions for inspection/debug surfaces

@@ -364,6 +364,100 @@ def test_build_ranking_features_prefers_required_skills_canonical_when_present()
     assert features[0]["must_have_match"] == pytest.approx(1.0)
 
 
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch_with_exclusions")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_manual_pause_after_enrich_returns_checkpoint_summary(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_norm_with_exclusions: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_pre_filter: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_load_run_struct: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = _minimal_job()
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_norm_with_exclusions.return_value = ([job], [])
+    mock_pre_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_enrich.return_value = [job]
+
+    result = run_pipeline(
+        "data/sample_jobs.json",
+        config_path="config/env.yaml",
+        run_id="manual-enrich",
+        stop_after_stage="enrich",
+    )
+
+    assert result["paused_after_stage"] == "enrich"
+    assert result["next_stage"] == "rule_filter"
+    assert result["completed_stages"] == ["normalize", "enrich"]
+    assert result["checkpoint_payload"]["enriched"] == [job]
+
+
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_resume_from_ranking_uses_checkpoint_payload(
+    mock_config: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_features: MagicMock,
+    mock_rank: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    profile = _minimal_profile()
+    shortlist = [{"job_url": "https://example.com/1", "vector_similarity": 0.9, "vector_rank": 1}]
+    checkpoint_payload = {
+        "raw_jobs": [_minimal_job("https://example.com/1")],
+        "normalized": [_minimal_job("https://example.com/1")],
+        "deduplicated_jobs": [],
+        "pre_filter_rejected_jobs": [],
+        "enriched": [_minimal_job("https://example.com/1")],
+        "passed_jobs": [_minimal_job("https://example.com/1")],
+        "candidate_filter_rejected_jobs": [],
+        "raw_shortlist": shortlist,
+        "shortlist": shortlist,
+        "backfilled_job_urls": [],
+        "ai_scores": [],
+        "ranking_inputs": [],
+        "ranked": [],
+    }
+    mock_config.return_value = _minimal_config()
+    mock_profile_yaml.return_value = profile
+    mock_ai.return_value = [{"job_url": "https://example.com/1", "ai_score": 0.8, "fit_label": "strong"}]
+    mock_build_features.return_value = [{"job_url": "https://example.com/1", "final_score": 0.9, "fit_label": "strong"}]
+    mock_rank.return_value = []
+
+    result = run_pipeline(
+        "data/sample_jobs.json",
+        config_path="config/env.yaml",
+        run_id="resume-ranking",
+        start_stage="ranking",
+        stop_after_stage="ranking",
+        checkpoint_payload=checkpoint_payload,
+    )
+
+    assert result["paused_after_stage"] == "ranking"
+    assert result["next_stage"] == "cv_generation"
+    assert mock_ai.call_args.args[0] == shortlist
+
+
 @patch("fitcv.pipeline.logger")
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.run_all_validations")

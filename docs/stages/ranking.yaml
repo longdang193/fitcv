@@ -15,6 +15,7 @@ ranking:
     - scored ranking inputs
     - authoritative ranking fit labels
     - final ranked jobs
+    - optional manual checkpoint payloads that can resume CV generation from ranked jobs without recomputing earlier stages
     - bounded `stage_transition_artifacts_v3.ranking` runtime block with six-feature weights, defaults, input samples, output samples, and scored-not-ranked samples
   depends_on:
     - shortlist

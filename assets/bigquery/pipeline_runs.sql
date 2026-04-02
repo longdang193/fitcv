@@ -19,6 +19,12 @@ CREATE TABLE IF NOT EXISTS `{project}.{dataset}.pipeline_runs` (
   cv_generation_debug_json STRING OPTIONS(description="Immutable run-scoped CV-generation debug snapshot for completed runs"),
   stage_transition_artifacts_json STRING OPTIONS(description="Immutable run-scoped stage transition artifacts snapshot for completed runs"),
   settings_used_json STRING OPTIONS(description="Immutable run-scoped effective-settings snapshot for completed runs"),
+  run_mode        STRING    OPTIONS(description="run_all | manual_staged"),
+  checkpoint_status STRING  OPTIONS(description="Manual checkpoint lifecycle status"),
+  next_stage      STRING    OPTIONS(description="Next stage to execute for manual staged runs"),
+  last_completed_stage STRING OPTIONS(description="Most recently completed stage for manual staged runs"),
+  completed_stages_json STRING OPTIONS(description="JSON array of completed pipeline stages"),
+  checkpoint_payload_json STRING OPTIONS(description="Serialized checkpoint payload for manual stage continuation"),
   -- lifecycle controls
   queue_job_id          STRING    OPTIONS(description="RQ job id for queued run cancellation"),
   cancel_requested_at   TIMESTAMP,

@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, update_run_results_export, update_run_cv_generation_debug, update_run_stage_transition_artifacts, update_run_settings_used
+from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, update_run_results_export, update_run_cv_generation_debug, update_run_stage_transition_artifacts, update_run_settings_used, update_run_checkpoint
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import datetime
 import uuid
@@ -236,6 +236,28 @@ def test_insert_run_includes_input_metadata_params() -> None:
     assert "candidate_profile_json" in param_names
 
 
+def test_insert_run_includes_manual_checkpoint_params() -> None:
+    bq = MagicMock()
+    run = _make_run()
+    run.run_mode = "manual_staged"
+    run.checkpoint_status = "pending_first_stage"
+    run.next_stage = "normalize"
+    run.last_completed_stage = "enrich"
+    run.completed_stages = ["normalize", "enrich"]
+    run.checkpoint_payload_json = '{"checkpoint_payload":{"enriched":[]}}'
+
+    insert_run(run, bq, project="p", dataset="d")
+
+    job_config = bq.query.call_args[1]["job_config"]
+    params_by_name = {p.name: p for p in job_config.query_parameters}
+    assert params_by_name["run_mode"].value == "manual_staged"
+    assert params_by_name["checkpoint_status"].value == "pending_first_stage"
+    assert params_by_name["next_stage"].value == "normalize"
+    assert params_by_name["last_completed_stage"].value == "enrich"
+    assert params_by_name["completed_stages_json"].value == '["normalize", "enrich"]'
+    assert params_by_name["checkpoint_payload_json"].value == '{"checkpoint_payload":{"enriched":[]}}'
+
+
 def test_insert_run_input_metadata_none_values_are_included() -> None:
     """insert_run includes None input metadata params (not silently omitted)."""
     bq = MagicMock()
@@ -273,6 +295,32 @@ def test_row_to_run_maps_input_metadata_fields() -> None:
     assert result.jobs_input_json == '[{"title": "Analyst"}]'
     assert result.candidate_profile_source == "upload"
     assert result.candidate_profile_json == '{"skills": []}'
+
+
+def test_row_to_run_maps_manual_checkpoint_fields() -> None:
+    from fitcv_cp.bq_store import _row_to_run
+    row = {
+        "run_id": "r-manual",
+        "status": "awaiting_continue",
+        "triggered_by": "admin",
+        "trigger_source": "ui",
+        "jobs_path": "data/jobs.json",
+        "config_path": ".env.yaml",
+        "created_at": datetime.datetime.now(datetime.timezone.utc),
+        "run_mode": "manual_staged",
+        "checkpoint_status": "awaiting_continue",
+        "next_stage": "ranking",
+        "last_completed_stage": "shortlist",
+        "completed_stages_json": '["normalize", "enrich", "rule_filter", "shortlist"]',
+        "checkpoint_payload_json": '{"checkpoint_payload":{"shortlist":[]}}',
+    }
+    result = _row_to_run(row)
+    assert result.run_mode == "manual_staged"
+    assert result.checkpoint_status == "awaiting_continue"
+    assert result.next_stage == "ranking"
+    assert result.last_completed_stage == "shortlist"
+    assert result.completed_stages == ["normalize", "enrich", "rule_filter", "shortlist"]
+    assert result.checkpoint_payload_json == '{"checkpoint_payload":{"shortlist":[]}}'
 
 
 def test_row_to_run_handles_missing_input_metadata_fields() -> None:
@@ -472,6 +520,34 @@ def test_update_run_queue_job_id_uses_parameterized_query():
     sql_arg = bq.query.call_args[0][0]
     assert "rid" not in sql_arg
     assert "rq-job-1" not in sql_arg
+
+
+def test_update_run_checkpoint_uses_parameterized_query() -> None:
+    bq = MagicMock()
+    update_run_checkpoint(
+        "rid",
+        bq,
+        project="p",
+        dataset="d",
+        checkpoint_status="awaiting_continue",
+        next_stage="ranking",
+        last_completed_stage="shortlist",
+        completed_stages=["normalize", "enrich", "rule_filter", "shortlist"],
+        checkpoint_payload_json='{"checkpoint_payload":{"shortlist":[]}}',
+    )
+    bq.query.assert_called_once()
+    sql_arg = bq.query.call_args[0][0]
+    assert "rid" not in sql_arg
+    job_config = bq.query.call_args[1]["job_config"]
+    param_names = {p.name for p in job_config.query_parameters}
+    assert param_names == {
+        "checkpoint_status",
+        "next_stage",
+        "last_completed_stage",
+        "completed_stages_json",
+        "checkpoint_payload_json",
+        "run_id",
+    }
 
 
 def test_request_run_cancel_sets_cancel_fields():

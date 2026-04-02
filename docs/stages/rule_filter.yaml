@@ -14,6 +14,7 @@ rule_filter:
     - passed jobs
     - rejected jobs
     - reject reasons
+    - optional manual checkpoint payloads that can resume shortlist/ranking from the passed-job set
     - bounded `stage_transition_artifacts.rule_filter` runtime block with input, output, and changed-state samples
   depends_on:
     - enrich

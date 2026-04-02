@@ -456,6 +456,34 @@ Store versioned outputs
 Application tracker / feedback loop
 ```
 
+## Execution modes
+
+The control plane now supports two orchestration modes over the same stage order:
+
+- `run_all`
+- `manual_staged`
+
+`run_all` keeps the existing continuous execution path.
+
+`manual_staged` pauses after each major stage and persists checkpoint state:
+
+1. `normalize`
+2. `enrich`
+3. `rule_filter`
+4. `shortlist`
+5. `ranking`
+6. `cv_generation`
+
+For manual runs, the control plane persists:
+
+- `checkpoint_status`
+- `next_stage`
+- `last_completed_stage`
+- `completed_stages`
+- a serialized checkpoint payload used to resume the next stage without restarting the full pipeline by default
+
+This keeps the pipeline architecture the same while making stage-local debugging much easier.
+
 ## Best mental model
 
 Think of the system as:

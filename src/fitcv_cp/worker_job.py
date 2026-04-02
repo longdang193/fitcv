@@ -22,6 +22,7 @@ from fitcv.pipeline import PipelineCancelled, run_pipeline
 from fitcv_cp.bq_store import (
     append_event,
     get_run,
+    update_run_checkpoint,
     update_run_cv_generation_debug,
     update_run_results_export,
     update_run_settings_used,
@@ -149,6 +150,24 @@ def _build_stage_transition_artifacts_payload(
     return json.dumps(payload, ensure_ascii=False)
 
 
+def _build_manual_checkpoint_payload(
+    *,
+    run_id: str,
+    summary: dict[str, Any],
+    created_at: datetime.datetime,
+) -> str:
+    payload = {
+        "run_id": run_id,
+        "checkpoint_schema_version": "manual_checkpoint_v1",
+        "created_at": created_at.isoformat(),
+        "paused_after_stage": summary.get("paused_after_stage"),
+        "next_stage": summary.get("next_stage"),
+        "completed_stages": list(summary.get("completed_stages") or []),
+        "checkpoint_payload": summary.get("checkpoint_payload") or {},
+    }
+    return json.dumps(payload, ensure_ascii=False)
+
+
 def _build_settings_used_payload(
     *,
     run_id: str,
@@ -192,10 +211,15 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
     from fitcv_cp.reporter import PipelineReporter
 
     try:
+        current_run_record = get_run(run_id, bq, project=project, dataset=dataset)
         # ── Step 1: Mark running ──────────────────────────────────────────────
         update_run_status(
             run_id, RunStatus.RUNNING, bq, project=project, dataset=dataset,
-            started_at=datetime.datetime.now(datetime.timezone.utc),
+            started_at=(
+                datetime.datetime.now(datetime.timezone.utc)
+                if current_run_record is None or getattr(current_run_record, "started_at", None) is None
+                else None
+            ),
         )
 
         # ── Step 2: Read current row (reads cancel_requested_at + config snapshot)
@@ -206,6 +230,18 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 effective_config = json.loads(run_record.effective_settings_json)
             except Exception as exc:
                 logger.warning("[run_id=%s] Failed to parse effective_settings_json: %s", run_id, exc)
+        run_mode = str(getattr(run_record, "run_mode", "run_all") or "run_all")
+        next_stage = getattr(run_record, "next_stage", None) or "normalize"
+        checkpoint_payload: dict[str, Any] | None = None
+        checkpoint_payload_json = getattr(run_record, "checkpoint_payload_json", None)
+        if checkpoint_payload_json:
+            try:
+                checkpoint_container = json.loads(checkpoint_payload_json)
+                checkpoint_payload_candidate = checkpoint_container.get("checkpoint_payload")
+                if isinstance(checkpoint_payload_candidate, dict):
+                    checkpoint_payload = checkpoint_payload_candidate
+            except Exception as exc:
+                logger.warning("[run_id=%s] Failed to parse checkpoint payload: %s", run_id, exc)
 
         # ── Step 3: Early-exit if cancellation already requested ──────────────
         if run_record and run_record.cancel_requested_at is not None:
@@ -235,13 +271,93 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             config=effective_config,
             run_id=run_id,
             cancellation_check=_cancellation_check,
+            start_stage=next_stage if run_mode == "manual_staged" else None,
+            stop_after_stage=next_stage if run_mode == "manual_staged" else None,
+            checkpoint_payload=checkpoint_payload,
         )
+
+        paused_after_stage = str(summary.get("paused_after_stage") or "").strip() or None
+        if paused_after_stage is not None:
+            checkpoint_time = datetime.datetime.now(datetime.timezone.utc)
+            update_run_status(
+                run_id,
+                RunStatus.AWAITING_CONTINUE,
+                bq,
+                project=project,
+                dataset=dataset,
+                summary=summary,
+            )
+            update_run_checkpoint(
+                run_id,
+                bq,
+                project=project,
+                dataset=dataset,
+                checkpoint_status="awaiting_continue",
+                next_stage=summary.get("next_stage"),
+                last_completed_stage=paused_after_stage,
+                completed_stages=list(summary.get("completed_stages") or []),
+                checkpoint_payload_json=_build_manual_checkpoint_payload(
+                    run_id=run_id,
+                    summary=summary,
+                    created_at=checkpoint_time,
+                ),
+            )
+            try:
+                update_run_stage_transition_artifacts(
+                    run_id,
+                    _build_stage_transition_artifacts_payload(
+                        run_id=run_id,
+                        summary=summary,
+                        finished_at=checkpoint_time,
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "[run_id=%s] Failed to persist stage transition artifacts snapshot at checkpoint: %s",
+                    run_id,
+                    exc,
+                )
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="stage_checkpoint",
+                    level="info",
+                    message=f"Paused after {paused_after_stage}; next stage: {summary.get('next_stage') or 'complete'}",
+                    created_at=checkpoint_time,
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+            return
 
         # ── Step 5: Success ───────────────────────────────────────────────────
         finished_at = datetime.datetime.now(datetime.timezone.utc)
         update_run_status(
             run_id, RunStatus.SUCCEEDED, bq, project=project, dataset=dataset,
             finished_at=finished_at, summary=summary,
+        )
+        update_run_checkpoint(
+            run_id,
+            bq,
+            project=project,
+            dataset=dataset,
+            checkpoint_status="completed",
+            next_stage=None,
+            last_completed_stage="cv_generation",
+            completed_stages=[
+                "normalize",
+                "enrich",
+                "rule_filter",
+                "shortlist",
+                "ranking",
+                "cv_generation",
+            ],
+            checkpoint_payload_json=None,
         )
         export_results = list(summary.get("export_results") or [])
         try:
