@@ -7,8 +7,16 @@ Run with:
 from __future__ import annotations
 
 import os
+import sys
+from pathlib import Path
 
 from google.cloud import bigquery
+
+_SCRIPT_PATH = Path(__file__).resolve()
+_WORKTREE_ROOT = _SCRIPT_PATH.parents[2]
+_SRC_DIR = _WORKTREE_ROOT / "src"
+if str(_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(_SRC_DIR))
 
 from fitcv.config import load_config
 

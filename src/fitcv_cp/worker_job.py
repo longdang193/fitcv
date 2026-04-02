@@ -51,6 +51,17 @@ def _run_cancelled_event(run_id: str, message: str) -> RunEvent:
     )
 
 
+def _snapshot_persist_failed_event(run_id: str, snapshot_name: str, message: str) -> RunEvent:
+    return RunEvent(
+        run_id=run_id,
+        event_id=str(uuid.uuid4()),
+        stage="snapshot_persist_failed",
+        level="warning",
+        message=f"{snapshot_name} snapshot persistence failed: {message}",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+
+
 def _build_results_export_payload(
     *,
     run_id: str,
@@ -364,6 +375,19 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     run_id,
                     exc,
                 )
+                try:
+                    append_event(
+                        _snapshot_persist_failed_event(run_id, "mapping_suggestions", str(exc)),
+                        bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+                except Exception as inner:
+                    logger.warning(
+                        "[run_id=%s] Failed to append mapping suggestions persistence warning event: %s",
+                        run_id,
+                        inner,
+                    )
             append_event(
                 RunEvent(
                     run_id=run_id,
@@ -478,6 +502,19 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             )
         except Exception as exc:
             logger.warning("[run_id=%s] Failed to persist mapping suggestions snapshot: %s", run_id, exc)
+            try:
+                append_event(
+                    _snapshot_persist_failed_event(run_id, "mapping_suggestions", str(exc)),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+            except Exception as inner:
+                logger.warning(
+                    "[run_id=%s] Failed to append mapping suggestions persistence warning event: %s",
+                    run_id,
+                    inner,
+                )
 
     except PipelineCancelled as exc:
         # ── Step 5 (alt): Pipeline was cancelled at a checkpoint ──────────────

@@ -1,7 +1,7 @@
 ---
 feature_type: modify
 feature_name: none
-status: in_progress
+status: completed
 summary: "Implement full enrich-stage artifact visibility, durable synonym suggestion persistence, runtime synonym overlays, and one effective merged map shared across downstream stages."
 ---
 
@@ -293,4 +293,4 @@ Mitigation:
 - [x] Task 4: Add runtime synonym overlay loading in config resolution
 - [x] Task 5: Propagate one effective synonym map across all synonym-aware stages
 - [x] Task 6: Expose effective-map provenance in run inspection
-- [ ] Task 7: Sync cross-cutting docs and stage contracts
+- [x] Task 7: Sync cross-cutting docs and stage contracts
