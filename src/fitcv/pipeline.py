@@ -44,10 +44,15 @@ from fitcv.config import load_config
 from fitcv.cv_generator import generate_cv
 from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
 from fitcv.enrich import (
+    FRESH_ENRICHMENT_STATUS,
+    REUSED_CACHED_ENRICHMENT_STATUS,
+    build_enrich_contract_fingerprint,
+    build_raw_job_fingerprint,
     enrich_batch,
     get_enrich_prompt_provenance,
     load_run_structured_jobs,
     load_structured_jobs,
+    lookup_reusable_structured_jobs,
 )
 from fitcv.evidence import retrieve_evidence
 from fitcv.gap_analysis import classify_fit, compute_gap
@@ -100,6 +105,9 @@ _EXPORT_ENRICHED_JOB_FIELDS = (
     "enrichment_version",
     "enrichment_model",
     "enriched_at",
+    "raw_job_fingerprint",
+    "enrich_contract_fingerprint",
+    "enrich_reuse_status",
 )
 _DEDUPE_REASON_LABELS = {
     "duplicate_job_url": "duplicate_job_url",
@@ -237,6 +245,66 @@ def _materialize_scoring_shortlist(
         next_rank += 1
 
     return scoring_shortlist
+
+
+def _enrich_jobs_with_reuse(
+    normalized_jobs: list[dict[str, Any]],
+    config: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    if not normalized_jobs:
+        return [], []
+
+    raw_job_fingerprints: dict[str, str] = {}
+    for job in normalized_jobs:
+        job_url = _extract_job_url(job)
+        if not job_url:
+            continue
+        raw_job_fingerprints[job_url] = build_raw_job_fingerprint(job)["fingerprint"]
+
+    enrich_contract_fingerprint = build_enrich_contract_fingerprint(config)["fingerprint"]
+    reused_rows_by_url = lookup_reusable_structured_jobs(
+        normalized_jobs,
+        config,
+        raw_job_fingerprints=raw_job_fingerprints,
+        enrich_contract_fingerprint=enrich_contract_fingerprint,
+    )
+
+    fresh_jobs = [
+        job for job in normalized_jobs
+        if _extract_job_url(job) and _extract_job_url(job) not in reused_rows_by_url
+    ]
+    fresh_rows: list[dict[str, Any]] = []
+    if fresh_jobs:
+        fresh_rows = enrich_batch(fresh_jobs, config)
+        for row in fresh_rows:
+            job_url = _extract_job_url(row)
+            if not job_url:
+                continue
+            row["raw_job_fingerprint"] = raw_job_fingerprints.get(job_url)
+            row["enrich_contract_fingerprint"] = enrich_contract_fingerprint
+            row["enrich_reuse_status"] = FRESH_ENRICHMENT_STATUS
+
+    fresh_rows_by_url = {
+        _extract_job_url(row): row
+        for row in fresh_rows
+        if _extract_job_url(row)
+    }
+    enriched_rows: list[dict[str, Any]] = []
+    for job in normalized_jobs:
+        job_url = _extract_job_url(job)
+        if not job_url:
+            continue
+        reused_row = reused_rows_by_url.get(job_url)
+        if reused_row is not None:
+            reused_row["raw_job_fingerprint"] = raw_job_fingerprints.get(job_url)
+            reused_row["enrich_contract_fingerprint"] = enrich_contract_fingerprint
+            reused_row["enrich_reuse_status"] = REUSED_CACHED_ENRICHMENT_STATUS
+            enriched_rows.append(reused_row)
+            continue
+        fresh_row = fresh_rows_by_url.get(job_url)
+        if fresh_row is not None:
+            enriched_rows.append(fresh_row)
+    return enriched_rows, fresh_rows
 
 
 def _merge_ranked_job_with_enriched_context(
@@ -1205,6 +1273,17 @@ def _build_stage_transition_artifacts(
         elif status == "persistence_failed":
             cv_status_counts["persistence_failed_count"] += 1
     enrich_prompt_provenance = get_enrich_prompt_provenance(config)
+    enrich_reuse_counts = {
+        "reused_rows": sum(
+            1 for job in enriched
+            if str(job.get("enrich_reuse_status") or "") == REUSED_CACHED_ENRICHMENT_STATUS
+        ),
+        "fresh_rows": sum(
+            1 for job in enriched
+            if str(job.get("enrich_reuse_status") or "") == FRESH_ENRICHMENT_STATUS
+        ),
+        "total_enriched_rows": len(enriched),
+    }
 
     return {
         "schema_version": "stage_transition_artifacts_v3",
@@ -1246,6 +1325,7 @@ def _build_stage_transition_artifacts(
                     "enrich_prompt_version": enrich_prompt_provenance["prompt_version"],
                     "enrich_prompt_template_path": enrich_prompt_provenance["template_path"],
                     "enrich_prompt_model": enrich_prompt_provenance["model"],
+                    **enrich_reuse_counts,
                 },
                 inputs_sample=_sample_rows(
                     [job for job in normalized if _extract_job_url(job) not in {_extract_job_url(item) for item in pre_filter_rejected_jobs}],
@@ -1632,13 +1712,25 @@ def run_pipeline(
 
         if cancellation_check and cancellation_check():
             raise PipelineCancelled("Cancelled before enrichment")
-        enriched = enrich_batch(surviving_normalized, config)
-        load_structured_jobs(enriched, config)
+        enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(surviving_normalized, config)
+        if fresh_enriched_rows:
+            load_structured_jobs(fresh_enriched_rows, config)
         load_run_structured_jobs(enriched, run_id, config)
         if reporter is not None:
+            reused_count = sum(
+                1 for row in enriched
+                if str(row.get("enrich_reuse_status") or "") == REUSED_CACHED_ENRICHMENT_STATUS
+            )
+            fresh_count = sum(
+                1 for row in enriched
+                if str(row.get("enrich_reuse_status") or "") == FRESH_ENRICHMENT_STATUS
+            )
             reporter.emit(  # type: ignore[union-attr]
                 "layer1_jobs", "info",
-                f"Ingested {len(raw_jobs)} jobs, enriched {len(enriched)} (after pre-filter)",
+                (
+                    f"Ingested {len(raw_jobs)} jobs, enriched {len(enriched)} "
+                    f"(after pre-filter; fresh={fresh_count}, reused={reused_count})"
+                ),
             )
         state["pre_filter_rejected_jobs"] = pre_filter_rejected_jobs
         state["enriched"] = enriched

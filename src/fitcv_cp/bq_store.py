@@ -5,6 +5,7 @@ All mutating queries use query parameters — never string interpolation.
 import datetime
 import json
 import logging
+import time
 from typing import Any, Optional
 
 from google.cloud import bigquery as bq_module
@@ -12,6 +13,43 @@ from google.cloud import bigquery as bq_module
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 
 logger = logging.getLogger(__name__)
+
+_PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS = 3
+_PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS = 0.25
+
+
+def _is_concurrent_pipeline_runs_update_error(exc: Exception) -> bool:
+    message = str(exc).lower()
+    return (
+        "pipeline_runs" in message
+        and "concurrent update" in message
+        and "could not serialize access" in message
+    )
+
+
+def _execute_query_with_pipeline_runs_retry(
+    bq: Any,
+    sql: str,
+    *,
+    job_config: bq_module.QueryJobConfig,
+) -> None:
+    for attempt in range(1, _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS + 1):
+        try:
+            bq.query(sql, job_config=job_config).result()
+            return
+        except Exception as exc:
+            if (
+                attempt >= _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS
+                or not _is_concurrent_pipeline_runs_update_error(exc)
+            ):
+                raise
+            logger.warning(
+                "Retrying pipeline_runs concurrent update after attempt %s/%s: %s",
+                attempt,
+                _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS,
+                exc,
+            )
+            time.sleep(_PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS * attempt)
 
 
 def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None:
@@ -67,7 +105,7 @@ def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None
             bq_module.ScalarQueryParameter("queue_job_id", "STRING", run.queue_job_id),
         ]
     )
-    bq.query(sql, job_config=job_config).result()
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 
@@ -112,7 +150,7 @@ def update_run_status(
         f"SET {', '.join(set_clauses)} WHERE run_id = @run_id"
     )
     job_config = bq_module.QueryJobConfig(query_parameters=params)
-    bq.query(sql, job_config=job_config).result()
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def update_run_checkpoint(
@@ -152,7 +190,7 @@ def update_run_checkpoint(
             bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
         ]
     )
-    bq.query(sql, job_config=job_config).result()
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> None:
@@ -229,7 +267,7 @@ def update_run_queue_job_id(
             bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
         ]
     )
-    bq.query(sql, job_config=job_config).result()
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def update_run_results_export(
@@ -251,7 +289,7 @@ def update_run_results_export(
             bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
         ]
     )
-    bq.query(sql, job_config=job_config).result()
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def update_run_cv_generation_debug(
@@ -275,7 +313,7 @@ def update_run_cv_generation_debug(
             bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
         ]
     )
-    bq.query(sql, job_config=job_config).result()
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def update_run_stage_transition_artifacts(
@@ -299,7 +337,7 @@ def update_run_stage_transition_artifacts(
             bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
         ]
     )
-    bq.query(sql, job_config=job_config).result()
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def update_run_settings_used(
@@ -321,7 +359,7 @@ def update_run_settings_used(
             bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
         ]
     )
-    bq.query(sql, job_config=job_config).result()
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def update_run_mapping_suggestions(
@@ -345,7 +383,7 @@ def update_run_mapping_suggestions(
             bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
         ]
     )
-    bq.query(sql, job_config=job_config).result()
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def update_run_effective_settings(
@@ -398,7 +436,7 @@ def request_run_cancel(
             bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
         ]
     )
-    bq.query(sql, job_config=job_config).result()
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def archive_run(
@@ -423,7 +461,7 @@ def archive_run(
             bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
         ]
     )
-    bq.query(sql, job_config=job_config).result()
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def unarchive_run(
@@ -444,7 +482,7 @@ def unarchive_run(
             bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
         ]
     )
-    bq.query(sql, job_config=job_config).result()
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunEvent]:

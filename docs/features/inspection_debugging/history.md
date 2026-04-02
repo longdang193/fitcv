@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 2.4.0 — active
+
+- Run-scoped enriched rows and enrich-stage artifact samples can now expose `raw_job_fingerprint`, `enrich_contract_fingerprint`, and `enrich_reuse_status`
+- Enrich-stage decision summaries now report fresh-vs-reused enrich counts so repeated-run reuse behavior is visible without opening shared tables directly
+
 ### 2.3.0 — active
 
 - Shortlist artifacts now report both raw row counts and raw unique-job counts while keeping the older unique-hit summary available for compatibility

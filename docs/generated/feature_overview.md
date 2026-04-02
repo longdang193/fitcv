@@ -9,9 +9,9 @@
 | `admin_control_plane_core` | 1.0.0 | add | fitcv_cp | Internal admin UI and REST API to manage FitCV pipeline runs without terminal access. |
 | `bounded_parallel_enrichment` | 1.0.0 | add | fitcv | Enrichment runs in bounded parallel batches with admin-controlled concurrency settings. |
 | `cv_system` | 1.12.0 | add | fitcv | CV generation uses a structured preset-based configuration, latest-only shortlist retrieval, and richer stage-local artifacts for inspection. |
-| `inspection_debugging` | 2.3.0 | add | fitcv_cp | Admins can see what the pipeline did for a run, including selectable rule-filter marks, latest-only shortlist diagnostics, stage-local artifacts, inputs used, and generated CVs. |
+| `inspection_debugging` | 2.4.0 | add | fitcv_cp | Admins can see what the pipeline did for a run, including selectable rule-filter marks, latest-only shortlist diagnostics, enrich reuse provenance, stage-local artifacts, inputs used, and generated CVs. |
 | `multi_file_job_input` | 1.0.0 | add | fitcv_cp | Admins can upload multiple JSON job files in one trigger request. |
-| `pipeline_performance` | 1.1.0 | modify | fitcv | Reduced API costs by filtering jobs before enrichment and using reliable structured output parsing. |
+| `pipeline_performance` | 1.4.0 | modify | fitcv | Reduced API costs by filtering jobs before enrichment, using reliable structured output parsing, centralizing enrich prompt management, and reusing unchanged enrich results safely via raw-job and enrich-contract fingerprints. |
 | `run_lifecycle_controls` | 1.0.0 | add | fitcv_cp | Admins can stop queued or running runs and archive or unarchive completed runs. |
 | `settings_system` | 2.3.0 | add | fitcv_cp | Admins can view and edit pipeline tuning defaults through the admin UI, persisted in BigQuery. |
 | `trigger_run_management` | 2.3.0 | add | fitcv_cp | Admins can trigger runs via path reference, file upload, or pasted JSON, run the pipeline automatically or stage by stage, and inspect richer shortlist debug state in run exports. |

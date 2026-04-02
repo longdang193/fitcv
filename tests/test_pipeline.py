@@ -24,6 +24,7 @@ import pytest
 from fitcv.pipeline import (
     _build_stage_transition_artifacts,
     _collect_mapping_suggestions,
+    _enrich_jobs_with_reuse,
     _materialize_scoring_shortlist,
     build_ranking_features,
     create_run_id,
@@ -1822,6 +1823,119 @@ def test_build_stage_transition_artifacts_enrich_sample_keeps_full_list_fields()
         "google bigquery",
         "looker",
     ]
+
+
+def test_build_stage_transition_artifacts_enrich_summary_reports_reuse_counts() -> None:
+    enriched_jobs = [
+        {
+            "job_url": "https://example.com/1",
+            "title": "Reused role",
+            "enrich_reuse_status": "reused_cached_enrichment",
+            "raw_job_fingerprint": "raw-1",
+            "enrich_contract_fingerprint": "contract-1",
+        },
+        {
+            "job_url": "https://example.com/2",
+            "title": "Fresh role",
+            "enrich_reuse_status": "fresh_enrichment",
+            "raw_job_fingerprint": "raw-2",
+            "enrich_contract_fingerprint": "contract-1",
+        },
+    ]
+
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=enriched_jobs,
+        normalized=enriched_jobs,
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=enriched_jobs,
+        passed_jobs=enriched_jobs,
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=[],
+        shortlist=[],
+        backfilled_job_urls=[],
+        vector_top_n=10,
+        candidate_summary="Candidate: Data Scientist",
+        ai_scores=[],
+        ranking_inputs=[],
+        ranked=[],
+        final_top_n=5,
+        cv_generation_debug_records=[],
+        profile={"preferences": {"target_role": "Data Scientist"}, "skills": ["Python"]},
+        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+    )
+
+    summary = artifacts["stages"]["enrich"]["decision_summary"]
+    assert summary["reused_rows"] == 1
+    assert summary["fresh_rows"] == 1
+    assert summary["total_enriched_rows"] == 2
+
+
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.lookup_reusable_structured_jobs")
+@patch("fitcv.pipeline.build_enrich_contract_fingerprint")
+@patch("fitcv.pipeline.build_raw_job_fingerprint")
+def test_enrich_jobs_with_reuse_preserves_order_and_separates_shared_upserts(
+    mock_raw_job_fingerprint: MagicMock,
+    mock_contract_fingerprint: MagicMock,
+    mock_lookup_reusable: MagicMock,
+    mock_enrich_batch: MagicMock,
+) -> None:
+    jobs = [
+        {
+            "job_url": "https://example.com/1",
+            "title": "Reused role",
+            "description": "Reuse me",
+        },
+        {
+            "job_url": "https://example.com/2",
+            "title": "Fresh role",
+            "description": "Enrich me",
+        },
+    ]
+    mock_raw_job_fingerprint.side_effect = [
+        {"payload": {"job_url": jobs[0]["job_url"]}, "fingerprint": "raw-1"},
+        {"payload": {"job_url": jobs[1]["job_url"]}, "fingerprint": "raw-2"},
+    ]
+    mock_contract_fingerprint.return_value = {
+        "payload": {"prompt_id": "enrich.extraction.v1"},
+        "fingerprint": "contract-1",
+    }
+    mock_lookup_reusable.return_value = {
+        jobs[0]["job_url"]: {
+            "job_url": jobs[0]["job_url"],
+            "title": jobs[0]["title"],
+            "enrichment_version": "v1",
+            "enrichment_model": "gemini-2.5-flash",
+            "enriched_at": "2026-04-03T00:00:00+00:00",
+        }
+    }
+    mock_enrich_batch.return_value = [
+        {
+            "job_url": jobs[1]["job_url"],
+            "title": jobs[1]["title"],
+            "enrichment_version": "v1",
+            "enrichment_model": "gemini-2.5-flash",
+            "enriched_at": "2026-04-03T00:01:00+00:00",
+        }
+    ]
+
+    enriched_rows, fresh_rows = _enrich_jobs_with_reuse(
+        jobs,
+        {"gemini_model": "gemini-2.5-flash"},
+    )
+
+    assert [row["job_url"] for row in enriched_rows] == [
+        "https://example.com/1",
+        "https://example.com/2",
+    ]
+    assert enriched_rows[0]["enrich_reuse_status"] == "reused_cached_enrichment"
+    assert enriched_rows[1]["enrich_reuse_status"] == "fresh_enrichment"
+    assert enriched_rows[0]["raw_job_fingerprint"] == "raw-1"
+    assert enriched_rows[1]["raw_job_fingerprint"] == "raw-2"
+    assert all(row["enrich_contract_fingerprint"] == "contract-1" for row in enriched_rows)
+    assert [row["job_url"] for row in fresh_rows] == ["https://example.com/2"]
+    mock_enrich_batch.assert_called_once_with([jobs[1]], {"gemini_model": "gemini-2.5-flash"})
 
 
 def test_collect_mapping_suggestions_deduplicates_per_run_by_alias_canonical_and_must_have_skill() -> None:
