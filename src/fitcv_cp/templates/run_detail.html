@@ -35,6 +35,12 @@
       <a href="/admin/runs/{{ run.run_id }}/mapping-suggestions.json" class="btn-secondary">⬇ Download Mapping Suggestions JSON</a>
     {% endif %}
     <a href="/admin/mapping-suggestions.json" class="btn-secondary">⬇ Download Aggregate Mapping Suggestions JSON</a>
+    {% if can_upload_synonym_overlay %}
+      <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">
+        <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:15rem">
+        <button type="submit" class="btn-secondary">Upload Synonym Overlay YAML</button>
+      </form>
+    {% endif %}
     <a href="/admin/runs" class="btn-secondary">← All Runs</a>
   </div>
 </div>
@@ -65,6 +71,11 @@
     <span class="k">Last Completed</span><span class="v"><code>{{ run.last_completed_stage or '—' }}</code></span>
     <span class="k">Next Stage</span><span class="v"><code>{{ run.next_stage or 'complete' }}</code></span>
     <span class="k">Completed Stages</span><span class="v">{% if run.completed_stages %}<code>{{ run.completed_stages | join(', ') }}</code>{% else %}—{% endif %}</span>
+    <span class="k">Synonym Overlay</span><span class="v">{% if synonym_overlay_info.has_run_overlay %}<span class="badge badge-info">uploaded</span>{% else %}default only{% endif %}</span>
+    {% if synonym_overlay_info.has_run_overlay %}
+    <span class="k">Overlay File</span><span class="v"><code>{{ synonym_overlay_info.filename or '—' }}</code></span>
+    <span class="k">Overlay Entries</span><span class="v">{{ synonym_overlay_info.entry_count }}</span>
+    {% endif %}
     {% endif %}
     {% if run.started_at and run.finished_at %}
     <span class="k">Duration</span><span class="v">{{ ((run.finished_at - run.started_at).total_seconds() | int) }}s</span>

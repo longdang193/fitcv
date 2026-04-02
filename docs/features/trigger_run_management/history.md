@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.1.0 — active
+
+- Manual staged runs paused after `enrich` can now upload a run-scoped synonym-overlay YAML before continuing into `rule_filter`
+- Uploaded overlays are persisted on the run's effective settings snapshot and apply only to that run's downstream stages
+- This rollout keeps the trusted base `config/skill_synonyms.yaml` unchanged and does not add a full synonym editor
+
 ### 2.0.0 — active
 
 - Added a staged/manual run mode that pauses after each major stage and persists checkpoint metadata plus a serialized checkpoint payload for continuation
