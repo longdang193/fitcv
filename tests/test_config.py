@@ -217,6 +217,51 @@ def test_load_config_env_yaml_overrides_nested_cv(tmp_path: Path) -> None:
     assert cfg["cv"]["generation"]["model"] == "my-custom-model"
 
 
+def test_load_config_merges_skill_synonym_overlay_paths(tmp_path: Path) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\n"
+        "bigquery_dataset: ds\n"
+        "service_account_key: /dev/null\n"
+        "skill_synonyms_overlay_paths:\n"
+        "  - skill_synonyms.overlay.yaml\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "skill_synonyms.yaml").write_text(
+        "skill_synonyms:\n"
+        "  gcp: google cloud\n"
+        "  powerbi: power bi\n"
+    )
+    (cfg_dir / "skill_synonyms.overlay.yaml").write_text(
+        "skill_synonyms:\n"
+        "  gcp: gcp cloud\n"
+        "  ga4: google analytics\n"
+    )
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "  content_rules:\n"
+        "    evidence_grounded_only: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+
+    cfg = load_config(env_yaml)
+
+    assert cfg["skill_synonyms"]["gcp"] == "gcp cloud"
+    assert cfg["skill_synonyms"]["powerbi"] == "power bi"
+    assert cfg["skill_synonyms"]["ga4"] == "google analytics"
+    assert cfg["skill_synonyms_runtime"]["has_overlay"] is True
+    assert len(cfg["skill_synonyms_runtime"]["overlay_paths"]) == 1
+
+
 # ── Task 1: nested preset-based cv config ─────────────────────────────────────
 
 

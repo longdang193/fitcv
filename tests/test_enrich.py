@@ -132,6 +132,34 @@ def test_parse_extraction_response_bad_seniority_returns_none() -> None:
     assert result["parsed"]["seniority"] is None
 
 
+def test_parse_extraction_response_uses_skill_entities_for_canonical_fields() -> None:
+    raw = """
+    {
+      "required_skills": [
+        "proficient in Python programming for data science",
+        "English advanced (C1) or above"
+      ],
+      "required_skill_entities": [
+        {"raw_text": "proficient in Python programming for data science", "canonical": "python", "confidence": 0.96}
+      ],
+      "preferred_skills": ["PowerBI"],
+      "preferred_skill_entities": [
+        {"raw_text": "PowerBI", "canonical": "power bi", "confidence": 0.98}
+      ]
+    }
+    """
+    result = parse_extraction_response(raw)
+    assert result["parsed"]["required_skills_canonical"] == ["python"]
+    assert result["parsed"]["preferred_skills_canonical"] == ["power bi"]
+    assert result["parsed"]["required_skill_entities"] == [
+        {
+            "raw_text": "proficient in Python programming for data science",
+            "canonical": "python",
+            "confidence": 0.96,
+        }
+    ]
+
+
 # ── merge_scraped_and_enriched ────────────────────────────────────────────────
 
 def test_merge_scraped_and_enriched_preserves_scraped_fields() -> None:
@@ -170,7 +198,8 @@ def test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields() 
         ],
         "mapping_suggestions": [
             {
-                "field": "required_skills",
+                "must_have_skill": "python",
+                "matches": True,
                 "alias": "python programming for data science",
                 "canonical": "python",
                 "confidence": 1.0,
@@ -844,6 +873,13 @@ def test_apply_structured_normalization_emits_canonical_skill_companions() -> No
     output = EnrichmentOutput(
         required_skills=["GCP", "Python programming for data science"],
         preferred_skills=["PowerBI"],
+        required_skill_entities=[
+            {"raw_text": "GCP", "canonical": "google cloud", "confidence": 0.99},
+            {"raw_text": "Python programming for data science", "canonical": "python", "confidence": 0.96},
+        ],
+        preferred_skill_entities=[
+            {"raw_text": "PowerBI", "canonical": "power bi", "confidence": 0.98},
+        ],
         tech_stack=["BigQuery"],
         keywords=["LLM"],
     )
@@ -862,38 +898,141 @@ def test_apply_structured_normalization_emits_canonical_skill_companions() -> No
     assert result["required_skills"] == ["GCP", "Python programming for data science"]
     assert result["required_skills_canonical"] == [
         "google cloud",
-        "python programming for data science",
+        "python",
     ]
     assert result["preferred_skills_canonical"] == ["power bi"]
-    assert result["tech_stack_canonical"] == ["bigquery"]
-    assert result["keywords_canonical"] == ["genai"]
+    assert "tech_stack_canonical" not in result
+    assert "keywords_canonical" not in result
     assert result["required_skill_entities"] == [
-        {"raw_text": "GCP", "canonical": "google cloud"},
+        {"raw_text": "GCP", "canonical": "google cloud", "confidence": 0.99},
         {
             "raw_text": "Python programming for data science",
-            "canonical": "python programming for data science",
+            "canonical": "python",
+            "confidence": 0.96,
         },
     ]
     assert result["preferred_skill_entities"] == [
-        {"raw_text": "PowerBI", "canonical": "power bi"}
+        {"raw_text": "PowerBI", "canonical": "power bi", "confidence": 0.98}
     ]
     assert result["mapping_suggestions"] == [
         {
-            "field": "required_skills",
+            "must_have_skill": "google cloud",
+            "matches": True,
+            "alias": "gcp",
+            "canonical": "google cloud",
+            "confidence": 0.99,
+        },
+        {
+            "must_have_skill": "power bi",
+            "matches": True,
+            "alias": "powerbi",
+            "canonical": "power bi",
+            "confidence": 0.98,
+        },
+    ]
+
+
+def test_apply_structured_normalization_excludes_non_skill_requirement_content() -> None:
+    output = EnrichmentOutput(
+        required_skills=[
+            "Master's or PhD Degree in Data Science, Statistics, Mathematics, Computer Science, or related quantitative field",
+            "at least 5 years of hands-on data science experience with proven business impact",
+            "proficient in Python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+            "proficient in SQL and database operations for data manipulation and analysis",
+            "English advanced (C1) or above",
+        ],
+        required_skill_entities=[
+            {
+                "raw_text": "proficient in Python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "python",
+                "confidence": 0.96,
+            },
+            {
+                "raw_text": "proficient in Python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "pandas",
+                "confidence": 0.94,
+            },
+            {
+                "raw_text": "proficient in SQL and database operations for data manipulation and analysis",
+                "canonical": "sql",
+                "confidence": 0.95,
+            },
+        ],
+    )
+
+    result = _apply_structured_normalization(output, config={})
+
+    assert result["required_skills_canonical"] == ["python", "pandas", "sql"]
+    assert all("degree" not in skill for skill in result["required_skills_canonical"])
+    assert all("english" not in skill for skill in result["required_skills_canonical"])
+    assert len(result["required_skill_entities"]) == 3
+
+
+def test_apply_structured_normalization_filters_soft_skills_languages_and_domain_knowledge() -> None:
+    output = EnrichmentOutput(
+        required_skills=[
+            "Analytical Focus",
+            "Attention to detail",
+            "German communication",
+            "Telecom domain experience",
+            "Prompt Engineering",
+            "Vector Databases",
+            "SQL",
+        ],
+        required_skill_entities=[
+            {"raw_text": "Analytical Focus", "canonical": "analytical thinking", "confidence": 1.0},
+            {"raw_text": "Attention to detail", "canonical": "attention to detail", "confidence": 1.0},
+            {"raw_text": "German communication", "canonical": "german", "confidence": 1.0},
+            {"raw_text": "Telecom domain experience", "canonical": "telecommunications domain knowledge", "confidence": 1.0},
+            {"raw_text": "Prompt Engineering", "canonical": "genai", "confidence": 0.95},
+            {"raw_text": "Vector Databases", "canonical": "genai", "confidence": 0.95},
+            {"raw_text": "SQL", "canonical": "sql", "confidence": 1.0},
+        ],
+    )
+
+    result = _apply_structured_normalization(output, config={})
+
+    assert result["required_skills_canonical"] == ["sql"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "SQL", "canonical": "sql", "confidence": 1.0}
+    ]
+    assert result["mapping_suggestions"] == []
+
+
+def test_apply_structured_normalization_uses_conservative_alias_fallback_when_entities_absent() -> None:
+    output = EnrichmentOutput(
+        required_skills=["GCP", "Python programming for data science"],
+        preferred_skills=["PowerBI"],
+    )
+
+    result = _apply_structured_normalization(
+        output,
+        config={
+            "skill_synonyms": {
+                "gcp": "google cloud",
+                "powerbi": "power bi",
+            }
+        },
+    )
+
+    assert result["required_skills_canonical"] == ["google cloud"]
+    assert result["preferred_skills_canonical"] == ["power bi"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "GCP", "canonical": "google cloud", "confidence": 1.0}
+    ]
+    assert result["mapping_suggestions"] == [
+        {
+            "must_have_skill": "google cloud",
+            "matches": True,
             "alias": "gcp",
             "canonical": "google cloud",
             "confidence": 1.0,
         },
         {
-            "field": "preferred_skills",
+            "must_have_skill": "power bi",
+            "matches": True,
             "alias": "powerbi",
             "canonical": "power bi",
-            "confidence": 1.0,
-        },
-        {
-            "field": "keywords",
-            "alias": "llm",
-            "canonical": "genai",
             "confidence": 1.0,
         },
     ]

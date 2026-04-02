@@ -82,15 +82,12 @@ _EXPORT_ENRICHED_JOB_FIELDS = (
     "preferred_skills_canonical",
     "preferred_skill_entities",
     "responsibilities",
-    "responsibilities_canonical",
     "domain_raw",
     "domain",
     "tech_stack",
-    "tech_stack_canonical",
     "years_experience_min",
     "years_experience_max",
     "keywords",
-    "keywords_canonical",
     "job_family_raw",
     "job_family",
     "mapping_suggestions",
@@ -568,6 +565,29 @@ def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _collect_mapping_suggestions(enriched: list[dict[str, Any]], run_id: str) -> list[dict[str, Any]]:
+    suggestions: list[dict[str, Any]] = []
+    for job in enriched:
+        job_url = _extract_job_url(job)
+        job_title = _extract_job_title(job)
+        for suggestion in list(job.get("mapping_suggestions") or []):
+            if not isinstance(suggestion, dict):
+                continue
+            record = {
+                "run_id": run_id,
+                "job_url": job_url,
+                "job_title": job_title,
+                "must_have_skill": str(suggestion.get("must_have_skill") or ""),
+                "matches": bool(suggestion.get("matches")),
+                "confidence": float(suggestion.get("confidence") or 0.0),
+                "alias": str(suggestion.get("alias") or ""),
+                "canonical": str(suggestion.get("canonical") or ""),
+            }
+            if record["alias"] and record["canonical"]:
+                suggestions.append(record)
+    return suggestions
+
+
 def _build_checkpoint_summary(
     *,
     run_id: str,
@@ -633,6 +653,7 @@ def _build_checkpoint_summary(
         "ranked": len(ranked),
         "cvs_generated": len(cv_results),
         "checkpoint_payload": _checkpoint_payload_from_state(state),
+        "mapping_suggestions": _collect_mapping_suggestions(enriched, run_id),
         "stage_transition_artifacts": stage_transition_artifacts,
     }
 
@@ -882,21 +903,15 @@ def _job_sample(job: dict[str, Any]) -> dict[str, Any] | None:
     job_url = _extract_job_url(job)
     if not job_url:
         return None
-    required_skills = list(job.get("required_skills") or [])
     sample = {
         "job_url": job_url,
         "job_title": _extract_job_title(job),
         "company": str(job.get("company_name") or job.get("companyName") or ""),
     }
-    optional_fields = {
-        "seniority": job.get("seniority"),
-        "job_family": job.get("job_family"),
-        "location_type": job.get("location_type"),
-        "required_skills": required_skills[:5],
-        "years_experience_min": job.get("years_experience_min"),
-        "years_experience_max": job.get("years_experience_max"),
-        "description_cleaned": job.get("description_cleaned"),
-    }
+    optional_fields: dict[str, Any] = {}
+    for field in _EXPORT_ENRICHED_JOB_FIELDS:
+        value = job.get(field)
+        optional_fields[field] = value
     for key, value in optional_fields.items():
         if value not in (None, "", []):
             sample[key] = value
@@ -1885,6 +1900,7 @@ def run_pipeline(
             "backfilled_job_urls": backfilled_job_urls,
         },
         "cv_generation_debug_records": cv_generation_debug_records,
+        "mapping_suggestions": _collect_mapping_suggestions(enriched, run_id),
         "stage_transition_artifacts": _build_stage_transition_artifacts(
             raw_jobs=raw_jobs,
             normalized=normalized,

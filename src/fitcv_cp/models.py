@@ -54,6 +54,7 @@ class PipelineRun:
     cv_generation_debug_json: Optional[str] = None  # immutable run-scoped CV-generation debug snapshot
     stage_transition_artifacts_json: Optional[str] = None  # immutable run-scoped stage transition artifact snapshot
     settings_used_json: Optional[str] = None  # immutable run-scoped effective-settings snapshot
+    mapping_suggestions_json: Optional[str] = None  # immutable run-scoped mapping suggestions snapshot
     run_mode: str = "run_all"
     checkpoint_status: Optional[str] = None
     next_stage: Optional[str] = None

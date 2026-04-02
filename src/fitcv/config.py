@@ -136,6 +136,41 @@ def _merge_missing_keys(base: dict[str, Any], extra: dict[str, Any]) -> dict[str
     return base
 
 
+def _normalize_skill_synonyms(raw_synonyms: Any) -> dict[str, str]:
+    if not isinstance(raw_synonyms, dict):
+        return {}
+    return {
+        str(alias).strip().lower(): str(canonical).strip().lower()
+        for alias, canonical in raw_synonyms.items()
+        if str(alias).strip() and str(canonical).strip()
+    }
+
+
+def _resolve_config_relative_path(config_dir: Path, raw_path: str | Path) -> Path:
+    path = Path(raw_path)
+    if path.is_absolute():
+        return path
+    return config_dir / path
+
+
+def _load_skill_synonym_overlays(
+    *,
+    config_dir: Path,
+    overlay_paths: list[str],
+) -> tuple[dict[str, str], list[str]]:
+    merged: dict[str, str] = {}
+    resolved_paths: list[str] = []
+    for overlay_path in overlay_paths:
+        resolved_path = _resolve_config_relative_path(config_dir, overlay_path)
+        overlay_cfg = _load_yaml_file(resolved_path)
+        overlay_synonyms = _normalize_skill_synonyms(overlay_cfg.get("skill_synonyms"))
+        if not overlay_synonyms:
+            continue
+        merged.update(overlay_synonyms)
+        resolved_paths.append(str(resolved_path))
+    return merged, resolved_paths
+
+
 def _normalize_config_keys(cfg: dict[str, Any]) -> dict[str, Any]:
     """Normalize legacy config keys into the canonical runtime shape."""
     if "gemini_model" not in cfg and "ai_score_model" in cfg:
@@ -207,6 +242,27 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
         for key, value in policy.items():
             if key not in cfg:  # never overwrite .env.yaml values
                 cfg[key] = value
+
+    base_skill_synonyms = _normalize_skill_synonyms(cfg.get("skill_synonyms"))
+    overlay_paths_raw = cfg.get("skill_synonyms_overlay_paths") or []
+    overlay_paths = [
+        str(item).strip()
+        for item in overlay_paths_raw
+        if str(item).strip()
+    ] if isinstance(overlay_paths_raw, list) else []
+    overlay_skill_synonyms, resolved_overlay_paths = _load_skill_synonym_overlays(
+        config_dir=config_dir,
+        overlay_paths=overlay_paths,
+    )
+    effective_skill_synonyms = dict(base_skill_synonyms)
+    effective_skill_synonyms.update(overlay_skill_synonyms)
+    cfg["skill_synonyms"] = effective_skill_synonyms
+    cfg["skill_synonyms_runtime"] = {
+        "base_policy_path": str(config_dir / "skill_synonyms.yaml"),
+        "overlay_paths": resolved_overlay_paths,
+        "has_overlay": bool(resolved_overlay_paths),
+        "entry_count": len(effective_skill_synonyms),
+    }
 
     cfg = _normalize_config_keys(cfg)
     _validate_nested_cv_config(cfg)

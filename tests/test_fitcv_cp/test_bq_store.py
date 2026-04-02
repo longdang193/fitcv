@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, update_run_results_export, update_run_cv_generation_debug, update_run_stage_transition_artifacts, update_run_settings_used, update_run_checkpoint
+from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, update_run_results_export, update_run_cv_generation_debug, update_run_stage_transition_artifacts, update_run_settings_used, update_run_checkpoint, update_run_mapping_suggestions
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import datetime
 import uuid
@@ -195,7 +195,7 @@ def test_list_run_structured_jobs_parses_canonical_json_companions():
                 ),
                 (
                     "mapping_suggestions_json",
-                    '[{"field":"required_skills","alias":"gcp","canonical":"google cloud","confidence":1.0}]',
+                    '[{"must_have_skill":"google cloud","matches":true,"alias":"gcp","canonical":"google cloud","confidence":1.0}]',
                 ),
             ]
 
@@ -208,7 +208,8 @@ def test_list_run_structured_jobs_parses_canonical_json_companions():
     ]
     assert result[0]["mapping_suggestions"] == [
         {
-            "field": "required_skills",
+            "must_have_skill": "google cloud",
+            "matches": True,
             "alias": "gcp",
             "canonical": "google cloud",
             "confidence": 1.0,
@@ -449,6 +450,26 @@ def test_update_run_settings_used_updates_only_settings_snapshot_field() -> None
     job_config = bq.query.call_args[1]["job_config"]
     param_names = {p.name for p in job_config.query_parameters}
     assert param_names == {"settings_used_json", "run_id"}
+
+
+def test_update_run_mapping_suggestions_updates_only_mapping_snapshot_field() -> None:
+    bq = MagicMock()
+    update_run_mapping_suggestions(
+        "run-123",
+        '{"run_id":"run-123","suggestions":[]}',
+        bq,
+        project="p",
+        dataset="d",
+    )
+
+    sql_arg = bq.query.call_args[0][0]
+    assert "mapping_suggestions_json" in sql_arg
+    assert "results_export_json" not in sql_arg
+    assert "stage_transition_artifacts_json" not in sql_arg
+
+    job_config = bq.query.call_args[1]["job_config"]
+    param_names = {p.name for p in job_config.query_parameters}
+    assert param_names == {"mapping_suggestions_json", "run_id"}
 
 
 # ── Lifecycle fields ────────────────────────────────────────────────────────
