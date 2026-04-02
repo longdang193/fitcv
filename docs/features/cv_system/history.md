@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.12.0 — active
+
+- Shortlist retrieval now ranks only the latest active persistent `job_summary` embedding row per canonical `job_url`, reducing duplicate-row competition from historical embeddings
+- Shortlist artifact and export surfaces now expose clearer retrieval facts such as raw unique-job counts, explicit backfill outcomes, and shortlist-row retrieval flags
+- This rollout keeps persistent embeddings and backfill in place; it does not move shortlist to a fully run-scoped embedding store
+
 ### 1.11.1 — active
 
 - Ranking can now prefer enrich-stage canonical required-skill companions when computing must-have overlap

@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.3.0 — active
+
+- Run-results shortlist debug now reports raw unique-job counts separately from raw row counts and carries explicit raw-hit flags for passed jobs
+- Shortlist retrieval now uses the latest active persistent embedding row per canonical `job_url`, reducing duplicate-row noise in run-level shortlist inspection
+- This rollout keeps persistent embeddings and shortlist backfill behavior intact
+
 ### 2.2.0 — active
 
 - Admin settings now expose `rule_filter.selected_filters` so deterministic post-enrichment checks can be configured as blocking versus mark-only

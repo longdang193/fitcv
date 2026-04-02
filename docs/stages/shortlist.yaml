@@ -1,7 +1,7 @@
 shortlist:
   stage_id: shortlist
   name: Shortlist
-  summary: Turn passed jobs into a retrieval-aware scoring shortlist by capturing raw vector hits, shortlist transitions, and any backfill needed before scoring.
+  summary: Turn passed jobs into a retrieval-aware scoring shortlist by searching only the latest active embedding row per canonical job URL, then capturing raw hits, shortlist transitions, and any backfill needed before scoring.
   boundaries:
     - raw retrieval output enters here and the scoring shortlist leaves here
     - this stage owns the distinction between raw vector hits and the later scoring shortlist
@@ -14,6 +14,7 @@ shortlist:
     - raw vector hits
     - scoring shortlist
     - shortlist transition reasons including any backfill
+    - raw row versus raw unique-job retrieval counts
     - bounded `stage_transition_artifacts.shortlist` runtime block with input, output, and changed-state samples
   depends_on:
     - rule_filter
@@ -27,9 +28,11 @@ shortlist:
       - docs/superpowers/specs/2026-03-31-stage-contract-docs-adoption-design.md
       - docs/superpowers/specs/2026-03-31-stage-transition-artifacts-design.md
       - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
+      - docs/superpowers/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
     plan:
       - docs/superpowers/plans/2026-03-31-stage-transition-artifacts-implementation.md
       - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
+      - docs/superpowers/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
     history: []
   keywords:
     - shortlist

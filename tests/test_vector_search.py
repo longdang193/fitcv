@@ -114,8 +114,18 @@ def test_build_vector_search_query_filters_passed_universe() -> None:
 def test_build_vector_search_query_filters_job_universe_inside_vector_search() -> None:
     """Universe restriction must happen inside VECTOR_SEARCH, not only afterward."""
     query = build_vector_search_query(top_n=50, passed_job_urls=["url1", "url2"])
-    assert "VECTOR_SEARCH(\n    (SELECT * FROM `PROJECT.fitcv.job_embeddings`" in query
+    assert "CREATE TEMP TABLE _latest_job_embeddings AS" in query
+    assert "VECTOR_SEARCH(\n    TABLE _latest_job_embeddings" in query
     assert "chunk_type = 'job_summary' AND job_url IN ('url1', 'url2')" in query
+
+
+def test_build_vector_search_query_materializes_latest_rows_before_vector_search() -> None:
+    query = build_vector_search_query(top_n=50, passed_job_urls=["url1", "url2"])
+
+    assert "ROW_NUMBER() OVER (" in query
+    assert "PARTITION BY job_url" in query
+    assert "ORDER BY created_at DESC" in query
+    assert "WHERE rn = 1" in query
 
 
 def test_build_vector_search_query_outputs_job_url() -> None:
