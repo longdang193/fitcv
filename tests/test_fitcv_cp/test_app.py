@@ -660,6 +660,26 @@ def test_download_stage_transition_artifacts_json_endpoint_200():
     assert 'attachment; filename="fitcv-run-run-stage-artifacts-1-stage-artifacts.json"' in resp.headers["content-disposition"]
 
 
+def test_download_stage_transition_artifacts_json_endpoint_200_for_running_run_with_snapshot():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-stage-artifacts-running-1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json='{"run_id":"run-stage-artifacts-running-1","artifacts":{"stages":{"enrich":{"status":"completed"}}}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-stage-artifacts-running-1/stage-artifacts.json")
+    assert resp.status_code == 200
+    assert resp.json()["run_id"] == "run-stage-artifacts-running-1"
+
+
 def test_download_stage_transition_artifacts_json_endpoint_404_if_snapshot_missing():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -676,6 +696,86 @@ def test_download_stage_transition_artifacts_json_endpoint_404_if_snapshot_missi
     with patch("fitcv_cp.app.get_run", return_value=run):
         resp = TestClient(_app()).get("/admin/runs/run-stage-artifacts-2/stage-artifacts.json")
     assert resp.status_code == 404
+
+
+def test_download_mapping_suggestions_json_endpoint_200() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-mapping-suggestions-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        mapping_suggestions_json='{"run_id":"run-mapping-suggestions-1","suggestions":[]}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-mapping-suggestions-1/mapping-suggestions.json")
+    assert resp.status_code == 200
+    assert resp.json()["run_id"] == "run-mapping-suggestions-1"
+
+
+def test_download_mapping_suggestions_json_endpoint_404_if_snapshot_missing() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-mapping-suggestions-2",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-mapping-suggestions-2/mapping-suggestions.json")
+    assert resp.status_code == 404
+
+
+def test_download_aggregate_mapping_suggestions_json_endpoint_200() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    runs = [
+        PipelineRun(
+            run_id="run-ms-a",
+            status=RunStatus.SUCCEEDED,
+            triggered_by="admin",
+            trigger_source="web",
+            jobs_path="data/sample_jobs.json",
+            config_path=".env.yaml",
+            created_at=datetime.now(timezone.utc),
+            mapping_suggestions_json=(
+                '{"run_id":"run-ms-a","suggestions":['
+                '{"alias":"gcp","canonical":"google cloud","confidence":1.0,"matches":true,"must_have_skill":"google cloud"}'
+                ']}'
+            ),
+        ),
+        PipelineRun(
+            run_id="run-ms-b",
+            status=RunStatus.SUCCEEDED,
+            triggered_by="admin",
+            trigger_source="web",
+            jobs_path="data/sample_jobs.json",
+            config_path=".env.yaml",
+            created_at=datetime.now(timezone.utc),
+            mapping_suggestions_json=(
+                '{"run_id":"run-ms-b","suggestions":['
+                '{"alias":"gcp","canonical":"google cloud","confidence":0.8,"matches":true,"must_have_skill":"google cloud"}'
+                ']}'
+            ),
+        ),
+    ]
+    with patch("fitcv_cp.app.list_runs", return_value=runs):
+        resp = TestClient(_app()).get("/admin/mapping-suggestions.json")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["suggestions"][0]["alias"] == "gcp"
+    assert payload["suggestions"][0]["occurrences"] == 2
 
 
 def test_download_settings_used_json_endpoint_200():
@@ -738,6 +838,27 @@ def test_download_stage_slice_endpoint_200():
     assert resp.json()["run_id"] == "run-stage-slice-1"
     assert resp.json()["stage_id"] == "normalize"
     assert resp.json()["stage_artifact"]["input_counts"]["raw_jobs"] == 7
+
+
+def test_download_stage_slice_endpoint_200_for_running_run_with_snapshot():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-stage-slice-running-1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json='{"run_id":"run-stage-slice-running-1","created_at":"2026-03-31T20:00:00+00:00","artifacts":{"stages":{"enrich":{"stage_id":"enrich","status":"completed","input_counts":{},"output_counts":{"enriched_jobs":1},"decision_summary":{},"inputs_sample":[],"outputs_sample":[{"job_url":"https://example.com/1"}],"dropped_or_changed_sample":[]}}}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-stage-slice-running-1/stage-artifacts/enrich.json")
+    assert resp.status_code == 200
+    assert resp.json()["stage_id"] == "enrich"
+    assert resp.json()["stage_artifact"]["output_counts"]["enriched_jobs"] == 1
 
 
 def test_download_stage_slice_endpoint_404_for_unknown_stage():

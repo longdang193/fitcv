@@ -24,6 +24,7 @@ from fitcv_cp.bq_store import (
     get_run,
     update_run_checkpoint,
     update_run_cv_generation_debug,
+    update_run_mapping_suggestions,
     update_run_results_export,
     update_run_settings_used,
     update_run_stage_transition_artifacts,
@@ -186,7 +187,27 @@ def _build_settings_used_payload(
             "effective_settings_snapshot_present": effective_config is not None,
             "jobs_input_source": getattr(run_record, "jobs_input_source", None),
             "candidate_profile_source": getattr(run_record, "candidate_profile_source", None),
+            "skill_synonyms_runtime": (
+                dict((effective_config or {}).get("skill_synonyms_runtime") or {})
+                if isinstance((effective_config or {}).get("skill_synonyms_runtime"), dict)
+                else None
+            ),
         },
+    }
+    return json.dumps(payload, ensure_ascii=False)
+
+
+def _build_mapping_suggestions_payload(
+    *,
+    run_id: str,
+    summary: dict[str, Any],
+    created_at: datetime.datetime,
+) -> str:
+    payload = {
+        "run_id": run_id,
+        "mapping_suggestions_schema_version": "mapping_suggestions_v1",
+        "created_at": created_at.isoformat(),
+        "suggestions": list(summary.get("mapping_suggestions") or []),
     }
     return json.dumps(payload, ensure_ascii=False)
 
@@ -320,6 +341,24 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     run_id,
                     exc,
                 )
+            try:
+                update_run_mapping_suggestions(
+                    run_id,
+                    _build_mapping_suggestions_payload(
+                        run_id=run_id,
+                        summary=summary,
+                        created_at=checkpoint_time,
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "[run_id=%s] Failed to persist mapping suggestions snapshot at checkpoint: %s",
+                    run_id,
+                    exc,
+                )
             append_event(
                 RunEvent(
                     run_id=run_id,
@@ -420,6 +459,20 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             )
         except Exception as exc:
             logger.warning("[run_id=%s] Failed to persist settings-used snapshot: %s", run_id, exc)
+        try:
+            update_run_mapping_suggestions(
+                run_id,
+                _build_mapping_suggestions_payload(
+                    run_id=run_id,
+                    summary=summary,
+                    created_at=finished_at,
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+        except Exception as exc:
+            logger.warning("[run_id=%s] Failed to persist mapping suggestions snapshot: %s", run_id, exc)
 
     except PipelineCancelled as exc:
         # ── Step 5 (alt): Pipeline was cancelled at a checkpoint ──────────────

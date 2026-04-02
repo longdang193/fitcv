@@ -112,6 +112,64 @@ RUN_MODE_LABELS = {
 }
 
 
+def _aggregate_mapping_suggestion_payloads(runs: list[PipelineRun]) -> dict[str, Any]:
+    grouped: dict[str, dict[str, Any]] = {}
+    for run in runs:
+        raw_payload = run.mapping_suggestions_json
+        if not raw_payload:
+            continue
+        try:
+            payload = _json.loads(raw_payload)
+        except (_json.JSONDecodeError, TypeError):
+            continue
+        for suggestion in list(payload.get("suggestions") or []):
+            if not isinstance(suggestion, dict):
+                continue
+            alias = str(suggestion.get("alias") or "").strip().lower()
+            canonical = str(suggestion.get("canonical") or "").strip().lower()
+            if not alias or not canonical:
+                continue
+            bucket = grouped.setdefault(
+                alias,
+                {
+                    "alias": alias,
+                    "canonical": canonical,
+                    "occurrences": 0,
+                    "confidence_sum": 0.0,
+                    "must_have_skills": set(),
+                    "run_ids": set(),
+                    "conflicting_canonicals": set(),
+                },
+            )
+            bucket["occurrences"] += 1
+            bucket["confidence_sum"] += float(suggestion.get("confidence") or 0.0)
+            bucket["run_ids"].add(run.run_id)
+            must_have_skill = str(suggestion.get("must_have_skill") or "").strip()
+            if must_have_skill:
+                bucket["must_have_skills"].add(must_have_skill)
+            if canonical != bucket["canonical"]:
+                bucket["conflicting_canonicals"].add(canonical)
+    suggestions: list[dict[str, Any]] = []
+    for bucket in grouped.values():
+        occurrences = int(bucket["occurrences"])
+        suggestions.append(
+            {
+                "alias": bucket["alias"],
+                "canonical": bucket["canonical"],
+                "occurrences": occurrences,
+                "avg_confidence": (bucket["confidence_sum"] / occurrences) if occurrences else 0.0,
+                "must_have_skills": sorted(bucket["must_have_skills"]),
+                "run_ids": sorted(bucket["run_ids"]),
+                "conflicting_canonicals": sorted(bucket["conflicting_canonicals"]),
+            }
+        )
+    suggestions.sort(key=lambda item: (-int(item["occurrences"]), str(item["alias"])))
+    return {
+        "mapping_suggestions_schema_version": "mapping_suggestions_aggregate_v1",
+        "suggestions": suggestions,
+    }
+
+
 def _decision_chain_label(value: Any) -> str | None:
     normalized = str(value or "").strip()
     if not normalized:
@@ -1237,8 +1295,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status not in {RunStatus.SUCCEEDED, RunStatus.AWAITING_CONTINUE}:
-            raise HTTPException(status_code=409, detail="Stage transition artifacts export is only available for completed or paused manual runs")
         if not run.stage_transition_artifacts_json:
             raise HTTPException(status_code=404, detail="Stage transition artifacts export is not available for this run")
         pretty_json = _json.dumps(_json.loads(run.stage_transition_artifacts_json), ensure_ascii=False, indent=2)
@@ -1253,8 +1309,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status not in {RunStatus.SUCCEEDED, RunStatus.AWAITING_CONTINUE}:
-            raise HTTPException(status_code=409, detail="Stage transition artifact download is only available for completed or paused manual runs")
         if not run.stage_transition_artifacts_json:
             raise HTTPException(status_code=404, detail="Stage transition artifacts export is not available for this run")
         if stage_id not in {"normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_generation"}:
@@ -1292,6 +1346,36 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             content=pretty_json,
             media_type="application/json",
             headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-settings-used.json"'},
+        )
+
+    @app.get("/admin/runs/{run_id}/mapping-suggestions.json")
+    def download_run_mapping_suggestions_json(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if not run.mapping_suggestions_json:
+            raise HTTPException(status_code=404, detail="Mapping suggestions export is not available for this run")
+        pretty_json = _json.dumps(_json.loads(run.mapping_suggestions_json), ensure_ascii=False, indent=2)
+        return Response(
+            content=pretty_json,
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-mapping-suggestions.json"'},
+        )
+
+    @app.get("/admin/mapping-suggestions.json")
+    def download_aggregate_mapping_suggestions_json() -> Response:
+        runs = list_runs(
+            bq,
+            project=project,
+            dataset=dataset,
+            limit=500,
+            include_archived=True,
+        )
+        payload = _aggregate_mapping_suggestion_payloads(runs)
+        return Response(
+            content=_json.dumps(payload, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": 'attachment; filename="fitcv-mapping-suggestions.json"'},
         )
 
     return app

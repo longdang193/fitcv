@@ -66,6 +66,8 @@ Extract fields like:
 * must-have vs nice-to-have
 * job family
 
+Keep `required_skills` and `preferred_skills` as raw extracted phrases. If you need canonical skill matching later, represent that separately as normalized skill entities rather than lowercased requirement prose.
+
 So instead of storing only raw text, store something like:
 
 ```json
@@ -73,8 +75,18 @@ So instead of storing only raw text, store something like:
   "job_id": "...",
   "title": "Data Engineer",
   "company": "...",
-  "required_skills": ["SQL", "Python", "Airflow", "BigQuery"],
-  "preferred_skills": ["dbt", "Kafka"],
+  "required_skills": ["proficient in SQL and Python for analytics engineering"],
+  "required_skill_entities": [
+    {"raw_text": "proficient in SQL and Python for analytics engineering", "canonical": "sql"},
+    {"raw_text": "proficient in SQL and Python for analytics engineering", "canonical": "python"}
+  ],
+  "required_skills_canonical": ["sql", "python"],
+  "preferred_skills": ["experience with dbt and Kafka"],
+  "preferred_skill_entities": [
+    {"raw_text": "experience with dbt and Kafka", "canonical": "dbt"},
+    {"raw_text": "experience with dbt and Kafka", "canonical": "kafka"}
+  ],
+  "preferred_skills_canonical": ["dbt", "kafka"],
   "responsibilities": [...],
   "seniority": "mid",
   "location_type": "remote",

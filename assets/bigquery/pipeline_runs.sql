@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS `{project}.{dataset}.pipeline_runs` (
   cv_generation_debug_json STRING OPTIONS(description="Immutable run-scoped CV-generation debug snapshot for completed runs"),
   stage_transition_artifacts_json STRING OPTIONS(description="Immutable run-scoped stage transition artifacts snapshot for completed runs"),
   settings_used_json STRING OPTIONS(description="Immutable run-scoped effective-settings snapshot for completed runs"),
+  mapping_suggestions_json STRING OPTIONS(description="Immutable run-scoped mapping suggestions snapshot"),
   run_mode        STRING    OPTIONS(description="run_all | manual_staged"),
   checkpoint_status STRING  OPTIONS(description="Manual checkpoint lifecycle status"),
   next_stage      STRING    OPTIONS(description="Next stage to execute for manual staged runs"),

@@ -1,7 +1,7 @@
 ---
 feature_type: modify
 feature_name: trigger_run_management
-status: draft
+status: completed
 summary: "Implement a staged/manual pipeline mode with checkpointed stage progression, continue actions, and run-detail visibility while preserving the existing automatic run flow."
 ---
 
@@ -203,23 +203,28 @@ Acceptance criteria:
 
 ## Verification Plan
 
-Run targeted verification after implementation:
+Completed targeted verification after implementation:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q tests\test_pipeline.py -k "manual or staged or checkpoint or build_ranking_features"
+$env:PYTHONPATH='C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Lib\site-packages;C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\Stage-by-stage-flow\src'; python -m pytest -q tests\test_pipeline.py -k "manual_pause or resume_from_ranking"
 ```
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q tests\test_fitcv_cp\test_bq_store.py -k "run_mode or checkpoint or pipeline_runs"
+$env:PYTHONPATH='C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Lib\site-packages;C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\Stage-by-stage-flow\src'; python -m pytest -q tests\test_fitcv_cp\test_bq_store.py -k "checkpoint or run_mode"
 ```
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q tests\test_fitcv_cp\test_worker_job.py -k "manual or staged or checkpoint"
+$env:PYTHONPATH='C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Lib\site-packages;C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\Stage-by-stage-flow\src'; python -m pytest -q tests\test_fitcv_cp\test_worker_job.py -k "manual or checkpoint"
 ```
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q tests\test_fitcv_cp\test_app.py -k "run_detail or trigger or manual or staged"
+$env:PYTHONPATH='C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Lib\site-packages;C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\Stage-by-stage-flow\src'; python -m pytest -q tests\test_fitcv_cp\test_app.py -k "manual or continue or run_mode"
 ```
+
+Verification note:
+
+- In this environment, the repo virtualenv launchers resolve through an inaccessible `uv` Python home under `AppData\Roaming\uv`, so verification used the system `python` plus the repo venv `site-packages` via `PYTHONPATH`
+- The targeted staged/manual slices passed with this workaround
 
 Manual verification checklist:
 
@@ -281,14 +286,14 @@ The work is complete when:
 
 ## Task Status
 
-Status: pending
+Status: completed
 
-- [ ] Task 1: Extend the run model with manual checkpoint metadata
-- [ ] Task 2: Refactor pipeline orchestration to support bounded stage execution
-- [ ] Task 3: Persist and update checkpoint state during worker execution
-- [ ] Task 4: Add trigger-time selection for `run_all` vs `manual_staged`
-- [ ] Task 5: Add run-detail continue action and manual progress indicators
-- [ ] Task 6: Reuse existing inspection surfaces at pause points
-- [ ] Task 7: Update docs and history for the new execution mode
-- [ ] Run targeted verification
-- [ ] Update plan status after implementation
+- [x] Task 1: Extend the run model with manual checkpoint metadata
+- [x] Task 2: Refactor pipeline orchestration to support bounded stage execution
+- [x] Task 3: Persist and update checkpoint state during worker execution
+- [x] Task 4: Add trigger-time selection for `run_all` vs `manual_staged`
+- [x] Task 5: Add run-detail continue action and manual progress indicators
+- [x] Task 6: Reuse existing inspection surfaces at pause points
+- [x] Task 7: Update docs and history for the new execution mode
+- [x] Run targeted verification
+- [x] Update plan status after implementation

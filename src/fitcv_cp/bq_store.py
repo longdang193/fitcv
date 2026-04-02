@@ -324,6 +324,30 @@ def update_run_settings_used(
     bq.query(sql, job_config=job_config).result()
 
 
+def update_run_mapping_suggestions(
+    run_id: str,
+    mapping_suggestions_json: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    """Persist the immutable run-scoped mapping suggestions snapshot."""
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET mapping_suggestions_json = @mapping_suggestions_json WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter(
+                "mapping_suggestions_json", "STRING", mapping_suggestions_json
+            ),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    bq.query(sql, job_config=job_config).result()
+
+
 def request_run_cancel(
     run_id: str,
     requested_by: str,
@@ -444,6 +468,7 @@ def _row_to_run(row: Any) -> PipelineRun:
         cv_generation_debug_json=r.get("cv_generation_debug_json"),
         stage_transition_artifacts_json=r.get("stage_transition_artifacts_json"),
         settings_used_json=r.get("settings_used_json"),
+        mapping_suggestions_json=r.get("mapping_suggestions_json"),
         run_mode=r.get("run_mode") or "run_all",
         checkpoint_status=r.get("checkpoint_status"),
         next_stage=r.get("next_stage"),

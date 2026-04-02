@@ -1725,6 +1725,103 @@ def test_build_stage_transition_artifacts_includes_changed_state_samples() -> No
     assert ranking_block["dropped_or_changed_sample"][0]["title_relevance"] == pytest.approx(0.5)
 
 
+def test_build_stage_transition_artifacts_enrich_sample_includes_canonical_fields() -> None:
+    enriched_job = {
+        "job_url": "https://example.com/1",
+        "title": "Data Scientist",
+        "company_name": "Acme",
+        "location_type_raw": "mostly remote",
+        "location_type": "remote",
+        "seniority_raw": "staff",
+        "seniority": "senior",
+        "required_skills": ["Python programming for data science", "SQL"],
+        "required_skills_canonical": ["python", "sql"],
+        "required_skill_entities": [
+            {"raw_text": "Python programming for data science", "canonical": "python"},
+        ],
+        "preferred_skills_canonical": ["airflow"],
+        "mapping_suggestions": [
+            {
+                "must_have_skill": "Python",
+                "matches": True,
+                "confidence": 0.91,
+                "alias": "python programming for data science",
+                "canonical": "python",
+            }
+        ],
+    }
+
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=[enriched_job],
+        normalized=[enriched_job],
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=[enriched_job],
+        passed_jobs=[enriched_job],
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=[],
+        shortlist=[],
+        backfilled_job_urls=[],
+        vector_top_n=10,
+        candidate_summary="Candidate: Data Scientist",
+        ai_scores=[],
+        ranking_inputs=[],
+        ranked=[],
+        final_top_n=5,
+        cv_generation_debug_records=[],
+        profile={"preferences": {"target_role": "Data Scientist"}, "skills": ["Python"]},
+        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+    )
+
+    enrich_sample = artifacts["stages"]["enrich"]["outputs_sample"][0]
+    assert enrich_sample["location_type_raw"] == "mostly remote"
+    assert enrich_sample["required_skills_canonical"] == ["python", "sql"]
+    assert enrich_sample["required_skill_entities"][0]["canonical"] == "python"
+    assert enrich_sample["mapping_suggestions"][0]["alias"] == "python programming for data science"
+
+
+def test_build_stage_transition_artifacts_enrich_sample_keeps_full_list_fields() -> None:
+    enriched_job = {
+        "job_url": "https://example.com/2",
+        "title": "Analytics Engineer",
+        "required_skills": ["SQL", "Python", "dbt", "Airflow", "BigQuery", "Looker"],
+        "required_skills_canonical": ["sql", "python", "dbt", "apache airflow", "google bigquery", "looker"],
+    }
+
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=[enriched_job],
+        normalized=[enriched_job],
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=[enriched_job],
+        passed_jobs=[enriched_job],
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=[],
+        shortlist=[],
+        backfilled_job_urls=[],
+        vector_top_n=10,
+        candidate_summary="Candidate: Analytics Engineer",
+        ai_scores=[],
+        ranking_inputs=[],
+        ranked=[],
+        final_top_n=5,
+        cv_generation_debug_records=[],
+        profile={"preferences": {"target_role": "Analytics Engineer"}, "skills": ["SQL"]},
+        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+    )
+
+    enrich_sample = artifacts["stages"]["enrich"]["outputs_sample"][0]
+    assert enrich_sample["required_skills"] == ["SQL", "Python", "dbt", "Airflow", "BigQuery", "Looker"]
+    assert enrich_sample["required_skills_canonical"] == [
+        "sql",
+        "python",
+        "dbt",
+        "apache airflow",
+        "google bigquery",
+        "looker",
+    ]
+
+
 def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortlist_counts() -> None:
     passed_jobs = [
         {"job_url": "https://example.com/1", "title": "Data Analyst"},
