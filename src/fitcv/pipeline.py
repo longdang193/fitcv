@@ -572,6 +572,7 @@ def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
 
 def _collect_mapping_suggestions(enriched: list[dict[str, Any]], run_id: str) -> list[dict[str, Any]]:
     suggestions: list[dict[str, Any]] = []
+    seen_keys: set[tuple[str, str, str]] = set()
     for job in enriched:
         job_url = _extract_job_url(job)
         job_title = _extract_job_title(job)
@@ -589,6 +590,14 @@ def _collect_mapping_suggestions(enriched: list[dict[str, Any]], run_id: str) ->
                 "canonical": str(suggestion.get("canonical") or ""),
             }
             if record["alias"] and record["canonical"]:
+                dedupe_key = (
+                    record["alias"].strip().lower(),
+                    record["canonical"].strip().lower(),
+                    record["must_have_skill"].strip().lower(),
+                )
+                if dedupe_key in seen_keys:
+                    continue
+                seen_keys.add(dedupe_key)
                 suggestions.append(record)
     return suggestions
 

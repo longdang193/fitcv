@@ -480,6 +480,25 @@ def test_admin_run_detail_shows_download_settings_used_json_button():
     assert "Download Settings Used JSON" in resp.text
 
 
+def test_admin_run_detail_shows_aggregate_mapping_suggestions_button_without_run_snapshot() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
+        run_id="test-mapping-aggregate-btn", status=RunStatus.RUNNING,
+        total_jobs=10, jobs_path="", triggered_by="admin", trigger_source="web",
+        config_path="config/default.yaml", created_at=datetime.now(timezone.utc),
+        mapping_suggestions_json=None,
+    )), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/test-mapping-aggregate-btn")
+    assert resp.status_code == 200
+    assert 'href="/admin/mapping-suggestions.json"' in resp.text
+    assert "Download Aggregate Mapping Suggestions JSON" in resp.text
+
+
 def test_run_detail_timeline_shows_stage_download_for_mapped_event():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone

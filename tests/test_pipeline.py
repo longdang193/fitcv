@@ -23,6 +23,7 @@ import pytest
 
 from fitcv.pipeline import (
     _build_stage_transition_artifacts,
+    _collect_mapping_suggestions,
     _materialize_scoring_shortlist,
     build_ranking_features,
     create_run_id,
@@ -1819,6 +1820,69 @@ def test_build_stage_transition_artifacts_enrich_sample_keeps_full_list_fields()
         "apache airflow",
         "google bigquery",
         "looker",
+    ]
+
+
+def test_collect_mapping_suggestions_deduplicates_per_run_by_alias_canonical_and_must_have_skill() -> None:
+    enriched = [
+        {
+            "job_url": "https://example.com/1",
+            "title": "Role A",
+            "mapping_suggestions": [
+                {
+                    "must_have_skill": "Python",
+                    "matches": True,
+                    "confidence": 0.91,
+                    "alias": "Python programming for data science",
+                    "canonical": "python",
+                }
+            ],
+        },
+        {
+            "job_url": "https://example.com/2",
+            "title": "Role B",
+            "mapping_suggestions": [
+                {
+                    "must_have_skill": " python ",
+                    "matches": True,
+                    "confidence": 0.88,
+                    "alias": "python programming for data science ",
+                    "canonical": "PYTHON",
+                },
+                {
+                    "must_have_skill": "SQL",
+                    "matches": True,
+                    "confidence": 0.87,
+                    "alias": "python programming for data science",
+                    "canonical": "python",
+                },
+            ],
+        },
+    ]
+
+    suggestions = _collect_mapping_suggestions(enriched, run_id="run-123")
+
+    assert suggestions == [
+        {
+            "run_id": "run-123",
+            "job_url": "https://example.com/1",
+            "job_title": "Role A",
+            "must_have_skill": "Python",
+            "matches": True,
+            "confidence": 0.91,
+            "alias": "Python programming for data science",
+            "canonical": "python",
+        },
+        {
+            "run_id": "run-123",
+            "job_url": "https://example.com/2",
+            "job_title": "Role B",
+            "must_have_skill": "SQL",
+            "matches": True,
+            "confidence": 0.87,
+            "alias": "python programming for data science",
+            "canonical": "python",
+        },
     ]
 
 
