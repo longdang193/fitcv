@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, patch
 import json
 from fastapi.testclient import TestClient
 from fitcv_cp.app import create_app
+from fitcv_cp.models import RunStatus
 
 
 def _app():
@@ -37,6 +38,31 @@ def test_post_runs_inserts_before_enqueue():
 def test_post_runs_rejects_empty_jobs_path():
     resp = TestClient(_app()).post("/runs", json={"jobs_path": ""})
     assert resp.status_code == 422
+
+
+def test_post_runs_persists_manual_staged_mode() -> None:
+    captured = {}
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+             "pipeline": {"final_top_n": 10}
+         }):
+        resp = TestClient(_app()).post("/runs", json={
+            "jobs_path": "data/sample_jobs.json",
+            "run_mode": "manual_staged",
+        })
+
+    assert resp.status_code == 201
+    assert captured["run"].run_mode == "manual_staged"
+    assert captured["run"].next_stage == "normalize"
+    assert captured["run"].completed_stages == []
 
 
 def test_get_runs_returns_list():
@@ -147,6 +173,32 @@ def test_admin_upload_trigger_success(tmp_path):
 
     assert resp.status_code == 201, resp.text
     assert "run_id" in resp.json()
+
+
+def test_admin_continue_run_requeues_manual_paused_run() -> None:
+    paused_run = MagicMock()
+    paused_run.run_id = "run-123"
+    paused_run.run_mode = "manual_staged"
+    paused_run.status = RunStatus.AWAITING_CONTINUE
+    paused_run.next_stage = "ranking"
+    paused_run.last_completed_stage = "shortlist"
+    paused_run.completed_stages = ["normalize", "enrich", "rule_filter", "shortlist"]
+    paused_run.checkpoint_payload_json = '{"checkpoint_payload":{"shortlist":[]}}'
+    paused_run.jobs_path = "data/sample_jobs.json"
+    paused_run.config_path = ".env.yaml"
+
+    with patch("fitcv_cp.app.get_run", return_value=paused_run), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_status") as mock_status, \
+         patch("fitcv_cp.app.update_run_queue_job_id") as mock_queue, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_checkpoint, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post("/admin/runs/run-123/continue")
+
+    assert resp.status_code == 200
+    mock_status.assert_called_once()
+    mock_queue.assert_called_once()
+    mock_checkpoint.assert_called_once()
 
 
 # ── multi-file upload tests ────────────────────────────────────────────────────

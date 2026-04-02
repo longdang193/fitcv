@@ -20,6 +20,8 @@ def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None
         INSERT INTO `{table}` (
             run_id, status, triggered_by, trigger_source,
             jobs_path, config_path, created_at, effective_settings_json,
+            run_mode, checkpoint_status, next_stage, last_completed_stage,
+            completed_stages_json, checkpoint_payload_json,
             jobs_input_source, jobs_input_json,
             candidate_profile_source, candidate_profile_json,
             queue_job_id
@@ -27,6 +29,8 @@ def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None
         VALUES (
             @run_id, @status, @triggered_by, @trigger_source,
             @jobs_path, @config_path, @created_at, @effective_settings_json,
+            @run_mode, @checkpoint_status, @next_stage, @last_completed_stage,
+            @completed_stages_json, @checkpoint_payload_json,
             @jobs_input_source, @jobs_input_json,
             @candidate_profile_source, @candidate_profile_json,
             @queue_job_id
@@ -42,6 +46,20 @@ def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None
             bq_module.ScalarQueryParameter("config_path", "STRING", run.config_path),
             bq_module.ScalarQueryParameter("created_at", "TIMESTAMP", run.created_at),
             bq_module.ScalarQueryParameter("effective_settings_json", "STRING", run.effective_settings_json),
+            bq_module.ScalarQueryParameter("run_mode", "STRING", run.run_mode),
+            bq_module.ScalarQueryParameter("checkpoint_status", "STRING", run.checkpoint_status),
+            bq_module.ScalarQueryParameter("next_stage", "STRING", run.next_stage),
+            bq_module.ScalarQueryParameter(
+                "last_completed_stage", "STRING", run.last_completed_stage
+            ),
+            bq_module.ScalarQueryParameter(
+                "completed_stages_json",
+                "STRING",
+                json.dumps(run.completed_stages) if run.completed_stages is not None else None,
+            ),
+            bq_module.ScalarQueryParameter(
+                "checkpoint_payload_json", "STRING", run.checkpoint_payload_json
+            ),
             bq_module.ScalarQueryParameter("jobs_input_source", "STRING", run.jobs_input_source),
             bq_module.ScalarQueryParameter("jobs_input_json", "STRING", run.jobs_input_json),
             bq_module.ScalarQueryParameter("candidate_profile_source", "STRING", run.candidate_profile_source),
@@ -94,6 +112,46 @@ def update_run_status(
         f"SET {', '.join(set_clauses)} WHERE run_id = @run_id"
     )
     job_config = bq_module.QueryJobConfig(query_parameters=params)
+    bq.query(sql, job_config=job_config).result()
+
+
+def update_run_checkpoint(
+    run_id: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+    checkpoint_status: Optional[str] = None,
+    next_stage: Optional[str] = None,
+    last_completed_stage: Optional[str] = None,
+    completed_stages: Optional[list[str]] = None,
+    checkpoint_payload_json: Optional[str] = None,
+) -> None:
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        "SET checkpoint_status = @checkpoint_status, "
+        "    next_stage = @next_stage, "
+        "    last_completed_stage = @last_completed_stage, "
+        "    completed_stages_json = @completed_stages_json, "
+        "    checkpoint_payload_json = @checkpoint_payload_json "
+        "WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("checkpoint_status", "STRING", checkpoint_status),
+            bq_module.ScalarQueryParameter("next_stage", "STRING", next_stage),
+            bq_module.ScalarQueryParameter("last_completed_stage", "STRING", last_completed_stage),
+            bq_module.ScalarQueryParameter(
+                "completed_stages_json",
+                "STRING",
+                json.dumps(completed_stages) if completed_stages is not None else None,
+            ),
+            bq_module.ScalarQueryParameter(
+                "checkpoint_payload_json", "STRING", checkpoint_payload_json
+            ),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
     bq.query(sql, job_config=job_config).result()
 
 
@@ -354,6 +412,17 @@ def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunE
 
 def _row_to_run(row: Any) -> PipelineRun:
     r = dict(row)
+    completed_stages_raw = r.get("completed_stages_json")
+    completed_stages: list[str] | None = None
+    if isinstance(completed_stages_raw, str) and completed_stages_raw.strip():
+        try:
+            parsed_completed_stages = json.loads(completed_stages_raw)
+        except json.JSONDecodeError:
+            parsed_completed_stages = None
+        if isinstance(parsed_completed_stages, list):
+            completed_stages = [str(item) for item in parsed_completed_stages]
+    elif isinstance(completed_stages_raw, list):
+        completed_stages = [str(item) for item in completed_stages_raw]
     return PipelineRun(
         run_id=r["run_id"],
         status=RunStatus(r["status"]),
@@ -375,6 +444,12 @@ def _row_to_run(row: Any) -> PipelineRun:
         cv_generation_debug_json=r.get("cv_generation_debug_json"),
         stage_transition_artifacts_json=r.get("stage_transition_artifacts_json"),
         settings_used_json=r.get("settings_used_json"),
+        run_mode=r.get("run_mode") or "run_all",
+        checkpoint_status=r.get("checkpoint_status"),
+        next_stage=r.get("next_stage"),
+        last_completed_stage=r.get("last_completed_stage"),
+        completed_stages=completed_stages,
+        checkpoint_payload_json=r.get("checkpoint_payload_json"),
         jobs_input_source=r.get("jobs_input_source"),
         jobs_input_json=r.get("jobs_input_json"),
         candidate_profile_source=r.get("candidate_profile_source"),

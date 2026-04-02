@@ -1,9 +1,9 @@
 trigger_run_management:
   name: Trigger & Run Management
-  version: 1.9.0
+  version: 2.0.0
   status: active
   type: add
-  summary: "Admins can trigger runs via path reference, file upload, or pasted JSON — inspect runs from a status-aware list page — and export run results including structured CV data, explicit decision-chain fields, settings-used snapshots, richer stage-transition artifacts, shortlist debug context with raw-vs-scoring shortlist visibility, and clearer pipeline outcomes for non-ranked and fit-gated jobs when available."
+  summary: "Admins can trigger runs via path reference, file upload, or pasted JSON in either automatic or staged/manual mode, continue paused manual runs one stage at a time from persisted checkpoints, inspect run progress from a status-aware list/detail UI, and export structured run artifacts when available."
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -16,18 +16,24 @@ trigger_run_management:
     - enrich
     - rule_filter
     - shortlist
+    - ranking
+    - cv_generation
   capabilities:
     - Runs list page with status badges, timestamps, and per-run action buttons
     - "Archive filter: Active / All / Archived"
     - "Three job-input modes: path, upload, paste"
     - "Three candidate-profile modes: default_config, upload, paste"
+    - "Two execution modes: run_all and manual_staged"
     - Server-side mode resolution
     - Canonical snapshot capture for pasted and uploaded inputs
+    - Persisted manual checkpoint metadata including next stage, last completed stage, completed stages, and serialized checkpoint payloads
+    - Manual staged runs pause after normalize, enrich, rule_filter, shortlist, and ranking
+    - Manual staged runs can continue from the next pending stage without restarting the whole pipeline
     - CV results banner on run detail
     - CV downloads
     - Run results JSON export
     - Settings-used JSON export from run detail for succeeded runs when available
-    - Stage-transition artifacts JSON export from run detail for succeeded runs when available
+    - Stage-transition artifacts JSON export from run detail for succeeded runs and paused manual runs when available
     - Timeline-linked stage-slice JSON downloads for recognized stage-boundary events
     - Stage-slice downloads now expose richer per-stage input, output, and changed-state samples instead of summary-only handoff blocks
     - CV-generation debug JSON export from run detail for succeeded runs when available
@@ -52,6 +58,7 @@ trigger_run_management:
       - docs/superpowers/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
       - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
       - docs/superpowers/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+      - docs/superpowers/specs/2026-04-02-14-35-staged-manual-pipeline-mode-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-runs-list-enhancements-implementation.md
       - docs/superpowers/plans/2026-03-25-admin-ux-improvements-implementation.md
@@ -62,6 +69,7 @@ trigger_run_management:
       - docs/superpowers/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
       - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
       - docs/superpowers/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+      - docs/superpowers/plans/2026-04-02-14-50-staged-manual-pipeline-mode-plan.md
     history:
       - docs/features/trigger_run_management/history.md
   keywords:

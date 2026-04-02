@@ -15,6 +15,7 @@ enrich:
     - raw-plus-canonical downstream job fields
     - enrich-stage mapping suggestions for review/debug export
     - pre-enrichment rejects with reasons
+    - optional manual checkpoint payloads that can resume downstream rule filtering without rerunning normalize/enrich
     - bounded `stage_transition_artifacts.enrich` runtime block with input, output, and changed-state samples
   depends_on:
     - normalize

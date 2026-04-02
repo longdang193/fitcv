@@ -107,6 +107,15 @@ _EMPTY_REPAIR_ATTEMPT = {"performed": False, "missing_sections": []}
 _FIT_LABEL_ORDER = {"skip": 0, "stretch": 1, "strong": 2}
 _STAGE_ARTIFACT_SAMPLE_LIMIT = 20
 _STAGE_ARTIFACT_TEXT_LIMIT = 240
+PIPELINE_STAGE_SEQUENCE = (
+    "normalize",
+    "enrich",
+    "rule_filter",
+    "shortlist",
+    "ranking",
+    "cv_generation",
+)
+_PIPELINE_STAGE_SET = set(PIPELINE_STAGE_SEQUENCE)
 
 
 def _extract_job_url(job: dict[str, Any]) -> str:
@@ -457,6 +466,175 @@ def _build_export_results(
 
 class PipelineCancelled(Exception):
     """Raised when a cooperative cancellation checkpoint is triggered."""
+
+
+def _validate_pipeline_stage_name(stage_name: str | None) -> str | None:
+    if stage_name is None:
+        return None
+    normalized = str(stage_name).strip()
+    if normalized not in _PIPELINE_STAGE_SET:
+        raise ValueError(f"Unknown pipeline stage: {stage_name!r}")
+    return normalized
+
+
+def next_pipeline_stage(stage_name: str | None) -> str | None:
+    normalized = _validate_pipeline_stage_name(stage_name)
+    if normalized is None:
+        return PIPELINE_STAGE_SEQUENCE[0]
+    stage_index = PIPELINE_STAGE_SEQUENCE.index(normalized)
+    if stage_index + 1 >= len(PIPELINE_STAGE_SEQUENCE):
+        return None
+    return PIPELINE_STAGE_SEQUENCE[stage_index + 1]
+
+
+def completed_pipeline_stages_through(stage_name: str | None) -> list[str]:
+    normalized = _validate_pipeline_stage_name(stage_name)
+    if normalized is None:
+        return []
+    stage_index = PIPELINE_STAGE_SEQUENCE.index(normalized)
+    return list(PIPELINE_STAGE_SEQUENCE[: stage_index + 1])
+
+
+def _json_safe_pipeline_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _json_safe_pipeline_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe_pipeline_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_json_safe_pipeline_value(item) for item in value]
+    if isinstance(value, set):
+        return [_json_safe_pipeline_value(item) for item in sorted(value)]
+    return value
+
+
+def _empty_pipeline_state(run_id: str) -> dict[str, Any]:
+    return {
+        "run_id": run_id,
+        "raw_jobs": [],
+        "normalized": [],
+        "deduplicated_jobs": [],
+        "pre_filter_rejected_jobs": [],
+        "enriched": [],
+        "passed_jobs": [],
+        "candidate_filter_rejected_jobs": [],
+        "raw_shortlist": [],
+        "shortlist": [],
+        "backfilled_job_urls": [],
+        "ai_scores": [],
+        "ranking_inputs": [],
+        "ranked": [],
+        "cv_results": [],
+        "cv_generation_debug_records": [],
+    }
+
+
+def _restore_pipeline_state(
+    *,
+    run_id: str,
+    checkpoint_payload: dict[str, Any] | None,
+) -> dict[str, Any]:
+    state = _empty_pipeline_state(run_id)
+    payload = checkpoint_payload or {}
+    for key in state:
+        if key == "run_id":
+            continue
+        value = payload.get(key)
+        if isinstance(state[key], list):
+            state[key] = list(value or [])
+        elif value is not None:
+            state[key] = value
+    return state
+
+
+def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
+    keys = (
+        "raw_jobs",
+        "normalized",
+        "deduplicated_jobs",
+        "pre_filter_rejected_jobs",
+        "enriched",
+        "passed_jobs",
+        "candidate_filter_rejected_jobs",
+        "raw_shortlist",
+        "shortlist",
+        "backfilled_job_urls",
+        "ai_scores",
+        "ranking_inputs",
+        "ranked",
+    )
+    return {
+        key: _json_safe_pipeline_value(state.get(key) or [])
+        for key in keys
+    }
+
+
+def _build_checkpoint_summary(
+    *,
+    run_id: str,
+    paused_after_stage: str,
+    state: dict[str, Any],
+    profile: dict[str, Any] | None,
+    config: dict[str, Any],
+    vector_top_n: int | None = None,
+    candidate_summary: str | None = None,
+    final_top_n: int | None = None,
+) -> dict[str, Any]:
+    raw_jobs = list(state.get("raw_jobs") or [])
+    normalized = list(state.get("normalized") or [])
+    deduplicated_jobs = list(state.get("deduplicated_jobs") or [])
+    pre_filter_rejected_jobs = list(state.get("pre_filter_rejected_jobs") or [])
+    enriched = list(state.get("enriched") or [])
+    passed_jobs = list(state.get("passed_jobs") or [])
+    candidate_filter_rejected_jobs = list(state.get("candidate_filter_rejected_jobs") or [])
+    raw_shortlist = list(state.get("raw_shortlist") or [])
+    shortlist = list(state.get("shortlist") or [])
+    backfilled_job_urls = list(state.get("backfilled_job_urls") or [])
+    ai_scores = list(state.get("ai_scores") or [])
+    ranking_inputs = list(state.get("ranking_inputs") or [])
+    ranked = list(state.get("ranked") or [])
+    cv_generation_debug_records = list(state.get("cv_generation_debug_records") or [])
+    cv_results = list(state.get("cv_results") or [])
+    candidate_profile = profile or {"preferences": {}}
+    vector_top_n_value = int(
+        vector_top_n if vector_top_n is not None else config.get("pipeline", {}).get("vector_search_top_n", 0)
+    )
+    final_top_n_value = int(
+        final_top_n if final_top_n is not None else config.get("pipeline", {}).get("final_top_n", 0)
+    )
+    candidate_summary_value = str(candidate_summary or "")
+    stage_transition_artifacts = _build_stage_transition_artifacts(
+        raw_jobs=raw_jobs,
+        normalized=normalized,
+        deduplicated_jobs=deduplicated_jobs,
+        pre_filter_rejected_jobs=pre_filter_rejected_jobs,
+        enriched=enriched,
+        passed_jobs=passed_jobs,
+        candidate_filter_rejected_jobs=candidate_filter_rejected_jobs,
+        raw_shortlist=raw_shortlist,
+        shortlist=shortlist,
+        backfilled_job_urls=backfilled_job_urls,
+        vector_top_n=vector_top_n_value,
+        candidate_summary=candidate_summary_value,
+        ai_scores=ai_scores,
+        ranking_inputs=ranking_inputs,
+        ranked=ranked,
+        final_top_n=final_top_n_value,
+        cv_generation_debug_records=cv_generation_debug_records,
+        profile=candidate_profile,
+        config=config,
+    )
+    return {
+        "run_id": run_id,
+        "paused_after_stage": paused_after_stage,
+        "completed_stages": completed_pipeline_stages_through(paused_after_stage),
+        "next_stage": next_pipeline_stage(paused_after_stage),
+        "total_jobs": len(raw_jobs),
+        "passed_filter": len(passed_jobs),
+        "ranked": len(ranked),
+        "cvs_generated": len(cv_results),
+        "checkpoint_payload": _checkpoint_payload_from_state(state),
+        "stage_transition_artifacts": stage_transition_artifacts,
+    }
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -1180,6 +1358,9 @@ def run_pipeline(
     config: dict | None = None,  # If provided, skips load_config(config_path)
     run_id: str | None = None,
     cancellation_check: Callable[[], bool] | None = None,
+    start_stage: str | None = None,
+    stop_after_stage: str | None = None,
+    checkpoint_payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the full FitCV candidate pipeline end-to-end.
 
@@ -1209,151 +1390,257 @@ def run_pipeline(
     if config is None:
         config = load_config(config_path)
     run_id = run_id or create_run_id()
+    start_stage = _validate_pipeline_stage_name(start_stage) or PIPELINE_STAGE_SEQUENCE[0]
+    stop_after_stage = _validate_pipeline_stage_name(stop_after_stage)
+    if stop_after_stage is not None:
+        if PIPELINE_STAGE_SEQUENCE.index(stop_after_stage) < PIPELINE_STAGE_SEQUENCE.index(start_stage):
+            raise ValueError(
+                f"stop_after_stage {stop_after_stage!r} cannot precede start_stage {start_stage!r}"
+            )
     logger.info("Pipeline run started [run_id=%s]", run_id)
     if reporter is not None:
         reporter.emit("pipeline_start", "info", f"Run started [run_id={run_id}]")  # type: ignore[union-attr]
+    state = _restore_pipeline_state(run_id=run_id, checkpoint_payload=checkpoint_payload)
+    raw_jobs = list(state["raw_jobs"])
+    normalized = list(state["normalized"])
+    deduplicated_jobs = list(state["deduplicated_jobs"])
+    pre_filter_rejected_jobs = list(state["pre_filter_rejected_jobs"])
+    enriched = list(state["enriched"])
+    passed_jobs = list(state["passed_jobs"])
+    candidate_filter_rejected_jobs = list(state["candidate_filter_rejected_jobs"])
+    raw_shortlist = list(state["raw_shortlist"])
+    shortlist = list(state["shortlist"])
+    backfilled_job_urls = list(state["backfilled_job_urls"])
+    ai_scores = list(state["ai_scores"])
+    ranking_inputs = list(state["ranking_inputs"])
+    ranked = list(state["ranked"])
+    results: list[dict[str, Any]] = list(state["cv_results"])
+    cv_generation_debug_records: list[dict[str, Any]] = list(state["cv_generation_debug_records"])
+    profile: dict[str, Any] | None = None
+    candidate_skill_names: list[str] = []
+    candidate_summary = ""
+    vector_top_n = int(config.get("pipeline", {}).get("vector_search_top_n", 0))
+    final_top_n = int(config.get("pipeline", {}).get("final_top_n", 0))
 
-    # ── Layer 1: ingest + normalise ───────────────────────────────────────────
-    raw_jobs = parse_jobs_file(jobs_path)
-    normalized = normalize_batch(raw_jobs)
-    _normalized_with_exclusions, deduplicated_jobs = normalize_batch_with_exclusions(raw_jobs)
-    if reporter is not None and deduplicated_jobs:
-        reporter.emit(  # type: ignore[union-attr]
-            "layer1_normalize",
-            "info",
-            f"Normalization dedupe: kept {len(normalized)} of {len(raw_jobs)} jobs, removed {len(deduplicated_jobs)} duplicate(s)",
+    if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("normalize"):
+        raw_jobs = parse_jobs_file(jobs_path)
+        normalized = normalize_batch(raw_jobs)
+        _normalized_with_exclusions, deduplicated_jobs = normalize_batch_with_exclusions(raw_jobs)
+        if reporter is not None and deduplicated_jobs:
+            reporter.emit(  # type: ignore[union-attr]
+                "layer1_normalize",
+                "info",
+                f"Normalization dedupe: kept {len(normalized)} of {len(raw_jobs)} jobs, removed {len(deduplicated_jobs)} duplicate(s)",
+            )
+
+        raw_rows = prepare_raw_rows(raw_jobs)
+        load_to_bigquery(raw_rows, config)
+        state["raw_jobs"] = raw_jobs
+        state["normalized"] = normalized
+        state["deduplicated_jobs"] = deduplicated_jobs
+        if stop_after_stage == "normalize":
+            return _build_checkpoint_summary(
+                run_id=run_id,
+                paused_after_stage="normalize",
+                state=state,
+                profile=None,
+                config=config,
+                vector_top_n=vector_top_n,
+                candidate_summary=candidate_summary,
+                final_top_n=final_top_n,
+            )
+
+    normalized = list(state["normalized"])
+
+    if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("enrich"):
+        raw_global = config.get("global_job_filters", {})
+        global_settings = (
+            {f"global_job_filters.{k}": v for k, v in raw_global.items()}
+            if raw_global else None
         )
+        pre_filter = apply_pre_enrichment_global_filters(normalized, global_settings)
+        pre_filter_passed_urls: set[str] = set(pre_filter["passed"])
+        surviving_normalized = [
+            j for j in normalized
+            if str(j.get("job_url", "")) in pre_filter_passed_urls
+        ]
+        pre_filter_rejected_jobs = list(pre_filter["rejected"])
+        if reporter is not None:
+            n_pre_rejected = len(normalized) - len(surviving_normalized)
+            reporter.emit(  # type: ignore[union-attr]
+                "layer1b_pre_filter", "info",
+                f"Pre-enrichment filter: {len(surviving_normalized)} pass, {n_pre_rejected} rejected",
+            )
 
-    raw_rows = prepare_raw_rows(raw_jobs)
-    load_to_bigquery(raw_rows, config)
+        if cancellation_check and cancellation_check():
+            raise PipelineCancelled("Cancelled before enrichment")
+        enriched = enrich_batch(surviving_normalized, config)
+        load_structured_jobs(enriched, config)
+        load_run_structured_jobs(enriched, run_id, config)
+        if reporter is not None:
+            reporter.emit(  # type: ignore[union-attr]
+                "layer1_jobs", "info",
+                f"Ingested {len(raw_jobs)} jobs, enriched {len(enriched)} (after pre-filter)",
+            )
+        state["pre_filter_rejected_jobs"] = pre_filter_rejected_jobs
+        state["enriched"] = enriched
+        if stop_after_stage == "enrich":
+            return _build_checkpoint_summary(
+                run_id=run_id,
+                paused_after_stage="enrich",
+                state=state,
+                profile=None,
+                config=config,
+                vector_top_n=vector_top_n,
+                candidate_summary=candidate_summary,
+                final_top_n=final_top_n,
+            )
 
-    # ── Layer 1b: pre-enrichment global filters ───────────────────────────────
-    # Run cheap admin filters before the expensive enrichment step so rejected
-    # jobs never enter the LLM/API path.
-    raw_global = config.get("global_job_filters", {})
-    global_settings = (
-        {f"global_job_filters.{k}": v for k, v in raw_global.items()}
-        if raw_global else None
-    )
-    pre_filter = apply_pre_enrichment_global_filters(normalized, global_settings)
-    pre_filter_passed_urls: set[str] = set(pre_filter["passed"])
-    surviving_normalized = [
-        j for j in normalized
-        if str(j.get("job_url", "")) in pre_filter_passed_urls
-    ]
-    if reporter is not None:
-        n_pre_rejected = len(normalized) - len(surviving_normalized)
-        reporter.emit(  # type: ignore[union-attr]
-            "layer1b_pre_filter", "info",
-            f"Pre-enrichment filter: {len(surviving_normalized)} pass, {n_pre_rejected} rejected",
+    pre_filter_rejected_jobs = list(state["pre_filter_rejected_jobs"])
+    enriched = list(state["enriched"])
+
+    if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("rule_filter"):
+        runtime_profile_json: str | None = (
+            config.get("runtime_inputs", {}).get("candidate_profile_json")
         )
+        if runtime_profile_json:
+            profile = load_profile_json_text(runtime_profile_json)
+        else:
+            profile_path: str = str(config["paths"]["candidate_profile"])
+            profile = load_profile_yaml(profile_path)
+        load_candidate_to_bigquery(profile, config)
+        candidate_skill_names = flatten_skills(profile)
+        if reporter is not None:
+            reporter.emit("layer2_candidate", "info", "Candidate profile loaded")  # type: ignore[union-attr]
 
-    # ── Layer 1c: enrich survivors only ──────────────────────────────────────
-    # Checkpoint: before enrichment (expensive LLM calls)
-    if cancellation_check and cancellation_check():
-        raise PipelineCancelled("Cancelled before enrichment")
-    enriched = enrich_batch(surviving_normalized, config)
-    load_structured_jobs(enriched, config)
-    load_run_structured_jobs(enriched, run_id, config)
-    if reporter is not None:
-        reporter.emit(  # type: ignore[union-attr]
-            "layer1_jobs", "info",
-            f"Ingested {len(raw_jobs)} jobs, enriched {len(enriched)} (after pre-filter)",
-        )
-
-    # ── Layer 2: candidate profile ────────────────────────────────────────────
-    runtime_profile_json: str | None = (
-        config.get("runtime_inputs", {}).get("candidate_profile_json")
-    )
-    if runtime_profile_json:
-        profile = load_profile_json_text(runtime_profile_json)
+        filter_result = apply_rule_filters(enriched, profile["preferences"], config)
+        combined_filter_result = {
+            "passed": filter_result["passed"],
+            "rejected": pre_filter_rejected_jobs + filter_result["rejected"],
+        }
+        passed_job_urls = [str(url) for url in filter_result["passed"]]
+        enriched_by_url = {
+            str(job.get("job_url") or ""): job
+            for job in enriched
+        }
+        passed_jobs = [
+            enriched_by_url[url]
+            for url in passed_job_urls
+            if url in enriched_by_url
+        ]
+        candidate_filter_rejected_jobs = list(filter_result["rejected"])
+        store_filter_results(combined_filter_result, run_id, config)
+        if reporter is not None:
+            reporter.emit("layer3_filter", "info", f"{len(passed_jobs)} passed rule filter")  # type: ignore[union-attr]
+        state["passed_jobs"] = passed_jobs
+        state["candidate_filter_rejected_jobs"] = candidate_filter_rejected_jobs
+        if stop_after_stage == "rule_filter":
+            return _build_checkpoint_summary(
+                run_id=run_id,
+                paused_after_stage="rule_filter",
+                state=state,
+                profile=profile,
+                config=config,
+                vector_top_n=vector_top_n,
+                candidate_summary=candidate_summary,
+                final_top_n=final_top_n,
+            )
     else:
-        profile_path: str = str(config["paths"]["candidate_profile"])
-        profile = load_profile_yaml(profile_path)
-    load_candidate_to_bigquery(profile, config)
-    candidate_skill_names = flatten_skills(profile)
-    if reporter is not None:
-        reporter.emit("layer2_candidate", "info", "Candidate profile loaded")  # type: ignore[union-attr]
+        runtime_profile_json = config.get("runtime_inputs", {}).get("candidate_profile_json")
+        if runtime_profile_json:
+            profile = load_profile_json_text(runtime_profile_json)
+        else:
+            profile_path = str(config["paths"]["candidate_profile"])
+            profile = load_profile_yaml(profile_path)
+        candidate_skill_names = flatten_skills(profile)
 
-    # ── Layer 3a: candidate-specific rule filter BEFORE embedding ─────────────
-    # Global filters already ran pre-enrichment; pass global_settings=None.
-    filter_result = apply_rule_filters(enriched, profile["preferences"], config)
-    # Merge pre-enrichment and candidate-filter rejects for run-detail visibility.
-    combined_filter_result = {
-        "passed": filter_result["passed"],
-        "rejected": pre_filter["rejected"] + filter_result["rejected"],
-    }
-    passed_job_urls = [str(url) for url in filter_result["passed"]]
-    enriched_by_url = {
-        str(job.get("job_url") or ""): job
-        for job in enriched
-    }
-    passed_jobs: list[dict[str, Any]] = [
-        enriched_by_url[url]
-        for url in passed_job_urls
-        if url in enriched_by_url
-    ]
-    rejected_jobs: list[dict[str, Any]] = list(combined_filter_result["rejected"])
-    candidate_filter_rejected_jobs: list[dict[str, Any]] = list(filter_result["rejected"])
-    pre_filter_rejected_jobs: list[dict[str, Any]] = list(pre_filter["rejected"])
-    store_filter_results(combined_filter_result, run_id, config)
-    if reporter is not None:
-        reporter.emit("layer3_filter", "info", f"{len(passed_jobs)} passed rule filter")  # type: ignore[union-attr]
+    passed_jobs = list(state["passed_jobs"])
+    candidate_filter_rejected_jobs = list(state["candidate_filter_rejected_jobs"])
 
-    # ── Layer 3b: embed → vector shortlist → AI scoring → final ranking ───────
-    embed_and_store_jobs(passed_jobs, config)
-    embed_and_store_candidate(profile, config)
+    if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("shortlist"):
+        embed_and_store_jobs(passed_jobs, config)
+        embed_and_store_candidate(profile, config)
 
-    vector_top_n = int(config["pipeline"]["vector_search_top_n"])
-    # run_vector_search: (profile, passed_job_urls, config, top_n)
-    # searches candidate summary embedding against filtered job-summary embeddings
-    raw_shortlist = run_vector_search(
-        profile,
-        passed_job_urls,
-        config,
-        top_n=vector_top_n,
-    )
-    shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_top_n)
-    raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
-    raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
-    backfilled_job_urls = [
-        str(job.get("job_url") or "")
-        for job in shortlist
-        if str(job.get("job_url") or "") not in raw_shortlist_urls
-    ]
-    if reporter is not None:
-        shortlist_message = f"Vector shortlist: {len(raw_shortlist_urls)} raw hits"
-        if backfilled_job_urls:
-            shortlist_message += f", {len(shortlist)} scoring jobs ({len(backfilled_job_urls)} backfilled)"
-        if raw_shortlist_anomaly_urls:
-            shortlist_message += f", {len(raw_shortlist_anomaly_urls)} raw-hit anomalies"
-        reporter.emit("layer3_shortlist", "info", shortlist_message)  # type: ignore[union-attr]
+        raw_shortlist = run_vector_search(
+            profile,
+            [str(job.get("job_url") or "") for job in passed_jobs],
+            config,
+            top_n=vector_top_n,
+        )
+        shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_top_n)
+        raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
+        raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
+        backfilled_job_urls = [
+            str(job.get("job_url") or "")
+            for job in shortlist
+            if str(job.get("job_url") or "") not in raw_shortlist_urls
+        ]
+        if reporter is not None:
+            shortlist_message = f"Vector shortlist: {len(raw_shortlist_urls)} raw hits"
+            if backfilled_job_urls:
+                shortlist_message += f", {len(shortlist)} scoring jobs ({len(backfilled_job_urls)} backfilled)"
+            if raw_shortlist_anomaly_urls:
+                shortlist_message += f", {len(raw_shortlist_anomaly_urls)} raw-hit anomalies"
+            reporter.emit("layer3_shortlist", "info", shortlist_message)  # type: ignore[union-attr]
+        state["raw_shortlist"] = raw_shortlist
+        state["shortlist"] = shortlist
+        state["backfilled_job_urls"] = backfilled_job_urls
+        if stop_after_stage == "shortlist":
+            return _build_checkpoint_summary(
+                run_id=run_id,
+                paused_after_stage="shortlist",
+                state=state,
+                profile=profile,
+                config=config,
+                vector_top_n=vector_top_n,
+                candidate_summary=candidate_summary,
+                final_top_n=final_top_n,
+            )
 
-    ai_top_n = int(config["pipeline"]["ai_score_top_n"])
+    raw_shortlist = list(state["raw_shortlist"])
+    shortlist = list(state["shortlist"])
+    backfilled_job_urls = list(state["backfilled_job_urls"])
+
     from fitcv.vector_search import build_candidate_query_text
     candidate_summary = build_candidate_query_text(profile, config)
-    # Checkpoint: before AI scoring
-    if cancellation_check and cancellation_check():
-        raise PipelineCancelled("Cancelled before AI scoring")
-    ai_scores = run_ai_scoring(
-        shortlist,
-        candidate_summary,
-        config,
-        top_n=ai_top_n,
-    )
-    if reporter is not None:
-        reporter.emit("layer3_ai_score", "info", f"AI scored: {len(ai_scores)} jobs")  # type: ignore[union-attr]
 
-    ranking_inputs = build_ranking_features(shortlist, ai_scores, profile, config)
-    final_top_n = int(config["pipeline"]["final_top_n"])
-    ranked = rank_jobs(ranking_inputs, top_n=final_top_n)
-    store_final_ranking(ranked, config)
-    if reporter is not None:
-        reporter.emit("layer3_ranking", "info", f"Final ranking: top {len(ranked)} jobs")  # type: ignore[union-attr]
+    if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("ranking"):
+        ai_top_n = int(config["pipeline"]["ai_score_top_n"])
+        if cancellation_check and cancellation_check():
+            raise PipelineCancelled("Cancelled before AI scoring")
+        ai_scores = run_ai_scoring(
+            shortlist,
+            candidate_summary,
+            config,
+            top_n=ai_top_n,
+        )
+        if reporter is not None:
+            reporter.emit("layer3_ai_score", "info", f"AI scored: {len(ai_scores)} jobs")  # type: ignore[union-attr]
 
-    # ── Layer 4: per-job evidence → gap → CV → validation → versioning ────────
-    results: list[dict[str, Any]] = []
-    cv_generation_debug_records: list[dict[str, Any]] = []
+        ranking_inputs = build_ranking_features(shortlist, ai_scores, profile, config)
+        ranked = rank_jobs(ranking_inputs, top_n=final_top_n)
+        store_final_ranking(ranked, config)
+        if reporter is not None:
+            reporter.emit("layer3_ranking", "info", f"Final ranking: top {len(ranked)} jobs")  # type: ignore[union-attr]
+        state["ai_scores"] = ai_scores
+        state["ranking_inputs"] = ranking_inputs
+        state["ranked"] = ranked
+        if stop_after_stage == "ranking":
+            return _build_checkpoint_summary(
+                run_id=run_id,
+                paused_after_stage="ranking",
+                state=state,
+                profile=profile,
+                config=config,
+                vector_top_n=vector_top_n,
+                candidate_summary=candidate_summary,
+                final_top_n=final_top_n,
+            )
+
+    ai_scores = list(state["ai_scores"])
+    ranking_inputs = list(state["ranking_inputs"])
+    ranked = list(state["ranked"])
+
     enriched_by_url = {
         str(job.get("job_url") or ""): job
         for job in enriched
@@ -1363,7 +1650,6 @@ def run_pipeline(
         _merge_ranked_job_with_enriched_context(job, enriched_by_url)
         for job in ranked
     ]
-    # Checkpoint: before CV generation
     if cancellation_check and cancellation_check():
         raise PipelineCancelled("Cancelled before CV generation")
     for job in ranked_jobs_for_cv:
@@ -1575,6 +1861,8 @@ def run_pipeline(
                 )  # type: ignore[union-attr]
             continue
 
+    state["cv_results"] = results
+    state["cv_generation_debug_records"] = cv_generation_debug_records
     summary: dict[str, Any] = {
         "run_id": run_id,
         "total_jobs": len(raw_jobs),

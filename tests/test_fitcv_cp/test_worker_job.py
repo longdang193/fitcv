@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock, patch
+import datetime
 import json
 from fitcv_cp.worker_job import execute_pipeline_run
+from fitcv_cp.models import RunStatus
 
 
 def test_worker_marks_succeeded_on_success():
@@ -483,6 +485,73 @@ def test_worker_passes_control_plane_run_id_to_pipeline():
 
     call_kwargs = mock_pipeline.call_args[1]
     assert call_kwargs["run_id"] == "r1"
+
+
+def test_worker_manual_staged_run_pauses_and_persists_checkpoint() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock()
+    mock_run.effective_settings_json = None
+    mock_run.cancel_requested_at = None
+    mock_run.run_mode = "manual_staged"
+    mock_run.next_stage = "enrich"
+    mock_run.checkpoint_payload_json = None
+    mock_run.started_at = None
+
+    with patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+         patch("fitcv_cp.worker_job.run_pipeline", return_value={
+             "run_id": "r1",
+             "paused_after_stage": "enrich",
+             "next_stage": "rule_filter",
+             "completed_stages": ["normalize", "enrich"],
+             "checkpoint_payload": {"enriched": []},
+             "stage_transition_artifacts": {"schema_version": "stage_transition_artifacts_v3", "stages": {}},
+             "total_jobs": 5,
+             "passed_filter": 0,
+             "ranked": 0,
+             "cvs_generated": 0,
+         }) as mock_pipeline, \
+         patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+         patch("fitcv_cp.worker_job.update_run_checkpoint") as mock_checkpoint, \
+         patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts") as mock_stage_artifacts, \
+         patch("fitcv_cp.worker_job.update_run_status") as mock_status:
+        execute_pipeline_run(run_id="r1", jobs_path="data/jobs.json", config_path=".env.yaml")
+
+    call_kwargs = mock_pipeline.call_args.kwargs
+    assert call_kwargs["start_stage"] == "enrich"
+    assert call_kwargs["stop_after_stage"] == "enrich"
+    assert mock_status.call_args_list[-1].args[1] == RunStatus.AWAITING_CONTINUE
+    assert mock_checkpoint.called
+    assert mock_stage_artifacts.called
+
+
+def test_worker_manual_resume_passes_checkpoint_payload_to_pipeline() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock()
+    mock_run.effective_settings_json = None
+    mock_run.cancel_requested_at = None
+    mock_run.run_mode = "manual_staged"
+    mock_run.next_stage = "ranking"
+    mock_run.checkpoint_payload_json = json.dumps({
+        "checkpoint_payload": {"shortlist": [{"job_url": "https://example.com/1"}]}
+    })
+    mock_run.started_at = datetime.datetime.now().astimezone()
+
+    with patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+         patch("fitcv_cp.worker_job.run_pipeline", return_value={
+             "run_id": "r1", "total_jobs": 0, "passed_filter": 0, "ranked": 0, "cvs_generated": 0
+         }) as mock_pipeline, \
+         patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+         patch("fitcv_cp.worker_job.update_run_checkpoint"):
+        execute_pipeline_run(run_id="r1", jobs_path="data/jobs.json", config_path=".env.yaml")
+
+    call_kwargs = mock_pipeline.call_args.kwargs
+    assert call_kwargs["start_stage"] == "ranking"
+    assert call_kwargs["stop_after_stage"] == "ranking"
+    assert call_kwargs["checkpoint_payload"] == {
+        "shortlist": [{"job_url": "https://example.com/1"}]
+    }
 
 
 # ── cooperative cancellation ─────────────────────────────────────────────────

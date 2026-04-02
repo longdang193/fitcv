@@ -63,6 +63,16 @@
 
   <hr>
 
+  <div style="margin-bottom:1rem">
+    <label class="section-helper" style="display:block;margin-bottom:0.4rem">Execution Mode</label>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button type="button" class="btn-secondary" id="mode-tab-run_all" data-active="true" onclick="setRunMode('run_all')">▶ Run All</button>
+      <button type="button" class="btn-secondary" id="mode-tab-manual_staged" data-active="false" onclick="setRunMode('manual_staged')">⏸ Stage by Stage</button>
+    </div>
+  </div>
+
+  <hr>
+
   <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
     <input type="text" id="config_path" value=".env.yaml" placeholder="config_path" style="width:140px">
     <button type="button" id="trigger-btn" class="btn-primary" onclick="triggerRun()" style="min-width:140px">▶ Trigger Run</button>
@@ -77,6 +87,7 @@
       <tr>
         <th>Run ID</th>
         <th>Status</th>
+        <th>Mode</th>
         <th>Triggered By</th>
         <th>Jobs Path</th>
         <th>Created At</th>
@@ -92,6 +103,12 @@
           <span class="badge badge-{{ run.status.value }}">{{ run.status.value }}</span>
           {% if run.archived_at %}<span class="badge badge-neutral" style="margin-left:0.25rem">archived</span>{% endif %}
         </td>
+        <td class="meta">
+          <span class="badge badge-info">{{ 'Manual staged' if run.run_mode == 'manual_staged' else 'Automatic' }}</span>
+          {% if run.status.value == 'awaiting_continue' and run.next_stage %}
+          <div style="margin-top:0.3rem"><code>next: {{ run.next_stage }}</code></div>
+          {% endif %}
+        </td>
         <td>{{ run.triggered_by }}</td>
         <td><code>{{ run.jobs_path }}</code></td>
         <td class="meta">{{ run.created_at.strftime('%Y-%m-%d %H:%M:%S') if run.created_at else '—' }}</td>
@@ -101,7 +118,10 @@
           {% else %}—{% endif %}
         </td>
         <td class="meta" style="white-space:nowrap">
-          {% if run.status.value in ('queued', 'running') %}
+          {% if run.status.value == 'awaiting_continue' and run.run_mode == 'manual_staged' %}
+            <button class="btn-secondary" style="font-size:0.8rem;padding:0.2rem 0.6rem"
+                    onclick="lifecycleAction('{{ run.run_id }}', 'continue', this)">Run Next Stage</button>
+          {% elif run.status.value in ('queued', 'running') %}
             <button class="btn-secondary" style="font-size:0.8rem;padding:0.2rem 0.6rem"
                     onclick="lifecycleAction('{{ run.run_id }}', 'stop', this)">Stop Run</button>
           {% elif is_stale_cancelling(run) %}
@@ -119,7 +139,7 @@
         </td>
       </tr>
       {% else %}
-      <tr class="empty-row"><td colspan="7">No runs yet</td></tr>
+      <tr class="empty-row"><td colspan="8">No runs yet</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -128,6 +148,7 @@
 <script>
 let _jobsMode = 'path';
 let _profMode = 'default_config';
+let _runMode = 'run_all';
 
 function setJobsMode(m) {
   _jobsMode = m;
@@ -146,6 +167,13 @@ function setProfMode(m) {
   });
 }
 
+function setRunMode(m) {
+  _runMode = m;
+  ['run_all', 'manual_staged'].forEach(k => {
+    document.getElementById('mode-tab-' + k).dataset.active = String(k === m);
+  });
+}
+
 async function triggerRun() {
   const btn = document.getElementById('trigger-btn');
   const status = document.getElementById('trigger-status');
@@ -156,6 +184,7 @@ async function triggerRun() {
     fd.append('config_path', document.getElementById('config_path').value);
     fd.append('jobs_input_mode', _jobsMode);
     fd.append('candidate_profile_mode', _profMode);
+    fd.append('run_mode', _runMode);
 
     if (_jobsMode === 'path') {
       fd.append('jobs_path', document.getElementById('jobs_path').value);

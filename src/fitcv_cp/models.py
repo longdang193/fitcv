@@ -7,6 +7,7 @@ from typing import Optional
 class RunStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
+    AWAITING_CONTINUE = "awaiting_continue"
     CANCELLING = "cancelling"
     CANCELLED = "cancelled"
     SUCCEEDED = "succeeded"
@@ -53,6 +54,12 @@ class PipelineRun:
     cv_generation_debug_json: Optional[str] = None  # immutable run-scoped CV-generation debug snapshot
     stage_transition_artifacts_json: Optional[str] = None  # immutable run-scoped stage transition artifact snapshot
     settings_used_json: Optional[str] = None  # immutable run-scoped effective-settings snapshot
+    run_mode: str = "run_all"
+    checkpoint_status: Optional[str] = None
+    next_stage: Optional[str] = None
+    last_completed_stage: Optional[str] = None
+    completed_stages: Optional[list[str]] = None
+    checkpoint_payload_json: Optional[str] = None
     # run-scoped input metadata
     jobs_input_source: Optional[str] = None           # "path" | "upload" | "paste"
     jobs_input_json: Optional[str] = None             # canonical resolved jobs-input snapshot for supported trigger modes in new runs

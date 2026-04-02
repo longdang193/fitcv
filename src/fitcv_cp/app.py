@@ -16,7 +16,8 @@ from fitcv_cp.bq_store import (
     archive_run,
     get_events, get_run, insert_run, list_filter_results_for_run,
     list_runs, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs,
-    request_run_cancel, unarchive_run, update_run_queue_job_id, update_run_status,
+    request_run_cancel, unarchive_run, update_run_checkpoint,
+    update_run_queue_job_id, update_run_status,
 )
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.queue import cancel_queued_run, enqueue_run, enqueue_run_with_job_id
@@ -105,6 +106,10 @@ STAGE_DOWNLOAD_LABELS: dict[str, str] = {
     "ranking": "Download Ranking JSON",
     "cv_generation": "Download CV Generation JSON",
 }
+RUN_MODE_LABELS = {
+    "run_all": "Automatic",
+    "manual_staged": "Manual staged",
+}
 
 
 def _decision_chain_label(value: Any) -> str | None:
@@ -167,6 +172,7 @@ class TriggerRequest(BaseModel):
     config_path: str = ".env.yaml"
     triggered_by: str = "admin"
     config_overrides: dict[str, Any] = {}
+    run_mode: str = "run_all"
 
     @field_validator("jobs_path")
     @classmethod
@@ -174,6 +180,14 @@ class TriggerRequest(BaseModel):
         if not v or not v.strip():
             raise ValueError("jobs_path must not be empty")
         return v
+
+    @field_validator("run_mode")
+    @classmethod
+    def run_mode_supported(cls, v: str) -> str:
+        normalized = str(v or "").strip()
+        if normalized not in {"run_all", "manual_staged"}:
+            raise ValueError("run_mode must be 'run_all' or 'manual_staged'")
+        return normalized
 
 
 class SettingUpdate(BaseModel):
@@ -298,7 +312,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         now = datetime.datetime.now(datetime.timezone.utc)
         return (now - run.cancel_requested_at) >= datetime.timedelta(minutes=2)
 
-    def _execute_trigger(jobs_path: str, config_path: str, triggered_by: str, config_overrides: dict[str, Any]) -> dict:
+    def _execute_trigger(
+        jobs_path: str,
+        config_path: str,
+        triggered_by: str,
+        config_overrides: dict[str, Any],
+        *,
+        run_mode: str = "run_all",
+    ) -> dict:
         # Build effective config: YAML → BQ settings → per-run overrides
         base_config = load_config(config_path)
         active_settings = load_active_settings(bq=bq, project=project, dataset=dataset)
@@ -335,6 +356,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             config_path=config_path,
             created_at=datetime.datetime.now(datetime.timezone.utc),
             effective_settings_json=_json.dumps(effective_config),
+            run_mode=run_mode,
+            checkpoint_status="pending_first_stage" if run_mode == "manual_staged" else None,
+            next_stage="normalize" if run_mode == "manual_staged" else None,
+            completed_stages=[] if run_mode == "manual_staged" else None,
         )
         insert_run(run, bq, project=project, dataset=dataset)
         _, queue_job_id = enqueue_run_with_job_id(
@@ -357,6 +382,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         jobs_input_json: str | None = None,
         candidate_profile_source: str | None = None,
         candidate_profile_json: str | None = None,
+        run_mode: str = "run_all",
     ) -> dict:
         """Like _execute_trigger but records run-scoped input metadata."""
         # Build effective config: YAML → BQ settings → per-run overrides
@@ -398,6 +424,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             jobs_input_json=jobs_input_json,
             candidate_profile_source=candidate_profile_source,
             candidate_profile_json=candidate_profile_json,
+            run_mode=run_mode,
+            checkpoint_status="pending_first_stage" if run_mode == "manual_staged" else None,
+            next_stage="normalize" if run_mode == "manual_staged" else None,
+            completed_stages=[] if run_mode == "manual_staged" else None,
         )
         insert_run(run, bq, project=project, dataset=dataset)
         _, queue_job_id = enqueue_run_with_job_id(
@@ -417,6 +447,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             config_path=req.config_path,
             triggered_by=req.triggered_by,
             config_overrides=req.config_overrides,
+            run_mode=req.run_mode,
         )
 
     @app.post("/admin/upload-trigger", status_code=201)
@@ -427,6 +458,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         jobs_input_mode: str = Form("path"),      # "path" | "upload" | "paste"
         jobs_text: str = Form(""),
         config_path: str = Form(".env.yaml"),
+        run_mode: str = Form("run_all"),
         candidate_profile_mode: str = Form("default_config"),  # "default_config" | "upload" | "paste"
         candidate_profile_file: UploadFile | None = File(None),
         candidate_profile_text: str = Form(""),
@@ -612,6 +644,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             jobs_input_json=jobs_input_json_snapshot,
             candidate_profile_source=candidate_profile_source,
             candidate_profile_json=candidate_json_snapshot,
+            run_mode=run_mode,
         )
 
     @app.get("/runs")
@@ -902,6 +935,55 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         )
         return {"status": "cancelling", "run_id": run_id}
 
+    @app.post("/admin/runs/{run_id}/continue")
+    def admin_continue_run(run_id: str) -> dict:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.run_mode != "manual_staged":
+            raise HTTPException(status_code=409, detail="Only manual staged runs can be continued")
+        if run.status != RunStatus.AWAITING_CONTINUE:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Cannot continue run with status '{run.status.value}'",
+            )
+        if not run.next_stage:
+            raise HTTPException(status_code=409, detail="Run has no next stage to continue")
+        _, queue_job_id = enqueue_run_with_job_id(
+            jobs_path=run.jobs_path,
+            config_path=run.config_path,
+            triggered_by="admin",
+            redis_url=redis_url,
+            run_id=run.run_id,
+        )
+        update_run_status(run.run_id, RunStatus.QUEUED, bq, project=project, dataset=dataset)
+        update_run_queue_job_id(run.run_id, queue_job_id, bq, project=project, dataset=dataset)
+        update_run_checkpoint(
+            run.run_id,
+            bq,
+            project=project,
+            dataset=dataset,
+            checkpoint_status="queued_for_continue",
+            next_stage=run.next_stage,
+            last_completed_stage=run.last_completed_stage,
+            completed_stages=run.completed_stages,
+            checkpoint_payload_json=run.checkpoint_payload_json,
+        )
+        append_event(
+            RunEvent(
+                run_id=run.run_id,
+                event_id=str(uuid.uuid4()),
+                stage="manual_continue_requested",
+                level="info",
+                message=f"Manual run queued to continue from {run.next_stage}",
+                created_at=datetime.datetime.now(datetime.timezone.utc),
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        return {"status": "queued", "run_id": run.run_id}
+
     @app.post("/admin/runs/{run_id}/archive")
     def admin_archive_run(run_id: str) -> dict:
         """Archive a terminal run. Returns JSON for fetch() callers."""
@@ -1085,6 +1167,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
                 "run": run,
+                "run_mode_label": RUN_MODE_LABELS.get(run.run_mode, run.run_mode),
                 "events": timeline_events,
                 "cv_versions": cv_versions,
                 "enriched_jobs": enriched_jobs,
@@ -1098,6 +1181,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "candidate_profile_parsed": candidate_profile_parsed,
                 "candidate_profile_pretty": candidate_profile_pretty,
                 "is_stale_cancelling": _is_stale_cancelling,
+                "can_continue_manual_run": (
+                    run.run_mode == "manual_staged"
+                    and run.status == RunStatus.AWAITING_CONTINUE
+                    and bool(run.next_stage)
+                ),
             }
         )
 
@@ -1149,8 +1237,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status != RunStatus.SUCCEEDED:
-            raise HTTPException(status_code=409, detail="Stage transition artifacts export is only available for succeeded runs")
+        if run.status not in {RunStatus.SUCCEEDED, RunStatus.AWAITING_CONTINUE}:
+            raise HTTPException(status_code=409, detail="Stage transition artifacts export is only available for completed or paused manual runs")
         if not run.stage_transition_artifacts_json:
             raise HTTPException(status_code=404, detail="Stage transition artifacts export is not available for this run")
         pretty_json = _json.dumps(_json.loads(run.stage_transition_artifacts_json), ensure_ascii=False, indent=2)
@@ -1165,8 +1253,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status != RunStatus.SUCCEEDED:
-            raise HTTPException(status_code=409, detail="Stage transition artifact download is only available for succeeded runs")
+        if run.status not in {RunStatus.SUCCEEDED, RunStatus.AWAITING_CONTINUE}:
+            raise HTTPException(status_code=409, detail="Stage transition artifact download is only available for completed or paused manual runs")
         if not run.stage_transition_artifacts_json:
             raise HTTPException(status_code=404, detail="Stage transition artifacts export is not available for this run")
         if stage_id not in {"normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_generation"}:
@@ -1213,6 +1301,11 @@ def _run_to_dict(run: PipelineRun) -> dict:
     return {
         "run_id": run.run_id,
         "status": run.status.value,
+        "run_mode": run.run_mode,
+        "checkpoint_status": run.checkpoint_status,
+        "next_stage": run.next_stage,
+        "last_completed_stage": run.last_completed_stage,
+        "completed_stages": list(run.completed_stages or []),
         "triggered_by": run.triggered_by,
         "jobs_path": run.jobs_path,
         "created_at": run.created_at.isoformat() if run.created_at else None,

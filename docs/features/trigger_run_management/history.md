@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.0.0 — active
+
+- Added a staged/manual run mode that pauses after each major stage and persists checkpoint metadata plus a serialized checkpoint payload for continuation
+- Manual runs can now resume from `next_stage` via explicit `Run Next Stage` actions instead of restarting the full pipeline by default
+- Run detail and runs-list surfaces now distinguish automatic vs manual execution while preserving the existing one-click `run_all` flow
+
 ### 1.9.0 — active
 
 - Run detail stage-artifact downloads now carry richer per-stage input, output, and changed-state samples instead of summary-only stage blocks
