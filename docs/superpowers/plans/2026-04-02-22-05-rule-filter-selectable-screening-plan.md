@@ -1,7 +1,7 @@
 ---
 feature_type: modify
 feature_name: rule-filter-selectable-screening
-status: draft
+status: completed
 summary: "Implement selectable blocking vs mark-only deterministic rule-filter behavior while preserving rule_filter stage ownership."
 invariants:
   - "`rule_filter` remains the sole owner of deterministic rule evaluation."
@@ -48,7 +48,7 @@ Spec needed: no
 Plan needed: yes
 Rollback trigger: Rule-filter pass/reject behavior becomes inconsistent with settings or passed jobs lose deterministic mark visibility.
 Rollback method: Revert to the prior always-blocking behavior for all six deterministic rule checks and remove mark-only emission from exports/artifacts.
-Migration needed: no
+Migration needed: yes
 Risk level: medium
 
 ## Scope
@@ -250,14 +250,29 @@ Generated refresh:
 
 ## Task Status
 
-- [ ] Task 1: Add a code-owned selectable-filter registry
-- [ ] Task 2: Add `rule_filter.selected_filters` to config loading and settings UI
-- [ ] Task 3: Refactor `rule_filter` runtime output into blocking reasons plus marks
-- [ ] Task 4: Persist marks in rule-filter outputs and downstream run exports
-- [ ] Task 5: Expand rule-filter stage artifacts and run inspection
-- [ ] Task 6: Keep ranking downstream-only and mark-aware
-- [ ] Task 7: Sync source-of-truth docs and generated discovery
+- [x] Task 1: Add a code-owned selectable-filter registry
+- [x] Task 2: Add `rule_filter.selected_filters` to config loading and settings UI
+- [x] Task 3: Refactor `rule_filter` runtime output into blocking reasons plus marks
+- [x] Task 4: Persist marks in rule-filter outputs and downstream run exports
+- [x] Task 5: Expand rule-filter stage artifacts and run inspection
+- [x] Task 6: Keep ranking downstream-only and mark-aware
+- [x] Task 7: Sync source-of-truth docs and generated discovery
 
 ## Verification Status
 
-- [ ] Not started
+- [x] Targeted rule-filter selectable-screening contract tests passed:
+  - `tests/test_rule_filter.py`
+  - `tests/test_fitcv_cp/test_settings_schema.py`
+  - targeted slices in `tests/test_fitcv_cp/test_app.py`
+  - `tests/test_fitcv_cp/test_bq_store.py`
+  - targeted slices in `tests/test_pipeline.py`
+- [x] Additional focused verification passed:
+  - `tests/test_fitcv_cp/test_bq_store.py`
+  - targeted `run-export` slice in `tests/test_pipeline.py`
+- [x] `python -m py_compile` not needed for this slice because the exercised Python paths were covered by green pytest runs
+
+## Post-Implementation Notes
+
+- The runtime now preserves non-blocking rule-filter marks on both passed and rejected rows.
+- `rule_filter_results` persistence requires migration `scripts/migrations/011_add_marks_json_to_rule_filter_results.py` for environments that do not already have `marks_json`.
+- A broader all-tests pass in this worktree is still noisy because of pre-existing failures in unrelated `test_app.py` coverage and Windows temp-directory permission issues during pytest cleanup.

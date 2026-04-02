@@ -71,6 +71,93 @@ def test_passes_when_no_filters_violated() -> None:
     assert len(result["rejected"]) == 0
 
 
+def test_unselected_must_have_skill_missing_emits_mark_not_reject_by_default() -> None:
+    result = apply_rule_filters(
+        [_job(job_url="http://mark-only", required_skills=["Java"])],
+        _prefs(must_have_skills=["SQL"]),
+        config={"rule_filter": {"selected_filters": [
+            "seniority_mismatch",
+            "location_type_excluded",
+            "contract_type_excluded",
+            "experience_level_excluded",
+        ]}},
+    )
+
+    assert result["rejected"] == []
+    assert result["passed"] == ["http://mark-only"]
+    assert result["passed_records"] == [
+        {
+            "job_url": "http://mark-only",
+            "marks": [
+                {
+                    "code": "must_have_skill_missing",
+                    "message": "Missing must-have skills",
+                    "details": {"missing_skills": ["sql"], "missing_count": 1},
+                }
+            ],
+        }
+    ]
+
+
+def test_selected_must_have_skill_missing_rejects() -> None:
+    result = apply_rule_filters(
+        [_job(job_url="http://reject-me", required_skills=["Java"])],
+        _prefs(must_have_skills=["SQL"]),
+        config={"rule_filter": {"selected_filters": [
+            "seniority_mismatch",
+            "location_type_excluded",
+            "contract_type_excluded",
+            "experience_level_excluded",
+            "must_have_skill_missing",
+        ]}},
+    )
+
+    assert result["passed"] == []
+    assert result["rejected"] == [
+        {
+            "job_url": "http://reject-me",
+            "reasons": ["must_have_skill_missing"],
+            "marks": [],
+        }
+    ]
+
+
+def test_selected_and_unselected_failures_split_between_reasons_and_marks() -> None:
+    result = apply_rule_filters(
+        [_job(job_url="http://mixed", seniority="lead", domain="fintech", required_skills=["Java"])],
+        _prefs(must_have_skills=["SQL"], preferred_domains=["analytics"]),
+        config={"rule_filter": {"selected_filters": [
+            "seniority_mismatch",
+            "location_type_excluded",
+            "contract_type_excluded",
+            "experience_level_excluded",
+        ]}},
+    )
+
+    assert result["passed"] == []
+    assert result["rejected"] == [
+        {
+            "job_url": "http://mixed",
+            "reasons": ["seniority_mismatch"],
+            "marks": [
+                {
+                    "code": "must_have_skill_missing",
+                    "message": "Missing must-have skills",
+                    "details": {"missing_skills": ["sql"], "missing_count": 1},
+                },
+                {
+                    "code": "domain_not_preferred",
+                    "message": "Job domain is outside preferred domains",
+                    "details": {
+                        "job_domain": "fintech",
+                        "preferred_domains": ["analytics"],
+                    },
+                },
+            ],
+        }
+    ]
+
+
 def test_multiple_rejection_reasons_accumulated() -> None:
     """A job that fails two checks should accumulate both reasons."""
     # lead is 2+ above mid (seniority_mismatch) AND Internship is excluded (contract_type_excluded)
@@ -382,6 +469,55 @@ def test_store_filter_results_run_id_in_rejected_rows(monkeypatch: pytest.Monkey
     assert rows[0]["run_id"] == "run-xyz"
     assert rows[0]["reasons"] == ["seniority_mismatch"]
     assert rows[0]["passed"] is False
+
+
+def test_store_filter_results_serializes_marks_json_as_string() -> None:
+    from unittest.mock import MagicMock, patch
+    import json as _json
+
+    captured: dict = {}
+    mock_client = MagicMock()
+
+    def _fake_insert(table: str, rows: list) -> list:
+        captured["rows"] = rows
+        return []
+
+    mock_client.insert_rows_json.side_effect = _fake_insert
+
+    with patch("google.oauth2.service_account.Credentials"), \
+         patch("google.cloud.bigquery.Client") as mock_bq_client:
+        mock_bq_client.return_value = mock_client
+        from fitcv.rule_filter import store_filter_results
+
+        result = {
+            "passed": ["https://x.com/1"],
+            "passed_records": [
+                {
+                    "job_url": "https://x.com/1",
+                    "marks": [
+                        {
+                            "code": "must_have_skill_missing",
+                            "message": "Missing must-have skills",
+                            "details": {"missing_count": 1, "missing_skills": ["dbt"]},
+                        }
+                    ],
+                }
+            ],
+            "rejected": [],
+        }
+        store_filter_results(result, "run-marks", {
+            "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "/key.json",
+        })
+
+    rows = captured["rows"]
+    assert isinstance(rows[0]["marks_json"], str)
+    assert _json.loads(rows[0]["marks_json"]) == [
+        {
+            "code": "must_have_skill_missing",
+            "message": "Missing must-have skills",
+            "details": {"missing_count": 1, "missing_skills": ["dbt"]},
+        }
+    ]
 
 
 # ── check_applicant_count ─────────────────────────────────────────────────────

@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.2.0 — active
+
+- Admin settings now expose `rule_filter.selected_filters` so deterministic post-enrichment checks can be configured as blocking versus mark-only
+- The default blocking set remains seniority, location type, contract type, and experience level; `must_have_skill_missing` and `domain_not_preferred` now default to mark-only
+- This rollout keeps rule ownership in `rule_filter` and does not move those checks into ranking
+
 ### 2.1.0 — active
 
 - Manual staged runs paused after `enrich` can now upload a run-scoped synonym-overlay YAML before continuing into `rule_filter`

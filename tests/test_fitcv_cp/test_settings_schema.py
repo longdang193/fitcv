@@ -170,6 +170,71 @@ def test_global_job_filters_validate_accepts_positive():
     })  # must not raise
 
 
+# ── rule_filter.selected_filters settings ────────────────────────────────────
+
+def test_rule_filter_selected_filters_key_registered() -> None:
+    keys = {s["key"] for s in SETTINGS_SCHEMA}
+    assert "rule_filter.selected_filters" in keys
+
+
+def test_rule_filter_selected_filters_uses_list_str_type() -> None:
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["rule_filter.selected_filters"]["type"] == "list[str]"
+
+
+def test_rule_filter_selected_filters_default_matches_spec() -> None:
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["rule_filter.selected_filters"]["default"] == [
+        "seniority_mismatch",
+        "location_type_excluded",
+        "contract_type_excluded",
+        "experience_level_excluded",
+    ]
+
+
+def test_rule_filter_selected_filters_validate_accepts_known_codes() -> None:
+    validate_settings({
+        "rule_filter.selected_filters": [
+            "seniority_mismatch",
+            "must_have_skill_missing",
+        ]
+    })
+
+
+def test_rule_filter_selected_filters_validate_rejects_duplicates() -> None:
+    with pytest.raises(ValidationError, match="duplicate"):
+        validate_settings({
+            "rule_filter.selected_filters": [
+                "seniority_mismatch",
+                "seniority_mismatch",
+            ]
+        })
+
+
+def test_rule_filter_selected_filters_validate_rejects_unknown_code() -> None:
+    with pytest.raises(ValidationError, match="must be one of"):
+        validate_settings({
+            "rule_filter.selected_filters": [
+                "seniority_mismatch",
+                "not_a_real_filter",
+            ]
+        })
+
+
+def test_apply_settings_to_config_rule_filter_selected_filters_nested() -> None:
+    config: dict = {}
+    apply_settings_to_config(config, {
+        "rule_filter.selected_filters": [
+            "seniority_mismatch",
+            "domain_not_preferred",
+        ]
+    })
+    assert config["rule_filter"]["selected_filters"] == [
+        "seniority_mismatch",
+        "domain_not_preferred",
+    ]
+
+
 # ── RANKING_GROUPS registry ───────────────────────────────────────────────────
 
 def test_ranking_groups_has_three_slugs():

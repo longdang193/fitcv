@@ -297,6 +297,11 @@ def _build_export_results(
     }
 
     reject_reasons_by_url: dict[str, list[str]] = {}
+    rule_filter_marks_by_url: dict[str, list[dict[str, Any]]] = {
+        _extract_job_url(job): list(job.get("marks") or [])
+        for job in passed_jobs
+        if _extract_job_url(job)
+    }
     rejected_before_enrichment_urls: set[str] = set()
     rejected_after_enrichment_urls: set[str] = set()
     for rejected in pre_filter_rejected:
@@ -310,6 +315,7 @@ def _build_export_results(
         if not job_url:
             continue
         reject_reasons_by_url[job_url] = list(rejected.get("reasons") or [])
+        rule_filter_marks_by_url[job_url] = list(rejected.get("marks") or [])
         rejected_after_enrichment_urls.add(job_url)
 
     def _status_for(job_url: str) -> str:
@@ -382,6 +388,7 @@ def _build_export_results(
             }
         pipeline_status = _status_for(job_url)
         reject_reasons = reject_reasons_by_url.get(job_url, [])
+        rule_filter_marks = rule_filter_marks_by_url.get(job_url, [])
         if deduplicated_job is not None:
             pipeline_status = "deduplicated_before_enrichment"
             reject_reasons = [
@@ -446,6 +453,7 @@ def _build_export_results(
                 "enriched_job": _build_export_enriched_job(enriched_job),
                 "pipeline_status": pipeline_status,
                 "reject_reasons": reject_reasons,
+                "rule_filter_marks": rule_filter_marks,
                 "scores": {
                     "final_score": score_source.get("final_score"),
                     "ai_score": score_source.get("ai_score"),
@@ -929,6 +937,9 @@ def _job_sample(job: dict[str, Any]) -> dict[str, Any] | None:
     for key, value in optional_fields.items():
         if value not in (None, "", []):
             sample[key] = value
+    marks = list(job.get("marks") or [])
+    if marks:
+        sample["marks"] = marks
     return sample
 
 
@@ -955,6 +966,27 @@ def _shortlist_row_sample(row: dict[str, Any]) -> dict[str, Any] | None:
         "shortlist_origin": str(row.get("shortlist_origin") or "vector_search"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "")}
+
+
+def _rule_filter_decision_sample(
+    row: dict[str, Any],
+    *,
+    filter_outcome: str,
+) -> dict[str, Any] | None:
+    base = _job_sample(row)
+    if not base:
+        return None
+    sample = {
+        **base,
+        "filter_outcome": filter_outcome,
+        "reasons": list(row.get("reasons") or []),
+        "marks": list(row.get("marks") or []),
+    }
+    return {
+        key: value
+        for key, value in sample.items()
+        if value not in (None, "", [])
+    }
 
 
 def _ranking_row_sample(row: dict[str, Any]) -> dict[str, Any] | None:
@@ -1077,9 +1109,32 @@ def _build_stage_transition_artifacts(
         reason = _DEDUPE_REASON_LABELS.get(str(job.get("dedupe_reason") or ""), "deduplicated")
         dedupe_reason_counts[reason] = dedupe_reason_counts.get(reason, 0) + 1
     grouped_reject_reasons: dict[str, int] = {}
+    grouped_mark_codes: dict[str, int] = {}
     for rejected in candidate_filter_rejected_jobs:
         for reason in list(rejected.get("reasons") or []):
             grouped_reject_reasons[str(reason)] = grouped_reject_reasons.get(str(reason), 0) + 1
+        for mark in list(rejected.get("marks") or []):
+            code = str(mark.get("code") or "")
+            if code:
+                grouped_mark_codes[code] = grouped_mark_codes.get(code, 0) + 1
+    for passed in passed_jobs:
+        for mark in list(passed.get("marks") or []):
+            code = str(mark.get("code") or "")
+            if code:
+                grouped_mark_codes[code] = grouped_mark_codes.get(code, 0) + 1
+    selected_rule_filters = list(
+        (
+            config.get("rule_filter", {}) if isinstance(config.get("rule_filter"), dict) else {}
+        ).get(
+            "selected_filters",
+            [
+                "seniority_mismatch",
+                "location_type_excluded",
+                "contract_type_excluded",
+                "experience_level_excluded",
+            ],
+        )
+    )
     ranking_fit_distribution: dict[str, int] = {}
     for row in ranking_inputs:
         fit_label = str(row.get("fit_label") or "")
@@ -1185,16 +1240,24 @@ def _build_stage_transition_artifacts(
                 },
                 decision_summary={
                     "reject_reason_counts": grouped_reject_reasons,
+                    "mark_code_counts": grouped_mark_codes,
+                    "selected_filters": selected_rule_filters,
                 },
                 inputs_sample=_sample_rows(enriched, _job_sample),
-                outputs_sample=_sample_rows(passed_jobs, _job_sample),
+                outputs_sample=_sample_rows(
+                    passed_jobs,
+                    lambda job: _rule_filter_decision_sample(job, filter_outcome="pass"),
+                ),
                 dropped_or_changed_sample=_sample_rows(
                     candidate_filter_rejected_jobs,
-                    lambda job: {
-                        **(_job_sample(job) or {}),
-                        "change_type": "rejected_after_enrichment",
-                        "reasons": list(job.get("reasons") or []),
-                    } if _job_sample(job) else None,
+                    lambda job: (
+                        {
+                            **(_rule_filter_decision_sample(job, filter_outcome="reject") or {}),
+                            "change_type": "rejected_after_enrichment",
+                        }
+                        if _rule_filter_decision_sample(job, filter_outcome="reject")
+                        else None
+                    ),
                 ),
             ),
             "shortlist": _stage_block(
@@ -1550,15 +1613,24 @@ def run_pipeline(
         filter_result = apply_rule_filters(enriched, profile["preferences"], config)
         combined_filter_result = {
             "passed": filter_result["passed"],
+            "passed_records": filter_result.get("passed_records", []),
             "rejected": pre_filter_rejected_jobs + filter_result["rejected"],
         }
         passed_job_urls = [str(url) for url in filter_result["passed"]]
+        passed_records_by_url = {
+            str(item.get("job_url") or ""): item
+            for item in filter_result.get("passed_records", [])
+            if str(item.get("job_url") or "")
+        }
         enriched_by_url = {
             str(job.get("job_url") or ""): job
             for job in enriched
         }
         passed_jobs = [
-            enriched_by_url[url]
+            {
+                **enriched_by_url[url],
+                "marks": list((passed_records_by_url.get(url) or {}).get("marks") or []),
+            }
             for url in passed_job_urls
             if url in enriched_by_url
         ]

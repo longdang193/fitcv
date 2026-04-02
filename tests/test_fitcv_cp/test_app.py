@@ -1473,6 +1473,43 @@ def test_post_settings_section_invalid_value_returns_422():
     assert resp.status_code == 422
 
 
+def test_post_settings_section_rule_filter_uses_list_values() -> None:
+    captured = {}
+
+    def _capture_save(values, *, updated_by, bq, project, dataset):
+        captured["values"] = values
+
+    with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/rule-filter",
+            data={
+                "rule_filter.selected_filters": [
+                    "seniority_mismatch",
+                    "must_have_skill_missing",
+                ]
+            },
+        )
+
+    assert resp.status_code == 303
+    assert captured["values"]["rule_filter.selected_filters"] == [
+        "seniority_mismatch",
+        "must_have_skill_missing",
+    ]
+
+
+def test_get_settings_renders_rule_filter_section_and_checkboxes() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+
+    assert resp.status_code == 200
+    body = resp.text
+    assert "Rule Filter Settings" in body
+    assert 'action="/admin/settings/section/rule-filter"' in body
+    assert 'name="rule_filter.selected_filters"' in body
+    assert 'value="must_have_skill_missing"' in body
+
+
 def test_get_settings_renders_section_save_actions():
     """GET /admin/settings renders section-level save labels, not per-row Save buttons."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
@@ -1482,6 +1519,7 @@ def test_get_settings_renders_section_save_actions():
     assert "Save Retrieval Settings" in body
     assert "Save Timing Settings" in body
     assert "Save Global Job Filters" in body
+    assert "Save Rule Filter Settings" in body
 
 
 # ── Lifecycle API routes ─────────────────────────────────────────────────────
@@ -1836,6 +1874,40 @@ def test_run_detail_shows_deduplicated_before_enrichment_section():
     assert "Post-dedupe enriched jobs" in resp.text
     assert "Deduplicated before enrichment: 1" in resp.text
     assert "Duplicated Analyst" in resp.text
+
+
+def test_run_detail_shows_marks_for_passed_jobs() -> None:
+    patches = _run_detail_patches(
+        enriched_jobs=[
+            {
+                "job_url": "https://jobs.example.com/1",
+                "title": "Marked Pass Job",
+                "domain": "d",
+                "job_family": "f",
+                "required_skills": [],
+                "location_type": None,
+                "seniority": None,
+            }
+        ],
+        filter_results=[
+            {
+                "job_url": "https://jobs.example.com/1",
+                "passed": True,
+                "reasons": [],
+                "marks": [
+                    {
+                        "code": "must_have_skill_missing",
+                        "message": "Missing must-have skills",
+                    }
+                ],
+            }
+        ],
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+
+    assert resp.status_code == 200
+    assert "Marks: must_have_skill_missing" in resp.text
 
 
 def test_run_detail_enriched_shows_pipeline_outcome_for_passed_non_ranked_job():

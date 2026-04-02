@@ -109,6 +109,21 @@
              data-default-value="{{ 'true' if entry.default else 'false' }}"
              {% if current_val %}checked{% endif %}
              onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    {% elif entry.type == 'list[str]' %}
+      {% set current_values = current_val if current_val is iterable and current_val is not string else [] %}
+      <div class="settings-checkbox-list">
+        {% for opt in entry.options %}
+          <label style="display:flex;align-items:center;gap:0.45rem;padding:0.18rem 0">
+            <input
+              type="checkbox"
+              name="{{ entry.key }}"
+              value="{{ opt }}"
+              data-default-checked="{{ 'true' if opt in entry.default else 'false' }}"
+              {% if opt in current_values %}checked{% endif %}>
+            <span>{{ opt | replace('_', ' ') | title }}</span>
+          </label>
+        {% endfor %}
+      </div>
     {% elif entry.options is defined %}
       <select name="{{ entry.key }}" data-default-value="{{ entry.default }}">
         {% for opt in entry.options %}
@@ -148,6 +163,7 @@
     ("retrieval",          "Retrieval Settings",   "Controls how many jobs are retrieved, scored, and surfaced per run."),
     ("timing",             "Timing Settings",      "Sleep delays between API calls to avoid rate-limiting."),
     ("global-job-filters", "Global Job Filters",   "System-wide filters applied before enrichment. Jobs failing these are never sent to the LLM."),
+    ("rule-filter",        "Rule Filter Settings", "Choose which deterministic post-enrichment rule filters block jobs versus only mark them for downstream inspection."),
 ] %}
 <div class="section-card">
   <div class="page-header" style="margin-bottom:1rem">
@@ -484,6 +500,10 @@ document.addEventListener('DOMContentLoaded', updateWeightsTotal);
       }
 
       if (field.type === 'checkbox') {
+        if (field.dataset.defaultChecked !== undefined) {
+          field.checked = field.dataset.defaultChecked === 'true';
+          return;
+        }
         const checked = defaultValue === 'true';
         field.checked = checked;
         const hidden = field.previousElementSibling;

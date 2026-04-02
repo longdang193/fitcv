@@ -1,6 +1,6 @@
 trigger_run_management:
   name: Trigger & Run Management
-  version: 2.1.0
+  version: 2.2.0
   status: active
   type: add
   summary: "Admins can trigger runs via path reference, file upload, or pasted JSON in either automatic or staged/manual mode, continue paused manual runs one stage at a time from persisted checkpoints, upload a run-scoped synonym overlay after enrich before continuing into rule filter, inspect run progress from a status-aware list/detail UI, and export structured run artifacts when available."
@@ -24,6 +24,7 @@ trigger_run_management:
     - "Three job-input modes: path, upload, paste"
     - "Three candidate-profile modes: default_config, upload, paste"
     - "Two execution modes: run_all and manual_staged"
+    - "Rule Filter settings can choose which deterministic post-enrichment checks block versus only mark jobs"
     - Server-side mode resolution
     - Canonical snapshot capture for pasted and uploaded inputs
     - Persisted manual checkpoint metadata including next stage, last completed stage, completed stages, and serialized checkpoint payloads

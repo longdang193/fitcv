@@ -1,6 +1,6 @@
 inspection_debugging:
   name: Inspection & Debugging
-  version: 2.1.0
+  version: 2.2.0
   status: active
   type: add
   summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, next-stage state, enriched jobs, filter outcomes, inputs used, generated CVs, and explicit stage-local decision detail from exports, stage artifacts, settings-used snapshots, and CV debug snapshots."
@@ -20,7 +20,7 @@ inspection_debugging:
   capabilities:
     - Run detail page with 3-tab inspection interface
     - Client-side tab switching
-    - Filter outcome display with reasons
+    - Filter outcome display with reasons and non-blocking marks
     - Pre-enrichment rejects visible separately
     - Immutable snapshots for all trigger modes
     - Run detail shows execution mode, checkpoint status, last completed stage, next stage, and completed-stage list for manual staged runs
@@ -42,6 +42,7 @@ inspection_debugging:
     - Shortlist artifacts now distinguish raw vector row counts from unique-job raw-hit counts
     - Shortlist debug payloads now report observed raw-hit status without overstating retrieval root causes
     - Run-scoped enriched job rows can now include canonical skill companions and parsed mapping suggestions for richer inspection/debug export
+    - Rule-filter stage artifacts and run detail now show the active blocking-filter set plus mark-code counts for selectable screening
   refs:
     docs: []
     spec:

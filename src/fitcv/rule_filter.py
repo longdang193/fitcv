@@ -31,10 +31,29 @@ config["skill_synonyms"]         : alias → canonical skill mapping
 """
 
 import logging
+import json
 from datetime import datetime, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+RULE_FILTER_SIGNAL_LABELS: dict[str, str] = {
+    "seniority_mismatch": "Seniority mismatch",
+    "location_type_excluded": "Location type excluded",
+    "contract_type_excluded": "Contract type excluded",
+    "experience_level_excluded": "Experience level excluded",
+    "must_have_skill_missing": "Missing must-have skills",
+    "domain_not_preferred": "Domain not preferred",
+}
+
+DEFAULT_SELECTED_RULE_FILTERS: list[str] = [
+    "seniority_mismatch",
+    "location_type_excluded",
+    "contract_type_excluded",
+    "experience_level_excluded",
+]
+
+KNOWN_RULE_FILTER_SIGNAL_CODES: set[str] = set(RULE_FILTER_SIGNAL_LABELS)
 
 
 # ── built-in fallbacks (used when config is not passed) ───────────────────────
@@ -104,6 +123,24 @@ def _get_excluded_contract_types(prefs: dict[str, Any]) -> list[str]:
     if excluded:
         return [str(contract_type).lower() for contract_type in excluded]
     return []
+
+
+def _get_selected_rule_filter_codes(config: dict[str, Any] | None) -> set[str]:
+    rule_filter_cfg = (config or {}).get("rule_filter")
+    selected_filters = (
+        rule_filter_cfg.get("selected_filters")
+        if isinstance(rule_filter_cfg, dict)
+        else None
+    )
+    if not isinstance(selected_filters, list) or not selected_filters:
+        return set(DEFAULT_SELECTED_RULE_FILTERS)
+
+    normalized = {
+        str(item).strip()
+        for item in selected_filters
+        if str(item).strip() in KNOWN_RULE_FILTER_SIGNAL_CODES
+    }
+    return normalized or set(DEFAULT_SELECTED_RULE_FILTERS)
 
 
 # ── seniority normalisation ───────────────────────────────────────────────────
@@ -227,6 +264,62 @@ def check_must_have_skills(
         _canonicalise_skill(s, config) for s in job_skills
     }
     return all(_canonicalise_skill(skill, config) in job_skills_canonical for skill in must_haves)
+
+
+def _compute_missing_must_have_skills(
+    job: dict[str, Any],
+    prefs: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> list[str]:
+    must_haves = list(prefs.get("must_have_skills") or [])
+    if not must_haves:
+        return []
+    canonical_job_skills = job.get("required_skills_canonical")
+    if isinstance(canonical_job_skills, list) and canonical_job_skills:
+        job_skills = canonical_job_skills
+    else:
+        job_skills = job.get("required_skills") or []
+    job_skills_canonical = {
+        _canonicalise_skill(str(skill), config)
+        for skill in job_skills
+    }
+    missing: list[str] = []
+    for skill in must_haves:
+        canonical_skill = _canonicalise_skill(str(skill), config)
+        if canonical_skill not in job_skills_canonical:
+            missing.append(canonical_skill)
+    return missing
+
+
+def _build_rule_filter_mark(
+    reason_code: str,
+    job: dict[str, Any],
+    prefs: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    if reason_code == "must_have_skill_missing":
+        missing_skills = _compute_missing_must_have_skills(job, prefs, config)
+        return {
+            "code": reason_code,
+            "message": "Missing must-have skills",
+            "details": {
+                "missing_skills": missing_skills,
+                "missing_count": len(missing_skills),
+            },
+        }
+    if reason_code == "domain_not_preferred":
+        return {
+            "code": reason_code,
+            "message": "Job domain is outside preferred domains",
+            "details": {
+                "job_domain": str(job.get("domain") or "").lower(),
+                "preferred_domains": _get_preferred_domains(prefs),
+            },
+        }
+    return {
+        "code": reason_code,
+        "message": RULE_FILTER_SIGNAL_LABELS.get(reason_code, reason_code.replace("_", " ")),
+    }
 
 
 def check_freshness(
@@ -374,14 +467,20 @@ def apply_rule_filters(
         ("domain_not_preferred",      check_domain_preference),
     ]
 
+    selected_filter_codes = _get_selected_rule_filter_codes(config)
     passed: list[str] = []
+    passed_records: list[dict[str, Any]] = []
     rejected: list[dict[str, Any]] = []
 
     for job in jobs:
         reasons: list[str] = []
+        marks: list[dict[str, Any]] = []
         for reason_code, check_fn in checks:
             if not check_fn(job, prefs):
-                reasons.append(reason_code)
+                if reason_code in selected_filter_codes:
+                    reasons.append(reason_code)
+                else:
+                    marks.append(_build_rule_filter_mark(reason_code, job, prefs, config))
 
         # Log seniority / experience_level conflicts (do not auto-reject)
         exp_level = (job.get("experience_level") or "").lower()
@@ -393,11 +492,17 @@ def apply_rule_filters(
             )
 
         if reasons:
-            rejected.append({"job_url": str(job.get("job_url", "")), "reasons": reasons})
+            rejected.append({
+                "job_url": str(job.get("job_url", "")),
+                "reasons": reasons,
+                "marks": marks,
+            })
         else:
-            passed.append(str(job.get("job_url", "")))
+            job_url = str(job.get("job_url", ""))
+            passed.append(job_url)
+            passed_records.append({"job_url": job_url, "marks": marks})
 
-    return {"passed": passed, "rejected": rejected}
+    return {"passed": passed, "passed_records": passed_records, "rejected": rejected}
 
 
 # ── integration: persist to BigQuery ─────────────────────────────────────────
@@ -427,15 +532,26 @@ def store_filter_results(
     now = datetime.now(tz=timezone.utc).isoformat()
 
     rows: list[dict[str, Any]] = []
+    passed_records_by_url = {
+        str(item.get("job_url") or ""): item
+        for item in result.get("passed_records", [])
+        if str(item.get("job_url") or "")
+    }
     for job_url in result.get("passed", []):
         rows.append({
             "job_url": job_url, "passed": True, "reasons": [],
+            "marks_json": json.dumps(
+                list((passed_records_by_url.get(str(job_url)) or {}).get("marks") or []),
+                ensure_ascii=False,
+            ),
             "filtered_at": now, "run_id": run_id,
         })
     for item in result.get("rejected", []):
         rows.append({
             "job_url": item["job_url"], "passed": False,
-            "reasons": item["reasons"], "filtered_at": now,
+            "reasons": item["reasons"],
+            "marks_json": json.dumps(list(item.get("marks") or []), ensure_ascii=False),
+            "filtered_at": now,
             "run_id": run_id,
         })
 
