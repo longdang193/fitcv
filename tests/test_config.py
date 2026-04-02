@@ -1,4 +1,6 @@
 """Tests for config loading."""
+import shutil
+import uuid
 from pathlib import Path
 
 import pytest
@@ -537,3 +539,49 @@ def test_required_cv_sections_excludes_summary_when_disabled(tmp_path: Path) -> 
     cfg = load_config(env_yaml)
     assert "Summary" not in cfg["required_cv_sections"]
     assert "Experience" in cfg["required_cv_sections"]
+
+
+def test_load_config_adds_default_enrich_prompt_id() -> None:
+    cfg = load_config()
+
+    assert cfg["prompts"]["enrich"]["extraction"]["prompt_id"] == "enrich.extraction.v1"
+
+
+def test_load_config_rejects_unknown_enrich_prompt_id() -> None:
+    tmp_path = Path(".worktrees/Stage-by-stage-flow/tests") / f"tmp_prompt_config_{uuid.uuid4().hex}"
+    tmp_path.mkdir(parents=True, exist_ok=False)
+    try:
+        env_yaml = tmp_path / ".env.yaml"
+        env_yaml.write_text(
+            "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
+        )
+        cfg_dir = tmp_path / "config"
+        cfg_dir.mkdir()
+        (cfg_dir / "cv.yaml").write_text(
+            "cv:\n"
+            "  preset: europass\n"
+            "  generation:\n"
+            "    model: gemini-2.5-flash\n"
+            "    prompt_version: v1\n"
+            "  composition:\n"
+            "    summary:\n"
+            "      enabled: true\n"
+            "      style: concise\n"
+            "    experience:\n"
+            "      enabled: true\n"
+            "  content_rules:\n"
+            "    evidence_grounded_only: true\n"
+            "  validation:\n"
+            "    max_pages: 2\n"
+        )
+        (cfg_dir / "pipeline.yaml").write_text(
+            "prompts:\n"
+            "  enrich:\n"
+            "    extraction:\n"
+            "      prompt_id: enrich.extraction.v999\n"
+        )
+
+        with pytest.raises(ValueError, match="Unknown enrich prompt_id"):
+            load_config(env_yaml)
+    finally:
+        shutil.rmtree(tmp_path, ignore_errors=True)

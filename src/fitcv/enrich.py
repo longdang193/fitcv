@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from typing import Any, TypedDict
 
 from pydantic import BaseModel as _BaseModel, Field as _Field
+from fitcv.prompts import get_prompt_definition, render_prompt
 
 # ── global rate limiter ──────────────────────────────────────────────────────
 # Acquired around every enrich_job call so that concurrent chunks cannot
@@ -528,6 +529,7 @@ _EXTRACTION_SCHEMA = """\
 def build_extraction_prompt(
     description: str,
     scraped_metadata: dict[str, Any],
+    config: dict[str, Any] | None = None,
 ) -> str:
     """Build a Gemini extraction prompt for structured JD fields.
 
@@ -540,37 +542,35 @@ def build_extraction_prompt(
     - seniority = normalized from JD TEXT, distinct from scraped experience_level
     """
     metadata_block = json.dumps(scraped_metadata, ensure_ascii=False, indent=2)
+    prompt_id = get_enrich_extraction_prompt_id(config)
+    rendered = render_prompt(
+        prompt_id,
+        {
+            "metadata_block": metadata_block,
+            "extraction_schema": _EXTRACTION_SCHEMA,
+            "description": description,
+        },
+    )
+    return rendered.text
 
-    return f"""You are an expert recruiter extracting structured information from job descriptions.
 
-The following metadata was already scraped directly from LinkedIn and is available:
-{metadata_block}
+def get_enrich_extraction_prompt_id(config: dict[str, Any] | None = None) -> str:
+    prompt_id = str(
+        ((((config or {}).get("prompts") or {}).get("enrich") or {}).get("extraction") or {}
+    ).get("prompt_id") or "enrich.extraction.v1")
+    return prompt_id.strip() or "enrich.extraction.v1"
 
-Your task is to extract ONLY the fields listed in the JSON schema below from the job
-description text. Do not repeat or infer fields already present in the scraped metadata.
 
-FIELD DEFINITIONS:
-- job_family: the ROLE CATEGORY (what you do), e.g. data_engineering, analytics, data_science, ml_engineering
-- domain: the BUSINESS/INDUSTRY domain (what industry you do it in), e.g. banking, fintech, healthcare, retail
-- seniority: normalized level inferred from the JD TEXT (not the LinkedIn label). Values: junior / mid / senior / lead.
-  Example: if the JD says "5+ years required" but LinkedIn shows "Entry level", infer seniority = mid.
-- location_type: must be exactly one of: remote, hybrid, onsite
-- required_skill_entities / preferred_skill_entities: emit only ACTUAL skill concepts found in required_skills / preferred_skills.
-  Do not emit degrees, years of experience, language requirements, soft traits, communication traits, ownership/proactivity traits, or business/domain knowledge as canonical skills.
-  Only emit concrete technical skills, tools, technologies, methods, frameworks, platforms, libraries, or technical competencies.
-  Do not collapse specific concepts into broad umbrella canonicals. For example, do not map prompt engineering or vector databases to genai.
-  One raw phrase may produce multiple entities when it clearly contains multiple distinct skills.
-
-Return ONLY a valid JSON object matching this schema. No markdown, no explanation.
-Every schema key must be present in the response.
-Use [] for unknown list fields.
-Use null for unknown scalar fields.
-
-Schema:
-{_EXTRACTION_SCHEMA}
-
-JOB DESCRIPTION:
-{description}"""
+def get_enrich_prompt_provenance(config: dict[str, Any] | None = None) -> dict[str, str]:
+    prompt_id = get_enrich_extraction_prompt_id(config)
+    definition = get_prompt_definition(prompt_id)
+    model_name = str((config or {}).get("gemini_model", "gemini-2.5-flash"))
+    return {
+        "prompt_id": definition.prompt_id,
+        "prompt_version": definition.version,
+        "template_path": str(definition.template_path),
+        "model": model_name,
+    }
 
 
 # ── response parsing ──────────────────────────────────────────────────────────
@@ -802,6 +802,7 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
             "sector": job.get("sector", ""),
             "location": job.get("location", ""),
         },
+        config=config,
     )
 
     response = client.models.generate_content(

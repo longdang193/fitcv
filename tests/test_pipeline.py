@@ -1822,6 +1822,48 @@ def test_build_stage_transition_artifacts_enrich_sample_keeps_full_list_fields()
     ]
 
 
+def test_build_stage_transition_artifacts_enrich_decision_summary_includes_prompt_provenance() -> None:
+    enriched_job = {
+        "job_url": "https://example.com/job/1",
+        "title": "Data Analyst",
+        "required_skills": ["SQL"],
+        "required_skills_canonical": ["sql"],
+        "required_skill_entities": [{"raw_text": "SQL", "canonical": "sql", "confidence": 1.0}],
+        "enrichment_model": "gemini-2.5-flash",
+    }
+
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=[enriched_job],
+        normalized=[enriched_job],
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=[enriched_job],
+        passed_jobs=[enriched_job],
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=[],
+        shortlist=[],
+        backfilled_job_urls=[],
+        vector_top_n=10,
+        candidate_summary="candidate summary",
+        ai_scores=[],
+        ranking_inputs=[],
+        ranked=[],
+        final_top_n=5,
+        cv_generation_debug_records=[],
+        profile={},
+        config={
+            "gemini_model": "gemini-2.5-flash",
+            "prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}},
+            "cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}},
+        },
+    )
+
+    enrich_summary = artifacts["stages"]["enrich"]["decision_summary"]
+    assert enrich_summary["enrich_prompt_id"] == "enrich.extraction.v1"
+    assert enrich_summary["enrich_prompt_version"] == "v1"
+    assert enrich_summary["enrich_prompt_model"] == "gemini-2.5-flash"
+
+
 def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortlist_counts() -> None:
     passed_jobs = [
         {"job_url": "https://example.com/1", "title": "Data Analyst"},

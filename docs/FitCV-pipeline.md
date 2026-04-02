@@ -363,6 +363,7 @@ After applications, track:
 Then later improve:
 
 * enrichment prompts / schemas
+* centralized prompt registry for LLM-backed stage templates and prompt provenance
 * `AI.SCORE` rubric
 * weightings in final score
 * rule filters

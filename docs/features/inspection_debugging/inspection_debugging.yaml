@@ -30,6 +30,7 @@ inspection_debugging:
     - Run-scoped settings-used JSON download for succeeded runs when available
     - Timeline-linked per-stage stage-artifact downloads for recognized stage-boundary events
     - Stage-transition artifacts now include bounded pre-decision inputs, decision summaries, and output/change-state samples for each major stage
+    - Enrich-stage artifacts and settings-used snapshots can expose effective enrich prompt provenance, including prompt ID, version, template path, and model
     - Ranking-stage artifacts report the full six-feature ranking contract, zero-weight features, and ranked-vs-not-ranked scoring context
     - Newly generated stage-transition artifacts now version the six-feature ranking artifact shape as `stage_transition_artifacts_v3`
     - Run-scoped CV-generation debug snapshot download for succeeded runs when available
@@ -57,6 +58,7 @@ inspection_debugging:
       - docs/superpowers/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
       - docs/superpowers/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
       - docs/superpowers/specs/2026-04-02-14-35-staged-manual-pipeline-mode-spec.md
+      - docs/superpowers/specs/2026-04-02-19-10-central-prompt-registry-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-run-scoped-enrichment-inspection-implementation.md
       - docs/superpowers/plans/2026-03-26-run-detail-inspection-tabs-implementation.md
@@ -72,6 +74,7 @@ inspection_debugging:
       - docs/superpowers/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
       - docs/superpowers/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
       - docs/superpowers/plans/2026-04-02-14-50-staged-manual-pipeline-mode-plan.md
+      - docs/superpowers/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     history:
       - docs/features/inspection_debugging/history.md
   keywords:

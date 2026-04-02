@@ -43,7 +43,12 @@ from fitcv.candidate import (
 from fitcv.config import load_config
 from fitcv.cv_generator import generate_cv
 from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
-from fitcv.enrich import enrich_batch, load_run_structured_jobs, load_structured_jobs
+from fitcv.enrich import (
+    enrich_batch,
+    get_enrich_prompt_provenance,
+    load_run_structured_jobs,
+    load_structured_jobs,
+)
 from fitcv.evidence import retrieve_evidence
 from fitcv.gap_analysis import classify_fit, compute_gap
 from fitcv.ingest import load_to_bigquery, parse_jobs_file, prepare_raw_rows
@@ -1104,6 +1109,7 @@ def _build_stage_transition_artifacts(
             cv_status_counts["generation_failed_count"] += 1
         elif status == "persistence_failed":
             cv_status_counts["persistence_failed_count"] += 1
+    enrich_prompt_provenance = get_enrich_prompt_provenance(config)
 
     return {
         "schema_version": "stage_transition_artifacts_v3",
@@ -1141,6 +1147,10 @@ def _build_stage_transition_artifacts(
                 },
                 decision_summary={
                     "candidate_profile_summary": _candidate_profile_summary(profile),
+                    "enrich_prompt_id": enrich_prompt_provenance["prompt_id"],
+                    "enrich_prompt_version": enrich_prompt_provenance["prompt_version"],
+                    "enrich_prompt_template_path": enrich_prompt_provenance["template_path"],
+                    "enrich_prompt_model": enrich_prompt_provenance["model"],
                 },
                 inputs_sample=_sample_rows(
                     [job for job in normalized if _extract_job_url(job) not in {_extract_job_url(item) for item in pre_filter_rejected_jobs}],

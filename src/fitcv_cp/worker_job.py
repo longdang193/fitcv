@@ -192,6 +192,11 @@ def _build_settings_used_payload(
                 if isinstance((effective_config or {}).get("skill_synonyms_runtime"), dict)
                 else None
             ),
+            "prompts_runtime": (
+                dict((effective_config or {}).get("prompts_runtime") or {})
+                if isinstance((effective_config or {}).get("prompts_runtime"), dict)
+                else None
+            ),
         },
     }
     return json.dumps(payload, ensure_ascii=False)

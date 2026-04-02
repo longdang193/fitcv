@@ -5,6 +5,7 @@ enrich:
   boundaries:
     - normalized jobs enter and enriched job rows leave
     - pre-enrichment global filter ownership belongs to this stage in the current runtime flow
+    - extraction prompt text and metadata are centrally managed via the prompt registry, while enrich keeps ownership of schemas, parsing, and post-processing
     - canonical downstream skill fields are limited to `required_skills` and `preferred_skills`, and are represented as canonical skill entities plus flattened canonical skill labels
     - downstream scoring and CV work should rely on the enriched contract rather than raw input shape
   inputs:
@@ -17,6 +18,7 @@ enrich:
     - pre-enrichment rejects with reasons
     - optional manual checkpoint payloads that can resume downstream rule filtering without rerunning normalize/enrich
     - bounded `stage_transition_artifacts.enrich` runtime block with input, output, and changed-state samples
+    - enrich prompt provenance in stage decision summaries when available
   depends_on:
     - normalize
   primary_features:

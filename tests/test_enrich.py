@@ -54,6 +54,15 @@ def test_build_extraction_prompt_requires_all_keys_present() -> None:
     assert "Use null for unknown scalar fields" in prompt
 
 
+def test_build_extraction_prompt_uses_effective_prompt_id_from_config() -> None:
+    prompt = build_extraction_prompt(
+        description="Remote SQL role",
+        scraped_metadata={},
+        config={"prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}}},
+    )
+    assert "expert recruiter extracting structured information" in prompt
+
+
 # ── parse_extraction_response — valid JSON ────────────────────────────────────
 
 def test_parse_extraction_response_valid_json() -> None:
@@ -186,6 +195,55 @@ def test_merge_scraped_and_enriched_uses_config_model() -> None:
     merged = merge_scraped_and_enriched(scraped, enriched, config=config)
     assert merged["enrichment_model"] == "gemini-2.0-flash"
     assert merged["enrichment_version"] == "v1"
+
+
+def test_enrich_job_renders_prompt_via_prompt_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeResponse:
+        parsed = EnrichmentOutput(
+            required_skills=["SQL"],
+            preferred_skills=[],
+            responsibilities=[],
+            tech_stack=[],
+            keywords=[],
+            location_type="remote",
+            seniority="mid",
+            domain="fintech",
+            job_family="analytics",
+            years_experience_min=None,
+            years_experience_max=None,
+            required_skill_entities=[],
+            preferred_skill_entities=[],
+        )
+        text = ""
+
+    class FakeModels:
+        def generate_content(self, *, model: str, contents: str, config: object) -> FakeResponse:
+            captured["model"] = model
+            captured["contents"] = contents
+            captured["config"] = config
+            return FakeResponse()
+
+    class FakeClient:
+        models = FakeModels()
+
+    monkeypatch.setattr("fitcv.enrich._make_genai_client", lambda config: FakeClient())
+
+    result = enrich_job(
+        {
+            "job_url": "https://example.com/jobs/1",
+            "title": "Data Analyst",
+            "description": "Need SQL for analytics work.",
+        },
+        {
+            "gemini_model": "gemini-2.5-flash",
+            "prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}},
+        },
+    )
+
+    assert "Need SQL for analytics work." in str(captured["contents"])
+    assert result["required_skills"] == ["SQL"]
 
 
 def test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields() -> None:
