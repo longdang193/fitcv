@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.1.0 — active
+
+- Run detail now shows whether a run-scoped synonym overlay is active while a manual run is paused after `enrich`
+- The enrich checkpoint exposes an upload action for reviewed synonym overlays alongside the existing mapping-suggestion downloads
+- This rollout keeps the inspection surface checkpoint-oriented and does not add an in-browser synonym editor
+
 ### 2.0.0 — active
 
 - Inspection surfaces now expose manual staged-run checkpoint state, including execution mode, checkpoint status, completed stages, and next stage

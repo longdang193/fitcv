@@ -5,7 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from fitcv.config import get_vertex_location, load_config
+from fitcv.config import (
+    apply_runtime_skill_synonym_overlay,
+    get_vertex_location,
+    load_config,
+    parse_skill_synonym_overlay_yaml,
+)
 
 
 def test_load_config_returns_dict() -> None:
@@ -262,6 +267,59 @@ def test_load_config_merges_skill_synonym_overlay_paths(tmp_path: Path) -> None:
     assert cfg["skill_synonyms"]["ga4"] == "google analytics"
     assert cfg["skill_synonyms_runtime"]["has_overlay"] is True
     assert len(cfg["skill_synonyms_runtime"]["overlay_paths"]) == 1
+
+
+def test_parse_skill_synonym_overlay_yaml_accepts_nested_skill_synonyms() -> None:
+    overlay = parse_skill_synonym_overlay_yaml(
+        "skill_synonyms:\n"
+        "  PowerBI: power bi\n"
+        "  GCP: google cloud\n"
+    )
+
+    assert overlay == {
+        "powerbi": "power bi",
+        "gcp": "google cloud",
+    }
+
+
+def test_parse_skill_synonym_overlay_yaml_rejects_invalid_mapping_values() -> None:
+    with pytest.raises(ValueError, match="must be non-empty strings"):
+        parse_skill_synonym_overlay_yaml(
+            "skill_synonyms:\n"
+            "  powerbi: ''\n"
+        )
+
+
+def test_apply_runtime_skill_synonym_overlay_merges_entries_and_runtime_metadata() -> None:
+    cfg = {
+        "skill_synonyms": {
+            "gcp": "google cloud",
+            "powerbi": "power bi",
+        },
+        "skill_synonyms_runtime": {
+            "base_policy_path": "config/skill_synonyms.yaml",
+            "overlay_paths": [],
+            "has_overlay": False,
+            "entry_count": 2,
+        },
+    }
+
+    updated = apply_runtime_skill_synonym_overlay(
+        cfg,
+        {
+            "gcp": "gcp cloud",
+            "ga4": "google analytics",
+        },
+        source="upload",
+        filename="reviewed-skill-synonyms.yaml",
+        uploaded_at="2026-04-02T21:30:00Z",
+    )
+
+    assert updated["skill_synonyms"]["gcp"] == "gcp cloud"
+    assert updated["skill_synonyms"]["ga4"] == "google analytics"
+    assert updated["skill_synonyms_runtime"]["has_run_overlay"] is True
+    assert updated["skill_synonyms_runtime"]["run_overlay_filename"] == "reviewed-skill-synonyms.yaml"
+    assert updated["skill_synonyms_runtime"]["run_overlay_entry_count"] == 2
 
 
 # ── Task 1: nested preset-based cv config ─────────────────────────────────────

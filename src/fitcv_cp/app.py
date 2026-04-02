@@ -6,17 +6,23 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, field_validator
 
-from fitcv.config import load_config
+from fitcv.config import (
+    apply_cv_compatibility_projection,
+    apply_runtime_skill_synonym_overlay,
+    load_config,
+    parse_skill_synonym_overlay_yaml,
+)
 from fitcv_cp.bq_store import (
     append_event,
     archive_run,
     get_events, get_run, insert_run, list_filter_results_for_run,
     list_runs, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs,
     request_run_cancel, unarchive_run, update_run_checkpoint,
+    update_run_effective_settings,
     update_run_queue_job_id, update_run_status,
 )
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
@@ -33,8 +39,6 @@ from fitcv_cp.settings_schema import (
     validate_settings,
 )
 from fitcv_cp.settings_store import load_active_settings, save_setting, save_settings_group
-from fitcv.config import apply_cv_compatibility_projection
-
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 PIPELINE_OUTCOME_META: dict[str, dict[str, str]] = {
     "ranked_with_cv": {
@@ -110,6 +114,47 @@ RUN_MODE_LABELS = {
     "run_all": "Automatic",
     "manual_staged": "Manual staged",
 }
+
+
+def _can_upload_synonym_overlay(run: PipelineRun) -> bool:
+    return (
+        run.run_mode == "manual_staged"
+        and run.status == RunStatus.AWAITING_CONTINUE
+        and str(run.next_stage or "").strip() == "rule_filter"
+        and str(run.last_completed_stage or "").strip() == "enrich"
+    )
+
+
+def _load_run_effective_config_snapshot(run: PipelineRun) -> dict[str, Any]:
+    if run.effective_settings_json:
+        try:
+            payload = _json.loads(run.effective_settings_json)
+            if isinstance(payload, dict):
+                return payload
+        except (_json.JSONDecodeError, TypeError):
+            pass
+    return load_config(run.config_path)
+
+
+def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
+    if not run.effective_settings_json:
+        return {"has_run_overlay": False}
+    try:
+        payload = _json.loads(run.effective_settings_json)
+    except (_json.JSONDecodeError, TypeError):
+        return {"has_run_overlay": False}
+    if not isinstance(payload, dict):
+        return {"has_run_overlay": False}
+    runtime = payload.get("skill_synonyms_runtime")
+    if not isinstance(runtime, dict):
+        return {"has_run_overlay": False}
+    return {
+        "has_run_overlay": bool(runtime.get("has_run_overlay")),
+        "filename": str(runtime.get("run_overlay_filename") or ""),
+        "entry_count": int(runtime.get("run_overlay_entry_count") or 0),
+        "uploaded_at": str(runtime.get("run_overlay_uploaded_at") or ""),
+        "effective_entry_count": int(runtime.get("entry_count") or 0),
+    }
 
 
 def _aggregate_mapping_suggestion_payloads(runs: list[PipelineRun]) -> dict[str, Any]:
@@ -993,6 +1038,72 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         )
         return {"status": "cancelling", "run_id": run_id}
 
+    @app.post("/admin/runs/{run_id}/synonym-overlay")
+    async def admin_upload_run_synonym_overlay(
+        run_id: str,
+        synonym_overlay_file: UploadFile = File(...),
+    ) -> RedirectResponse:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if not _can_upload_synonym_overlay(run):
+            raise HTTPException(
+                status_code=409,
+                detail="Synonym overlay upload is only available for manual runs paused after enrich",
+            )
+        filename = str(synonym_overlay_file.filename or "").strip()
+        if not filename:
+            raise HTTPException(status_code=422, detail="A synonym overlay YAML file is required")
+        raw_bytes = await synonym_overlay_file.read()
+        if not raw_bytes:
+            raise HTTPException(status_code=422, detail="Uploaded synonym overlay file is empty")
+        try:
+            raw_text = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(status_code=422, detail="Synonym overlay must be UTF-8 encoded text") from exc
+        try:
+            overlay_synonyms = parse_skill_synonym_overlay_yaml(raw_text)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+        effective_config = _load_run_effective_config_snapshot(run)
+        uploaded_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        updated_config = apply_runtime_skill_synonym_overlay(
+            effective_config,
+            overlay_synonyms,
+            source="upload",
+            filename=filename,
+            uploaded_at=uploaded_at,
+        )
+        update_run_effective_settings(
+            run_id,
+            _json.dumps(updated_config, ensure_ascii=False),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        append_event(
+            RunEvent(
+                run_id=run_id,
+                event_id=str(uuid.uuid4()),
+                stage="synonym_overlay_uploaded",
+                level="info",
+                message=f"Run-scoped synonym overlay uploaded ({len(overlay_synonyms)} entries)",
+                created_at=datetime.datetime.now(datetime.timezone.utc),
+                payload_json=_json.dumps(
+                    {
+                        "filename": filename,
+                        "entry_count": len(overlay_synonyms),
+                    },
+                    ensure_ascii=False,
+                ),
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
+
     @app.post("/admin/runs/{run_id}/continue")
     def admin_continue_run(run_id: str) -> dict:
         run = get_run(run_id, bq, project=project, dataset=dataset)
@@ -1244,6 +1355,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     and run.status == RunStatus.AWAITING_CONTINUE
                     and bool(run.next_stage)
                 ),
+                "can_upload_synonym_overlay": _can_upload_synonym_overlay(run),
+                "synonym_overlay_info": _extract_run_synonym_overlay_info(run),
             }
         )
 

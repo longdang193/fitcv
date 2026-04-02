@@ -148,6 +148,62 @@ def _normalize_skill_synonyms(raw_synonyms: Any) -> dict[str, str]:
     }
 
 
+def parse_skill_synonym_overlay_yaml(raw_yaml: str) -> dict[str, str]:
+    """Parse and validate a run-scoped synonym overlay YAML payload."""
+    try:
+        payload = yaml.safe_load(raw_yaml)
+    except yaml.YAMLError as exc:
+        raise ValueError("Synonym overlay must be valid YAML") from exc
+    if payload is None:
+        raise ValueError("Synonym overlay must define at least one mapping")
+    if not isinstance(payload, dict):
+        raise ValueError("Synonym overlay must be a mapping")
+    candidate = payload.get("skill_synonyms") if "skill_synonyms" in payload else payload
+    if not isinstance(candidate, dict):
+        raise ValueError("Synonym overlay entries must be provided as a mapping")
+
+    normalized: dict[str, str] = {}
+    for alias, canonical in candidate.items():
+        alias_normalized = str(alias).strip().lower()
+        canonical_normalized = str(canonical).strip().lower()
+        if not alias_normalized or not canonical_normalized:
+            raise ValueError("Synonym overlay aliases and canonicals must be non-empty strings")
+        normalized[alias_normalized] = canonical_normalized
+    if not normalized:
+        raise ValueError("Synonym overlay must define at least one mapping")
+    return normalized
+
+
+def apply_runtime_skill_synonym_overlay(
+    cfg: dict[str, Any],
+    overlay_synonyms: dict[str, str],
+    *,
+    source: str,
+    filename: str,
+    uploaded_at: str,
+) -> dict[str, Any]:
+    """Return cfg with a run-scoped synonym overlay merged in."""
+    updated_cfg = dict(cfg)
+    runtime = dict(updated_cfg.get("skill_synonyms_runtime") or {})
+    base_effective_synonyms = runtime.get("pre_run_overlay_skill_synonyms")
+    if not isinstance(base_effective_synonyms, dict):
+        base_effective_synonyms = _normalize_skill_synonyms(updated_cfg.get("skill_synonyms"))
+    base_effective_synonyms = _normalize_skill_synonyms(base_effective_synonyms)
+    merged_synonyms = dict(base_effective_synonyms)
+    merged_synonyms.update(_normalize_skill_synonyms(overlay_synonyms))
+    runtime["pre_run_overlay_skill_synonyms"] = dict(base_effective_synonyms)
+    runtime["has_overlay"] = bool(runtime.get("overlay_paths") or overlay_synonyms)
+    runtime["entry_count"] = len(merged_synonyms)
+    runtime["has_run_overlay"] = bool(overlay_synonyms)
+    runtime["run_overlay_source"] = source
+    runtime["run_overlay_filename"] = filename
+    runtime["run_overlay_uploaded_at"] = uploaded_at
+    runtime["run_overlay_entry_count"] = len(overlay_synonyms)
+    updated_cfg["skill_synonyms"] = merged_synonyms
+    updated_cfg["skill_synonyms_runtime"] = runtime
+    return updated_cfg
+
+
 def _apply_prompt_defaults(cfg: dict[str, Any]) -> dict[str, Any]:
     prompts = cfg.get("prompts")
     if not isinstance(prompts, dict):
@@ -214,7 +270,8 @@ def _load_skill_synonym_overlays(
     for overlay_path in overlay_paths:
         resolved_path = _resolve_config_relative_path(config_dir, overlay_path)
         overlay_cfg = _load_yaml_file(resolved_path)
-        overlay_synonyms = _normalize_skill_synonyms(overlay_cfg.get("skill_synonyms"))
+        raw_overlay = overlay_cfg.get("skill_synonyms") if "skill_synonyms" in overlay_cfg else overlay_cfg
+        overlay_synonyms = _normalize_skill_synonyms(raw_overlay)
         if not overlay_synonyms:
             continue
         merged.update(overlay_synonyms)

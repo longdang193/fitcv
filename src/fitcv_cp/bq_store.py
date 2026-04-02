@@ -348,6 +348,30 @@ def update_run_mapping_suggestions(
     bq.query(sql, job_config=job_config).result()
 
 
+def update_run_effective_settings(
+    run_id: str,
+    effective_settings_json: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    """Persist the mutable run-scoped effective settings snapshot."""
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET effective_settings_json = @effective_settings_json WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter(
+                "effective_settings_json", "STRING", effective_settings_json
+            ),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    bq.query(sql, job_config=job_config).result()
+
+
 def request_run_cancel(
     run_id: str,
     requested_by: str,

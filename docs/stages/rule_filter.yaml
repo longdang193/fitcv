@@ -10,6 +10,7 @@ rule_filter:
   inputs:
     - enriched job rows
     - deterministic filter and policy settings
+    - effective skill synonym map, which may include a run-scoped overlay uploaded after `enrich` in manual staged mode
   outputs:
     - passed jobs
     - rejected jobs
@@ -28,6 +29,7 @@ rule_filter:
       - docs/superpowers/specs/2026-03-31-stage-contract-docs-adoption-design.md
       - docs/superpowers/specs/2026-03-31-stage-transition-artifacts-design.md
       - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
+      - docs/superpowers/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
     plan:
       - docs/superpowers/plans/2026-03-31-stage-transition-artifacts-implementation.md
       - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md

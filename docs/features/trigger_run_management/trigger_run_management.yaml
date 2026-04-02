@@ -1,9 +1,9 @@
 trigger_run_management:
   name: Trigger & Run Management
-  version: 2.0.0
+  version: 2.1.0
   status: active
   type: add
-  summary: "Admins can trigger runs via path reference, file upload, or pasted JSON in either automatic or staged/manual mode, continue paused manual runs one stage at a time from persisted checkpoints, inspect run progress from a status-aware list/detail UI, and export structured run artifacts when available."
+  summary: "Admins can trigger runs via path reference, file upload, or pasted JSON in either automatic or staged/manual mode, continue paused manual runs one stage at a time from persisted checkpoints, upload a run-scoped synonym overlay after enrich before continuing into rule filter, inspect run progress from a status-aware list/detail UI, and export structured run artifacts when available."
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -29,6 +29,7 @@ trigger_run_management:
     - Persisted manual checkpoint metadata including next stage, last completed stage, completed stages, and serialized checkpoint payloads
     - Manual staged runs pause after normalize, enrich, rule_filter, shortlist, and ranking
     - Manual staged runs can continue from the next pending stage without restarting the whole pipeline
+    - Manual staged runs paused after `enrich` can upload a run-scoped synonym-overlay YAML before continuing into `rule_filter`
     - CV results banner on run detail
     - CV downloads
     - Run results JSON export
@@ -59,6 +60,7 @@ trigger_run_management:
       - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
       - docs/superpowers/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
       - docs/superpowers/specs/2026-04-02-14-35-staged-manual-pipeline-mode-spec.md
+      - docs/superpowers/specs/2026-04-02-21-05-run-scoped-synonym-overlay-upload-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-runs-list-enhancements-implementation.md
       - docs/superpowers/plans/2026-03-25-admin-ux-improvements-implementation.md
@@ -70,6 +72,7 @@ trigger_run_management:
       - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
       - docs/superpowers/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
       - docs/superpowers/plans/2026-04-02-14-50-staged-manual-pipeline-mode-plan.md
+      - docs/superpowers/plans/2026-04-02-21-20-run-scoped-synonym-overlay-upload-plan.md
     history:
       - docs/features/trigger_run_management/history.md
   keywords:

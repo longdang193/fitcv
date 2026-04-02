@@ -597,6 +597,49 @@ def test_worker_manual_resume_passes_checkpoint_payload_to_pipeline() -> None:
     }
 
 
+def test_worker_manual_resume_uses_uploaded_run_scoped_synonym_overlay() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock()
+    mock_run.effective_settings_json = json.dumps({
+        "gcp_project": "p",
+        "bigquery_dataset": "d",
+        "service_account_key": "k",
+        "skill_synonyms": {
+            "gcp": "google cloud",
+            "ga4": "google analytics",
+        },
+        "skill_synonyms_runtime": {
+            "base_policy_path": "config/skill_synonyms.yaml",
+            "overlay_paths": [],
+            "has_overlay": True,
+            "entry_count": 2,
+            "has_run_overlay": True,
+            "run_overlay_filename": "reviewed-skill-synonyms.yaml",
+            "run_overlay_entry_count": 1,
+        },
+    })
+    mock_run.cancel_requested_at = None
+    mock_run.run_mode = "manual_staged"
+    mock_run.next_stage = "rule_filter"
+    mock_run.checkpoint_payload_json = json.dumps({
+        "checkpoint_payload": {"enriched": [{"job_url": "https://example.com/1"}]}
+    })
+    mock_run.started_at = datetime.datetime.now().astimezone()
+
+    with patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+         patch("fitcv_cp.worker_job.run_pipeline", return_value={
+             "run_id": "r1", "total_jobs": 0, "passed_filter": 0, "ranked": 0, "cvs_generated": 0
+         }) as mock_pipeline, \
+         patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+         patch("fitcv_cp.worker_job.update_run_checkpoint"):
+        execute_pipeline_run(run_id="r1", jobs_path="data/jobs.json", config_path=".env.yaml")
+
+    call_kwargs = mock_pipeline.call_args.kwargs
+    assert call_kwargs["config"]["skill_synonyms"]["ga4"] == "google analytics"
+    assert call_kwargs["config"]["skill_synonyms_runtime"]["has_run_overlay"] is True
+
+
 # ── cooperative cancellation ─────────────────────────────────────────────────
 
 def test_worker_marks_cancelled_when_cancel_already_requested():

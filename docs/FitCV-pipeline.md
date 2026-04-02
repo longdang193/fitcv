@@ -495,6 +495,8 @@ For manual runs, the control plane persists:
 - `completed_stages`
 - a serialized checkpoint payload used to resume the next stage without restarting the full pipeline by default
 
+When a manual run pauses after `enrich`, the admin can optionally upload a run-scoped synonym-overlay YAML before continuing into `rule_filter`. That overlay is merged with the base skill synonym map for the rest of that run only.
+
 This keeps the pipeline architecture the same while making stage-local debugging much easier.
 
 ## Best mental model

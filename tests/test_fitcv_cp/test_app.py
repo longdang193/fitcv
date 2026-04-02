@@ -201,6 +201,127 @@ def test_admin_continue_run_requeues_manual_paused_run() -> None:
     mock_checkpoint.assert_called_once()
 
 
+def test_admin_run_detail_shows_synonym_overlay_upload_for_manual_enrich_checkpoint() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-overlay-btn",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="manual_staged",
+        checkpoint_status="awaiting_continue",
+        last_completed_stage="enrich",
+        next_stage="rule_filter",
+        completed_stages=["normalize", "enrich"],
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-overlay-btn")
+
+    assert resp.status_code == 200
+    assert "Upload Synonym Overlay YAML" in resp.text
+    assert 'action="/admin/runs/run-overlay-btn/synonym-overlay"' in resp.text
+
+
+def test_admin_upload_synonym_overlay_updates_run_effective_settings() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-overlay-upload",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="manual_staged",
+        checkpoint_status="awaiting_continue",
+        last_completed_stage="enrich",
+        next_stage="rule_filter",
+        completed_stages=["normalize", "enrich"],
+        effective_settings_json=json.dumps({
+            "gcp_project": "p",
+            "bigquery_dataset": "d",
+            "service_account_key": "k",
+            "skill_synonyms": {"gcp": "google cloud"},
+            "skill_synonyms_runtime": {
+                "base_policy_path": "config/skill_synonyms.yaml",
+                "overlay_paths": [],
+                "has_overlay": False,
+                "entry_count": 1,
+            },
+        }),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_effective_settings") as mock_update, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-overlay-upload/synonym-overlay",
+            files={
+                "synonym_overlay_file": (
+                    "reviewed-skill-synonyms.yaml",
+                    b"skill_synonyms:\n  ga4: google analytics\n",
+                    "application/x-yaml",
+                )
+            },
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 303
+    stored_json = mock_update.call_args.args[1]
+    payload = json.loads(stored_json)
+    assert payload["skill_synonyms"]["ga4"] == "google analytics"
+    assert payload["skill_synonyms_runtime"]["has_run_overlay"] is True
+
+
+def test_admin_upload_synonym_overlay_rejects_invalid_yaml() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-overlay-invalid",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="manual_staged",
+        checkpoint_status="awaiting_continue",
+        last_completed_stage="enrich",
+        next_stage="rule_filter",
+        completed_stages=["normalize", "enrich"],
+        effective_settings_json='{"skill_synonyms":{"gcp":"google cloud"}}',
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_effective_settings") as mock_update:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-overlay-invalid/synonym-overlay",
+            files={
+                "synonym_overlay_file": (
+                    "bad.yaml",
+                    b"skill_synonyms:\n  powerbi: ''\n",
+                    "application/x-yaml",
+                )
+            },
+        )
+
+    assert resp.status_code == 422
+    mock_update.assert_not_called()
+
+
 # ── multi-file upload tests ────────────────────────────────────────────────────
 
 _UPLOAD_COMMON_PATCHES = {
