@@ -231,6 +231,15 @@ def test_worker_persists_settings_used_json_on_success():
     mock_run.effective_settings_json = json.dumps({
         "pipeline": {"final_top_n": 10},
         "cv": {"generation": {"model": "gemini-2.5-flash"}},
+        "prompts_runtime": {
+            "enrich": {
+                "extraction": {
+                    "prompt_id": "enrich.extraction.v1",
+                    "version": "v1",
+                    "template_path": "src/fitcv/prompts/templates/enrich_extraction_v1.md",
+                }
+            }
+        },
     })
     mock_run.cancel_requested_at = None
     mock_run.triggered_by = "admin"
@@ -257,6 +266,7 @@ def test_worker_persists_settings_used_json_on_success():
     assert payload["effective_settings"]["pipeline"]["final_top_n"] == 10
     assert payload["sources"]["config_path"] == ".env.yaml"
     assert payload["sources"]["effective_settings_snapshot_present"] is True
+    assert payload["sources"]["prompts_runtime"]["enrich"]["extraction"]["prompt_id"] == "enrich.extraction.v1"
 
 
 def test_worker_settings_used_persistence_failure_does_not_fail_run():

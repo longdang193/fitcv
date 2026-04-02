@@ -7,6 +7,7 @@
 - Inspection surfaces now expose manual staged-run checkpoint state, including execution mode, checkpoint status, completed stages, and next stage
 - Paused manual runs can inspect stage artifacts before continuation, and stage-artifact downloads remain available while a run is `awaiting_continue`
 - Run detail and runs list now expose `Run Next Stage` actions for paused manual runs without introducing a separate debug viewer
+- Settings-used snapshots and enrich-stage artifacts can now report effective enrich prompt provenance, including prompt ID, version, template path, and model
 
 ### 1.9.2 — active
 

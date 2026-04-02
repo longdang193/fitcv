@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.3.0 — active
+
+- Enrich extraction prompt text is now loaded from a centralized prompt registry instead of a large inline builder string
+- Runtime config validates the effective enrich prompt ID and exposes prompt runtime metadata for downstream inspection
+- Enrich-stage inspection can report prompt provenance without changing stage business logic or response-schema ownership
+
 ### 1.2.0 — active
 
 - Enrich now emits raw-plus-canonical companions for repeatedly interpreted semantic fields

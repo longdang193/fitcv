@@ -37,6 +37,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from fitcv.prompts import get_prompt_definition
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,7 @@ _POLICY_FILES = [
 ]
 
 _DEFAULT_ENV_CANDIDATES = (".env.yaml", "config/env.yaml")
+_DEFAULT_ENRICH_PROMPT_ID = "enrich.extraction.v1"
 _INFRA_ENV_OVERRIDES = {
     "gcp_project": "GCP_PROJECT",
     "bigquery_dataset": "BIGQUERY_DATASET",
@@ -144,6 +146,55 @@ def _normalize_skill_synonyms(raw_synonyms: Any) -> dict[str, str]:
         for alias, canonical in raw_synonyms.items()
         if str(alias).strip() and str(canonical).strip()
     }
+
+
+def _apply_prompt_defaults(cfg: dict[str, Any]) -> dict[str, Any]:
+    prompts = cfg.get("prompts")
+    if not isinstance(prompts, dict):
+        prompts = {}
+    enrich_prompt_cfg = prompts.get("enrich")
+    if not isinstance(enrich_prompt_cfg, dict):
+        enrich_prompt_cfg = {}
+    extraction_cfg = enrich_prompt_cfg.get("extraction")
+    if not isinstance(extraction_cfg, dict):
+        extraction_cfg = {}
+    prompt_id = str(extraction_cfg.get("prompt_id") or _DEFAULT_ENRICH_PROMPT_ID).strip()
+    extraction_cfg["prompt_id"] = prompt_id or _DEFAULT_ENRICH_PROMPT_ID
+    enrich_prompt_cfg["extraction"] = extraction_cfg
+    prompts["enrich"] = enrich_prompt_cfg
+    cfg["prompts"] = prompts
+    return cfg
+
+
+def _build_prompts_runtime(cfg: dict[str, Any]) -> dict[str, Any]:
+    prompt_id = str(
+        (((cfg.get("prompts") or {}).get("enrich") or {}).get("extraction") or {}).get("prompt_id")
+        or _DEFAULT_ENRICH_PROMPT_ID
+    )
+    definition = get_prompt_definition(prompt_id)
+    return {
+        "enrich": {
+            "extraction": {
+                "prompt_id": definition.prompt_id,
+                "version": definition.version,
+                "template_path": str(definition.template_path),
+                "stage_id": definition.stage_id,
+            }
+        }
+    }
+
+
+def _validate_prompt_config(cfg: dict[str, Any]) -> None:
+    prompt_id = str(
+        (((cfg.get("prompts") or {}).get("enrich") or {}).get("extraction") or {}).get("prompt_id")
+        or ""
+    ).strip()
+    if not prompt_id:
+        raise ValueError("prompts.enrich.extraction.prompt_id is required")
+    try:
+        get_prompt_definition(prompt_id)
+    except KeyError as exc:
+        raise ValueError(f"Unknown enrich prompt_id: {prompt_id}") from exc
 
 
 def _resolve_config_relative_path(config_dir: Path, raw_path: str | Path) -> Path:
@@ -242,6 +293,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
         for key, value in policy.items():
             if key not in cfg:  # never overwrite .env.yaml values
                 cfg[key] = value
+    cfg = _apply_prompt_defaults(cfg)
 
     base_skill_synonyms = _normalize_skill_synonyms(cfg.get("skill_synonyms"))
     overlay_paths_raw = cfg.get("skill_synonyms_overlay_paths") or []
@@ -263,6 +315,8 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
         "has_overlay": bool(resolved_overlay_paths),
         "entry_count": len(effective_skill_synonyms),
     }
+    _validate_prompt_config(cfg)
+    cfg["prompts_runtime"] = _build_prompts_runtime(cfg)
 
     cfg = _normalize_config_keys(cfg)
     _validate_nested_cv_config(cfg)
