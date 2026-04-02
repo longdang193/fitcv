@@ -433,6 +433,7 @@ Rule-based filtering
   - visa
   - seniority
   - must-have skills
+  - admin-selectable blocking vs mark-only deterministic checks
     ↓
 Embeddings generation
   - structured JD summary
@@ -498,6 +499,8 @@ For manual runs, the control plane persists:
 When a manual run pauses after `enrich`, the admin can optionally upload a run-scoped synonym-overlay YAML before continuing into `rule_filter`. That overlay is merged with the base skill synonym map for the rest of that run only.
 
 This keeps the pipeline architecture the same while making stage-local debugging much easier.
+
+In selectable-screening mode, `rule_filter` still evaluates all six deterministic post-enrichment checks. The admin-configured `rule_filter.selected_filters` setting only decides which failed checks reject versus which failed checks are emitted as non-blocking `marks` for downstream inspection.
 
 ## Best mental model
 

@@ -1,5 +1,5 @@
 from unittest.mock import MagicMock
-from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, update_run_results_export, update_run_cv_generation_debug, update_run_stage_transition_artifacts, update_run_settings_used, update_run_checkpoint, update_run_mapping_suggestions, update_run_effective_settings
+from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, list_filter_results_for_run, update_run_results_export, update_run_cv_generation_debug, update_run_stage_transition_artifacts, update_run_settings_used, update_run_checkpoint, update_run_mapping_suggestions, update_run_effective_settings
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import datetime
 import uuid
@@ -213,6 +213,82 @@ def test_list_run_structured_jobs_parses_canonical_json_companions():
             "alias": "gcp",
             "canonical": "google cloud",
             "confidence": 1.0,
+        }
+    ]
+
+
+def test_list_filter_results_for_run_parses_marks_json() -> None:
+    bq = MagicMock()
+
+    class FakeRow:
+        def items(self):
+            return [
+                ("job_url", "https://example.com/1"),
+                ("passed", True),
+                ("reasons", []),
+                (
+                    "marks_json",
+                    '[{"code":"must_have_skill_missing","message":"Missing must-have skills","details":{"missing_count":1,"missing_skills":["dbt"]}}]',
+                ),
+                ("run_id", "run-abc"),
+                ("filtered_at", datetime.datetime.now(datetime.timezone.utc)),
+            ]
+
+    bq.query.return_value.result.return_value = iter([FakeRow()])
+
+    result = list_filter_results_for_run("run-abc", bq, project="p", dataset="d")
+
+    assert result == [
+        {
+            "job_url": "https://example.com/1",
+            "passed": True,
+            "reasons": [],
+            "marks_json": '[{"code":"must_have_skill_missing","message":"Missing must-have skills","details":{"missing_count":1,"missing_skills":["dbt"]}}]',
+            "marks": [
+                {
+                    "code": "must_have_skill_missing",
+                    "message": "Missing must-have skills",
+                    "details": {
+                        "missing_count": 1,
+                        "missing_skills": ["dbt"],
+                    },
+                }
+            ],
+            "run_id": "run-abc",
+            "filtered_at": result[0]["filtered_at"],
+        }
+    ]
+
+
+def test_list_filter_results_for_run_falls_back_when_marks_json_missing() -> None:
+    from google.api_core.exceptions import BadRequest
+
+    bq = MagicMock()
+
+    legacy_row = {
+        "job_url": "https://example.com/1",
+        "passed": True,
+        "reasons": [],
+        "run_id": "run-legacy",
+        "filtered_at": datetime.datetime.now(datetime.timezone.utc),
+    }
+
+    first_query = MagicMock()
+    first_query.result.side_effect = BadRequest("Unrecognized name: marks_json")
+    second_query = MagicMock()
+    second_query.result.return_value = iter([legacy_row])
+    bq.query.side_effect = [first_query, second_query]
+
+    result = list_filter_results_for_run("run-legacy", bq, project="p", dataset="d")
+
+    assert result == [
+        {
+            "job_url": "https://example.com/1",
+            "passed": True,
+            "reasons": [],
+            "run_id": "run-legacy",
+            "filtered_at": legacy_row["filtered_at"],
+            "marks": [],
         }
     ]
 

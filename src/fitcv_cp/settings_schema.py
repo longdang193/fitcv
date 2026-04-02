@@ -32,6 +32,14 @@ _CV_PRESET_OPTIONS = sorted(SUPPORTED_PRESETS)
 _CV_DETAIL_OPTIONS = ["compact", "standard", "detailed"]
 _CV_SUMMARY_STYLE_OPTIONS = ["concise", "achievement_focused", "skills_focused"]
 _CV_EXPERIENCE_BULLET_OPTIONS = ["standard", "action_project_result"]
+_RULE_FILTER_SELECTABLE_OPTIONS = [
+    "seniority_mismatch",
+    "location_type_excluded",
+    "contract_type_excluded",
+    "experience_level_excluded",
+    "must_have_skill_missing",
+    "domain_not_preferred",
+]
 
 
 # ── schema registry ──────────────────────────────────────────────────────────
@@ -220,6 +228,21 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Reject jobs when the posting is older than this many days. Missing posted date is treated as passing.",
         "group": "global_job_filters",
         "config_path": ["global_job_filters", "max_age_days"],
+    },
+    {
+        "key": "rule_filter.selected_filters",
+        "type": "list[str]",
+        "default": [
+            "seniority_mismatch",
+            "location_type_excluded",
+            "contract_type_excluded",
+            "experience_level_excluded",
+        ],
+        "label": "Blocking Rule Filters",
+        "description": "Choose which post-enrichment deterministic rule filters reject jobs. Unselected filters are still evaluated and recorded as marks.",
+        "options": _RULE_FILTER_SELECTABLE_OPTIONS,
+        "group": "rule_filter",
+        "config_path": ["rule_filter", "selected_filters"],
     },
     # ── CV Generation ──────────────────────────────────────────────────────
     {
@@ -479,6 +502,9 @@ SETTINGS_SECTIONS: dict[str, list[str]] = {
         "global_job_filters.applications_count_max",
         "global_job_filters.max_age_days",
     ],
+    "rule-filter": [
+        "rule_filter.selected_filters",
+    ],
 }
 
 # ── CV Generation settings schema ──────────────────────────────────────────
@@ -615,6 +641,13 @@ def validate_settings(settings: dict[str, Any]) -> None:
                         f"{key} contains duplicate entries (order preserved, duplicates rejected): {value!r}"
                     )
                 seen.append(item)
+            options = entry.get("options")
+            if options is not None:
+                unknown = [item for item in value if item not in options]
+                if unknown:
+                    raise ValidationError(
+                        f"{key} must be one of {', '.join(options)}, got invalid entries: {unknown!r}"
+                    )
 
     # ── relational constraints ────────────────────────────────────────────────
     vs = settings.get("pipeline.vector_search_top_n")

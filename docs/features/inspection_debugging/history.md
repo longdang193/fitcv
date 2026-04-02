@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.2.0 — active
+
+- Run detail now shows non-blocking rule-filter marks on passed rows instead of making selectable-screening passes look completely clean
+- Rule-filter stage artifacts now report `selected_filters`, reject-reason counts, and mark-code counts for easier checkpoint debugging
+- This rollout keeps marks additive to the existing `reasons` contract and does not add a new in-browser artifact viewer
+
 ### 2.1.0 — active
 
 - Run detail now shows whether a run-scoped synonym overlay is active while a manual run is paused after `enrich`

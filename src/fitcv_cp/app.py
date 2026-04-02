@@ -405,6 +405,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         context.update(extra)
         return context
 
+    def _settings_form_value(form: Any, key: str) -> Any:
+        entry = schema_by_key.get(key, {})
+        if entry.get("type") == "list[str]":
+            return form.getlist(key)
+        return form.get(key, "")
+
     def _is_stale_cancelling(run: PipelineRun) -> bool:
         if run.status != RunStatus.CANCELLING or run.finished_at is not None:
             return False
@@ -849,7 +855,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         coerced: dict = {}
         coerce_errors: list[str] = []
         for key in keys:
-            raw = form.getlist(key) if key == "required_cv_sections" else form.get(key, "")
+            raw = _settings_form_value(form, key)
             try:
                 coerced[key] = coerce_value(key, raw)
             except (KeyError, ValueError) as exc:
@@ -866,7 +872,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 context=_build_settings_context(
                     active,
                     group_error={group_name: msg},
-                    group_draft={group_name: dict(form)},
+                    group_draft={group_name: {key: _settings_form_value(form, key) for key in keys}},
                 ),
                 status_code=422,
             )
@@ -917,7 +923,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         section_errors: dict[str, str] = {}
 
         for key in keys:
-            raw = form.get(key, "")
+            raw = _settings_form_value(form, key)
             try:
                 coerced[key] = coerce_value(key, raw)
             except (KeyError, ValueError) as exc:
@@ -938,7 +944,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 context=_build_settings_context(
                     active,
                     section_errors=errors,
-                    section_draft={key: form.get(key, "") for key in keys},
+                    section_draft={key: _settings_form_value(form, key) for key in keys},
                 ),
                 status_code=422,
             )

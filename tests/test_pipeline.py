@@ -1928,6 +1928,98 @@ def test_build_stage_transition_artifacts_enrich_decision_summary_includes_promp
     assert enrich_summary["enrich_prompt_model"] == "gemini-2.5-flash"
 
 
+def test_build_stage_transition_artifacts_rule_filter_includes_marks_and_selected_filters() -> None:
+    enriched_jobs = [
+        {"job_url": "https://example.com/1", "title": "Job 1"},
+        {"job_url": "https://example.com/2", "title": "Job 2"},
+    ]
+    passed_jobs = [
+        {
+            "job_url": "https://example.com/1",
+            "title": "Job 1",
+            "marks": [
+                {
+                    "code": "must_have_skill_missing",
+                    "message": "Missing must-have skills",
+                    "details": {"missing_count": 1, "missing_skills": ["dbt"]},
+                }
+            ],
+        }
+    ]
+    rejected_jobs = [
+        {
+            "job_url": "https://example.com/2",
+            "title": "Job 2",
+            "reasons": ["seniority_mismatch"],
+            "marks": [
+                {
+                    "code": "domain_not_preferred",
+                    "message": "Job domain is outside preferred domains",
+                }
+            ],
+        }
+    ]
+
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=enriched_jobs,
+        normalized=enriched_jobs,
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=enriched_jobs,
+        passed_jobs=passed_jobs,
+        candidate_filter_rejected_jobs=rejected_jobs,
+        raw_shortlist=[],
+        shortlist=[],
+        backfilled_job_urls=[],
+        vector_top_n=10,
+        candidate_summary="candidate summary",
+        ai_scores=[],
+        ranking_inputs=[],
+        ranked=[],
+        final_top_n=5,
+        cv_generation_debug_records=[],
+        profile={},
+        config={
+            "rule_filter": {
+                "selected_filters": [
+                    "seniority_mismatch",
+                    "location_type_excluded",
+                ]
+            },
+            "cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}},
+        },
+    )
+
+    rule_filter_summary = artifacts["stages"]["rule_filter"]["decision_summary"]
+    assert rule_filter_summary["selected_filters"] == [
+        "seniority_mismatch",
+        "location_type_excluded",
+    ]
+    assert rule_filter_summary["mark_code_counts"] == {
+        "must_have_skill_missing": 1,
+        "domain_not_preferred": 1,
+    }
+    assert artifacts["stages"]["rule_filter"]["outputs_sample"][0]["filter_outcome"] == "pass"
+    assert artifacts["stages"]["rule_filter"]["outputs_sample"][0]["marks"] == [
+        {
+            "code": "must_have_skill_missing",
+            "message": "Missing must-have skills",
+            "details": {"missing_count": 1, "missing_skills": ["dbt"]},
+        }
+    ]
+    assert "reasons" not in artifacts["stages"]["rule_filter"]["outputs_sample"][0]
+    assert artifacts["stages"]["rule_filter"]["dropped_or_changed_sample"][0]["filter_outcome"] == "reject"
+    assert artifacts["stages"]["rule_filter"]["dropped_or_changed_sample"][0]["reasons"] == [
+        "seniority_mismatch"
+    ]
+    assert artifacts["stages"]["rule_filter"]["dropped_or_changed_sample"][0]["marks"] == [
+        {
+            "code": "domain_not_preferred",
+            "message": "Job domain is outside preferred domains",
+        }
+    ]
+
+
 def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortlist_counts() -> None:
     passed_jobs = [
         {"job_url": "https://example.com/1", "title": "Data Analyst"},
@@ -3253,6 +3345,18 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
             shortlisted_not_scored["job_url"],
             scored_not_ranked["job_url"],
         ],
+        "passed_records": [
+            {
+                "job_url": not_shortlisted["job_url"],
+                "marks": [
+                    {
+                        "code": "must_have_skill_missing",
+                        "message": "Missing must-have skills",
+                        "details": {"missing_count": 1, "missing_skills": ["dbt"]},
+                    }
+                ],
+            }
+        ],
         "rejected": [],
     }
     mock_vec.return_value = [
@@ -3335,6 +3439,13 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         },
     }
     assert export_results[2]["pipeline_status"] == "not_shortlisted"
+    assert export_results[2]["rule_filter_marks"] == [
+        {
+            "code": "must_have_skill_missing",
+            "message": "Missing must-have skills",
+            "details": {"missing_count": 1, "missing_skills": ["dbt"]},
+        }
+    ]
     assert export_results[2]["scores"]["vector_score"] is None
     assert export_results[2]["shortlist_debug"] == {
         "passed_rule_filter": True,

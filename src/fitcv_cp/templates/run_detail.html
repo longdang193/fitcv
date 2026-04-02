@@ -210,9 +210,19 @@
             {% if fr is not none %}
               {% if fr.passed %}
                 <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
+                {% if fr.marks %}
+                <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">
+                  Marks: {{ fr.marks | map(attribute='code') | join(', ') }}
+                </div>
+                {% endif %}
               {% else %}
                 <span class="badge badge-error" title="{{ fr.reasons | join(', ') }}">&#10007; reject</span>
                 <div class="field-error" style="margin-top:0.3rem">{{ fr.reasons | join(', ') }}</div>
+                {% if fr.marks %}
+                <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">
+                  Marks: {{ fr.marks | map(attribute='code') | join(', ') }}
+                </div>
+                {% endif %}
               {% endif %}
             {% else %}
               <span class="empty-value">—</span>

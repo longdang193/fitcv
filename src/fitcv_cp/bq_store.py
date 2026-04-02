@@ -666,11 +666,17 @@ def list_filter_results_for_run(
 ) -> list[dict[str, Any]]:
     """Return run-scoped filter results for a given run_id.
 
-    Rows include job_url, passed (bool), reasons (repeated string), and run_id.
+    Rows include job_url, passed (bool), reasons, marks, and run_id.
     Ordered by job_url for deterministic display. Uses parameterized SQL.
     """
     table = f"{project}.{dataset}.rule_filter_results"
     sql = f"""
+        SELECT job_url, passed, reasons, marks_json, run_id, filtered_at
+        FROM `{table}`
+        WHERE run_id = @run_id
+        ORDER BY job_url
+    """
+    legacy_sql = f"""
         SELECT job_url, passed, reasons, run_id, filtered_at
         FROM `{table}`
         WHERE run_id = @run_id
@@ -682,5 +688,26 @@ def list_filter_results_for_run(
         ],
         use_query_cache=False,
     )
-    rows = bq.query(sql, job_config=job_config).result()
-    return [dict(row.items()) for row in rows]
+    try:
+        rows = bq.query(sql, job_config=job_config).result()
+    except Exception as exc:
+        if "Unrecognized name:" not in str(exc):
+            raise
+        logger.warning(
+            "rule_filter_results marks_json column missing; falling back to legacy read path: %s",
+            exc,
+        )
+        rows = bq.query(legacy_sql, job_config=job_config).result()
+    results: list[dict[str, Any]] = []
+    for row in rows:
+        row_dict = dict(row.items())
+        marks_raw = row_dict.get("marks_json")
+        if isinstance(marks_raw, str) and marks_raw.strip():
+            try:
+                row_dict["marks"] = json.loads(marks_raw)
+            except json.JSONDecodeError:
+                row_dict["marks"] = []
+        else:
+            row_dict["marks"] = []
+        results.append(row_dict)
+    return results
