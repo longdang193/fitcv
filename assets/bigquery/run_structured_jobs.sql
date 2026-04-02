@@ -67,7 +67,10 @@ CREATE TABLE IF NOT EXISTS `{project}.{dataset}.run_structured_jobs` (
   description_cleaned  STRING              OPTIONS (description = "Whitespace-normalized description text"),
   enrichment_version   STRING              OPTIONS (description = "Prompt/schema version, e.g. v1"),
   enrichment_model     STRING              OPTIONS (description = "Model name used, e.g. gemini-2.0-flash"),
-  enriched_at          TIMESTAMP           OPTIONS (description = "Enrichment timestamp")
+  enriched_at          TIMESTAMP           OPTIONS (description = "Enrichment timestamp"),
+  raw_job_fingerprint  STRING              OPTIONS (description = "Stable hash of normalized pre-enrichment raw-job inputs used for reuse lookup"),
+  enrich_contract_fingerprint STRING       OPTIONS (description = "Stable hash of the effective enrich prompt/model/schema contract used for this row"),
+  enrich_reuse_status  STRING              OPTIONS (description = "fresh_enrichment or reused_cached_enrichment provenance for this run-scoped row")
 )
 OPTIONS (
   description = "Immutable run-scoped enrichment outputs — one row per run_id + job_url, append-only"

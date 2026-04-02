@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 2.1.0 — active
+
+- Run-scoped enriched rows and enrich-stage artifact samples can now expose `raw_job_fingerprint`, `enrich_contract_fingerprint`, and `enrich_reuse_status`
+- Enrich-stage decision summaries now report fresh-vs-reused enrich counts so repeated-run reuse behavior is visible without opening shared tables directly
+
 ### 2.0.0 — active
 
 - Inspection surfaces now expose manual staged-run checkpoint state, including execution mode, checkpoint status, completed stages, and next stage

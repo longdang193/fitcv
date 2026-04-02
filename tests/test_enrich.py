@@ -1,5 +1,6 @@
 """Tests for fitcv.enrich — all pure unit tests (no LLM calls)."""
 
+from datetime import datetime, timezone
 import sys
 import types
 
@@ -9,12 +10,16 @@ from fitcv.enrich import (
     EnrichmentOutput,
     _apply_structured_normalization,
     build_extraction_prompt,
+    build_enrich_contract_fingerprint,
+    build_raw_job_fingerprint,
     enrich_job,
     load_run_structured_jobs,
     load_structured_jobs,
+    lookup_reusable_structured_jobs,
     merge_scraped_and_enriched,
     parse_extraction_response,
 )
+from fitcv.prompts.models import PromptDefinition
 
 
 # ── build_extraction_prompt ───────────────────────────────────────────────────
@@ -61,6 +66,212 @@ def test_build_extraction_prompt_uses_effective_prompt_id_from_config() -> None:
         config={"prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}}},
     )
     assert "expert recruiter extracting structured information" in prompt
+
+
+def test_build_raw_job_fingerprint_is_stable_for_whitespace_and_case_changes() -> None:
+    job_a = {
+        "job_url": "https://example.com/jobs/1",
+        "title": "Data Analyst",
+        "company_name": "Acme GmbH",
+        "location": "Berlin, Germany",
+        "description": "Build KPI dashboards with SQL and Python.\nOwn reporting.\n",
+        "contract_type": "Full-time",
+        "experience_level": "Mid-Senior level",
+        "source": "LinkedIn",
+        "applications_count_int": 25,
+    }
+    job_b = {
+        "job_url": "https://example.com/jobs/1",
+        "title": "  data analyst  ",
+        "company_name": " ACME GMBH ",
+        "location": "berlin,   germany",
+        "description": "Build KPI dashboards with SQL and Python. Own reporting.",
+        "contract_type": " full-time ",
+        "experience_level": " mid-senior level ",
+        "source": "linkedin",
+        "applications_count_int": 999,
+    }
+
+    result_a = build_raw_job_fingerprint(job_a)
+    result_b = build_raw_job_fingerprint(job_b)
+
+    assert "applications_count_int" not in result_a["payload"]
+    assert result_a["fingerprint"] == result_b["fingerprint"]
+
+
+def test_build_enrich_contract_fingerprint_changes_when_prompt_contract_changes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = {
+        "gemini_model": "gemini-2.5-flash",
+        "prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}},
+    }
+    baseline = build_enrich_contract_fingerprint(config)
+
+    monkeypatch.setattr(
+        "fitcv.enrich.get_prompt_definition",
+        lambda prompt_id: PromptDefinition(
+            prompt_id=prompt_id,
+            stage_id="enrich",
+            version="v999",
+            template_path=__import__("pathlib").Path("fitcv/prompts/templates/enrich_extraction_v999.md"),
+            summary="test override",
+        ),
+    )
+
+    changed = build_enrich_contract_fingerprint(config)
+
+    assert baseline["fingerprint"] != changed["fingerprint"]
+
+
+def test_lookup_reusable_structured_jobs_returns_exact_fingerprint_and_contract_matches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeRow:
+        def items(self):
+            return [
+                ("job_url", "https://example.com/jobs/1"),
+                ("required_skills", ["SQL", "Python"]),
+                ("required_skills_canonical", ["sql", "python"]),
+                ("required_skill_entities_json", '[{"raw_text":"SQL","canonical":"sql"}]'),
+                ("mapping_suggestions_json", '[{"must_have_skill":"sql","matches":true,"alias":"sql","canonical":"sql","confidence":1.0}]'),
+                ("raw_job_fingerprint", "raw-fingerprint-match"),
+                ("enrich_contract_fingerprint", "contract-fingerprint-match"),
+                ("enrich_reuse_status", "fresh_enrichment"),
+                ("enrichment_version", "v1"),
+                ("enrichment_model", "gemini-2.5-flash"),
+                ("enriched_at", "2026-04-03T00:00:00+00:00"),
+            ]
+
+    class FakeResult:
+        def result(self):
+            return self
+
+        def __iter__(self):
+            return iter([FakeRow()])
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            captured["client_kwargs"] = kwargs
+
+        def query(self, sql: str, job_config: object) -> FakeResult:
+            captured["sql"] = sql
+            captured["job_config"] = job_config
+            return FakeResult()
+
+    fake_bigquery = types.SimpleNamespace(
+        Client=FakeClient,
+        QueryJobConfig=lambda **kwargs: types.SimpleNamespace(**kwargs),
+        ArrayQueryParameter=lambda name, field_type, values: types.SimpleNamespace(name=name, field_type=field_type, values=values),
+    )
+    fake_service_account = types.SimpleNamespace(
+        Credentials=types.SimpleNamespace(
+            from_service_account_file=lambda path: "creds"
+        )
+    )
+    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
+    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
+    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
+    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+
+    jobs = [
+        {
+            "job_url": "https://example.com/jobs/1",
+            "title": "Data Analyst",
+            "company_name": "Acme",
+            "description": "Build dashboards with SQL and Python.",
+        }
+    ]
+
+    reusable = lookup_reusable_structured_jobs(
+        jobs,
+        {
+            "gcp_project": "fitcv-491123",
+            "bigquery_dataset": "fitcv",
+            "service_account_key": "/tmp/key.json",
+        },
+        raw_job_fingerprints={"https://example.com/jobs/1": "raw-fingerprint-match"},
+        enrich_contract_fingerprint="contract-fingerprint-match",
+    )
+
+    assert list(reusable) == ["https://example.com/jobs/1"]
+    assert reusable["https://example.com/jobs/1"]["required_skill_entities"] == [
+        {"raw_text": "SQL", "canonical": "sql"}
+    ]
+    assert reusable["https://example.com/jobs/1"]["mapping_suggestions"][0]["canonical"] == "sql"
+
+
+def test_lookup_reusable_structured_jobs_normalises_datetime_enriched_at(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeRow:
+        def items(self):
+            return [
+                ("job_url", "https://example.com/jobs/1"),
+                ("required_skills", ["SQL", "Python"]),
+                ("required_skills_canonical", ["sql", "python"]),
+                ("required_skill_entities_json", '[{"raw_text":"SQL","canonical":"sql"}]'),
+                ("mapping_suggestions_json", "[]"),
+                ("raw_job_fingerprint", "raw-fingerprint-match"),
+                ("enrich_contract_fingerprint", "contract-fingerprint-match"),
+                ("enrich_reuse_status", "fresh_enrichment"),
+                ("enrichment_version", "v1"),
+                ("enrichment_model", "gemini-2.5-flash"),
+                ("enriched_at", datetime(2026, 4, 3, 12, 0, 0, tzinfo=timezone.utc)),
+            ]
+
+    class FakeResult:
+        def result(self):
+            return self
+
+        def __iter__(self):
+            return iter([FakeRow()])
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def query(self, sql: str, job_config: object) -> FakeResult:
+            return FakeResult()
+
+    fake_bigquery = types.SimpleNamespace(
+        Client=FakeClient,
+        QueryJobConfig=lambda **kwargs: types.SimpleNamespace(**kwargs),
+        ArrayQueryParameter=lambda name, field_type, values: types.SimpleNamespace(name=name, field_type=field_type, values=values),
+    )
+    fake_service_account = types.SimpleNamespace(
+        Credentials=types.SimpleNamespace(
+            from_service_account_file=lambda path: "creds"
+        )
+    )
+    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
+    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
+    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
+    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+
+    jobs = [
+        {
+            "job_url": "https://example.com/jobs/1",
+            "title": "Data Analyst",
+            "company_name": "Acme",
+            "description": "Build dashboards with SQL and Python.",
+        }
+    ]
+
+    reusable = lookup_reusable_structured_jobs(
+        jobs,
+        {
+            "gcp_project": "fitcv-491123",
+            "bigquery_dataset": "fitcv",
+            "service_account_key": "/tmp/key.json",
+        },
+        raw_job_fingerprints={"https://example.com/jobs/1": "raw-fingerprint-match"},
+        enrich_contract_fingerprint="contract-fingerprint-match",
+    )
+
+    assert reusable["https://example.com/jobs/1"]["enriched_at"] == "2026-04-03T12:00:00+00:00"
 
 
 # ── parse_extraction_response — valid JSON ────────────────────────────────────
@@ -186,6 +397,16 @@ def test_merge_scraped_and_enriched_adds_audit_fields() -> None:
     assert "enrichment_model" in merged
     assert "enrichment_version" in merged
     assert "enriched_at" in merged
+
+
+def test_merge_scraped_and_enriched_normalizes_datetime_enriched_at() -> None:
+    scraped = {"job_url": "url1", "title": "DE"}
+    enriched = {
+        "required_skills": ["SQL"],
+        "enriched_at": datetime(2026, 4, 3, 12, 0, 0, tzinfo=timezone.utc),
+    }
+    merged = merge_scraped_and_enriched(scraped, enriched)
+    assert merged["enriched_at"] == "2026-04-03T12:00:00+00:00"
 
 
 def test_merge_scraped_and_enriched_uses_config_model() -> None:

@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.4.0 — active
+
+- Enrich now computes a stable raw-job fingerprint from normalized pre-enrichment inputs and can reuse shared `structured_jobs` rows when the fingerprint matches
+- Reuse is additionally gated by an enrich-contract fingerprint so prompt, model, schema, or post-processing drift invalidates cached enrich output automatically
+- Enrich-stage artifacts and run-scoped enriched exports now expose fresh-vs-reused provenance plus raw-job and enrich-contract fingerprint fields for debugging
+
 ### 1.3.0 — active
 
 - Enrich extraction prompt text is now loaded from a centralized prompt registry instead of a large inline builder string
