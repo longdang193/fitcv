@@ -58,6 +58,13 @@ Extract fields like:
 * location type
 * required skills
 * preferred skills
+
+In the current pipeline, enrich also supports a safe reuse path for repeated jobs:
+
+* build a stable raw-job fingerprint from normalized pre-enrichment inputs
+* build an enrich-contract fingerprint from the effective prompt/model/schema behavior
+* reuse a shared `structured_jobs` row only when both fingerprints match
+* skip the enrich LLM call for those exact-match rows while still preserving fresh-vs-reused provenance in run-scoped outputs
 * responsibilities
 * domain
 * tech stack

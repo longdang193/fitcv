@@ -1,9 +1,9 @@
 inspection_debugging:
   name: Inspection & Debugging
-  version: 2.3.0
+  version: 2.4.0
   status: active
   type: add
-  summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, next-stage state, enriched jobs, filter outcomes, inputs used, generated CVs, and explicit stage-local decision detail from exports, stage artifacts, settings-used snapshots, and CV debug snapshots."
+  summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist diagnostics, stage-local artifacts, inputs used, generated CVs, and explicit decision detail from exports, stage artifacts, settings-used snapshots, and CV debug snapshots."
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -43,6 +43,7 @@ inspection_debugging:
     - Shortlist debug payloads now report observed raw-hit status without overstating retrieval root causes
     - Shortlist artifacts and run-results shortlist debug now expose latest-only retrieval facts, explicit raw-hit flags, and clearer backfill-versus-miss distinctions
     - Run-scoped enriched job rows can now include canonical skill companions and parsed mapping suggestions for richer inspection/debug export
+    - Run-scoped enriched job rows and enrich-stage artifacts can now expose raw-job fingerprints, enrich-contract fingerprints, and fresh-vs-reused enrich provenance
     - Rule-filter stage artifacts and run detail now show the active blocking-filter set plus mark-code counts for selectable screening
   refs:
     docs: []
@@ -64,6 +65,7 @@ inspection_debugging:
       - docs/superpowers/specs/2026-04-02-19-10-central-prompt-registry-spec.md
       - docs/superpowers/specs/2026-04-02-21-05-run-scoped-synonym-overlay-upload-spec.md
       - docs/superpowers/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+      - docs/superpowers/specs/2026-04-02-23-55-enrich-reuse-via-raw-job-fingerprint-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-run-scoped-enrichment-inspection-implementation.md
       - docs/superpowers/plans/2026-03-26-run-detail-inspection-tabs-implementation.md
@@ -82,6 +84,7 @@ inspection_debugging:
       - docs/superpowers/plans/2026-04-02-19-25-central-prompt-registry-plan.md
       - docs/superpowers/plans/2026-04-02-21-20-run-scoped-synonym-overlay-upload-plan.md
       - docs/superpowers/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+      - docs/superpowers/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
     history:
       - docs/features/inspection_debugging/history.md
   keywords:
