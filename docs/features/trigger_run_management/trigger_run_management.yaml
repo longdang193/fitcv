@@ -1,9 +1,9 @@
 trigger_run_management:
   name: Trigger & Run Management
-  version: 2.4.0
+  version: 2.5.0
   status: active
   type: add
-  summary: "Admins can trigger runs via path reference, file upload, or pasted JSON in either automatic or staged/manual mode, continue paused manual runs one stage at a time from persisted checkpoints, upload a run-scoped synonym overlay after enrich before continuing into rule filter, pause again at `cv_analysis` before `cv_generation`, inspect run progress from a status-aware list/detail UI, and export structured run artifacts when available."
+  summary: "Admins can trigger runs via path reference, file upload, or pasted JSON in either automatic or staged/manual mode, continue paused manual runs one stage at a time from persisted checkpoints, upload a run-scoped synonym overlay after enrich before continuing into rule filter, pause again at `cv_analysis` before `cv_generation`, inspect run progress from a status-aware list/detail UI, and export structured run artifacts including `cv_analysis` evidence-selection provenance when available."
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -40,6 +40,7 @@ trigger_run_management:
     - Stage-transition artifacts JSON export from run detail for succeeded runs and paused manual runs when available
     - Timeline-linked stage-slice JSON downloads for recognized stage-boundary events
     - Stage-slice downloads now expose richer per-stage input, output, and changed-state samples instead of summary-only handoff blocks
+    - `cv_analysis` stage downloads can now expose channel-level evidence retrieval counts plus final selected-evidence rationale before `cv_generation`
     - CV-generation debug JSON export from run detail for succeeded runs when available
     - Run-results export includes structured CV data and CV generation metadata when available
     - Run-results export distinguishes non-ranked passed jobs as `not_shortlisted`, `shortlisted_not_scored`, or `scored_not_ranked`
@@ -67,6 +68,7 @@ trigger_run_management:
       - docs/superpowers/specs/2026-04-02-21-05-run-scoped-synonym-overlay-upload-spec.md
       - docs/superpowers/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
       - docs/superpowers/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+      - docs/superpowers/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-runs-list-enhancements-implementation.md
       - docs/superpowers/plans/2026-03-25-admin-ux-improvements-implementation.md
@@ -81,6 +83,7 @@ trigger_run_management:
       - docs/superpowers/plans/2026-04-02-21-20-run-scoped-synonym-overlay-upload-plan.md
       - docs/superpowers/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
       - docs/superpowers/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+      - docs/superpowers/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
     history:
       - docs/features/trigger_run_management/history.md
   keywords:

@@ -207,3 +207,54 @@ def test_load_profile_json_text_preserves_all_required_sections() -> None:
     result = load_profile_json_text(_json.dumps(_VALID_PROFILE_DICT))
     for section in ("experiences", "skills", "projects", "achievements", "preferences"):
         assert section in result
+
+
+def test_load_profile_json_text_normalizes_additive_alignment_metadata() -> None:
+    payload = _json.dumps(
+        {
+            "experiences": [
+                {
+                    "id": "exp_1",
+                    "role": "Data Analyst",
+                    "company": "Acme",
+                    "role_family": " analytics ",
+                    "domain_tags": [" banking ", "", None, "fintech"],
+                    "responsibility_themes": [" dashboarding ", " ", "kpi_reporting"],
+                    "bullets": [],
+                }
+            ],
+            "skills": [{"name": "SQL"}],
+            "projects": [
+                {
+                    "id": "proj_1",
+                    "name": "Dashboards",
+                    "domain_tags": [" banking "],
+                    "responsibility_themes": ["reporting_automation", ""],
+                }
+            ],
+            "achievements": [
+                {
+                    "id": "ach_1",
+                    "text": "Improved reporting",
+                    "domain_tags": [" banking ", ""],
+                }
+            ],
+            "preferences": {
+                "target_role": " Data Analyst ",
+                "role_families": [" analytics ", "", "data_science"],
+                "domains": [" banking ", "", "fintech"],
+            },
+        }
+    )
+
+    result = load_profile_json_text(payload)
+
+    assert result["preferences"]["target_role"] == "Data Analyst"
+    assert result["preferences"]["role_families"] == ["analytics", "data_science"]
+    assert result["preferences"]["domains"] == ["banking", "fintech"]
+    assert result["experiences"][0]["role_family"] == "analytics"
+    assert result["experiences"][0]["domain_tags"] == ["banking", "fintech"]
+    assert result["experiences"][0]["responsibility_themes"] == ["dashboarding", "kpi_reporting"]
+    assert result["projects"][0]["domain_tags"] == ["banking"]
+    assert result["projects"][0]["responsibility_themes"] == ["reporting_automation"]
+    assert result["achievements"][0]["domain_tags"] == ["banking"]

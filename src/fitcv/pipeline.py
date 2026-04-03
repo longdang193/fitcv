@@ -54,7 +54,7 @@ from fitcv.enrich import (
     load_structured_jobs,
     lookup_reusable_structured_jobs,
 )
-from fitcv.evidence import retrieve_evidence
+from fitcv.evidence import retrieve_evidence, retrieve_evidence_bundle
 from fitcv.gap_analysis import classify_fit, compute_gap
 from fitcv.ingest import load_to_bigquery, parse_jobs_file, prepare_raw_rows
 from fitcv.normalize import normalize_batch, normalize_batch_with_exclusions
@@ -535,13 +535,16 @@ def _build_export_results(
             cv_status = "not_attempted"
         else:
             cv_status = "not_applicable"
-        decision_chain = _build_decision_chain(
-            shortlist_status=shortlist_status,
-            advanced_to_scoring=job_url in scoring_shortlist_by_url,
-            ranking_fit_label=ranking_fit_label,
-            ranking_fit_source=ranking_fit_source,
-            cv_status=cv_status,
-        )
+        if isinstance(debug_row, dict) and isinstance(debug_row.get("decision_chain"), dict):
+            decision_chain = dict(debug_row["decision_chain"])
+        else:
+            decision_chain = _build_decision_chain(
+                shortlist_status=shortlist_status,
+                advanced_to_scoring=job_url in scoring_shortlist_by_url,
+                ranking_fit_label=ranking_fit_label,
+                ranking_fit_source=ranking_fit_source,
+                cv_status=cv_status,
+            )
 
         rows.append(
             {
@@ -820,6 +823,8 @@ def _build_debug_evidence_used(evidence: list[dict[str, Any]]) -> list[dict[str,
                 "evidence_type": str(item.get("evidence_type") or ""),
                 "source_ref": str(item.get("source_ref") or ""),
                 "name": str(item.get("name") or ""),
+                "matched_channels": list(item.get("matched_channels") or []),
+                "selection_reasons": list(item.get("selection_reasons") or []),
             }
         )
     return debug_evidence
@@ -987,6 +992,7 @@ def _build_cv_analysis_record(
     status: str,
     evidence_payload: list[dict[str, Any]],
     evidence_used: list[dict[str, Any]],
+    evidence_selection_summary: dict[str, Any] | None,
     gap_summary: dict[str, Any] | None,
     fit_classification: str | None,
     error: dict[str, str] | None,
@@ -1014,8 +1020,11 @@ def _build_cv_analysis_record(
         "job_snapshot": dict(job),
         "evidence_payload": list(evidence_payload),
         "evidence_used": evidence_used,
+        "evidence_selection_summary": dict(evidence_selection_summary or {}),
         "gap_summary": gap_summary,
-        "error": error,
+        # Fit-gate skips are expected analysis outcomes, not runtime errors.
+        "outcome_reason": error if status == "skipped_fit_gate" else None,
+        "error": error if status != "skipped_fit_gate" else None,
     }
 
 
@@ -1190,6 +1199,7 @@ def _analysis_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | N
         "ranking_fit_label": record.get("ranking_fit_label"),
         "fit_classification": record.get("fit_classification"),
         "evidence_used": record.get("evidence_used"),
+        "evidence_selection_summary": record.get("evidence_selection_summary"),
         "gap_summary": record.get("gap_summary"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "", [])}
@@ -1209,8 +1219,9 @@ def _analysis_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | 
         "ranking_fit_label": record.get("ranking_fit_label"),
         "fit_classification": record.get("fit_classification"),
         "evidence_used": record.get("evidence_used"),
+        "evidence_selection_summary": record.get("evidence_selection_summary"),
         "gap_summary": record.get("gap_summary"),
-        "error": record.get("error"),
+        "outcome_reason": record.get("outcome_reason") or record.get("error"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "", [])}
 
@@ -1660,6 +1671,14 @@ def _build_stage_transition_artifacts(
                 decision_summary={
                     "analysis_records_captured": len(cv_analysis_results),
                     "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),
+                    "selected_evidence_total": sum(
+                        int((record.get("evidence_selection_summary") or {}).get("selected_evidence_count") or 0)
+                        for record in cv_analysis_results
+                    ),
+                    "merged_candidate_pool_total": sum(
+                        int((record.get("evidence_selection_summary") or {}).get("merged_pool_size") or 0)
+                        for record in cv_analysis_results
+                    ),
                 },
                 inputs_sample=_sample_rows(ranked, _ranking_row_sample),
                 outputs_sample=_sample_rows(cv_analysis_results, _analysis_record_output_sample),
@@ -2121,15 +2140,38 @@ def run_pipeline(
         cv_analysis_results = []
         for job in ranked_jobs_for_cv:
             evidence: list[dict[str, Any]] = []
+            evidence_selection_summary: dict[str, Any] = {}
             gap: dict[str, Any] | None = None
             fit = "skip"
             try:
                 evidence_top_k = int(config["pipeline"]["evidence_top_k"])
-                evidence = retrieve_evidence(
+                evidence_bundle = retrieve_evidence_bundle(
                     profile,
-                    job.get("required_skills") or [],
+                    job,
                     top_k=evidence_top_k,
                 )
+                evidence = list(evidence_bundle.get("selected_evidence") or [])
+                evidence_selection_summary = {
+                    "channel_counts": dict(evidence_bundle.get("channel_counts") or {}),
+                    "merged_pool_size": int(evidence_bundle.get("merged_pool_size") or 0),
+                    "deduped_pool_size": int(evidence_bundle.get("deduped_pool_size") or 0),
+                    "selected_evidence_count": len(evidence),
+                    "selected_evidence_ids": list(evidence_bundle.get("selected_evidence_ids") or []),
+                }
+                if not evidence:
+                    evidence = retrieve_evidence(
+                        profile,
+                        job,
+                        top_k=evidence_top_k,
+                    )
+                    if evidence:
+                        evidence_selection_summary = {
+                            "channel_counts": evidence_selection_summary.get("channel_counts") or {},
+                            "merged_pool_size": max(len(evidence), int(evidence_selection_summary.get("merged_pool_size") or 0)),
+                            "deduped_pool_size": max(len(evidence), int(evidence_selection_summary.get("deduped_pool_size") or 0)),
+                            "selected_evidence_count": len(evidence),
+                            "selected_evidence_ids": [str(item.get("evidence_id") or "") for item in evidence],
+                        }
 
                 gap = compute_gap(
                     required_skills=job.get("required_skills") or [],
@@ -2148,6 +2190,7 @@ def run_pipeline(
                         status="skipped_fit_gate",
                         evidence_payload=evidence,
                         evidence_used=_build_debug_evidence_used(evidence),
+                        evidence_selection_summary=evidence_selection_summary,
                         gap_summary=gap,
                         fit_classification=fit,
                         error={
@@ -2181,6 +2224,7 @@ def run_pipeline(
                         status="ready_for_generation",
                         evidence_payload=evidence,
                         evidence_used=_build_debug_evidence_used(evidence),
+                        evidence_selection_summary=evidence_selection_summary,
                         gap_summary=gap,
                         fit_classification=fit,
                         error=None,
@@ -2193,6 +2237,7 @@ def run_pipeline(
                     status="analysis_failed",
                     evidence_payload=evidence,
                     evidence_used=_build_debug_evidence_used(evidence),
+                    evidence_selection_summary=evidence_selection_summary,
                     gap_summary=gap,
                     fit_classification=fit if fit else None,
                     error={

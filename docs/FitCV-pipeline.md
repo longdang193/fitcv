@@ -280,6 +280,16 @@ The evidence retrieval step answers:
 
 These are different questions and should be handled separately.
 
+The current `cv_analysis` flow now treats evidence retrieval as a small staged pipeline of its own:
+
+1. retrieve separate evidence pools for:
+   - required skill support
+   - role alignment
+   - domain alignment
+   - responsibility alignment
+2. merge and dedupe those pools by stable `evidence_id`
+3. rerank the merged pool into one bounded final evidence bundle for `cv_generation`
+
 ## Generate from templates + constraints
 
 Do not let the LLM fully freestyle the CV. CV generation should be controlled, not creative writing.
@@ -464,10 +474,11 @@ Final ranking
 Top-N jobs
     ↓
 Per-job evidence retrieval
-  - best projects
-  - best achievements
-  - best skills
-  - best experience bullets
+  - required-skill support pool
+  - role-alignment pool
+  - domain-alignment pool
+  - responsibility-alignment pool
+  - merge, dedupe, and rerank into one final evidence bundle
     ↓
 Gap analysis
     ↓
@@ -496,7 +507,8 @@ The control plane now supports two orchestration modes over the same stage order
 3. `rule_filter`
 4. `shortlist`
 5. `ranking`
-6. `cv_generation`
+6. `cv_analysis`
+7. `cv_generation`
 
 For manual runs, the control plane persists:
 

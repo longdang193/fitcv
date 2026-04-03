@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 2.8.0 — active
+
+- `cv_analysis` artifacts can now show separate retrieval-channel counts for required-skill, role, domain, and responsibility evidence lookup
+- Analysis records and stage downloads now expose merged-pool sizing, selected-evidence IDs, matched channels, and selection reasons before CV writing
+
 ### 2.7.0 — active
 
 - Stage-transition artifacts now expose separate `cv_analysis` and `cv_generation` blocks instead of folding all final-stage behavior into one stage

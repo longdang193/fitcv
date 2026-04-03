@@ -1,14 +1,14 @@
 cv_generation:
   stage_id: cv_generation
   name: CV Generation
-  summary: Convert generation-ready CV-analysis records into accepted or rejected CV artifacts through writing, validation, repair, and persistence without recomputing analysis by default.
+  summary: Convert generation-ready CV-analysis records into accepted or rejected CV artifacts through writing, validation, repair, and persistence without recomputing analysis or reselecting evidence by default.
   boundaries:
     - cv-analysis-ready jobs enter and accepted or rejected CV artifacts leave
     - generation, validation, repair, and persistence ownership belong to this stage
     - evidence retrieval, gap analysis, and fit-gate ownership do not belong to this stage
   inputs:
     - generation-ready analysis records
-    - grounded evidence and gap explanation inputs prepared by `cv_analysis`
+    - selected grounded evidence and gap explanation inputs prepared by `cv_analysis`
     - CV generation and validation settings
   outputs:
     - structured CV artifacts

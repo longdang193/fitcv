@@ -1,21 +1,22 @@
 cv_analysis:
   stage_id: cv_analysis
   name: CV Analysis
-  summary: Prepare ranked jobs for writing by merging enriched job context, retrieving candidate evidence, computing grounded gap summaries, and resolving the final fit gate that decides whether CV generation should run.
+  summary: Prepare ranked jobs for writing by merging enriched job context, retrieving candidate evidence through separate required-skill, role, domain, and responsibility channels, reranking one final evidence bundle, computing grounded gap summaries, and resolving the final fit gate that decides whether CV generation should run.
   boundaries:
     - ranked jobs enter and generation-ready or analysis-rejected records leave
-    - evidence retrieval, gap analysis, and fit-gate ownership belong to this stage
+    - multi-channel evidence retrieval, final evidence selection, gap analysis, and fit-gate ownership belong to this stage
     - this stage does not generate, validate, or persist final CV artifacts
   inputs:
     - ranked jobs
     - enriched job context
     - candidate profile
-    - evidence and gap-analysis settings
+    - evidence-selection settings
+    - gap-analysis settings
   outputs:
     - persisted cv-analysis records
-    - generation-ready jobs with evidence and gap payloads
+    - generation-ready jobs with selected evidence and gap payloads
     - skipped-fit-gate or analysis-failed outcomes
-    - bounded `stage_transition_artifacts.cv_analysis` runtime block with analysis-ready and changed-state samples
+    - bounded `stage_transition_artifacts.cv_analysis` runtime block with retrieval counts, selected-evidence rationale, and changed-state samples
   depends_on:
     - ranking
   primary_features:
@@ -27,11 +28,14 @@ cv_analysis:
     docs: []
     spec:
       - docs/superpowers/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+      - docs/superpowers/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
     plan:
       - docs/superpowers/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+      - docs/superpowers/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
     history: []
   keywords:
     - cv analysis
     - evidence retrieval
+    - evidence selection
     - gap analysis
     - fit gate
