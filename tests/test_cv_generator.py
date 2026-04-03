@@ -874,6 +874,48 @@ def test_build_generation_prompt_includes_certification_and_language_evidence() 
     assert "English (read: C2, write: C2, speak: C2)" in prompt
 
 
+def test_build_generation_prompt_includes_analysis_aware_evidence_guidance() -> None:
+    config = {
+        "cv": {
+            "composition": {
+                "summary": {"enabled": True},
+                "experience": {"enabled": True},
+                "projects": {"enabled": True},
+            }
+        }
+    }
+    prompt = build_generation_prompt(
+        jd={"title": "Data Analyst", "required_skills": ["SQL", "Python"]},
+        evidence=[
+            {
+                "evidence_type": "experience_entry",
+                "role": "Data Analyst",
+                "company": "Bank Corp",
+                "skills": ["SQL", "Python"],
+                "bullets": ["Built KPI dashboards for retail banking stakeholders"],
+                "matched_channels": ["required_skill_support", "responsibility_alignment"],
+                "selection_reasons": ["required_skill_support", "responsibility_alignment"],
+            },
+            {
+                "evidence_type": "project_entry",
+                "name": "Retail Banking KPI Dashboard",
+                "tech_stack": ["SQL", "Looker"],
+                "highlights": ["Created stakeholder dashboards for monthly KPI reviews"],
+                "matched_channels": ["domain_alignment", "role_alignment"],
+                "selection_reasons": ["domain_alignment", "role_alignment"],
+            },
+        ],
+        gap={"matched": ["SQL"], "missing": ["dbt"]},
+        template="## Summary\n...\n## Experience\n...\n## Projects\n...",
+        config=config,
+    )
+    assert "## Evidence Usage Guidance" in prompt
+    assert "Use evidence tagged `required_skill_support` to justify concrete technical and skills claims." in prompt
+    assert "Use evidence tagged `responsibility_alignment` to craft experience bullets around similar work and outcomes." in prompt
+    assert "Matched channels: required_skill_support, responsibility_alignment" in prompt
+    assert "Selection reasons: domain_alignment, role_alignment" in prompt
+
+
 def test_europass_template_includes_publications_section() -> None:
     template = Path("templates/cv_template.md").read_text(encoding="utf-8")
     assert "## Publications" in template

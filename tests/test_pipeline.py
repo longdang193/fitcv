@@ -2515,7 +2515,23 @@ def test_build_stage_transition_artifacts_caps_samples_at_20_and_truncates_text(
             "validation_initial": {"valid": True},
             "repair_attempt": {"performed": False, "missing_sections": []},
             "gap_summary": {"matched": ["SQL"]},
-            "evidence_used": [],
+            "evidence_used": [
+                {
+                    "evidence_type": "experience_entry",
+                    "source_ref": "experiences[0]",
+                    "name": "Data Analyst - Bank Corp",
+                    "matched_channels": ["required_skill_support"],
+                    "selection_reasons": ["required_skill_support"],
+                }
+            ],
+            "evidence_selection_summary": {
+                "selected_evidence_count": 1,
+                "selected_evidence_ids": ["exp-1"],
+            },
+            "analysis_input_summary": {
+                "required_skills": ["SQL"],
+                "domain": "banking",
+            },
             "error": None,
         }
         for i in range(25)
@@ -2548,6 +2564,78 @@ def test_build_stage_transition_artifacts_caps_samples_at_20_and_truncates_text(
     assert len(cv_block["outputs_sample"]) == 20
     assert normalize_block["inputs_sample"][0]["description_cleaned"].endswith("...[truncated]")
     assert cv_block["outputs_sample"][0]["markdown_final"].endswith("...[truncated]")
+    assert cv_block["outputs_sample"][0]["evidence_selection_summary"] == {
+        "selected_evidence_count": 1,
+        "selected_evidence_ids": ["exp-1"],
+    }
+    assert cv_block["outputs_sample"][0]["analysis_input_summary"] == {
+        "required_skills": ["SQL"],
+        "domain": "banking",
+    }
+
+
+def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> None:
+    from fitcv.pipeline import _build_cv_generation_debug_record, _debug_record_output_sample
+
+    record = _build_cv_generation_debug_record(
+        job={
+            "job_url": "https://example.com/1",
+            "title": "Data Analyst - Retail Banking",
+            "required_skills": ["SQL", "Python"],
+            "domain": "banking",
+            "job_family": "analytics",
+            "fit_label": "strong",
+        },
+        status="accepted",
+        fit_classification="strong",
+        evidence_used=[
+            {
+                "evidence_type": "experience_entry",
+                "source_ref": "experiences[0]",
+                "name": "Data Analyst - Bank Corp",
+                "matched_channels": ["required_skill_support", "responsibility_alignment"],
+                "selection_reasons": ["required_skill_support", "responsibility_alignment"],
+            }
+        ],
+        evidence_selection_summary={
+            "selected_evidence_count": 1,
+            "selected_evidence_ids": ["exp-1"],
+            "channel_counts": {"required_skill_support": 1},
+        },
+        analysis_input_summary={
+            "required_skills": ["SQL", "Python"],
+            "domain": "banking",
+            "job_family": "analytics",
+        },
+        gap_summary={"matched": ["SQL"], "partial": [], "missing": ["dbt"]},
+        structured_cv_initial={"schema_version": "cv_doc_v1"},
+        validation_initial={"valid": True},
+        repair_attempt={"performed": False, "missing_sections": []},
+        structured_cv_final={"schema_version": "cv_doc_v1"},
+        markdown_final="# CV",
+        error=None,
+    )
+
+    assert record["evidence_selection_summary"] == {
+        "selected_evidence_count": 1,
+        "selected_evidence_ids": ["exp-1"],
+        "channel_counts": {"required_skill_support": 1},
+    }
+    assert record["analysis_input_summary"] == {
+        "required_skills": ["SQL", "Python"],
+        "domain": "banking",
+        "job_family": "analytics",
+    }
+
+    sample = _debug_record_output_sample(record)
+
+    assert sample is not None
+    assert sample["evidence_used"][0]["matched_channels"] == [
+        "required_skill_support",
+        "responsibility_alignment",
+    ]
+    assert sample["evidence_selection_summary"]["selected_evidence_ids"] == ["exp-1"]
+    assert sample["analysis_input_summary"]["job_family"] == "analytics"
 
 
 @patch("fitcv.pipeline.store_cv_version")

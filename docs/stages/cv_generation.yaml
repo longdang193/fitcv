@@ -15,7 +15,7 @@ cv_generation:
     - rendered markdown CVs
     - validation and repair outcomes
     - final CV generation status
-    - bounded `stage_transition_artifacts.cv_generation` runtime block with input, output, and changed-state samples
+    - bounded `stage_transition_artifacts.cv_generation` runtime block with input, output, and changed-state samples, including bounded upstream `cv_analysis` inputs and selected evidence context for debugging
   depends_on:
     - cv_analysis
   primary_features:
@@ -30,10 +30,12 @@ cv_generation:
       - docs/superpowers/specs/2026-03-31-stage-transition-artifacts-design.md
       - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
       - docs/superpowers/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+      - docs/superpowers/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
     plan:
       - docs/superpowers/plans/2026-03-31-stage-transition-artifacts-implementation.md
       - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
       - docs/superpowers/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+      - docs/superpowers/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
     history: []
   keywords:
     - cv generation
