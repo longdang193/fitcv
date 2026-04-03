@@ -35,24 +35,42 @@ logger = logging.getLogger(__name__)
 
 _VALID_FIT_LABELS = frozenset({"strong", "stretch", "skip"})
 
-_SCORING_RUBRIC = """\
-Score the candidate-to-job match using this rubric:
+_DEFAULT_STRONG_THRESHOLD = 0.70
+_DEFAULT_STRETCH_THRESHOLD = 0.40
+
+
+def _build_scoring_rubric(
+    *,
+    strong_threshold: float,
+    stretch_threshold: float,
+) -> str:
+    return f"""\
+Score the candidate-to-job match using this ranking policy:
 - Score from 0.0 (no fit) to 1.0 (perfect fit)
-- Heavily weight: required skills coverage
-- Penalise: missing core technologies, seniority mismatch, years-of-experience gap
-- Reward: strong project evidence matching JD requirements, domain relevance
+- Primary signals, in order:
+  1. Required-skill coverage
+  2. Evidence quality showing the candidate has actually used those skills
+  3. Seniority and practical readiness for the role
+  4. Role alignment between the target role and this job
+- Secondary signals:
+  - Domain relevance
+  - Candidate preferences such as location or preferred domain
+- Treat preferences as secondary tie-breakers. They must not outweigh major required-skill gaps.
+- Penalise missing core technologies, weak evidence for required skills, seniority mismatch, and clear practical-readiness gaps.
+- Do not give `strong` when multiple core required skills appear unsupported or only weakly evidenced.
+- Prefer conservative scoring when evidence is ambiguous.
 - Classify into exactly one fit_label:
-    strong  (ai_score >= 0.7)
-    stretch (ai_score 0.4 – 0.69)
-    skip    (ai_score < 0.4)
+    strong  (ai_score >= {strong_threshold})
+    stretch ({stretch_threshold} <= ai_score < {strong_threshold})
+    skip    (ai_score < {stretch_threshold})
 Return a JSON object ONLY — no prose, no markdown fences:
-{
+{{
   "ai_score": <float 0.0–1.0>,
   "fit_label": "<strong|stretch|skip>",
-  "score_reasoning": "<one-sentence explanation>",
+  "score_reasoning": "<one-sentence explanation grounded in the job requirements>",
   "matched_strengths": ["<strength 1>", ...],
   "key_risks": ["<risk 1>", ...]
-}"""
+}}"""
 
 
 # ── prompt construction ────────────────────────────────────────────────────────
@@ -61,6 +79,9 @@ def build_scoring_prompt(
     jd_summary: str,
     candidate_summary: str,
     top_evidence: list[str],
+    *,
+    strong_threshold: float = _DEFAULT_STRONG_THRESHOLD,
+    stretch_threshold: float = _DEFAULT_STRETCH_THRESHOLD,
 ) -> str:
     """Build the structured reranking prompt for one job.
 
@@ -81,7 +102,7 @@ def build_scoring_prompt(
         f"## Job Description\n{jd_summary}\n\n"
         f"## Candidate Profile\n{candidate_summary}"
         f"{evidence_section}\n\n"
-        f"## Scoring Rubric\n{_SCORING_RUBRIC}"
+        f"## Scoring Rubric\n{_build_scoring_rubric(strong_threshold=strong_threshold, stretch_threshold=stretch_threshold)}"
     )
 
 
@@ -101,7 +122,7 @@ def _fit_label_from_score(score: float, config: dict[str, Any] | None = None) ->
     return "skip"
 
 
-def parse_score_response(response_text: str) -> dict[str, Any]:
+def parse_score_response(response_text: str, config: dict[str, Any] | None = None) -> dict[str, Any]:
     """Parse and validate the model's JSON scoring response.
 
     Handles:
@@ -146,7 +167,7 @@ def parse_score_response(response_text: str) -> dict[str, Any]:
     # Validate / derive fit_label
     fit_label = str(data.get("fit_label", "")).lower().strip()
     if fit_label not in _VALID_FIT_LABELS:
-        fit_label = _fit_label_from_score(ai_score, config=None)
+        fit_label = _fit_label_from_score(ai_score, config=config)
 
     return {
         "ai_score":          ai_score,
@@ -204,10 +225,13 @@ def score_job(
     from fitcv.embeddings import build_job_summary_text
 
     jd_summary = build_job_summary_text(job)
+    thresholds = dict(config.get("fit_label_thresholds") or {})
     prompt = build_scoring_prompt(
         jd_summary=jd_summary,
         candidate_summary=candidate_summary,
         top_evidence=top_evidence[:2],
+        strong_threshold=float(thresholds.get("strong", _DEFAULT_STRONG_THRESHOLD)),
+        stretch_threshold=float(thresholds.get("stretch", _DEFAULT_STRETCH_THRESHOLD)),
     )
 
     model_name = str(config.get("gemini_model", "gemini-2.5-flash"))
@@ -215,7 +239,7 @@ def score_job(
     response = client.models.generate_content(model=model_name, contents=prompt)
     raw_text = str(response.text or "")
 
-    result = parse_score_response(raw_text)
+    result = parse_score_response(raw_text, config=config)
     result["job_url"] = str(job.get("job_url", ""))
     return result
 

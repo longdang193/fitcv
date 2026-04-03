@@ -90,6 +90,16 @@ def test_build_scoring_prompt_contains_required_skills_in_rubric() -> None:
     assert "required skills" in prompt.lower() or "required_skills" in prompt
 
 
+def test_build_scoring_prompt_makes_preferences_secondary() -> None:
+    prompt = build_scoring_prompt(
+        jd_summary="Analytics role",
+        candidate_summary="candidate",
+        top_evidence=[],
+    )
+    assert "secondary" in prompt.lower()
+    assert "preferences" in prompt.lower()
+
+
 def test_build_scoring_prompt_contains_seniority_in_rubric() -> None:
     prompt = build_scoring_prompt(
         jd_summary="DE role",
@@ -107,6 +117,18 @@ def test_build_scoring_prompt_specifies_json_output() -> None:
         top_evidence=[],
     )
     assert "json" in prompt.lower()
+
+
+def test_build_scoring_prompt_uses_configured_fit_thresholds() -> None:
+    prompt = build_scoring_prompt(
+        jd_summary="DE role",
+        candidate_summary="candidate",
+        top_evidence=[],
+        strong_threshold=0.8,
+        stretch_threshold=0.55,
+    )
+    assert "0.8" in prompt
+    assert "0.55" in prompt
 
 
 def test_build_scoring_prompt_empty_evidence_does_not_crash() -> None:

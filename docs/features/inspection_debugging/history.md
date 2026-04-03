@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.6.0 — active
+
+- Ranking-stage samples now expose per-feature weighted score contributions alongside raw six-feature values and `final_score`
+- Ranking-stage inspection now includes weighted preference-fit components plus configured preference-fit weights and fit-label thresholds in the decision summary
+- This rollout improves ranking explainability and calibration visibility without adding a new in-browser artifact viewer
+
 ### 2.5.0 — active
 
 - Shortlist stage artifacts and shortlist debug payloads now report fresh-vs-reused embedding counts for passed jobs

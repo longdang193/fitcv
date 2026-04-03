@@ -18,7 +18,7 @@ status: []
    - rule / feature matching
    - semantic retrieval with embeddings
 7. Use BigQuery VECTOR_SEARCH to shortlist jobs, searching only the latest active persistent `job_summary` embedding per canonical `job_url` and reusing unchanged job-summary embeddings when the shortlist signature and embedding contract still match
-8. Use BigQuery AI.SCORE to rerank shortlisted jobs
+8. Use BigQuery AI.SCORE to rerank shortlisted jobs with a stricter rubric that prioritizes required-skill evidence, seniority readiness, and role alignment while keeping preference signals secondary
 9. Select top jobs
 10. Retrieve best candidate evidence for each job
 11. Generate tailored CV
@@ -199,15 +199,15 @@ final_score =
 0.40 * ai_score
 + 0.20 * must_have_match
 + 0.15 * vector_similarity
-+ 0.10 * title_relevance
++ 0.10 * title_relevance        # semantic role alignment
 + 0.10 * seniority_fit
-+ 0.05 * preference_fit
++ 0.05 * preference_fit        # weighted domain + role family + location alignment
 ```
 
 #### Why this matters
 
 * `VECTOR_SEARCH` is good for **recall**
-* `AI.SCORE` is good for **final judgment**
+* `AI.SCORE` is good for **final judgment** when the rubric is explicit about primary vs secondary signals
 * structured rules help avoid dumb matches
 
 So this becomes more practical than using a generic transformer ranker.
@@ -457,7 +457,9 @@ Final ranking
   - ai_score
   - must-have match
   - vector similarity
-  - seniority/title/preference fit
+  - semantic title relevance
+  - seniority fit
+  - weighted preference fit
     ↓
 Top-N jobs
     ↓

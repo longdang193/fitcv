@@ -1,7 +1,9 @@
 import pytest
 
 from fitcv.ranking import (
+    compute_feature_contributions,
     get_active_missing_value_defaults,
+    get_preference_fit_weights,
     get_active_ranking_weights,
     compute_final_score,
     compute_must_have_match,
@@ -181,6 +183,24 @@ def test_get_active_missing_value_defaults_prefers_canonical_key() -> None:
     }
 
 
+def test_get_preference_fit_weights_uses_runtime_config() -> None:
+    weights = get_preference_fit_weights(
+        {
+            "preference_fit_weights": {
+                "domain": 0.6,
+                "role_family": 0.25,
+                "location_type": 0.15,
+            }
+        }
+    )
+
+    assert weights == {
+        "domain": 0.6,
+        "role_family": 0.25,
+        "location_type": 0.15,
+    }
+
+
 # ── compute_must_have_match ───────────────────────────────────────────────────
 
 def test_compute_must_have_match_ratio():
@@ -243,20 +263,58 @@ def test_compute_title_relevance():
     assert compute_title_relevance("Data", None) == 0.5
 
 
+def test_compute_title_relevance_uses_semantic_role_alignment() -> None:
+    assert compute_title_relevance("Business Intelligence Analyst", "Data Analyst") == 1.0
+    assert compute_title_relevance("Analytics Engineer", "Data Engineer") == 1.0
+    assert compute_title_relevance("Machine Learning Engineer", "Data Analyst") == 0.0
+
+
 # ── compute_preference_fit ────────────────────────────────────────────────────
 
 def test_compute_preference_fit():
     prefs = {"domains": ["fintech", "health"], "location_types": ["remote"]}
-    assert compute_preference_fit({"domain": "fintech", "location_type": "remote"}, prefs) == 1.0
-    assert compute_preference_fit({"domain": "fintech", "location_type": "onsite"}, prefs) == 0.5
-    assert compute_preference_fit({"domain": "retail", "location_type": "onsite"}, prefs) == 0.0
+    config = {"preference_fit_weights": {"domain": 0.5, "role_family": 0.3, "location_type": 0.2}}
+    assert compute_preference_fit({"domain": "fintech", "location_type": "remote"}, prefs, config) == 0.85
+    assert compute_preference_fit({"domain": "fintech", "location_type": "onsite"}, prefs, config) == 0.65
+    assert compute_preference_fit({"domain": "retail", "location_type": "onsite"}, prefs, config) == 0.15
     # no preferences = 0.5 neutral
-    assert compute_preference_fit({"domain": "fintech"}, {}) == 0.5
+    assert compute_preference_fit({"domain": "fintech"}, {}, config) == 0.5
 
 
-def test_compute_preference_fit_matches_job_family_when_domains_are_role_categories():
-    prefs = {"domains": ["data_science"], "location_types": []}
-    assert compute_preference_fit({"domain": "finance", "job_family": "data_science"}, prefs) == 1.0
+def test_compute_preference_fit_weights_domain_role_family_and_location_separately() -> None:
+    prefs = {
+        "domains": ["fintech"],
+        "role_families": ["analytics"],
+        "location_types": ["remote"],
+    }
+    config = {"preference_fit_weights": {"domain": 0.5, "role_family": 0.3, "location_type": 0.2}}
+
+    assert compute_preference_fit(
+        {"domain": "telecommunications", "job_family": "analytics", "location_type": "remote"},
+        prefs,
+        config,
+    ) == 0.5
+
+
+def test_compute_feature_contributions_sum_to_final_score() -> None:
+    features = {
+        "ai_score": 0.8,
+        "must_have_match": 1.0,
+        "vector_similarity": 0.7,
+        "title_relevance": 0.9,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.5,
+    }
+    contributions = compute_feature_contributions(features, _DEFAULT_WEIGHTS, _NULL_DEFAULTS)
+
+    assert contributions == {
+        "ai_score": pytest.approx(0.32),
+        "must_have_match": pytest.approx(0.2),
+        "vector_similarity": pytest.approx(0.105),
+        "title_relevance": pytest.approx(0.09),
+        "seniority_fit": pytest.approx(0.1),
+        "preference_fit": pytest.approx(0.025),
+    }
 
 
 # ── rank_jobs ─────────────────────────────────────────────────────────────────

@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.5.0 — active
+
+- Ranking settings now include explicit `preference_fit_weights` for domain, role-family, and location-type calibration
+- Ranking settings copy now reflects semantic role alignment for `title_relevance` and AI-reranker label calibration for fit thresholds
+- Specs/plans: see `refs` in the feature contract
+
 ### 2.4.1 — active
 
 - Ranking settings copy now matches runtime semantics for title-to-target-role similarity and domain/location preference alignment
