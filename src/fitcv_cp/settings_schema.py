@@ -152,7 +152,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "type": "float",
         "default": 0.10,
         "label": "Weight: Title Relevance",
-        "description": "How much influence the similarity between the job title and the candidate's target role has on the final ranking.",
+        "description": "How much influence semantic role alignment between the job title and the candidate's target role has on the final ranking.",
         "group": "ranking",
         "config_path": ["ranking_weights", "title_relevance"],
     },
@@ -170,16 +170,43 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "type": "float",
         "default": 0.05,
         "label": "Weight: Preference Alignment",
-        "description": "How much influence candidate preference alignment such as domain and location type has on the final candidate ranking.",
+        "description": "How much influence weighted candidate preference alignment across domain, role family, and location type has on the final candidate ranking.",
         "group": "ranking",
         "config_path": ["ranking_weights", "preference_fit"],
+    },
+    {
+        "key": "preference_fit_weights.domain",
+        "type": "float",
+        "default": 0.50,
+        "label": "Preference Weight: Domain",
+        "description": "Relative importance of explicit domain preference alignment within the preference-fit feature.",
+        "group": "ranking",
+        "config_path": ["preference_fit_weights", "domain"],
+    },
+    {
+        "key": "preference_fit_weights.role_family",
+        "type": "float",
+        "default": 0.30,
+        "label": "Preference Weight: Role Family",
+        "description": "Relative importance of explicit role-family preference alignment within the preference-fit feature.",
+        "group": "ranking",
+        "config_path": ["preference_fit_weights", "role_family"],
+    },
+    {
+        "key": "preference_fit_weights.location_type",
+        "type": "float",
+        "default": 0.20,
+        "label": "Preference Weight: Location Type",
+        "description": "Relative importance of explicit location-type preference alignment within the preference-fit feature.",
+        "group": "ranking",
+        "config_path": ["preference_fit_weights", "location_type"],
     },
     {
         "key": "fit_label_thresholds.strong",
         "type": "float",
         "default": 0.70,
         "label": "Threshold: Strong Overall Fit",
-        "description": "The minimum combined score (0.0 to 1.0) required to categorize a candidate as a 'Strong' fit.",
+        "description": "The minimum AI reranker score required to categorize a shortlisted job as a 'Strong' fit.",
         "group": "ranking",
         "config_path": ["fit_label_thresholds", "strong"],
     },
@@ -188,7 +215,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "type": "float",
         "default": 0.40,
         "label": "Threshold: Stretch Overall Fit",
-        "description": "The minimum combined score (0.0 to 1.0) required to categorize a candidate as a 'Stretch' fit.",
+        "description": "The minimum AI reranker score required to categorize a shortlisted job as a 'Stretch' fit.",
         "group": "ranking",
         "config_path": ["fit_label_thresholds", "stretch"],
     },
@@ -469,6 +496,11 @@ RANKING_GROUPS: dict[str, list[str]] = {
         "ranking_weights.seniority_fit",
         "ranking_weights.preference_fit",
     ],
+    "preference-fit-weights": [
+        "preference_fit_weights.domain",
+        "preference_fit_weights.role_family",
+        "preference_fit_weights.location_type",
+    ],
     "fit-label-thresholds": [
         "fit_label_thresholds.strong",
         "fit_label_thresholds.stretch",
@@ -559,6 +591,9 @@ ALL_GROUP_REGISTRIES: dict[str, dict[str, list[str]]] = {
 _ALL_SCHEMA_BY_KEY: dict[str, dict[str, Any]] = {s["key"]: s for s in SETTINGS_SCHEMA}
 _WEIGHT_KEYS: frozenset[str] = frozenset(
     s["key"] for s in SETTINGS_SCHEMA if s["key"].startswith("ranking_weights.")
+)
+_PREFERENCE_WEIGHT_KEYS: frozenset[str] = frozenset(
+    s["key"] for s in SETTINGS_SCHEMA if s["key"].startswith("preference_fit_weights.")
 )
 
 
@@ -682,6 +717,12 @@ def validate_settings(settings: dict[str, Any]) -> None:
         if abs(total - 1.0) > 0.01:
             raise ValidationError(
                 f"ranking_weights must sum to 1.0 (± 0.01), got {total:.4f}"
+            )
+    if _PREFERENCE_WEIGHT_KEYS <= set(settings.keys()):
+        total = sum(float(settings[k]) for k in _PREFERENCE_WEIGHT_KEYS)
+        if abs(total - 1.0) > 0.01:
+            raise ValidationError(
+                f"preference_fit_weights must sum to 1.0 (± 0.01), got {total:.4f}"
             )
 
 

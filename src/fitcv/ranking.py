@@ -13,6 +13,7 @@ rank_jobs                : sort jobs by final_score (then ai_score, then vector 
 store_final_ranking      : persist ranked list to BigQuery (integration)
 """
 
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -41,6 +42,72 @@ DEFAULT_ACTIVE_MISSING_VALUE_DEFAULTS = {
     "preference_fit": 0.5,
 }
 LEGACY_MISSING_VALUE_DEFAULTS_KEY = "ranking_null_defaults"
+DEFAULT_PREFERENCE_FIT_WEIGHTS = {
+    "domain": 0.50,
+    "role_family": 0.30,
+    "location_type": 0.20,
+}
+_ROLE_FAMILY_ALIASES: dict[str, tuple[str, ...]] = {
+    "analytics": (
+        "business intelligence analyst",
+        "bi analyst",
+        "data analyst",
+        "analytics analyst",
+        "insights analyst",
+        "credit analyst",
+        "data quality analyst",
+        "analyst",
+    ),
+    "data_engineering": (
+        "analytics engineer",
+        "data engineer",
+        "etl engineer",
+        "data platform engineer",
+        "data warehouse engineer",
+    ),
+    "data_science": (
+        "data scientist",
+        "machine learning scientist",
+        "applied scientist",
+        "ai trainer",
+    ),
+    "ml_engineering": (
+        "machine learning engineer",
+        "ml engineer",
+        "mlops engineer",
+        "ai engineer",
+        "genai engineer",
+        "llm engineer",
+    ),
+}
+_ROLE_FAMILY_NEIGHBORS: dict[str, frozenset[str]] = {
+    "analytics": frozenset({"data_science"}),
+    "data_science": frozenset({"analytics", "ml_engineering"}),
+    "data_engineering": frozenset({"ml_engineering"}),
+    "ml_engineering": frozenset({"data_science", "data_engineering"}),
+}
+
+
+def _normalize_text(value: str | None) -> str:
+    if not value:
+        return ""
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", value.lower())).strip()
+
+
+def _infer_role_family(role_text: str | None, *, explicit_family: str | None = None) -> str | None:
+    normalized_explicit = _normalize_text(explicit_family)
+    if normalized_explicit in _ROLE_FAMILY_ALIASES:
+        return normalized_explicit
+
+    normalized_role = _normalize_text(role_text)
+    if not normalized_role:
+        return None
+
+    for family_name, aliases in _ROLE_FAMILY_ALIASES.items():
+        for alias in aliases:
+            if _normalize_text(alias) in normalized_role:
+                return family_name
+    return None
 
 
 def get_active_ranking_weights(config: dict[str, Any] | None = None) -> dict[str, float]:
@@ -71,6 +138,19 @@ def get_active_missing_value_defaults(config: dict[str, Any] | None = None) -> d
         raw_default = configured.get(feature_name)
         if raw_default is not None:
             resolved[feature_name] = float(raw_default)
+    return resolved
+
+
+def get_preference_fit_weights(config: dict[str, Any] | None = None) -> dict[str, float]:
+    configured = (config or {}).get("preference_fit_weights") or {}
+    if not isinstance(configured, dict):
+        return dict(DEFAULT_PREFERENCE_FIT_WEIGHTS)
+
+    resolved = dict(DEFAULT_PREFERENCE_FIT_WEIGHTS)
+    for key in DEFAULT_PREFERENCE_FIT_WEIGHTS:
+        raw_weight = configured.get(key)
+        if raw_weight is not None:
+            resolved[key] = float(raw_weight)
     return resolved
 
 
@@ -140,14 +220,30 @@ def compute_seniority_fit(
     return 0.0
 
 
-def compute_title_relevance(job_title: str | None, candidate_target_role: str | None) -> float:
-    """Compute token overlap ratio between target role and job title.
+def compute_title_relevance(
+    job_title: str | None,
+    candidate_target_role: str | None,
+    *,
+    job_family: str | None = None,
+    config: dict[str, Any] | None = None,
+) -> float:
+    """Compute semantic role alignment between target role and job title.
 
-    Ratio is: (matched target tokens) / (total target tokens).
-    If either is missing, returns 0.5 (neutral).
+    Prefer deterministic role-family normalization when possible, then fall back
+    to lexical token overlap. The exposed score remains bounded in [0.0, 1.0].
     """
     if not job_title or not candidate_target_role:
         return 0.5
+
+    _ = config
+    target_family = _infer_role_family(candidate_target_role)
+    resolved_job_family = _infer_role_family(job_title, explicit_family=job_family)
+    if target_family and resolved_job_family:
+        if target_family == resolved_job_family:
+            return 1.0
+        if resolved_job_family in _ROLE_FAMILY_NEIGHBORS.get(target_family, frozenset()):
+            return 0.75
+        return 0.0
 
     tgt_tokens = set(candidate_target_role.lower().split())
     job_tokens = set(job_title.lower().split())
@@ -159,31 +255,68 @@ def compute_title_relevance(job_title: str | None, candidate_target_role: str | 
     return matched / len(tgt_tokens)
 
 
-def compute_preference_fit(job: dict[str, Any], prefs: dict[str, Any]) -> float:
-    """Compute fractional match of explicit preferences (domain, location_type).
+def _normalized_preferences(values: Any) -> list[str]:
+    if not isinstance(values, list):
+        return []
+    return [_normalize_text(str(value)) for value in values if _normalize_text(str(value))]
 
-    Returns 0.5 (neutral) if no preferences are explicitly set.
-    """
-    scored_items = 0
-    matched_items = 0
 
-    pref_domains = [d.lower() for d in prefs.get("domains", [])]
-    if pref_domains:
-        scored_items += 1
-        job_family = str(job.get("job_family") or "").lower()
-        job_domain = str(job.get("domain") or "").lower()
-        if job_family in pref_domains or job_domain in pref_domains:
-            matched_items += 1
-
-    pref_locations = [l.lower() for l in prefs.get("location_types", [])]
-    if pref_locations:
-        scored_items += 1
-        if (job.get("location_type") or "").lower() in pref_locations:
-            matched_items += 1
-
-    if scored_items == 0:
+def _preference_dimension_score(job_value: str | None, preferred_values: list[str]) -> float:
+    if not preferred_values:
         return 0.5
-    return matched_items / scored_items
+    normalized_job_value = _normalize_text(job_value)
+    if not normalized_job_value:
+        return 0.0
+    return 1.0 if normalized_job_value in preferred_values else 0.0
+
+
+def compute_preference_fit_details(
+    job: dict[str, Any],
+    prefs: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    pref_domains = _normalized_preferences(prefs.get("domains", []))
+    pref_role_families = _normalized_preferences(prefs.get("role_families", []))
+    pref_locations = _normalized_preferences(prefs.get("location_types", []))
+
+    if not (pref_domains or pref_role_families or pref_locations):
+        return {
+            "score": 0.5,
+            "weights": get_preference_fit_weights(config),
+            "components": {
+                "domain": 0.5,
+                "role_family": 0.5,
+                "location_type": 0.5,
+            },
+        }
+
+    weights = get_preference_fit_weights(config)
+    components = {
+        "domain": _preference_dimension_score(str(job.get("domain") or ""), pref_domains),
+        "role_family": _preference_dimension_score(str(job.get("job_family") or ""), pref_role_families),
+        "location_type": _preference_dimension_score(str(job.get("location_type") or ""), pref_locations),
+    }
+    score = sum(components[key] * weights[key] for key in DEFAULT_PREFERENCE_FIT_WEIGHTS)
+    return {
+        "score": score,
+        "weights": weights,
+        "components": components,
+    }
+
+
+def compute_preference_fit(
+    job: dict[str, Any],
+    prefs: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> float:
+    """Compute weighted alignment of explicit preferences.
+
+    Dimensions:
+    - domain
+    - role_family
+    - location_type
+    """
+    return float(compute_preference_fit_details(job, prefs, config)["score"])
 
 
 # ── composite score ───────────────────────────────────────────────────────────
@@ -207,6 +340,20 @@ def compute_final_score(
             val = null_defaults.get(feature_name, 0.0)
         score += val * weight
     return score
+
+
+def compute_feature_contributions(
+    features: dict[str, float],
+    weights: dict[str, float],
+    null_defaults: dict[str, float],
+) -> dict[str, float]:
+    contributions: dict[str, float] = {}
+    for feature_name, weight in weights.items():
+        value = features.get(feature_name)
+        if value is None:
+            value = null_defaults.get(feature_name, 0.0)
+        contributions[feature_name] = float(value) * weight
+    return contributions
 
 
 # ── sorting and ranking ───────────────────────────────────────────────────────

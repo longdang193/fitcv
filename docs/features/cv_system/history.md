@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.14.0 — active
+
+- Ranking now uses a stricter reranker rubric that makes required-skill evidence, readiness, and role alignment primary while keeping preference signals secondary
+- `title_relevance` now reflects bounded semantic role alignment instead of pure token overlap, and `preference_fit` now combines weighted domain, role-family, and location-type alignment
+- This rollout improves ranking quality before CV generation without changing `must_have_match` semantics or CV-generation authority
+
 ### 1.13.0 — active
 
 - Shortlist can now skip repeated `job_summary` embedding work for unchanged passed jobs when the structured signature and embedding contract still match

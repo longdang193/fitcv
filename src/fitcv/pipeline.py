@@ -59,12 +59,15 @@ from fitcv.gap_analysis import classify_fit, compute_gap
 from fitcv.ingest import load_to_bigquery, parse_jobs_file, prepare_raw_rows
 from fitcv.normalize import normalize_batch, normalize_batch_with_exclusions
 from fitcv.ranking import (
+    compute_feature_contributions,
     compute_final_score,
     compute_must_have_match,
+    compute_preference_fit_details,
     compute_preference_fit,
     compute_seniority_fit,
     compute_title_relevance,
     get_active_missing_value_defaults,
+    get_preference_fit_weights,
     get_active_ranking_weights,
     rank_jobs,
     store_final_ranking,
@@ -557,6 +560,8 @@ def _build_export_results(
                     "ai_score": score_source.get("ai_score"),
                     "vector_score": score_source.get("vector_similarity"),
                     "fit_label": score_source.get("fit_label"),
+                    "feature_contributions": score_source.get("feature_contributions"),
+                    "preference_fit_components": score_source.get("preference_fit_components"),
                 },
                 "decision_chain": decision_chain,
                 "shortlist_debug": shortlist_debug,
@@ -1113,6 +1118,8 @@ def _ranking_row_sample(row: dict[str, Any]) -> dict[str, Any] | None:
         "title_relevance": row.get("title_relevance"),
         "seniority_fit": row.get("seniority_fit"),
         "preference_fit": row.get("preference_fit"),
+        "feature_contributions": row.get("feature_contributions"),
+        "preference_fit_components": row.get("preference_fit_components"),
         "final_score": row.get("final_score"),
         "ranking_fit_label": row.get("fit_label"),
         "shortlist_origin": row.get("shortlist_origin"),
@@ -1253,6 +1260,7 @@ def _build_stage_transition_artifacts(
             ranking_fit_distribution[fit_label] = ranking_fit_distribution.get(fit_label, 0) + 1
     ranking_weights = get_active_ranking_weights(config)
     ranking_defaults = get_active_missing_value_defaults(config)
+    preference_fit_weights = get_preference_fit_weights(config)
     zero_weight_features = [
         feature_name
         for feature_name, weight in ranking_weights.items()
@@ -1511,6 +1519,8 @@ def _build_stage_transition_artifacts(
                     "ranking_fit_label_counts": ranking_fit_distribution,
                     "configured_ranking_weights": ranking_weights,
                     "configured_missing_value_defaults": ranking_defaults,
+                    "configured_preference_fit_weights": preference_fit_weights,
+                    "configured_fit_label_thresholds": dict(config.get("fit_label_thresholds") or {}),
                     "zero_weight_features": zero_weight_features,
                     "contributing_features": contributing_features,
                 },
@@ -1523,7 +1533,13 @@ def _build_stage_transition_artifacts(
                         "change_type": "scored_not_ranked",
                     } if _ranking_row_sample(row) else None,
                 ),
-                settings_refs=["ranking_weights", "missing_value_defaults", "pipeline.final_top_n"],
+                settings_refs=[
+                    "ranking_weights",
+                    "preference_fit_weights",
+                    "missing_value_defaults",
+                    "fit_label_thresholds",
+                    "pipeline.final_top_n",
+                ],
             ) if ranking_reached else _stage_block_not_reached("ranking"),
             "cv_generation": _stage_block(
                 stage_id="cv_generation",
@@ -1598,23 +1614,32 @@ def build_ranking_features(
         title_relevance = compute_title_relevance(
             _extract_job_title(ranking_source),
             str(preferences.get("target_role") or "") or None,
+            job_family=str(ranking_source.get("job_family") or "") or None,
+            config=config,
         )
         seniority_fit = compute_seniority_fit(
             str(ranking_source.get("seniority") or "") or None,
             str(preferences.get("seniority_target") or "") or None,
             config,
         )
-        preference_fit = compute_preference_fit(ranking_source, preferences)
+        preference_fit_details = compute_preference_fit_details(ranking_source, preferences, config)
+        preference_fit = float(preference_fit_details["score"])
+
+        feature_values = {
+            "ai_score": ai_score,
+            "must_have_match": must_have_match,
+            "vector_similarity": vector_similarity,
+            "title_relevance": title_relevance,
+            "seniority_fit": seniority_fit,
+            "preference_fit": preference_fit,
+        }
 
         feature: dict[str, Any] = {
             **ranking_source,
             "vector_rank": int(vector_rank or 0),
-            "vector_similarity": vector_similarity,
-            "ai_score": ai_score,
-            "must_have_match": must_have_match,
-            "title_relevance": title_relevance,
-            "seniority_fit": seniority_fit,
-            "preference_fit": preference_fit,
+            **feature_values,
+            "feature_contributions": compute_feature_contributions(feature_values, weights, null_defaults),
+            "preference_fit_components": preference_fit_details["components"],
             "fit_label_source": "reranker" if ai_row.get("fit_label") is not None else "reranker_score_thresholds",
         }
         feature["final_score"] = compute_final_score(feature, weights, null_defaults)

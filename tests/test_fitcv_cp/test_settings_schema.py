@@ -237,9 +237,14 @@ def test_apply_settings_to_config_rule_filter_selected_filters_nested() -> None:
 
 # ── RANKING_GROUPS registry ───────────────────────────────────────────────────
 
-def test_ranking_groups_has_three_slugs():
+def test_ranking_groups_has_four_slugs():
     from fitcv_cp.settings_schema import RANKING_GROUPS
-    assert set(RANKING_GROUPS.keys()) == {"ranking-weights", "fit-label-thresholds", "gap-thresholds"}
+    assert set(RANKING_GROUPS.keys()) == {
+        "ranking-weights",
+        "preference-fit-weights",
+        "fit-label-thresholds",
+        "gap-thresholds",
+    }
 
 
 def test_ranking_groups_all_keys_in_schema():
@@ -255,15 +260,49 @@ def test_ranking_weights_group_has_six_keys():
     assert len(RANKING_GROUPS["ranking-weights"]) == 6
 
 
+def test_preference_fit_weights_group_has_three_keys() -> None:
+    from fitcv_cp.settings_schema import RANKING_GROUPS
+    assert len(RANKING_GROUPS["preference-fit-weights"]) == 3
+
+
 def test_ranking_weight_copy_matches_runtime_semantics():
     schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
     assert schema_by_key["ranking_weights.title_relevance"]["description"] == (
-        "How much influence the similarity between the job title and the candidate's target role has on the final ranking."
+        "How much influence semantic role alignment between the job title and the candidate's target role has on the final ranking."
     )
     assert schema_by_key["ranking_weights.preference_fit"]["label"] == "Weight: Preference Alignment"
     assert schema_by_key["ranking_weights.preference_fit"]["description"] == (
-        "How much influence candidate preference alignment such as domain and location type has on the final candidate ranking."
+        "How much influence weighted candidate preference alignment across domain, role family, and location type has on the final candidate ranking."
     )
+
+
+def test_preference_fit_weight_keys_registered() -> None:
+    keys = {s["key"] for s in SETTINGS_SCHEMA}
+    assert "preference_fit_weights.domain" in keys
+    assert "preference_fit_weights.role_family" in keys
+    assert "preference_fit_weights.location_type" in keys
+
+
+def test_preference_fit_weight_copy_matches_runtime_semantics() -> None:
+    schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
+    assert schema_by_key["preference_fit_weights.domain"]["description"] == (
+        "Relative importance of explicit domain preference alignment within the preference-fit feature."
+    )
+    assert schema_by_key["preference_fit_weights.role_family"]["description"] == (
+        "Relative importance of explicit role-family preference alignment within the preference-fit feature."
+    )
+    assert schema_by_key["preference_fit_weights.location_type"]["description"] == (
+        "Relative importance of explicit location-type preference alignment within the preference-fit feature."
+    )
+
+
+def test_preference_fit_weights_must_sum_to_one() -> None:
+    with pytest.raises(ValidationError, match="preference_fit_weights"):
+        validate_settings({
+            "preference_fit_weights.domain": 0.70,
+            "preference_fit_weights.role_family": 0.20,
+            "preference_fit_weights.location_type": 0.20,
+        })
 
 
 def test_ranking_groups_threshold_groups_have_two_keys_each():

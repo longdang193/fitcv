@@ -10,6 +10,11 @@ ranking_weights:
   seniority_fit: 0.10
   preference_fit: 0.05
 
+preference_fit_weights:
+  domain: 0.50
+  role_family: 0.30
+  location_type: 0.20
+
 # ── Fit label thresholds (used by ai_score.py and ranking.py) ─────────────────
 # score >= strong_threshold        → strong
 # score >= stretch_threshold       → stretch

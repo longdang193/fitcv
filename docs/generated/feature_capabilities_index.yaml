@@ -61,6 +61,8 @@ capabilities:
   feature_id: pipeline_performance
 - capability: Fresh shortlist embeddings persist signature metadata so later runs can skip repeated embedding work safely
   feature_id: pipeline_performance
+- capability: Fit-label threshold descriptions aligned to AI-reranker label calibration semantics
+  feature_id: settings_system
 - capability: Filter outcome display with reasons
   feature_id: inspection_debugging
 - capability: Flash-free theme application
@@ -109,6 +111,20 @@ capabilities:
   feature_id: admin_control_plane_core
 - capability: Ranking settings with cross-field validation
   feature_id: settings_system
+- capability: Preference-fit subweights for domain, role-family, and location-type calibration
+  feature_id: settings_system
+- capability: Ranking settings copy aligned to semantic role-alignment and weighted preference-alignment runtime semantics
+  feature_id: settings_system
+- capability: Ranking-stage artifacts and exports now expose per-feature weighted score contributions plus weighted preference-fit subcomponents
+  feature_id: inspection_debugging
+- capability: Ranking-stage decision summaries can now expose configured preference-fit weights and fit-label thresholds for calibration debugging
+  feature_id: inspection_debugging
+- capability: Ranking reranker prompts now prioritize required-skill evidence, seniority readiness, and role alignment while treating preferences as explicitly secondary
+  feature_id: cv_system
+- capability: Ranking `title_relevance` now uses bounded semantic role alignment instead of pure lexical token overlap
+  feature_id: cv_system
+- capability: Ranking `preference_fit` now scores weighted domain, role-family, and location-type preference alignment
+  feature_id: cv_system
 - capability: Responsive wrapping
   feature_id: ui_consistency_theming
 - capability: Retrieval settings

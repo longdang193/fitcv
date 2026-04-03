@@ -112,17 +112,41 @@ def test_build_ranking_features_carries_ai_score_fields() -> None:
     profile: dict = {
         "skills": [{"name": "SQL"}, {"name": "Python"}],
         "preferences": {
-            "target_role": "Data Engineer",
+            "target_role": "Data Analyst",
             "seniority_target": "senior",
+            "role_families": ["analytics"],
         },
     }
+    shortlist = [
+        {
+            "job_url": "https://example.com/1",
+            "similarity_score": 0.9,
+            "rank": 1,
+            "required_skills": ["SQL", "Python"],
+            "job_title": "Business Intelligence Analyst",
+            "job_family": "analytics",
+            "location_type": "remote",
+        },
+        {
+            "job_url": "https://example.com/2",
+            "similarity_score": 0.7,
+            "rank": 2,
+            "required_skills": ["Spark"],
+            "job_title": "ML Engineer",
+            "job_family": "ml_engineering",
+            "location_type": "onsite",
+        },
+    ]
     features = build_ranking_features(_make_shortlist(), _make_ai_scores(), profile, {})
+    features = build_ranking_features(shortlist, _make_ai_scores(), profile, {})
     job1 = next(f for f in features if f["job_url"] == "https://example.com/1")
     assert job1["ai_score"] == pytest.approx(0.85)
     assert job1["must_have_match"] == pytest.approx(1.0)
     assert job1["title_relevance"] == pytest.approx(1.0)
     assert job1["seniority_fit"] == pytest.approx(1.0)
-    assert job1["preference_fit"] == pytest.approx(0.5)
+    assert job1["preference_fit"] == pytest.approx(0.65)
+    assert job1["feature_contributions"]["ai_score"] == pytest.approx(0.34)
+    assert job1["feature_contributions"]["preference_fit"] == pytest.approx(0.0325)
 
 
 def test_materialize_scoring_shortlist_excludes_raw_hits_absent_from_passed_jobs() -> None:
@@ -181,10 +205,11 @@ def test_build_ranking_features_uses_all_supported_weighted_features() -> None:
     profile: dict = {
         "skills": [{"name": "SQL"}, {"name": "Python"}],
         "preferences": {
-            "target_role": "Data Engineer",
+            "target_role": "Data Analyst",
             "seniority_target": "senior",
             "domains": ["data_science"],
             "location_types": ["remote"],
+            "role_families": ["analytics"],
         },
     }
     shortlist = [
@@ -193,10 +218,11 @@ def test_build_ranking_features_uses_all_supported_weighted_features() -> None:
             "vector_similarity": 0.9,
             "vector_rank": 1,
             "required_skills": ["SQL", "Python"],
-            "title": "Senior Data Engineer",
+            "title": "Business Intelligence Analyst",
             "seniority": "senior",
-            "job_family": "data_science",
+            "job_family": "analytics",
             "location_type": "remote",
+            "domain": "data_science",
         },
     ]
     ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.85, "fit_label": "strong"}]
@@ -217,6 +243,11 @@ def test_build_ranking_features_uses_all_supported_weighted_features() -> None:
             "seniority_fit": 0.5,
             "preference_fit": 0.5,
         },
+        "preference_fit_weights": {
+            "domain": 0.5,
+            "role_family": 0.3,
+            "location_type": 0.2,
+        },
     }
 
     features = build_ranking_features(shortlist, ai_scores, profile, config)
@@ -226,6 +257,14 @@ def test_build_ranking_features_uses_all_supported_weighted_features() -> None:
     assert job1["title_relevance"] == pytest.approx(1.0)
     assert job1["seniority_fit"] == pytest.approx(1.0)
     assert job1["preference_fit"] == pytest.approx(1.0)
+    assert job1["feature_contributions"] == {
+        "ai_score": pytest.approx(0.34),
+        "must_have_match": pytest.approx(0.2),
+        "vector_similarity": pytest.approx(0.135),
+        "title_relevance": pytest.approx(0.1),
+        "seniority_fit": pytest.approx(0.1),
+        "preference_fit": pytest.approx(0.05),
+    }
     assert job1["final_score"] == pytest.approx(
         (0.85 * 0.40) + (1.0 * 0.20) + (0.9 * 0.15) + (1.0 * 0.10) + (1.0 * 0.10) + (1.0 * 0.05)
     )
@@ -271,8 +310,9 @@ def test_build_ranking_features_preserves_zero_weight_features_in_payload() -> N
     assert job1["must_have_match"] == pytest.approx(1.0)
     assert job1["title_relevance"] == pytest.approx(1.0)
     assert job1["seniority_fit"] == pytest.approx(1.0)
-    assert job1["preference_fit"] == pytest.approx(1.0)
+    assert job1["preference_fit"] == pytest.approx(0.35)
     assert job1["final_score"] == pytest.approx((0.85 * 0.73) + (0.9 * 0.27))
+    assert job1["feature_contributions"]["must_have_match"] == pytest.approx(0.0)
 
 
 def test_build_ranking_features_prefers_missing_value_defaults_key() -> None:
