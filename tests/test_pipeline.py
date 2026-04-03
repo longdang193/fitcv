@@ -722,17 +722,19 @@ def test_run_pipeline_logs_full_validation_reasons(
 
     run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
 
-    mock_logger.warning.assert_called_with(
-        "[run_id=%s] CV for %s failed validation: %s",
-        ANY,
-        job["job_url"],
-        {
-            "missing_sections": [],
-            "grounding_violations": [],
-            "skill_violations": ["Skill 'Rust' in CV Skills section is not in candidate knowledge base"],
-            "warnings": [],
-        },
-    )
+    mock_logger.warning.assert_called_once()
+    warning_args = mock_logger.warning.call_args.args
+    assert warning_args[0] == "[run_id=%s] CV for %s failed validation: %s"
+    assert warning_args[2] == job["job_url"]
+    assert warning_args[3] == {
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": ["Skill 'Rust' in CV Skills section is not in candidate knowledge base"],
+        "warnings": [],
+        "support_source_summary": {},
+    }
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -1451,7 +1453,12 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
     record = debug_records[0]
     assert record["status"] == "validation_failed"
     assert record["structured_cv_initial"] == structured_cv
-    assert record["validation_initial"] == validation
+    assert record["validation_initial"] == {
+        **validation,
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "support_source_summary": {},
+    }
     assert record["structured_cv_final"] is None
     assert record["markdown_final"] is None
     assert record["error"]["stage"] == "validation"
@@ -3022,12 +3029,12 @@ def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
     mock_gen_cv.assert_not_called()
     mock_validate.assert_not_called()
     mock_classify.assert_not_called()
-    assert result["checkpoint_payload"]["cv_analysis_results"][0]["status"] == "skipped_fit_gate"
-    assert result["checkpoint_payload"]["cv_analysis_results"][0]["outcome_reason"] == {
+    assert result["cv_analysis_results"][0]["status"] == "skipped_fit_gate"
+    assert result["cv_analysis_results"][0]["outcome_reason"] == {
         "stage": "fit_gate",
         "message": f"Skipped {job['job_url']} (fit=skip)",
     }
-    assert result["checkpoint_payload"]["cv_analysis_results"][0]["error"] is None
+    assert result["cv_analysis_results"][0]["error"] is None
     assert result["cv_generation_debug_records"][0]["status"] == "skipped_fit_gate"
     assert result["cv_generation_debug_records"][0]["fit_classification"] == "skip"
     assert result["export_results"][0]["pipeline_status"] == "ranked_skipped_fit_gate"
@@ -3968,10 +3975,11 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
             "status": "not_run",
         },
     }
-    assert debug_by_status["skipped_fit_gate"]["error"] == {
+    assert debug_by_status["skipped_fit_gate"]["outcome_reason"] == {
         "stage": "fit_gate",
         "message": f"Skipped {ranked_no_cv['job_url']} (fit=skip)",
     }
+    assert debug_by_status["skipped_fit_gate"]["error"] is None
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -4355,6 +4363,132 @@ def test_run_pipeline_calls_load_run_structured_jobs(
     assert call_kwargs.args[0] == [job]
     # second positional arg: run_id
     assert call_kwargs.args[1] == "test-run-id"
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence_bundle")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_forwards_analysis_grounding_payload_to_validation(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_retrieve_bundle: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = _minimal_job()
+    job["job_family"] = "analytics"
+    profile = _minimal_profile()
+    config = _minimal_config()
+    config["run_mode"] = "full"
+    config["stop_after_stage"] = None
+
+    mock_config.return_value = config
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_enrich.return_value = [job]
+    mock_load_run_struct.return_value = [job]
+    mock_load_struct.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_ai.return_value = [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "strong"}]
+    mock_build_feat.return_value = [{
+        **job,
+        "job_url": job["job_url"],
+        "title": "Retail Data Analyst",
+        "final_score": 0.81,
+        "ai_score": 0.8,
+        "vector_rank": 1,
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }]
+    mock_rank.return_value = [{
+        **job,
+        "job_url": job["job_url"],
+        "title": "Retail Data Analyst",
+        "final_score": 0.81,
+        "ai_score": 0.8,
+        "vector_rank": 1,
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }]
+    mock_retrieve_bundle.return_value = {
+        "selected_evidence": [
+            {
+                "evidence_id": "exp-1",
+                "evidence_type": "experience_entry",
+                "company": "ACME",
+                "role": "Data Analyst",
+                "skills": ["SQL", "Power BI"],
+                "bullets": ["Maintained Power BI dashboards for retail reporting."],
+                "domain_tags": ["retail"],
+                "matched_channels": ["required_skill_support", "responsibility_alignment"],
+                "selection_reasons": ["required_skill_support", "responsibility_alignment"],
+            }
+        ],
+        "channel_counts": {"required_skill_support": 1},
+        "merged_pool_size": 1,
+        "deduped_pool_size": 1,
+        "selected_evidence_count": 1,
+    }
+    mock_gap.return_value = {"matched": ["SQL"], "missing": []}
+    mock_gen_cv.return_value = "# Name\n## Summary\nGrounded summary\n## Skills\nSQL, Power BI\n## Experience\n### Data Analyst — ACME\n- Built dashboards"
+    mock_validate.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+    }
+
+    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-123")
+
+    analysis_grounding = mock_validate.call_args.kwargs["analysis_grounding"]
+    assert analysis_grounding["evidence_payload"][0]["evidence_id"] == "exp-1"
+    assert analysis_grounding["evidence_selection_summary"]["selected_evidence_count"] == 1
+    assert analysis_grounding["analysis_input_summary"]["job_family"] == job["job_family"]
 
 
 

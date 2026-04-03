@@ -27,6 +27,8 @@ capabilities:
   feature_id: trigger_run_management
 - capability: CV validation against composition rules
   feature_id: cv_system
+- capability: CV-generation prompt guidance now explicitly constrains responsibility, domain, and role-positioning claims to the selected evidence bundle
+  feature_id: cv_system
 - capability: Cancel queued runs directly from the queue via RQ
   feature_id: run_lifecycle_controls
 - capability: Canonical merge preserving order
@@ -103,6 +105,10 @@ capabilities:
   feature_id: inspection_debugging
 - capability: Run-scoped enriched job rows and enrich-stage artifacts can now expose raw-job fingerprints, enrich-contract fingerprints, and fresh-vs-reused enrich provenance
   feature_id: inspection_debugging
+- capability: `cv_generation` validation snapshots now distinguish deterministic selected-evidence grounding violations from softer selected-evidence support failures
+  feature_id: inspection_debugging
+- capability: `cv_generation` artifacts now expose compact hybrid support-source summaries for debugging accepted and rejected outputs
+  feature_id: inspection_debugging
 - capability: Shortlist artifacts and run-results shortlist debug can now expose fresh-vs-reused embedding provenance plus structured signature metadata
   feature_id: inspection_debugging
 - capability: Preset registry for template binding
@@ -120,6 +126,10 @@ capabilities:
 - capability: Ranking-stage decision summaries can now expose configured preference-fit weights and fit-label thresholds for calibration debugging
   feature_id: inspection_debugging
 - capability: Ranking reranker prompts now prioritize required-skill evidence, seniority readiness, and role alignment while treating preferences as explicitly secondary
+  feature_id: cv_system
+- capability: Selected-evidence hard facts now gate CV validation before profile-wide fallback when `cv_analysis` provided a bounded evidence bundle
+  feature_id: cv_system
+- capability: Softer role, domain, and responsibility claims now use a bounded hybrid validation path that stays scoped to selected `cv_analysis` evidence
   feature_id: cv_system
 - capability: Ranking `title_relevance` now uses bounded semantic role alignment instead of pure lexical token overlap
   feature_id: cv_system

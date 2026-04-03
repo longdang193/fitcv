@@ -249,6 +249,27 @@ def test_build_generation_prompt_includes_role_level_supporting_evidence_and_ada
     assert "emphasize the bullets most relevant to the target JD" in prompt
 
 
+def test_build_generation_prompt_requires_selected_evidence_grounding() -> None:
+    prompt = build_generation_prompt(
+        jd={"title": "Data Analyst", "required_skills": ["SQL"]},
+        evidence=[
+            {
+                "evidence_type": "experience_entry",
+                "role": "Data Analyst",
+                "company": "ACME",
+                "skills": ["SQL"],
+                "matched_channels": ["required_skill_support", "responsibility_alignment"],
+                "selection_reasons": ["required_skill_support", "responsibility_alignment"],
+            }
+        ],
+        gap={"matched": ["SQL"], "missing": []},
+        template="",
+        evidence_selection_summary={"selected_evidence_ids": ["exp-1"], "selected_evidence_count": 1},
+    )
+    assert "Stay within the selected evidence bundle for this job." in prompt
+    assert "If a responsibility, domain, or role-positioning claim is not supported by the selected evidence, omit it." in prompt
+
+
 # ── select_template_variant ───────────────────────────────────────────────────
 
 def test_select_template_variant_returns_known_string() -> None:

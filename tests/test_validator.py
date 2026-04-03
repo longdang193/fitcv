@@ -422,3 +422,89 @@ def test_run_all_validations_uses_content_rules_from_nested_cv() -> None:
     # content_rules are informational in this validator pass;
     # the key check is that nested cv is accepted without error
     assert "content_rules" not in result.get("errors", [])
+
+
+def test_run_all_validations_flags_profile_true_employer_not_selected_by_analysis_evidence() -> None:
+    profile = {
+        "experiences": [
+            {"role": "Data Analyst", "company": "ACME"},
+            {"role": "Data Engineer", "company": "FintechCo"},
+        ],
+        "projects": [],
+        "skills": ["SQL", "Python"],
+    }
+    cv_text = (
+        "# Name\n"
+        "## Summary\nGrounded summary\n"
+        "## Skills\nSQL\n"
+        "## Experience\n"
+        "### Data Engineer — FintechCo (2022–2024)\n"
+        "- Built reporting workflows\n"
+    )
+    analysis_grounding = {
+        "evidence_payload": [
+            {
+                "evidence_id": "exp-acme",
+                "evidence_type": "experience_entry",
+                "company": "ACME",
+                "role": "Data Analyst",
+                "skills": ["SQL"],
+            }
+        ],
+        "evidence_selection_summary": {"selected_evidence_ids": ["exp-acme"]},
+        "analysis_input_summary": {"job_family": "analytics"},
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=_CV_CONFIG,
+        analysis_grounding=analysis_grounding,
+    )
+
+    assert result["valid"] is False
+    assert any("selected evidence" in message.lower() for message in result["grounding_violations"])
+    assert any("FintechCo" in message for message in result["deterministic_grounding_violations"])
+
+
+def test_run_all_validations_supports_semantically_close_soft_claim_from_selected_evidence() -> None:
+    profile = {
+        "experiences": [{"role": "Data Analyst", "company": "ACME"}],
+        "projects": [],
+        "skills": ["SQL", "Python", "Power BI"],
+    }
+    cv_text = (
+        "# Name\n"
+        "## Summary\nDelivered stakeholder-facing dashboards and reporting workflows for retail analytics teams.\n"
+        "## Skills\nSQL, Power BI\n"
+        "## Experience\n"
+        "### Data Analyst — ACME (2022–2024)\n"
+        "- Built reporting dashboards for business stakeholders.\n"
+    )
+    analysis_grounding = {
+        "evidence_payload": [
+                {
+                    "evidence_id": "exp-acme",
+                    "evidence_type": "experience_entry",
+                    "company": "ACME",
+                    "role": "",
+                    "skills": ["SQL", "Power BI"],
+                    "bullets": [
+                        "Maintained Power BI dashboards for sales and inventory reporting.",
+                    ],
+                }
+            ],
+        "evidence_selection_summary": {"selected_evidence_ids": ["exp-acme"]},
+        "analysis_input_summary": {"job_family": "analytics"},
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=_CV_CONFIG,
+        analysis_grounding=analysis_grounding,
+    )
+
+    assert result["valid"] is True
+    assert result["semantic_grounding_violations"] == []
+    assert result["support_source_summary"]["semantic_supported_soft_claims"] >= 1

@@ -847,6 +847,13 @@ def build_generation_prompt(
         constraint_lines.append(
             "For the Experience section, summarize or combine grounded facts where helpful."
         )
+    if evidence:
+        constraint_lines.append(
+            "Stay within the selected evidence bundle for this job."
+        )
+        constraint_lines.append(
+            "If a responsibility, domain, or role-positioning claim is not supported by the selected evidence, omit it."
+        )
 
     constraints = "\n".join(constraint_lines) or "(no specific constraints)"
     filtered_template = _filter_template_by_enabled_sections(template, enabled_section_names)
