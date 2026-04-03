@@ -53,3 +53,65 @@ valid_experience_levels:
   - Mid-Senior level
   - Director
   - Executive
+
+role_taxonomy:
+  canonical_roles:
+    data analyst:
+      aliases:
+        - senior data analyst
+        - junior data analyst
+        - bi analyst
+        - business intelligence analyst
+        - analytics specialist
+        - analytics analyst
+        - insights analyst
+        - data quality analyst
+        - credit analyst
+    data engineer:
+      aliases:
+        - senior data engineer
+        - junior data engineer
+        - analytics engineer
+        - etl engineer
+        - data platform engineer
+        - data warehouse engineer
+    data scientist:
+      aliases:
+        - senior data scientist
+        - junior data scientist
+        - machine learning scientist
+        - applied scientist
+        - ai trainer
+    machine learning engineer:
+      aliases:
+        - ml engineer
+        - mlops engineer
+        - ai engineer
+        - genai engineer
+        - llm engineer
+
+  role_families:
+    analytics:
+      roles:
+        - data analyst
+    data_engineering:
+      roles:
+        - data engineer
+    data_science:
+      roles:
+        - data scientist
+    ml_engineering:
+      roles:
+        - machine learning engineer
+
+  role_family_neighbors:
+    analytics:
+      - data_science
+    data_science:
+      - analytics
+      - ml_engineering
+    data_engineering:
+      - ml_engineering
+    ml_engineering:
+      - data_science
+      - data_engineering

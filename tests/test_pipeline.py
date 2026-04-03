@@ -30,6 +30,29 @@ from fitcv.pipeline import (
     create_run_id,
 )
 
+_ROLE_TAXONOMY_CONFIG = {
+    "role_taxonomy": {
+        "canonical_role_by_alias": {
+            "business intelligence analyst": "data analyst",
+            "data analyst": "data analyst",
+            "analytics engineer": "data engineer",
+            "data engineer": "data engineer",
+            "ml engineer": "machine learning engineer",
+            "machine learning engineer": "machine learning engineer",
+        },
+        "role_family_by_role": {
+            "data analyst": "analytics",
+            "data engineer": "data_engineering",
+            "machine learning engineer": "ml_engineering",
+        },
+        "role_family_neighbors": {
+            "analytics": ("data_science",),
+            "data_engineering": ("ml_engineering",),
+            "ml_engineering": ("data_engineering",),
+        },
+    }
+}
+
 
 # ── create_run_id ─────────────────────────────────────────────────────────────
 
@@ -137,8 +160,8 @@ def test_build_ranking_features_carries_ai_score_fields() -> None:
             "location_type": "onsite",
         },
     ]
-    features = build_ranking_features(_make_shortlist(), _make_ai_scores(), profile, {})
-    features = build_ranking_features(shortlist, _make_ai_scores(), profile, {})
+    features = build_ranking_features(_make_shortlist(), _make_ai_scores(), profile, _ROLE_TAXONOMY_CONFIG)
+    features = build_ranking_features(shortlist, _make_ai_scores(), profile, _ROLE_TAXONOMY_CONFIG)
     job1 = next(f for f in features if f["job_url"] == "https://example.com/1")
     assert job1["ai_score"] == pytest.approx(0.85)
     assert job1["must_have_match"] == pytest.approx(1.0)
@@ -248,6 +271,7 @@ def test_build_ranking_features_uses_all_supported_weighted_features() -> None:
             "role_family": 0.3,
             "location_type": 0.2,
         },
+        **_ROLE_TAXONOMY_CONFIG,
     }
 
     features = build_ranking_features(shortlist, ai_scores, profile, config)
@@ -382,6 +406,55 @@ def test_build_ranking_features_preserves_structured_job_fields_from_shortlist()
     assert job1["required_skills"] == ["SQL", "Python"]
     assert job1["title"] == "Structured Data Engineer"
     assert job1["years_required"] == 4
+
+
+def test_build_ranking_features_uses_inferred_effective_preferences_when_yaml_is_sparse() -> None:
+    profile: dict = {
+        "preferences": {"location_types": ["remote", "hybrid"]},
+        "experiences": [
+            {"role": "Senior Data Analyst", "role_family": "analytics", "domain_tags": ["banking"], "bullets": []},
+            {"role": "BI Analyst", "domain_tags": ["retail"], "bullets": []},
+        ],
+        "projects": [],
+        "skills": [{"name": "SQL"}],
+        "achievements": [],
+    }
+    shortlist = [
+        {
+            "job_url": "https://example.com/1",
+            "vector_similarity": 0.9,
+            "vector_rank": 1,
+            "required_skills": ["SQL"],
+            "title": "Business Intelligence Analyst",
+            "job_family": "analytics",
+            "domain": "banking",
+            "location_type": "hybrid",
+        },
+    ]
+    ai_scores = [{"job_url": "https://example.com/1", "ai_score": 0.8, "fit_label": "stretch"}]
+    config = {
+        "role_taxonomy": {
+            "canonical_role_by_alias": {
+                "senior data analyst": "data analyst",
+                "bi analyst": "data analyst",
+                "business intelligence analyst": "data analyst",
+                "data analyst": "data analyst",
+            },
+            "role_family_by_role": {
+                "data analyst": "analytics",
+            },
+            "role_family_neighbors": {
+                "analytics": ("data_science",),
+            },
+        }
+    }
+
+    features = build_ranking_features(shortlist, ai_scores, profile, config)
+
+    assert features[0]["title_relevance"] == pytest.approx(1.0)
+    assert features[0]["preference_fit"] == pytest.approx(1.0)
+    assert features[0]["effective_preferences"]["target_role"] == "Data Analyst"
+    assert features[0]["preference_sources"]["target_role"] == "inferred_recent_experience"
 
 
 def test_build_ranking_features_prefers_required_skills_canonical_when_present() -> None:

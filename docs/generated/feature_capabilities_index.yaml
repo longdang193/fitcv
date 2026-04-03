@@ -121,6 +121,8 @@ capabilities:
   feature_id: inspection_debugging
 - capability: Ranking reranker prompts now prioritize required-skill evidence, seniority readiness, and role alignment while treating preferences as explicitly secondary
   feature_id: cv_system
+- capability: Ranking can now infer fallback target-role, role-family, and domain intent from recent profile evidence when explicit YAML preferences are sparse
+  feature_id: cv_system
 - capability: Ranking `title_relevance` now uses bounded semantic role alignment instead of pure lexical token overlap
   feature_id: cv_system
 - capability: Ranking `preference_fit` now scores weighted domain, role-family, and location-type preference alignment

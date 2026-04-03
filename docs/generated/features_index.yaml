@@ -22,7 +22,7 @@ features:
     history: docs/features/bounded_parallel_enrichment/history.md
 
   - feature_id: cv_system
-    version: 1.14.0
+    version: 1.15.0
     status: active
     type: add
     owner: fitcv

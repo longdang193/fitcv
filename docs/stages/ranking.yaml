@@ -1,11 +1,12 @@
 ranking:
   stage_id: ranking
   name: Ranking
-  summary: Score shortlist candidates with the six-feature ranking contract, stricter reranker rubric, semantic role alignment, and weighted preference alignment; assign the authoritative post-filter ranking fit; and select the ranked jobs eligible to proceed toward CV generation with versioned stage-transition artifacts.
+  summary: Score shortlist candidates with the six-feature ranking contract, stricter reranker rubric, semantic role alignment, weighted preference alignment, and deterministic fallback candidate-intent inference; assign the authoritative post-filter ranking fit; and select the ranked jobs eligible to proceed toward CV generation with versioned stage-transition artifacts.
   boundaries:
     - shortlist candidates enter and ranked jobs leave
     - authoritative post-filter ranking fit ownership belongs to this stage
     - canonical enrich outputs should be the default semantic input contract for ranking features when available
+    - explicit candidate preferences remain authoritative, but sparse YAML may be supplemented by deterministic fallback intent inferred from recent profile evidence
     - final ranking inputs and ranked-job selection should be explainable here
   inputs:
     - scoring shortlist
@@ -16,7 +17,7 @@ ranking:
     - authoritative ranking fit labels
     - final ranked jobs
     - optional manual checkpoint payloads that can resume CV generation from ranked jobs without recomputing earlier stages
-    - bounded `stage_transition_artifacts_v3.ranking` runtime block with six-feature weights, preference-fit weights, fit-label thresholds, contribution visibility, input samples, output samples, and scored-not-ranked samples
+    - bounded `stage_transition_artifacts_v3.ranking` runtime block with six-feature weights, preference-fit weights, fit-label thresholds, effective-preference provenance, contribution visibility, input samples, output samples, and scored-not-ranked samples
   depends_on:
     - shortlist
   primary_features:
@@ -32,12 +33,14 @@ ranking:
       - docs/superpowers/specs/2026-04-01-six-feature-ranking-reactivation-design.md
       - docs/superpowers/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
       - docs/superpowers/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+      - docs/superpowers/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
     plan:
       - docs/superpowers/plans/2026-03-31-stage-transition-artifacts-implementation.md
       - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
       - docs/superpowers/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
       - docs/superpowers/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
       - docs/superpowers/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+      - docs/superpowers/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
     history: []
   keywords:
     - ranking

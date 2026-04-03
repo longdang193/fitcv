@@ -31,6 +31,7 @@ Backward-compatibility projection (TEMPORARY — remove after plan 2 lands)
 
 import logging
 import os
+import re
 from fitcv.cv_presets import SUPPORTED_PRESETS
 import warnings
 from pathlib import Path
@@ -145,6 +146,65 @@ def _normalize_skill_synonyms(raw_synonyms: Any) -> dict[str, str]:
         str(alias).strip().lower(): str(canonical).strip().lower()
         for alias, canonical in raw_synonyms.items()
         if str(alias).strip() and str(canonical).strip()
+    }
+
+
+def _normalize_role_text(value: Any) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9_]+", " ", str(value).lower())).strip()
+
+
+def _normalize_role_taxonomy(raw_taxonomy: Any) -> dict[str, Any]:
+    if not isinstance(raw_taxonomy, dict):
+        return {}
+
+    canonical_role_by_alias: dict[str, str] = {}
+    raw_canonical_roles = raw_taxonomy.get("canonical_roles")
+    if isinstance(raw_canonical_roles, dict):
+        for canonical_role, canonical_payload in raw_canonical_roles.items():
+            normalized_canonical = _normalize_role_text(canonical_role)
+            if not normalized_canonical:
+                continue
+            canonical_role_by_alias[normalized_canonical] = normalized_canonical
+            aliases: list[Any] = []
+            if isinstance(canonical_payload, dict):
+                aliases = canonical_payload.get("aliases") or []
+            for alias in aliases:
+                normalized_alias = _normalize_role_text(alias)
+                if normalized_alias:
+                    canonical_role_by_alias[normalized_alias] = normalized_canonical
+
+    role_family_by_role: dict[str, str] = {}
+    raw_role_families = raw_taxonomy.get("role_families")
+    if isinstance(raw_role_families, dict):
+        for family_name, family_payload in raw_role_families.items():
+            normalized_family = _normalize_role_text(family_name)
+            if not normalized_family or not isinstance(family_payload, dict):
+                continue
+            for role in family_payload.get("roles") or []:
+                normalized_role = _normalize_role_text(role)
+                if not normalized_role:
+                    continue
+                canonical_role = canonical_role_by_alias.get(normalized_role, normalized_role)
+                role_family_by_role[canonical_role] = normalized_family
+
+    role_family_neighbors: dict[str, tuple[str, ...]] = {}
+    raw_neighbors = raw_taxonomy.get("role_family_neighbors")
+    if isinstance(raw_neighbors, dict):
+        for family_name, neighbors in raw_neighbors.items():
+            normalized_family = _normalize_role_text(family_name)
+            if not normalized_family or not isinstance(neighbors, list):
+                continue
+            normalized_neighbors = tuple(
+                normalized_neighbor
+                for neighbor in neighbors
+                if (normalized_neighbor := _normalize_role_text(neighbor))
+            )
+            role_family_neighbors[normalized_family] = normalized_neighbors
+
+    return {
+        "canonical_role_by_alias": canonical_role_by_alias,
+        "role_family_by_role": role_family_by_role,
+        "role_family_neighbors": role_family_neighbors,
     }
 
 
@@ -366,6 +426,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     effective_skill_synonyms = dict(base_skill_synonyms)
     effective_skill_synonyms.update(overlay_skill_synonyms)
     cfg["skill_synonyms"] = effective_skill_synonyms
+    cfg["role_taxonomy"] = _normalize_role_taxonomy(cfg.get("role_taxonomy"))
     cfg["skill_synonyms_runtime"] = {
         "base_policy_path": str(config_dir / "skill_synonyms.yaml"),
         "overlay_paths": resolved_overlay_paths,
