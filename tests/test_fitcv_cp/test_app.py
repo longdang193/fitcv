@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 import json
 from fastapi.testclient import TestClient
-from fitcv_cp.app import create_app
+from fitcv_cp.app import _timeline_stage_download_for_event, create_app
 from fitcv_cp.models import RunStatus
 
 
@@ -88,6 +88,11 @@ def test_get_run_events():
 def test_healthz():
     resp = TestClient(_app()).get("/healthz")
     assert resp.status_code == 200
+
+
+def test_timeline_stage_download_maps_cv_analysis_skip_to_cv_analysis():
+    assert _timeline_stage_download_for_event("layer4_cv_analysis_skip") == "cv_analysis"
+    assert _timeline_stage_download_for_event("layer4_cv_skip") == "cv_analysis"
 
 
 # ── settings API ─────────────────────────────────────────────────────────────

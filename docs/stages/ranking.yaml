@@ -15,8 +15,8 @@ ranking:
     - scored ranking inputs
     - authoritative ranking fit labels
     - final ranked jobs
-    - optional manual checkpoint payloads that can resume CV generation from ranked jobs without recomputing earlier stages
-    - bounded `stage_transition_artifacts_v3.ranking` runtime block with six-feature weights, preference-fit weights, fit-label thresholds, contribution visibility, input samples, output samples, and scored-not-ranked samples
+    - optional manual checkpoint payloads that can resume `cv_analysis` from ranked jobs without recomputing earlier stages
+    - bounded `stage_transition_artifacts_v4.ranking` runtime block with six-feature weights, preference-fit weights, fit-label thresholds, contribution visibility, input samples, output samples, and scored-not-ranked samples
   depends_on:
     - shortlist
   primary_features:
@@ -32,12 +32,14 @@ ranking:
       - docs/superpowers/specs/2026-04-01-six-feature-ranking-reactivation-design.md
       - docs/superpowers/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
       - docs/superpowers/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+      - docs/superpowers/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
     plan:
       - docs/superpowers/plans/2026-03-31-stage-transition-artifacts-implementation.md
       - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
       - docs/superpowers/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
       - docs/superpowers/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
       - docs/superpowers/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+      - docs/superpowers/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
     history: []
   keywords:
     - ranking

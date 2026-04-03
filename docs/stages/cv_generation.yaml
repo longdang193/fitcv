@@ -1,14 +1,14 @@
 cv_generation:
   stage_id: cv_generation
   name: CV Generation
-  summary: Convert ranked jobs and grounded evidence into accepted or rejected CV artifacts through evidence shaping, generation, validation, and repair-aware acceptance logic.
+  summary: Convert generation-ready CV-analysis records into accepted or rejected CV artifacts through writing, validation, repair, and persistence without recomputing analysis by default.
   boundaries:
-    - ranked jobs and grounded evidence enter and accepted or rejected CV artifacts leave
-    - validation and repair ownership belongs to this stage
-    - final CV acceptance, skip, or failure outcomes should be explainable here
+    - cv-analysis-ready jobs enter and accepted or rejected CV artifacts leave
+    - generation, validation, repair, and persistence ownership belong to this stage
+    - evidence retrieval, gap analysis, and fit-gate ownership do not belong to this stage
   inputs:
-    - ranked jobs
-    - grounded evidence and gap explanation inputs
+    - generation-ready analysis records
+    - grounded evidence and gap explanation inputs prepared by `cv_analysis`
     - CV generation and validation settings
   outputs:
     - structured CV artifacts
@@ -17,7 +17,7 @@ cv_generation:
     - final CV generation status
     - bounded `stage_transition_artifacts.cv_generation` runtime block with input, output, and changed-state samples
   depends_on:
-    - ranking
+    - cv_analysis
   primary_features:
     - cv_system
   related_features:
@@ -29,9 +29,11 @@ cv_generation:
       - docs/superpowers/specs/2026-03-31-stage-contract-docs-adoption-design.md
       - docs/superpowers/specs/2026-03-31-stage-transition-artifacts-design.md
       - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
+      - docs/superpowers/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
     plan:
       - docs/superpowers/plans/2026-03-31-stage-transition-artifacts-implementation.md
       - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
+      - docs/superpowers/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
     history: []
   keywords:
     - cv generation

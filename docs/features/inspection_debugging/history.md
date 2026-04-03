@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.7.0 — active
+
+- Stage-transition artifacts now expose separate `cv_analysis` and `cv_generation` blocks instead of folding all final-stage behavior into one stage
+- `cv_analysis` surfaces generation-ready, skipped-fit-gate, and analysis-failed outcomes separately from generation/validation/persistence outcomes
+- This rollout keeps the existing run-scoped CV debug snapshot surface while making final-stage artifact ownership more accurate
+
 ### 2.6.0 — active
 
 - Ranking-stage samples now expose per-feature weighted score contributions alongside raw six-feature values and `final_score`
