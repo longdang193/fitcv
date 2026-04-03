@@ -493,6 +493,7 @@ def _build_export_results(
             raw_hit_present = raw_shortlist_row is not None
             retrieval_anomaly_present = False
             shortlist_source_row = raw_shortlist_row or scoring_shortlist_row or {}
+            embedding_source_row = scoring_shortlist_row or passed_by_url.get(job_url, {})
             shortlist_debug = {
                 "passed_rule_filter": True,
                 "returned_by_vector_search": raw_hit_present,
@@ -507,6 +508,14 @@ def _build_export_results(
                 "vector_rank": shortlist_source_row.get("vector_rank"),
                 "vector_similarity": shortlist_source_row.get("vector_similarity"),
                 "shortlist_origin": shortlist_status,
+                "embedding_reuse_status": embedding_source_row.get("embedding_reuse_status"),
+                "embedding_input_signature": embedding_source_row.get("embedding_input_signature"),
+                "embedding_contract_fingerprint": embedding_source_row.get("embedding_contract_fingerprint"),
+            }
+            shortlist_debug = {
+                key: value
+                for key, value in shortlist_debug.items()
+                if value is not None
             }
         else:
             shortlist_status = "not_applicable"
@@ -1063,6 +1072,9 @@ def _shortlist_row_sample(row: dict[str, Any]) -> dict[str, Any] | None:
         ),
         "raw_hit_present": raw_hit_present,
         "retrieval_anomaly_present": retrieval_anomaly_present,
+        "embedding_reuse_status": row.get("embedding_reuse_status"),
+        "embedding_input_signature": row.get("embedding_input_signature"),
+        "embedding_contract_fingerprint": row.get("embedding_contract_fingerprint"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "")}
 
@@ -1284,6 +1296,17 @@ def _build_stage_transition_artifacts(
         ),
         "total_enriched_rows": len(enriched),
     }
+    shortlist_embedding_reuse_counts = {
+        "embedding_reused_jobs": sum(
+            1 for job in passed_jobs
+            if str(job.get("embedding_reuse_status") or "") == "reused_cached_embedding"
+        ),
+        "embedding_fresh_jobs": sum(
+            1 for job in passed_jobs
+            if str(job.get("embedding_reuse_status") or "") == "fresh_embedding"
+        ),
+        "embedding_total_jobs": len(passed_jobs),
+    }
 
     return {
         "schema_version": "stage_transition_artifacts_v3",
@@ -1382,6 +1405,7 @@ def _build_stage_transition_artifacts(
                     "scoring_shortlist_jobs": len(shortlist),
                     "backfilled_jobs": len(backfilled_job_urls),
                     "retrieval_anomalies": len(raw_shortlist_anomaly_urls),
+                    **shortlist_embedding_reuse_counts,
                 },
                 decision_summary={
                     "candidate_query_text": candidate_summary,
@@ -1389,6 +1413,7 @@ def _build_stage_transition_artifacts(
                     "jobs_not_returned_in_raw_hits": len(
                         [job for job in passed_jobs if _extract_job_url(job) not in raw_shortlist_urls]
                     ),
+                    **shortlist_embedding_reuse_counts,
                     "raw_shortlist_anomaly_urls": _sample_strings(raw_shortlist_anomaly_urls),
                     "backfilled_job_urls": _sample_strings(backfilled_job_urls),
                 },
@@ -1445,6 +1470,17 @@ def _build_stage_transition_artifacts(
                         "shortlist_outcome": str(item.get("shortlist_outcome") or ""),
                         "raw_hit_present": bool(item.get("raw_hit_present", False)),
                         "retrieval_anomaly_present": bool(item.get("retrieval_anomaly_present", False)),
+                        **(
+                            {
+                                "embedding_reuse_status": item.get("embedding_reuse_status"),
+                                "embedding_input_signature": item.get("embedding_input_signature"),
+                                "embedding_contract_fingerprint": item.get("embedding_contract_fingerprint"),
+                            }
+                            if item.get("embedding_reuse_status") is not None
+                            or item.get("embedding_input_signature") is not None
+                            or item.get("embedding_contract_fingerprint") is not None
+                            else {}
+                        ),
                         **(
                             {
                                 "vector_similarity": item.get("vector_similarity"),
@@ -2136,6 +2172,15 @@ def run_pipeline(
             "shortlisted_jobs_total": len(raw_shortlist_urls),
             "scoring_shortlisted_jobs_total": len(shortlist),
             "backfilled_jobs_total": len(backfilled_job_urls),
+            "embedding_reused_jobs": sum(
+                1 for job in passed_jobs
+                if str(job.get("embedding_reuse_status") or "") == "reused_cached_embedding"
+            ),
+            "embedding_fresh_jobs": sum(
+                1 for job in passed_jobs
+                if str(job.get("embedding_reuse_status") or "") == "fresh_embedding"
+            ),
+            "embedding_total_jobs": len(passed_jobs),
             "retrieval_anomaly_urls": raw_shortlist_anomaly_urls,
             "candidate_query_text": candidate_summary,
             "not_shortlisted_job_urls": [

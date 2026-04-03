@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.13.0 — active
+
+- Shortlist can now skip repeated `job_summary` embedding work for unchanged passed jobs when the structured signature and embedding contract still match
+- Latest-only retrieval semantics remain unchanged, so reused and fresh vectors still compete as one active row per `job_url`
+- This rollout optimizes shortlist embedding cost only; it does not change reranking or CV-generation authority
+
 ### 1.12.0 — active
 
 - Shortlist retrieval now ranks only the latest active persistent `job_summary` embedding row per canonical `job_url`, reducing duplicate-row competition from historical embeddings
