@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.5.0 — active
+
+- Shortlist now computes a stable structured embedding-input signature before generating `job_summary` vectors
+- Shortlist reuses the latest stored embedding row for a `job_url` only when both the structured signature and embedding contract fingerprint match
+- Shortlist diagnostics now report fresh-vs-reused embedding counts alongside retrieval facts
+
 ### 1.4.0 — active
 
 - Enrich now computes a stable raw-job fingerprint from normalized pre-enrichment inputs and can reuse shared `structured_jobs` rows when the fingerprint matches

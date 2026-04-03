@@ -1,9 +1,9 @@
 pipeline_performance:
   name: Pipeline Performance
-  version: 1.4.0
+  version: 1.5.0
   status: active
   type: modify
-  summary: Reduced API costs by filtering jobs before enrichment, using reliable structured output parsing, centralizing enrich prompt management, and reusing unchanged enrich results safely via raw-job and enrich-contract fingerprints.
+  summary: Reduced API costs by filtering jobs before enrichment, using reliable structured output parsing, centralizing enrich prompt management, reusing unchanged enrich results via fingerprints, and reusing unchanged shortlist embeddings via a structured signature plus embedding contract.
   owner: fitcv
   domains:
     - pipeline
@@ -21,6 +21,9 @@ pipeline_performance:
     - Fingerprint-based enrich-result reuse happens before LLM enrichment using normalized raw-job inputs
     - Enrich-contract fingerprinting invalidates reuse automatically when prompt/model/schema behavior changes
     - Shared `structured_jobs` reuse lookup avoids redundant enrich calls while only fresh rows are upserted back into the shared table
+    - Shortlist now builds a stable structured embedding-input signature before generating `job_summary` vectors
+    - Shortlist reuses the latest stored embedding row for a `job_url` only when both the structured signature and embedding contract fingerprint still match
+    - Fresh shortlist embeddings persist signature metadata so later runs can skip repeated embedding work safely
   refs:
     docs:
       - docs/FitCV-pipeline.md
@@ -29,12 +32,14 @@ pipeline_performance:
       - docs/superpowers/specs/2026-03-26-gemini-structured-output-enrichment-design.md
       - docs/superpowers/specs/2026-04-02-19-10-central-prompt-registry-spec.md
       - docs/superpowers/specs/2026-04-02-23-55-enrich-reuse-via-raw-job-fingerprint-spec.md
+      - docs/superpowers/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
     plan:
       - docs/superpowers/plans/2026-03-26-global-job-filters-implementation.md
       - docs/superpowers/plans/2026-03-26-cheap-first-pipeline-narrowing-implementation.md
       - docs/superpowers/plans/2026-03-26-gemini-structured-output-enrichment-implementation.md
       - docs/superpowers/plans/2026-04-02-19-25-central-prompt-registry-plan.md
       - docs/superpowers/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
+      - docs/superpowers/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
     history:
       - docs/features/pipeline_performance/history.md
   keywords:
@@ -46,3 +51,6 @@ pipeline_performance:
     - parallel enrichment
     - reuse
     - fingerprint
+    - shortlist
+    - embeddings
+    - signature

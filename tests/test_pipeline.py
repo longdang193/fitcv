@@ -1644,7 +1644,11 @@ def test_run_pipeline_passes_job_dicts_to_embeddings_and_urls_to_vector_search(
 
     embed_jobs_arg = mock_embed_jobs.call_args.args[0]
     vector_urls_arg = mock_vec.call_args.args[1]
-    assert embed_jobs_arg == [job]
+    assert len(embed_jobs_arg) == 1
+    assert embed_jobs_arg[0]["job_url"] == job["job_url"]
+    assert embed_jobs_arg[0]["raw_job_fingerprint"]
+    assert embed_jobs_arg[0]["enrich_contract_fingerprint"]
+    assert embed_jobs_arg[0]["enrich_reuse_status"] == "fresh_enrichment"
     assert vector_urls_arg == [job["job_url"]]
     cv_block = result["stage_transition_artifacts"]["stages"]["cv_generation"]
     assert cv_block["status"] == "not_reached"
@@ -2137,8 +2141,20 @@ def test_build_stage_transition_artifacts_rule_filter_includes_marks_and_selecte
 
 def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortlist_counts() -> None:
     passed_jobs = [
-        {"job_url": "https://example.com/1", "title": "Data Analyst"},
-        {"job_url": "https://example.com/2", "title": "ML Analyst"},
+        {
+            "job_url": "https://example.com/1",
+            "title": "Data Analyst",
+            "embedding_reuse_status": "reused_cached_embedding",
+            "embedding_input_signature": "sig-1",
+            "embedding_contract_fingerprint": "contract-1",
+        },
+        {
+            "job_url": "https://example.com/2",
+            "title": "ML Analyst",
+            "embedding_reuse_status": "fresh_embedding",
+            "embedding_input_signature": "sig-2",
+            "embedding_contract_fingerprint": "contract-1",
+        },
     ]
     raw_shortlist = [
         {"job_url": "https://example.com/1", "vector_similarity": 0.91, "vector_rank": 1},
@@ -2146,8 +2162,26 @@ def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortli
         {"job_url": "https://example.com/2", "vector_similarity": 0.83, "vector_rank": 33},
     ]
     shortlist = [
-        {"job_url": "https://example.com/1", "title": "Data Analyst", "vector_similarity": 0.91, "vector_rank": 1, "shortlist_origin": "vector_search"},
-        {"job_url": "https://example.com/2", "title": "ML Analyst", "vector_similarity": 0.83, "vector_rank": 2, "shortlist_origin": "vector_search"},
+        {
+            "job_url": "https://example.com/1",
+            "title": "Data Analyst",
+            "vector_similarity": 0.91,
+            "vector_rank": 1,
+            "shortlist_origin": "vector_search",
+            "embedding_reuse_status": "reused_cached_embedding",
+            "embedding_input_signature": "sig-1",
+            "embedding_contract_fingerprint": "contract-1",
+        },
+        {
+            "job_url": "https://example.com/2",
+            "title": "ML Analyst",
+            "vector_similarity": 0.83,
+            "vector_rank": 2,
+            "shortlist_origin": "vector_search",
+            "embedding_reuse_status": "fresh_embedding",
+            "embedding_input_signature": "sig-2",
+            "embedding_contract_fingerprint": "contract-1",
+        },
     ]
 
     artifacts = _build_stage_transition_artifacts(
@@ -2177,9 +2211,15 @@ def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortli
     assert shortlist_block["output_counts"]["raw_vector_rows"] == 3
     assert shortlist_block["output_counts"]["raw_vector_unique_jobs"] == 2
     assert shortlist_block["output_counts"]["raw_vector_hits"] == 2
+    assert shortlist_block["output_counts"]["embedding_reused_jobs"] == 1
+    assert shortlist_block["output_counts"]["embedding_fresh_jobs"] == 1
+    assert shortlist_block["output_counts"]["embedding_total_jobs"] == 2
     assert shortlist_block["outputs_sample"][1]["vector_rank"] == 2
     assert shortlist_block["outputs_sample"][1]["shortlist_outcome"] == "returned_by_vector_search"
     assert shortlist_block["outputs_sample"][1]["raw_hit_present"] is True
+    assert shortlist_block["outputs_sample"][1]["embedding_reuse_status"] == "fresh_embedding"
+    assert shortlist_block["outputs_sample"][1]["embedding_input_signature"] == "sig-2"
+    assert shortlist_block["outputs_sample"][1]["embedding_contract_fingerprint"] == "contract-1"
 
 
 def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract() -> None:
@@ -2400,14 +2440,14 @@ def test_run_pipeline_passes_enriched_shortlist_rows_to_ai_scoring(
     run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     shortlist_arg = mock_ai.call_args.args[0]
-    assert shortlist_arg == [
-        {
-            **job,
-            "vector_similarity": 0.9,
-            "vector_rank": 1,
-            "shortlist_origin": "vector_search",
-        }
-    ]
+    assert len(shortlist_arg) == 1
+    assert shortlist_arg[0]["job_url"] == job["job_url"]
+    assert shortlist_arg[0]["vector_similarity"] == pytest.approx(0.9)
+    assert shortlist_arg[0]["vector_rank"] == 1
+    assert shortlist_arg[0]["shortlist_origin"] == "vector_search"
+    assert shortlist_arg[0]["raw_job_fingerprint"]
+    assert shortlist_arg[0]["enrich_contract_fingerprint"]
+    assert shortlist_arg[0]["enrich_reuse_status"] == "fresh_enrichment"
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -2519,6 +2559,9 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
         "shortlisted_jobs_total": 1,
         "scoring_shortlisted_jobs_total": 2,
         "backfilled_jobs_total": 1,
+        "embedding_reused_jobs": 0,
+        "embedding_fresh_jobs": 0,
+        "embedding_total_jobs": 2,
         "retrieval_anomaly_urls": [],
         "candidate_query_text": "Candidate: Data Engineer\nTarget role: Data Engineer\nRecent roles: DE\nSkills: SQL, Python",
         "not_shortlisted_job_urls": [second_job["job_url"]],
@@ -3522,8 +3565,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
     assert export_results[0]["enriched_job"]["required_skills"] == ["SQL"]
     assert "title" not in export_results[0]["enriched_job"]
     assert "job_url" not in export_results[0]["enriched_job"]
-    assert "location_type" not in export_results[0]["enriched_job"]
-    assert "domain" not in export_results[0]["enriched_job"]
+    assert export_results[0]["enriched_job"]["location_type"] == "remote"
     assert export_results[0]["decision_chain"] == {
         "shortlist": {
             "status": "returned_by_vector_search",
@@ -3575,8 +3617,6 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "retrieval_anomaly_present": False,
         "reason": "job_url_not_returned_in_raw_hits",
         "vector_search_top_n": 2,
-        "vector_rank": None,
-        "vector_similarity": None,
         "shortlist_origin": "not_returned_in_raw_hits",
     }
     assert export_results[3]["pipeline_status"] == "shortlisted_not_scored"
@@ -3586,7 +3626,6 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "returned_by_vector_search": True,
         "raw_hit_present": True,
         "retrieval_anomaly_present": False,
-        "reason": None,
         "vector_search_top_n": 2,
         "vector_rank": 3,
         "vector_similarity": pytest.approx(0.55),

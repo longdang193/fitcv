@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.5.0 — active
+
+- Shortlist stage artifacts and shortlist debug payloads now report fresh-vs-reused embedding counts for passed jobs
+- Row-level shortlist inspection can expose `embedding_reuse_status`, `embedding_input_signature`, and `embedding_contract_fingerprint` when available
+- Retrieval facts remain separate from embedding reuse facts so backfill and raw-hit debugging stay readable
+
 ### 2.4.0 — active
 
 - Run-scoped enriched rows and enrich-stage artifact samples can now expose `raw_job_fingerprint`, `enrich_contract_fingerprint`, and `enrich_reuse_status`

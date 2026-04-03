@@ -59,6 +59,8 @@ capabilities:
   feature_id: admin_control_plane_core
 - capability: Fingerprint-based enrich-result reuse happens before LLM enrichment using normalized raw-job inputs
   feature_id: pipeline_performance
+- capability: Fresh shortlist embeddings persist signature metadata so later runs can skip repeated embedding work safely
+  feature_id: pipeline_performance
 - capability: Filter outcome display with reasons
   feature_id: inspection_debugging
 - capability: Flash-free theme application
@@ -99,6 +101,8 @@ capabilities:
   feature_id: inspection_debugging
 - capability: Run-scoped enriched job rows and enrich-stage artifacts can now expose raw-job fingerprints, enrich-contract fingerprints, and fresh-vs-reused enrich provenance
   feature_id: inspection_debugging
+- capability: Shortlist artifacts and run-results shortlist debug can now expose fresh-vs-reused embedding provenance plus structured signature metadata
+  feature_id: inspection_debugging
 - capability: Preset registry for template binding
   feature_id: cv_system
 - capability: RQ background worker integration
@@ -120,6 +124,12 @@ capabilities:
 - capability: Shared component classes
   feature_id: ui_consistency_theming
 - capability: Shared `structured_jobs` reuse lookup avoids redundant enrich calls while only fresh rows are upserted back into the shared table
+  feature_id: pipeline_performance
+- capability: Shortlist can now reuse unchanged passed-job embeddings when the structured embedding signature and embedding contract both still match
+  feature_id: cv_system
+- capability: Shortlist now builds a stable structured embedding-input signature before generating `job_summary` vectors
+  feature_id: pipeline_performance
+- capability: Shortlist reuses the latest stored embedding row for a `job_url` only when both the structured signature and embedding contract fingerprint still match
   feature_id: pipeline_performance
 - capability: Stale cancellation repair endpoint
   feature_id: run_lifecycle_controls
