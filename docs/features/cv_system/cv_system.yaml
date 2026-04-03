@@ -1,9 +1,9 @@
 cv_system:
   name: CV System
-  version: 1.16.0
+  version: 1.17.0
   status: active
   type: add
-  summary: CV generation uses a structured preset-based configuration, keeps reranker fit as the sole post-filter fit authority, now splits final-stage execution into `cv_analysis` and `cv_generation`, upgrades `cv_analysis` evidence retrieval to separate required-skill, role, domain, and responsibility channels with one reranked final evidence bundle, validates structured and markdown sections against one shared section contract, persists both a schema-versioned structured CV artifact and rendered markdown, supports shortlist retrieval that stays latest-only while reusing unchanged job embeddings safely, and applies a stricter ranking rubric plus richer role and preference alignment before CV writing.
+  summary: CV generation uses a structured preset-based configuration, keeps reranker fit as the sole post-filter fit authority, now splits final-stage execution into `cv_analysis` and `cv_generation`, upgrades `cv_analysis` evidence retrieval to separate required-skill, role, domain, and responsibility channels with one reranked final evidence bundle, validates structured and markdown sections against one shared section contract, persists both a schema-versioned structured CV artifact and rendered markdown, supports shortlist retrieval that stays latest-only while reusing unchanged job embeddings safely, and keeps active shortlist retrieval scoped to reusable job embeddings plus the deterministic candidate query vector actually used for search.
   owner: fitcv
   domains:
     - pipeline
@@ -36,6 +36,7 @@ cv_system:
     - Ranking and later CV-facing inspection can reuse enrich-stage canonical skill companions instead of reinterpreting raw required-skill phrases
     - Shortlist retrieval now ranks only the latest active persistent `job_summary` embedding per canonical `job_url` instead of letting historical duplicate rows compete
     - Shortlist can now reuse unchanged passed-job embeddings when the structured embedding signature and embedding contract both still match
+    - Active shortlist runtime now prepares reusable job embeddings plus the deterministic candidate query vector only; candidate chunk embeddings are not part of the live path unless a later stage explicitly adopts them
     - Ranking reranker prompts now prioritize required-skill evidence, seniority readiness, and role alignment while treating preferences as explicitly secondary
     - Ranking `title_relevance` now uses bounded semantic role alignment instead of pure lexical token overlap
     - Ranking `preference_fit` now scores weighted domain, role-family, and location-type preference alignment
@@ -68,6 +69,7 @@ cv_system:
       - docs/superpowers/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
       - docs/superpowers/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
       - docs/superpowers/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+      - docs/superpowers/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
     plan:
       - docs/superpowers/plans/2026-03-27-centralized-cv-generation-config-implementation.md
       - docs/superpowers/plans/2026-03-27-preset-based-cv-config-migration-implementation.md
@@ -87,6 +89,7 @@ cv_system:
       - docs/superpowers/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
       - docs/superpowers/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
       - docs/superpowers/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+      - docs/superpowers/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
     history:
       - docs/features/cv_system/history.md
   keywords:

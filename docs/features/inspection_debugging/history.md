@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 2.9.0 — active
+
+- Shortlist inspection wording now stays explicit that the live path uses reusable job embeddings plus the deterministic candidate query vector, not stored candidate chunk embeddings
+- This rollout is a clarity cleanup only; it does not change shortlist ranking outputs or `cv_analysis` evidence behavior
+
 ### 2.8.0 — active
 
 - `cv_analysis` artifacts can now show separate retrieval-channel counts for required-skill, role, domain, and responsibility evidence lookup

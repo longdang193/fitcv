@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.17.0 — active
+
+- Active shortlist runtime no longer generates candidate chunk embeddings that no current stage consumes
+- Shortlist remains focused on reusable job embeddings plus the deterministic candidate query vector actually used for retrieval
+- `cv_analysis` evidence retrieval remains profile-based and unchanged, keeping any future candidate-embedding use explicit and stage-owned
+
 ### 1.16.0 — active
 
 - `cv_analysis` evidence retrieval now retrieves separate candidate pools for required-skill support, role alignment, domain alignment, and responsibility alignment before merging and deduping them by stable `evidence_id`

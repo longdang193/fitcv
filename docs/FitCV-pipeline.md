@@ -455,7 +455,7 @@ Rule-based filtering
 Embeddings generation
   - reuse unchanged shortlist job-summary embeddings when the structured signature and embedding contract still match
   - structured JD summary
-  - candidate evidence blocks
+  - one deterministic candidate query vector for shortlist retrieval
     ↓
 BigQuery VECTOR_SEARCH
   - shortlist top-N jobs
@@ -479,6 +479,7 @@ Per-job evidence retrieval
   - domain-alignment pool
   - responsibility-alignment pool
   - merge, dedupe, and rerank into one final evidence bundle
+  - active `cv_analysis` retrieval stays profile-based today; candidate chunk embeddings remain a future stage-owned option rather than part of the live path
     ↓
 Gap analysis
     ↓
