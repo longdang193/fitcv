@@ -1,14 +1,14 @@
 shortlist:
   stage_id: shortlist
   name: Shortlist
-  summary: Turn passed jobs into a retrieval-aware scoring shortlist by reusing unchanged job-summary embeddings when safe, searching only the latest active embedding row per canonical job URL, then capturing raw hits, shortlist transitions, and any backfill needed before scoring.
+  summary: Turn passed jobs into a retrieval-aware scoring shortlist by reusing unchanged job-summary embeddings when safe, searching only the latest active embedding row per canonical job URL with the deterministic candidate query vector actually used for retrieval, then capturing raw hits, shortlist transitions, and any backfill needed before scoring.
   boundaries:
     - raw retrieval output enters here and the scoring shortlist leaves here
     - this stage owns the distinction between raw vector hits and the later scoring shortlist
     - shortlist transition reasons should be explainable here rather than inferred later
   inputs:
     - passed jobs
-    - candidate query text or retrieval query context
+    - deterministic candidate query text or retrieval query context
     - vector search results
   outputs:
     - raw vector hits
@@ -16,6 +16,7 @@ shortlist:
     - shortlist transition reasons including any backfill
     - raw row versus raw unique-job retrieval counts
     - fresh-versus-reused embedding provenance for passed jobs
+    - bounded candidate-query context for the single retrieval vector used in this stage
     - bounded `stage_transition_artifacts.shortlist` runtime block with input, output, and changed-state samples
   depends_on:
     - rule_filter

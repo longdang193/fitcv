@@ -2040,8 +2040,10 @@ def run_pipeline(
     passed_job_urls = [_extract_job_url(job) for job in passed_jobs if _extract_job_url(job)]
 
     if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("shortlist"):
+        # Active shortlist runtime only prepares reusable job embeddings here.
+        # The candidate-side vector actually used for retrieval is generated
+        # inside run_vector_search() from the deterministic candidate query text.
         embed_and_store_jobs(passed_jobs, config)
-        embed_and_store_candidate(profile, config)
 
         raw_shortlist = run_vector_search(
             profile,
