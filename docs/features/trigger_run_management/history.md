@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 2.5.0 — active
+
+- Stage-slice downloads for `cv_analysis` can now expose channel-level evidence retrieval counts and final selected-evidence rationale before `cv_generation`
+- Manual staged runs keep the same `ranking -> cv_analysis -> cv_generation` checkpoint order while exporting richer `cv_analysis` provenance
+
 ### 2.4.0 — active
 
 - Manual staged runs now pause after `ranking` with `next_stage = cv_analysis`, and can pause again after `cv_analysis` before `cv_generation`

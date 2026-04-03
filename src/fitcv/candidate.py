@@ -21,6 +21,98 @@ import yaml
 
 _REQUIRED_SECTIONS = ["experiences", "skills", "projects", "achievements", "preferences"]
 
+_PREFERENCE_TEXT_KEYS = ("target_role", "seniority_target")
+_PREFERENCE_LIST_KEYS = (
+    "location_types",
+    "locations",
+    "domains",
+    "role_families",
+    "exclude_contract_types",
+    "exclude_experience_levels",
+)
+_EXPERIENCE_LIST_KEYS = ("domain_tags", "responsibility_themes")
+_PROJECT_LIST_KEYS = ("domain_tags", "responsibility_themes")
+_ACHIEVEMENT_LIST_KEYS = ("domain_tags",)
+
+
+def _normalize_optional_text(value: Any) -> str | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    return text
+
+
+def _normalize_text_list(values: Any) -> list[str]:
+    if not isinstance(values, list):
+        return []
+    normalized: list[str] = []
+    seen_values: set[str] = set()
+    for value in values:
+        text = _normalize_optional_text(value)
+        if not text:
+            continue
+        lowered = text.lower()
+        if lowered in seen_values:
+            continue
+        seen_values.add(lowered)
+        normalized.append(lowered)
+    return normalized
+
+
+def _normalize_profile_alignment_metadata(profile: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(profile)
+
+    preferences = dict(normalized.get("preferences") or {})
+    for key in _PREFERENCE_TEXT_KEYS:
+        text = _normalize_optional_text(preferences.get(key))
+        if text is not None:
+            preferences[key] = text
+    for key in _PREFERENCE_LIST_KEYS:
+        if key in preferences:
+            preferences[key] = _normalize_text_list(preferences.get(key))
+    normalized["preferences"] = preferences
+
+    experiences: list[dict[str, Any]] = []
+    for experience in normalized.get("experiences") or []:
+        if not isinstance(experience, dict):
+            experiences.append(experience)
+            continue
+        normalized_experience = dict(experience)
+        role_family = _normalize_optional_text(normalized_experience.get("role_family"))
+        if role_family is not None:
+            normalized_experience["role_family"] = role_family.lower()
+        for key in _EXPERIENCE_LIST_KEYS:
+            if key in normalized_experience:
+                normalized_experience[key] = _normalize_text_list(normalized_experience.get(key))
+        experiences.append(normalized_experience)
+    normalized["experiences"] = experiences
+
+    projects: list[dict[str, Any]] = []
+    for project in normalized.get("projects") or []:
+        if not isinstance(project, dict):
+            projects.append(project)
+            continue
+        normalized_project = dict(project)
+        for key in _PROJECT_LIST_KEYS:
+            if key in normalized_project:
+                normalized_project[key] = _normalize_text_list(normalized_project.get(key))
+        projects.append(normalized_project)
+    normalized["projects"] = projects
+
+    achievements: list[dict[str, Any]] = []
+    for achievement in normalized.get("achievements") or []:
+        if not isinstance(achievement, dict):
+            achievements.append(achievement)
+            continue
+        normalized_achievement = dict(achievement)
+        for key in _ACHIEVEMENT_LIST_KEYS:
+            if key in normalized_achievement:
+                normalized_achievement[key] = _normalize_text_list(normalized_achievement.get(key))
+        achievements.append(normalized_achievement)
+    normalized["achievements"] = achievements
+
+    return normalized
+
 
 # ── loading ───────────────────────────────────────────────────────────────────
 
@@ -34,7 +126,10 @@ def load_profile_yaml(path: str | Path) -> dict[str, Any]:
     if not file_path.exists():
         raise FileNotFoundError(f"Candidate profile not found: {file_path}")
     with open(file_path, encoding="utf-8") as f:
-        return yaml.safe_load(f)  # type: ignore[return-value]
+        profile = yaml.safe_load(f)
+    if not isinstance(profile, dict):
+        raise ValueError(f"Candidate profile must be a YAML object, got {type(profile).__name__}")
+    return _normalize_profile_alignment_metadata(profile)
 
 
 def load_profile_json_text(payload: str) -> dict[str, Any]:
@@ -59,7 +154,7 @@ def load_profile_json_text(payload: str) -> dict[str, Any]:
     if errors:
         raise ValueError(f"Candidate profile validation failed: {'; '.join(errors)}")
 
-    return profile  # type: ignore[return-value]
+    return _normalize_profile_alignment_metadata(profile)  # type: ignore[return-value]
 
 
 # ── validation ────────────────────────────────────────────────────────────────

@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.16.0 — active
+
+- `cv_analysis` evidence retrieval now retrieves separate candidate pools for required-skill support, role alignment, domain alignment, and responsibility alignment before merging and deduping them by stable `evidence_id`
+- Final evidence selection is now one bounded per-job bundle with explicit selected-evidence IDs, matched-channel metadata, and selection reasons that feed `cv_generation`
+- Candidate YAML can now include additive role-family, domain-tag, and responsibility-theme metadata to improve analysis quality without breaking existing profiles
+
 ### 1.15.0 — active
 
 - The final Layer 4 flow is now split into `cv_analysis` and `cv_generation`

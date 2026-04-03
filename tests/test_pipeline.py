@@ -1336,6 +1336,8 @@ def test_run_pipeline_returns_debug_record_for_accepted_cv(
             "evidence_type": "experience_entry",
             "source_ref": "experience[0]",
             "name": "Data Engineer at Fintech Startup GmbH",
+            "matched_channels": [],
+            "selection_reasons": [],
         }
     ]
     assert record["gap_summary"] == gap
@@ -2932,6 +2934,12 @@ def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
     mock_gen_cv.assert_not_called()
     mock_validate.assert_not_called()
     mock_classify.assert_not_called()
+    assert result["checkpoint_payload"]["cv_analysis_results"][0]["status"] == "skipped_fit_gate"
+    assert result["checkpoint_payload"]["cv_analysis_results"][0]["outcome_reason"] == {
+        "stage": "fit_gate",
+        "message": f"Skipped {job['job_url']} (fit=skip)",
+    }
+    assert result["checkpoint_payload"]["cv_analysis_results"][0]["error"] is None
     assert result["cv_generation_debug_records"][0]["status"] == "skipped_fit_gate"
     assert result["cv_generation_debug_records"][0]["fit_classification"] == "skip"
     assert result["export_results"][0]["pipeline_status"] == "ranked_skipped_fit_gate"
@@ -3254,7 +3262,7 @@ def test_run_pipeline_emits_layer4_cv_error_for_per_job_exception(
     assert (
         "layer4_cv_error",
         "error",
-        f"CV generation failed for {job['job_url']}: BQ connection failed",
+        f"CV analysis failed for {job['job_url']}: BQ connection failed",
     ) in reporter.events
 
 
@@ -3758,6 +3766,10 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
             "source": "reranker",
             "label": "strong",
         },
+        "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": True,
+        },
         "cv_generation": {
             "status": "accepted",
             "attempted": True,
@@ -3775,6 +3787,10 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "primary_fit": {
             "source": "reranker",
             "label": "skip",
+        },
+        "cv_analysis": {
+            "status": "skipped_fit_gate",
+            "completed": True,
         },
         "cv_generation": {
             "status": "skipped_fit_gate",
@@ -3819,9 +3835,9 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
     assert export_results[5]["pipeline_status"] == "rejected_before_enrichment"
     debug_records = result["cv_generation_debug_records"]
     assert len(debug_records) == 2
-    assert debug_records[0]["status"] == "accepted"
-    assert debug_records[0]["ranking_fit_label"] == "strong"
-    assert debug_records[0]["decision_chain"] == {
+    debug_by_status = {record["status"]: record for record in debug_records}
+    assert debug_by_status["accepted"]["ranking_fit_label"] == "strong"
+    assert debug_by_status["accepted"]["decision_chain"] == {
         "shortlist": {
             "status": "returned_by_vector_search",
             "advanced_to_scoring": True,
@@ -3829,6 +3845,10 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "primary_fit": {
             "source": "reranker",
             "label": "strong",
+        },
+        "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": True,
         },
         "cv_generation": {
             "status": "accepted",
@@ -3838,9 +3858,8 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
             "status": "accepted",
         },
     }
-    assert debug_records[1]["status"] == "skipped_fit_gate"
-    assert debug_records[1]["ranking_fit_label"] == "skip"
-    assert debug_records[1]["decision_chain"] == {
+    assert debug_by_status["skipped_fit_gate"]["ranking_fit_label"] == "skip"
+    assert debug_by_status["skipped_fit_gate"]["decision_chain"] == {
         "shortlist": {
             "status": "returned_by_vector_search",
             "advanced_to_scoring": True,
@@ -3848,6 +3867,10 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "primary_fit": {
             "source": "reranker",
             "label": "skip",
+        },
+        "cv_analysis": {
+            "status": "skipped_fit_gate",
+            "completed": True,
         },
         "cv_generation": {
             "status": "skipped_fit_gate",
@@ -3857,7 +3880,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
             "status": "not_run",
         },
     }
-    assert debug_records[1]["error"] == {
+    assert debug_by_status["skipped_fit_gate"]["error"] == {
         "stage": "fit_gate",
         "message": f"Skipped {ranked_no_cv['job_url']} (fit=skip)",
     }
@@ -4065,6 +4088,102 @@ def test_run_pipeline_uses_shared_config_loader(mock_config: MagicMock) -> None:
         run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
 
     mock_config.assert_called_once_with("config/env.yaml")
+
+
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence_bundle")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
+    mock_config: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_retrieve_bundle: MagicMock,
+    mock_compute_gap: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    profile = _minimal_profile()
+    job = {
+        **_minimal_job("https://example.com/1"),
+        "title": "Data Analyst - Retail Banking",
+        "job_family": "analytics",
+        "domain": "banking",
+        "required_skills_canonical": ["sql"],
+        "responsibilities": ["Build KPI dashboards for banking stakeholders"],
+    }
+    checkpoint_payload = {
+        "raw_jobs": [job],
+        "normalized": [job],
+        "deduplicated_jobs": [],
+        "pre_filter_rejected_jobs": [],
+        "enriched": [job],
+        "passed_jobs": [job],
+        "candidate_filter_rejected_jobs": [],
+        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        "backfilled_job_urls": [],
+        "ai_scores": [],
+        "ranking_inputs": [],
+        "ranked": [job],
+    }
+    mock_config.return_value = _minimal_config()
+    mock_profile_yaml.return_value = profile
+    mock_retrieve_bundle.return_value = {
+        "selected_evidence": [
+            {
+                "evidence_id": "exp-1",
+                "evidence_type": "experience_entry",
+                "source_ref": "experiences[0]",
+                "name": "Data Analyst - Bank Corp",
+                "matched_channels": ["required_skill_support", "responsibility_alignment"],
+                "selection_reasons": ["required_skill_support", "responsibility_alignment"],
+                "selection_score": 0.91,
+            }
+        ],
+        "selected_evidence_ids": ["exp-1"],
+        "channel_counts": {
+            "required_skill_support": 1,
+            "role_alignment": 1,
+            "domain_alignment": 1,
+            "responsibility_alignment": 1,
+        },
+        "merged_pool_size": 4,
+        "deduped_pool_size": 2,
+    }
+    mock_compute_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+
+    result = run_pipeline(
+        "data/sample_jobs.json",
+        config_path="config/env.yaml",
+        run_id="cv-analysis-provenance",
+        start_stage="cv_analysis",
+        stop_after_stage="cv_analysis",
+        checkpoint_payload=checkpoint_payload,
+    )
+
+    analysis_record = result["checkpoint_payload"]["cv_analysis_results"][0]
+
+    assert mock_retrieve_bundle.call_args.args[1]["job_url"] == job["job_url"]
+    assert analysis_record["evidence_selection_summary"] == {
+        "channel_counts": {
+            "required_skill_support": 1,
+            "role_alignment": 1,
+            "domain_alignment": 1,
+            "responsibility_alignment": 1,
+        },
+        "merged_pool_size": 4,
+        "deduped_pool_size": 2,
+        "selected_evidence_count": 1,
+        "selected_evidence_ids": ["exp-1"],
+    }
+    assert analysis_record["evidence_used"][0]["matched_channels"] == [
+        "required_skill_support",
+        "responsibility_alignment",
+    ]
+    assert analysis_record["evidence_used"][0]["selection_reasons"] == [
+        "required_skill_support",
+        "responsibility_alignment",
+    ]
 
 
 # ── run_pipeline calls load_run_structured_jobs ──────────────────────────────

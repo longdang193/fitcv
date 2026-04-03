@@ -14,7 +14,7 @@ tags:
   - ci-safe
 """
 
-from fitcv.evidence import retrieve_evidence, score_evidence_item
+from fitcv.evidence import retrieve_evidence, retrieve_evidence_bundle, score_evidence_item
 
 
 # ── schema and ordering ───────────────────────────────────────────────────────
@@ -292,3 +292,125 @@ def test_retrieve_evidence_tie_breaking_is_deterministic() -> None:
     ev1 = retrieve_evidence(mock_profile, jd_skills=["SQL"], top_k=5)
     ev2 = retrieve_evidence(mock_profile, jd_skills=["SQL"], top_k=5)
     assert [e["name"] for e in ev1] == [e["name"] for e in ev2]
+
+
+def test_retrieve_evidence_bundle_merges_channels_and_dedupes_by_evidence_id() -> None:
+    profile = {
+        "preferences": {
+            "target_role": "Data Analyst",
+            "role_families": ["analytics"],
+            "domains": ["banking"],
+        },
+        "experiences": [
+            {
+                "id": "exp_1",
+                "role": "Business Data Analyst",
+                "company": "Bank Corp",
+                "role_family": "analytics",
+                "domain_tags": ["banking"],
+                "responsibility_themes": ["dashboarding", "kpi_reporting"],
+                "bullets": [
+                    {
+                        "text": "Built KPI dashboards in Power BI and SQL for banking stakeholders.",
+                        "skills": ["SQL", "Power BI"],
+                    }
+                ],
+            }
+        ],
+        "projects": [],
+        "achievements": [],
+        "skills": [{"name": "SQL"}],
+    }
+    job = {
+        "job_url": "https://example.com/job-1",
+        "title": "Data Analyst - Retail Banking",
+        "job_family": "analytics",
+        "domain": "banking",
+        "required_skills_canonical": ["sql"],
+        "responsibilities": ["Build KPI dashboards for retail banking stakeholders"],
+    }
+
+    bundle = retrieve_evidence_bundle(profile, job, top_k=3)
+
+    assert bundle["channel_counts"]["required_skill_support"] >= 1
+    assert bundle["channel_counts"]["role_alignment"] >= 1
+    assert bundle["channel_counts"]["domain_alignment"] >= 1
+    assert bundle["channel_counts"]["responsibility_alignment"] >= 1
+    assert bundle["merged_pool_size"] >= 1
+    assert bundle["deduped_pool_size"] == 1
+    assert len(bundle["selected_evidence"]) == 1
+    assert bundle["selected_evidence_ids"] == [bundle["selected_evidence"][0]["evidence_id"]]
+    assert set(bundle["selected_evidence"][0]["matched_channels"]) == {
+        "required_skill_support",
+        "role_alignment",
+        "domain_alignment",
+        "responsibility_alignment",
+    }
+
+
+def test_retrieve_evidence_bundle_returns_bounded_final_top_k_with_selection_reasons() -> None:
+    profile = {
+        "preferences": {
+            "target_role": "Data Engineer",
+            "role_families": ["data_engineering"],
+            "domains": ["banking", "analytics"],
+        },
+        "experiences": [
+            {
+                "id": "exp_1",
+                "role": "Data Engineer",
+                "company": "Finbank",
+                "role_family": "data_engineering",
+                "domain_tags": ["banking"],
+                "responsibility_themes": ["etl", "reporting_automation"],
+                "bullets": [
+                    {"text": "Built SQL ETL pipelines for banking reporting.", "skills": ["SQL", "ETL"]},
+                ],
+            }
+        ],
+        "projects": [
+            {
+                "id": "proj_1",
+                "name": "Analytics Platform",
+                "skills": ["Python", "dbt"],
+                "domain_tags": ["analytics"],
+                "responsibility_themes": ["dashboarding"],
+                "business_value": "Supported KPI reporting across analytics teams.",
+                "highlights": ["Created KPI dashboards for analytics stakeholders."],
+            },
+            {
+                "id": "proj_2",
+                "name": "Streaming Fraud Detection",
+                "skills": ["Python", "Kafka"],
+                "domain_tags": ["banking"],
+                "responsibility_themes": ["fraud_detection"],
+                "business_value": "Improved fraud detection in banking.",
+                "highlights": ["Implemented real-time fraud detection features."],
+            },
+        ],
+        "achievements": [
+            {"id": "ach_1", "text": "Improved KPI reporting latency", "domain_tags": ["analytics"]},
+        ],
+        "skills": [{"name": "SQL"}, {"name": "Python"}],
+    }
+    job = {
+        "job_url": "https://example.com/job-2",
+        "title": "Senior Data Engineer",
+        "job_family": "data_engineering",
+        "domain": "banking",
+        "required_skills_canonical": ["sql", "python"],
+        "responsibilities": [
+            "Build ETL pipelines",
+            "Support KPI reporting for banking stakeholders",
+        ],
+    }
+
+    bundle = retrieve_evidence_bundle(profile, job, top_k=2)
+
+    assert len(bundle["selected_evidence"]) == 2
+    assert len(bundle["selected_evidence_ids"]) == 2
+    assert len(set(bundle["selected_evidence_ids"])) == 2
+    for item in bundle["selected_evidence"]:
+        assert item["selection_reasons"]
+        assert item["matched_channels"]
+        assert item["selection_score"] >= 0.0
