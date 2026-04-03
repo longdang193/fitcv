@@ -126,6 +126,7 @@ PIPELINE_STAGE_SEQUENCE = (
     "rule_filter",
     "shortlist",
     "ranking",
+    "cv_analysis",
     "cv_generation",
 )
 _PIPELINE_STAGE_SET = set(PIPELINE_STAGE_SEQUENCE)
@@ -636,6 +637,7 @@ def _empty_pipeline_state(run_id: str) -> dict[str, Any]:
         "ai_scores": [],
         "ranking_inputs": [],
         "ranked": [],
+        "cv_analysis_results": [],
         "cv_results": [],
         "cv_generation_debug_records": [],
     }
@@ -674,6 +676,7 @@ def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
         "ai_scores",
         "ranking_inputs",
         "ranked",
+        "cv_analysis_results",
     )
     return {
         key: _json_safe_pipeline_value(state.get(key) or [])
@@ -737,6 +740,7 @@ def _build_checkpoint_summary(
     ai_scores = list(state.get("ai_scores") or [])
     ranking_inputs = list(state.get("ranking_inputs") or [])
     ranked = list(state.get("ranked") or [])
+    cv_analysis_results = list(state.get("cv_analysis_results") or [])
     cv_generation_debug_records = list(state.get("cv_generation_debug_records") or [])
     cv_results = list(state.get("cv_results") or [])
     candidate_profile = profile or {"preferences": {}}
@@ -763,6 +767,7 @@ def _build_checkpoint_summary(
         ai_scores=ai_scores,
         ranking_inputs=ranking_inputs,
         ranked=ranked,
+        cv_analysis_results=cv_analysis_results,
         final_top_n=final_top_n_value,
         cv_generation_debug_records=cv_generation_debug_records,
         profile=candidate_profile,
@@ -908,6 +913,7 @@ def _build_decision_chain(
     advanced_to_scoring: bool,
     ranking_fit_label: str | None,
     ranking_fit_source: str | None,
+    cv_analysis_status: str = "not_run",
     cv_status: str,
 ) -> dict[str, Any]:
     return {
@@ -918,6 +924,10 @@ def _build_decision_chain(
         "primary_fit": {
             "source": ranking_fit_source,
             "label": ranking_fit_label,
+        },
+        "cv_analysis": {
+            "status": cv_analysis_status,
+            "completed": cv_analysis_status not in {"not_run", "failed"},
         },
         "cv_generation": {
             "status": cv_status,
@@ -950,6 +960,7 @@ def _build_cv_generation_debug_record(
         advanced_to_scoring=True,
         ranking_fit_label=ranking_fit_label,
         ranking_fit_source=ranking_fit_source,
+        cv_analysis_status="ready_for_generation" if status in {"accepted", "validation_failed", "generation_failed", "persistence_failed"} else status,
         cv_status=status,
     )
     return {
@@ -966,6 +977,44 @@ def _build_cv_generation_debug_record(
         "repair_attempt": repair_attempt,
         "structured_cv_final": structured_cv_final,
         "markdown_final": markdown_final,
+        "error": error,
+    }
+
+
+def _build_cv_analysis_record(
+    *,
+    job: dict[str, Any],
+    status: str,
+    evidence_payload: list[dict[str, Any]],
+    evidence_used: list[dict[str, Any]],
+    gap_summary: dict[str, Any] | None,
+    fit_classification: str | None,
+    error: dict[str, str] | None,
+) -> dict[str, Any]:
+    ranking_fit_label = str(fit_classification or "").strip() or None
+    ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
+    cv_status = "not_attempted" if status == "ready_for_generation" else (
+        "skipped_fit_gate" if status == "skipped_fit_gate" else "failed"
+    )
+    decision_chain = _build_decision_chain(
+        shortlist_status=_shortlist_status_for_ranked_job(job),
+        advanced_to_scoring=True,
+        ranking_fit_label=ranking_fit_label,
+        ranking_fit_source=ranking_fit_source,
+        cv_analysis_status=status,
+        cv_status=cv_status,
+    )
+    return {
+        "job_url": str(job.get("job_url") or ""),
+        "job_title": _extract_job_title(job),
+        "status": status,
+        "ranking_fit_label": ranking_fit_label,
+        "fit_classification": fit_classification,
+        "decision_chain": decision_chain,
+        "job_snapshot": dict(job),
+        "evidence_payload": list(evidence_payload),
+        "evidence_used": evidence_used,
+        "gap_summary": gap_summary,
         "error": error,
     }
 
@@ -1127,6 +1176,45 @@ def _ranking_row_sample(row: dict[str, Any]) -> dict[str, Any] | None:
     return {key: value for key, value in sample.items() if value not in (None, "")}
 
 
+def _analysis_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | None:
+    status = str(record.get("status") or "")
+    if status != "ready_for_generation":
+        return None
+    job_url = str(record.get("job_url") or "")
+    if not job_url:
+        return None
+    sample = {
+        "job_url": job_url,
+        "job_title": str(record.get("job_title") or ""),
+        "status": status,
+        "ranking_fit_label": record.get("ranking_fit_label"),
+        "fit_classification": record.get("fit_classification"),
+        "evidence_used": record.get("evidence_used"),
+        "gap_summary": record.get("gap_summary"),
+    }
+    return {key: value for key, value in sample.items() if value not in (None, "", [])}
+
+
+def _analysis_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | None:
+    status = str(record.get("status") or "")
+    if status == "ready_for_generation":
+        return None
+    job_url = str(record.get("job_url") or "")
+    if not job_url:
+        return None
+    sample = {
+        "job_url": job_url,
+        "job_title": str(record.get("job_title") or ""),
+        "change_type": status,
+        "ranking_fit_label": record.get("ranking_fit_label"),
+        "fit_classification": record.get("fit_classification"),
+        "evidence_used": record.get("evidence_used"),
+        "gap_summary": record.get("gap_summary"),
+        "error": record.get("error"),
+    }
+    return {key: value for key, value in sample.items() if value not in (None, "", [])}
+
+
 def _debug_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | None:
     status = str(record.get("status") or "")
     if status not in {"accepted", "persistence_failed"}:
@@ -1211,14 +1299,21 @@ def _build_stage_transition_artifacts(
     ai_scores: list[dict[str, Any]],
     ranking_inputs: list[dict[str, Any]],
     ranked: list[dict[str, Any]],
+    cv_analysis_results: list[dict[str, Any]] | None = None,
     final_top_n: int,
     cv_generation_debug_records: list[dict[str, Any]],
     profile: dict[str, Any],
     config: dict[str, Any],
 ) -> dict[str, Any]:
+    cv_analysis_results = list(cv_analysis_results or [])
     shortlist_reached = len(passed_jobs) > 0
     ranking_reached = shortlist_reached and (len(shortlist) > 0 or len(ai_scores) > 0 or len(ranking_inputs) > 0)
-    cv_generation_reached = len(ranked) > 0 or len(cv_generation_debug_records) > 0
+    cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
+    generation_execution_records = [
+        record for record in cv_generation_debug_records
+        if str(record.get("status") or "") in {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
+    ]
+    cv_generation_reached = len(generation_execution_records) > 0
     raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
     raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
     ranked_urls = {_extract_job_url(job) for job in ranked if _extract_job_url(job)}
@@ -1276,6 +1371,7 @@ def _build_stage_transition_artifacts(
         "debug_records_captured": len(cv_generation_debug_records),
         "accepted_count": 0,
         "skipped_fit_gate_count": 0,
+        "analysis_failed_count": 0,
         "validation_failed_count": 0,
         "generation_failed_count": 0,
         "persistence_failed_count": 0,
@@ -1286,6 +1382,8 @@ def _build_stage_transition_artifacts(
             cv_status_counts["accepted_count"] += 1
         elif status == "skipped_fit_gate":
             cv_status_counts["skipped_fit_gate_count"] += 1
+        elif status == "analysis_failed":
+            cv_status_counts["analysis_failed_count"] += 1
         elif status == "validation_failed":
             cv_status_counts["validation_failed_count"] += 1
         elif status == "generation_failed":
@@ -1317,7 +1415,7 @@ def _build_stage_transition_artifacts(
     }
 
     return {
-        "schema_version": "stage_transition_artifacts_v3",
+        "schema_version": "stage_transition_artifacts_v4",
         "stages": {
             "normalize": _stage_block(
                 stage_id="normalize",
@@ -1541,26 +1639,69 @@ def _build_stage_transition_artifacts(
                     "pipeline.final_top_n",
                 ],
             ) if ranking_reached else _stage_block_not_reached("ranking"),
+            "cv_analysis": _stage_block(
+                stage_id="cv_analysis",
+                status="completed" if cv_analysis_reached else "not_reached",
+                input_counts={"ranked_jobs": len(ranked)},
+                output_counts={
+                    "generation_ready": sum(
+                        1 for record in cv_analysis_results
+                        if str(record.get("status") or "") == "ready_for_generation"
+                    ),
+                    "skipped_fit_gate": sum(
+                        1 for record in cv_analysis_results
+                        if str(record.get("status") or "") == "skipped_fit_gate"
+                    ),
+                    "analysis_failed": sum(
+                        1 for record in cv_analysis_results
+                        if str(record.get("status") or "") == "analysis_failed"
+                    ),
+                },
+                decision_summary={
+                    "analysis_records_captured": len(cv_analysis_results),
+                    "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),
+                },
+                inputs_sample=_sample_rows(ranked, _ranking_row_sample),
+                outputs_sample=_sample_rows(cv_analysis_results, _analysis_record_output_sample),
+                dropped_or_changed_sample=_sample_rows(cv_analysis_results, _analysis_record_changed_sample),
+                settings_refs=["pipeline.evidence_top_k"],
+            ) if cv_analysis_reached else _stage_block_not_reached("cv_analysis"),
             "cv_generation": _stage_block(
                 stage_id="cv_generation",
                 status="completed" if cv_generation_reached else "not_reached",
-                input_counts={"ranked_jobs": len(ranked)},
+                input_counts={
+                    "analysis_ready_jobs": sum(
+                        1 for record in cv_analysis_results
+                        if str(record.get("status") or "") == "ready_for_generation"
+                    ),
+                },
                 output_counts={
                     "accepted": cv_status_counts["accepted_count"],
-                    "skipped_fit_gate": cv_status_counts["skipped_fit_gate_count"],
                     "validation_failed": cv_status_counts["validation_failed_count"],
                     "generation_failed": cv_status_counts["generation_failed_count"],
                     "persistence_failed": cv_status_counts["persistence_failed_count"],
                 },
                 decision_summary={
                     "debug_records_captured": cv_status_counts["debug_records_captured"],
-                    "ranking_jobs_total": cv_status_counts["ranked_jobs_total"],
+                    "analysis_ready_jobs_total": sum(
+                        1 for record in cv_analysis_results
+                        if str(record.get("status") or "") == "ready_for_generation"
+                    ),
                     "cv_generation_model": str(config.get("cv", {}).get("generation", {}).get("model") or ""),
                     "cv_prompt_version": str(config.get("cv", {}).get("generation", {}).get("prompt_version") or ""),
                 },
-                inputs_sample=_sample_rows(ranked, _ranking_row_sample),
+                inputs_sample=_sample_rows(
+                    [record for record in cv_analysis_results if str(record.get("status") or "") == "ready_for_generation"],
+                    _analysis_record_output_sample,
+                ),
                 outputs_sample=_sample_rows(cv_generation_debug_records, _debug_record_output_sample),
-                dropped_or_changed_sample=_sample_rows(cv_generation_debug_records, _debug_record_changed_sample),
+                dropped_or_changed_sample=_sample_rows(
+                    [
+                        record for record in cv_generation_debug_records
+                        if str(record.get("status") or "") in {"validation_failed", "generation_failed", "persistence_failed"}
+                    ],
+                    _debug_record_changed_sample,
+                ),
                 settings_refs=["cv.generation.model", "cv.generation.prompt_version"],
             ) if cv_generation_reached else _stage_block_not_reached("cv_generation"),
         },
@@ -1713,6 +1854,7 @@ def run_pipeline(
     ai_scores = list(state["ai_scores"])
     ranking_inputs = list(state["ranking_inputs"])
     ranked = list(state["ranked"])
+    cv_analysis_results = list(state["cv_analysis_results"])
     results: list[dict[str, Any]] = list(state["cv_results"])
     cv_generation_debug_records: list[dict[str, Any]] = list(state["cv_generation_debug_records"])
     profile: dict[str, Any] | None = None
@@ -1876,6 +2018,7 @@ def run_pipeline(
 
     passed_jobs = list(state["passed_jobs"])
     candidate_filter_rejected_jobs = list(state["candidate_filter_rejected_jobs"])
+    passed_job_urls = [_extract_job_url(job) for job in passed_jobs if _extract_job_url(job)]
 
     if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("shortlist"):
         embed_and_store_jobs(passed_jobs, config)
@@ -1920,6 +2063,8 @@ def run_pipeline(
     raw_shortlist = list(state["raw_shortlist"])
     shortlist = list(state["shortlist"])
     backfilled_job_urls = list(state["backfilled_job_urls"])
+    raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
+    raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
 
     from fitcv.vector_search import build_candidate_query_text
     candidate_summary = build_candidate_query_text(profile, config)
@@ -1970,59 +2115,153 @@ def run_pipeline(
         _merge_ranked_job_with_enriched_context(job, enriched_by_url)
         for job in ranked
     ]
+    if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("cv_analysis"):
+        if cancellation_check and cancellation_check():
+            raise PipelineCancelled("Cancelled before CV analysis")
+        cv_analysis_results = []
+        for job in ranked_jobs_for_cv:
+            evidence: list[dict[str, Any]] = []
+            gap: dict[str, Any] | None = None
+            fit = "skip"
+            try:
+                evidence_top_k = int(config["pipeline"]["evidence_top_k"])
+                evidence = retrieve_evidence(
+                    profile,
+                    job.get("required_skills") or [],
+                    top_k=evidence_top_k,
+                )
+
+                gap = compute_gap(
+                    required_skills=job.get("required_skills") or [],
+                    candidate_skills=candidate_skill_names,
+                    years_experience_min=job.get("years_experience_min"),
+                    years_experience_max=job.get("years_experience_max"),
+                    years_candidate=profile.get("years_experience"),
+                    config=config,
+                )
+
+                fit = _resolve_layer4_fit(job, gap_fit=None, config=config)
+                if fit == "skip":
+                    logger.info("[run_id=%s] Skipping job %s (fit=skip)", run_id, job.get("job_url"))
+                    analysis_record = _build_cv_analysis_record(
+                        job=job,
+                        status="skipped_fit_gate",
+                        evidence_payload=evidence,
+                        evidence_used=_build_debug_evidence_used(evidence),
+                        gap_summary=gap,
+                        fit_classification=fit,
+                        error={
+                            "stage": "fit_gate",
+                            "message": f"Skipped {job.get('job_url')} (fit=skip)",
+                        },
+                    )
+                    cv_analysis_results.append(analysis_record)
+                    cv_generation_debug_records.append(
+                        _build_cv_generation_debug_record(
+                            job=job,
+                            status="skipped_fit_gate",
+                            fit_classification=fit,
+                            evidence_used=analysis_record["evidence_used"],
+                            gap_summary=gap,
+                            structured_cv_initial=None,
+                            validation_initial=None,
+                            repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
+                            structured_cv_final=None,
+                            markdown_final=None,
+                            error=analysis_record["error"],
+                        )
+                    )
+                    if reporter is not None:
+                        reporter.emit("layer4_cv_analysis_skip", "info", f"Skipped {job.get('job_url')} (fit=skip)")  # type: ignore[union-attr]
+                    continue
+
+                cv_analysis_results.append(
+                    _build_cv_analysis_record(
+                        job=job,
+                        status="ready_for_generation",
+                        evidence_payload=evidence,
+                        evidence_used=_build_debug_evidence_used(evidence),
+                        gap_summary=gap,
+                        fit_classification=fit,
+                        error=None,
+                    )
+                )
+            except Exception as exc:
+                logger.error("[run_id=%s] CV analysis failed for %s: %s", run_id, job.get("job_url"), exc)
+                analysis_record = _build_cv_analysis_record(
+                    job=job,
+                    status="analysis_failed",
+                    evidence_payload=evidence,
+                    evidence_used=_build_debug_evidence_used(evidence),
+                    gap_summary=gap,
+                    fit_classification=fit if fit else None,
+                    error={
+                        "stage": "analysis",
+                        "message": str(exc),
+                    },
+                )
+                cv_analysis_results.append(analysis_record)
+                cv_generation_debug_records.append(
+                    _build_cv_generation_debug_record(
+                        job=job,
+                        status="analysis_failed",
+                        fit_classification=analysis_record.get("fit_classification"),
+                        evidence_used=analysis_record["evidence_used"],
+                        gap_summary=gap,
+                        structured_cv_initial=None,
+                        validation_initial=None,
+                        repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
+                        structured_cv_final=None,
+                        markdown_final=None,
+                        error=analysis_record["error"],
+                    )
+                )
+                if reporter is not None:
+                    reporter.emit("layer4_cv_error", "error", f"CV analysis failed for {job.get('job_url')}: {exc}")  # type: ignore[union-attr]
+                continue
+        if reporter is not None:
+            reporter.emit(
+                "layer4_cv_analysis",
+                "info",
+                (
+                    "CV analysis complete: "
+                    f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == 'ready_for_generation')} ready, "
+                    f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == 'skipped_fit_gate')} skipped, "
+                    f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == 'analysis_failed')} failed"
+                ),
+            )  # type: ignore[union-attr]
+        state["cv_analysis_results"] = cv_analysis_results
+        state["cv_generation_debug_records"] = cv_generation_debug_records
+        if stop_after_stage == "cv_analysis":
+            return _build_checkpoint_summary(
+                run_id=run_id,
+                paused_after_stage="cv_analysis",
+                state=state,
+                profile=profile,
+                config=config,
+                vector_top_n=vector_top_n,
+                candidate_summary=candidate_summary,
+                final_top_n=final_top_n,
+            )
+
+    cv_analysis_results = list(state["cv_analysis_results"])
     if cancellation_check and cancellation_check():
         raise PipelineCancelled("Cancelled before CV generation")
-    for job in ranked_jobs_for_cv:
-        evidence: list[dict[str, Any]] = []
-        gap: dict[str, Any] | None = None
-        fit = "skip"
+    generation_ready_records = [
+        record for record in cv_analysis_results
+        if str(record.get("status") or "") == "ready_for_generation"
+    ]
+    for analysis_record in generation_ready_records:
+        job = dict(analysis_record.get("job_snapshot") or {})
+        evidence = list(analysis_record.get("evidence_payload") or [])
+        gap = analysis_record.get("gap_summary")
+        fit = str(analysis_record.get("fit_classification") or "skip")
         structured_cv_initial: dict[str, Any] | None = None
         validation_initial: dict[str, Any] | None = None
         repair_attempt = dict(_EMPTY_REPAIR_ATTEMPT)
         structured_cv_final: dict[str, Any] | None = None
         markdown_final: str | None = None
         try:
-            evidence_top_k = int(config["pipeline"]["evidence_top_k"])
-            evidence = retrieve_evidence(
-                profile,
-                job.get("required_skills") or [],
-                top_k=evidence_top_k,
-            )
-
-            gap = compute_gap(
-                required_skills=job.get("required_skills") or [],
-                candidate_skills=candidate_skill_names,
-                years_experience_min=job.get("years_experience_min"),
-                years_experience_max=job.get("years_experience_max"),
-                years_candidate=profile.get("years_experience"),
-                config=config,
-            )
-
-            fit = _resolve_layer4_fit(job, gap_fit=None, config=config)
-            if fit == "skip":
-                logger.info("[run_id=%s] Skipping job %s (fit=skip)", run_id, job.get("job_url"))
-                cv_generation_debug_records.append(
-                    _build_cv_generation_debug_record(
-                        job=job,
-                        status="skipped_fit_gate",
-                        fit_classification=fit,
-                        evidence_used=_build_debug_evidence_used(evidence),
-                        gap_summary=gap,
-                        structured_cv_initial=None,
-                        validation_initial=None,
-                        repair_attempt=repair_attempt,
-                        structured_cv_final=None,
-                        markdown_final=None,
-                        error={
-                            "stage": "fit_gate",
-                            "message": f"Skipped {job.get('job_url')} (fit=skip)",
-                        },
-                    )
-                )
-                if reporter is not None:
-                    reporter.emit("layer4_cv_skip", "info", f"Skipped {job.get('job_url')} (fit=skip)")  # type: ignore[union-attr]
-                continue
-
             generated_cv = generate_cv(
                 job,
                 evidence,
@@ -2181,6 +2420,7 @@ def run_pipeline(
                 )  # type: ignore[union-attr]
             continue
 
+    state["cv_analysis_results"] = cv_analysis_results
     state["cv_results"] = results
     state["cv_generation_debug_records"] = cv_generation_debug_records
     summary: dict[str, Any] = {
@@ -2232,6 +2472,7 @@ def run_pipeline(
             ai_scores=ai_scores,
             ranking_inputs=ranking_inputs,
             ranked=ranked,
+            cv_analysis_results=cv_analysis_results,
             final_top_n=final_top_n,
             cv_generation_debug_records=cv_generation_debug_records,
             profile=profile,

@@ -423,6 +423,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 "rule_filter",
                 "shortlist",
                 "ranking",
+                "cv_analysis",
                 "cv_generation",
             ],
             checkpoint_payload_json=None,

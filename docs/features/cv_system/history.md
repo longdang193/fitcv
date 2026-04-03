@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.15.0 — active
+
+- The final Layer 4 flow is now split into `cv_analysis` and `cv_generation`
+- `cv_analysis` owns ranked-job context merge, evidence retrieval, gap analysis, and fit-gate preparation before CV writing
+- `cv_generation` now consumes persisted analysis outputs for writing, validation, repair, and persistence instead of recomputing that analysis by default
+
 ### 1.14.0 — active
 
 - Ranking now uses a stricter reranker rubric that makes required-skill evidence, readiness, and role alignment primary while keeping preference signals secondary

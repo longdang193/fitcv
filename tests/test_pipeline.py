@@ -496,8 +496,149 @@ def test_run_pipeline_resume_from_ranking_uses_checkpoint_payload(
     )
 
     assert result["paused_after_stage"] == "ranking"
-    assert result["next_stage"] == "cv_generation"
+    assert result["next_stage"] == "cv_analysis"
     assert mock_ai.call_args.args[0] == shortlist
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_resume_from_cv_generation_recomputes_shortlist_debug_state(
+    mock_config: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_retrieve_evidence: MagicMock,
+    mock_compute_gap: MagicMock,
+    mock_generate_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_store_cv: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    profile = _minimal_profile()
+    job = _minimal_job("https://example.com/1")
+    shortlist = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    ranked = [{
+        **job,
+        "job_url": job["job_url"],
+        "final_score": 0.9,
+        "ai_score": 0.8,
+        "vector_rank": 1,
+        "ranking_fit_label": "stretch",
+        "fit_label": "stretch",
+    }]
+    checkpoint_payload = {
+        "raw_jobs": [job],
+        "normalized": [job],
+        "deduplicated_jobs": [],
+        "pre_filter_rejected_jobs": [],
+        "enriched": [job],
+        "passed_jobs": [job],
+        "candidate_filter_rejected_jobs": [],
+        "raw_shortlist": shortlist,
+        "shortlist": shortlist,
+        "backfilled_job_urls": [],
+        "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "stretch"}],
+        "ranking_inputs": ranked,
+        "ranked": ranked,
+        "cv_analysis_results": [
+                {
+                    "job_url": job["job_url"],
+                    "job_title": job["job_title"],
+                    "status": "ready_for_generation",
+                "ranking_fit_label": "stretch",
+                "fit_classification": "stretch",
+                "job_snapshot": ranked[0],
+                "evidence_payload": [],
+                "evidence_used": [],
+                "gap_summary": {"matched": [], "partial": [], "missing": []},
+                "error": None,
+            }
+        ],
+        "cv_results": [],
+        "cv_generation_debug_records": [],
+    }
+    mock_config.return_value = _minimal_config()
+    mock_profile_yaml.return_value = profile
+    mock_retrieve_evidence.return_value = []
+    mock_compute_gap.return_value = {"matched": [], "partial": [], "missing": []}
+    mock_generate_cv.return_value = "# CV"
+    mock_validate.return_value = {"valid": True, "missing_sections": [], "grounding_violations": [], "skill_violations": [], "warnings": []}
+    mock_store_cv.return_value = None
+
+    result = run_pipeline(
+        "data/sample_jobs.json",
+        config_path="config/env.yaml",
+        run_id="resume-cv-generation",
+        start_stage="cv_generation",
+        checkpoint_payload=checkpoint_payload,
+    )
+
+    assert result["cvs_generated"] == 1
+    assert result["shortlist_debug"]["raw_vector_unique_jobs_total"] == 1
+    assert result["shortlist_debug"]["shortlisted_jobs_total"] == 1
+    assert result["shortlist_debug"]["not_shortlisted_job_urls"] == []
+
+
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
+    mock_config: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_retrieve_evidence: MagicMock,
+    mock_compute_gap: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    profile = _minimal_profile()
+    job = _minimal_job("https://example.com/1")
+    ranked = [{
+        **job,
+        "job_url": job["job_url"],
+        "final_score": 0.9,
+        "ai_score": 0.8,
+        "vector_rank": 1,
+        "ranking_fit_label": "stretch",
+        "fit_label": "stretch",
+    }]
+    checkpoint_payload = {
+        "raw_jobs": [job],
+        "normalized": [job],
+        "deduplicated_jobs": [],
+        "pre_filter_rejected_jobs": [],
+        "enriched": [job],
+        "passed_jobs": [job],
+        "candidate_filter_rejected_jobs": [],
+        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        "backfilled_job_urls": [],
+        "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "stretch"}],
+        "ranking_inputs": ranked,
+        "ranked": ranked,
+    }
+    mock_config.return_value = _minimal_config()
+    mock_profile_yaml.return_value = profile
+    mock_retrieve_evidence.return_value = [{"evidence_id": "e1", "evidence_type": "project", "source_ref": "p1", "name": "SQL"}]
+    mock_compute_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+
+    result = run_pipeline(
+        "data/sample_jobs.json",
+        config_path="config/env.yaml",
+        run_id="pause-cv-analysis",
+        start_stage="cv_analysis",
+        stop_after_stage="cv_analysis",
+        checkpoint_payload=checkpoint_payload,
+    )
+
+    assert result["paused_after_stage"] == "cv_analysis"
+    assert result["next_stage"] == "cv_generation"
+    assert len(result["checkpoint_payload"]["cv_analysis_results"]) == 1
+    assert result["checkpoint_payload"]["cv_analysis_results"][0]["status"] == "ready_for_generation"
 
 
 @patch("fitcv.pipeline.logger")
@@ -1510,13 +1651,14 @@ def test_run_pipeline_returns_correct_schema(
     assert result["total_jobs"] == 1
     assert result["cvs_generated"] == 1
     stage_artifacts = result["stage_transition_artifacts"]
-    assert stage_artifacts["schema_version"] == "stage_transition_artifacts_v3"
+    assert stage_artifacts["schema_version"] == "stage_transition_artifacts_v4"
     assert set(stage_artifacts["stages"]) == {
         "normalize",
         "enrich",
         "rule_filter",
         "shortlist",
         "ranking",
+        "cv_analysis",
         "cv_generation",
     }
     for stage_id, block in stage_artifacts["stages"].items():
@@ -1529,6 +1671,7 @@ def test_run_pipeline_returns_correct_schema(
         assert "dropped_or_changed_sample" in block
     assert stage_artifacts["stages"]["normalize"]["input_counts"]["raw_jobs"] == 1
     assert stage_artifacts["stages"]["ranking"]["output_counts"]["ranked_jobs"] == 1
+    assert stage_artifacts["stages"]["cv_analysis"]["output_counts"]["generation_ready"] == 1
     assert stage_artifacts["stages"]["cv_generation"]["output_counts"]["accepted"] == 1
     assert stage_artifacts["stages"]["cv_generation"]["outputs_sample"][0]["job_url"] == job["job_url"]
 

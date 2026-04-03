@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.4.0 — active
+
+- Manual staged runs now pause after `ranking` with `next_stage = cv_analysis`, and can pause again after `cv_analysis` before `cv_generation`
+- Resuming into `cv_generation` now uses persisted `cv_analysis` outputs instead of recomputing evidence and fit-gate work by default
+- This rollout keeps the existing staged/manual control-plane flow while splitting the final stage into two resumable checkpoints
+
 ### 2.3.0 — active
 
 - Run-results shortlist debug now reports raw unique-job counts separately from raw row counts and carries explicit raw-hit flags for passed jobs

@@ -98,8 +98,10 @@ TIMELINE_STAGE_DOWNLOADS: dict[str, str] = {
     "layer3_filter": "rule_filter",
     "layer3_shortlist": "shortlist",
     "layer3_ranking": "ranking",
+    "layer4_cv_analysis": "cv_analysis",
+    "layer4_cv_analysis_skip": "cv_analysis",
     "pipeline_complete": "cv_generation",
-    "layer4_cv_skip": "cv_generation",
+    "layer4_cv_skip": "cv_analysis",
     "layer4_cv_validation_failed": "cv_generation",
 }
 STAGE_DOWNLOAD_LABELS: dict[str, str] = {
@@ -108,6 +110,7 @@ STAGE_DOWNLOAD_LABELS: dict[str, str] = {
     "rule_filter": "Download Rule Filter JSON",
     "shortlist": "Download Shortlist JSON",
     "ranking": "Download Ranking JSON",
+    "cv_analysis": "Download CV Analysis JSON",
     "cv_generation": "Download CV Generation JSON",
 }
 RUN_MODE_LABELS = {
@@ -1430,7 +1433,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=404, detail="Run not found")
         if not run.stage_transition_artifacts_json:
             raise HTTPException(status_code=404, detail="Stage transition artifacts export is not available for this run")
-        if stage_id not in {"normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_generation"}:
+        if stage_id not in {"normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis", "cv_generation"}:
             raise HTTPException(status_code=404, detail="Unknown stage artifact")
         artifact_payload = _json.loads(run.stage_transition_artifacts_json)
         artifacts = artifact_payload.get("artifacts") or {}
