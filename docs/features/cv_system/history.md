@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.15.0 — active
+
+- Ranking can now infer fallback `target_role`, `role_families`, and `domains` from recent candidate evidence when explicit YAML preferences are sparse
+- Explicit candidate preferences remain authoritative, and ranking artifacts now expose effective-preference provenance for debugging
+- Shared role normalization moved into central taxonomy config so ranking and inference no longer rely on private alias tables
+
 ### 1.14.0 — active
 
 - Ranking now uses a stricter reranker rubric that makes required-skill evidence, readiness, and role alignment primary while keeping preference signals secondary

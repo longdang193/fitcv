@@ -269,6 +269,53 @@ def test_load_config_merges_skill_synonym_overlay_paths(tmp_path: Path) -> None:
     assert len(cfg["skill_synonyms_runtime"]["overlay_paths"]) == 1
 
 
+def test_load_config_normalizes_role_taxonomy_structure(tmp_path: Path) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\n"
+        "bigquery_dataset: ds\n"
+        "service_account_key: /dev/null\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "taxonomy.yaml").write_text(
+        "role_taxonomy:\n"
+        "  canonical_roles:\n"
+        "    data analyst:\n"
+        "      aliases:\n"
+        "        - BI Analyst\n"
+        "        - Business Intelligence Analyst\n"
+        "  role_families:\n"
+        "    analytics:\n"
+        "      roles:\n"
+        "        - Data Analyst\n"
+        "  role_family_neighbors:\n"
+        "    analytics:\n"
+        "      - data_science\n"
+    )
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "  content_rules:\n"
+        "    evidence_grounded_only: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+
+    cfg = load_config(env_yaml)
+
+    assert cfg["role_taxonomy"]["canonical_role_by_alias"]["bi analyst"] == "data analyst"
+    assert cfg["role_taxonomy"]["canonical_role_by_alias"]["business intelligence analyst"] == "data analyst"
+    assert cfg["role_taxonomy"]["role_family_by_role"]["data analyst"] == "analytics"
+    assert cfg["role_taxonomy"]["role_family_neighbors"]["analytics"] == ("data_science",)
+
+
 def test_parse_skill_synonym_overlay_yaml_accepts_nested_skill_synonyms() -> None:
     overlay = parse_skill_synonym_overlay_yaml(
         "skill_synonyms:\n"

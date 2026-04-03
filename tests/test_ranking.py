@@ -264,9 +264,31 @@ def test_compute_title_relevance():
 
 
 def test_compute_title_relevance_uses_semantic_role_alignment() -> None:
-    assert compute_title_relevance("Business Intelligence Analyst", "Data Analyst") == 1.0
-    assert compute_title_relevance("Analytics Engineer", "Data Engineer") == 1.0
-    assert compute_title_relevance("Machine Learning Engineer", "Data Analyst") == 0.0
+    config = {
+        "role_taxonomy": {
+            "canonical_role_by_alias": {
+                "business intelligence analyst": "data analyst",
+                "data analyst": "data analyst",
+                "analytics engineer": "analytics engineer",
+                "data engineer": "data engineer",
+                "machine learning engineer": "machine learning engineer",
+            },
+            "role_family_by_role": {
+                "data analyst": "analytics",
+                "analytics engineer": "data_engineering",
+                "data engineer": "data_engineering",
+                "machine learning engineer": "ml_engineering",
+            },
+            "role_family_neighbors": {
+                "analytics": ("data_science",),
+                "data_engineering": ("ml_engineering",),
+                "ml_engineering": ("data_engineering",),
+            },
+        }
+    }
+    assert compute_title_relevance("Business Intelligence Analyst", "Data Analyst", config=config) == 1.0
+    assert compute_title_relevance("Analytics Engineer", "Data Engineer", config=config) == 1.0
+    assert compute_title_relevance("Machine Learning Engineer", "Data Analyst", config=config) == 0.0
 
 
 # ── compute_preference_fit ────────────────────────────────────────────────────
