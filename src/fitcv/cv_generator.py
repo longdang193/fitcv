@@ -326,6 +326,17 @@ def _build_selected_evidence_lines(
             continue
 
         block = _format_evidence_block(item)
+        matched_channels = _coerce_string_list(item.get("matched_channels"))
+        selection_reasons = _coerce_string_list(item.get("selection_reasons"))
+        metadata_lines: list[str] = []
+        if matched_channels:
+            metadata_lines.append(
+                "Matched channels: " + ", ".join(matched_channels)
+            )
+        if selection_reasons:
+            metadata_lines.append(
+                "Selection reasons: " + ", ".join(selection_reasons)
+            )
         if evidence_type == "experience_entry":
             supporting_items = _select_supporting_evidence_for_experience(
                 experience_item=item,
@@ -335,9 +346,48 @@ def _build_selected_evidence_lines(
             )
             if supporting_items:
                 support_lines = [_format_supporting_evidence_line(support_item) for support_item in supporting_items]
-                block = "\n".join([block, "Supporting evidence:", *support_lines])
+                metadata_lines.extend(["Supporting evidence:", *support_lines])
+        if metadata_lines:
+            block = "\n".join([block, *metadata_lines])
         lines.append(block)
     return "\n".join(lines) or "(none)"
+
+
+def _build_evidence_usage_guidance(evidence: list[dict[str, Any]]) -> str:
+    matched_channels = {
+        channel
+        for item in evidence
+        for channel in _coerce_string_list(item.get("matched_channels"))
+    }
+    selection_reasons = {
+        reason
+        for item in evidence
+        for reason in _coerce_string_list(item.get("selection_reasons"))
+    }
+    channels_or_reasons = matched_channels | selection_reasons
+    if not channels_or_reasons:
+        return "(no channel-aware evidence guidance available)"
+
+    guidance_by_channel = {
+        "required_skill_support": "Use evidence tagged `required_skill_support` to justify concrete technical and skills claims.",
+        "role_alignment": "Use evidence tagged `role_alignment` to shape the summary, headline, and role positioning.",
+        "domain_alignment": "Use evidence tagged `domain_alignment` only for grounded domain familiarity or business-context claims.",
+        "responsibility_alignment": "Use evidence tagged `responsibility_alignment` to craft experience bullets around similar work and outcomes.",
+    }
+    guidance_lines = [
+        guidance_by_channel[channel]
+        for channel in (
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment",
+            "responsibility_alignment",
+        )
+        if channel in channels_or_reasons
+    ]
+    guidance_lines.append(
+        "Prefer evidence selected by multiple channels when deciding what to emphasize in the final CV."
+    )
+    return "\n".join(f"- {line}" for line in guidance_lines)
 
 
 def _profile_contact_value(profile: dict[str, Any] | None, key: str) -> str | None:
@@ -642,6 +692,7 @@ def build_structured_generation_prompt(
     profile: dict[str, Any] | None = None,
     *,
     config: dict[str, Any] | None = None,
+    evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
 ) -> str:
     base_prompt = build_generation_prompt(
@@ -651,6 +702,7 @@ def build_structured_generation_prompt(
         template=template,
         profile=profile,
         config=config,
+        evidence_selection_summary=evidence_selection_summary,
         repair_missing_sections=repair_missing_sections,
     )
     structured_schema = textwrap.dedent(
@@ -700,6 +752,7 @@ def build_generation_prompt(
     profile: dict[str, Any] | None = None,
     *,
     config: dict[str, Any] | None = None,
+    evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
 ) -> str:
     """Assemble the full LLM prompt for CV generation.
@@ -721,6 +774,7 @@ def build_generation_prompt(
         jd_skills=required_skills,
         enabled_section_names=enabled_section_names,
     )
+    evidence_usage_guidance = _build_evidence_usage_guidance(evidence)
 
     matched_skills = list(gap.get("matched") or [])
     missing_skills = list(gap.get("missing") or [])
@@ -812,6 +866,30 @@ def build_generation_prompt(
                 + "\n".join(f"- {line}" for line in language_lines)
             )
     section_evidence = "\n\n".join(section_evidence_lines) or "(no additional section-specific evidence)"
+    analysis_summary_lines: list[str] = []
+    if evidence_selection_summary:
+        selected_count = evidence_selection_summary.get("selected_evidence_count")
+        if selected_count is not None:
+            analysis_summary_lines.append(
+                f"Selected evidence count: {selected_count}"
+            )
+        selected_ids = _coerce_string_list(
+            evidence_selection_summary.get("selected_evidence_ids")
+        )
+        if selected_ids:
+            analysis_summary_lines.append(
+                "Selected evidence ids: " + ", ".join(selected_ids)
+            )
+        channel_counts = evidence_selection_summary.get("channel_counts")
+        if isinstance(channel_counts, dict) and channel_counts:
+            ordered_counts = ", ".join(
+                f"{key}={channel_counts[key]}"
+                for key in sorted(channel_counts)
+            )
+            analysis_summary_lines.append(
+                "Evidence channel counts: " + ordered_counts
+            )
+    analysis_summary = "\n".join(analysis_summary_lines) or "(no analysis summary available)"
 
     return textwrap.dedent(f"""\
         You are a professional CV writer. Generate a tailored CV in markdown format.
@@ -822,6 +900,12 @@ def build_generation_prompt(
 
         ## Selected Evidence
         {evidence_lines}
+
+        ## Evidence Usage Guidance
+        {evidence_usage_guidance}
+
+        ## CV Analysis Summary
+        {analysis_summary}
 
         ## Constraints
         {constraints}
@@ -981,6 +1065,7 @@ def generate_structured_cv(
     config: dict[str, Any],
     *,
     fit_classification: str,
+    evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
 ) -> dict[str, Any]:
     """Call the LLM to generate a structured CV document."""
@@ -999,6 +1084,7 @@ def generate_structured_cv(
         template=template_str,
         profile=profile,
         config=config,
+        evidence_selection_summary=evidence_selection_summary,
         repair_missing_sections=repair_missing_sections,
     )
 
@@ -1033,6 +1119,7 @@ def generate_cv(
     config: dict[str, Any],
     *,
     fit_classification: str = "unclassified",
+    evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
 ) -> dict[str, Any]:
     """Generate structured CV content and render markdown from it.
@@ -1046,6 +1133,7 @@ def generate_cv(
         profile=profile,
         config=config,
         fit_classification=fit_classification,
+        evidence_selection_summary=evidence_selection_summary,
         repair_missing_sections=repair_missing_sections,
     )
     markdown = render_cv_markdown(structured_cv, config)

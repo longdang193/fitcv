@@ -830,6 +830,22 @@ def _build_debug_evidence_used(evidence: list[dict[str, Any]]) -> list[dict[str,
     return debug_evidence
 
 
+def _build_cv_generation_analysis_input_summary(job: dict[str, Any]) -> dict[str, Any]:
+    summary = {
+        "required_skills": list(job.get("required_skills") or []),
+        "preferred_skills": list(job.get("preferred_skills") or []),
+        "responsibilities": list(job.get("responsibilities") or []),
+        "job_family": str(job.get("job_family") or ""),
+        "domain": str(job.get("domain") or ""),
+        "location_type": str(job.get("location_type") or ""),
+    }
+    return {
+        key: value
+        for key, value in summary.items()
+        if value not in (None, "", [])
+    }
+
+
 def _build_validation_snapshot(validation: dict[str, Any] | None) -> dict[str, Any] | None:
     if validation is None:
         return None
@@ -950,6 +966,8 @@ def _build_cv_generation_debug_record(
     status: str,
     fit_classification: str | None,
     evidence_used: list[dict[str, Any]],
+    evidence_selection_summary: dict[str, Any] | None,
+    analysis_input_summary: dict[str, Any] | None,
     gap_summary: dict[str, Any] | None,
     structured_cv_initial: dict[str, Any] | None,
     validation_initial: dict[str, Any] | None,
@@ -975,7 +993,9 @@ def _build_cv_generation_debug_record(
         "ranking_fit_label": ranking_fit_label,
         "fit_classification": fit_classification,
         "decision_chain": decision_chain,
+        "analysis_input_summary": dict(analysis_input_summary or {}),
         "evidence_used": evidence_used,
+        "evidence_selection_summary": dict(evidence_selection_summary or {}),
         "gap_summary": gap_summary,
         "structured_cv_initial": structured_cv_initial,
         "validation_initial": validation_initial,
@@ -1239,6 +1259,10 @@ def _debug_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | None
         "status": status,
         "ranking_fit_label": record.get("ranking_fit_label"),
         "fit_classification": record.get("fit_classification"),
+        "analysis_input_summary": record.get("analysis_input_summary"),
+        "evidence_used": record.get("evidence_used"),
+        "evidence_selection_summary": record.get("evidence_selection_summary"),
+        "gap_summary": record.get("gap_summary"),
         "validation_initial": record.get("validation_initial"),
         "repair_attempt": record.get("repair_attempt"),
         "markdown_final": record.get("markdown_final"),
@@ -1258,6 +1282,11 @@ def _debug_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | Non
         "job_title": str(record.get("job_title") or ""),
         "change_type": status,
         "ranking_fit_label": record.get("ranking_fit_label"),
+        "fit_classification": record.get("fit_classification"),
+        "analysis_input_summary": record.get("analysis_input_summary"),
+        "evidence_used": record.get("evidence_used"),
+        "evidence_selection_summary": record.get("evidence_selection_summary"),
+        "gap_summary": record.get("gap_summary"),
         "validation_initial": record.get("validation_initial"),
         "repair_attempt": record.get("repair_attempt"),
         "error": record.get("error"),
@@ -2205,6 +2234,8 @@ def run_pipeline(
                             status="skipped_fit_gate",
                             fit_classification=fit,
                             evidence_used=analysis_record["evidence_used"],
+                            evidence_selection_summary=analysis_record.get("evidence_selection_summary"),
+                            analysis_input_summary=_build_cv_generation_analysis_input_summary(job),
                             gap_summary=gap,
                             structured_cv_initial=None,
                             validation_initial=None,
@@ -2252,6 +2283,8 @@ def run_pipeline(
                         status="analysis_failed",
                         fit_classification=analysis_record.get("fit_classification"),
                         evidence_used=analysis_record["evidence_used"],
+                        evidence_selection_summary=analysis_record.get("evidence_selection_summary"),
+                        analysis_input_summary=_build_cv_generation_analysis_input_summary(job),
                         gap_summary=gap,
                         structured_cv_initial=None,
                         validation_initial=None,
@@ -2299,6 +2332,8 @@ def run_pipeline(
     for analysis_record in generation_ready_records:
         job = dict(analysis_record.get("job_snapshot") or {})
         evidence = list(analysis_record.get("evidence_payload") or [])
+        evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
+        analysis_input_summary = _build_cv_generation_analysis_input_summary(job)
         gap = analysis_record.get("gap_summary")
         fit = str(analysis_record.get("fit_classification") or "skip")
         structured_cv_initial: dict[str, Any] | None = None
@@ -2314,6 +2349,7 @@ def run_pipeline(
                 profile,
                 config,
                 fit_classification=fit,
+                evidence_selection_summary=evidence_selection_summary,
             )
             structured_cv, cv = _unwrap_generated_cv(generated_cv)
             structured_cv_initial = structured_cv
@@ -2340,6 +2376,7 @@ def run_pipeline(
                     profile,
                     config,
                     fit_classification=fit,
+                    evidence_selection_summary=evidence_selection_summary,
                     repair_missing_sections=missing_sections,
                 )
                 structured_cv, cv = _unwrap_generated_cv(generated_cv)
@@ -2370,6 +2407,8 @@ def run_pipeline(
                         status="validation_failed",
                         fit_classification=fit,
                         evidence_used=_build_debug_evidence_used(evidence),
+                        evidence_selection_summary=evidence_selection_summary,
+                        analysis_input_summary=analysis_input_summary,
                         gap_summary=gap,
                         structured_cv_initial=structured_cv_initial,
                         validation_initial=validation_initial,
@@ -2424,6 +2463,8 @@ def run_pipeline(
                     status="accepted",
                     fit_classification=fit,
                     evidence_used=_build_debug_evidence_used(evidence),
+                    evidence_selection_summary=evidence_selection_summary,
+                    analysis_input_summary=analysis_input_summary,
                     gap_summary=gap,
                     structured_cv_initial=structured_cv_initial,
                     validation_initial=validation_initial,
@@ -2445,6 +2486,8 @@ def run_pipeline(
                     status=failure_status,
                     fit_classification=fit,
                     evidence_used=_build_debug_evidence_used(evidence),
+                    evidence_selection_summary=evidence_selection_summary,
+                    analysis_input_summary=analysis_input_summary,
                     gap_summary=gap,
                     structured_cv_initial=structured_cv_initial,
                     validation_initial=validation_initial,
