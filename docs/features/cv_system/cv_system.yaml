@@ -1,9 +1,9 @@
 cv_system:
   name: CV System
-  version: 1.16.0
+  version: 1.17.0
   status: active
   type: add
-  summary: CV generation uses a structured preset-based configuration, keeps reranker fit as the sole post-filter fit authority, now splits final-stage execution into `cv_analysis` and `cv_generation`, upgrades `cv_analysis` evidence retrieval to separate required-skill, role, domain, and responsibility channels with one reranked final evidence bundle, validates structured and markdown sections against one shared section contract, persists both a schema-versioned structured CV artifact and rendered markdown, supports shortlist retrieval that stays latest-only while reusing unchanged job embeddings safely, and applies a stricter ranking rubric plus richer role and preference alignment before CV writing.
+  summary: CV generation uses a structured preset-based configuration, keeps reranker fit as the sole post-filter fit authority, now splits final-stage execution into `cv_analysis` and `cv_generation`, upgrades `cv_analysis` evidence retrieval to separate required-skill, role, domain, and responsibility channels with one reranked final evidence bundle, validates structured and markdown sections against one shared section contract, now grounds final-stage validation against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support, persists both a schema-versioned structured CV artifact and rendered markdown, supports shortlist retrieval that stays latest-only while reusing unchanged job embeddings safely, and applies a stricter ranking rubric plus richer role and preference alignment before CV writing.
   owner: fitcv
   domains:
     - pipeline
@@ -43,6 +43,9 @@ cv_system:
     - `cv_analysis` evidence retrieval now over-retrieves separate required-skill, role, domain, and responsibility candidate pools before merging, deduping by stable `evidence_id`, and selecting one bounded final evidence bundle
     - Candidate profile YAML can now carry additive role-family, domain-tag, and responsibility-theme metadata that improves `cv_analysis` evidence alignment without breaking existing files
     - `cv_generation` now consumes persisted `cv_analysis` outputs for writing, validation, repair, and persistence instead of recomputing analysis by default
+    - `cv_generation` validation now checks hard facts such as employers, projects, and skills against the selected `cv_analysis` evidence bundle instead of only the full candidate profile when selected evidence is available
+    - `cv_generation` validation now uses a bounded hybrid path for softer role, domain, and responsibility claims, combining deterministic selected-theme/tag support with compact selected-evidence text matching
+    - `cv_generation` prompt guidance now explicitly tells the writer to stay inside the selected evidence bundle for responsibility, domain, and role-positioning claims
     - Structured normalization and markdown validation share one config-driven required-section contract with bounded completeness checks
     - Run summaries emit bounded stage-transition artifact blocks for `normalize`, `enrich`, `rule_filter`, `shortlist`, `ranking`, `cv_analysis`, and `cv_generation`
     - Stage-transition artifacts now preserve bounded input, output, and changed-state context per stage rather than summary-only stage results
@@ -68,6 +71,7 @@ cv_system:
       - docs/superpowers/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
       - docs/superpowers/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
       - docs/superpowers/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+      - docs/superpowers/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
     plan:
       - docs/superpowers/plans/2026-03-27-centralized-cv-generation-config-implementation.md
       - docs/superpowers/plans/2026-03-27-preset-based-cv-config-migration-implementation.md
@@ -87,6 +91,7 @@ cv_system:
       - docs/superpowers/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
       - docs/superpowers/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
       - docs/superpowers/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+      - docs/superpowers/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
     history:
       - docs/features/cv_system/history.md
   keywords:

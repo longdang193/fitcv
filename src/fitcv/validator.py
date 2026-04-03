@@ -34,16 +34,108 @@ Output schema (run_all_validations)
 """
 
 import re
-from typing import Any
+from collections.abc import Iterable
+from typing import Any, TypedDict
 
 from fitcv.candidate import flatten_skills
 from fitcv.config import CV_SECTION_KEY_TO_NAME, get_required_structured_section_keys
 from fitcv.rule_filter import _canonicalise_skill
+from fitcv.ranking import _ROLE_FAMILY_ALIASES, _infer_role_family
 
 # ── constants ─────────────────────────────────────────────────────────────────
 
 _LINES_PER_PAGE: int = 55  # A4 estimate at standard font size
 _SECTION_HEADING_PATTERN = r"^##?\s+{section}\s*$"
+_SOFT_CLAIM_TRIGGER_TOKENS = {
+    "analytics",
+    "automation",
+    "banking",
+    "business",
+    "communication",
+    "cross",
+    "dashboard",
+    "dashboards",
+    "delivery",
+    "domain",
+    "engineer",
+    "forecasting",
+    "fraud",
+    "insight",
+    "insights",
+    "kpi",
+    "leadership",
+    "manager",
+    "monitoring",
+    "pipeline",
+    "pipelines",
+    "positioning",
+    "reporting",
+    "responsibility",
+    "retail",
+    "risk",
+    "role",
+    "scientist",
+    "stakeholder",
+    "streaming",
+    "workflow",
+    "workflows",
+}
+_SOFT_ALIGNMENT_ALIASES: dict[str, tuple[str, ...]] = {
+    "stakeholder_reporting": (
+        "business communication",
+        "business reporting",
+        "cross functional communication",
+        "cross functional reporting",
+        "executive reporting",
+        "stakeholder communication",
+        "stakeholder facing reporting",
+        "stakeholder reporting",
+    ),
+    "dashboarding": (
+        "dashboard",
+        "dashboards",
+        "kpi dashboard",
+        "reporting dashboard",
+        "reporting workflows",
+        "visualisation",
+        "visualization",
+    ),
+    "data_pipeline": (
+        "data pipeline",
+        "data pipelines",
+        "etl",
+        "streaming pipeline",
+        "streaming workflows",
+    ),
+    "fraud_detection": (
+        "fraud analytics",
+        "fraud detection",
+        "risk monitoring",
+        "transaction monitoring",
+    ),
+}
+_SOFT_SIMILARITY_THRESHOLD = 0.30
+
+
+class AnalysisGroundingPayload(TypedDict, total=False):
+    evidence_payload: list[dict[str, Any]]
+    evidence_used: list[dict[str, Any]]
+    evidence_selection_summary: dict[str, Any]
+    analysis_input_summary: dict[str, Any]
+
+
+class SelectedEvidenceSupport(TypedDict):
+    evidence_ids: list[str]
+    employers: set[str]
+    projects: set[str]
+    skills_lower: set[str]
+    skills_canonical: set[str]
+    responsibility_themes: set[str]
+    domain_tags: set[str]
+    role_families: set[str]
+    support_phrases: list[str]
+    soft_support_tokens: set[str]
+    has_selected_support: bool
 
 
 # ── structural checks ─────────────────────────────────────────────────────────
@@ -190,6 +282,334 @@ def check_chronology(experiences: list[dict[str, Any]]) -> list[str]:
 
 # ── grounding checks (on CV text) ────────────────────────────────────────────
 
+def _normalize_lower_set(values: Iterable[str]) -> set[str]:
+    return {value.strip().lower() for value in values if value and value.strip()}
+
+
+def _extract_employer_mentions(cv_text: str) -> list[str]:
+    generic_pattern = re.compile(
+        r"(?:\bat\b|@)\s+([A-Z][A-Za-z0-9&\s\-'\.]+?)(?:\s*[\(\[\,\n]|$)",
+    )
+    mentioned: list[str] = [match.strip() for match in generic_pattern.findall(cv_text) if match.strip()]
+
+    in_experience = False
+    heading_pattern = re.compile(r"^###\s+.+?\s*[—–]\s+(.+?)(?:\s*\(|\s*$)")
+    for line in cv_text.splitlines():
+        stripped = line.strip()
+        if re.match(r"^##\s+Experience", stripped, re.IGNORECASE):
+            in_experience = True
+            continue
+        if re.match(r"^##\s+", stripped) and in_experience:
+            in_experience = False
+            continue
+        if not in_experience:
+            continue
+        match = heading_pattern.match(stripped)
+        if match:
+            mention = match.group(1).strip()
+            if mention:
+                mentioned.append(mention)
+
+    return list(dict.fromkeys(mentioned))
+
+
+def _extract_project_mentions(cv_text: str) -> list[str]:
+    indicator_re = re.compile(
+        r"(?:\b(?:the|built|led|designed|implemented)\s+)"
+        r"((?:[A-Z][A-Za-z0-9]+\s+){1,3})"
+        r"(?:project|pipeline|system|platform)\b",
+    )
+    mentioned: list[str] = []
+    for match in indicator_re.finditer(cv_text):
+        full_phrase = match.group(0).strip()
+        if full_phrase:
+            mentioned.append(full_phrase)
+    return list(dict.fromkeys(mentioned))
+
+
+def _extract_skill_section_tokens(cv_text: str) -> list[str]:
+    skills_section_re = re.compile(
+        r"^##\s+Skills\s*\n(.*?)(?=^##\s|\Z)", re.MULTILINE | re.DOTALL | re.IGNORECASE
+    )
+    match = skills_section_re.search(cv_text)
+    if not match:
+        return []
+    raw_tokens = re.split(r"[,\n]+", match.group(1))
+    return [token.strip() for token in raw_tokens if token.strip()]
+
+
+def _normalize_section_name(raw_heading: str) -> str:
+    return re.sub(r"\s+", " ", raw_heading.strip().lower())
+
+
+def _extract_soft_claim_lines(cv_text: str) -> list[str]:
+    soft_lines: list[str] = []
+    current_section: str | None = None
+    for raw_line in cv_text.splitlines():
+        stripped = raw_line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("## "):
+            current_section = _normalize_section_name(stripped[3:])
+            continue
+        if stripped.startswith("### "):
+            continue
+        if current_section == "skills":
+            continue
+        if current_section == "summary":
+            soft_lines.append(stripped)
+            continue
+        if stripped.startswith("- "):
+            soft_lines.append(stripped[2:].strip())
+    return list(dict.fromkeys(line for line in soft_lines if line))
+
+
+def _text_to_tokens(value: str) -> set[str]:
+    return {token for token in re.findall(r"[a-z0-9]+", value.lower()) if len(token) > 1}
+
+
+def _best_token_overlap_ratio(claim_text: str, support_phrases: list[str]) -> float:
+    claim_tokens = _text_to_tokens(claim_text)
+    if not claim_tokens or not support_phrases:
+        return 0.0
+
+    best_overlap = 0.0
+    for phrase in support_phrases:
+        phrase_tokens = _text_to_tokens(phrase)
+        if not phrase_tokens:
+            continue
+        overlap = len(claim_tokens & phrase_tokens) / len(claim_tokens)
+        if overlap > best_overlap:
+            best_overlap = overlap
+    return best_overlap
+
+
+def _expand_soft_alias_tokens(values: Iterable[str]) -> set[str]:
+    tokens: set[str] = set()
+    for value in values:
+        normalized = re.sub(r"\s+", "_", value.strip().lower())
+        alias_values = _SOFT_ALIGNMENT_ALIASES.get(normalized, ())
+        tokens |= _text_to_tokens(value)
+        for alias in alias_values:
+            tokens |= _text_to_tokens(alias)
+    return tokens
+
+
+def _normalize_analysis_grounding(
+    analysis_grounding: AnalysisGroundingPayload | None,
+    config: dict[str, Any],
+) -> SelectedEvidenceSupport:
+    evidence_payload = list((analysis_grounding or {}).get("evidence_payload") or [])
+    evidence_used = list((analysis_grounding or {}).get("evidence_used") or [])
+    evidence_items = evidence_payload or evidence_used
+
+    employers: set[str] = set()
+    projects: set[str] = set()
+    skills_lower: set[str] = set()
+    skills_canonical: set[str] = set()
+    responsibility_themes: set[str] = set()
+    domain_tags: set[str] = set()
+    role_families: set[str] = set()
+    support_phrases: list[str] = []
+    selected_evidence_ids: list[str] = [
+        str(evidence_id).strip()
+        for evidence_id in list(((analysis_grounding or {}).get("evidence_selection_summary") or {}).get("selected_evidence_ids") or [])
+        if str(evidence_id).strip()
+    ]
+
+    for item in evidence_items:
+        if not isinstance(item, dict):
+            continue
+        evidence_id = str(item.get("evidence_id") or "").strip()
+        if evidence_id and evidence_id not in selected_evidence_ids:
+            selected_evidence_ids.append(evidence_id)
+
+        company = str(item.get("company") or "").strip()
+        if company:
+            employers.add(company.lower())
+
+        evidence_type = str(item.get("evidence_type") or "").strip().lower()
+        project_name = str(item.get("name") or "").strip()
+        if project_name and evidence_type in {"project", "project_entry"}:
+            projects.add(project_name.lower())
+
+        for raw_skill in list(item.get("skills") or []):
+            skill_text = str(raw_skill or "").strip()
+            if not skill_text:
+                continue
+            skills_lower.add(skill_text.lower())
+            skills_canonical.add(_canonicalise_skill(skill_text, config))
+
+        for raw_theme in list(item.get("responsibility_themes") or []):
+            theme_text = str(raw_theme or "").strip()
+            if theme_text:
+                responsibility_themes.add(theme_text.lower())
+
+        for raw_domain in list(item.get("domain_tags") or []):
+            domain_text = str(raw_domain or "").strip()
+            if domain_text:
+                domain_tags.add(domain_text.lower())
+
+        role_family = (
+            str(item.get("role_family") or "").strip().lower()
+            or _infer_role_family(str(item.get("role") or ""))
+            or None
+        )
+        if role_family:
+            role_families.add(role_family)
+
+        for text_field in ("name", "business_value", "role", "company"):
+            text_value = str(item.get(text_field) or "").strip()
+            if text_value:
+                support_phrases.append(text_value)
+        for list_field in ("bullets", "highlights", "tech_stack"):
+            for raw_value in list(item.get(list_field) or []):
+                text_value = str(raw_value or "").strip()
+                if text_value:
+                    support_phrases.append(text_value)
+
+    soft_support_tokens: set[str] = set()
+    soft_support_tokens |= _expand_soft_alias_tokens(responsibility_themes)
+    soft_support_tokens |= _expand_soft_alias_tokens(domain_tags)
+    for role_family in role_families:
+        soft_support_tokens |= _text_to_tokens(role_family)
+        for alias in _ROLE_FAMILY_ALIASES.get(role_family, ()):
+            soft_support_tokens |= _text_to_tokens(alias)
+
+    return {
+        "evidence_ids": selected_evidence_ids,
+        "employers": employers,
+        "projects": projects,
+        "skills_lower": skills_lower,
+        "skills_canonical": skills_canonical,
+        "responsibility_themes": responsibility_themes,
+        "domain_tags": domain_tags,
+        "role_families": role_families,
+        "support_phrases": list(dict.fromkeys(support_phrases)),
+        "soft_support_tokens": soft_support_tokens,
+        "has_selected_support": bool(evidence_items),
+    }
+
+
+def _check_selected_employer_grounding(
+    cv_text: str,
+    selected_employers: set[str],
+    known_employers: set[str],
+) -> list[str]:
+    violations: list[str] = []
+    if not selected_employers:
+        return violations
+    for mention in _extract_employer_mentions(cv_text):
+        mention_lower = mention.lower()
+        if mention_lower in selected_employers:
+            continue
+        if mention_lower in known_employers:
+            violations.append(
+                f"Employer '{mention}' in CV is present in candidate profile but not in selected evidence"
+            )
+    return violations
+
+
+def _check_selected_project_grounding(
+    cv_text: str,
+    selected_projects: set[str],
+    known_projects: set[str],
+) -> list[str]:
+    violations: list[str] = []
+    if not selected_projects:
+        return violations
+    for mention in _extract_project_mentions(cv_text):
+        mention_lower = mention.lower()
+        if mention_lower in selected_projects:
+            continue
+        if mention_lower in known_projects:
+            violations.append(
+                f"Project reference '{mention}' in CV is present in candidate profile but not in selected evidence"
+            )
+    return violations
+
+
+def _check_selected_skill_grounding(
+    cv_text: str,
+    selected_skills_lower: set[str],
+    selected_skills_canonical: set[str],
+    candidate_skills_lower: set[str],
+    candidate_skills_canonical: set[str],
+    config: dict[str, Any],
+) -> list[str]:
+    violations: list[str] = []
+    if not selected_skills_lower and not selected_skills_canonical:
+        return violations
+    for skill in _extract_skill_section_tokens(cv_text):
+        skill_lower = skill.lower()
+        skill_canonical = _canonicalise_skill(skill, config)
+        if skill_lower in selected_skills_lower or skill_canonical in selected_skills_canonical:
+            continue
+        if skill_lower in candidate_skills_lower or skill_canonical in candidate_skills_canonical:
+            violations.append(
+                f"Skill '{skill}' in CV Skills section is present in candidate profile but not in selected evidence"
+            )
+    return violations
+
+
+def _deterministic_soft_support(
+    claim_text: str,
+    support_surface: SelectedEvidenceSupport,
+) -> bool:
+    claim_tokens = _text_to_tokens(claim_text)
+    if not claim_tokens:
+        return True
+    supported_tokens = (
+        support_surface["soft_support_tokens"]
+        | _expand_soft_alias_tokens(support_surface["domain_tags"])
+        | _expand_soft_alias_tokens(support_surface["responsibility_themes"])
+    )
+    if support_surface["role_families"]:
+        for role_family in support_surface["role_families"]:
+            supported_tokens |= _text_to_tokens(role_family)
+            for alias in _ROLE_FAMILY_ALIASES.get(role_family, ()):
+                supported_tokens |= _text_to_tokens(alias)
+    return bool(claim_tokens & supported_tokens)
+
+
+def _claim_requires_soft_validation(claim_text: str, support_surface: SelectedEvidenceSupport) -> bool:
+    claim_tokens = _text_to_tokens(claim_text)
+    if not claim_tokens:
+        return False
+    supported_triggers = support_surface["soft_support_tokens"] | _SOFT_CLAIM_TRIGGER_TOKENS
+    return bool(claim_tokens & supported_triggers)
+
+
+def _check_soft_claim_grounding(
+    cv_text: str,
+    support_surface: SelectedEvidenceSupport,
+) -> tuple[list[str], dict[str, Any]]:
+    violations: list[str] = []
+    summary = {
+        "deterministic_supported_soft_claims": 0,
+        "semantic_supported_soft_claims": 0,
+        "evaluated_soft_claims": 0,
+    }
+    if not support_surface["has_selected_support"]:
+        return violations, summary
+
+    for claim_text in _extract_soft_claim_lines(cv_text):
+        if not _claim_requires_soft_validation(claim_text, support_surface):
+            continue
+        summary["evaluated_soft_claims"] += 1
+        if _deterministic_soft_support(claim_text, support_surface):
+            summary["deterministic_supported_soft_claims"] += 1
+            continue
+        overlap = _best_token_overlap_ratio(claim_text, support_surface["support_phrases"])
+        if overlap >= _SOFT_SIMILARITY_THRESHOLD:
+            summary["semantic_supported_soft_claims"] += 1
+            continue
+        violations.append(
+            "Soft claim is not supported by selected evidence: "
+            f"'{claim_text}'"
+        )
+    return violations, summary
+
 def check_employer_grounding(cv_text: str, known_employers: list[str]) -> list[str]:
     """Return violations for any employer mentioned in the CV text that is not in known_employers.
 
@@ -209,36 +629,9 @@ def check_employer_grounding(cv_text: str, known_employers: list[str]) -> list[s
         return []
 
     violations: list[str] = []
-    known_lower = {e.strip().lower() for e in known_employers}
+    known_lower = _normalize_lower_set(known_employers)
 
-    # ── Strategy 1: generic "at / @" patterns (no em-dash) ────────────────
-    generic_pattern = re.compile(
-        r"(?:\bat\b|@)\s+([A-Z][A-Za-z0-9&\s\-'\.]+?)(?:\s*[\(\[\,\n]|$)",
-    )
-    mentioned: list[str] = generic_pattern.findall(cv_text)
-
-    # ── Strategy 2: experience heading "### Role — Company (dates)" ────────
-    # Only scan lines under the ## Experience section.
-    in_experience = False
-    heading_pattern = re.compile(
-        r"^###\s+.+?\s*[—–]\s+(.+?)(?:\s*\(|\s*$)",
-    )
-    for line in cv_text.splitlines():
-        stripped = line.strip()
-        # Track whether we're inside ## Experience
-        if re.match(r"^##\s+Experience", stripped, re.IGNORECASE):
-            in_experience = True
-            continue
-        if re.match(r"^##\s+", stripped) and in_experience:
-            in_experience = False
-            continue
-        if in_experience:
-            m = heading_pattern.match(stripped)
-            if m:
-                mentioned.append(m.group(1).strip())
-
-    for mention in mentioned:
-        mention = mention.strip()
+    for mention in _extract_employer_mentions(cv_text):
         if mention.lower() not in known_lower:
             violations.append(
                 f"Employer '{mention}' in CV is not in the known employers list"
@@ -261,26 +654,15 @@ def check_project_existence(cv_text: str, known_projects: list[str]) -> list[str
         return []
 
     violations: list[str] = []
-    known_lower = {p.strip().lower() for p in known_projects}
+    known_lower = _normalize_lower_set(known_projects)
 
-    # Strategy: explicit project references such as "the Phantom Pipeline project"
-    # or "Built Phantom Pipeline". Generic lowercase phrases like "data pipeline"
-    # are too noisy and should not be treated as project names.
-    indicator_re = re.compile(
-        r"(?:\b(?:the|built|led|designed|implemented)\s+)"
-        r"((?:[A-Z][A-Za-z0-9]+\s+){1,3})"       # 1-3 title-case words
-        r"(?:project|pipeline|system|platform)\b",
-    )
-    for match in indicator_re.finditer(cv_text):
-        phrase = match.group(1).strip()
-        # Build candidate with the indicator word for a full-phrase check
-        full_phrase = match.group(0).strip()
-        if phrase.lower() not in known_lower and full_phrase.lower() not in known_lower:
-            # Check if any known project name is a substring of the phrase
-            if not any(kp in full_phrase.lower() for kp in known_lower):
-                violations.append(
-                    f"Project reference '{full_phrase}' in CV is not in the known projects list"
-                )
+    for mention in _extract_project_mentions(cv_text):
+        if mention.lower() not in known_lower and not any(
+            project_name in mention.lower() for project_name in known_lower
+        ):
+            violations.append(
+                f"Project reference '{mention}' in CV is not in the known projects list"
+            )
 
     # Deduplicate
     return list(dict.fromkeys(violations))
@@ -305,19 +687,9 @@ def check_skill_provenance(
     if not candidate_skills:
         return []
 
-    # Extract the Skills section content
-    skills_section_re = re.compile(
-        r"^##\s+Skills\s*\n(.*?)(?=^##\s|\Z)", re.MULTILINE | re.DOTALL | re.IGNORECASE
-    )
-    match = skills_section_re.search(cv_text)
-    if not match:
+    cv_skills = _extract_skill_section_tokens(cv_text)
+    if not cv_skills:
         return []
-
-    skills_text = match.group(1)
-
-    # Parse individual skill tokens (comma or newline separated)
-    raw_tokens = re.split(r"[,\n]+", skills_text)
-    cv_skills = [t.strip() for t in raw_tokens if t.strip()]
 
     candidate_lower = {s.strip().lower() for s in candidate_skills}
     candidate_canonical = {
@@ -345,6 +717,7 @@ def run_all_validations(
     profile: dict[str, Any],
     config: dict[str, Any],
     structured_cv: dict[str, Any] | None = None,
+    analysis_grounding: AnalysisGroundingPayload | None = None,
 ) -> dict[str, Any]:
     """Aggregate all validation checks and return the full output schema.
 
@@ -399,6 +772,64 @@ def run_all_validations(
         + check_project_existence(cv_text, known_projects)
     )
     skill_violations: list[str] = check_skill_provenance(cv_text, candidate_skills, config=config)
+    deterministic_grounding_violations: list[str] = []
+    semantic_grounding_violations: list[str] = []
+
+    support_surface = _normalize_analysis_grounding(analysis_grounding, config)
+    support_source_summary = {
+        "hard_fact_mode": "profile_fallback",
+        "soft_claim_mode": "disabled",
+        "selected_evidence_ids": list(support_surface["evidence_ids"]),
+        "selected_evidence_count": len(support_surface["evidence_ids"]),
+        "deterministic_supported_soft_claims": 0,
+        "semantic_supported_soft_claims": 0,
+        "evaluated_soft_claims": 0,
+    }
+    if support_surface["has_selected_support"]:
+        candidate_skills_lower = _normalize_lower_set(candidate_skills)
+        candidate_skills_canonical = {
+            _canonicalise_skill(skill, config)
+            for skill in candidate_skills
+            if str(skill).strip()
+        }
+        deterministic_grounding_violations.extend(
+            _check_selected_employer_grounding(
+                cv_text,
+                support_surface["employers"],
+                _normalize_lower_set(known_employers),
+            )
+        )
+        deterministic_grounding_violations.extend(
+            _check_selected_project_grounding(
+                cv_text,
+                support_surface["projects"],
+                _normalize_lower_set(known_projects),
+            )
+        )
+        deterministic_grounding_violations.extend(
+            _check_selected_skill_grounding(
+                cv_text,
+                support_surface["skills_lower"],
+                support_surface["skills_canonical"],
+                candidate_skills_lower,
+                candidate_skills_canonical,
+                config,
+            )
+        )
+        semantic_grounding_violations, soft_support_summary = _check_soft_claim_grounding(
+            cv_text,
+            support_surface,
+        )
+        support_source_summary.update({
+            "hard_fact_mode": "selected_evidence",
+            "soft_claim_mode": "hybrid_selected_evidence",
+            **soft_support_summary,
+        })
+        grounding_violations = list(dict.fromkeys(
+            grounding_violations
+            + deterministic_grounding_violations
+            + semantic_grounding_violations
+        ))
 
     # Non-blocking warnings
     warnings: list[str] = []
@@ -415,6 +846,9 @@ def run_all_validations(
         "valid": is_valid,
         "missing_sections": missing_sections,
         "grounding_violations": grounding_violations,
+        "deterministic_grounding_violations": deterministic_grounding_violations,
+        "semantic_grounding_violations": semantic_grounding_violations,
         "skill_violations": skill_violations,
         "warnings": warnings,
+        "support_source_summary": support_source_summary,
     }

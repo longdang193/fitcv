@@ -8,8 +8,8 @@
 |---|---|---|---|---|
 | `admin_control_plane_core` | 1.0.0 | add | fitcv_cp | Internal admin UI and REST API to manage FitCV pipeline runs without terminal access. |
 | `bounded_parallel_enrichment` | 1.0.0 | add | fitcv | Enrichment runs in bounded parallel batches with admin-controlled concurrency settings. |
-| `cv_system` | 1.14.0 | add | fitcv | CV generation uses a structured preset-based configuration, shortlist retrieval that stays latest-only while reusing unchanged job embeddings safely, and richer ranking quality signals before CV generation. |
-| `inspection_debugging` | 2.6.0 | add | fitcv_cp | Admins can see what the pipeline did for a run, including selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, enrich reuse provenance, ranking contribution visibility, stage-local artifacts, inputs used, and generated CVs. |
+| `cv_system` | 1.17.0 | add | fitcv | CV generation uses a structured preset-based configuration, split `cv_analysis` and `cv_generation` stages, multi-channel evidence selection, and hybrid analysis-grounded final-stage validation before persistence. |
+| `inspection_debugging` | 2.9.0 | add | fitcv_cp | Admins can see what the pipeline did for a run, including stage-local artifacts, multi-channel evidence-selection provenance, and hybrid validation provenance from deterministic and soft-claim grounding checks. |
 | `multi_file_job_input` | 1.0.0 | add | fitcv_cp | Admins can upload multiple JSON job files in one trigger request. |
 | `pipeline_performance` | 1.5.0 | modify | fitcv | Reduced API costs by filtering jobs before enrichment, using reliable structured output parsing, centralizing enrich prompt management, reusing unchanged enrich results via fingerprints, and reusing unchanged shortlist embeddings via a structured signature plus embedding contract. |
 | `run_lifecycle_controls` | 1.0.0 | add | fitcv_cp | Admins can stop queued or running runs and archive or unarchive completed runs. |

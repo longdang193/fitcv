@@ -78,7 +78,7 @@ from fitcv.rule_filter import (
     store_filter_results,
 )
 from fitcv.tracker import create_cv_version_record, store_cv_version
-from fitcv.validator import run_all_validations
+from fitcv.validator import AnalysisGroundingPayload, run_all_validations
 from fitcv.vector_search import run_vector_search
 
 logger = logging.getLogger(__name__)
@@ -846,6 +846,21 @@ def _build_cv_generation_analysis_input_summary(job: dict[str, Any]) -> dict[str
     }
 
 
+def _build_validation_grounding_payload(
+    *,
+    evidence_payload: list[dict[str, Any]],
+    evidence_used: list[dict[str, Any]],
+    evidence_selection_summary: dict[str, Any] | None,
+    analysis_input_summary: dict[str, Any] | None,
+) -> AnalysisGroundingPayload:
+    return {
+        "evidence_payload": list(evidence_payload),
+        "evidence_used": list(evidence_used),
+        "evidence_selection_summary": dict(evidence_selection_summary or {}),
+        "analysis_input_summary": dict(analysis_input_summary or {}),
+    }
+
+
 def _build_validation_snapshot(validation: dict[str, Any] | None) -> dict[str, Any] | None:
     if validation is None:
         return None
@@ -853,8 +868,11 @@ def _build_validation_snapshot(validation: dict[str, Any] | None) -> dict[str, A
         "valid": bool(validation.get("valid")),
         "missing_sections": list(validation.get("missing_sections") or []),
         "grounding_violations": list(validation.get("grounding_violations") or []),
+        "deterministic_grounding_violations": list(validation.get("deterministic_grounding_violations") or []),
+        "semantic_grounding_violations": list(validation.get("semantic_grounding_violations") or []),
         "skill_violations": list(validation.get("skill_violations") or []),
         "warnings": list(validation.get("warnings") or []),
+        "support_source_summary": dict(validation.get("support_source_summary") or {}),
     }
 
 
@@ -2332,8 +2350,15 @@ def run_pipeline(
     for analysis_record in generation_ready_records:
         job = dict(analysis_record.get("job_snapshot") or {})
         evidence = list(analysis_record.get("evidence_payload") or [])
+        evidence_used = _build_debug_evidence_used(evidence)
         evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
         analysis_input_summary = _build_cv_generation_analysis_input_summary(job)
+        analysis_grounding = _build_validation_grounding_payload(
+            evidence_payload=evidence,
+            evidence_used=evidence_used,
+            evidence_selection_summary=evidence_selection_summary,
+            analysis_input_summary=analysis_input_summary,
+        )
         gap = analysis_record.get("gap_summary")
         fit = str(analysis_record.get("fit_classification") or "skip")
         structured_cv_initial: dict[str, Any] | None = None
@@ -2358,6 +2383,7 @@ def run_pipeline(
                 profile,
                 config,
                 structured_cv=structured_cv,
+                analysis_grounding=analysis_grounding,
             )
             validation_initial = _build_validation_snapshot(validation)
             if not validation["valid"] and _should_retry_missing_sections(validation):
@@ -2385,13 +2411,17 @@ def run_pipeline(
                     profile,
                     config,
                     structured_cv=structured_cv,
+                    analysis_grounding=analysis_grounding,
                 )
             if not validation["valid"]:
                 failure_details = {
                     "missing_sections": validation.get("missing_sections") or [],
                     "grounding_violations": validation.get("grounding_violations") or [],
+                    "deterministic_grounding_violations": validation.get("deterministic_grounding_violations") or [],
+                    "semantic_grounding_violations": validation.get("semantic_grounding_violations") or [],
                     "skill_violations": validation.get("skill_violations") or [],
                     "warnings": validation.get("warnings") or [],
+                    "support_source_summary": validation.get("support_source_summary") or {},
                 }
                 logger.warning(
                     "[run_id=%s] CV for %s failed validation: %s",
@@ -2406,7 +2436,7 @@ def run_pipeline(
                         job=job,
                         status="validation_failed",
                         fit_classification=fit,
-                        evidence_used=_build_debug_evidence_used(evidence),
+                        evidence_used=evidence_used,
                         evidence_selection_summary=evidence_selection_summary,
                         analysis_input_summary=analysis_input_summary,
                         gap_summary=gap,
@@ -2462,7 +2492,7 @@ def run_pipeline(
                     job=job,
                     status="accepted",
                     fit_classification=fit,
-                    evidence_used=_build_debug_evidence_used(evidence),
+                    evidence_used=evidence_used,
                     evidence_selection_summary=evidence_selection_summary,
                     analysis_input_summary=analysis_input_summary,
                     gap_summary=gap,
@@ -2485,7 +2515,7 @@ def run_pipeline(
                     job=job,
                     status=failure_status,
                     fit_classification=fit,
-                    evidence_used=_build_debug_evidence_used(evidence),
+                    evidence_used=evidence_used,
                     evidence_selection_summary=evidence_selection_summary,
                     analysis_input_summary=analysis_input_summary,
                     gap_summary=gap,

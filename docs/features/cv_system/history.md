@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.17.0 — active
+
+- `cv_generation` validation now treats the selected `cv_analysis` evidence bundle as the primary grounding surface for hard facts such as employers, projects, and skills when selected evidence is available
+- Softer role, domain, and responsibility claims now use a bounded hybrid support path that combines selected-theme/tag checks with compact selected-evidence text matching
+- Prompt guidance now explicitly tells CV generation to stay inside the selected evidence bundle for job-specific responsibility, domain, and role-positioning claims
+
 ### 1.16.0 — active
 
 - `cv_analysis` evidence retrieval now retrieves separate candidate pools for required-skill support, role alignment, domain alignment, and responsibility alignment before merging and deduping them by stable `evidence_id`

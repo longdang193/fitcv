@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 2.9.0 — active
+
+- `cv_generation` validation snapshots now expose deterministic selected-evidence grounding violations separately from softer selected-evidence support failures
+- Final-stage debug records and artifacts now carry compact support-source summaries so reviewers can see how hybrid grounding decided whether a CV stayed inside the selected evidence bundle
+
 ### 2.8.0 — active
 
 - `cv_analysis` artifacts can now show separate retrieval-channel counts for required-skill, role, domain, and responsibility evidence lookup

@@ -22,7 +22,7 @@ status: []
 9. Select top jobs
 10. Retrieve best candidate evidence for each job
 11. Generate tailored CV
-12. Validate output
+12. Validate output against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support
 13. Store versions + tracking
 ```
 
