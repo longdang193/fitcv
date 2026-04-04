@@ -40,6 +40,14 @@ _RULE_FILTER_SELECTABLE_OPTIONS = [
     "must_have_skill_missing",
     "domain_not_preferred",
 ]
+_RESPONSIBILITY_ALIGNMENT_WEIGHT_KEYS = {
+    "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+    "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+}
+_DOMAIN_ALIGNMENT_WEIGHT_KEYS = {
+    "cv_analysis.semantic_alignment.domain_lexical_weight",
+    "cv_analysis.semantic_alignment.domain_semantic_weight",
+}
 
 
 # ── schema registry ──────────────────────────────────────────────────────────
@@ -81,6 +89,70 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "The maximum number of evidence items that cv_analysis keeps per ranked job after retrieval, merge, dedupe, and final selection.",
         "group": "retrieval",
         "config_path": ["pipeline", "evidence_top_k"],
+    },
+    {
+        "key": "cv_analysis.semantic_alignment.enabled",
+        "type": "bool",
+        "default": False,
+        "label": "Semantic Alignment Enabled",
+        "description": "Enable hybrid lexical-plus-semantic scoring for cv_analysis domain and responsibility alignment.",
+        "group": "retrieval",
+        "config_path": ["cv_analysis", "semantic_alignment", "enabled"],
+    },
+    {
+        "key": "cv_analysis.semantic_alignment.model",
+        "type": "str",
+        "default": "text-embedding-005",
+        "label": "Semantic Alignment Model",
+        "description": "Embedding model used for cv_analysis semantic domain and responsibility similarity.",
+        "options": ["text-embedding-005"],
+        "group": "retrieval",
+        "config_path": ["cv_analysis", "semantic_alignment", "model"],
+    },
+    {
+        "key": "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+        "type": "float",
+        "default": 0.25,
+        "label": "Responsibility Lexical Weight",
+        "description": "Relative weight of lexical overlap inside cv_analysis responsibility alignment.",
+        "group": "retrieval",
+        "config_path": ["cv_analysis", "semantic_alignment", "responsibility_lexical_weight"],
+    },
+    {
+        "key": "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+        "type": "float",
+        "default": 0.75,
+        "label": "Responsibility Semantic Weight",
+        "description": "Relative weight of embedding similarity inside cv_analysis responsibility alignment.",
+        "group": "retrieval",
+        "config_path": ["cv_analysis", "semantic_alignment", "responsibility_semantic_weight"],
+    },
+    {
+        "key": "cv_analysis.semantic_alignment.domain_lexical_weight",
+        "type": "float",
+        "default": 0.40,
+        "label": "Domain Lexical Weight",
+        "description": "Relative weight of lexical overlap inside cv_analysis domain alignment.",
+        "group": "retrieval",
+        "config_path": ["cv_analysis", "semantic_alignment", "domain_lexical_weight"],
+    },
+    {
+        "key": "cv_analysis.semantic_alignment.domain_semantic_weight",
+        "type": "float",
+        "default": 0.60,
+        "label": "Domain Semantic Weight",
+        "description": "Relative weight of embedding similarity inside cv_analysis domain alignment.",
+        "group": "retrieval",
+        "config_path": ["cv_analysis", "semantic_alignment", "domain_semantic_weight"],
+    },
+    {
+        "key": "cv_analysis.semantic_alignment.channel_pool_size",
+        "type": "int",
+        "default": 4,
+        "label": "Semantic Channel Pool Size",
+        "description": "Maximum number of candidates retained per cv_analysis retrieval channel before merge and final bounded selection.",
+        "group": "retrieval",
+        "config_path": ["cv_analysis", "semantic_alignment", "channel_pool_size"],
     },
     # ── Timing / Throttling ───────────────────────────────────────────────────
     {
@@ -523,6 +595,13 @@ SETTINGS_SECTIONS: dict[str, list[str]] = {
         "pipeline.ai_score_top_n",
         "pipeline.final_top_n",
         "pipeline.evidence_top_k",
+        "cv_analysis.semantic_alignment.enabled",
+        "cv_analysis.semantic_alignment.model",
+        "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+        "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+        "cv_analysis.semantic_alignment.domain_lexical_weight",
+        "cv_analysis.semantic_alignment.domain_semantic_weight",
+        "cv_analysis.semantic_alignment.channel_pool_size",
     ],
     "timing": [
         "enrichment_sleep_secs",
@@ -688,25 +767,25 @@ def validate_settings(settings: dict[str, Any]) -> None:
     vs = settings.get("pipeline.vector_search_top_n")
     ai = settings.get("pipeline.ai_score_top_n")
     fn = settings.get("pipeline.final_top_n")
-    if all(v is not None for v in [vs, ai]) and ai > vs:
+    if isinstance(vs, int) and isinstance(ai, int) and ai > vs:
         raise ValidationError(
             f"pipeline.ai_score_top_n ({ai}) must be <= pipeline.vector_search_top_n ({vs})"
         )
-    if all(v is not None for v in [ai, fn]) and fn > ai:
+    if isinstance(ai, int) and isinstance(fn, int) and fn > ai:
         raise ValidationError(
             f"pipeline.final_top_n ({fn}) must be <= pipeline.ai_score_top_n ({ai})"
         )
 
     strong = settings.get("fit_label_thresholds.strong")
     stretch = settings.get("fit_label_thresholds.stretch")
-    if strong is not None and stretch is not None and strong <= stretch:
+    if isinstance(strong, float) and isinstance(stretch, float) and strong <= stretch:
         raise ValidationError(
             f"fit_label_thresholds.strong ({strong}) must be > stretch ({stretch})"
         )
 
     g_strong = settings.get("gap_thresholds.strong_min_matched_ratio")
     g_stretch = settings.get("gap_thresholds.stretch_min_matched_ratio")
-    if g_strong is not None and g_stretch is not None and g_strong <= g_stretch:
+    if isinstance(g_strong, float) and isinstance(g_stretch, float) and g_strong <= g_stretch:
         raise ValidationError(
             f"gap_thresholds.strong_min_matched_ratio ({g_strong}) must be > stretch ({g_stretch})"
         )
@@ -723,6 +802,18 @@ def validate_settings(settings: dict[str, Any]) -> None:
         if abs(total - 1.0) > 0.01:
             raise ValidationError(
                 f"preference_fit_weights must sum to 1.0 (± 0.01), got {total:.4f}"
+            )
+    if _RESPONSIBILITY_ALIGNMENT_WEIGHT_KEYS <= set(settings.keys()):
+        total = sum(float(settings[key]) for key in _RESPONSIBILITY_ALIGNMENT_WEIGHT_KEYS)
+        if abs(total - 1.0) > 0.01:
+            raise ValidationError(
+                f"cv_analysis responsibility semantic alignment weights must sum to 1.0 (± 0.01), got {total:.4f}"
+            )
+    if _DOMAIN_ALIGNMENT_WEIGHT_KEYS <= set(settings.keys()):
+        total = sum(float(settings[key]) for key in _DOMAIN_ALIGNMENT_WEIGHT_KEYS)
+        if abs(total - 1.0) > 0.01:
+            raise ValidationError(
+                f"cv_analysis domain semantic alignment weights must sum to 1.0 (± 0.01), got {total:.4f}"
             )
 
 

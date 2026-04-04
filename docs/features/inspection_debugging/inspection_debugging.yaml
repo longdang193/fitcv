@@ -1,9 +1,9 @@
 inspection_debugging:
   name: Inspection & Debugging
-  version: 2.9.0
+  version: 2.10.0
   status: active
   type: add
-  summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and job-embedding-reuse diagnostics, ranking contribution visibility and calibration surfaces, stage-local artifacts, distinct `cv_analysis` and `cv_generation` outcomes, multi-channel evidence-selection provenance, inputs used, generated CVs, and explicit decision detail from exports, stage artifacts, settings-used snapshots, and CV debug snapshots."
+  summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and job-embedding-reuse diagnostics, ranking contribution visibility and calibration surfaces, stage-local artifacts, distinct `cv_analysis` and `cv_generation` outcomes, multi-channel evidence-selection provenance, lexical-vs-semantic alignment detail, inputs used, generated CVs, and explicit decision detail from exports, stage artifacts, settings-used snapshots, and CV debug snapshots."
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -40,6 +40,7 @@ inspection_debugging:
     - Run-scoped CV-generation debug snapshot download for succeeded runs when available
     - `cv_analysis` stage artifacts now expose generation-ready, skipped-fit-gate, and analysis-failed records separately from CV writing outcomes
     - `cv_analysis` stage artifacts and analysis records can now expose per-channel retrieval counts, merged-pool sizing, selected-evidence IDs, matched-channel metadata, and selection reasons
+    - `cv_analysis` artifacts can now expose lexical-versus-semantic subscores, effective hybrid weights, semantic methods, and semantic embedding reuse state for domain and responsibility alignment
     - `cv_generation` stage artifacts now consume `cv_analysis` outputs and focus on writing, validation, repair, and persistence outcomes only
     - Client-side filtering, search, and pagination for large tables
     - Job title as link label in generated outputs
@@ -79,6 +80,7 @@ inspection_debugging:
       - docs/superpowers/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
       - docs/superpowers/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
       - docs/superpowers/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
+      - docs/superpowers/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-run-scoped-enrichment-inspection-implementation.md
       - docs/superpowers/plans/2026-03-26-run-detail-inspection-tabs-implementation.md
@@ -103,6 +105,7 @@ inspection_debugging:
       - docs/superpowers/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
       - docs/superpowers/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
       - docs/superpowers/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+      - docs/superpowers/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
     history:
       - docs/features/inspection_debugging/history.md
   keywords:

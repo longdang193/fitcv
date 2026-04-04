@@ -27,6 +27,12 @@ capabilities:
   feature_id: trigger_run_management
 - capability: CV validation against composition rules
   feature_id: cv_system
+- capability: `cv_analysis` lexical-vs-semantic weight controls for responsibility and domain alignment
+  feature_id: settings_system
+- capability: `cv_analysis` semantic-alignment enable/model controls
+  feature_id: settings_system
+- capability: `cv_analysis` artifacts can now expose lexical-versus-semantic subscores, effective hybrid weights, semantic methods, and semantic embedding reuse state for domain and responsibility alignment
+  feature_id: inspection_debugging
 - capability: Cancel queued runs directly from the queue via RQ
   feature_id: run_lifecycle_controls
 - capability: Canonical merge preserving order
@@ -74,6 +80,8 @@ capabilities:
 - capability: Global job filters
   feature_id: settings_system
 - capability: Grouped form validation
+  feature_id: settings_system
+- capability: Validation that each `cv_analysis` lexical/semantic weight pair sums to `1.0`
   feature_id: settings_system
 - capability: Human-readable section headings
   feature_id: ui_consistency_theming
@@ -126,6 +134,10 @@ capabilities:
 - capability: Ranking `title_relevance` now uses bounded semantic role alignment instead of pure lexical token overlap
   feature_id: cv_system
 - capability: Ranking `preference_fit` now scores weighted domain, role-family, and location-type preference alignment
+  feature_id: cv_system
+- capability: `cv_analysis` final evidence selection now stays bounded while preferring broader coverage of job needs instead of purely additive heuristic score
+  feature_id: cv_system
+- capability: `cv_analysis` now scores domain and responsibility alignment with hybrid lexical-plus-semantic matching, including stage-owned semantic embedding reuse for the candidate evidence and job snippets it actually consumes
   feature_id: cv_system
 - capability: Responsive wrapping
   feature_id: ui_consistency_theming

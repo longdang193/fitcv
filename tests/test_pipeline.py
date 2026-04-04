@@ -4223,6 +4223,29 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
                 "name": "Data Analyst - Bank Corp",
                 "matched_channels": ["required_skill_support", "responsibility_alignment"],
                 "selection_reasons": ["required_skill_support", "responsibility_alignment"],
+                "channel_subscores": {
+                    "responsibility_alignment": {
+                        "lexical": 0.2,
+                        "semantic": 0.8,
+                        "hybrid": 0.65,
+                    },
+                    "domain_alignment": {
+                        "lexical": 0.4,
+                        "semantic": 0.6,
+                        "hybrid": 0.52,
+                    },
+                },
+                "semantic_alignment": {
+                    "enabled": True,
+                    "semantic_methods": {
+                        "responsibility_alignment": "embedding_similarity",
+                        "domain_alignment": "embedding_similarity",
+                    },
+                    "reuse_state": {
+                        "candidate_evidence": "fresh_embedding",
+                        "job_context": "fresh_embedding",
+                    },
+                },
                 "selection_score": 0.91,
             }
         ],
@@ -4233,8 +4256,38 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
             "domain_alignment": 1,
             "responsibility_alignment": 1,
         },
+        "effective_channel_pool_size": 4,
         "merged_pool_size": 4,
         "deduped_pool_size": 2,
+        "selected_evidence_count": 1,
+        "unselected_top_candidates": [
+            {
+                "evidence_id": "proj-2",
+                "evidence_type": "project_entry",
+                "name": "Near Miss Project",
+                "matched_channels": ["domain_alignment"],
+                "selection_score": 0.41,
+            }
+        ],
+        "hybrid_alignment": {
+            "responsibility": {"lexical_weight": 0.25, "semantic_weight": 0.75},
+            "domain": {"lexical_weight": 0.40, "semantic_weight": 0.60},
+        },
+        "semantic_alignment": {
+            "enabled": True,
+            "semantic_methods": {
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity",
+            },
+            "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "fresh_embedding",
+            },
+            "embedding_counts": {
+                "candidate_evidence": {"fresh": 2, "reused": 3},
+                "job_context": {"fresh": 1, "reused": 4},
+            },
+        },
     }
     mock_compute_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
 
@@ -4257,10 +4310,39 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
             "domain_alignment": 1,
             "responsibility_alignment": 1,
         },
+        "effective_channel_pool_size": 4,
         "merged_pool_size": 4,
         "deduped_pool_size": 2,
         "selected_evidence_count": 1,
         "selected_evidence_ids": ["exp-1"],
+        "unselected_top_candidates": [
+            {
+                "evidence_id": "proj-2",
+                "evidence_type": "project_entry",
+                "name": "Near Miss Project",
+                "matched_channels": ["domain_alignment"],
+                "selection_score": 0.41,
+            }
+        ],
+        "hybrid_alignment": {
+            "responsibility": {"lexical_weight": 0.25, "semantic_weight": 0.75},
+            "domain": {"lexical_weight": 0.40, "semantic_weight": 0.60},
+        },
+        "semantic_alignment": {
+            "enabled": True,
+            "semantic_methods": {
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity",
+            },
+            "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "fresh_embedding",
+            },
+            "embedding_counts": {
+                "candidate_evidence": {"fresh": 2, "reused": 3},
+                "job_context": {"fresh": 1, "reused": 4},
+            },
+        },
     }
     assert analysis_record["evidence_used"][0]["matched_channels"] == [
         "required_skill_support",
@@ -4270,6 +4352,15 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
         "required_skill_support",
         "responsibility_alignment",
     ]
+    assert analysis_record["evidence_used"][0]["channel_subscores"]["responsibility_alignment"]["semantic"] == 0.8
+    assert analysis_record["evidence_used"][0]["semantic_alignment"]["semantic_methods"] == {
+        "responsibility_alignment": "embedding_similarity",
+        "domain_alignment": "embedding_similarity",
+    }
+    assert analysis_record["evidence_selection_summary"]["hybrid_alignment"] == {
+        "responsibility": {"lexical_weight": 0.25, "semantic_weight": 0.75},
+        "domain": {"lexical_weight": 0.40, "semantic_weight": 0.60},
+    }
 
 
 # ── run_pipeline calls load_run_structured_jobs ──────────────────────────────

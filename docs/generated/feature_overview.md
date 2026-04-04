@@ -8,12 +8,12 @@
 |---|---|---|---|---|
 | `admin_control_plane_core` | 1.0.0 | add | fitcv_cp | Internal admin UI and REST API to manage FitCV pipeline runs without terminal access. |
 | `bounded_parallel_enrichment` | 1.0.0 | add | fitcv | Enrichment runs in bounded parallel batches with admin-controlled concurrency settings. |
-| `cv_system` | 1.17.0 | add | fitcv | CV generation uses a structured preset-based configuration, shortlist retrieval that stays latest-only while reusing unchanged job embeddings safely, and active shortlist retrieval now stays scoped to reusable job embeddings plus the deterministic candidate query vector actually used for search. |
-| `inspection_debugging` | 2.9.0 | add | fitcv_cp | Admins can see what the pipeline did for a run, including selectable rule-filter marks, shortlist retrieval and job-embedding-reuse diagnostics, enrich reuse provenance, ranking contribution visibility, stage-local artifacts, inputs used, and generated CVs. |
+| `cv_system` | 1.18.0 | add | fitcv | CV generation uses a structured preset-based configuration, hybrid lexical-plus-semantic `cv_analysis` evidence alignment, shortlist retrieval that stays latest-only while reusing unchanged job embeddings safely, and active shortlist retrieval now stays scoped to reusable job embeddings plus the deterministic candidate query vector actually used for search. |
+| `inspection_debugging` | 2.10.0 | add | fitcv_cp | Admins can see what the pipeline did for a run, including selectable rule-filter marks, shortlist retrieval and job-embedding-reuse diagnostics, enrich reuse provenance, ranking contribution visibility, stage-local artifacts, lexical-vs-semantic `cv_analysis` detail, inputs used, and generated CVs. |
 | `multi_file_job_input` | 1.0.0 | add | fitcv_cp | Admins can upload multiple JSON job files in one trigger request. |
 | `pipeline_performance` | 1.5.0 | modify | fitcv | Reduced API costs by filtering jobs before enrichment, using reliable structured output parsing, centralizing enrich prompt management, reusing unchanged enrich results via fingerprints, and reusing unchanged shortlist embeddings via a structured signature plus embedding contract. |
 | `run_lifecycle_controls` | 1.0.0 | add | fitcv_cp | Admins can stop queued or running runs and archive or unarchive completed runs. |
-| `settings_system` | 2.5.0 | add | fitcv_cp | Admins can view and edit pipeline tuning defaults through the admin UI, including richer ranking calibration surfaces, persisted in BigQuery. |
+| `settings_system` | 2.6.0 | add | fitcv_cp | Admins can view and edit pipeline tuning defaults through the admin UI, including richer ranking calibration surfaces and `cv_analysis` hybrid semantic-alignment controls, persisted in BigQuery. |
 | `trigger_run_management` | 2.3.0 | add | fitcv_cp | Admins can trigger runs via path reference, file upload, or pasted JSON, run the pipeline automatically or stage by stage, and inspect richer shortlist debug state in run exports. |
 | `ui_consistency_theming` | 1.0.0 | add | fitcv_cp | Shared design system and dark/light theme toggle across all admin pages. |
 

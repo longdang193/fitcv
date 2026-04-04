@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.18.0 — active
+
+- `cv_analysis` now scores domain and responsibility alignment with hybrid lexical-plus-semantic matching instead of relying only on lexical overlap
+- Semantic embedding generation and reuse are now stage-owned by `cv_analysis`, and final evidence selection stays bounded while preferring broader coverage of job needs
+- Specs/plans: see `refs` in the feature contract
+
 ### 1.17.0 — active
 
 - Active shortlist runtime no longer generates candidate chunk embeddings that no current stage consumes
