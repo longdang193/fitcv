@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fitcv.embeddings import generate_embedding
-from fitcv.ranking import _ROLE_FAMILY_NEIGHBORS, _infer_role_family, _normalize_text
+from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_family
 
 
 SKILL_OVERLAP_WEIGHT: float = 0.60
@@ -500,7 +500,7 @@ def _normalise_experience_entry(
 
     domain_tags = _canonicalize_terms(_normalize_text_list(experience.get("domain_tags")))
     responsibility_themes = _canonicalize_terms(_normalize_text_list(experience.get("responsibility_themes")))
-    role_family = _normalize_text(experience.get("role_family")) or _infer_role_family(role)
+    role_family = _normalize_text(experience.get("role_family")) or infer_role_family(role)
     scoring_parts = [role, company, *bullet_texts, *domain_tags, *responsibility_themes]
     evidence_id = _preferred_evidence_id(
         experience,
@@ -583,7 +583,7 @@ def _normalise_project_entry(
         "scoring_context": scoring_context,
         "score": 0.0,
         "source_ref": source_ref,
-        "role_family": _infer_role_family(name),
+        "role_family": infer_role_family(name),
         "domain_tags": domain_tags,
         "responsibility_themes": responsibility_themes,
     }
@@ -806,7 +806,7 @@ def _item_role_family(item: dict[str, Any]) -> str | None:
     if explicit_family:
         return explicit_family
     role_text = _normalize_optional_text(item.get("role") or item.get("name"))
-    inferred_family = _infer_role_family(role_text)
+    inferred_family = infer_role_family(role_text)
     return inferred_family
 
 
@@ -824,14 +824,14 @@ def _score_required_skill_support(item: dict[str, Any], job_context: dict[str, A
 
 def _score_role_alignment(item: dict[str, Any], job_context: dict[str, Any]) -> float:
     job_title = _normalize_optional_text(job_context.get("job_title"))
-    job_family = _normalize_text(job_context.get("job_family")) or _infer_role_family(job_title)
+    job_family = _normalize_text(job_context.get("job_family")) or infer_role_family(job_title)
     item_family = _item_role_family(item)
 
     family_score = 0.0
     if job_family and item_family:
         if job_family == item_family:
             family_score = 1.0
-        elif item_family in _ROLE_FAMILY_NEIGHBORS.get(job_family, frozenset()):
+        elif item_family in _role_family_neighbors().get(job_family, frozenset()):
             family_score = ROLE_ALIGNMENT_NEIGHBOR_SCORE
 
     lexical_score = _overlap_ratio(

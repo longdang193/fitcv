@@ -2707,6 +2707,9 @@ def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> Non
         repair_attempt={"performed": False, "missing_sections": []},
         structured_cv_final={"schema_version": "cv_doc_v1"},
         markdown_final="# CV",
+        enabled_sections=["summary", "experience", "skills"],
+        cv_generation_model="gemini-2.5-flash",
+        cv_prompt_version="v1",
         error=None,
     )
 
@@ -2730,6 +2733,10 @@ def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> Non
     ]
     assert sample["evidence_selection_summary"]["selected_evidence_ids"] == ["exp-1"]
     assert sample["analysis_input_summary"]["job_family"] == "analytics"
+    assert sample["enabled_sections"] == ["summary", "experience", "skills"]
+    assert sample["cv_generation_model"] == "gemini-2.5-flash"
+    assert sample["cv_prompt_version"] == "v1"
+    assert sample["structured_cv_final"] == {"schema_version": "cv_doc_v1"}
 
 
 @patch("fitcv.pipeline.store_cv_version")

@@ -41,7 +41,7 @@ from fitcv.candidate import (
     load_profile_json_text,
     load_profile_yaml,
 )
-from fitcv.config import load_config
+from fitcv.config import CV_SECTION_KEY_TO_NAME, load_config
 from fitcv.cv_generator import generate_cv
 from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
 from fitcv.enrich import (
@@ -862,6 +862,15 @@ def _build_cv_generation_analysis_input_summary(job: dict[str, Any]) -> dict[str
     }
 
 
+def _cv_generation_enabled_sections(config: dict[str, Any]) -> list[str]:
+    composition = (config.get("cv") or {}).get("composition") or {}
+    enabled_sections: list[str] = []
+    for section_key, section_cfg in composition.items():
+        if isinstance(section_cfg, dict) and section_cfg.get("enabled", True):
+            enabled_sections.append(CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title()))
+    return enabled_sections
+
+
 def _build_validation_grounding_payload(
     *,
     evidence_payload: list[dict[str, Any]],
@@ -1008,6 +1017,9 @@ def _build_cv_generation_debug_record(
     repair_attempt: dict[str, Any],
     structured_cv_final: dict[str, Any] | None,
     markdown_final: str | None,
+    enabled_sections: list[str] | None,
+    cv_generation_model: str | None,
+    cv_prompt_version: str | None,
     error: dict[str, str] | None,
 ) -> dict[str, Any]:
     ranking_fit_label = str(fit_classification or "").strip() or None
@@ -1036,6 +1048,9 @@ def _build_cv_generation_debug_record(
         "repair_attempt": repair_attempt,
         "structured_cv_final": structured_cv_final,
         "markdown_final": markdown_final,
+        "enabled_sections": list(enabled_sections or []),
+        "cv_generation_model": cv_generation_model,
+        "cv_prompt_version": cv_prompt_version,
         "error": error,
     }
 
@@ -1308,6 +1323,10 @@ def _debug_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | None
         "gap_summary": record.get("gap_summary"),
         "validation_initial": record.get("validation_initial"),
         "repair_attempt": record.get("repair_attempt"),
+        "enabled_sections": record.get("enabled_sections"),
+        "cv_generation_model": record.get("cv_generation_model"),
+        "cv_prompt_version": record.get("cv_prompt_version"),
+        "structured_cv_final": record.get("structured_cv_final"),
         "markdown_final": record.get("markdown_final"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "", [])}
@@ -1332,6 +1351,10 @@ def _debug_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | Non
         "gap_summary": record.get("gap_summary"),
         "validation_initial": record.get("validation_initial"),
         "repair_attempt": record.get("repair_attempt"),
+        "enabled_sections": record.get("enabled_sections"),
+        "cv_generation_model": record.get("cv_generation_model"),
+        "cv_prompt_version": record.get("cv_prompt_version"),
+        "structured_cv_final": record.get("structured_cv_final"),
         "error": record.get("error"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "", [])}
@@ -2355,6 +2378,9 @@ def run_pipeline(
         _merge_ranked_job_with_enriched_context(job, enriched_by_url)
         for job in ranked
     ]
+    cv_generation_model_value = str(config.get("cv", {}).get("generation", {}).get("model") or "")
+    cv_prompt_version_value = str(config.get("cv", {}).get("generation", {}).get("prompt_version") or "")
+    enabled_cv_sections = _cv_generation_enabled_sections(config)
     if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("cv_analysis"):
         if cancellation_check and cancellation_check():
             raise PipelineCancelled("Cancelled before CV analysis")
@@ -2453,6 +2479,9 @@ def run_pipeline(
                             repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
                             structured_cv_final=None,
                             markdown_final=None,
+                            enabled_sections=enabled_cv_sections,
+                            cv_generation_model=cv_generation_model_value,
+                            cv_prompt_version=cv_prompt_version_value,
                             error=analysis_record["error"],
                         )
                     )
@@ -2502,6 +2531,9 @@ def run_pipeline(
                         repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
                         structured_cv_final=None,
                         markdown_final=None,
+                        enabled_sections=enabled_cv_sections,
+                        cv_generation_model=cv_generation_model_value,
+                        cv_prompt_version=cv_prompt_version_value,
                         error=analysis_record["error"],
                     )
                 )
@@ -2640,6 +2672,9 @@ def run_pipeline(
                         repair_attempt=repair_attempt,
                         structured_cv_final=None,
                         markdown_final=None,
+                        enabled_sections=enabled_cv_sections,
+                        cv_generation_model=cv_generation_model_value,
+                        cv_prompt_version=cv_prompt_version_value,
                         error={
                             "stage": "validation",
                             "message": f"CV validation failed for {job.get('job_url')}",
@@ -2696,6 +2731,9 @@ def run_pipeline(
                     repair_attempt=repair_attempt,
                     structured_cv_final=structured_cv_final,
                     markdown_final=markdown_final,
+                    enabled_sections=enabled_cv_sections,
+                    cv_generation_model=cv_generation_model_value,
+                    cv_prompt_version=cv_prompt_version_value,
                     error=None,
                 )
             )
@@ -2719,6 +2757,9 @@ def run_pipeline(
                     repair_attempt=repair_attempt,
                     structured_cv_final=structured_cv_final if failure_status == "persistence_failed" else None,
                     markdown_final=markdown_final if failure_status == "persistence_failed" else None,
+                    enabled_sections=enabled_cv_sections,
+                    cv_generation_model=cv_generation_model_value,
+                    cv_prompt_version=cv_prompt_version_value,
                     error={
                         "stage": failure_stage,
                         "message": str(exc),
