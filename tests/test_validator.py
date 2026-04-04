@@ -508,3 +508,24 @@ def test_run_all_validations_supports_semantically_close_soft_claim_from_selecte
     assert result["valid"] is True
     assert result["semantic_grounding_violations"] == []
     assert result["support_source_summary"]["semantic_supported_soft_claims"] >= 1
+
+
+def test_run_all_validations_rejects_unresolved_template_placeholders() -> None:
+    profile = {
+        "experiences": [{"role": "Data Analyst", "company": "ACME"}],
+        "projects": [],
+        "skills": ["SQL", "Python"],
+    }
+    cv_text = (
+        "# [Your Name]\n"
+        "## Summary\nAnalyst with SQL and Python experience.\n"
+        "## Skills\nSQL, Python\n"
+        "## Experience\n"
+        "### Data Analyst — ACME (2022–2024)\n"
+        "- Built reporting workflows.\n"
+    )
+
+    result = run_all_validations(cv_text, profile=profile, config=_CV_CONFIG)
+
+    assert result["valid"] is False
+    assert any("[Your Name]" in message for message in result["grounding_violations"])

@@ -37,10 +37,9 @@ import re
 from collections.abc import Iterable
 from typing import Any, TypedDict
 
-from fitcv.candidate import flatten_skills
+from fitcv.candidate import flatten_skills, infer_role_family
 from fitcv.config import CV_SECTION_KEY_TO_NAME, get_required_structured_section_keys
 from fitcv.rule_filter import _canonicalise_skill
-from fitcv.ranking import _ROLE_FAMILY_ALIASES, _infer_role_family
 
 # ── constants ─────────────────────────────────────────────────────────────────
 
@@ -115,6 +114,38 @@ _SOFT_ALIGNMENT_ALIASES: dict[str, tuple[str, ...]] = {
     ),
 }
 _SOFT_SIMILARITY_THRESHOLD = 0.30
+_UNRESOLVED_PLACEHOLDER_PATTERNS = (
+    re.compile(r"\[your name\]", re.IGNORECASE),
+    re.compile(r"\[your email\]", re.IGNORECASE),
+    re.compile(r"\[your phone\]", re.IGNORECASE),
+    re.compile(r"\[linkedin url\]", re.IGNORECASE),
+)
+
+
+def _role_family_aliases(config: dict[str, Any]) -> dict[str, set[str]]:
+    role_taxonomy = config.get("role_taxonomy") or {}
+    role_family_by_role = role_taxonomy.get("role_family_by_role") or {}
+    canonical_role_by_alias = role_taxonomy.get("canonical_role_by_alias") or {}
+    aliases: dict[str, set[str]] = {}
+
+    if isinstance(role_family_by_role, dict):
+        for role, family in role_family_by_role.items():
+            normalized_family = str(family or "").strip().lower()
+            normalized_role = str(role or "").strip().lower()
+            if not normalized_family or not normalized_role:
+                continue
+            aliases.setdefault(normalized_family, set()).add(normalized_role)
+
+    if isinstance(canonical_role_by_alias, dict) and isinstance(role_family_by_role, dict):
+        for alias, canonical_role in canonical_role_by_alias.items():
+            normalized_alias = str(alias or "").strip().lower()
+            normalized_canonical = str(canonical_role or "").strip().lower()
+            normalized_family = str(role_family_by_role.get(normalized_canonical) or "").strip().lower()
+            if not normalized_alias or not normalized_family:
+                continue
+            aliases.setdefault(normalized_family, set()).add(normalized_alias)
+
+    return aliases
 
 
 class AnalysisGroundingPayload(TypedDict, total=False):
@@ -452,7 +483,7 @@ def _normalize_analysis_grounding(
 
         role_family = (
             str(item.get("role_family") or "").strip().lower()
-            or _infer_role_family(str(item.get("role") or ""))
+            or infer_role_family(str(item.get("role") or ""), config=config)
             or None
         )
         if role_family:
@@ -471,9 +502,10 @@ def _normalize_analysis_grounding(
     soft_support_tokens: set[str] = set()
     soft_support_tokens |= _expand_soft_alias_tokens(responsibility_themes)
     soft_support_tokens |= _expand_soft_alias_tokens(domain_tags)
+    role_family_aliases = _role_family_aliases(config)
     for role_family in role_families:
         soft_support_tokens |= _text_to_tokens(role_family)
-        for alias in _ROLE_FAMILY_ALIASES.get(role_family, ()):
+        for alias in role_family_aliases.get(role_family, ()):
             soft_support_tokens |= _text_to_tokens(alias)
 
     return {
@@ -555,6 +587,7 @@ def _check_selected_skill_grounding(
 def _deterministic_soft_support(
     claim_text: str,
     support_surface: SelectedEvidenceSupport,
+    config: dict[str, Any],
 ) -> bool:
     claim_tokens = _text_to_tokens(claim_text)
     if not claim_tokens:
@@ -564,10 +597,11 @@ def _deterministic_soft_support(
         | _expand_soft_alias_tokens(support_surface["domain_tags"])
         | _expand_soft_alias_tokens(support_surface["responsibility_themes"])
     )
+    role_family_aliases = _role_family_aliases(config)
     if support_surface["role_families"]:
         for role_family in support_surface["role_families"]:
             supported_tokens |= _text_to_tokens(role_family)
-            for alias in _ROLE_FAMILY_ALIASES.get(role_family, ()):
+            for alias in role_family_aliases.get(role_family, ()):
                 supported_tokens |= _text_to_tokens(alias)
     return bool(claim_tokens & supported_tokens)
 
@@ -583,6 +617,7 @@ def _claim_requires_soft_validation(claim_text: str, support_surface: SelectedEv
 def _check_soft_claim_grounding(
     cv_text: str,
     support_surface: SelectedEvidenceSupport,
+    config: dict[str, Any],
 ) -> tuple[list[str], dict[str, Any]]:
     violations: list[str] = []
     summary = {
@@ -597,7 +632,7 @@ def _check_soft_claim_grounding(
         if not _claim_requires_soft_validation(claim_text, support_surface):
             continue
         summary["evaluated_soft_claims"] += 1
-        if _deterministic_soft_support(claim_text, support_surface):
+        if _deterministic_soft_support(claim_text, support_surface, config):
             summary["deterministic_supported_soft_claims"] += 1
             continue
         overlap = _best_token_overlap_ratio(claim_text, support_surface["support_phrases"])
@@ -609,6 +644,18 @@ def _check_soft_claim_grounding(
             f"'{claim_text}'"
         )
     return violations, summary
+
+
+def _check_unresolved_placeholders(cv_text: str) -> list[str]:
+    violations: list[str] = []
+    for pattern in _UNRESOLVED_PLACEHOLDER_PATTERNS:
+        match = pattern.search(cv_text)
+        if match is None:
+            continue
+        violations.append(
+            f"Generated CV contains unresolved placeholder: '{match.group(0)}'"
+        )
+    return list(dict.fromkeys(violations))
 
 def check_employer_grounding(cv_text: str, known_employers: list[str]) -> list[str]:
     """Return violations for any employer mentioned in the CV text that is not in known_employers.
@@ -819,6 +866,7 @@ def run_all_validations(
         semantic_grounding_violations, soft_support_summary = _check_soft_claim_grounding(
             cv_text,
             support_surface,
+            config,
         )
         support_source_summary.update({
             "hard_fact_mode": "selected_evidence",
@@ -835,6 +883,10 @@ def run_all_validations(
     warnings: list[str] = []
     if not check_length_constraints(cv_text, max_pages=max_pages):
         warnings.append(f"CV length warning: exceeds estimated {max_pages}-page limit")
+
+    grounding_violations = list(
+        dict.fromkeys(grounding_violations + _check_unresolved_placeholders(cv_text))
+    )
 
     is_valid = (
         len(missing_sections) == 0

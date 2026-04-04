@@ -29,9 +29,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from fitcv.candidate import flatten_skills
+from fitcv.candidate import flatten_skills, infer_role_family
 from fitcv.embeddings import generate_embedding, get_shortlist_embedding_model
-from fitcv.ranking import _infer_role_family
 
 DEFAULT_RECENT_ROLE_COUNT = 3
 DEFAULT_ROLE_FAMILY_HINT_COUNT = 3
@@ -121,13 +120,13 @@ def build_candidate_query_components(
         if len(role_family_hints) >= DEFAULT_ROLE_FAMILY_HINT_COUNT:
             break
     if len(role_family_hints) < DEFAULT_ROLE_FAMILY_HINT_COUNT:
-        inferred_target_family = _infer_role_family(target_role)
+        inferred_target_family = infer_role_family(target_role)
         if inferred_target_family:
             _append_unique_text(role_family_hints, inferred_target_family, seen_role_families)
     if len(role_family_hints) < DEFAULT_ROLE_FAMILY_HINT_COUNT:
         for experience in profile.get("experiences", []) or []:
             explicit_family = str(experience.get("role_family") or "").strip()
-            inferred_family = _infer_role_family(
+            inferred_family = infer_role_family(
                 str(experience.get("role") or ""),
                 explicit_family=explicit_family or None,
             )
