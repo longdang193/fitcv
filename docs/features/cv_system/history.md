@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.18.0 — active
+
+- Shortlist now reuses the single candidate-query embedding used for vector retrieval when the bounded query signature and candidate-query embedding contract still match
+- Shortlist no longer generates unused candidate-chunk embeddings as part of shortlist execution
+- This rollout keeps the single-query shortlist model and existing job embedding reuse unchanged while making candidate-query reuse visible in shortlist artifacts
+
 ### 1.17.0 — active
 
 - Ranking can now infer fallback `target_role`, `role_families`, and `domains` from recent candidate evidence when explicit YAML preferences are sparse, while keeping explicit preferences authoritative
@@ -62,6 +68,12 @@
 - Run summaries now emit bounded stage-transition artifact blocks for `normalize`, `enrich`, `rule_filter`, `shortlist`, `ranking`, and `cv_generation`
 - The new stage-transition artifact reuses existing runtime seams and keeps `cv_generation` summarized rather than duplicating the full CV debug payload
 - This rollout adds stage-boundary inspection only; it does not change the authoritative CV generation or validation decisions
+
+### 1.16.1 — active
+
+- Shortlist candidate-query construction now uses `flatten_skills(profile)` instead of relying only on explicit root skills
+- Shortlist retrieval can now see bounded inferred role-family and domain hints from the broader candidate evidence surface
+- This improves shortlist recall while keeping the single-query retrieval model deterministic and bounded
 
 ### 1.8.1 — active
 

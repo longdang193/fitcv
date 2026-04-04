@@ -638,6 +638,7 @@ def _empty_pipeline_state(run_id: str) -> dict[str, Any]:
         "raw_shortlist": [],
         "shortlist": [],
         "backfilled_job_urls": [],
+        "candidate_query_debug": {},
         "ai_scores": [],
         "ranking_inputs": [],
         "ranked": [],
@@ -677,6 +678,7 @@ def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
         "raw_shortlist",
         "shortlist",
         "backfilled_job_urls",
+        "candidate_query_debug",
         "ai_scores",
         "ranking_inputs",
         "ranked",
@@ -729,6 +731,8 @@ def _build_checkpoint_summary(
     config: dict[str, Any],
     vector_top_n: int | None = None,
     candidate_summary: str | None = None,
+    candidate_query_components: dict[str, Any] | None = None,
+    candidate_query_debug: dict[str, Any] | None = None,
     final_top_n: int | None = None,
 ) -> dict[str, Any]:
     raw_jobs = list(state.get("raw_jobs") or [])
@@ -755,6 +759,8 @@ def _build_checkpoint_summary(
         final_top_n if final_top_n is not None else config.get("pipeline", {}).get("final_top_n", 0)
     )
     candidate_summary_value = str(candidate_summary or "")
+    candidate_query_components_value = dict(candidate_query_components or {})
+    candidate_query_debug_value = dict(candidate_query_debug or state.get("candidate_query_debug") or {})
     stage_transition_artifacts = _build_stage_transition_artifacts(
         raw_jobs=raw_jobs,
         normalized=normalized,
@@ -768,6 +774,8 @@ def _build_checkpoint_summary(
         backfilled_job_urls=backfilled_job_urls,
         vector_top_n=vector_top_n_value,
         candidate_summary=candidate_summary_value,
+        candidate_query_components=candidate_query_components_value,
+        candidate_query_debug=candidate_query_debug_value,
         ai_scores=ai_scores,
         ranking_inputs=ranking_inputs,
         ranked=ranked,
@@ -1364,6 +1372,7 @@ def _build_stage_transition_artifacts(
     backfilled_job_urls: list[str],
     vector_top_n: int,
     candidate_summary: str,
+    candidate_query_components: dict[str, Any],
     ai_scores: list[dict[str, Any]],
     ranking_inputs: list[dict[str, Any]],
     ranked: list[dict[str, Any]],
@@ -1372,7 +1381,9 @@ def _build_stage_transition_artifacts(
     cv_generation_debug_records: list[dict[str, Any]],
     profile: dict[str, Any],
     config: dict[str, Any],
+    candidate_query_debug: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    candidate_query_debug = dict(candidate_query_debug or {})
     cv_analysis_results = list(cv_analysis_results or [])
     shortlist_reached = len(passed_jobs) > 0
     ranking_reached = shortlist_reached and (len(shortlist) > 0 or len(ai_scores) > 0 or len(ranking_inputs) > 0)
@@ -1384,6 +1395,31 @@ def _build_stage_transition_artifacts(
     cv_generation_reached = len(generation_execution_records) > 0
     raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
     raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
+    shortlist_candidate_query_components = {
+        "headline": str(candidate_query_components.get("headline") or ""),
+        "target_role": str(candidate_query_components.get("target_role") or ""),
+        "recent_roles": list(candidate_query_components.get("recent_roles") or []),
+        "role_family_hints": list(candidate_query_components.get("role_family_hints") or []),
+        "flattened_skill_sample": list(candidate_query_components.get("flattened_skills") or []),
+        "domain_hints": list(candidate_query_components.get("domain_hints") or []),
+    }
+    shortlist_candidate_query_components = {
+        key: value
+        for key, value in shortlist_candidate_query_components.items()
+        if value not in (None, "", [])
+    }
+    shortlist_candidate_query_debug = {
+        "candidate_query_reuse_status": str(candidate_query_debug.get("candidate_query_reuse_status") or ""),
+        "candidate_query_signature": str(candidate_query_debug.get("candidate_query_signature") or ""),
+        "candidate_query_contract_fingerprint": str(
+            candidate_query_debug.get("candidate_query_contract_fingerprint") or ""
+        ),
+    }
+    shortlist_candidate_query_debug = {
+        key: value
+        for key, value in shortlist_candidate_query_debug.items()
+        if value not in ("", None)
+    }
     ranked_urls = {_extract_job_url(job) for job in ranked if _extract_job_url(job)}
     dedupe_reason_counts: dict[str, int] = {}
     for job in deduplicated_jobs:
@@ -1583,6 +1619,8 @@ def _build_stage_transition_artifacts(
                 },
                 decision_summary={
                     "candidate_query_text": candidate_summary,
+                    "candidate_query_components": shortlist_candidate_query_components,
+                    **shortlist_candidate_query_debug,
                     "vector_search_top_n": vector_top_n,
                     "jobs_not_returned_in_raw_hits": len(
                         [job for job in passed_jobs if _extract_job_url(job) not in raw_shortlist_urls]
@@ -1943,6 +1981,8 @@ def run_pipeline(
     profile: dict[str, Any] | None = None
     candidate_skill_names: list[str] = []
     candidate_summary = ""
+    candidate_query_components: dict[str, Any] = {}
+    candidate_query_debug: dict[str, Any] = {}
     vector_top_n = int(config.get("pipeline", {}).get("vector_search_top_n", 0))
     final_top_n = int(config.get("pipeline", {}).get("final_top_n", 0))
 
@@ -1971,6 +2011,8 @@ def run_pipeline(
                 config=config,
                 vector_top_n=vector_top_n,
                 candidate_summary=candidate_summary,
+                candidate_query_components=candidate_query_components,
+                candidate_query_debug=candidate_query_debug,
                 final_top_n=final_top_n,
             )
 
@@ -2029,6 +2071,8 @@ def run_pipeline(
                 config=config,
                 vector_top_n=vector_top_n,
                 candidate_summary=candidate_summary,
+                candidate_query_components=candidate_query_components,
+                candidate_query_debug=candidate_query_debug,
                 final_top_n=final_top_n,
             )
 
@@ -2088,6 +2132,8 @@ def run_pipeline(
                 config=config,
                 vector_top_n=vector_top_n,
                 candidate_summary=candidate_summary,
+                candidate_query_components=candidate_query_components,
+                candidate_query_debug=candidate_query_debug,
                 final_top_n=final_top_n,
             )
     else:
@@ -2105,14 +2151,46 @@ def run_pipeline(
 
     if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("shortlist"):
         embed_and_store_jobs(passed_jobs, config)
-        embed_and_store_candidate(profile, config)
-
-        raw_shortlist = run_vector_search(
+        raw_shortlist_result = run_vector_search(
             profile,
             [str(job.get("job_url") or "") for job in passed_jobs],
             config,
             top_n=vector_top_n,
+            include_debug=True,
         )
+        candidate_query_record: dict[str, Any] = {}
+        if isinstance(raw_shortlist_result, dict):
+            raw_shortlist = list(raw_shortlist_result.get("rows") or [])
+            candidate_query_record = dict(raw_shortlist_result.get("candidate_query") or {})
+        else:
+            raw_shortlist = list(raw_shortlist_result)
+        from fitcv.vector_search import (
+            build_candidate_query_components,
+            build_candidate_query_embedding_contract_fingerprint,
+            build_candidate_query_signature_record,
+            build_candidate_query_text,
+        )
+
+        candidate_query_components = dict(
+            candidate_query_record.get("components") or build_candidate_query_components(profile, config)
+        )
+        candidate_summary = str(
+            candidate_query_record.get("text") or build_candidate_query_text(profile, config)
+        )
+        signature_record = build_candidate_query_signature_record(candidate_query_components)
+        contract_record = build_candidate_query_embedding_contract_fingerprint(config)
+        candidate_query_debug = {
+            "candidate_query_reuse_status": str(
+                candidate_query_record.get("candidate_query_reuse_status") or ""
+            ),
+            "candidate_query_signature": str(
+                candidate_query_record.get("candidate_query_signature") or signature_record["signature"]
+            ),
+            "candidate_query_contract_fingerprint": str(
+                candidate_query_record.get("candidate_query_contract_fingerprint")
+                or contract_record["fingerprint"]
+            ),
+        }
         shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_top_n)
         raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
         raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
@@ -2131,6 +2209,7 @@ def run_pipeline(
         state["raw_shortlist"] = raw_shortlist
         state["shortlist"] = shortlist
         state["backfilled_job_urls"] = backfilled_job_urls
+        state["candidate_query_debug"] = candidate_query_debug
         if stop_after_stage == "shortlist":
             return _build_checkpoint_summary(
                 run_id=run_id,
@@ -2140,17 +2219,23 @@ def run_pipeline(
                 config=config,
                 vector_top_n=vector_top_n,
                 candidate_summary=candidate_summary,
+                candidate_query_components=candidate_query_components,
+                candidate_query_debug=candidate_query_debug,
                 final_top_n=final_top_n,
             )
 
     raw_shortlist = list(state["raw_shortlist"])
     shortlist = list(state["shortlist"])
     backfilled_job_urls = list(state["backfilled_job_urls"])
+    candidate_query_debug = dict(state.get("candidate_query_debug") or candidate_query_debug)
     raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
     raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
 
-    from fitcv.vector_search import build_candidate_query_text
-    candidate_summary = build_candidate_query_text(profile, config)
+    if not candidate_query_components or not candidate_summary:
+        from fitcv.vector_search import build_candidate_query_components, build_candidate_query_text
+
+        candidate_query_components = build_candidate_query_components(profile, config)
+        candidate_summary = build_candidate_query_text(profile, config)
 
     if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("ranking"):
         ai_top_n = int(config["pipeline"]["ai_score_top_n"])
@@ -2182,6 +2267,8 @@ def run_pipeline(
                 config=config,
                 vector_top_n=vector_top_n,
                 candidate_summary=candidate_summary,
+                candidate_query_components=candidate_query_components,
+                candidate_query_debug=candidate_query_debug,
                 final_top_n=final_top_n,
             )
 
@@ -2354,6 +2441,8 @@ def run_pipeline(
                 config=config,
                 vector_top_n=vector_top_n,
                 candidate_summary=candidate_summary,
+                candidate_query_components=candidate_query_components,
+                candidate_query_debug=candidate_query_debug,
                 final_top_n=final_top_n,
             )
 
@@ -2583,6 +2672,33 @@ def run_pipeline(
             "embedding_total_jobs": len(passed_jobs),
             "retrieval_anomaly_urls": raw_shortlist_anomaly_urls,
             "candidate_query_text": candidate_summary,
+            **{
+                key: value
+                for key, value in {
+                    "candidate_query_reuse_status": str(
+                        candidate_query_debug.get("candidate_query_reuse_status") or ""
+                    ),
+                    "candidate_query_signature": str(
+                        candidate_query_debug.get("candidate_query_signature") or ""
+                    ),
+                    "candidate_query_contract_fingerprint": str(
+                        candidate_query_debug.get("candidate_query_contract_fingerprint") or ""
+                    ),
+                }.items()
+                if value
+            },
+            "candidate_query_components": {
+                key: value
+                for key, value in {
+                    "headline": str(candidate_query_components.get("headline") or ""),
+                    "target_role": str(candidate_query_components.get("target_role") or ""),
+                    "recent_roles": list(candidate_query_components.get("recent_roles") or []),
+                    "role_family_hints": list(candidate_query_components.get("role_family_hints") or []),
+                    "flattened_skill_sample": list(candidate_query_components.get("flattened_skills") or []),
+                    "domain_hints": list(candidate_query_components.get("domain_hints") or []),
+                }.items()
+                if value not in (None, "", [])
+            },
             "not_shortlisted_job_urls": [
                 url for url in passed_job_urls
                 if url not in raw_shortlist_urls
@@ -2604,6 +2720,8 @@ def run_pipeline(
             backfilled_job_urls=backfilled_job_urls,
             vector_top_n=vector_top_n,
             candidate_summary=candidate_summary,
+            candidate_query_components=candidate_query_components,
+            candidate_query_debug=candidate_query_debug,
             ai_scores=ai_scores,
             ranking_inputs=ranking_inputs,
             ranked=ranked,

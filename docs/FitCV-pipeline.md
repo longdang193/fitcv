@@ -17,7 +17,7 @@ status: []
 6. Create two matching layers
    - rule / feature matching
    - semantic retrieval with embeddings
-7. Use BigQuery VECTOR_SEARCH to shortlist jobs, searching only the latest active persistent `job_summary` embedding per canonical `job_url` and reusing unchanged job-summary embeddings when the shortlist signature and embedding contract still match
+7. Use BigQuery VECTOR_SEARCH to shortlist jobs, building the candidate query from flattened profile skills plus bounded role-family/domain hints, reusing the single shortlist candidate-query embedding when the deterministic query signature and contract still match, searching only the latest active persistent `job_summary` embedding per canonical `job_url`, and reusing unchanged job-summary embeddings when the shortlist signature and embedding contract still match
 8. Use BigQuery AI.SCORE to rerank shortlisted jobs with a stricter rubric that prioritizes required-skill evidence, seniority readiness, and role alignment while keeping preference signals secondary; when candidate YAML preferences are sparse, ranking first derives deterministic fallback intent from recent role and domain evidence
 9. Select top jobs
 10. Retrieve best candidate evidence for each job
