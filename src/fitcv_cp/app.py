@@ -243,6 +243,37 @@ def _build_stage_quality_metric_rows(stage_quality_metrics: dict[str, Any]) -> l
     return rows
 
 
+def _build_late_stage_reuse_metric_rows(late_stage_reuse_metrics: dict[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    ranking = dict(late_stage_reuse_metrics.get("ranking") or {})
+    ranking_row = _stage_quality_metric_row(
+        stage_id="ranking",
+        label="Ranking AI-Score Reuse Rate",
+        rate=ranking.get("reuse_rate"),
+        numerator=ranking.get("reused_ai_scores"),
+        denominator=ranking.get("total_ai_scores"),
+        hint="Exact-match AI-score rows reused from previous successful runs.",
+    )
+    if ranking_row:
+        ranking_row["fresh_count"] = int(ranking.get("fresh_ai_scores") or 0)
+        rows.append(ranking_row)
+
+    cv_analysis = dict(late_stage_reuse_metrics.get("cv_analysis") or {})
+    cv_analysis_row = _stage_quality_metric_row(
+        stage_id="cv_analysis",
+        label="CV Analysis Reuse Rate",
+        rate=cv_analysis.get("reuse_rate"),
+        numerator=cv_analysis.get("reused_analysis_records"),
+        denominator=cv_analysis.get("total_analysis_records"),
+        hint="Exact-match analysis records reused from previous successful runs.",
+    )
+    if cv_analysis_row:
+        cv_analysis_row["fresh_count"] = int(cv_analysis.get("fresh_analysis_records") or 0)
+        rows.append(cv_analysis_row)
+
+    return rows
+
+
 def _can_upload_synonym_overlay(run: PipelineRun) -> bool:
     return (
         run.run_mode == "manual_staged"
@@ -1408,11 +1439,15 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         pipeline_outcomes_by_job_url: dict[str, dict[str, str | None]] = {}
         stage_quality_metrics: dict[str, Any] = {}
         stage_quality_metric_rows: list[dict[str, Any]] = []
+        late_stage_reuse_metrics: dict[str, Any] = {}
+        late_stage_reuse_metric_rows: list[dict[str, Any]] = []
         if run.results_export_json:
             try:
                 export_payload = _json.loads(run.results_export_json)
                 stage_quality_metrics = dict(export_payload.get("stage_quality_metrics") or {})
                 stage_quality_metric_rows = _build_stage_quality_metric_rows(stage_quality_metrics)
+                late_stage_reuse_metrics = dict(export_payload.get("late_stage_reuse_metrics") or {})
+                late_stage_reuse_metric_rows = _build_late_stage_reuse_metric_rows(late_stage_reuse_metrics)
                 pipeline_outcomes_by_job_url = {
                     str(row.get("job_url") or ""): {
                         "status": str(row.get("pipeline_status") or ""),
@@ -1443,6 +1478,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 pipeline_outcomes_by_job_url = {}
                 stage_quality_metrics = {}
                 stage_quality_metric_rows = []
+                late_stage_reuse_metrics = {}
+                late_stage_reuse_metric_rows = []
 
         # Build job title lookup: job_url → title (used for cv_versions generated output labels)
         job_title_by_url: dict[str, str] = {
@@ -1483,6 +1520,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "pipeline_outcomes_by_job_url": pipeline_outcomes_by_job_url,
                 "stage_quality_metrics": stage_quality_metrics,
                 "stage_quality_metric_rows": stage_quality_metric_rows,
+                "late_stage_reuse_metrics": late_stage_reuse_metrics,
+                "late_stage_reuse_metric_rows": late_stage_reuse_metric_rows,
                 "pre_enrichment_rejects": pre_enrichment_rejects,
                 "deduplicated_before_enrichment": deduplicated_before_enrichment,
                 "job_title_by_url": job_title_by_url,

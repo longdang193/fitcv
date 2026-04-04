@@ -9,6 +9,8 @@ retrieve_evidence        : compatibility wrapper that returns final selected evi
 store_evidence_selection : persist selected evidence to BigQuery (integration)
 """
 
+import hashlib
+import json
 import math
 import uuid
 from datetime import datetime, timezone
@@ -49,6 +51,7 @@ DEFAULT_DOMAIN_LEXICAL_WEIGHT = 0.40
 DEFAULT_DOMAIN_SEMANTIC_WEIGHT = 0.60
 SEMANTIC_METHOD_DISABLED = "disabled"
 SEMANTIC_METHOD_EMBEDDING = "embedding_similarity"
+CV_ANALYSIS_REUSE_SCHEMA_VERSION = "cv_analysis_reuse_v1"
 SELECTION_CHANNEL_WEIGHTS: dict[str, float] = {
     REQUIRED_SKILL_SUPPORT_CHANNEL: 0.40,
     RESPONSIBILITY_ALIGNMENT_CHANNEL: 0.30,
@@ -86,6 +89,32 @@ _STOPWORDS = {
 
 def _normalize_optional_text(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _canonicalize_json_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            str(key): _canonicalize_json_value(value[key])
+            for key in sorted(value)
+        }
+    if isinstance(value, list):
+        return [_canonicalize_json_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_canonicalize_json_value(item) for item in value]
+    if isinstance(value, set):
+        return sorted(_canonicalize_json_value(item) for item in value)
+    if isinstance(value, str):
+        return value.strip()
+    return value
+
+
+def _stable_json_fingerprint(payload: dict[str, Any]) -> str:
+    payload_json = json.dumps(
+        _canonicalize_json_value(payload),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
 
 
 def _normalize_text_list(values: Any) -> list[str]:
@@ -203,6 +232,70 @@ def _semantic_alignment_settings(config: dict[str, Any] | None) -> dict[str, Any
         "channel_pool_size": int(
             semantic_alignment.get("channel_pool_size", DEFAULT_CHANNEL_POOL_SIZE)
         ),
+    }
+
+
+def _cv_analysis_profile_payload(profile: dict[str, Any]) -> dict[str, Any]:
+    payload = {
+        "skills": list(profile.get("skills") or []),
+        "years_experience": profile.get("years_experience"),
+        "preferences": dict(profile.get("preferences") or {}),
+        "experiences": list(profile.get("experiences") or []),
+        "projects": list(profile.get("projects") or []),
+        "achievements": list(profile.get("achievements") or []),
+    }
+    return {
+        key: value
+        for key, value in payload.items()
+        if value not in (None, "", [], {})
+    }
+
+
+def build_cv_analysis_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
+    payload = {
+        "schema_version": CV_ANALYSIS_REUSE_SCHEMA_VERSION,
+        "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),
+        "semantic_alignment": _semantic_alignment_settings(config),
+        "fit_label_thresholds": dict(config.get("fit_label_thresholds") or {}),
+        "role_taxonomy": dict(config.get("role_taxonomy") or {}),
+        "skill_synonyms_runtime": dict(config.get("skill_synonyms_runtime") or {}),
+    }
+    return {
+        "payload": payload,
+        "fingerprint": _stable_json_fingerprint(payload),
+    }
+
+
+def build_cv_analysis_input_fingerprint(
+    profile: dict[str, Any],
+    job_context: dict[str, Any] | list[str],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    coerced_job_context = _coerce_job_context(job_context)
+    job_payload = {
+        "job_url": str(coerced_job_context.get("job_url") or ""),
+        "job_title": str(coerced_job_context.get("job_title") or ""),
+        "job_family": str(coerced_job_context.get("job_family") or ""),
+        "domain": str(coerced_job_context.get("domain") or ""),
+        "required_skills": list(coerced_job_context.get("required_skills") or []),
+        "preferred_skills": list(coerced_job_context.get("preferred_skills") or []),
+        "responsibilities": list(coerced_job_context.get("responsibilities") or []),
+        "years_experience_min": job_context.get("years_experience_min") if isinstance(job_context, dict) else None,
+        "years_experience_max": job_context.get("years_experience_max") if isinstance(job_context, dict) else None,
+        "fit_label": str(job_context.get("fit_label") or "") if isinstance(job_context, dict) else "",
+    }
+    payload = {
+        "profile": _cv_analysis_profile_payload(profile),
+        "job": {
+            key: value
+            for key, value in job_payload.items()
+            if value not in (None, "", [], {})
+        },
+        "contract_fingerprint": build_cv_analysis_contract_fingerprint(config)["fingerprint"],
+    }
+    return {
+        "payload": payload,
+        "fingerprint": _stable_json_fingerprint(payload),
     }
 
 

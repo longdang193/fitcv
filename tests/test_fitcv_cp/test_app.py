@@ -1352,6 +1352,73 @@ def test_run_detail_hides_stage_quality_metrics_when_absent():
     assert "Stage Quality Metrics" not in resp.text
 
 
+def test_run_detail_renders_late_stage_reuse_metrics_when_available():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="reuse-metrics-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        results_export_json=json.dumps(
+            {
+                "late_stage_reuse_metrics": {
+                    "ranking": {
+                        "reuse_rate": 0.5,
+                        "reused_ai_scores": 1,
+                        "fresh_ai_scores": 1,
+                        "total_ai_scores": 2,
+                    },
+                    "cv_analysis": {
+                        "reuse_rate": 1.0,
+                        "reused_analysis_records": 2,
+                        "fresh_analysis_records": 0,
+                        "total_analysis_records": 2,
+                    },
+                }
+            }
+        ),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/reuse-metrics-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Late-Stage Reuse" in html
+    assert "Ranking AI-Score Reuse Rate" in html
+    assert "CV Analysis Reuse Rate" in html
+    assert "50%" in html
+    assert "100%" in html
+    assert "fresh: 1" in html
+
+
+def test_run_detail_hides_late_stage_reuse_metrics_when_absent():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="reuse-metrics-2",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        results_export_json=json.dumps({"results": []}),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/reuse-metrics-2")
+
+    assert resp.status_code == 200
+    assert "Late-Stage Reuse" not in resp.text
+
+
 # ── grouped settings endpoint ─────────────────────────────────────────────────
 
 _VALID_WEIGHTS = {

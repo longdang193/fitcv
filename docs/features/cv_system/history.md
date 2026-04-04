@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.21.0 — active
+
+- `ranking` can now reuse exact-match AI-score rows per job when the stage-owned AI-score fingerprint and reranker contract still match
+- `cv_analysis` can now reuse exact-match analysis records per ranked job when the stage-owned analysis fingerprint and evidence-selection contract still match
+- Run results now persist late-stage reuse snapshots and late-stage reuse-rate metrics so repeated late-stage runs can skip unchanged expensive work safely
+
 ### 1.20.0 — active
 
 - Run summaries and stage-transition artifacts now expose stage-level quality metrics so shortlist, ranking, `cv_analysis`, and `cv_generation` bottlenecks are visible without job-by-job inspection

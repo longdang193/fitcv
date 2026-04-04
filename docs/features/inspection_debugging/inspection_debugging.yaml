@@ -1,9 +1,9 @@
 inspection_debugging:
   name: Inspection & Debugging
-  version: 2.12.0
+  version: 2.13.0
   status: active
   type: add
-  summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, richer shortlist candidate-query components, explicit shortlist candidate-query reuse provenance, ranking contribution visibility and calibration surfaces, stage-local artifacts, compact stage-level quality metrics, distinct `cv_analysis` and `cv_generation` outcomes, multi-channel evidence-selection provenance, lexical-vs-semantic alignment detail, inputs used, generated CVs, explicit decision detail, and hybrid validation provenance from deterministic and soft-claim grounding checks in exports, stage artifacts, settings-used snapshots, and CV debug snapshots."
+  summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, richer shortlist candidate-query components, explicit shortlist candidate-query reuse provenance, ranking contribution visibility and calibration surfaces, late-stage reuse diagnostics for `ranking` and `cv_analysis`, stage-local artifacts, compact stage-level quality metrics, distinct `cv_analysis` and `cv_generation` outcomes, multi-channel evidence-selection provenance, lexical-vs-semantic alignment detail, inputs used, generated CVs, explicit decision detail, and hybrid validation provenance from deterministic and soft-claim grounding checks in exports, stage artifacts, settings-used snapshots, and CV debug snapshots."
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -34,7 +34,7 @@ inspection_debugging:
     - Stage-transition artifacts now include bounded pre-decision inputs, decision summaries, and output/change-state samples for each major stage
     - Enrich-stage artifacts and settings-used snapshots can expose effective enrich prompt provenance, including prompt ID, version, template path, and model
     - Ranking-stage artifacts report the full six-feature ranking contract, zero-weight features, and ranked-vs-not-ranked scoring context
-    - Newly generated stage-transition artifacts now version the split final-stage artifact shape as `stage_transition_artifacts_v4`
+    - Newly generated stage-transition artifacts now version the split final-stage artifact shape as `stage_transition_artifacts_v5`
     - Ranking-stage artifacts and exports now expose per-feature weighted score contributions plus weighted preference-fit subcomponents
     - Ranking-stage decision summaries can now expose configured preference-fit weights and fit-label thresholds for calibration debugging
     - Run-scoped CV-generation debug snapshot download for succeeded runs when available
@@ -56,6 +56,9 @@ inspection_debugging:
     - Shortlist stage artifacts and shortlist debug payloads can now show whether the single candidate query embedding was reused or freshly created, including its signature and contract fingerprint
     - Shortlist inspection now stays explicit about active retrieval inputs, describing reusable job-embedding provenance without implying unused candidate chunk embeddings are part of the live path
     - Run detail, run-results exports, and stage artifacts can now expose compact stage-level quality metrics such as shortlist backfill rate, ranking label distribution, cv-analysis skip/ready rates, and cv-generation validation-fail or accepted rates
+    - Ranking artifacts, run results, and run detail can now expose exact-match AI-score reuse counts, reuse rates, reuse statuses, and AI-score input fingerprints
+    - `cv_analysis` artifacts, run results, and run detail can now expose exact-match analysis reuse counts, reuse rates, reuse statuses, and analysis input fingerprints
+    - Run results can now persist bounded late-stage reuse snapshots so reuse behavior can be audited without extra storage lookups
     - Run-scoped enriched job rows can now include canonical skill companions and parsed mapping suggestions for richer inspection/debug export
     - Run-scoped enriched job rows and enrich-stage artifacts can now expose raw-job fingerprints, enrich-contract fingerprints, and fresh-vs-reused enrich provenance
     - Rule-filter stage artifacts and run detail now show the active blocking-filter set plus mark-code counts for selectable screening
@@ -90,6 +93,7 @@ inspection_debugging:
       - docs/superpowers/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
       - docs/superpowers/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
       - docs/superpowers/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+      - docs/superpowers/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-run-scoped-enrichment-inspection-implementation.md
       - docs/superpowers/plans/2026-03-26-run-detail-inspection-tabs-implementation.md
@@ -119,6 +123,7 @@ inspection_debugging:
       - docs/superpowers/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
       - docs/superpowers/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
       - docs/superpowers/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+      - docs/superpowers/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
     history:
       - docs/features/inspection_debugging/history.md
   keywords:
