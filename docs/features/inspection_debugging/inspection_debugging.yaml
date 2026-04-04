@@ -1,9 +1,9 @@
 inspection_debugging:
   name: Inspection & Debugging
-  version: 2.9.0
+  version: 2.10.0
   status: active
   type: add
-  summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, ranking contribution visibility and calibration surfaces, stage-local artifacts, distinct `cv_analysis` and `cv_generation` outcomes, multi-channel evidence-selection provenance, inputs used, generated CVs, and hybrid validation provenance from deterministic and soft-claim grounding checks in exports, stage artifacts, settings-used snapshots, and CV debug snapshots."
+  summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, richer shortlist candidate-query components, explicit shortlist candidate-query reuse provenance, ranking contribution visibility and calibration surfaces, stage-local artifacts, distinct `cv_analysis` and `cv_generation` outcomes, multi-channel evidence-selection provenance, inputs used, generated CVs, explicit decision detail, and hybrid validation provenance from deterministic and soft-claim grounding checks in exports, stage artifacts, settings-used snapshots, and CV debug snapshots."
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -51,6 +51,8 @@ inspection_debugging:
     - Shortlist debug payloads now report observed raw-hit status without overstating retrieval root causes
     - Shortlist artifacts and run-results shortlist debug now expose latest-only retrieval facts, explicit raw-hit flags, and clearer backfill-versus-miss distinctions
     - Shortlist artifacts and run-results shortlist debug can now expose fresh-vs-reused embedding provenance plus structured signature metadata
+    - Shortlist debug surfaces can now expose bounded candidate-query components such as flattened-skill samples plus inferred role-family and domain hints
+    - Shortlist stage artifacts and shortlist debug payloads can now show whether the single candidate query embedding was reused or freshly created, including its signature and contract fingerprint
     - Run-scoped enriched job rows can now include canonical skill companions and parsed mapping suggestions for richer inspection/debug export
     - Run-scoped enriched job rows and enrich-stage artifacts can now expose raw-job fingerprints, enrich-contract fingerprints, and fresh-vs-reused enrich provenance
     - Rule-filter stage artifacts and run detail now show the active blocking-filter set plus mark-code counts for selectable screening
@@ -80,6 +82,8 @@ inspection_debugging:
       - docs/superpowers/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
       - docs/superpowers/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
       - docs/superpowers/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+      - docs/superpowers/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+      - docs/superpowers/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-run-scoped-enrichment-inspection-implementation.md
       - docs/superpowers/plans/2026-03-26-run-detail-inspection-tabs-implementation.md
@@ -104,6 +108,8 @@ inspection_debugging:
       - docs/superpowers/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
       - docs/superpowers/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
       - docs/superpowers/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+      - docs/superpowers/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+      - docs/superpowers/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
     history:
       - docs/features/inspection_debugging/history.md
   keywords:
