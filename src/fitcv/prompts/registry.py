@@ -14,6 +14,20 @@ _PROMPT_REGISTRY: dict[str, PromptDefinition] = {
         template_path=_TEMPLATES_DIR / "enrich_extraction_v1.md",
         summary="Structured JD extraction prompt for the enrich stage.",
     ),
+    "ranking.ai_score.v1": PromptDefinition(
+        prompt_id="ranking.ai_score.v1",
+        stage_id="ranking",
+        version="v1",
+        template_path=_TEMPLATES_DIR / "ranking_ai_score_v1.md",
+        summary="Structured AI reranking prompt for shortlist scoring.",
+    ),
+    "cv_generation.write.v1": PromptDefinition(
+        prompt_id="cv_generation.write.v1",
+        stage_id="cv_generation",
+        version="v1",
+        template_path=_TEMPLATES_DIR / "cv_generation_write_v1.md",
+        summary="Primary CV generation writer prompt for markdown CV output.",
+    ),
 }
 
 

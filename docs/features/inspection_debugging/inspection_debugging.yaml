@@ -3,7 +3,7 @@ inspection_debugging:
   version: 2.13.0
   status: active
   type: add
-  summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, richer shortlist candidate-query components, explicit shortlist candidate-query reuse provenance, ranking contribution visibility and calibration surfaces, late-stage reuse diagnostics for `ranking` and `cv_analysis`, stage-local artifacts, compact stage-level quality metrics, distinct `cv_analysis` and `cv_generation` outcomes, multi-channel evidence-selection provenance, lexical-vs-semantic alignment detail, inputs used, generated CVs, explicit decision detail, and hybrid validation provenance from deterministic and soft-claim grounding checks in exports, stage artifacts, settings-used snapshots, and CV debug snapshots."
+  summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, richer shortlist candidate-query components, explicit shortlist candidate-query reuse provenance, ranking contribution visibility and calibration surfaces, late-stage reuse diagnostics for `ranking` and `cv_analysis`, stage-local artifacts, compact stage-level quality metrics, distinct `cv_analysis` and `cv_generation` outcomes, multi-channel evidence-selection provenance, lexical-vs-semantic alignment detail, inputs used, generated CVs, explicit decision detail, hybrid validation provenance from deterministic and soft-claim grounding checks, and clearer config-room ownership through exports, stage artifacts, settings-used snapshots, and CV debug snapshots."
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -30,6 +30,7 @@ inspection_debugging:
     - CV download links
     - Run-scoped stage-transition artifact download for succeeded runs and paused manual runs when available
     - Run-scoped settings-used JSON download for succeeded runs when available
+    - Settings-used snapshots now remain accurate after the config-room reorganization into runtime, policy, and taxonomy subfolders
     - Timeline-linked per-stage stage-artifact downloads for recognized stage-boundary events
     - Stage-transition artifacts now include bounded pre-decision inputs, decision summaries, and output/change-state samples for each major stage
     - Enrich-stage artifacts and settings-used snapshots can expose effective enrich prompt provenance, including prompt ID, version, template path, and model

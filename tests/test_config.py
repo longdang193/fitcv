@@ -1,12 +1,16 @@
 """Tests for config loading."""
 import shutil
 import uuid
+import os
 from pathlib import Path
 
 import pytest
 
 from fitcv.config import (
     apply_runtime_skill_synonym_overlay,
+    get_cv_generation_prompt_id,
+    get_gemini_model,
+    get_ranking_prompt_id,
     get_vertex_location,
     load_config,
     parse_skill_synonym_overlay_yaml,
@@ -35,8 +39,12 @@ def test_load_config_raises_for_missing_file() -> None:
 
 def test_load_config_raises_for_missing_keys(tmp_path: Path) -> None:
     import pytest
-    bad_yaml = tmp_path / ".env.yaml"
+    isolated_root = tmp_path / "isolated" / "a" / "b" / "c" / "d"
+    isolated_root.mkdir(parents=True)
+    bad_yaml = isolated_root / ".env.yaml"
     bad_yaml.write_text("some_key: value\n")
+    for env_key in ("GCP_PROJECT", "BIGQUERY_DATASET", "GOOGLE_APPLICATION_CREDENTIALS"):
+        os.environ.pop(env_key, None)
     with pytest.raises(ValueError, match="Missing config keys"):
         load_config(bad_yaml)
 
@@ -93,6 +101,12 @@ def test_load_config_defaults_to_repo_config_shape() -> None:
     assert cfg["gemini_model"] == "gemini-2.5-flash"
     assert cfg["vertex_location"] == "us-central1"
     assert cfg["paths"]["candidate_profile"] == "data/candidate_profile.yaml"
+    assert cfg["pipeline"]["vector_search_top_n"] == 50
+    assert cfg["pipeline"]["ai_score_top_n"] == 50
+    assert cfg["pipeline"]["final_top_n"] == 10
+    assert cfg["pipeline"]["evidence_top_k"] == 5
+    assert cfg["vector_top_n"] == cfg["pipeline"]["vector_search_top_n"]
+    assert cfg["rerank_top_n"] == cfg["pipeline"]["ai_score_top_n"]
 
 
 def test_load_config_accepts_legacy_config_env_path_with_warning() -> None:
@@ -101,6 +115,70 @@ def test_load_config_accepts_legacy_config_env_path_with_warning() -> None:
         cfg = load_config(legacy_path)
     assert cfg["gemini_model"] == "gemini-2.5-flash"
     assert cfg["vertex_location"] == "us-central1"
+
+
+def test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_files(tmp_path: Path) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\n"
+        "bigquery_dataset: ds\n"
+        "service_account_key: /dev/null\n"
+    )
+    cfg_dir = tmp_path / "config"
+    (cfg_dir / "runtime").mkdir(parents=True)
+    (cfg_dir / "policy").mkdir()
+    (cfg_dir / "taxonomy").mkdir()
+
+    (cfg_dir / "runtime" / "pipeline.yaml").write_text(
+        "gemini_model: new-model\n"
+        "embedding_model: new-embedding\n"
+        "pipeline:\n"
+        "  vector_search_top_n: 12\n"
+        "  ai_score_top_n: 11\n"
+        "  final_top_n: 7\n"
+        "  evidence_top_k: 3\n"
+    )
+    (cfg_dir / "policy" / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "  content_rules:\n"
+        "    evidence_grounded_only: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    (cfg_dir / "taxonomy" / "skill_synonyms.yaml").write_text(
+        "skill_synonyms:\n"
+        "  gcp: google cloud new\n"
+    )
+    (cfg_dir / "skill_synonyms.yaml").write_text(
+        "skill_synonyms:\n"
+        "  gcp: google cloud legacy\n"
+    )
+    (cfg_dir / "pipeline.yaml").write_text(
+        "gemini_model: legacy-model\n"
+        "embedding_model: legacy-embedding\n"
+        "pipeline:\n"
+        "  vector_search_top_n: 99\n"
+        "  ai_score_top_n: 98\n"
+        "  final_top_n: 97\n"
+        "  evidence_top_k: 9\n"
+    )
+
+    cfg = load_config(env_yaml)
+
+    assert cfg["gemini_model"] == "new-model"
+    assert cfg["embedding_model"] == "new-embedding"
+    assert cfg["pipeline"]["vector_search_top_n"] == 12
+    assert cfg["skill_synonyms"]["gcp"] == "google cloud new"
+    assert Path(cfg["skill_synonyms_runtime"]["base_policy_path"]).as_posix().endswith(
+        "config/taxonomy/skill_synonyms.yaml"
+    )
 
 
 # ── Task 1: cv.yaml config layer tests ────────────────────────────────────────
@@ -119,7 +197,9 @@ def test_load_config_includes_cv_defaults() -> None:
 
 def test_load_config_cv_keys_missing_raises(tmp_path: Path) -> None:
     """A config without cv.yaml keys should raise ValueError after loader validation."""
-    env_yaml = tmp_path / ".env.yaml"
+    isolated_root = tmp_path / "isolated" / "a" / "b" / "c" / "d"
+    isolated_root.mkdir(parents=True)
+    env_yaml = isolated_root / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
     )
@@ -344,7 +424,7 @@ def test_apply_runtime_skill_synonym_overlay_merges_entries_and_runtime_metadata
             "powerbi": "power bi",
         },
         "skill_synonyms_runtime": {
-            "base_policy_path": "config/skill_synonyms.yaml",
+            "base_policy_path": "config/taxonomy/skill_synonyms.yaml",
             "overlay_paths": [],
             "has_overlay": False,
             "entry_count": 2,
@@ -650,6 +730,29 @@ def test_load_config_adds_default_enrich_prompt_id() -> None:
     cfg = load_config()
 
     assert cfg["prompts"]["enrich"]["extraction"]["prompt_id"] == "enrich.extraction.v1"
+
+
+def test_load_config_adds_default_ranking_and_cv_generation_prompt_ids() -> None:
+    cfg = load_config()
+
+    assert cfg["prompts"]["ranking"]["ai_score"]["prompt_id"] == "ranking.ai_score.v1"
+    assert cfg["prompts"]["cv_generation"]["write"]["prompt_id"] == "cv_generation.write.v1"
+
+
+def test_load_config_builds_prompts_runtime_for_all_major_stages() -> None:
+    cfg = load_config()
+
+    assert cfg["prompts_runtime"]["enrich"]["extraction"]["prompt_id"] == "enrich.extraction.v1"
+    assert cfg["prompts_runtime"]["ranking"]["ai_score"]["prompt_id"] == "ranking.ai_score.v1"
+    assert cfg["prompts_runtime"]["cv_generation"]["write"]["prompt_id"] == "cv_generation.write.v1"
+
+
+def test_config_accessors_resolve_centralized_prompt_ids_and_model_defaults() -> None:
+    cfg = load_config()
+
+    assert get_gemini_model(cfg) == "gemini-2.5-flash"
+    assert get_ranking_prompt_id(cfg) == "ranking.ai_score.v1"
+    assert get_cv_generation_prompt_id(cfg) == "cv_generation.write.v1"
 
 
 def test_load_config_rejects_unknown_enrich_prompt_id() -> None:

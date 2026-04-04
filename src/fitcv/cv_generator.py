@@ -38,8 +38,19 @@ from fitcv.candidate import flatten_skills
 from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
     CV_STRUCTURED_SECTION_KEYS,
+    get_cv_generation_model,
+    get_cv_generation_prompt_id,
     get_required_structured_section_keys,
 )
+from fitcv.contracts import (
+    ANALYSIS_CHANNEL_DEFINITIONS,
+    DOMAIN_ALIGNMENT_CHANNEL,
+    REQUIRED_SKILL_SUPPORT_CHANNEL,
+    RESPONSIBILITY_ALIGNMENT_CHANNEL,
+    ROLE_ALIGNMENT_CHANNEL,
+    STRUCTURED_CV_SCHEMA_VERSION,
+)
+from fitcv.prompts import render_prompt
 
 # ── template variant map ─────────────────────────────────────────────────────
 # Maps job_family values (populated by enrichment) to styling hints.
@@ -53,7 +64,6 @@ _TEMPLATE_VARIANTS: dict[str, str] = {
 }
 
 _DEFAULT_VARIANT = "standard"
-STRUCTURED_CV_SCHEMA_VERSION = "cv_doc_v1"
 DEFAULT_CV_LOCALE = "en"
 DEFAULT_SUPPORTING_EVIDENCE_PER_ROLE = 1
 
@@ -369,20 +379,15 @@ def _build_evidence_usage_guidance(evidence: list[dict[str, Any]]) -> str:
         return "(no channel-aware evidence guidance available)"
 
     guidance_by_channel = {
-        "required_skill_support": "Use evidence tagged `required_skill_support` to justify concrete technical and skills claims.",
-        "role_alignment": "Use evidence tagged `role_alignment` to shape the summary, headline, and role positioning.",
-        "domain_alignment": "Use evidence tagged `domain_alignment` only for grounded domain familiarity or business-context claims.",
-        "responsibility_alignment": "Use evidence tagged `responsibility_alignment` to craft experience bullets around similar work and outcomes.",
+        REQUIRED_SKILL_SUPPORT_CHANNEL: f"Use evidence tagged `{REQUIRED_SKILL_SUPPORT_CHANNEL}` to justify concrete technical and skills claims.",
+        ROLE_ALIGNMENT_CHANNEL: f"Use evidence tagged `{ROLE_ALIGNMENT_CHANNEL}` to shape the summary, headline, and role positioning.",
+        DOMAIN_ALIGNMENT_CHANNEL: f"Use evidence tagged `{DOMAIN_ALIGNMENT_CHANNEL}` only for grounded domain familiarity or business-context claims.",
+        RESPONSIBILITY_ALIGNMENT_CHANNEL: f"Use evidence tagged `{RESPONSIBILITY_ALIGNMENT_CHANNEL}` to craft experience bullets around similar work and outcomes.",
     }
     guidance_lines = [
-        guidance_by_channel[channel]
-        for channel in (
-            "required_skill_support",
-            "role_alignment",
-            "domain_alignment",
-            "responsibility_alignment",
-        )
-        if channel in channels_or_reasons
+        guidance_by_channel[channel_definition.channel_id]
+        for channel_definition in ANALYSIS_CHANNEL_DEFINITIONS.values()
+        if channel_definition.channel_id in channels_or_reasons
     ]
     guidance_lines.append(
         "Prefer evidence selected by multiple channels when deciding what to emphasize in the final CV."
@@ -898,33 +903,21 @@ def build_generation_prompt(
             )
     analysis_summary = "\n".join(analysis_summary_lines) or "(no analysis summary available)"
 
-    return textwrap.dedent(f"""\
-        You are a professional CV writer. Generate a tailored CV in markdown format.
-
-        ## Job Description
-        Title: {title}
-        Required skills: {', '.join(required_skills) or '(none specified)'}
-
-        ## Selected Evidence
-        {evidence_lines}
-
-        ## Evidence Usage Guidance
-        {evidence_usage_guidance}
-
-        ## CV Analysis Summary
-        {analysis_summary}
-
-        ## Constraints
-        {constraints}
-
-        ## Section-Specific Evidence
-        {section_evidence}
-
-        ## Output Template
-        {filtered_template}
-
-        Write only the completed CV markdown. Do not add commentary.
-    """)
+    prompt_id = get_cv_generation_prompt_id(config or {})
+    return render_prompt(
+        prompt_id,
+        {
+            "title": title,
+            "required_skills": ", ".join(required_skills) or "(none specified)",
+            "selected_evidence": evidence_lines,
+            "evidence_usage_guidance": evidence_usage_guidance,
+            "analysis_summary": analysis_summary,
+            "constraints": constraints,
+            "section_evidence": section_evidence,
+            "output_template": filtered_template,
+            "output_instruction": "Write only the completed CV markdown. Do not add commentary.",
+        },
+    ).text
 
 
 # ── template rendering ────────────────────────────────────────────────────────
@@ -1106,7 +1099,7 @@ def generate_structured_cv(
     )
 
     cv_cfg = config.get("cv") or {}
-    model_name = str(cv_cfg.get("generation", {}).get("model") or config.get("cv_generation_model", ""))
+    model_name = get_cv_generation_model(config)
     response = client.models.generate_content(model=model_name, contents=prompt)
     response_payload = _extract_json_payload(str(response.text))
     return _normalize_structured_cv(

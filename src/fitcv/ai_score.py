@@ -30,6 +30,10 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
+from fitcv.config import get_gemini_model, get_ranking_prompt_id
+from fitcv.contracts import RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION
+from fitcv.prompts import render_prompt
+
 logger = logging.getLogger(__name__)
 
 # ── constants ─────────────────────────────────────────────────────────────────
@@ -38,7 +42,6 @@ _VALID_FIT_LABELS = frozenset({"strong", "stretch", "skip"})
 
 _DEFAULT_STRONG_THRESHOLD = 0.70
 _DEFAULT_STRETCH_THRESHOLD = 0.40
-AI_SCORE_PROMPT_SCHEMA_VERSION = "ranking_ai_score_prompt_v1"
 
 
 def _stable_json_fingerprint(payload: dict[str, Any]) -> str:
@@ -49,8 +52,9 @@ def _stable_json_fingerprint(payload: dict[str, Any]) -> str:
 def build_ai_score_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
     thresholds = dict(config.get("fit_label_thresholds") or {})
     payload = {
-        "gemini_model": str(config.get("gemini_model", "gemini-2.5-flash")),
-        "prompt_schema_version": AI_SCORE_PROMPT_SCHEMA_VERSION,
+        "gemini_model": get_gemini_model(config),
+        "prompt_schema_version": RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION,
+        "prompt_id": get_ranking_prompt_id(config),
         "strong_threshold": float(thresholds.get("strong", _DEFAULT_STRONG_THRESHOLD)),
         "stretch_threshold": float(thresholds.get("stretch", _DEFAULT_STRETCH_THRESHOLD)),
     }
@@ -75,6 +79,7 @@ def build_ai_score_input_fingerprint(
         top_evidence=top_evidence[:2],
         strong_threshold=float(thresholds.get("strong", _DEFAULT_STRONG_THRESHOLD)),
         stretch_threshold=float(thresholds.get("stretch", _DEFAULT_STRETCH_THRESHOLD)),
+        config=config,
     )
     contract_record = build_ai_score_contract_fingerprint(config)
     payload = {
@@ -88,40 +93,6 @@ def build_ai_score_input_fingerprint(
     }
 
 
-def _build_scoring_rubric(
-    *,
-    strong_threshold: float,
-    stretch_threshold: float,
-) -> str:
-    return f"""\
-Score the candidate-to-job match using this ranking policy:
-- Score from 0.0 (no fit) to 1.0 (perfect fit)
-- Primary signals, in order:
-  1. Required-skill coverage
-  2. Evidence quality showing the candidate has actually used those skills
-  3. Seniority and practical readiness for the role
-  4. Role alignment between the target role and this job
-- Secondary signals:
-  - Domain relevance
-  - Candidate preferences such as location or preferred domain
-- Treat preferences as secondary tie-breakers. They must not outweigh major required-skill gaps.
-- Penalise missing core technologies, weak evidence for required skills, seniority mismatch, and clear practical-readiness gaps.
-- Do not give `strong` when multiple core required skills appear unsupported or only weakly evidenced.
-- Prefer conservative scoring when evidence is ambiguous.
-- Classify into exactly one fit_label:
-    strong  (ai_score >= {strong_threshold})
-    stretch ({stretch_threshold} <= ai_score < {strong_threshold})
-    skip    (ai_score < {stretch_threshold})
-Return a JSON object ONLY — no prose, no markdown fences:
-{{
-  "ai_score": <float 0.0–1.0>,
-  "fit_label": "<strong|stretch|skip>",
-  "score_reasoning": "<one-sentence explanation grounded in the job requirements>",
-  "matched_strengths": ["<strength 1>", ...],
-  "key_risks": ["<risk 1>", ...]
-}}"""
-
-
 # ── prompt construction ────────────────────────────────────────────────────────
 
 def build_scoring_prompt(
@@ -131,6 +102,7 @@ def build_scoring_prompt(
     *,
     strong_threshold: float = _DEFAULT_STRONG_THRESHOLD,
     stretch_threshold: float = _DEFAULT_STRETCH_THRESHOLD,
+    config: dict[str, Any] | None = None,
 ) -> str:
     """Build the structured reranking prompt for one job.
 
@@ -146,13 +118,17 @@ def build_scoring_prompt(
     if top_evidence:
         bullets = "\n".join(f"  - {e}" for e in top_evidence)
         evidence_section = f"\n\nTop matched candidate evidence:\n{bullets}"
-
-    return (
-        f"## Job Description\n{jd_summary}\n\n"
-        f"## Candidate Profile\n{candidate_summary}"
-        f"{evidence_section}\n\n"
-        f"## Scoring Rubric\n{_build_scoring_rubric(strong_threshold=strong_threshold, stretch_threshold=stretch_threshold)}"
-    )
+    prompt_id = get_ranking_prompt_id(config or {})
+    return render_prompt(
+        prompt_id,
+        {
+            "jd_summary": jd_summary,
+            "candidate_summary": candidate_summary,
+            "evidence_section": evidence_section,
+            "strong_threshold": strong_threshold,
+            "stretch_threshold": stretch_threshold,
+        },
+    ).text
 
 
 # ── response parsing ──────────────────────────────────────────────────────────
@@ -281,9 +257,10 @@ def score_job(
         top_evidence=top_evidence[:2],
         strong_threshold=float(thresholds.get("strong", _DEFAULT_STRONG_THRESHOLD)),
         stretch_threshold=float(thresholds.get("stretch", _DEFAULT_STRETCH_THRESHOLD)),
+        config=config,
     )
 
-    model_name = str(config.get("gemini_model", "gemini-2.5-flash"))
+    model_name = get_gemini_model(config)
     client = _make_genai_client(config)
     response = client.models.generate_content(model=model_name, contents=prompt)
     raw_text = str(response.text or "")

@@ -3,7 +3,7 @@ cv_system:
   version: 1.21.0
   status: active
   type: add
-  summary: CV generation uses a structured preset-based configuration, keeps reranker fit as the sole post-filter fit authority, splits final-stage execution into `cv_analysis` and `cv_generation`, upgrades `cv_analysis` to hybrid lexical-plus-semantic domain and responsibility alignment with one bounded coverage-aware evidence bundle, validates structured and markdown sections against one shared section contract, grounds final-stage validation against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support, supports richer shortlist retrieval and reuse, emits stage-level quality metrics, and now reuses exact-match late-stage `ranking` AI-score rows plus exact-match `cv_analysis` records when their stage-owned fingerprints and contracts still match.
+  summary: CV generation uses a structured preset-based configuration, keeps reranker fit as the sole post-filter fit authority, splits final-stage execution into `cv_analysis` and `cv_generation`, upgrades `cv_analysis` to hybrid lexical-plus-semantic domain and responsibility alignment with one bounded coverage-aware evidence bundle, validates structured and markdown sections against one shared section contract, grounds final-stage validation against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support, supports richer shortlist retrieval and reuse, emits stage-level quality metrics, reuses exact-match late-stage `ranking` AI-score rows plus exact-match `cv_analysis` records when their stage-owned fingerprints and contracts still match, and now centralizes prompt ownership plus config ownership under a clearer responsibility-based config room.
   owner: fitcv
   domains:
     - pipeline
@@ -63,6 +63,9 @@ cv_system:
     - Ranking can now reuse exact-match AI-score rows per job when the reranker input fingerprint and AI-score contract still match, while leaving final weighted ranking fresh on the resulting scored rows
     - `cv_analysis` can now reuse exact-match analysis records per ranked job when the analysis input fingerprint and analysis contract still match, while keeping fresh computation as the safe fallback
     - Run results now persist late-stage reuse snapshots and reuse-rate metrics so later runs can reuse exact-match `ranking` AI-score and `cv_analysis` outputs safely
+    - Primary prompt text for `enrich`, `ranking`, and `cv_generation` now lives in the shared prompt registry instead of being split across stage modules
+    - `cv_analysis` selection-policy knobs now live in dedicated config instead of stage-local constants, while shared contract/version identifiers and analysis-channel semantics are imported from central runtime modules
+    - Canonical YAML config ownership now lives under `config/runtime`, `config/policy`, and `config/taxonomy`, while prompt text and CV rendering templates stay outside the config room
   refs:
     docs:
       - docs/FitCV-pipeline.md
@@ -91,6 +94,7 @@ cv_system:
       - docs/superpowers/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
       - docs/superpowers/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
       - docs/superpowers/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+      - docs/superpowers/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
     plan:
       - docs/superpowers/plans/2026-03-27-centralized-cv-generation-config-implementation.md
       - docs/superpowers/plans/2026-03-27-preset-based-cv-config-migration-implementation.md
@@ -118,6 +122,7 @@ cv_system:
       - docs/superpowers/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
       - docs/superpowers/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
       - docs/superpowers/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+      - docs/superpowers/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
     history:
       - docs/features/cv_system/history.md
   keywords:
