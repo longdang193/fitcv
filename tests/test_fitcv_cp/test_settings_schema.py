@@ -195,6 +195,14 @@ def test_rule_filter_selected_filters_default_matches_spec() -> None:
     ]
 
 
+def test_retrieval_defaults_are_hydrated_from_centralized_pipeline_config() -> None:
+    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
+    assert schema_by_key["pipeline.vector_search_top_n"]["default"] == 50
+    assert schema_by_key["pipeline.ai_score_top_n"]["default"] == 50
+    assert schema_by_key["pipeline.final_top_n"]["default"] == 10
+    assert schema_by_key["pipeline.evidence_top_k"]["default"] == 5
+
+
 def test_rule_filter_selected_filters_validate_accepts_known_codes() -> None:
     validate_settings({
         "rule_filter.selected_filters": [

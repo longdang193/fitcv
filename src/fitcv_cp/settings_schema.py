@@ -3,7 +3,7 @@
 Each entry defines:
   key         Dotted name used in pipeline_settings BQ table and POST /runs overrides
   type        "int" or "float"
-  default     YAML baseline default (for display purposes; source of truth is config/*.yaml)
+  default     YAML baseline default (for display purposes; source of truth is config/**/*.yaml)
   label       Human-readable display name shown in the admin UI
   group       UI section: "retrieval" | "timing" | "ranking"
   config_path List of keys to traverse when applying to a config dict
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from fitcv.config import load_config
 from fitcv.cv_presets import SUPPORTED_PRESETS
 
 
@@ -554,6 +555,40 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "config_path": ["cv", "validation", "max_pages"],
     },
 ]
+
+
+def _resolve_config_path_default(
+    config: dict[str, Any],
+    path: list[str],
+) -> Any:
+    current: Any = config
+    for part in path:
+        if not isinstance(current, dict) or part not in current:
+            return None
+        current = current[part]
+    return current
+
+
+def _hydrate_schema_defaults_from_config() -> None:
+    try:
+        baseline_config = load_config()
+    except Exception:
+        return
+
+    for entry in SETTINGS_SCHEMA:
+        config_path = entry.get("config_path")
+        if not isinstance(config_path, list) or not config_path:
+            continue
+        resolved_default = _resolve_config_path_default(baseline_config, config_path)
+        if resolved_default is None:
+            continue
+        if isinstance(entry.get("default"), list) and isinstance(resolved_default, list):
+            entry["default"] = [str(value) for value in resolved_default]
+            continue
+        entry["default"] = resolved_default
+
+
+_hydrate_schema_defaults_from_config()
 
 # ── Ranking group registry ────────────────────────────────────────────────────
 # Maps URL group slug → ordered list of schema keys in that group.

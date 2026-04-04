@@ -3,7 +3,7 @@ settings_system:
   version: 2.6.0
   status: active
   type: add
-  summary: Admins can view and edit pipeline tuning defaults through the admin UI, including richer ranking calibration surfaces and `cv_analysis` hybrid semantic-alignment controls, persisted in BigQuery.
+  summary: Admins can view and edit pipeline tuning defaults through the admin UI, including richer ranking calibration surfaces and `cv_analysis` hybrid semantic-alignment controls, while baseline defaults now resolve from centralized YAML/config ownership instead of drifting as duplicated schema literals, persisted overrides still live in BigQuery, and the canonical config room is now organized into responsibility-based `config/runtime`, `config/policy`, and `config/taxonomy` subfolders.
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -29,6 +29,8 @@ settings_system:
     - Grouped form validation
     - Per-run overrides
     - Trigger-time effective settings snapshot
+    - Admin settings defaults now hydrate from the loaded baseline config for supported paths instead of acting as a competing default store
+    - Admin settings default hydration now follows the reorganized config-room layout while preserving flat-path compatibility during the migration window
   refs:
     docs:
       - docs/fitcv-control-plane-setup.md
@@ -40,6 +42,7 @@ settings_system:
       - docs/superpowers/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
       - docs/superpowers/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
       - docs/superpowers/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+      - docs/superpowers/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-pipeline-settings-implementation.md
       - docs/superpowers/plans/2026-03-27-centralized-cv-generation-config-implementation.md
@@ -50,6 +53,7 @@ settings_system:
       - docs/superpowers/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
       - docs/superpowers/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
       - docs/superpowers/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+      - docs/superpowers/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
     history:
       - docs/features/settings_system/history.md
   keywords:

@@ -16,6 +16,15 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from fitcv.config import get_embedding_model
+from fitcv.contracts import (
+    ANALYSIS_CHANNEL_IDS,
+    CV_ANALYSIS_REUSE_SCHEMA_VERSION,
+    DOMAIN_ALIGNMENT_CHANNEL,
+    REQUIRED_SKILL_SUPPORT_CHANNEL,
+    RESPONSIBILITY_ALIGNMENT_CHANNEL,
+    ROLE_ALIGNMENT_CHANNEL,
+)
 from fitcv.embeddings import generate_embedding
 from fitcv.ranking import _normalize_text, _role_family_neighbors, infer_role_family
 
@@ -31,38 +40,15 @@ TYPE_WEIGHTS: dict[str, float] = {
     "experience_bullet": 0.7,
     "achievement": 0.4,
 }
-
-REQUIRED_SKILL_SUPPORT_CHANNEL = "required_skill_support"
-ROLE_ALIGNMENT_CHANNEL = "role_alignment"
-DOMAIN_ALIGNMENT_CHANNEL = "domain_alignment"
-RESPONSIBILITY_ALIGNMENT_CHANNEL = "responsibility_alignment"
-RETRIEVAL_CHANNELS = (
-    REQUIRED_SKILL_SUPPORT_CHANNEL,
-    ROLE_ALIGNMENT_CHANNEL,
-    DOMAIN_ALIGNMENT_CHANNEL,
-    RESPONSIBILITY_ALIGNMENT_CHANNEL,
-)
+RETRIEVAL_CHANNELS = ANALYSIS_CHANNEL_IDS
 DEFAULT_CHANNEL_POOL_SIZE = 4
 DEFAULT_SEMANTIC_ALIGNMENT_ENABLED = False
-DEFAULT_SEMANTIC_ALIGNMENT_MODEL = "text-embedding-005"
 DEFAULT_RESPONSIBILITY_LEXICAL_WEIGHT = 0.25
 DEFAULT_RESPONSIBILITY_SEMANTIC_WEIGHT = 0.75
 DEFAULT_DOMAIN_LEXICAL_WEIGHT = 0.40
 DEFAULT_DOMAIN_SEMANTIC_WEIGHT = 0.60
 SEMANTIC_METHOD_DISABLED = "disabled"
 SEMANTIC_METHOD_EMBEDDING = "embedding_similarity"
-CV_ANALYSIS_REUSE_SCHEMA_VERSION = "cv_analysis_reuse_v1"
-SELECTION_CHANNEL_WEIGHTS: dict[str, float] = {
-    REQUIRED_SKILL_SUPPORT_CHANNEL: 0.40,
-    RESPONSIBILITY_ALIGNMENT_CHANNEL: 0.30,
-    ROLE_ALIGNMENT_CHANNEL: 0.15,
-    DOMAIN_ALIGNMENT_CHANNEL: 0.15,
-}
-SELECTION_MULTI_CHANNEL_BONUS = 0.05
-SELECTION_TYPE_WEIGHT_FACTOR = 0.10
-SELECTION_RESIDUAL_SCORE_FACTOR = 0.05
-SELECTION_NEW_TYPE_BONUS = 0.03
-SELECTION_SAME_TYPE_PENALTY = 0.02
 ROLE_ALIGNMENT_NEIGHBOR_SCORE = 0.75
 
 _UUID_NAMESPACE = uuid.NAMESPACE_OID
@@ -85,6 +71,36 @@ _STOPWORDS = {
     "to",
     "with",
 }
+
+
+def _cv_analysis_policy_settings(config: dict[str, Any] | None) -> dict[str, Any]:
+    selection_policy: dict[str, Any] = {}
+    if isinstance(config, dict):
+        selection_policy = dict((config.get("cv_analysis") or {}).get("selection_policy") or {})
+    channel_weights = dict(selection_policy.get("channel_weights") or {})
+    return {
+        "channel_weights": {
+            REQUIRED_SKILL_SUPPORT_CHANNEL: float(channel_weights.get(REQUIRED_SKILL_SUPPORT_CHANNEL, 0.40)),
+            RESPONSIBILITY_ALIGNMENT_CHANNEL: float(channel_weights.get(RESPONSIBILITY_ALIGNMENT_CHANNEL, 0.30)),
+            ROLE_ALIGNMENT_CHANNEL: float(channel_weights.get(ROLE_ALIGNMENT_CHANNEL, 0.15)),
+            DOMAIN_ALIGNMENT_CHANNEL: float(channel_weights.get(DOMAIN_ALIGNMENT_CHANNEL, 0.15)),
+        },
+        "multi_channel_bonus": float(selection_policy.get("multi_channel_bonus", 0.05)),
+        "type_weight_factor": float(selection_policy.get("type_weight_factor", 0.10)),
+        "residual_score_factor": float(selection_policy.get("residual_score_factor", 0.05)),
+        "new_type_bonus": float(selection_policy.get("new_type_bonus", 0.03)),
+        "same_type_penalty": float(selection_policy.get("same_type_penalty", 0.02)),
+        "quotas": {
+            "experience_entry_top_k": int(dict(selection_policy.get("quotas") or {}).get("experience_entry_top_k", DEFAULT_EXPERIENCE_ENTRY_TOP_K)),
+            "project_entry_top_k": int(dict(selection_policy.get("quotas") or {}).get("project_entry_top_k", DEFAULT_PROJECT_ENTRY_TOP_K)),
+            "achievement_top_k": int(dict(selection_policy.get("quotas") or {}).get("achievement_top_k", DEFAULT_ACHIEVEMENT_TOP_K)),
+        },
+        "trimming": {
+            "bullets_per_experience": int(dict(selection_policy.get("trimming") or {}).get("bullets_per_experience", DEFAULT_BULLETS_PER_EXPERIENCE)),
+            "highlights_per_project": int(dict(selection_policy.get("trimming") or {}).get("highlights_per_project", DEFAULT_HIGHLIGHTS_PER_PROJECT)),
+            "stack_lines_per_project": int(dict(selection_policy.get("trimming") or {}).get("stack_lines_per_project", DEFAULT_STACK_LINES_PER_PROJECT)),
+        },
+    }
 
 
 def _normalize_optional_text(value: Any) -> str:
@@ -210,7 +226,7 @@ def _semantic_alignment_settings(config: dict[str, Any] | None) -> dict[str, Any
             if isinstance(config, dict)
             else False
         ),
-        "model": str(semantic_alignment.get("model") or DEFAULT_SEMANTIC_ALIGNMENT_MODEL),
+        "model": str(semantic_alignment.get("model") or get_embedding_model(config or {})),
         "responsibility_lexical_weight": float(
             semantic_alignment.get(
                 "responsibility_lexical_weight",
@@ -256,6 +272,7 @@ def build_cv_analysis_contract_fingerprint(config: dict[str, Any]) -> dict[str, 
         "schema_version": CV_ANALYSIS_REUSE_SCHEMA_VERSION,
         "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),
         "semantic_alignment": _semantic_alignment_settings(config),
+        "selection_policy": _cv_analysis_policy_settings(config),
         "fit_label_thresholds": dict(config.get("fit_label_thresholds") or {}),
         "role_taxonomy": dict(config.get("role_taxonomy") or {}),
         "skill_synonyms_runtime": dict(config.get("skill_synonyms_runtime") or {}),
@@ -766,27 +783,39 @@ def _select_relevant_texts(values: list[str], reference_terms: list[str], limit:
     return selected
 
 
-def _trim_selected_project_entry(item: dict[str, Any], reference_terms: list[str]) -> dict[str, Any]:
+def _trim_selected_project_entry(
+    item: dict[str, Any],
+    reference_terms: list[str],
+    *,
+    policy: dict[str, Any],
+) -> dict[str, Any]:
     trimmed = dict(item)
+    trimming = dict(policy.get("trimming") or {})
     trimmed["tech_stack"] = _select_relevant_texts(
         list(item.get("tech_stack") or []),
         reference_terms,
-        DEFAULT_STACK_LINES_PER_PROJECT,
+        int(trimming.get("stack_lines_per_project", DEFAULT_STACK_LINES_PER_PROJECT)),
     )
     trimmed["highlights"] = _select_relevant_texts(
         list(item.get("highlights") or []),
         reference_terms,
-        DEFAULT_HIGHLIGHTS_PER_PROJECT,
+        int(trimming.get("highlights_per_project", DEFAULT_HIGHLIGHTS_PER_PROJECT)),
     )
     return trimmed
 
 
-def _trim_selected_experience_entry(item: dict[str, Any], reference_terms: list[str]) -> dict[str, Any]:
+def _trim_selected_experience_entry(
+    item: dict[str, Any],
+    reference_terms: list[str],
+    *,
+    policy: dict[str, Any],
+) -> dict[str, Any]:
     trimmed = dict(item)
+    trimming = dict(policy.get("trimming") or {})
     trimmed["bullets"] = _select_relevant_texts(
         list(item.get("bullets") or []),
         reference_terms,
-        DEFAULT_BULLETS_PER_EXPERIENCE,
+        int(trimming.get("bullets_per_experience", DEFAULT_BULLETS_PER_EXPERIENCE)),
     )
     return trimmed
 
@@ -806,9 +835,12 @@ def _select_budgeted_items(
     experience_items: list[dict[str, Any]],
     project_items: list[dict[str, Any]],
     achievement_items: list[dict[str, Any]],
+    policy: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     if top_k <= 0:
         return []
+    effective_policy = policy or _cv_analysis_policy_settings(None)
+    quotas = dict(effective_policy.get("quotas") or {})
 
     selected: list[dict[str, Any]] = []
     selected_ids: set[str] = set()
@@ -822,7 +854,7 @@ def _select_budgeted_items(
     remaining_slots -= minimum_projects
 
     additional_experience = min(
-        max(DEFAULT_EXPERIENCE_ENTRY_TOP_K - reserved_experience, 0),
+        max(int(quotas.get("experience_entry_top_k", DEFAULT_EXPERIENCE_ENTRY_TOP_K)) - reserved_experience, 0),
         len(experience_items) - reserved_experience,
         remaining_slots,
     )
@@ -830,27 +862,31 @@ def _select_budgeted_items(
     remaining_slots -= max(additional_experience, 0)
 
     additional_projects = min(
-        max(DEFAULT_PROJECT_ENTRY_TOP_K - reserved_projects, 0),
+        max(int(quotas.get("project_entry_top_k", DEFAULT_PROJECT_ENTRY_TOP_K)) - reserved_projects, 0),
         len(project_items) - reserved_projects,
         remaining_slots,
     )
     reserved_projects += max(additional_projects, 0)
     remaining_slots -= max(additional_projects, 0)
 
-    reserved_achievements = min(DEFAULT_ACHIEVEMENT_TOP_K, len(achievement_items), remaining_slots)
+    reserved_achievements = min(
+        int(quotas.get("achievement_top_k", DEFAULT_ACHIEVEMENT_TOP_K)),
+        len(achievement_items),
+        remaining_slots,
+    )
     remaining_slots -= reserved_achievements
 
     for items, limit in (
         (experience_items, reserved_experience),
         (project_items, reserved_projects),
         (achievement_items, reserved_achievements),
-    ):
+        ):
         for item in items[:limit]:
             selected_item = item
             if str(item.get("evidence_type") or "") == "project_entry":
-                selected_item = _trim_selected_project_entry(item, reference_terms)
+                selected_item = _trim_selected_project_entry(item, reference_terms, policy=effective_policy)
             if str(item.get("evidence_type") or "") == "experience_entry":
-                selected_item = _trim_selected_experience_entry(item, reference_terms)
+                selected_item = _trim_selected_experience_entry(item, reference_terms, policy=effective_policy)
             selected.append(selected_item)
             selected_ids.add(str(item["evidence_id"]))
 
@@ -865,9 +901,9 @@ def _select_budgeted_items(
         for item in fallback_pool[:remaining_slots]:
             selected_item = item
             if str(item.get("evidence_type") or "") == "project_entry":
-                selected_item = _trim_selected_project_entry(item, reference_terms)
+                selected_item = _trim_selected_project_entry(item, reference_terms, policy=effective_policy)
             if str(item.get("evidence_type") or "") == "experience_entry":
-                selected_item = _trim_selected_experience_entry(item, reference_terms)
+                selected_item = _trim_selected_experience_entry(item, reference_terms, policy=effective_policy)
             selected.append(selected_item)
 
     return _sort_items(selected)
@@ -1197,26 +1233,30 @@ def _merge_channel_pools(channel_pools: dict[str, list[dict[str, Any]]]) -> list
     )
 
 
-def _base_selection_score(item: dict[str, Any]) -> float:
+def _base_selection_score(item: dict[str, Any], *, policy: dict[str, Any]) -> float:
+    channel_weights = dict(policy.get("channel_weights") or {})
     channel_scores = dict(item.get("channel_scores") or {})
     weighted_score = sum(
-        float(channel_scores.get(channel) or 0.0) * SELECTION_CHANNEL_WEIGHTS[channel]
+        float(channel_scores.get(channel) or 0.0) * float(channel_weights.get(channel, 0.0))
         for channel in RETRIEVAL_CHANNELS
     )
     matched_channels = list(item.get("matched_channels") or [])
-    multi_channel_bonus = max(len(matched_channels) - 1, 0) * SELECTION_MULTI_CHANNEL_BONUS
-    type_bonus = TYPE_WEIGHTS.get(str(item.get("evidence_type") or ""), 0.0) * SELECTION_TYPE_WEIGHT_FACTOR
+    multi_channel_bonus = max(len(matched_channels) - 1, 0) * float(policy.get("multi_channel_bonus", 0.0))
+    type_bonus = TYPE_WEIGHTS.get(str(item.get("evidence_type") or ""), 0.0) * float(policy.get("type_weight_factor", 0.0))
     return weighted_score + multi_channel_bonus + type_bonus
 
 
 def _coverage_gain(
     item: dict[str, Any],
     covered_channel_scores: dict[str, float],
+    *,
+    policy: dict[str, Any],
 ) -> float:
+    channel_weights = dict(policy.get("channel_weights") or {})
     channel_scores = dict(item.get("channel_scores") or {})
     return sum(
         max(float(channel_scores.get(channel) or 0.0) - covered_channel_scores.get(channel, 0.0), 0.0)
-        * SELECTION_CHANNEL_WEIGHTS[channel]
+        * float(channel_weights.get(channel, 0.0))
         for channel in RETRIEVAL_CHANNELS
     )
 
@@ -1247,13 +1287,13 @@ def _reference_terms(job_context: dict[str, Any]) -> list[str]:
     return terms
 
 
-def _finalize_selected_item(item: dict[str, Any], job_context: dict[str, Any]) -> dict[str, Any]:
+def _finalize_selected_item(item: dict[str, Any], job_context: dict[str, Any], *, policy: dict[str, Any]) -> dict[str, Any]:
     reference_terms = _reference_terms(job_context)
     finalized = dict(item)
     if str(item.get("evidence_type") or "") == "project_entry":
-        finalized = _trim_selected_project_entry(finalized, reference_terms)
+        finalized = _trim_selected_project_entry(finalized, reference_terms, policy=policy)
     if str(item.get("evidence_type") or "") == "experience_entry":
-        finalized = _trim_selected_experience_entry(finalized, reference_terms)
+        finalized = _trim_selected_experience_entry(finalized, reference_terms, policy=policy)
     return finalized
 
 
@@ -1282,6 +1322,7 @@ def _select_final_evidence(
     *,
     top_k: int,
     job_context: dict[str, Any],
+    policy: dict[str, Any],
 ) -> list[dict[str, Any]]:
     if top_k <= 0:
         return []
@@ -1296,12 +1337,12 @@ def _select_final_evidence(
         for index, item in enumerate(remaining):
             evidence_type = str(item.get("evidence_type") or "")
             dynamic_score = (
-                _coverage_gain(item, covered_channel_scores)
-                + (_base_selection_score(item) * SELECTION_RESIDUAL_SCORE_FACTOR)
+                _coverage_gain(item, covered_channel_scores, policy=policy)
+                + (_base_selection_score(item, policy=policy) * float(policy.get("residual_score_factor", 0.0)))
             )
             if evidence_type and evidence_type not in selected_types:
-                dynamic_score += SELECTION_NEW_TYPE_BONUS
-            dynamic_score -= selected_types.count(evidence_type) * SELECTION_SAME_TYPE_PENALTY
+                dynamic_score += float(policy.get("new_type_bonus", 0.0))
+            dynamic_score -= selected_types.count(evidence_type) * float(policy.get("same_type_penalty", 0.0))
             if dynamic_score > best_score:
                 best_score = dynamic_score
                 best_index = index
@@ -1318,7 +1359,7 @@ def _select_final_evidence(
             )
         chosen["selection_score"] = round(best_score, 6)
         chosen["selection_reasons"] = _selection_reasons(chosen)
-        selected.append(_finalize_selected_item(chosen, job_context))
+        selected.append(_finalize_selected_item(chosen, job_context, policy=policy))
     return selected
 
 
@@ -1327,6 +1368,7 @@ def _top_unselected_candidates(
     selected_evidence: list[dict[str, Any]],
     *,
     limit: int = 3,
+    policy: dict[str, Any],
 ) -> list[dict[str, Any]]:
     if limit <= 0:
         return []
@@ -1342,7 +1384,7 @@ def _top_unselected_candidates(
     ranked_unselected = sorted(
         unselected,
         key=lambda item: (
-            float(item.get("selection_score") or _base_selection_score(item)),
+            float(item.get("selection_score") or _base_selection_score(item, policy=policy)),
             len(list(item.get("matched_channels") or [])),
             TYPE_WEIGHTS.get(str(item.get("evidence_type") or ""), 0.0),
             str(item.get("name") or ""),
@@ -1362,6 +1404,7 @@ def retrieve_evidence_bundle(
     """Retrieve evidence via separate channels, then merge/dedupe/select."""
     coerced_job_context = _coerce_job_context(job_context)
     base_items = _collect_base_items(profile)
+    selection_policy = _cv_analysis_policy_settings(config)
     semantic_settings = _semantic_alignment_settings(config)
     runtime_state = _semantic_runtime_state()
     channel_pools = {
@@ -1381,6 +1424,7 @@ def retrieve_evidence_bundle(
         merged_pool,
         top_k=top_k,
         job_context=coerced_job_context,
+        policy=selection_policy,
     )
     semantic_alignment = {
         "enabled": bool(semantic_settings["enabled"]),
@@ -1411,9 +1455,14 @@ def retrieve_evidence_bundle(
         "merged_pool_size": sum(len(pool) for pool in channel_pools.values()),
         "deduped_pool_size": len(merged_pool),
         "selected_evidence_count": len(selected_evidence),
-        "unselected_top_candidates": _top_unselected_candidates(merged_pool, selected_evidence),
+        "unselected_top_candidates": _top_unselected_candidates(
+            merged_pool,
+            selected_evidence,
+            policy=selection_policy,
+        ),
         "hybrid_alignment": hybrid_alignment,
         "semantic_alignment": semantic_alignment,
+        "selection_policy": selection_policy,
     }
 
 

@@ -15,6 +15,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+from fitcv.config import get_embedding_model
 
 JOB_SUMMARY_CHUNK_TYPE = "job_summary"
 SHORTLIST_SUMMARY_SCHEMA_VERSION = "shortlist_job_summary_v2"
@@ -107,7 +108,7 @@ def build_job_summary_signature_record(structured_jd: dict[str, Any]) -> dict[st
 
 def get_shortlist_embedding_model(config: dict[str, Any]) -> str:
     """Return the embedding model identifier used for shortlist job summaries."""
-    return str(config.get("shortlist_embedding_model") or SHORTLIST_DEFAULT_EMBEDDING_MODEL)
+    return str(config.get("shortlist_embedding_model") or get_embedding_model(config) or SHORTLIST_DEFAULT_EMBEDDING_MODEL)
 
 
 def build_embedding_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:

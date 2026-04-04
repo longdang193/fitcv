@@ -1,16 +1,18 @@
-"""Load project configuration from .env.yaml and config/*.yaml policy files.
+"""Load project configuration from .env.yaml and config/**/*.yaml policy files.
 
 Load order
 ----------
-1. .env.yaml          — infrastructure secrets (GCP project, SA key, etc.)
-2. config/taxonomy.yaml      — seniority ladder, allowed enum values
-3. config/skill_synonyms.yaml — skill alias → canonical mapping
-4. config/pipeline.yaml      — model names, top_n limits, batch/sleep settings
-5. config/ranking.yaml        — ranking weights, fit-label thresholds, missing defaults
-6. config/cv.yaml             — CV generation and validation defaults (nested preset-based)
+1. .env.yaml                           — infrastructure secrets (GCP project, SA key, etc.)
+2. config/taxonomy/taxonomy.yaml       — seniority ladder, allowed enum values
+3. config/taxonomy/skill_synonyms.yaml — skill alias → canonical mapping
+4. config/runtime/pipeline.yaml        — model names, top_n limits, batch/sleep settings
+5. config/policy/ranking.yaml          — ranking weights, fit-label thresholds, missing defaults
+6. config/policy/cv_analysis.yaml      — cv_analysis semantic alignment and evidence-selection policy
+7. config/runtime/prompts.yaml         — stage prompt ids
+8. config/policy/cv.yaml               — CV generation and validation defaults (nested preset-based)
 
 Later files do NOT override .env.yaml keys. They only add new top-level keys.
-Missing config/*.yaml files → warning logged, not a crash (safe degradation).
+Missing config/**/*.yaml files → warning logged, not a crash (safe degradation).
 
 CV config contract (preset-based, v2)
 -------------------------------------
@@ -32,12 +34,12 @@ Backward-compatibility projection (TEMPORARY — remove after plan 2 lands)
 import logging
 import os
 import re
-from fitcv.cv_presets import SUPPORTED_PRESETS
 import warnings
 from pathlib import Path
 from typing import Any
 
 import yaml
+from fitcv.cv_presets import SUPPORTED_PRESETS
 from fitcv.prompts import get_prompt_definition
 
 logger = logging.getLogger(__name__)
@@ -51,17 +53,23 @@ _REQUIRED_KEYS = [
 # Optional — only needed when using the Apify API source
 _APIFY_KEYS = ["apify_dataset_id", "apify_token"]
 
-# Config YAML files merged into the base config (relative to repo root)
-_POLICY_FILES = [
-    "taxonomy.yaml",
-    "skill_synonyms.yaml",
-    "pipeline.yaml",
-    "ranking.yaml",
-    "cv.yaml",
+# Policy YAML files merged into the base config (relative to config/).
+# The new subfolder layout is canonical; flat legacy filenames are temporary
+# fallbacks for migration compatibility.
+_POLICY_FILE_CANDIDATES = [
+    ("taxonomy", ("taxonomy/taxonomy.yaml", "taxonomy.yaml")),
+    ("skill_synonyms", ("taxonomy/skill_synonyms.yaml", "skill_synonyms.yaml")),
+    ("pipeline", ("runtime/pipeline.yaml", "pipeline.yaml")),
+    ("ranking", ("policy/ranking.yaml", "ranking.yaml")),
+    ("cv_analysis", ("policy/cv_analysis.yaml", "cv_analysis.yaml")),
+    ("prompts", ("runtime/prompts.yaml", "prompts.yaml")),
+    ("cv", ("policy/cv.yaml", "cv.yaml")),
 ]
 
 _DEFAULT_ENV_CANDIDATES = (".env.yaml", "config/env.yaml")
 _DEFAULT_ENRICH_PROMPT_ID = "enrich.extraction.v1"
+_DEFAULT_RANKING_AI_SCORE_PROMPT_ID = "ranking.ai_score.v1"
+_DEFAULT_CV_GENERATION_WRITE_PROMPT_ID = "cv_generation.write.v1"
 _INFRA_ENV_OVERRIDES = {
     "gcp_project": "GCP_PROJECT",
     "bigquery_dataset": "BIGQUERY_DATASET",
@@ -103,6 +111,17 @@ def _load_yaml_file(path: Path) -> dict[str, Any]:
     with open(path) as f:
         data = yaml.safe_load(f)
     return data if isinstance(data, dict) else {}
+
+
+def _load_policy_file(config_dir: Path, rel_paths: tuple[str, ...]) -> tuple[dict[str, Any], Path]:
+    """Load the first matching policy file, preferring the new subfolder layout."""
+    for rel_path in rel_paths:
+        candidate = config_dir / rel_path
+        if candidate.exists():
+            return _load_yaml_file(candidate), candidate
+    preferred_path = config_dir / rel_paths[0]
+    logger.warning("Config file not found (skipping): %s", preferred_path)
+    return {}, preferred_path
 
 
 def _find_config_dir(base_path: Path) -> Path:
@@ -278,39 +297,109 @@ def _apply_prompt_defaults(cfg: dict[str, Any]) -> dict[str, Any]:
     extraction_cfg["prompt_id"] = prompt_id or _DEFAULT_ENRICH_PROMPT_ID
     enrich_prompt_cfg["extraction"] = extraction_cfg
     prompts["enrich"] = enrich_prompt_cfg
+
+    ranking_prompt_cfg = prompts.get("ranking")
+    if not isinstance(ranking_prompt_cfg, dict):
+        ranking_prompt_cfg = {}
+    ai_score_cfg = ranking_prompt_cfg.get("ai_score")
+    if not isinstance(ai_score_cfg, dict):
+        ai_score_cfg = {}
+    ranking_prompt_id = str(ai_score_cfg.get("prompt_id") or _DEFAULT_RANKING_AI_SCORE_PROMPT_ID).strip()
+    ai_score_cfg["prompt_id"] = ranking_prompt_id or _DEFAULT_RANKING_AI_SCORE_PROMPT_ID
+    ranking_prompt_cfg["ai_score"] = ai_score_cfg
+    prompts["ranking"] = ranking_prompt_cfg
+
+    cv_generation_prompt_cfg = prompts.get("cv_generation")
+    if not isinstance(cv_generation_prompt_cfg, dict):
+        cv_generation_prompt_cfg = {}
+    write_cfg = cv_generation_prompt_cfg.get("write")
+    if not isinstance(write_cfg, dict):
+        write_cfg = {}
+    write_prompt_id = str(write_cfg.get("prompt_id") or _DEFAULT_CV_GENERATION_WRITE_PROMPT_ID).strip()
+    write_cfg["prompt_id"] = write_prompt_id or _DEFAULT_CV_GENERATION_WRITE_PROMPT_ID
+    cv_generation_prompt_cfg["write"] = write_cfg
+    prompts["cv_generation"] = cv_generation_prompt_cfg
     cfg["prompts"] = prompts
     return cfg
 
 
 def _build_prompts_runtime(cfg: dict[str, Any]) -> dict[str, Any]:
-    prompt_id = str(
+    enrich_prompt_id = str(
         (((cfg.get("prompts") or {}).get("enrich") or {}).get("extraction") or {}).get("prompt_id")
         or _DEFAULT_ENRICH_PROMPT_ID
     )
-    definition = get_prompt_definition(prompt_id)
+    enrich_definition = get_prompt_definition(enrich_prompt_id)
+    ranking_prompt_id = str(
+        (((cfg.get("prompts") or {}).get("ranking") or {}).get("ai_score") or {}).get("prompt_id")
+        or _DEFAULT_RANKING_AI_SCORE_PROMPT_ID
+    )
+    ranking_definition = get_prompt_definition(ranking_prompt_id)
+    cv_generation_prompt_id = str(
+        (((cfg.get("prompts") or {}).get("cv_generation") or {}).get("write") or {}).get("prompt_id")
+        or _DEFAULT_CV_GENERATION_WRITE_PROMPT_ID
+    )
+    cv_generation_definition = get_prompt_definition(cv_generation_prompt_id)
     return {
         "enrich": {
             "extraction": {
-                "prompt_id": definition.prompt_id,
-                "version": definition.version,
-                "template_path": str(definition.template_path),
-                "stage_id": definition.stage_id,
+                "prompt_id": enrich_definition.prompt_id,
+                "version": enrich_definition.version,
+                "template_path": str(enrich_definition.template_path),
+                "stage_id": enrich_definition.stage_id,
+            }
+        },
+        "ranking": {
+            "ai_score": {
+                "prompt_id": ranking_definition.prompt_id,
+                "version": ranking_definition.version,
+                "template_path": str(ranking_definition.template_path),
+                "stage_id": ranking_definition.stage_id,
+            }
+        },
+        "cv_generation": {
+            "write": {
+                "prompt_id": cv_generation_definition.prompt_id,
+                "version": cv_generation_definition.version,
+                "template_path": str(cv_generation_definition.template_path),
+                "stage_id": cv_generation_definition.stage_id,
             }
         }
     }
 
 
 def _validate_prompt_config(cfg: dict[str, Any]) -> None:
-    prompt_id = str(
+    enrich_prompt_id = str(
         (((cfg.get("prompts") or {}).get("enrich") or {}).get("extraction") or {}).get("prompt_id")
         or ""
     ).strip()
-    if not prompt_id:
+    if not enrich_prompt_id:
         raise ValueError("prompts.enrich.extraction.prompt_id is required")
     try:
-        get_prompt_definition(prompt_id)
+        get_prompt_definition(enrich_prompt_id)
     except KeyError as exc:
-        raise ValueError(f"Unknown enrich prompt_id: {prompt_id}") from exc
+        raise ValueError(f"Unknown enrich prompt_id: {enrich_prompt_id}") from exc
+
+    ranking_prompt_id = str(
+        (((cfg.get("prompts") or {}).get("ranking") or {}).get("ai_score") or {}).get("prompt_id")
+        or ""
+    ).strip()
+    if not ranking_prompt_id:
+        raise ValueError("prompts.ranking.ai_score.prompt_id is required")
+    try:
+        get_prompt_definition(ranking_prompt_id)
+    except KeyError as exc:
+        raise ValueError(f"Unknown ranking ai_score prompt_id: {ranking_prompt_id}") from exc
+
+    cv_generation_prompt_id = str(
+        (((cfg.get("prompts") or {}).get("cv_generation") or {}).get("write") or {}).get("prompt_id")
+        or ""
+    ).strip()
+    if not cv_generation_prompt_id:
+        raise ValueError("prompts.cv_generation.write.prompt_id is required")
+    try:
+        get_prompt_definition(cv_generation_prompt_id)
+    except KeyError as exc:
+        raise ValueError(f"Unknown cv_generation write prompt_id: {cv_generation_prompt_id}") from exc
 
 
 def _resolve_config_relative_path(config_dir: Path, raw_path: str | Path) -> Path:
@@ -347,6 +436,21 @@ def _normalize_config_keys(cfg: dict[str, Any]) -> dict[str, Any]:
         location = str(cfg.get("location", "")).strip()
         if location and location.lower() != "us":
             cfg["vertex_location"] = location
+    pipeline_cfg = dict(cfg.get("pipeline") or {})
+    if "vector_search_top_n" not in pipeline_cfg and "vector_top_n" in cfg:
+        pipeline_cfg["vector_search_top_n"] = cfg["vector_top_n"]
+    if "ai_score_top_n" not in pipeline_cfg and "rerank_top_n" in cfg:
+        pipeline_cfg["ai_score_top_n"] = cfg["rerank_top_n"]
+    if "final_top_n" not in pipeline_cfg and "final_top_n" in cfg:
+        pipeline_cfg["final_top_n"] = cfg["final_top_n"]
+    if "evidence_top_k" not in pipeline_cfg and "evidence_top_k" in cfg:
+        pipeline_cfg["evidence_top_k"] = cfg["evidence_top_k"]
+    if pipeline_cfg:
+        cfg["pipeline"] = pipeline_cfg
+        if "vector_top_n" not in cfg and "vector_search_top_n" in pipeline_cfg:
+            cfg["vector_top_n"] = pipeline_cfg["vector_search_top_n"]
+        if "rerank_top_n" not in cfg and "ai_score_top_n" in pipeline_cfg:
+            cfg["rerank_top_n"] = pipeline_cfg["ai_score_top_n"]
     return cfg
 
 
@@ -404,9 +508,12 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     if missing:
         raise ValueError(f"Missing config keys: {missing}")
 
+    loaded_policy_paths: dict[str, Path] = {}
+
     # Merge policy YAML files — later files add keys; .env.yaml keys take priority
-    for filename in _POLICY_FILES:
-        policy = _load_yaml_file(config_dir / filename)
+    for policy_name, rel_paths in _POLICY_FILE_CANDIDATES:
+        policy, resolved_policy_path = _load_policy_file(config_dir, rel_paths)
+        loaded_policy_paths[policy_name] = resolved_policy_path
         for key, value in policy.items():
             if key not in cfg:  # never overwrite .env.yaml values
                 cfg[key] = value
@@ -428,7 +535,12 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     cfg["skill_synonyms"] = effective_skill_synonyms
     cfg["role_taxonomy"] = _normalize_role_taxonomy(cfg.get("role_taxonomy"))
     cfg["skill_synonyms_runtime"] = {
-        "base_policy_path": str(config_dir / "skill_synonyms.yaml"),
+        "base_policy_path": str(
+            loaded_policy_paths.get(
+                "skill_synonyms",
+                config_dir / "taxonomy" / "skill_synonyms.yaml",
+            )
+        ),
         "overlay_paths": resolved_overlay_paths,
         "has_overlay": bool(resolved_overlay_paths),
         "entry_count": len(effective_skill_synonyms),
@@ -580,3 +692,35 @@ def get_vertex_location(config: dict[str, Any]) -> str:
     if vertex_location:
         return vertex_location
     return "us-central1"
+
+
+def get_gemini_model(config: dict[str, Any]) -> str:
+    return str(config.get("gemini_model") or "gemini-2.5-flash")
+
+
+def get_embedding_model(config: dict[str, Any]) -> str:
+    return str(config.get("embedding_model") or "text-embedding-005")
+
+
+def get_ranking_prompt_id(config: dict[str, Any]) -> str:
+    prompt_id = str(
+        (((config.get("prompts") or {}).get("ranking") or {}).get("ai_score") or {}).get("prompt_id")
+        or _DEFAULT_RANKING_AI_SCORE_PROMPT_ID
+    ).strip()
+    return prompt_id or _DEFAULT_RANKING_AI_SCORE_PROMPT_ID
+
+
+def get_cv_generation_prompt_id(config: dict[str, Any]) -> str:
+    prompt_id = str(
+        (((config.get("prompts") or {}).get("cv_generation") or {}).get("write") or {}).get("prompt_id")
+        or _DEFAULT_CV_GENERATION_WRITE_PROMPT_ID
+    ).strip()
+    return prompt_id or _DEFAULT_CV_GENERATION_WRITE_PROMPT_ID
+
+
+def get_cv_generation_model(config: dict[str, Any]) -> str:
+    return str((((config.get("cv") or {}).get("generation") or {}).get("model")) or config.get("cv_generation_model") or "gemini-2.5-flash")
+
+
+def get_cv_generation_prompt_version(config: dict[str, Any]) -> str:
+    return str((((config.get("cv") or {}).get("generation") or {}).get("prompt_version")) or config.get("prompt_version") or "v1")

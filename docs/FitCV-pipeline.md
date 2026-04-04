@@ -527,6 +527,16 @@ When a manual run pauses after `enrich`, the admin can optionally upload a run-s
 
 This keeps the pipeline architecture the same while making stage-local debugging much easier.
 
+## Config room
+
+Configurable YAML assets now live under one top-level `config/` room with responsibility-based subfolders:
+
+- `config/runtime/`
+- `config/policy/`
+- `config/taxonomy/`
+
+The loader prefers that layout and still supports the older flat `config/*.yaml` files during the migration window. Prompt text remains under `src/fitcv/prompts/templates/`, and the rendered CV template remains under `templates/`.
+
 In selectable-screening mode, `rule_filter` still evaluates all six deterministic post-enrichment checks. The admin-configured `rule_filter.selected_filters` setting only decides which failed checks reject versus which failed checks are emitted as non-blocking `marks` for downstream inspection.
 
 ## Best mental model

@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import Any, TypedDict
 
 from pydantic import BaseModel as _BaseModel, Field as _Field
+from fitcv.config import get_gemini_model
 from fitcv.prompts import get_prompt_definition, render_prompt
 
 logger = logging.getLogger(__name__)
@@ -608,7 +609,7 @@ def get_enrich_extraction_prompt_id(config: dict[str, Any] | None = None) -> str
 def get_enrich_prompt_provenance(config: dict[str, Any] | None = None) -> dict[str, str]:
     prompt_id = get_enrich_extraction_prompt_id(config)
     definition = get_prompt_definition(prompt_id)
-    model_name = str((config or {}).get("gemini_model", "gemini-2.5-flash"))
+    model_name = get_gemini_model(config or {})
     return {
         "prompt_id": definition.prompt_id,
         "prompt_version": definition.version,
@@ -1024,7 +1025,7 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     import logging as _logging
     _log = _logging.getLogger(__name__)
 
-    model_name = str(config.get("gemini_model", "gemini-2.5-flash"))
+    model_name = get_gemini_model(config)
     client = _make_genai_client(config)
     title_for_log = job.get("title") or job.get("job_url")
 
