@@ -2,16 +2,22 @@
 
 ## Changelog
 
+### 2.11.0 — active
+
+- `cv_analysis` artifacts can now show lexical-versus-semantic channel subscores, effective hybrid weights, semantic methods, and semantic embedding reuse state
+- Shortlist debug and stage artifacts now expose whether the single candidate query embedding was reused or freshly generated, including its signature and contract fingerprint
+- Shortlist inspection wording now stays explicit that the live path uses reusable job embeddings plus the deterministic candidate query vector, not stored candidate chunk embeddings
+
 ### 2.10.0 — active
-
-- Shortlist debug and stage artifacts now expose whether the single candidate query embedding was reused or freshly generated
-- Candidate-query inspection now includes the shortlist query signature and candidate-query embedding contract fingerprint
-- This rollout makes shortlist candidate-side reuse auditable separately from job embedding reuse
-
-### 2.9.0 — active
 
 - `cv_generation` validation snapshots now expose deterministic selected-evidence grounding violations separately from softer selected-evidence support failures
 - Final-stage debug records and artifacts now carry compact support-source summaries so reviewers can see how hybrid grounding decided whether a CV stayed inside the selected evidence bundle
+
+### 2.9.0 — active
+
+- Shortlist debug now exposes bounded candidate-query components alongside the rendered `candidate_query_text`
+- Reviewers can now see flattened-skill samples plus inferred role-family and domain hints that fed retrieval
+- This makes shortlist misses easier to interpret without opening the candidate YAML directly
 
 ### 2.8.0 — active
 
@@ -88,12 +94,6 @@
 
 - Newly generated stage-transition artifacts now report `schema_version: "stage_transition_artifacts_v3"` so the six-feature ranking artifact shape is version-detectable
 - Specs/plans: see `refs` in the feature contract
-
-### 2.8.1 — active
-
-- Shortlist debug now exposes bounded candidate-query components alongside the rendered `candidate_query_text`
-- Reviewers can now see flattened-skill samples plus inferred role-family and domain hints that fed retrieval
-- This makes shortlist misses easier to interpret without opening the candidate YAML directly
 
 ### 1.8.0 — active
 

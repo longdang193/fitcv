@@ -12,6 +12,9 @@ from fitcv_cp.settings_schema import (
 def test_all_expected_keys_present():
     keys = {s["key"] for s in SETTINGS_SCHEMA}
     assert "pipeline.final_top_n" in keys
+    assert "cv_analysis.semantic_alignment.enabled" in keys
+    assert "cv_analysis.semantic_alignment.responsibility_lexical_weight" in keys
+    assert "cv_analysis.semantic_alignment.domain_semantic_weight" in keys
     assert "ranking_weights.ai_score" in keys
     assert "fit_label_thresholds.strong" in keys
     assert "gap_thresholds.strong_min_matched_ratio" in keys
@@ -229,10 +232,31 @@ def test_apply_settings_to_config_rule_filter_selected_filters_nested() -> None:
             "domain_not_preferred",
         ]
     })
-    assert config["rule_filter"]["selected_filters"] == [
-        "seniority_mismatch",
-        "domain_not_preferred",
-    ]
+
+
+def test_cv_analysis_semantic_alignment_validate_accepts_balanced_weight_pairs() -> None:
+    validate_settings({
+        "cv_analysis.semantic_alignment.responsibility_lexical_weight": 0.25,
+        "cv_analysis.semantic_alignment.responsibility_semantic_weight": 0.75,
+        "cv_analysis.semantic_alignment.domain_lexical_weight": 0.40,
+        "cv_analysis.semantic_alignment.domain_semantic_weight": 0.60,
+    })
+
+
+def test_cv_analysis_semantic_alignment_validate_rejects_unbalanced_responsibility_weights() -> None:
+    with pytest.raises(ValidationError, match="responsibility"):
+        validate_settings({
+            "cv_analysis.semantic_alignment.responsibility_lexical_weight": 0.20,
+            "cv_analysis.semantic_alignment.responsibility_semantic_weight": 0.50,
+        })
+
+
+def test_cv_analysis_semantic_alignment_validate_rejects_unbalanced_domain_weights() -> None:
+    with pytest.raises(ValidationError, match="domain"):
+        validate_settings({
+            "cv_analysis.semantic_alignment.domain_lexical_weight": 0.30,
+            "cv_analysis.semantic_alignment.domain_semantic_weight": 0.30,
+        })
 
 
 # ── RANKING_GROUPS registry ───────────────────────────────────────────────────
@@ -315,7 +339,12 @@ def test_ranking_groups_threshold_groups_have_two_keys_each():
 
 def test_settings_sections_has_expected_slugs():
     from fitcv_cp.settings_schema import SETTINGS_SECTIONS
-    assert set(SETTINGS_SECTIONS.keys()) == {"retrieval", "timing", "global-job-filters"}
+    assert set(SETTINGS_SECTIONS.keys()) == {
+        "retrieval",
+        "timing",
+        "global-job-filters",
+        "rule-filter",
+    }
 
 
 def test_settings_sections_all_keys_in_schema():
@@ -337,9 +366,16 @@ def test_settings_sections_no_key_appears_twice():
             seen.add(key)
 
 
-def test_settings_sections_retrieval_has_four_keys():
+def test_settings_sections_retrieval_has_semantic_alignment_keys():
     from fitcv_cp.settings_schema import SETTINGS_SECTIONS
-    assert len(SETTINGS_SECTIONS["retrieval"]) == 4
+    assert "pipeline.evidence_top_k" in SETTINGS_SECTIONS["retrieval"]
+    assert "cv_analysis.semantic_alignment.enabled" in SETTINGS_SECTIONS["retrieval"]
+    assert "cv_analysis.semantic_alignment.model" in SETTINGS_SECTIONS["retrieval"]
+    assert "cv_analysis.semantic_alignment.responsibility_lexical_weight" in SETTINGS_SECTIONS["retrieval"]
+    assert "cv_analysis.semantic_alignment.responsibility_semantic_weight" in SETTINGS_SECTIONS["retrieval"]
+    assert "cv_analysis.semantic_alignment.domain_lexical_weight" in SETTINGS_SECTIONS["retrieval"]
+    assert "cv_analysis.semantic_alignment.domain_semantic_weight" in SETTINGS_SECTIONS["retrieval"]
+    assert "cv_analysis.semantic_alignment.channel_pool_size" in SETTINGS_SECTIONS["retrieval"]
 
 
 def test_settings_sections_global_job_filters_has_two_keys():

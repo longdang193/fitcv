@@ -2,19 +2,25 @@
 
 ## Changelog
 
+### 1.19.0 — active
+
+- `cv_analysis` now scores domain and responsibility alignment with hybrid lexical-plus-semantic matching instead of relying only on lexical overlap
+- Semantic embedding generation and reuse are now stage-owned by `cv_analysis`, while final evidence selection stays bounded and coverage-aware
+- Shortlist now reuses the single candidate-query embedding used for vector retrieval when the bounded query signature and candidate-query embedding contract still match, and the active shortlist runtime no longer generates unused candidate chunk embeddings
+
 ### 1.18.0 — active
-
-- Shortlist now reuses the single candidate-query embedding used for vector retrieval when the bounded query signature and candidate-query embedding contract still match
-- Shortlist no longer generates unused candidate-chunk embeddings as part of shortlist execution
-- This rollout keeps the single-query shortlist model and existing job embedding reuse unchanged while making candidate-query reuse visible in shortlist artifacts
-
-### 1.17.0 — active
 
 - Ranking can now infer fallback `target_role`, `role_families`, and `domains` from recent candidate evidence when explicit YAML preferences are sparse, while keeping explicit preferences authoritative
 - Shared role normalization moved into central taxonomy config so ranking and inference no longer rely on private alias tables
 - `cv_generation` validation now treats the selected `cv_analysis` evidence bundle as the primary grounding surface for hard facts such as employers, projects, and skills when selected evidence is available
 - Softer role, domain, and responsibility claims now use a bounded hybrid support path that combines selected-theme/tag checks with compact selected-evidence text matching
 - Prompt guidance now explicitly tells CV generation to stay inside the selected evidence bundle for job-specific responsibility, domain, and role-positioning claims
+
+### 1.17.0 — active
+
+- Shortlist candidate-query construction now uses `flatten_skills(profile)` instead of relying only on explicit root skills
+- Shortlist retrieval can now see bounded inferred role-family and domain hints from the broader candidate evidence surface
+- This improves shortlist recall while keeping the single-query retrieval model deterministic and bounded
 
 ### 1.16.0 — active
 
@@ -68,12 +74,6 @@
 - Run summaries now emit bounded stage-transition artifact blocks for `normalize`, `enrich`, `rule_filter`, `shortlist`, `ranking`, and `cv_generation`
 - The new stage-transition artifact reuses existing runtime seams and keeps `cv_generation` summarized rather than duplicating the full CV debug payload
 - This rollout adds stage-boundary inspection only; it does not change the authoritative CV generation or validation decisions
-
-### 1.16.1 — active
-
-- Shortlist candidate-query construction now uses `flatten_skills(profile)` instead of relying only on explicit root skills
-- Shortlist retrieval can now see bounded inferred role-family and domain hints from the broader candidate evidence surface
-- This improves shortlist recall while keeping the single-query retrieval model deterministic and bounded
 
 ### 1.8.1 — active
 

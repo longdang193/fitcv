@@ -1,9 +1,9 @@
 cv_system:
   name: CV System
-  version: 1.18.0
+  version: 1.19.0
   status: active
   type: add
-  summary: CV generation uses a structured preset-based configuration, keeps reranker fit as the sole post-filter fit authority, now splits final-stage execution into `cv_analysis` and `cv_generation`, upgrades `cv_analysis` evidence retrieval to separate required-skill, role, domain, and responsibility channels with one reranked final evidence bundle, validates structured and markdown sections against one shared section contract, now grounds final-stage validation against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support, persists both a schema-versioned structured CV artifact and rendered markdown, supports shortlist retrieval that stays latest-only while reusing unchanged job embeddings safely, now builds richer shortlist candidate queries from flattened skills plus bounded role-family and domain hints, reuses the single shortlist candidate-query embedding when the deterministic query signature and contract still match, and applies a stricter ranking rubric plus richer role and preference alignment before CV writing.
+  summary: CV generation uses a structured preset-based configuration, keeps reranker fit as the sole post-filter fit authority, splits final-stage execution into `cv_analysis` and `cv_generation`, upgrades `cv_analysis` to hybrid lexical-plus-semantic domain and responsibility alignment with one bounded coverage-aware evidence bundle, validates structured and markdown sections against one shared section contract, grounds final-stage validation against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support, persists both a schema-versioned structured CV artifact and rendered markdown, supports shortlist retrieval that stays latest-only while reusing unchanged job embeddings safely, now builds richer shortlist candidate queries from flattened skills plus bounded role-family and domain hints, reuses the single shortlist candidate-query embedding when the deterministic query signature and contract still match, and keeps active shortlist retrieval scoped to reusable job embeddings plus the deterministic candidate query vector actually used for search.
   owner: fitcv
   domains:
     - pipeline
@@ -39,11 +39,14 @@ cv_system:
     - Shortlist candidate-query construction now uses flattened profile skills plus bounded role-family and domain hints so retrieval sees more of the candidate's real evidence surface
     - Shortlist now reuses the single candidate-query embedding used for vector retrieval when the bounded query signature and candidate-query embedding contract still match
     - Shortlist no longer generates unused candidate-chunk embeddings as part of shortlist execution
+    - Active shortlist runtime now prepares reusable job embeddings plus the deterministic candidate query vector only; candidate chunk embeddings are not part of the live path unless a later stage explicitly adopts them
     - Ranking reranker prompts now prioritize required-skill evidence, seniority readiness, and role alignment while treating preferences as explicitly secondary
     - Ranking `title_relevance` now uses bounded semantic role alignment instead of pure lexical token overlap
     - Ranking `preference_fit` now scores weighted domain, role-family, and location-type preference alignment
     - `cv_analysis` now owns ranked-job context merge, evidence retrieval, gap analysis, and final fit-gate preparation before CV writing
     - `cv_analysis` evidence retrieval now over-retrieves separate required-skill, role, domain, and responsibility candidate pools before merging, deduping by stable `evidence_id`, and selecting one bounded final evidence bundle
+    - `cv_analysis` now scores domain and responsibility alignment with hybrid lexical-plus-semantic matching, including stage-owned semantic embedding reuse for the candidate evidence and job snippets it actually consumes
+    - `cv_analysis` final evidence selection now stays bounded while preferring broader coverage of job needs instead of purely additive heuristic score
     - Candidate profile YAML can now carry additive role-family, domain-tag, and responsibility-theme metadata that improves `cv_analysis` evidence alignment without breaking existing files
     - `cv_generation` now consumes persisted `cv_analysis` outputs for writing, validation, repair, and persistence instead of recomputing analysis by default
     - `cv_generation` validation now checks hard facts such as employers, projects, and skills against the selected `cv_analysis` evidence bundle instead of only the full candidate profile when selected evidence is available
@@ -80,6 +83,8 @@ cv_system:
       - docs/superpowers/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
       - docs/superpowers/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
       - docs/superpowers/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
+      - docs/superpowers/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
+      - docs/superpowers/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
     plan:
       - docs/superpowers/plans/2026-03-27-centralized-cv-generation-config-implementation.md
       - docs/superpowers/plans/2026-03-27-preset-based-cv-config-migration-implementation.md
@@ -103,6 +108,8 @@ cv_system:
       - docs/superpowers/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
       - docs/superpowers/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
       - docs/superpowers/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+      - docs/superpowers/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+      - docs/superpowers/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
     history:
       - docs/features/cv_system/history.md
   keywords:

@@ -827,14 +827,21 @@ def _unwrap_generated_cv(generated_cv: Any) -> tuple[dict[str, Any] | None, str]
 def _build_debug_evidence_used(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
     debug_evidence: list[dict[str, Any]] = []
     for item in evidence:
+        debug_item: dict[str, Any] = {
+            "evidence_type": str(item.get("evidence_type") or ""),
+            "source_ref": str(item.get("source_ref") or ""),
+            "name": str(item.get("name") or ""),
+            "matched_channels": list(item.get("matched_channels") or []),
+            "selection_reasons": list(item.get("selection_reasons") or []),
+        }
+        channel_subscores = dict(item.get("channel_subscores") or {})
+        semantic_alignment = dict(item.get("semantic_alignment") or {})
+        if channel_subscores:
+            debug_item["channel_subscores"] = channel_subscores
+        if semantic_alignment:
+            debug_item["semantic_alignment"] = semantic_alignment
         debug_evidence.append(
-            {
-                "evidence_type": str(item.get("evidence_type") or ""),
-                "source_ref": str(item.get("source_ref") or ""),
-                "name": str(item.get("name") or ""),
-                "matched_channels": list(item.get("matched_channels") or []),
-                "selection_reasons": list(item.get("selection_reasons") or []),
-            }
+            {key: value for key, value in debug_item.items() if value not in ("", None)}
         )
     return debug_evidence
 
@@ -1767,6 +1774,9 @@ def _build_stage_transition_artifacts(
                 decision_summary={
                     "analysis_records_captured": len(cv_analysis_results),
                     "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),
+                    "effective_channel_pool_size": int(
+                        config.get("cv_analysis", {}).get("semantic_alignment", {}).get("channel_pool_size", 0) or 0
+                    ),
                     "selected_evidence_total": sum(
                         int((record.get("evidence_selection_summary") or {}).get("selected_evidence_count") or 0)
                         for record in cv_analysis_results
@@ -1775,11 +1785,68 @@ def _build_stage_transition_artifacts(
                         int((record.get("evidence_selection_summary") or {}).get("merged_pool_size") or 0)
                         for record in cv_analysis_results
                     ),
+                    "candidate_evidence_embeddings_fresh": sum(
+                        int(
+                            (
+                                (record.get("evidence_selection_summary") or {})
+                                .get("semantic_alignment", {})
+                                .get("embedding_counts", {})
+                                .get("candidate_evidence", {})
+                                .get("fresh")
+                            ) or 0
+                        )
+                        for record in cv_analysis_results
+                    ),
+                    "candidate_evidence_embeddings_reused": sum(
+                        int(
+                            (
+                                (record.get("evidence_selection_summary") or {})
+                                .get("semantic_alignment", {})
+                                .get("embedding_counts", {})
+                                .get("candidate_evidence", {})
+                                .get("reused")
+                            ) or 0
+                        )
+                        for record in cv_analysis_results
+                    ),
+                    "job_context_embeddings_fresh": sum(
+                        int(
+                            (
+                                (record.get("evidence_selection_summary") or {})
+                                .get("semantic_alignment", {})
+                                .get("embedding_counts", {})
+                                .get("job_context", {})
+                                .get("fresh")
+                            ) or 0
+                        )
+                        for record in cv_analysis_results
+                    ),
+                    "job_context_embeddings_reused": sum(
+                        int(
+                            (
+                                (record.get("evidence_selection_summary") or {})
+                                .get("semantic_alignment", {})
+                                .get("embedding_counts", {})
+                                .get("job_context", {})
+                                .get("reused")
+                            ) or 0
+                        )
+                        for record in cv_analysis_results
+                    ),
                 },
                 inputs_sample=_sample_rows(ranked, _ranking_row_sample),
                 outputs_sample=_sample_rows(cv_analysis_results, _analysis_record_output_sample),
                 dropped_or_changed_sample=_sample_rows(cv_analysis_results, _analysis_record_changed_sample),
-                settings_refs=["pipeline.evidence_top_k"],
+                settings_refs=[
+                    "pipeline.evidence_top_k",
+                    "cv_analysis.semantic_alignment.enabled",
+                    "cv_analysis.semantic_alignment.model",
+                    "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+                    "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+                    "cv_analysis.semantic_alignment.domain_lexical_weight",
+                    "cv_analysis.semantic_alignment.domain_semantic_weight",
+                    "cv_analysis.semantic_alignment.channel_pool_size",
+                ],
             ) if cv_analysis_reached else _stage_block_not_reached("cv_analysis"),
             "cv_generation": _stage_block(
                 stage_id="cv_generation",
@@ -2150,6 +2217,9 @@ def run_pipeline(
     passed_job_urls = [_extract_job_url(job) for job in passed_jobs if _extract_job_url(job)]
 
     if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("shortlist"):
+        # Active shortlist runtime only prepares reusable job embeddings here.
+        # The candidate-side vector actually used for retrieval is generated
+        # inside run_vector_search() from the deterministic candidate query text.
         embed_and_store_jobs(passed_jobs, config)
         raw_shortlist_result = run_vector_search(
             profile,
@@ -2300,14 +2370,22 @@ def run_pipeline(
                     profile,
                     job,
                     top_k=evidence_top_k,
+                    config=config,
                 )
                 evidence = list(evidence_bundle.get("selected_evidence") or [])
                 evidence_selection_summary = {
                     "channel_counts": dict(evidence_bundle.get("channel_counts") or {}),
+                    "effective_channel_pool_size": int(evidence_bundle.get("effective_channel_pool_size") or 0),
                     "merged_pool_size": int(evidence_bundle.get("merged_pool_size") or 0),
                     "deduped_pool_size": int(evidence_bundle.get("deduped_pool_size") or 0),
                     "selected_evidence_count": len(evidence),
                     "selected_evidence_ids": list(evidence_bundle.get("selected_evidence_ids") or []),
+                    "unselected_top_candidates": list(evidence_bundle.get("unselected_top_candidates") or []),
+                    "hybrid_alignment": dict(evidence_bundle.get("hybrid_alignment") or {}),
+                    "semantic_alignment": dict(evidence_bundle.get("semantic_alignment") or {}),
+                }
+                evidence_selection_summary = {
+                    key: value for key, value in evidence_selection_summary.items() if value not in ({}, [], None)
                 }
                 if not evidence:
                     evidence = retrieve_evidence(
@@ -2318,10 +2396,21 @@ def run_pipeline(
                     if evidence:
                         evidence_selection_summary = {
                             "channel_counts": evidence_selection_summary.get("channel_counts") or {},
+                            "effective_channel_pool_size": int(
+                                evidence_selection_summary.get("effective_channel_pool_size") or 0
+                            ),
                             "merged_pool_size": max(len(evidence), int(evidence_selection_summary.get("merged_pool_size") or 0)),
                             "deduped_pool_size": max(len(evidence), int(evidence_selection_summary.get("deduped_pool_size") or 0)),
                             "selected_evidence_count": len(evidence),
                             "selected_evidence_ids": [str(item.get("evidence_id") or "") for item in evidence],
+                            "unselected_top_candidates": list(
+                                evidence_selection_summary.get("unselected_top_candidates") or []
+                            ),
+                            "hybrid_alignment": dict(evidence_selection_summary.get("hybrid_alignment") or {}),
+                            "semantic_alignment": dict(evidence_selection_summary.get("semantic_alignment") or {}),
+                        }
+                        evidence_selection_summary = {
+                            key: value for key, value in evidence_selection_summary.items() if value not in ({}, [], None)
                         }
 
                 gap = compute_gap(

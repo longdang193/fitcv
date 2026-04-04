@@ -726,7 +726,6 @@ def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
 @patch("fitcv.pipeline.build_ranking_features")
 @patch("fitcv.pipeline.run_ai_scoring")
 @patch("fitcv.pipeline.run_vector_search")
-@patch("fitcv.pipeline.embed_and_store_candidate")
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
@@ -1124,7 +1123,6 @@ def test_run_pipeline_uses_runtime_profile_json_without_touching_profile_path(
     mock_filter: MagicMock,
     mock_store_filter: MagicMock,
     mock_embed_jobs: MagicMock,
-    mock_embed_cand: MagicMock,
     mock_vec: MagicMock,
     mock_ai: MagicMock,
     mock_build_feat: MagicMock,
@@ -4207,6 +4205,96 @@ def test_run_pipeline_layer4_uses_enriched_job_fields_for_gap_and_debug(
         "partial": [],
         "missing": ["SQL"],
     }
+    mock_embed_jobs.assert_called_once_with([enriched_job], mock_config.return_value)
+
+
+@patch("fitcv.embeddings.embed_and_store_candidate")
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.create_cv_version_record")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_shortlist_does_not_write_candidate_chunk_embeddings(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_pre_filter: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_create_version: MagicMock,
+    mock_store_ver: MagicMock,
+    mock_embed_cand_chunks: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    raw_job = _raw_scraper_job("https://example.com/1")
+    enriched_job = _minimal_job("https://example.com/1")
+    ranked_feature = {
+        "job_url": "https://example.com/1",
+        "ai_score": 0.91,
+        "final_score": 0.95,
+        "vector_similarity": 0.88,
+        "fit_label": "strong",
+        "final_rank": 1,
+    }
+    job_url = enriched_job["job_url"]
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [raw_job]
+    mock_norm.return_value = [{"job_url": job_url, "title": "Normalized"}]
+    mock_pre_filter.return_value = {"passed": [job_url], "rejected": []}
+    mock_enrich.return_value = [enriched_job]
+    mock_profile_yaml.return_value = _minimal_profile()
+    mock_filter.return_value = {"passed": [job_url], "rejected": []}
+    mock_vec.return_value = [{"job_url": job_url, "vector_similarity": 0.88, "vector_rank": 1}]
+    mock_ai.return_value = [{"job_url": job_url, "ai_score": 0.91, "fit_label": "strong"}]
+    mock_build_feat.return_value = [ranked_feature]
+    mock_rank.return_value = []
+
+    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-no-candidate-chunks")
+
+    mock_embed_jobs.assert_called_once()
+    embed_jobs_args = mock_embed_jobs.call_args.args
+    assert embed_jobs_args[0][0]["job_url"] == job_url
+    assert embed_jobs_args[1] == mock_config.return_value
+    mock_embed_cand_chunks.assert_not_called()
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -4221,7 +4309,6 @@ def test_run_pipeline_layer4_uses_enriched_job_fields_for_gap_and_debug(
 @patch("fitcv.pipeline.build_ranking_features")
 @patch("fitcv.pipeline.run_ai_scoring")
 @patch("fitcv.pipeline.run_vector_search")
-@patch("fitcv.pipeline.embed_and_store_candidate")
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
@@ -4247,7 +4334,6 @@ def test_run_pipeline_export_marks_deduplicated_rows_explicitly(
     mock_filter: MagicMock,
     mock_store_filter: MagicMock,
     mock_embed_jobs: MagicMock,
-    mock_embed_cand: MagicMock,
     mock_vec: MagicMock,
     mock_ai: MagicMock,
     mock_build_feat: MagicMock,
@@ -4348,6 +4434,29 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
                 "name": "Data Analyst - Bank Corp",
                 "matched_channels": ["required_skill_support", "responsibility_alignment"],
                 "selection_reasons": ["required_skill_support", "responsibility_alignment"],
+                "channel_subscores": {
+                    "responsibility_alignment": {
+                        "lexical": 0.2,
+                        "semantic": 0.8,
+                        "hybrid": 0.65,
+                    },
+                    "domain_alignment": {
+                        "lexical": 0.4,
+                        "semantic": 0.6,
+                        "hybrid": 0.52,
+                    },
+                },
+                "semantic_alignment": {
+                    "enabled": True,
+                    "semantic_methods": {
+                        "responsibility_alignment": "embedding_similarity",
+                        "domain_alignment": "embedding_similarity",
+                    },
+                    "reuse_state": {
+                        "candidate_evidence": "fresh_embedding",
+                        "job_context": "fresh_embedding",
+                    },
+                },
                 "selection_score": 0.91,
             }
         ],
@@ -4358,8 +4467,38 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
             "domain_alignment": 1,
             "responsibility_alignment": 1,
         },
+        "effective_channel_pool_size": 4,
         "merged_pool_size": 4,
         "deduped_pool_size": 2,
+        "selected_evidence_count": 1,
+        "unselected_top_candidates": [
+            {
+                "evidence_id": "proj-2",
+                "evidence_type": "project_entry",
+                "name": "Near Miss Project",
+                "matched_channels": ["domain_alignment"],
+                "selection_score": 0.41,
+            }
+        ],
+        "hybrid_alignment": {
+            "responsibility": {"lexical_weight": 0.25, "semantic_weight": 0.75},
+            "domain": {"lexical_weight": 0.40, "semantic_weight": 0.60},
+        },
+        "semantic_alignment": {
+            "enabled": True,
+            "semantic_methods": {
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity",
+            },
+            "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "fresh_embedding",
+            },
+            "embedding_counts": {
+                "candidate_evidence": {"fresh": 2, "reused": 3},
+                "job_context": {"fresh": 1, "reused": 4},
+            },
+        },
     }
     mock_compute_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
 
@@ -4382,10 +4521,39 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
             "domain_alignment": 1,
             "responsibility_alignment": 1,
         },
+        "effective_channel_pool_size": 4,
         "merged_pool_size": 4,
         "deduped_pool_size": 2,
         "selected_evidence_count": 1,
         "selected_evidence_ids": ["exp-1"],
+        "unselected_top_candidates": [
+            {
+                "evidence_id": "proj-2",
+                "evidence_type": "project_entry",
+                "name": "Near Miss Project",
+                "matched_channels": ["domain_alignment"],
+                "selection_score": 0.41,
+            }
+        ],
+        "hybrid_alignment": {
+            "responsibility": {"lexical_weight": 0.25, "semantic_weight": 0.75},
+            "domain": {"lexical_weight": 0.40, "semantic_weight": 0.60},
+        },
+        "semantic_alignment": {
+            "enabled": True,
+            "semantic_methods": {
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity",
+            },
+            "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "fresh_embedding",
+            },
+            "embedding_counts": {
+                "candidate_evidence": {"fresh": 2, "reused": 3},
+                "job_context": {"fresh": 1, "reused": 4},
+            },
+        },
     }
     assert analysis_record["evidence_used"][0]["matched_channels"] == [
         "required_skill_support",
@@ -4395,6 +4563,15 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
         "required_skill_support",
         "responsibility_alignment",
     ]
+    assert analysis_record["evidence_used"][0]["channel_subscores"]["responsibility_alignment"]["semantic"] == 0.8
+    assert analysis_record["evidence_used"][0]["semantic_alignment"]["semantic_methods"] == {
+        "responsibility_alignment": "embedding_similarity",
+        "domain_alignment": "embedding_similarity",
+    }
+    assert analysis_record["evidence_selection_summary"]["hybrid_alignment"] == {
+        "responsibility": {"lexical_weight": 0.25, "semantic_weight": 0.75},
+        "domain": {"lexical_weight": 0.40, "semantic_weight": 0.60},
+    }
 
 
 # ── run_pipeline calls load_run_structured_jobs ──────────────────────────────
@@ -4411,7 +4588,6 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
 @patch("fitcv.pipeline.build_ranking_features")
 @patch("fitcv.pipeline.run_ai_scoring")
 @patch("fitcv.pipeline.run_vector_search")
-@patch("fitcv.pipeline.embed_and_store_candidate")
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
@@ -4435,7 +4611,6 @@ def test_run_pipeline_calls_load_run_structured_jobs(
     mock_filter: MagicMock,
     mock_store_filter: MagicMock,
     mock_embed_jobs: MagicMock,
-    mock_embed_cand: MagicMock,
     mock_vec: MagicMock,
     mock_ai: MagicMock,
     mock_build_feat: MagicMock,
@@ -4618,7 +4793,6 @@ def test_run_pipeline_forwards_analysis_grounding_payload_to_validation(
 @patch("fitcv.pipeline.build_ranking_features")
 @patch("fitcv.pipeline.run_ai_scoring")
 @patch("fitcv.pipeline.run_vector_search")
-@patch("fitcv.pipeline.embed_and_store_candidate")
 @patch("fitcv.pipeline.embed_and_store_jobs")
 @patch("fitcv.pipeline.store_filter_results")
 @patch("fitcv.pipeline.apply_rule_filters")
@@ -4644,7 +4818,6 @@ def test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch(
     mock_filter: MagicMock,
     mock_store_filter: MagicMock,
     mock_embed_jobs: MagicMock,
-    mock_embed_cand: MagicMock,
     mock_vec: MagicMock,
     mock_ai: MagicMock,
     mock_build_feat: MagicMock,
