@@ -1,10 +1,15 @@
 """Tests for fitcv.vector_search — all pure unit tests (no cloud calls)."""
 
 import pytest
+from unittest.mock import patch
 
 from fitcv.vector_search import (
     _dedupe_shortlist_rows,
+    build_candidate_query_components,
+    build_candidate_query_embedding_contract_fingerprint,
+    build_candidate_query_signature_record,
     build_candidate_query_text,
+    resolve_candidate_query_embedding,
     build_vector_search_query,
 )
 
@@ -30,6 +35,86 @@ def test_build_candidate_query_text_includes_skills() -> None:
     text = build_candidate_query_text(profile)
     assert "SQL" in text
     assert "Python" in text
+
+
+def test_build_candidate_query_text_uses_flattened_skills_from_experiences_and_projects() -> None:
+    profile = {
+        "headline": "Data Analyst",
+        "skills": [{"name": "SQL"}],
+        "experiences": [
+            {
+                "role": "BI Analyst",
+                "bullets": [
+                    {"text": "Built dashboards", "skills": ["Power BI", "Looker"]},
+                ],
+            }
+        ],
+        "projects": [
+            {"name": "Warehouse Migration", "skills": ["BigQuery", "dbt"]},
+        ],
+        "preferences": {"domains": []},
+    }
+
+    text = build_candidate_query_text(profile, {"vector_max_candidate_skills": 10})
+
+    assert "Power BI" in text
+    assert "Looker" in text
+    assert "BigQuery" in text
+    assert "dbt" in text
+
+
+def test_build_candidate_query_components_include_role_family_and_domain_hints() -> None:
+    profile = {
+        "headline": "Data Analyst",
+        "skills": [{"name": "SQL"}],
+        "preferences": {
+            "target_role": "Data Analyst",
+            "domains": ["banking"],
+            "role_families": ["analytics"],
+        },
+        "experiences": [
+            {
+                "role": "Business Intelligence Analyst",
+                "role_family": "analytics",
+                "domain_tags": ["retail_banking"],
+            },
+            {
+                "role": "Data Scientist",
+                "domain_tags": ["fraud_detection"],
+            },
+        ],
+        "projects": [
+            {"name": "Fraud Dashboard", "domain_tags": ["fintech"]},
+        ],
+    }
+
+    components = build_candidate_query_components(profile, {"vector_max_candidate_skills": 10})
+
+    assert components["target_role"] == "Data Analyst"
+    assert components["recent_roles"] == ["Business Intelligence Analyst", "Data Scientist"]
+    assert components["role_family_hints"] == ["analytics", "data_science"]
+    assert components["domain_hints"] == ["banking", "retail_banking", "fraud_detection", "fintech"]
+
+
+def test_build_candidate_query_components_bound_skill_count() -> None:
+    profile = {
+        "headline": "Data Engineer",
+        "skills": [{"name": "SQL"}, {"name": "Python"}],
+        "experiences": [
+            {
+                "role": "Data Engineer",
+                "bullets": [
+                    {"skills": ["BigQuery", "dbt", "Airflow"]},
+                ],
+            }
+        ],
+        "projects": [{"skills": ["Looker", "Power BI"]}],
+        "preferences": {"domains": []},
+    }
+
+    components = build_candidate_query_components(profile, {"vector_max_candidate_skills": 3})
+
+    assert components["flattened_skills"] == ["SQL", "Python", "BigQuery"]
 
 
 def test_build_candidate_query_text_includes_preferred_domains() -> None:
@@ -83,6 +168,130 @@ def test_build_candidate_query_text_includes_recent_roles() -> None:
     text = build_candidate_query_text(profile)
     assert "Recent roles:" in text
     assert "Junior Data Analyst" in text
+
+
+def test_build_candidate_query_text_includes_role_family_and_domain_hints() -> None:
+    profile = {
+        "headline": "Data Analyst",
+        "skills": [{"name": "SQL"}],
+        "experiences": [
+            {
+                "role": "Business Intelligence Analyst",
+                "role_family": "analytics",
+                "domain_tags": ["retail_banking"],
+            }
+        ],
+        "projects": [{"name": "BI Project", "domain_tags": ["fintech"]}],
+        "preferences": {
+            "target_role": "Data Analyst",
+            "domains": ["banking"],
+            "role_families": ["analytics"],
+        },
+    }
+
+    text = build_candidate_query_text(profile)
+
+    assert "Role families: analytics" in text
+    assert "Domain hints: banking, retail_banking, fintech" in text
+
+
+def test_build_candidate_query_signature_record_is_stable_for_same_effective_components() -> None:
+    first = {
+        "headline": "Data Analyst",
+        "target_role": "Data Analyst",
+        "recent_roles": ["BI Analyst", "Data Analyst"],
+        "role_family_hints": ["analytics"],
+        "flattened_skills": ["SQL", "Python", "Power BI"],
+        "domain_hints": ["banking", "retail_banking"],
+    }
+    second = {
+        "headline": "Data Analyst",
+        "target_role": "Data Analyst",
+        "recent_roles": ["BI Analyst", "Data Analyst"],
+        "role_family_hints": ["analytics"],
+        "flattened_skills": ["SQL", "Python", "Power BI"],
+        "domain_hints": ["banking", "retail_banking"],
+    }
+
+    assert build_candidate_query_signature_record(first) == build_candidate_query_signature_record(second)
+
+
+def test_build_candidate_query_embedding_contract_fingerprint_changes_with_model() -> None:
+    first = build_candidate_query_embedding_contract_fingerprint({})
+    second = build_candidate_query_embedding_contract_fingerprint(
+        {"shortlist_embedding_model": "text-embedding-004"}
+    )
+
+    assert first["fingerprint"] != second["fingerprint"]
+
+
+@pytest.mark.parametrize(
+    ("cached_signature", "cached_contract", "expected_status", "should_generate"),
+    [
+        ("matching", "matching", "reused_cached_query_embedding", False),
+        ("matching", "stale", "fresh_query_embedding", True),
+    ],
+)
+def test_resolve_candidate_query_embedding_reuses_or_refreshes_cache(
+    cached_signature: str,
+    cached_contract: str,
+    expected_status: str,
+    should_generate: bool,
+) -> None:
+    profile = {
+        "headline": "Data Analyst",
+        "skills": [{"name": "SQL"}, {"name": "Python"}],
+        "preferences": {"target_role": "Data Analyst", "domains": ["banking"]},
+    }
+    config = {
+        "gcp_project": "fitcv-test",
+        "bigquery_dataset": "fitcv",
+        "service_account_key": "/tmp/fake.json",
+    }
+
+    expected_text = build_candidate_query_text(profile, config)
+    expected_components = build_candidate_query_components(profile, config)
+    expected_signature = build_candidate_query_signature_record(expected_components)["signature"]
+    expected_contract = build_candidate_query_embedding_contract_fingerprint(config)["fingerprint"]
+
+    row_signature = expected_signature if cached_signature == "matching" else "stale-signature"
+    row_contract = expected_contract if cached_contract == "matching" else "stale-contract"
+
+    with (
+        patch("google.cloud.bigquery.Client") as mock_bigquery_client,
+        patch("google.oauth2.service_account.Credentials.from_service_account_file"),
+        patch("fitcv.vector_search.generate_embedding") as mock_generate_embedding,
+    ):
+        client = mock_bigquery_client.return_value
+        client.query.return_value.result.return_value = [
+            type(
+                "Row",
+                (),
+                {
+                    "candidate_query_signature": row_signature,
+                    "candidate_query_contract_fingerprint": row_contract,
+                    "candidate_query_text": expected_text,
+                    "candidate_query_components_json": "{}",
+                    "embedding": [0.11, 0.22],
+                },
+            )()
+        ]
+        client.insert_rows_json.return_value = []
+        mock_generate_embedding.return_value = [0.33, 0.44]
+
+        record = resolve_candidate_query_embedding(profile, config)
+
+    assert record["text"] == expected_text
+    assert record["components"] == expected_components
+    assert record["candidate_query_signature"] == expected_signature
+    assert record["candidate_query_contract_fingerprint"] == expected_contract
+    assert record["candidate_query_reuse_status"] == expected_status
+    if should_generate:
+        mock_generate_embedding.assert_called_once_with(expected_text, config)
+        client.insert_rows_json.assert_called_once()
+    else:
+        mock_generate_embedding.assert_not_called()
+        client.insert_rows_json.assert_not_called()
 
 
 # ── build_vector_search_query ─────────────────────────────────────────────────
