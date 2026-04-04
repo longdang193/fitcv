@@ -5,14 +5,16 @@ Public API
 load_profile_yaml          : parse YAML profile file
 validate_profile           : check required sections are present
 flatten_skills             : extract deduplicated skill list from all evidence
+infer_effective_preferences : merge explicit preferences with deterministic fallback intent
 prepare_profile_rows       : map profile to all 5 BQ table schemas
 load_candidate_to_bigquery : insert into all candidate BQ tables (integration)
 """
 
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
@@ -20,6 +22,23 @@ import yaml
 # ── required profile sections ─────────────────────────────────────────────────
 
 _REQUIRED_SECTIONS = ["experiences", "skills", "projects", "achievements", "preferences"]
+_ROLE_INFERENCE_LIMIT = 4
+_MAX_INFERRED_ROLE_FAMILIES = 2
+_MAX_INFERRED_DOMAINS = 3
+_ROLE_NOISE_TOKENS = frozenset(
+    {
+        "jr",
+        "junior",
+        "sr",
+        "senior",
+        "lead",
+        "staff",
+        "principal",
+        "freelance",
+        "contract",
+    }
+)
+_UPPERCASE_ROLE_PARTS = frozenset({"ai", "bi", "dbt", "etl", "llm", "ml", "mlops", "nlp", "sql"})
 
 _PREFERENCE_TEXT_KEYS = ("target_role", "seniority_target")
 _PREFERENCE_LIST_KEYS = (
@@ -126,10 +145,10 @@ def load_profile_yaml(path: str | Path) -> dict[str, Any]:
     if not file_path.exists():
         raise FileNotFoundError(f"Candidate profile not found: {file_path}")
     with open(file_path, encoding="utf-8") as f:
-        profile = yaml.safe_load(f)
-    if not isinstance(profile, dict):
-        raise ValueError(f"Candidate profile must be a YAML object, got {type(profile).__name__}")
-    return _normalize_profile_alignment_metadata(profile)
+        loaded = yaml.safe_load(f)
+    if not isinstance(loaded, dict):
+        raise ValueError(f"Candidate profile must be a YAML object, got {type(loaded).__name__}")
+    return _normalize_profile_alignment_metadata(cast(dict[str, Any], loaded))
 
 
 def load_profile_json_text(payload: str) -> dict[str, Any]:
@@ -155,6 +174,226 @@ def load_profile_json_text(payload: str) -> dict[str, Any]:
         raise ValueError(f"Candidate profile validation failed: {'; '.join(errors)}")
 
     return _normalize_profile_alignment_metadata(profile)  # type: ignore[return-value]
+def _normalize_text(value: str | None) -> str:
+    if not value:
+        return ""
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9_]+", " ", value.lower())).strip()
+
+
+def _display_role_title(value: str) -> str:
+    parts = []
+    for part in value.split():
+        if part in _UPPERCASE_ROLE_PARTS:
+            parts.append(part.upper())
+        else:
+            parts.append(part.capitalize())
+    return " ".join(parts)
+
+
+def _role_taxonomy(config: dict[str, Any] | None) -> dict[str, Any]:
+    raw_taxonomy = (config or {}).get("role_taxonomy")
+    if not isinstance(raw_taxonomy, dict):
+        return {}
+    return raw_taxonomy
+
+
+def _canonical_role_map(config: dict[str, Any] | None) -> dict[str, str]:
+    raw_map = _role_taxonomy(config).get("canonical_role_by_alias")
+    if not isinstance(raw_map, dict):
+        return {}
+    return {
+        _normalize_text(str(alias)): _normalize_text(str(canonical))
+        for alias, canonical in raw_map.items()
+        if _normalize_text(str(alias)) and _normalize_text(str(canonical))
+    }
+
+
+def _role_family_map(config: dict[str, Any] | None) -> dict[str, str]:
+    raw_map = _role_taxonomy(config).get("role_family_by_role")
+    if not isinstance(raw_map, dict):
+        return {}
+    return {
+        _normalize_text(str(role)): _normalize_text(str(family))
+        for role, family in raw_map.items()
+        if _normalize_text(str(role)) and _normalize_text(str(family))
+    }
+
+
+def _strip_role_noise(normalized_role: str) -> str:
+    filtered_tokens = [token for token in normalized_role.split() if token not in _ROLE_NOISE_TOKENS]
+    return " ".join(filtered_tokens).strip()
+
+
+def _first_matching_role_alias(role_text: str, alias_map: dict[str, str]) -> str | None:
+    for candidate in (role_text, _strip_role_noise(role_text)):
+        if not candidate:
+            continue
+        direct_match = alias_map.get(candidate)
+        if direct_match:
+            return direct_match
+        for alias in sorted(alias_map.keys(), key=len, reverse=True):
+            if alias and alias in candidate:
+                return alias_map[alias]
+    return None
+
+
+def canonicalize_role_title(role_text: str | None, config: dict[str, Any] | None = None) -> str | None:
+    normalized_role = _normalize_text(role_text)
+    if not normalized_role:
+        return None
+    alias_map = _canonical_role_map(config)
+    if not alias_map:
+        return None
+    return _first_matching_role_alias(normalized_role, alias_map)
+
+
+def infer_role_family(
+    role_text: str | None,
+    *,
+    explicit_family: str | None = None,
+    config: dict[str, Any] | None = None,
+) -> str | None:
+    normalized_explicit = _normalize_text(explicit_family)
+    if normalized_explicit:
+        return normalized_explicit
+
+    role_family_by_role = _role_family_map(config)
+    if not role_family_by_role:
+        return None
+
+    canonical_role = canonicalize_role_title(role_text, config)
+    if canonical_role:
+        return role_family_by_role.get(canonical_role)
+
+    normalized_role = _normalize_text(role_text)
+    if not normalized_role:
+        return None
+    return role_family_by_role.get(normalized_role)
+
+
+def _is_missing_preference(value: Any) -> bool:
+    return value in (None, "", [])
+
+
+def _rank_weighted_labels(
+    weighted_labels: list[tuple[str, int, int]],
+    *,
+    limit: int,
+) -> list[str]:
+    totals: dict[str, int] = {}
+    first_seen: dict[str, int] = {}
+    for label, weight, seen_index in weighted_labels:
+        if not label:
+            continue
+        totals[label] = totals.get(label, 0) + weight
+        first_seen.setdefault(label, seen_index)
+    ordered = sorted(
+        totals,
+        key=lambda label: (-totals[label], first_seen[label], label),
+    )
+    return ordered[:limit]
+
+
+def _infer_target_role(profile: dict[str, Any], config: dict[str, Any] | None) -> str | None:
+    experiences = list(profile.get("experiences") or [])[:_ROLE_INFERENCE_LIMIT]
+    weighted_roles: list[tuple[str, int, int]] = []
+    total_experiences = len(experiences)
+    for index, experience in enumerate(experiences):
+        canonical_role = canonicalize_role_title(str(experience.get("role") or ""), config)
+        if not canonical_role:
+            continue
+        weighted_roles.append((canonical_role, total_experiences - index, index))
+    ranked_roles = _rank_weighted_labels(weighted_roles, limit=1)
+    if not ranked_roles:
+        return None
+    return _display_role_title(ranked_roles[0])
+
+
+def _infer_role_families(profile: dict[str, Any], config: dict[str, Any] | None) -> list[str]:
+    experiences = list(profile.get("experiences") or [])[:_ROLE_INFERENCE_LIMIT]
+    weighted_families: list[tuple[str, int, int]] = []
+    total_experiences = len(experiences)
+    for index, experience in enumerate(experiences):
+        family = infer_role_family(
+            str(experience.get("role") or ""),
+            explicit_family=str(experience.get("role_family") or "") or None,
+            config=config,
+        )
+        if not family:
+            continue
+        weighted_families.append((family, total_experiences - index, index))
+    return _rank_weighted_labels(weighted_families, limit=_MAX_INFERRED_ROLE_FAMILIES)
+
+
+def _infer_domains(profile: dict[str, Any]) -> list[str]:
+    weighted_domains: list[tuple[str, int, int]] = []
+    experiences = list(profile.get("experiences") or [])
+    total_experiences = len(experiences)
+    for index, experience in enumerate(experiences):
+        weight = total_experiences - index
+        for domain in experience.get("domain_tags") or []:
+            normalized_domain = _normalize_text(str(domain))
+            if normalized_domain:
+                weighted_domains.append((normalized_domain, weight, index))
+
+    projects = list(profile.get("projects") or [])
+    project_offset = len(weighted_domains) + len(experiences)
+    for index, project in enumerate(projects):
+        for domain in project.get("domain_tags") or []:
+            normalized_domain = _normalize_text(str(domain))
+            if normalized_domain:
+                weighted_domains.append((normalized_domain, 1, project_offset + index))
+
+    return _rank_weighted_labels(weighted_domains, limit=_MAX_INFERRED_DOMAINS)
+
+
+def infer_effective_preferences(
+    profile: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    preferences = dict(profile.get("preferences") or {})
+    inferred_preferences: dict[str, Any] = {}
+    preference_sources: dict[str, str] = {}
+
+    if _is_missing_preference(preferences.get("target_role")):
+        inferred_target_role = _infer_target_role(profile, config)
+        if inferred_target_role:
+            inferred_preferences["target_role"] = inferred_target_role
+
+    if _is_missing_preference(preferences.get("role_families")):
+        inferred_role_families = _infer_role_families(profile, config)
+        if inferred_role_families:
+            inferred_preferences["role_families"] = inferred_role_families
+
+    if _is_missing_preference(preferences.get("domains")):
+        inferred_domains = _infer_domains(profile)
+        if inferred_domains:
+            inferred_preferences["domains"] = inferred_domains
+
+    effective_preferences = dict(preferences)
+    for key, inferred_value in inferred_preferences.items():
+        if _is_missing_preference(preferences.get(key)):
+            effective_preferences[key] = inferred_value
+
+    for key, value in effective_preferences.items():
+        if value in (None, "", []):
+            continue
+        preference_sources[key] = (
+            "explicit_yaml"
+            if not _is_missing_preference(preferences.get(key))
+            else {
+                "target_role": "inferred_recent_experience",
+                "role_families": "inferred_role_family_map",
+                "domains": "inferred_profile_domain_tags",
+            }.get(key, "inferred")
+        )
+
+    return {
+        "preferences": preferences,
+        "inferred_preferences": inferred_preferences,
+        "effective_preferences": effective_preferences,
+        "preference_sources": preference_sources,
+    }
 
 
 # ── validation ────────────────────────────────────────────────────────────────

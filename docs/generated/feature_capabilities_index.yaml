@@ -130,6 +130,7 @@ capabilities:
 - capability: Selected-evidence hard facts now gate CV validation before profile-wide fallback when `cv_analysis` provided a bounded evidence bundle
   feature_id: cv_system
 - capability: Softer role, domain, and responsibility claims now use a bounded hybrid validation path that stays scoped to selected `cv_analysis` evidence
+- capability: Ranking can now infer fallback target-role, role-family, and domain intent from recent profile evidence when explicit YAML preferences are sparse
   feature_id: cv_system
 - capability: Ranking `title_relevance` now uses bounded semantic role alignment instead of pure lexical token overlap
   feature_id: cv_system
