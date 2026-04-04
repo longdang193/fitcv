@@ -1,9 +1,9 @@
 cv_system:
   name: CV System
-  version: 1.19.0
+  version: 1.20.0
   status: active
   type: add
-  summary: CV generation uses a structured preset-based configuration, keeps reranker fit as the sole post-filter fit authority, splits final-stage execution into `cv_analysis` and `cv_generation`, upgrades `cv_analysis` to hybrid lexical-plus-semantic domain and responsibility alignment with one bounded coverage-aware evidence bundle, validates structured and markdown sections against one shared section contract, grounds final-stage validation against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support, persists both a schema-versioned structured CV artifact and rendered markdown, supports shortlist retrieval that stays latest-only while reusing unchanged job embeddings safely, now builds richer shortlist candidate queries from flattened skills plus bounded role-family and domain hints, reuses the single shortlist candidate-query embedding when the deterministic query signature and contract still match, and keeps active shortlist retrieval scoped to reusable job embeddings plus the deterministic candidate query vector actually used for search.
+  summary: CV generation uses a structured preset-based configuration, keeps reranker fit as the sole post-filter fit authority, splits final-stage execution into `cv_analysis` and `cv_generation`, upgrades `cv_analysis` to hybrid lexical-plus-semantic domain and responsibility alignment with one bounded coverage-aware evidence bundle, validates structured and markdown sections against one shared section contract, grounds final-stage validation against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support, persists both a schema-versioned structured CV artifact and rendered markdown, supports shortlist retrieval that stays latest-only while reusing unchanged job embeddings safely, now builds richer shortlist candidate queries from flattened skills plus bounded role-family and domain hints, reuses the single shortlist candidate-query embedding when the deterministic query signature and contract still match, keeps active shortlist retrieval scoped to reusable job embeddings plus the deterministic candidate query vector actually used for search, and now emits stage-level quality metrics so shortlist, ranking, analysis, and generation bottlenecks are visible without job-by-job inspection.
   owner: fitcv
   domains:
     - pipeline
@@ -59,6 +59,7 @@ cv_system:
     - Stage-transition artifacts now preserve bounded input, output, and changed-state context per stage rather than summary-only stage results
     - Effective run settings can be exported once as a dedicated settings-used snapshot instead of being duplicated into every stage block
     - Live run-scoped CV-generation debug snapshot capture for ranked jobs, including initial structured output, validation state, repair metadata, and final accepted artifact when available
+    - Run summaries and stage artifacts now expose stage-level quality metrics for shortlist, ranking, `cv_analysis`, and `cv_generation`
   refs:
     docs:
       - docs/FitCV-pipeline.md
@@ -85,6 +86,7 @@ cv_system:
       - docs/superpowers/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
       - docs/superpowers/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
       - docs/superpowers/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+      - docs/superpowers/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
     plan:
       - docs/superpowers/plans/2026-03-27-centralized-cv-generation-config-implementation.md
       - docs/superpowers/plans/2026-03-27-preset-based-cv-config-migration-implementation.md
@@ -110,6 +112,7 @@ cv_system:
       - docs/superpowers/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
       - docs/superpowers/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
       - docs/superpowers/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+      - docs/superpowers/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
     history:
       - docs/features/cv_system/history.md
   keywords:

@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 1.20.0 — active
+
+- Run summaries and stage-transition artifacts now expose stage-level quality metrics so shortlist, ranking, `cv_analysis`, and `cv_generation` bottlenecks are visible without job-by-job inspection
+- Shortlist, ranking, `cv_analysis`, and `cv_generation` each now own one explicit quality-metric block instead of relying on ad hoc downstream interpretation
+
 ### 1.19.0 — active
 
 - `cv_analysis` now scores domain and responsibility alignment with hybrid lexical-plus-semantic matching instead of relying only on lexical overlap

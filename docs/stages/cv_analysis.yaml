@@ -1,7 +1,7 @@
 cv_analysis:
   stage_id: cv_analysis
   name: CV Analysis
-  summary: Prepare ranked jobs for writing by merging enriched job context, retrieving candidate evidence from the normalized profile through separate required-skill, role, domain, and responsibility channels, scoring domain and responsibility with hybrid lexical-plus-semantic alignment, selecting one bounded coverage-aware evidence bundle, computing grounded gap summaries, and resolving the final fit gate that decides whether CV generation should run and what evidence bundle downstream validation is allowed to rely on.
+  summary: Prepare ranked jobs for writing by merging enriched job context, retrieving candidate evidence from the normalized profile through separate required-skill, role, domain, and responsibility channels, scoring domain and responsibility with hybrid lexical-plus-semantic alignment, selecting one bounded coverage-aware evidence bundle, computing grounded gap summaries, resolving the final fit gate that decides whether CV generation should run and what evidence bundle downstream validation is allowed to rely on, and emitting stage-owned skip or ready quality metrics.
   boundaries:
     - ranked jobs enter and generation-ready or analysis-rejected records leave
     - multi-channel evidence retrieval, final evidence selection, gap analysis, and fit-gate ownership belong to this stage
@@ -18,6 +18,7 @@ cv_analysis:
     - generation-ready jobs with selected evidence and gap payloads
     - skipped-fit-gate or analysis-failed outcomes
     - bounded `stage_transition_artifacts.cv_analysis` runtime block with retrieval counts, selected-evidence rationale, lexical-vs-semantic evidence subscores, effective hybrid weights, and changed-state samples that downstream `cv_generation` validation can reuse directly
+    - `stage_transition_artifacts.cv_analysis.decision_summary.quality_metrics` with ready, skip, and analysis-failure counts and rates
   depends_on:
     - ranking
   primary_features:
@@ -33,11 +34,13 @@ cv_analysis:
       - docs/superpowers/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
       - docs/superpowers/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
       - docs/superpowers/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+      - docs/superpowers/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
     plan:
       - docs/superpowers/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
       - docs/superpowers/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
       - docs/superpowers/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
       - docs/superpowers/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+      - docs/superpowers/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
     history: []
   keywords:
     - cv analysis

@@ -768,6 +768,8 @@ def test_run_pipeline_logs_full_validation_reasons(
     from fitcv.pipeline import run_pipeline
 
     job = _minimal_job()
+    job["fit_label"] = "strong"
+    job["final_score"] = 0.91
     profile = _minimal_profile()
 
     mock_config.return_value = _minimal_config()
@@ -864,6 +866,8 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
     from fitcv.pipeline import run_pipeline
 
     job = _minimal_job()
+    job["fit_label"] = "strong"
+    job["final_score"] = 0.91
     profile = _minimal_profile()
 
     mock_config.return_value = _minimal_config()
@@ -1701,6 +1705,8 @@ def test_run_pipeline_returns_correct_schema(
     from fitcv.pipeline import run_pipeline
 
     job = _minimal_job()
+    job["fit_label"] = "strong"
+    job["final_score"] = 0.91
     profile = _minimal_profile()
 
     mock_config.return_value = _minimal_config()
@@ -1727,9 +1733,50 @@ def test_run_pipeline_returns_correct_schema(
     assert "passed_filter" in result
     assert "ranked" in result
     assert "cvs_generated" in result
+    assert "stage_quality_metrics" in result
     assert "stage_transition_artifacts" in result
     assert result["total_jobs"] == 1
     assert result["cvs_generated"] == 1
+    assert set(result["stage_quality_metrics"]) == {
+        "shortlist",
+        "ranking",
+        "cv_analysis",
+        "cv_generation",
+    }
+    assert result["stage_quality_metrics"]["shortlist"] == {
+        "backfill_rate": 0.0,
+        "backfilled_jobs_total": 0,
+        "scoring_shortlisted_jobs_total": 1,
+    }
+    assert result["stage_quality_metrics"]["ranking"]["label_distribution"] == {
+        "strong_count": 1,
+        "stretch_count": 0,
+        "skip_count": 0,
+        "strong_rate": 1.0,
+        "stretch_rate": 0.0,
+        "skip_rate": 0.0,
+        "total_scored": 1,
+    }
+    assert result["stage_quality_metrics"]["cv_analysis"] == {
+        "skip_rate": 0.0,
+        "generation_ready_rate": 1.0,
+        "analysis_failed_rate": 0.0,
+        "skipped_fit_gate": 0,
+        "generation_ready": 1,
+        "analysis_failed": 0,
+        "total_processed": 1,
+    }
+    assert result["stage_quality_metrics"]["cv_generation"] == {
+        "validation_fail_rate": 0.0,
+        "accepted_rate": 1.0,
+        "generation_failed_rate": 0.0,
+        "persistence_failed_rate": 0.0,
+        "accepted": 1,
+        "validation_failed": 0,
+        "generation_failed": 0,
+        "persistence_failed": 0,
+        "total_attempted": 1,
+    }
     stage_artifacts = result["stage_transition_artifacts"]
     assert stage_artifacts["schema_version"] == "stage_transition_artifacts_v4"
     assert set(stage_artifacts["stages"]) == {
@@ -2588,6 +2635,120 @@ def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract()
     ]
     assert ranking_block["inputs_sample"][0]["must_have_match"] == pytest.approx(1.0)
     assert ranking_block["inputs_sample"][0]["preference_fit"] == pytest.approx(1.0)
+
+
+def test_build_stage_transition_artifacts_emits_stage_quality_metrics() -> None:
+    passed_jobs = [
+        {"job_url": "https://example.com/1", "title": "Job 1"},
+        {"job_url": "https://example.com/2", "title": "Job 2"},
+        {"job_url": "https://example.com/3", "title": "Job 3"},
+    ]
+    raw_shortlist = [
+        {"job_url": "https://example.com/1", "vector_similarity": 0.91, "vector_rank": 1},
+        {"job_url": "https://example.com/2", "vector_similarity": 0.82, "vector_rank": 2},
+    ]
+    shortlist = [
+        {"job_url": "https://example.com/1", "vector_similarity": 0.91, "vector_rank": 1},
+        {"job_url": "https://example.com/2", "vector_similarity": 0.82, "vector_rank": 2},
+        {"job_url": "https://example.com/3", "vector_similarity": 0.61, "vector_rank": 3},
+    ]
+    ranking_inputs = [
+        {
+            "job_url": "https://example.com/1",
+            "title": "Job 1",
+            "fit_label": "strong",
+            "final_score": 0.92,
+        },
+        {
+            "job_url": "https://example.com/2",
+            "title": "Job 2",
+            "fit_label": "stretch",
+            "final_score": 0.61,
+        },
+        {
+            "job_url": "https://example.com/3",
+            "title": "Job 3",
+            "fit_label": "skip",
+            "final_score": 0.22,
+        },
+    ]
+    cv_analysis_results = [
+        {"job_url": "https://example.com/1", "status": "generation_ready"},
+        {"job_url": "https://example.com/2", "status": "generation_ready"},
+        {"job_url": "https://example.com/3", "status": "skipped_fit_gate"},
+    ]
+    cv_generation_debug_records = [
+        {"job_url": "https://example.com/1", "status": "accepted"},
+        {"job_url": "https://example.com/2", "status": "validation_failed"},
+    ]
+
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=passed_jobs,
+        normalized=passed_jobs,
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=passed_jobs,
+        passed_jobs=passed_jobs,
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=raw_shortlist,
+        shortlist=shortlist,
+        backfilled_job_urls=["https://example.com/3"],
+        vector_top_n=10,
+        candidate_summary="Candidate: Data Analyst",
+        candidate_query_components={"skills": ["sql", "python"]},
+        ai_scores=ranking_inputs,
+        ranking_inputs=ranking_inputs,
+        ranked=ranking_inputs[:2],
+        cv_analysis_results=cv_analysis_results,
+        final_top_n=10,
+        cv_generation_debug_records=cv_generation_debug_records,
+        profile={"preferences": {"target_role": "Data Analyst"}},
+        config={"cv": {"generation": {"model": "gemini-2.5-flash", "prompt_version": "v1"}}},
+    )
+
+    shortlist_metrics = artifacts["stages"]["shortlist"]["decision_summary"]["quality_metrics"]
+    assert shortlist_metrics == {
+        "backfill_rate": pytest.approx(1 / 3),
+        "backfilled_jobs_total": 1,
+        "scoring_shortlisted_jobs_total": 3,
+    }
+
+    ranking_metrics = artifacts["stages"]["ranking"]["decision_summary"]["quality_metrics"]
+    assert ranking_metrics == {
+        "label_distribution": {
+            "strong_count": 1,
+            "stretch_count": 1,
+            "skip_count": 1,
+            "strong_rate": pytest.approx(1 / 3),
+            "stretch_rate": pytest.approx(1 / 3),
+            "skip_rate": pytest.approx(1 / 3),
+            "total_scored": 3,
+        }
+    }
+
+    cv_analysis_metrics = artifacts["stages"]["cv_analysis"]["decision_summary"]["quality_metrics"]
+    assert cv_analysis_metrics == {
+        "skip_rate": pytest.approx(1 / 3),
+        "generation_ready_rate": pytest.approx(2 / 3),
+        "analysis_failed_rate": pytest.approx(0.0),
+        "skipped_fit_gate": 1,
+        "generation_ready": 2,
+        "analysis_failed": 0,
+        "total_processed": 3,
+    }
+
+    cv_generation_metrics = artifacts["stages"]["cv_generation"]["decision_summary"]["quality_metrics"]
+    assert cv_generation_metrics == {
+        "validation_fail_rate": pytest.approx(0.5),
+        "accepted_rate": pytest.approx(0.5),
+        "generation_failed_rate": pytest.approx(0.0),
+        "persistence_failed_rate": pytest.approx(0.0),
+        "accepted": 1,
+        "validation_failed": 1,
+        "generation_failed": 0,
+        "persistence_failed": 0,
+        "total_attempted": 2,
+    }
 
 
 def test_build_stage_transition_artifacts_caps_samples_at_20_and_truncates_text() -> None:

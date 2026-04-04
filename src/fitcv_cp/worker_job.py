@@ -108,6 +108,7 @@ def _build_results_export_payload(
             "cvs_generated": int(summary.get("cvs_generated", 0)),
         },
         "shortlist_debug": _json_safe(summary.get("shortlist_debug") or {}),
+        "stage_quality_metrics": _json_safe(summary.get("stage_quality_metrics") or {}),
         "results": _json_safe(export_results),
     }
     return json.dumps(payload, ensure_ascii=False)
