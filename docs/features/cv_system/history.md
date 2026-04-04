@@ -4,6 +4,8 @@
 
 ### 1.17.0 — active
 
+- Ranking can now infer fallback `target_role`, `role_families`, and `domains` from recent candidate evidence when explicit YAML preferences are sparse, while keeping explicit preferences authoritative
+- Shared role normalization moved into central taxonomy config so ranking and inference no longer rely on private alias tables
 - `cv_generation` validation now treats the selected `cv_analysis` evidence bundle as the primary grounding surface for hard facts such as employers, projects, and skills when selected evidence is available
 - Softer role, domain, and responsibility claims now use a bounded hybrid support path that combines selected-theme/tag checks with compact selected-evidence text matching
 - Prompt guidance now explicitly tells CV generation to stay inside the selected evidence bundle for job-specific responsibility, domain, and role-positioning claims

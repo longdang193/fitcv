@@ -4,7 +4,7 @@ Public API
 ----------
 compute_must_have_match  : compute ratio of candidate skills to required job skills
 compute_seniority_fit    : map seniority closeness to [0.0, 1.0]
-compute_title_relevance  : compute token overlap between job title and candidate target role
+compute_title_relevance  : compute semantic role alignment between job title and target role
 compute_preference_fit   : compute overlap of preferred domains/locations
 get_active_ranking_weights          : resolve config weights for the supported runtime contract
 get_active_missing_value_defaults   : resolve missing-value defaults for supported features
@@ -16,6 +16,8 @@ store_final_ranking      : persist ranked list to BigQuery (integration)
 import re
 from datetime import datetime, timezone
 from typing import Any
+
+from fitcv.candidate import canonicalize_role_title, infer_role_family
 
 SUPPORTED_RANKING_FEATURES = (
     "ai_score",
@@ -47,67 +49,27 @@ DEFAULT_PREFERENCE_FIT_WEIGHTS = {
     "role_family": 0.30,
     "location_type": 0.20,
 }
-_ROLE_FAMILY_ALIASES: dict[str, tuple[str, ...]] = {
-    "analytics": (
-        "business intelligence analyst",
-        "bi analyst",
-        "data analyst",
-        "analytics analyst",
-        "insights analyst",
-        "credit analyst",
-        "data quality analyst",
-        "analyst",
-    ),
-    "data_engineering": (
-        "analytics engineer",
-        "data engineer",
-        "etl engineer",
-        "data platform engineer",
-        "data warehouse engineer",
-    ),
-    "data_science": (
-        "data scientist",
-        "machine learning scientist",
-        "applied scientist",
-        "ai trainer",
-    ),
-    "ml_engineering": (
-        "machine learning engineer",
-        "ml engineer",
-        "mlops engineer",
-        "ai engineer",
-        "genai engineer",
-        "llm engineer",
-    ),
-}
-_ROLE_FAMILY_NEIGHBORS: dict[str, frozenset[str]] = {
-    "analytics": frozenset({"data_science"}),
-    "data_science": frozenset({"analytics", "ml_engineering"}),
-    "data_engineering": frozenset({"ml_engineering"}),
-    "ml_engineering": frozenset({"data_science", "data_engineering"}),
-}
 
 
 def _normalize_text(value: str | None) -> str:
     if not value:
         return ""
-    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", value.lower())).strip()
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9_]+", " ", value.lower())).strip()
 
 
-def _infer_role_family(role_text: str | None, *, explicit_family: str | None = None) -> str | None:
-    normalized_explicit = _normalize_text(explicit_family)
-    if normalized_explicit in _ROLE_FAMILY_ALIASES:
-        return normalized_explicit
-
-    normalized_role = _normalize_text(role_text)
-    if not normalized_role:
-        return None
-
-    for family_name, aliases in _ROLE_FAMILY_ALIASES.items():
-        for alias in aliases:
-            if _normalize_text(alias) in normalized_role:
-                return family_name
-    return None
+def _role_family_neighbors(config: dict[str, Any] | None = None) -> dict[str, frozenset[str]]:
+    raw_neighbors = ((config or {}).get("role_taxonomy") or {}).get("role_family_neighbors")
+    if not isinstance(raw_neighbors, dict):
+        return {}
+    return {
+        _normalize_text(str(family)): frozenset(
+            _normalize_text(str(neighbor))
+            for neighbor in neighbors
+            if _normalize_text(str(neighbor))
+        )
+        for family, neighbors in raw_neighbors.items()
+        if isinstance(neighbors, (list, tuple))
+    }
 
 
 def get_active_ranking_weights(config: dict[str, Any] | None = None) -> dict[str, float]:
@@ -172,7 +134,8 @@ def compute_must_have_match(
     if not candidate_skills:
         return 0.0
 
-    synonyms = (config or {}).get("skill_synonyms", {})
+    raw_synonyms = (config or {}).get("skill_synonyms", {})
+    synonyms = raw_synonyms if isinstance(raw_synonyms, dict) else {}
 
     def canonical(s: str) -> str:
         lower = s.strip().lower()
@@ -235,15 +198,20 @@ def compute_title_relevance(
     if not job_title or not candidate_target_role:
         return 0.5
 
-    _ = config
-    target_family = _infer_role_family(candidate_target_role)
-    resolved_job_family = _infer_role_family(job_title, explicit_family=job_family)
+    target_family = infer_role_family(candidate_target_role, config=config)
+    resolved_job_family = infer_role_family(job_title, explicit_family=job_family, config=config)
+    neighbors = _role_family_neighbors(config)
     if target_family and resolved_job_family:
         if target_family == resolved_job_family:
             return 1.0
-        if resolved_job_family in _ROLE_FAMILY_NEIGHBORS.get(target_family, frozenset()):
+        if resolved_job_family in neighbors.get(target_family, frozenset()):
             return 0.75
         return 0.0
+
+    canonical_target_role = canonicalize_role_title(candidate_target_role, config)
+    canonical_job_role = canonicalize_role_title(job_title, config)
+    if canonical_target_role and canonical_job_role:
+        return 1.0 if canonical_target_role == canonical_job_role else 0.0
 
     tgt_tokens = set(candidate_target_role.lower().split())
     job_tokens = set(job_title.lower().split())

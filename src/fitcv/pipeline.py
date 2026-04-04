@@ -36,6 +36,7 @@ from typing import Any, Callable
 from fitcv.ai_score import run_ai_scoring
 from fitcv.candidate import (
     flatten_skills,
+    infer_effective_preferences,
     load_candidate_to_bigquery,
     load_profile_json_text,
     load_profile_yaml,
@@ -1142,11 +1143,16 @@ def _job_sample(job: dict[str, Any]) -> dict[str, Any] | None:
     return sample
 
 
-def _candidate_profile_summary(profile: dict[str, Any]) -> dict[str, Any]:
+def _candidate_profile_summary(profile: dict[str, Any], config: dict[str, Any] | None = None) -> dict[str, Any]:
     preferences = dict(profile.get("preferences") or {})
+    preference_resolution = infer_effective_preferences(profile, config)
     flattened_skills = flatten_skills(profile)
     summary = {
         "target_role": str(preferences.get("target_role") or ""),
+        "effective_target_role": str(preference_resolution["effective_preferences"].get("target_role") or ""),
+        "effective_role_families": list(preference_resolution["effective_preferences"].get("role_families") or []),
+        "effective_domains": list(preference_resolution["effective_preferences"].get("domains") or []),
+        "preference_sources": dict(preference_resolution["preference_sources"] or {}),
         "years_experience": profile.get("years_experience"),
         "skills_sample": flattened_skills[:5],
     }
@@ -1216,6 +1222,10 @@ def _ranking_row_sample(row: dict[str, Any]) -> dict[str, Any] | None:
         "preference_fit": row.get("preference_fit"),
         "feature_contributions": row.get("feature_contributions"),
         "preference_fit_components": row.get("preference_fit_components"),
+        "effective_target_role": ((row.get("effective_preferences") or {}).get("target_role") if isinstance(row.get("effective_preferences"), dict) else None),
+        "effective_role_families": ((row.get("effective_preferences") or {}).get("role_families") if isinstance(row.get("effective_preferences"), dict) else None),
+        "effective_domains": ((row.get("effective_preferences") or {}).get("domains") if isinstance(row.get("effective_preferences"), dict) else None),
+        "preference_sources": row.get("preference_sources"),
         "final_score": row.get("final_score"),
         "ranking_fit_label": row.get("fit_label"),
         "shortlist_origin": row.get("shortlist_origin"),
@@ -1507,7 +1517,7 @@ def _build_stage_transition_artifacts(
                     "pre_enrichment_rejected_jobs": len(pre_filter_rejected_jobs),
                 },
                 decision_summary={
-                    "candidate_profile_summary": _candidate_profile_summary(profile),
+                    "candidate_profile_summary": _candidate_profile_summary(profile, config),
                     "enrich_prompt_id": enrich_prompt_provenance["prompt_id"],
                     "enrich_prompt_version": enrich_prompt_provenance["prompt_version"],
                     "enrich_prompt_template_path": enrich_prompt_provenance["template_path"],
@@ -1679,6 +1689,7 @@ def _build_stage_transition_artifacts(
                     "configured_fit_label_thresholds": dict(config.get("fit_label_thresholds") or {}),
                     "zero_weight_features": zero_weight_features,
                     "contributing_features": contributing_features,
+                    "candidate_preference_resolution": infer_effective_preferences(profile, config),
                 },
                 inputs_sample=_sample_rows(ranking_inputs, _ranking_row_sample),
                 outputs_sample=_sample_rows(ranked, _ranking_row_sample),
@@ -1786,7 +1797,10 @@ def build_ranking_features(
     weights = get_active_ranking_weights(config)
     null_defaults = get_active_missing_value_defaults(config)
     candidate_skills = flatten_skills(profile)
-    preferences = dict(profile.get("preferences") or {})
+    preference_resolution = infer_effective_preferences(profile, config)
+    effective_preferences = dict(preference_resolution["effective_preferences"] or {})
+    inferred_preferences = dict(preference_resolution["inferred_preferences"] or {})
+    preference_sources = dict(preference_resolution["preference_sources"] or {})
 
     features: list[dict[str, Any]] = []
     for ai_row in ai_scores:
@@ -1820,16 +1834,16 @@ def build_ranking_features(
         must_have_match = compute_must_have_match(required_skills, candidate_skills, config)
         title_relevance = compute_title_relevance(
             _extract_job_title(ranking_source),
-            str(preferences.get("target_role") or "") or None,
+            str(effective_preferences.get("target_role") or "") or None,
             job_family=str(ranking_source.get("job_family") or "") or None,
             config=config,
         )
         seniority_fit = compute_seniority_fit(
             str(ranking_source.get("seniority") or "") or None,
-            str(preferences.get("seniority_target") or "") or None,
+            str(effective_preferences.get("seniority_target") or "") or None,
             config,
         )
-        preference_fit_details = compute_preference_fit_details(ranking_source, preferences, config)
+        preference_fit_details = compute_preference_fit_details(ranking_source, effective_preferences, config)
         preference_fit = float(preference_fit_details["score"])
 
         feature_values = {
@@ -1847,6 +1861,9 @@ def build_ranking_features(
             **feature_values,
             "feature_contributions": compute_feature_contributions(feature_values, weights, null_defaults),
             "preference_fit_components": preference_fit_details["components"],
+            "effective_preferences": effective_preferences,
+            "inferred_preferences": inferred_preferences,
+            "preference_sources": preference_sources,
             "fit_label_source": "reranker" if ai_row.get("fit_label") is not None else "reranker_score_thresholds",
         }
         feature["final_score"] = compute_final_score(feature, weights, null_defaults)
