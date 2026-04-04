@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 2.10.0 — active
+
+- `cv_analysis` artifacts can now show lexical-versus-semantic channel subscores, effective hybrid weights, semantic methods, and semantic embedding reuse state
+- This rollout improves explainability for semantic-heavy evidence selection without changing `cv_generation` ownership
+
 ### 2.9.0 — active
 
 - Shortlist inspection wording now stays explicit that the live path uses reusable job embeddings plus the deterministic candidate query vector, not stored candidate chunk embeddings

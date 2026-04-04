@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.6.0 — active
+
+- Retrieval settings now expose `cv_analysis.semantic_alignment.*` controls, including enable/model settings and lexical-versus-semantic weights for responsibility and domain alignment
+- Settings validation now rejects hybrid-weight pairs that do not sum to `1.0`
+- Specs/plans: see `refs` in the feature contract
+
 ### 2.5.0 — active
 
 - Ranking settings now include explicit `preference_fit_weights` for domain, role-family, and location-type calibration
