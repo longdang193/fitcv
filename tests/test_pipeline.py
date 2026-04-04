@@ -997,6 +997,238 @@ def _raw_scraper_job(url: str = "https://example.com/1") -> dict:
     }
 
 
+def test_build_ai_score_input_fingerprint_changes_when_reranker_contract_changes() -> None:
+    from fitcv.ai_score import build_ai_score_input_fingerprint
+    from fitcv.vector_search import build_candidate_query_text
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+    config = _minimal_config()
+    candidate_summary = build_candidate_query_text(profile, config)
+
+    baseline = build_ai_score_input_fingerprint(
+        job,
+        candidate_summary,
+        [],
+        config,
+    )["fingerprint"]
+
+    changed = build_ai_score_input_fingerprint(
+        job,
+        candidate_summary,
+        [],
+        {
+            **config,
+            "gemini_model": "gemini-2.5-pro",
+        },
+    )["fingerprint"]
+
+    assert changed != baseline
+
+
+def test_build_cv_analysis_input_fingerprint_changes_when_semantic_alignment_changes() -> None:
+    from fitcv.evidence import build_cv_analysis_input_fingerprint
+
+    profile = _minimal_profile()
+    job = _minimal_job()
+    config = _minimal_config()
+
+    baseline = build_cv_analysis_input_fingerprint(
+        profile,
+        job,
+        config,
+    )["fingerprint"]
+
+    changed = build_cv_analysis_input_fingerprint(
+        profile,
+        job,
+        {
+            **config,
+            "cv_analysis": {
+                "semantic_alignment": {
+                    "enabled": True,
+                    "responsibility_lexical_weight": 0.10,
+                    "responsibility_semantic_weight": 0.90,
+                    "domain_lexical_weight": 0.30,
+                    "domain_semantic_weight": 0.70,
+                    "channel_pool_size": 6,
+                }
+            },
+        },
+    )["fingerprint"]
+
+    assert changed != baseline
+
+
+def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
+    from fitcv.ai_score import build_ai_score_input_fingerprint
+    from fitcv.pipeline import run_pipeline
+    from fitcv.vector_search import build_candidate_query_text
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+    config = _minimal_config()
+    candidate_summary = build_candidate_query_text(profile, config)
+    ai_score_fingerprint = build_ai_score_input_fingerprint(
+        job,
+        candidate_summary,
+        [],
+        config,
+    )["fingerprint"]
+    reused_ai_row = {
+        "job_url": job["job_url"],
+        "ai_score": 0.92,
+        "fit_label": "strong",
+        "score_reasoning": "Exact-match reused AI score.",
+        "matched_strengths": ["SQL"],
+        "key_risks": [],
+        "ai_score_input_fingerprint": ai_score_fingerprint,
+        "ai_score_reuse_status": "reused_exact_match",
+    }
+    reuse_snapshots = {
+        "schema_version": "late_stage_reuse_v1",
+        "ranking_ai_scores": [
+            {
+                "job_url": job["job_url"],
+                "ai_score_input_fingerprint": ai_score_fingerprint,
+                "ai_score_row": reused_ai_row,
+            }
+        ],
+        "cv_analysis_records": [],
+    }
+
+    with patch("fitcv.pipeline.load_config", return_value=config), \
+         patch("fitcv.pipeline.parse_jobs_file", return_value=[job]), \
+         patch("fitcv.pipeline.normalize_batch", return_value=[job]), \
+         patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])), \
+         patch("fitcv.pipeline.load_to_bigquery"), \
+         patch("fitcv.pipeline.apply_pre_enrichment_global_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
+         patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}), \
+         patch("fitcv.pipeline.enrich_batch", return_value=[job]), \
+         patch("fitcv.pipeline.load_structured_jobs"), \
+         patch("fitcv.pipeline.load_run_structured_jobs"), \
+         patch("fitcv.pipeline.load_profile_yaml", return_value=profile), \
+         patch("fitcv.pipeline.load_candidate_to_bigquery"), \
+         patch("fitcv.pipeline.apply_rule_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
+         patch("fitcv.pipeline.store_filter_results"), \
+         patch("fitcv.pipeline.embed_and_store_jobs"), \
+         patch("fitcv.pipeline.run_vector_search", return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]), \
+         patch("fitcv.pipeline.run_ai_scoring") as mock_ai_scoring, \
+         patch("fitcv.pipeline.store_final_ranking"):
+        result = run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+            reuse_snapshots=reuse_snapshots,
+            stop_after_stage="ranking",
+        )
+
+    mock_ai_scoring.assert_not_called()
+    ranking_block = result["stage_transition_artifacts"]["stages"]["ranking"]
+    assert ranking_block["decision_summary"]["reuse_metrics"] == {
+        "reused_ai_scores": 1,
+        "fresh_ai_scores": 0,
+        "total_ai_scores": 1,
+    }
+    assert ranking_block["inputs_sample"][0]["ai_score_reuse_status"] == "reused_exact_match"
+    assert ranking_block["inputs_sample"][0]["ai_score_input_fingerprint"] == ai_score_fingerprint
+
+
+def test_run_pipeline_reuses_exact_match_cv_analysis_records() -> None:
+    from fitcv.evidence import build_cv_analysis_input_fingerprint
+    from fitcv.pipeline import run_pipeline
+
+    job = {
+        **_minimal_job(),
+        "title": "Data Engineer",
+        "required_skills": ["SQL"],
+        "preferred_skills": ["Python"],
+        "responsibilities": ["Build data pipelines for stakeholders."],
+        "domain": "banking",
+        "job_family": "analytics",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+    profile = _minimal_profile()
+    config = _minimal_config()
+    analysis_fingerprint = build_cv_analysis_input_fingerprint(
+        profile,
+        job,
+        config,
+    )["fingerprint"]
+    reused_analysis_record = {
+        "job_url": job["job_url"],
+        "job_title": "Data Engineer",
+        "status": "ready_for_generation",
+        "ranking_fit_label": "strong",
+        "fit_classification": "strong",
+        "decision_chain": {
+            "shortlist": {"status": "returned_by_vector_search", "advanced_to_scoring": True},
+            "primary_fit": {"source": "reranker", "label": "strong"},
+            "cv_analysis": {"status": "ready_for_generation", "completed": True},
+            "cv_generation": {"status": "not_attempted", "attempted": False},
+            "validation": {"status": "not_run"},
+        },
+        "job_snapshot": dict(job),
+        "evidence_payload": [{"evidence_id": "e1", "evidence_type": "experience_entry", "source_ref": "experiences[0]"}],
+        "evidence_used": [{"evidence_type": "experience_entry", "source_ref": "experiences[0]", "name": "DE"}],
+        "evidence_selection_summary": {"selected_evidence_count": 1},
+        "gap_summary": {"matched": ["SQL"], "partial": [], "missing": []},
+        "analysis_input_fingerprint": analysis_fingerprint,
+        "analysis_reuse_status": "reused_exact_match",
+        "outcome_reason": None,
+        "error": None,
+    }
+    reuse_snapshots = {
+        "schema_version": "late_stage_reuse_v1",
+        "ranking_ai_scores": [],
+        "cv_analysis_records": [
+            {
+                "job_url": job["job_url"],
+                "analysis_input_fingerprint": analysis_fingerprint,
+                "analysis_record": reused_analysis_record,
+            }
+        ],
+    }
+
+    with patch("fitcv.pipeline.load_config", return_value=config), \
+         patch("fitcv.pipeline.parse_jobs_file", return_value=[job]), \
+         patch("fitcv.pipeline.normalize_batch", return_value=[job]), \
+         patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])), \
+         patch("fitcv.pipeline.load_to_bigquery"), \
+         patch("fitcv.pipeline.apply_pre_enrichment_global_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
+         patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}), \
+         patch("fitcv.pipeline.enrich_batch", return_value=[job]), \
+         patch("fitcv.pipeline.load_structured_jobs"), \
+         patch("fitcv.pipeline.load_run_structured_jobs"), \
+         patch("fitcv.pipeline.load_profile_yaml", return_value=profile), \
+         patch("fitcv.pipeline.load_candidate_to_bigquery"), \
+         patch("fitcv.pipeline.apply_rule_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
+         patch("fitcv.pipeline.store_filter_results"), \
+         patch("fitcv.pipeline.embed_and_store_jobs"), \
+         patch("fitcv.pipeline.run_vector_search", return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]), \
+         patch("fitcv.pipeline.run_ai_scoring", return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}]), \
+         patch("fitcv.pipeline.store_final_ranking"), \
+         patch("fitcv.pipeline.retrieve_evidence_bundle") as mock_retrieve_bundle, \
+         patch("fitcv.pipeline.compute_gap") as mock_compute_gap:
+        result = run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+            reuse_snapshots=reuse_snapshots,
+            stop_after_stage="cv_analysis",
+        )
+
+    mock_retrieve_bundle.assert_not_called()
+    mock_compute_gap.assert_not_called()
+    cv_analysis_block = result["stage_transition_artifacts"]["stages"]["cv_analysis"]
+    assert cv_analysis_block["decision_summary"]["reuse_metrics"] == {
+        "reused_analysis_records": 1,
+        "fresh_analysis_records": 0,
+        "total_analysis_records": 1,
+    }
+    assert cv_analysis_block["outputs_sample"][0]["analysis_reuse_status"] == "reused_exact_match"
+    assert cv_analysis_block["outputs_sample"][0]["analysis_input_fingerprint"] == analysis_fingerprint
+
+
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
@@ -1778,7 +2010,7 @@ def test_run_pipeline_returns_correct_schema(
         "total_attempted": 1,
     }
     stage_artifacts = result["stage_transition_artifacts"]
-    assert stage_artifacts["schema_version"] == "stage_transition_artifacts_v4"
+    assert stage_artifacts["schema_version"] == "stage_transition_artifacts_v5"
     assert set(stage_artifacts["stages"]) == {
         "normalize",
         "enrich",
@@ -2081,6 +2313,7 @@ def test_build_stage_transition_artifacts_enrich_sample_includes_canonical_field
         backfilled_job_urls=[],
         vector_top_n=10,
         candidate_summary="Candidate: Data Scientist",
+        candidate_query_components={},
         ai_scores=[],
         ranking_inputs=[],
         ranked=[],
@@ -2170,6 +2403,7 @@ def test_build_stage_transition_artifacts_enrich_summary_reports_reuse_counts() 
         backfilled_job_urls=[],
         vector_top_n=10,
         candidate_summary="Candidate: Data Scientist",
+        candidate_query_components={},
         ai_scores=[],
         ranking_inputs=[],
         ranked=[],

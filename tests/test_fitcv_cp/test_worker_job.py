@@ -152,6 +152,100 @@ def test_worker_persists_stage_quality_metrics_in_results_export_json():
     assert payload["stage_quality_metrics"]["cv_generation"]["accepted_rate"] == 0.5
 
 
+def test_worker_persists_late_stage_reuse_payload_in_results_export_json():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "path"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r1",
+        "total_jobs": 5,
+        "passed_filter": 3,
+        "ranked": 2,
+        "cvs_generated": 1,
+        "late_stage_reuse_metrics": {
+            "ranking": {
+                "reused_ai_scores": 1,
+                "fresh_ai_scores": 1,
+                "total_ai_scores": 2,
+                "reuse_rate": 0.5,
+            },
+            "cv_analysis": {
+                "reused_analysis_records": 1,
+                "fresh_analysis_records": 0,
+                "total_analysis_records": 1,
+                "reuse_rate": 1.0,
+            },
+        },
+        "late_stage_reuse_snapshots": {
+            "schema_version": "late_stage_reuse_v1",
+            "ranking_ai_scores": [{"job_url": "https://example.com/1"}],
+            "cv_analysis_records": [{"job_url": "https://example.com/1"}],
+        },
+        "export_results": [{"job_url": "https://example.com/1", "pipeline_status": "ranked_with_cv"}],
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.list_runs", return_value=[]), \
+       patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    payload = json.loads(mock_store_export.call_args.args[1])
+    assert payload["late_stage_reuse_metrics"]["ranking"]["reused_ai_scores"] == 1
+    assert payload["late_stage_reuse_metrics"]["cv_analysis"]["reuse_rate"] == 1.0
+    assert payload["late_stage_reuse_snapshots"]["schema_version"] == "late_stage_reuse_v1"
+
+
+def test_worker_passes_collected_late_stage_reuse_snapshots_to_run_pipeline():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "path"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    prior_run = MagicMock()
+    prior_run.run_id = "prior-run"
+    prior_run.status = RunStatus.SUCCEEDED
+    prior_run.results_export_json = json.dumps({
+        "late_stage_reuse_snapshots": {
+            "schema_version": "late_stage_reuse_v1",
+            "ranking_ai_scores": [
+                {"job_url": "https://example.com/1", "ai_score_input_fingerprint": "fp-1", "ai_score_row": {"job_url": "https://example.com/1"}}
+            ],
+            "cv_analysis_records": [
+                {"job_url": "https://example.com/1", "analysis_input_fingerprint": "afp-1", "analysis_record": {"job_url": "https://example.com/1"}}
+            ],
+        }
+    })
+
+    with patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.list_runs", return_value=[prior_run]), \
+       patch("fitcv_cp.worker_job.run_pipeline", return_value={
+           "run_id": "r1",
+           "total_jobs": 0,
+           "passed_filter": 0,
+           "ranked": 0,
+           "cvs_generated": 0,
+       }) as mock_run_pipeline:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    passed_snapshots = mock_run_pipeline.call_args.kwargs["reuse_snapshots"]
+    assert passed_snapshots["ranking_ai_scores"][0]["ai_score_input_fingerprint"] == "fp-1"
+    assert passed_snapshots["cv_analysis_records"][0]["analysis_input_fingerprint"] == "afp-1"
+
+
 def test_worker_persists_cv_generation_debug_json_on_success():
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])

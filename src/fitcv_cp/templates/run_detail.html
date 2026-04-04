@@ -106,6 +106,27 @@
 </div>
 {% endif %}
 
+{% if late_stage_reuse_metric_rows %}
+<div class="card">
+  <h3 style="margin:0 0 0.85rem">Late-Stage Reuse</h3>
+  <div style="display:flex;flex-direction:column;gap:0.75rem">
+    {% for metric in late_stage_reuse_metric_rows %}
+    <div style="display:flex;gap:1rem;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;padding-bottom:0.75rem;border-bottom:1px solid var(--accent)">
+      <div style="display:flex;flex-direction:column;gap:0.25rem;min-width:16rem">
+        <strong>{{ metric.label }}</strong>
+        <span class="meta">{{ metric.hint }}</span>
+      </div>
+      <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+        <span class="badge badge-info">{{ metric.rate_percent }}%</span>
+        <code>{{ metric.numerator }} / {{ metric.denominator }}</code>
+        <span class="meta">fresh: {{ metric.fresh_count }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <!-- ── Error Banner ──────────────────────────────────────────────────────── -->
 {% if run.status.value == 'failed' and run.error_message %}
 <div class="error-box">

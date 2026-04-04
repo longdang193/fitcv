@@ -18,13 +18,14 @@ status: []
    - rule / feature matching
    - semantic retrieval with embeddings
 7. Use BigQuery VECTOR_SEARCH to shortlist jobs, building the candidate query from flattened profile skills plus bounded role-family/domain hints, reusing the single shortlist candidate-query embedding when the deterministic query signature and contract still match, searching only the latest active persistent `job_summary` embedding per canonical `job_url`, and reusing unchanged job-summary embeddings when the shortlist signature and embedding contract still match
-8. Use BigQuery AI.SCORE to rerank shortlisted jobs with a stricter rubric that prioritizes required-skill evidence, seniority readiness, and role alignment while keeping preference signals secondary; when candidate YAML preferences are sparse, ranking first derives deterministic fallback intent from recent role and domain evidence
+8. Use BigQuery AI.SCORE to rerank shortlisted jobs with a stricter rubric that prioritizes required-skill evidence, seniority readiness, and role alignment while keeping preference signals secondary; when candidate YAML preferences are sparse, ranking first derives deterministic fallback intent from recent role and domain evidence, and exact-match AI-score rows can be reused safely when the ranking-stage fingerprint and contract still match
 9. Select top jobs
-10. Retrieve best candidate evidence for each job
+10. Retrieve best candidate evidence for each job, with exact-match `cv_analysis` outputs reused safely when the ranked-job analysis fingerprint and contract still match
 11. Generate tailored CV
 12. Validate output against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support
 13. Store versions + tracking
 14. Emit stage-level quality metrics so shortlist, ranking, `cv_analysis`, and `cv_generation` bottlenecks are visible in run inspection without opening every stage artifact
+15. Persist bounded late-stage reuse snapshots and reuse-rate metrics so repeated ranking and `cv_analysis` runs can skip unchanged expensive work safely
 ```
 
 ## Add a JD normalization + enrichment layer before embeddings
@@ -463,6 +464,7 @@ BigQuery VECTOR_SEARCH
     ↓
 BigQuery AI.SCORE
   - score shortlist against candidate profile
+  - reuse exact-match AI-score rows when the ranking-stage fingerprint and contract still match
     ↓
 Final ranking
   - ai_score
@@ -480,6 +482,7 @@ Per-job evidence retrieval
   - domain-alignment pool
   - responsibility-alignment pool
   - merge, dedupe, and rerank into one final evidence bundle
+  - reuse exact-match `cv_analysis` records when the analysis-stage fingerprint and contract still match
   - active `cv_analysis` retrieval stays profile-based today; candidate chunk embeddings remain a future stage-owned option rather than part of the live path
     ↓
 Gap analysis

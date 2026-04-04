@@ -22,6 +22,7 @@ from fitcv.pipeline import PipelineCancelled, run_pipeline
 from fitcv_cp.bq_store import (
     append_event,
     get_run,
+    list_runs,
     update_run_checkpoint,
     update_run_cv_generation_debug,
     update_run_mapping_suggestions,
@@ -34,6 +35,7 @@ from fitcv_cp.models import RunEvent, RunStatus
 
 logger = logging.getLogger(__name__)
 _MAX_DEBUG_MARKDOWN_CHARS = 4000
+_LATE_STAGE_REUSE_RUN_SCAN_LIMIT = 50
 
 
 def _get_bq() -> bigquery.Client:
@@ -109,9 +111,68 @@ def _build_results_export_payload(
         },
         "shortlist_debug": _json_safe(summary.get("shortlist_debug") or {}),
         "stage_quality_metrics": _json_safe(summary.get("stage_quality_metrics") or {}),
+        "late_stage_reuse_metrics": _json_safe(summary.get("late_stage_reuse_metrics") or {}),
+        "late_stage_reuse_snapshots": _json_safe(summary.get("late_stage_reuse_snapshots") or {}),
         "results": _json_safe(export_results),
     }
     return json.dumps(payload, ensure_ascii=False)
+
+
+def _collect_late_stage_reuse_snapshots(
+    *,
+    current_run_id: str,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> dict[str, Any]:
+    snapshots: dict[str, Any] = {
+        "schema_version": "late_stage_reuse_v1",
+        "ranking_ai_scores": [],
+        "cv_analysis_records": [],
+    }
+    try:
+        prior_runs = list_runs(
+            bq,
+            project=project,
+            dataset=dataset,
+            limit=_LATE_STAGE_REUSE_RUN_SCAN_LIMIT,
+            include_archived=True,
+        )
+    except Exception as exc:
+        logger.warning("[run_id=%s] Failed to list prior runs for reuse lookup: %s", current_run_id, exc)
+        return snapshots
+
+    for prior_run in prior_runs:
+        if prior_run.run_id == current_run_id:
+            continue
+        if prior_run.status != RunStatus.SUCCEEDED or not prior_run.results_export_json:
+            continue
+        try:
+            payload = json.loads(prior_run.results_export_json)
+        except Exception as exc:
+            logger.warning(
+                "[run_id=%s] Failed to parse prior results_export_json for reuse lookup [source_run_id=%s]: %s",
+                current_run_id,
+                prior_run.run_id,
+                exc,
+            )
+            continue
+        reuse_payload = dict(payload.get("late_stage_reuse_snapshots") or {})
+        snapshots["ranking_ai_scores"].extend(
+            [
+                dict(item)
+                for item in list(reuse_payload.get("ranking_ai_scores") or [])
+                if isinstance(item, dict)
+            ]
+        )
+        snapshots["cv_analysis_records"].extend(
+            [
+                dict(item)
+                for item in list(reuse_payload.get("cv_analysis_records") or [])
+                if isinstance(item, dict)
+            ]
+        )
+    return snapshots
 
 
 def _build_cv_generation_debug_payload(
@@ -302,6 +363,13 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             current = get_run(run_id, bq, project=project, dataset=dataset)
             return current is not None and current.cancel_requested_at is not None
 
+        late_stage_reuse_snapshots = _collect_late_stage_reuse_snapshots(
+            current_run_id=run_id,
+            bq=bq,
+            project=project,
+            dataset=dataset,
+        )
+
         summary = run_pipeline(
             jobs_path=jobs_path,
             config_path=config_path,
@@ -312,6 +380,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             start_stage=next_stage if run_mode == "manual_staged" else None,
             stop_after_stage=next_stage if run_mode == "manual_staged" else None,
             checkpoint_payload=checkpoint_payload,
+            reuse_snapshots=late_stage_reuse_snapshots,
         )
 
         paused_after_stage = str(summary.get("paused_after_stage") or "").strip() or None

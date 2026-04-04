@@ -24,6 +24,7 @@ store_ai_scores       : persist to fitcv.ai_score_results (integration)
 """
 
 import json
+import hashlib
 import logging
 import re
 from datetime import datetime, timezone
@@ -37,6 +38,54 @@ _VALID_FIT_LABELS = frozenset({"strong", "stretch", "skip"})
 
 _DEFAULT_STRONG_THRESHOLD = 0.70
 _DEFAULT_STRETCH_THRESHOLD = 0.40
+AI_SCORE_PROMPT_SCHEMA_VERSION = "ranking_ai_score_prompt_v1"
+
+
+def _stable_json_fingerprint(payload: dict[str, Any]) -> str:
+    payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+
+
+def build_ai_score_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
+    thresholds = dict(config.get("fit_label_thresholds") or {})
+    payload = {
+        "gemini_model": str(config.get("gemini_model", "gemini-2.5-flash")),
+        "prompt_schema_version": AI_SCORE_PROMPT_SCHEMA_VERSION,
+        "strong_threshold": float(thresholds.get("strong", _DEFAULT_STRONG_THRESHOLD)),
+        "stretch_threshold": float(thresholds.get("stretch", _DEFAULT_STRETCH_THRESHOLD)),
+    }
+    return {
+        "payload": payload,
+        "fingerprint": _stable_json_fingerprint(payload),
+    }
+
+
+def build_ai_score_input_fingerprint(
+    job: dict[str, Any],
+    candidate_summary: str,
+    top_evidence: list[str],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    from fitcv.embeddings import build_job_summary_text
+
+    thresholds = dict(config.get("fit_label_thresholds") or {})
+    prompt = build_scoring_prompt(
+        jd_summary=build_job_summary_text(job),
+        candidate_summary=candidate_summary,
+        top_evidence=top_evidence[:2],
+        strong_threshold=float(thresholds.get("strong", _DEFAULT_STRONG_THRESHOLD)),
+        stretch_threshold=float(thresholds.get("stretch", _DEFAULT_STRETCH_THRESHOLD)),
+    )
+    contract_record = build_ai_score_contract_fingerprint(config)
+    payload = {
+        "job_url": str(job.get("job_url") or ""),
+        "prompt": prompt,
+        "contract_fingerprint": contract_record["fingerprint"],
+    }
+    return {
+        "payload": payload,
+        "fingerprint": _stable_json_fingerprint(payload),
+    }
 
 
 def _build_scoring_rubric(

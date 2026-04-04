@@ -29,6 +29,12 @@ capabilities:
   feature_id: cv_system
 - capability: Compact stage-level quality metrics in run detail, run results, and stage artifacts
   feature_id: inspection_debugging
+- capability: Exact-match AI-score reuse for ranking rows when the stage-owned fingerprint and contract still match
+  feature_id: cv_system
+- capability: Exact-match `cv_analysis` reuse for ranked jobs when the stage-owned fingerprint and contract still match
+  feature_id: cv_system
+- capability: Late-stage reuse metrics and run-detail reuse summaries for `ranking` and `cv_analysis`
+  feature_id: inspection_debugging
 - capability: Run summaries and stage artifacts expose shortlist, ranking, `cv_analysis`, and `cv_generation` quality metrics
   feature_id: cv_system
 - capability: CV-generation prompt guidance now explicitly constrains responsibility, domain, and role-positioning claims to the selected evidence bundle
@@ -120,6 +126,7 @@ capabilities:
 - capability: `cv_generation` validation snapshots now distinguish deterministic selected-evidence grounding violations from softer selected-evidence support failures
   feature_id: inspection_debugging
 - capability: `cv_generation` artifacts now expose compact hybrid support-source summaries for debugging accepted and rejected outputs
+  feature_id: inspection_debugging
 - capability: Shortlist inspection now stays explicit about active retrieval inputs, describing reusable job-embedding provenance without implying unused candidate chunk embeddings are part of the live path
   feature_id: inspection_debugging
 - capability: Shortlist artifacts and run-results shortlist debug can now expose fresh-vs-reused embedding provenance plus structured signature metadata
@@ -181,6 +188,7 @@ capabilities:
 - capability: Shortlist now reuses the single candidate-query embedding used for vector retrieval when the bounded query signature and candidate-query embedding contract still match
   feature_id: cv_system
 - capability: Shortlist no longer generates unused candidate-chunk embeddings as part of shortlist execution
+  feature_id: cv_system
 - capability: Active shortlist runtime now prepares reusable job embeddings plus the deterministic candidate query vector only; candidate chunk embeddings are not part of the live path unless a later stage explicitly adopts them
   feature_id: cv_system
 - capability: Shortlist now builds a stable structured embedding-input signature before generating `job_summary` vectors

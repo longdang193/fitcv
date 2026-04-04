@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.13.0 — active
+
+- Run detail now exposes a compact `Late-Stage Reuse` section for `ranking` AI-score reuse and `cv_analysis` reuse
+- Ranking and `cv_analysis` artifacts plus run results now carry exact-match reuse statuses, stage input fingerprints, and fresh-vs-reused counts
+- Run results now persist bounded late-stage reuse snapshots so reuse behavior can be audited from exports without extra storage lookups
+
 ### 2.12.0 — active
 
 - Run detail now exposes a compact `Stage Quality Metrics` section so bottlenecks are visible without opening every stage JSON

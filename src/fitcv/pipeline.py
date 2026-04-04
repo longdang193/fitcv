@@ -31,9 +31,10 @@ can make this configurable without code changes.
 
 import logging
 import uuid
+from copy import deepcopy
 from typing import Any, Callable
 
-from fitcv.ai_score import run_ai_scoring
+from fitcv.ai_score import build_ai_score_input_fingerprint, run_ai_scoring
 from fitcv.candidate import (
     flatten_skills,
     infer_effective_preferences,
@@ -55,7 +56,11 @@ from fitcv.enrich import (
     load_structured_jobs,
     lookup_reusable_structured_jobs,
 )
-from fitcv.evidence import retrieve_evidence, retrieve_evidence_bundle
+from fitcv.evidence import (
+    build_cv_analysis_input_fingerprint,
+    retrieve_evidence,
+    retrieve_evidence_bundle,
+)
 from fitcv.gap_analysis import classify_fit, compute_gap
 from fitcv.ingest import load_to_bigquery, parse_jobs_file, prepare_raw_rows
 from fitcv.normalize import normalize_batch, normalize_batch_with_exclusions
@@ -348,6 +353,7 @@ def _build_export_results(
     shortlist_for_scoring: list[dict[str, Any]],
     ranking_inputs: list[dict[str, Any]],
     ranked: list[dict[str, Any]],
+    cv_analysis_results: list[dict[str, Any]],
     cv_results: list[dict[str, Any]],
     cv_generation_debug_records: list[dict[str, Any]],
     vector_search_top_n: int,
@@ -367,6 +373,11 @@ def _build_export_results(
     }
     scoring_by_url = {_extract_job_url(job): job for job in ranking_inputs if _extract_job_url(job)}
     ranked_by_url = {_extract_job_url(job): job for job in ranked if _extract_job_url(job)}
+    analysis_by_url = {
+        str(record.get("job_url") or ""): record
+        for record in cv_analysis_results
+        if str(record.get("job_url") or "")
+    }
     cv_by_url = {str(item["job_url"]): item for item in cv_results if item.get("job_url")}
     passed_job_urls = set(passed_by_url)
     debug_by_url = {
@@ -460,6 +471,7 @@ def _build_export_results(
             **ranked_by_url.get(job_url, {}),
         }
         cv_row = cv_by_url.get(job_url)
+        analysis_row = analysis_by_url.get(job_url)
         cv_payload = None
         if cv_row is not None:
             cv_payload = {
@@ -565,9 +577,20 @@ def _build_export_results(
                     "ai_score": score_source.get("ai_score"),
                     "vector_score": score_source.get("vector_similarity"),
                     "fit_label": score_source.get("fit_label"),
+                    "ai_score_reuse_status": score_source.get("ai_score_reuse_status"),
+                    "ai_score_input_fingerprint": score_source.get("ai_score_input_fingerprint"),
                     "feature_contributions": score_source.get("feature_contributions"),
                     "preference_fit_components": score_source.get("preference_fit_components"),
                 },
+                "cv_analysis": (
+                    {
+                        "status": analysis_row.get("status"),
+                        "analysis_reuse_status": analysis_row.get("analysis_reuse_status"),
+                        "analysis_input_fingerprint": analysis_row.get("analysis_input_fingerprint"),
+                    }
+                    if analysis_row is not None
+                    else None
+                ),
                 "decision_chain": decision_chain,
                 "shortlist_debug": shortlist_debug,
                 "rank": score_source.get("final_rank"),
@@ -623,6 +646,103 @@ def _json_safe_pipeline_value(value: Any) -> Any:
     if isinstance(value, set):
         return [_json_safe_pipeline_value(item) for item in sorted(value)]
     return value
+
+
+def _normalize_late_stage_reuse_snapshots(reuse_snapshots: dict[str, Any] | None) -> dict[str, list[dict[str, Any]]]:
+    payload = dict(reuse_snapshots or {})
+    return {
+        "ranking_ai_scores": [
+            dict(item)
+            for item in list(payload.get("ranking_ai_scores") or [])
+            if isinstance(item, dict)
+        ],
+        "cv_analysis_records": [
+            dict(item)
+            for item in list(payload.get("cv_analysis_records") or [])
+            if isinstance(item, dict)
+        ],
+    }
+
+
+def _index_late_stage_reuse_rows(
+    rows: list[dict[str, Any]],
+    *,
+    fingerprint_key: str,
+    payload_key: str,
+) -> dict[str, dict[str, Any]]:
+    indexed: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        fingerprint = str(row.get(fingerprint_key) or "").strip()
+        payload = row.get(payload_key)
+        if not fingerprint or not isinstance(payload, dict) or fingerprint in indexed:
+            continue
+        indexed[fingerprint] = deepcopy(payload)
+    return indexed
+
+
+def _build_late_stage_reuse_metrics(
+    *,
+    ai_scores: list[dict[str, Any]],
+    cv_analysis_results: list[dict[str, Any]],
+) -> dict[str, Any]:
+    reused_ai_scores = sum(
+        1 for row in ai_scores
+        if str(row.get("ai_score_reuse_status") or "") == "reused_exact_match"
+    )
+    fresh_ai_scores = sum(
+        1 for row in ai_scores
+        if str(row.get("ai_score_reuse_status") or "") == "fresh_compute"
+    )
+    reused_analysis_records = sum(
+        1 for row in cv_analysis_results
+        if str(row.get("analysis_reuse_status") or "") == "reused_exact_match"
+    )
+    fresh_analysis_records = sum(
+        1 for row in cv_analysis_results
+        if str(row.get("analysis_reuse_status") or "") == "fresh_compute"
+    )
+    return {
+        "ranking": {
+            "reused_ai_scores": reused_ai_scores,
+            "fresh_ai_scores": fresh_ai_scores,
+            "total_ai_scores": len(ai_scores),
+            "reuse_rate": _safe_rate(reused_ai_scores, len(ai_scores)),
+        },
+        "cv_analysis": {
+            "reused_analysis_records": reused_analysis_records,
+            "fresh_analysis_records": fresh_analysis_records,
+            "total_analysis_records": len(cv_analysis_results),
+            "reuse_rate": _safe_rate(reused_analysis_records, len(cv_analysis_results)),
+        },
+    }
+
+
+def _build_late_stage_reuse_snapshots(
+    *,
+    ai_scores: list[dict[str, Any]],
+    cv_analysis_results: list[dict[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "schema_version": "late_stage_reuse_v1",
+        "ranking_ai_scores": [
+            {
+                "job_url": str(row.get("job_url") or ""),
+                "ai_score_input_fingerprint": str(row.get("ai_score_input_fingerprint") or ""),
+                "ai_score_row": deepcopy(row),
+            }
+            for row in ai_scores
+            if str(row.get("job_url") or "") and str(row.get("ai_score_input_fingerprint") or "")
+        ],
+        "cv_analysis_records": [
+            {
+                "job_url": str(row.get("job_url") or ""),
+                "analysis_input_fingerprint": str(row.get("analysis_input_fingerprint") or ""),
+                "analysis_record": deepcopy(row),
+            }
+            for row in cv_analysis_results
+            if str(row.get("job_url") or "") and str(row.get("analysis_input_fingerprint") or "")
+        ],
+    }
 
 
 def _empty_pipeline_state(run_id: str) -> dict[str, Any]:
@@ -1059,6 +1179,8 @@ def _build_cv_analysis_record(
     *,
     job: dict[str, Any],
     status: str,
+    analysis_input_fingerprint: str | None,
+    analysis_reuse_status: str,
     evidence_payload: list[dict[str, Any]],
     evidence_used: list[dict[str, Any]],
     evidence_selection_summary: dict[str, Any] | None,
@@ -1083,6 +1205,8 @@ def _build_cv_analysis_record(
         "job_url": str(job.get("job_url") or ""),
         "job_title": _extract_job_title(job),
         "status": status,
+        "analysis_input_fingerprint": analysis_input_fingerprint,
+        "analysis_reuse_status": analysis_reuse_status,
         "ranking_fit_label": ranking_fit_label,
         "fit_classification": fit_classification,
         "decision_chain": decision_chain,
@@ -1353,6 +1477,8 @@ def _ranking_row_sample(row: dict[str, Any]) -> dict[str, Any] | None:
         "job_url": job_url,
         "job_title": _extract_job_title(row),
         "ai_score": row.get("ai_score"),
+        "ai_score_reuse_status": row.get("ai_score_reuse_status"),
+        "ai_score_input_fingerprint": row.get("ai_score_input_fingerprint"),
         "must_have_match": row.get("must_have_match"),
         "vector_similarity": row.get("vector_similarity"),
         "title_relevance": row.get("title_relevance"),
@@ -1382,6 +1508,8 @@ def _analysis_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | N
         "job_url": job_url,
         "job_title": str(record.get("job_title") or ""),
         "status": status,
+        "analysis_reuse_status": record.get("analysis_reuse_status"),
+        "analysis_input_fingerprint": record.get("analysis_input_fingerprint"),
         "ranking_fit_label": record.get("ranking_fit_label"),
         "fit_classification": record.get("fit_classification"),
         "evidence_used": record.get("evidence_used"),
@@ -1402,6 +1530,8 @@ def _analysis_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | 
         "job_url": job_url,
         "job_title": str(record.get("job_title") or ""),
         "change_type": status,
+        "analysis_reuse_status": record.get("analysis_reuse_status"),
+        "analysis_input_fingerprint": record.get("analysis_input_fingerprint"),
         "ranking_fit_label": record.get("ranking_fit_label"),
         "fit_classification": record.get("fit_classification"),
         "evidence_used": record.get("evidence_used"),
@@ -1660,11 +1790,33 @@ def _build_stage_transition_artifacts(
         scoring_shortlisted_jobs_total=len(shortlist),
     )
     ranking_quality_metrics = _build_ranking_quality_metrics(ranking_inputs)
+    ranking_reuse_metrics = {
+        "reused_ai_scores": sum(
+            1 for row in ai_scores
+            if str(row.get("ai_score_reuse_status") or "") == "reused_exact_match"
+        ),
+        "fresh_ai_scores": sum(
+            1 for row in ai_scores
+            if str(row.get("ai_score_reuse_status") or "") == "fresh_compute"
+        ),
+        "total_ai_scores": len(ai_scores),
+    }
     cv_analysis_quality_metrics = _build_cv_analysis_quality_metrics(cv_analysis_results)
+    cv_analysis_reuse_metrics = {
+        "reused_analysis_records": sum(
+            1 for record in cv_analysis_results
+            if str(record.get("analysis_reuse_status") or "") == "reused_exact_match"
+        ),
+        "fresh_analysis_records": sum(
+            1 for record in cv_analysis_results
+            if str(record.get("analysis_reuse_status") or "") == "fresh_compute"
+        ),
+        "total_analysis_records": len(cv_analysis_results),
+    }
     cv_generation_quality_metrics = _build_cv_generation_quality_metrics(cv_generation_debug_records)
 
     return {
-        "schema_version": "stage_transition_artifacts_v4",
+        "schema_version": "stage_transition_artifacts_v5",
         "stages": {
             "normalize": _stage_block(
                 stage_id="normalize",
@@ -1868,6 +2020,7 @@ def _build_stage_transition_artifacts(
                 decision_summary={
                     "ranking_fit_label_counts": ranking_fit_distribution,
                     "quality_metrics": ranking_quality_metrics,
+                    "reuse_metrics": ranking_reuse_metrics,
                     "configured_ranking_weights": ranking_weights,
                     "configured_missing_value_defaults": ranking_defaults,
                     "configured_preference_fit_weights": preference_fit_weights,
@@ -1914,6 +2067,7 @@ def _build_stage_transition_artifacts(
                 decision_summary={
                     "analysis_records_captured": len(cv_analysis_results),
                     "quality_metrics": cv_analysis_quality_metrics,
+                    "reuse_metrics": cv_analysis_reuse_metrics,
                     "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),
                     "effective_channel_pool_size": int(
                         config.get("cv_analysis", {}).get("semantic_alignment", {}).get("channel_pool_size", 0) or 0
@@ -2131,6 +2285,7 @@ def run_pipeline(
     start_stage: str | None = None,
     stop_after_stage: str | None = None,
     checkpoint_payload: dict[str, Any] | None = None,
+    reuse_snapshots: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the full FitCV candidate pipeline end-to-end.
 
@@ -2171,6 +2326,17 @@ def run_pipeline(
     if reporter is not None:
         reporter.emit("pipeline_start", "info", f"Run started [run_id={run_id}]")  # type: ignore[union-attr]
     state = _restore_pipeline_state(run_id=run_id, checkpoint_payload=checkpoint_payload)
+    normalized_reuse_snapshots = _normalize_late_stage_reuse_snapshots(reuse_snapshots)
+    ranking_ai_score_reuse_index = _index_late_stage_reuse_rows(
+        normalized_reuse_snapshots["ranking_ai_scores"],
+        fingerprint_key="ai_score_input_fingerprint",
+        payload_key="ai_score_row",
+    )
+    cv_analysis_reuse_index = _index_late_stage_reuse_rows(
+        normalized_reuse_snapshots["cv_analysis_records"],
+        fingerprint_key="analysis_input_fingerprint",
+        payload_key="analysis_record",
+    )
     raw_jobs = list(state["raw_jobs"])
     normalized = list(state["normalized"])
     deduplicated_jobs = list(state["deduplicated_jobs"])
@@ -2453,12 +2619,53 @@ def run_pipeline(
         ai_top_n = int(config["pipeline"]["ai_score_top_n"])
         if cancellation_check and cancellation_check():
             raise PipelineCancelled("Cancelled before AI scoring")
-        ai_scores = run_ai_scoring(
-            shortlist,
+        ai_score_candidates = shortlist[:ai_top_n]
+        fresh_scoring_jobs: list[dict[str, Any]] = []
+        fresh_ai_score_fingerprints: dict[str, str] = {}
+        reused_ai_scores_by_url: dict[str, dict[str, Any]] = {}
+        for shortlisted_job in ai_score_candidates:
+            top_evidence = list(shortlisted_job.get("top_evidence") or [])[:2]
+            fingerprint_record = build_ai_score_input_fingerprint(
+                shortlisted_job,
+                candidate_summary,
+                top_evidence,
+                config,
+            )
+            job_url = _extract_job_url(shortlisted_job)
+            reused_ai_row = ranking_ai_score_reuse_index.get(fingerprint_record["fingerprint"])
+            if reused_ai_row is not None and job_url:
+                reused_ai_scores_by_url[job_url] = {
+                    **deepcopy(reused_ai_row),
+                    "job_url": job_url,
+                    "ai_score_input_fingerprint": fingerprint_record["fingerprint"],
+                    "ai_score_reuse_status": "reused_exact_match",
+                }
+                continue
+            fresh_scoring_jobs.append(shortlisted_job)
+            if job_url:
+                fresh_ai_score_fingerprints[job_url] = fingerprint_record["fingerprint"]
+
+        fresh_ai_scores = run_ai_scoring(
+            fresh_scoring_jobs,
             candidate_summary,
             config,
-            top_n=ai_top_n,
-        )
+            top_n=len(fresh_scoring_jobs),
+        ) if fresh_scoring_jobs else []
+        fresh_ai_scores_by_url: dict[str, dict[str, Any]] = {}
+        for ai_row in fresh_ai_scores:
+            job_url = str(ai_row.get("job_url") or "")
+            fresh_ai_scores_by_url[job_url] = {
+                **ai_row,
+                "ai_score_input_fingerprint": fresh_ai_score_fingerprints.get(job_url),
+                "ai_score_reuse_status": "fresh_compute",
+            }
+
+        ai_scores = []
+        for shortlisted_job in ai_score_candidates:
+            job_url = _extract_job_url(shortlisted_job)
+            ai_row = reused_ai_scores_by_url.get(job_url) or fresh_ai_scores_by_url.get(job_url)
+            if ai_row is not None:
+                ai_scores.append(ai_row)
         if reporter is not None:
             reporter.emit("layer3_ai_score", "info", f"AI scored: {len(ai_scores)} jobs")  # type: ignore[union-attr]
 
@@ -2505,6 +2712,50 @@ def run_pipeline(
             raise PipelineCancelled("Cancelled before CV analysis")
         cv_analysis_results = []
         for job in ranked_jobs_for_cv:
+            analysis_fingerprint_record = build_cv_analysis_input_fingerprint(profile, job, config)
+            reused_analysis_record = cv_analysis_reuse_index.get(analysis_fingerprint_record["fingerprint"])
+            if reused_analysis_record is not None:
+                analysis_record = {
+                    **deepcopy(reused_analysis_record),
+                    "job_url": str(job.get("job_url") or ""),
+                    "job_title": _extract_job_title(job),
+                    "job_snapshot": dict(job),
+                    "analysis_input_fingerprint": analysis_fingerprint_record["fingerprint"],
+                    "analysis_reuse_status": "reused_exact_match",
+                }
+                cv_analysis_results.append(analysis_record)
+                reused_status = str(analysis_record.get("status") or "")
+                if reused_status in {"skipped_fit_gate", "analysis_failed"}:
+                    debug_error = (
+                        analysis_record.get("outcome_reason")
+                        if reused_status == "skipped_fit_gate"
+                        else analysis_record.get("error")
+                    )
+                    cv_generation_debug_records.append(
+                        _build_cv_generation_debug_record(
+                            job=job,
+                            status=reused_status,
+                            fit_classification=analysis_record.get("fit_classification"),
+                            evidence_used=list(analysis_record.get("evidence_used") or []),
+                            evidence_selection_summary=analysis_record.get("evidence_selection_summary"),
+                            analysis_input_summary=_build_cv_generation_analysis_input_summary(job),
+                            gap_summary=analysis_record.get("gap_summary"),
+                            structured_cv_initial=None,
+                            validation_initial=None,
+                            repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
+                            structured_cv_final=None,
+                            markdown_final=None,
+                            enabled_sections=enabled_cv_sections,
+                            cv_generation_model=cv_generation_model_value,
+                            cv_prompt_version=cv_prompt_version_value,
+                            error=debug_error if isinstance(debug_error, dict) else None,
+                        )
+                    )
+                    if reporter is not None and reused_status == "skipped_fit_gate":
+                        reporter.emit("layer4_cv_analysis_skip", "info", f"Skipped {job.get('job_url')} (fit=skip)")  # type: ignore[union-attr]
+                    elif reporter is not None and reused_status == "analysis_failed":
+                        reporter.emit("layer4_cv_error", "error", f"CV analysis failed for {job.get('job_url')}: {debug_error}")  # type: ignore[union-attr]
+                continue
             evidence: list[dict[str, Any]] = []
             evidence_selection_summary: dict[str, Any] = {}
             gap: dict[str, Any] | None = None
@@ -2573,6 +2824,8 @@ def run_pipeline(
                     analysis_record = _build_cv_analysis_record(
                         job=job,
                         status="skipped_fit_gate",
+                        analysis_input_fingerprint=analysis_fingerprint_record["fingerprint"],
+                        analysis_reuse_status="fresh_compute",
                         evidence_payload=evidence,
                         evidence_used=_build_debug_evidence_used(evidence),
                         evidence_selection_summary=evidence_selection_summary,
@@ -2612,6 +2865,8 @@ def run_pipeline(
                     _build_cv_analysis_record(
                         job=job,
                         status="ready_for_generation",
+                        analysis_input_fingerprint=analysis_fingerprint_record["fingerprint"],
+                        analysis_reuse_status="fresh_compute",
                         evidence_payload=evidence,
                         evidence_used=_build_debug_evidence_used(evidence),
                         evidence_selection_summary=evidence_selection_summary,
@@ -2625,6 +2880,8 @@ def run_pipeline(
                 analysis_record = _build_cv_analysis_record(
                     job=job,
                     status="analysis_failed",
+                    analysis_input_fingerprint=analysis_fingerprint_record["fingerprint"],
+                    analysis_reuse_status="fresh_compute",
                     evidence_payload=evidence,
                     evidence_used=_build_debug_evidence_used(evidence),
                     evidence_selection_summary=evidence_selection_summary,
@@ -2921,6 +3178,14 @@ def run_pipeline(
         config=config,
     )
     stage_quality_metrics = _collect_stage_quality_metrics(stage_transition_artifacts)
+    late_stage_reuse_metrics = _build_late_stage_reuse_metrics(
+        ai_scores=ai_scores,
+        cv_analysis_results=cv_analysis_results,
+    )
+    late_stage_reuse_snapshots = _build_late_stage_reuse_snapshots(
+        ai_scores=ai_scores,
+        cv_analysis_results=cv_analysis_results,
+    )
     summary: dict[str, Any] = {
         "run_id": run_id,
         "total_jobs": len(raw_jobs),
@@ -2980,6 +3245,8 @@ def run_pipeline(
             "backfilled_job_urls": backfilled_job_urls,
         },
         "stage_quality_metrics": stage_quality_metrics,
+        "late_stage_reuse_metrics": late_stage_reuse_metrics,
+        "late_stage_reuse_snapshots": late_stage_reuse_snapshots,
         "cv_generation_debug_records": cv_generation_debug_records,
         "mapping_suggestions": _collect_mapping_suggestions(enriched, run_id),
         "stage_transition_artifacts": stage_transition_artifacts,
@@ -2994,6 +3261,7 @@ def run_pipeline(
             shortlist_for_scoring=shortlist,
             ranking_inputs=ranking_inputs,
             ranked=ranked,
+            cv_analysis_results=cv_analysis_results,
             cv_results=results,
             cv_generation_debug_records=cv_generation_debug_records,
             vector_search_top_n=vector_top_n,
