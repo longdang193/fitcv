@@ -1151,6 +1151,114 @@ def _sample_strings(values: list[str], *, limit: int = _STAGE_ARTIFACT_SAMPLE_LI
     return [_truncate_stage_text(value) for value in values[:limit] if value]
 
 
+def _safe_rate(numerator: int, denominator: int) -> float:
+    if denominator <= 0:
+        return 0.0
+    return float(numerator) / float(denominator)
+
+
+def _build_shortlist_quality_metrics(
+    *,
+    backfilled_jobs_total: int,
+    scoring_shortlisted_jobs_total: int,
+) -> dict[str, Any]:
+    return {
+        "backfill_rate": _safe_rate(backfilled_jobs_total, scoring_shortlisted_jobs_total),
+        "backfilled_jobs_total": backfilled_jobs_total,
+        "scoring_shortlisted_jobs_total": scoring_shortlisted_jobs_total,
+    }
+
+
+def _build_ranking_quality_metrics(ranking_inputs: list[dict[str, Any]]) -> dict[str, Any]:
+    strong_count = 0
+    stretch_count = 0
+    skip_count = 0
+    for row in ranking_inputs:
+        fit_label = str(row.get("fit_label") or "").strip().lower()
+        if fit_label == "strong":
+            strong_count += 1
+        elif fit_label == "stretch":
+            stretch_count += 1
+        elif fit_label == "skip":
+            skip_count += 1
+    total_scored = strong_count + stretch_count + skip_count
+    return {
+        "label_distribution": {
+            "strong_count": strong_count,
+            "stretch_count": stretch_count,
+            "skip_count": skip_count,
+            "strong_rate": _safe_rate(strong_count, total_scored),
+            "stretch_rate": _safe_rate(stretch_count, total_scored),
+            "skip_rate": _safe_rate(skip_count, total_scored),
+            "total_scored": total_scored,
+        }
+    }
+
+
+def _build_cv_analysis_quality_metrics(cv_analysis_results: list[dict[str, Any]]) -> dict[str, Any]:
+    generation_ready = 0
+    skipped_fit_gate = 0
+    analysis_failed = 0
+    for record in cv_analysis_results:
+        status = str(record.get("status") or "").strip().lower()
+        if status in {"ready_for_generation", "generation_ready"}:
+            generation_ready += 1
+        elif status == "skipped_fit_gate":
+            skipped_fit_gate += 1
+        elif status == "analysis_failed":
+            analysis_failed += 1
+    total_processed = generation_ready + skipped_fit_gate + analysis_failed
+    return {
+        "skip_rate": _safe_rate(skipped_fit_gate, total_processed),
+        "generation_ready_rate": _safe_rate(generation_ready, total_processed),
+        "analysis_failed_rate": _safe_rate(analysis_failed, total_processed),
+        "skipped_fit_gate": skipped_fit_gate,
+        "generation_ready": generation_ready,
+        "analysis_failed": analysis_failed,
+        "total_processed": total_processed,
+    }
+
+
+def _build_cv_generation_quality_metrics(
+    cv_generation_debug_records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    accepted = 0
+    validation_failed = 0
+    generation_failed = 0
+    persistence_failed = 0
+    for record in cv_generation_debug_records:
+        status = str(record.get("status") or "").strip().lower()
+        if status == "accepted":
+            accepted += 1
+        elif status == "validation_failed":
+            validation_failed += 1
+        elif status == "generation_failed":
+            generation_failed += 1
+        elif status == "persistence_failed":
+            persistence_failed += 1
+    total_attempted = accepted + validation_failed + generation_failed + persistence_failed
+    return {
+        "validation_fail_rate": _safe_rate(validation_failed, total_attempted),
+        "accepted_rate": _safe_rate(accepted, total_attempted),
+        "generation_failed_rate": _safe_rate(generation_failed, total_attempted),
+        "persistence_failed_rate": _safe_rate(persistence_failed, total_attempted),
+        "accepted": accepted,
+        "validation_failed": validation_failed,
+        "generation_failed": generation_failed,
+        "persistence_failed": persistence_failed,
+        "total_attempted": total_attempted,
+    }
+
+
+def _collect_stage_quality_metrics(stage_transition_artifacts: dict[str, Any]) -> dict[str, Any]:
+    stage_metrics: dict[str, Any] = {}
+    for stage_id, block in dict(stage_transition_artifacts.get("stages") or {}).items():
+        metrics = dict(block.get("decision_summary") or {}).get("quality_metrics")
+        if isinstance(metrics, dict) and metrics:
+            stage_metrics[stage_id] = metrics
+    return stage_metrics
+
+
 def _job_sample(job: dict[str, Any]) -> dict[str, Any] | None:
     job_url = _extract_job_url(job)
     if not job_url:
@@ -1547,6 +1655,13 @@ def _build_stage_transition_artifacts(
         ),
         "embedding_total_jobs": len(passed_jobs),
     }
+    shortlist_quality_metrics = _build_shortlist_quality_metrics(
+        backfilled_jobs_total=len(backfilled_job_urls),
+        scoring_shortlisted_jobs_total=len(shortlist),
+    )
+    ranking_quality_metrics = _build_ranking_quality_metrics(ranking_inputs)
+    cv_analysis_quality_metrics = _build_cv_analysis_quality_metrics(cv_analysis_results)
+    cv_generation_quality_metrics = _build_cv_generation_quality_metrics(cv_generation_debug_records)
 
     return {
         "schema_version": "stage_transition_artifacts_v4",
@@ -1651,6 +1766,7 @@ def _build_stage_transition_artifacts(
                     "candidate_query_text": candidate_summary,
                     "candidate_query_components": shortlist_candidate_query_components,
                     **shortlist_candidate_query_debug,
+                    "quality_metrics": shortlist_quality_metrics,
                     "vector_search_top_n": vector_top_n,
                     "jobs_not_returned_in_raw_hits": len(
                         [job for job in passed_jobs if _extract_job_url(job) not in raw_shortlist_urls]
@@ -1751,6 +1867,7 @@ def _build_stage_transition_artifacts(
                 },
                 decision_summary={
                     "ranking_fit_label_counts": ranking_fit_distribution,
+                    "quality_metrics": ranking_quality_metrics,
                     "configured_ranking_weights": ranking_weights,
                     "configured_missing_value_defaults": ranking_defaults,
                     "configured_preference_fit_weights": preference_fit_weights,
@@ -1796,6 +1913,7 @@ def _build_stage_transition_artifacts(
                 },
                 decision_summary={
                     "analysis_records_captured": len(cv_analysis_results),
+                    "quality_metrics": cv_analysis_quality_metrics,
                     "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),
                     "effective_channel_pool_size": int(
                         config.get("cv_analysis", {}).get("semantic_alignment", {}).get("channel_pool_size", 0) or 0
@@ -1892,6 +2010,7 @@ def _build_stage_transition_artifacts(
                         1 for record in cv_analysis_results
                         if str(record.get("status") or "") == "ready_for_generation"
                     ),
+                    "quality_metrics": cv_generation_quality_metrics,
                     "cv_generation_model": str(config.get("cv", {}).get("generation", {}).get("model") or ""),
                     "cv_prompt_version": str(config.get("cv", {}).get("generation", {}).get("prompt_version") or ""),
                 },
@@ -2777,6 +2896,31 @@ def run_pipeline(
     state["cv_analysis_results"] = cv_analysis_results
     state["cv_results"] = results
     state["cv_generation_debug_records"] = cv_generation_debug_records
+    stage_transition_artifacts = _build_stage_transition_artifacts(
+        raw_jobs=raw_jobs,
+        normalized=normalized,
+        deduplicated_jobs=deduplicated_jobs,
+        pre_filter_rejected_jobs=pre_filter_rejected_jobs,
+        enriched=enriched,
+        passed_jobs=passed_jobs,
+        candidate_filter_rejected_jobs=candidate_filter_rejected_jobs,
+        raw_shortlist=raw_shortlist,
+        shortlist=shortlist,
+        backfilled_job_urls=backfilled_job_urls,
+        vector_top_n=vector_top_n,
+        candidate_summary=candidate_summary,
+        candidate_query_components=candidate_query_components,
+        candidate_query_debug=candidate_query_debug,
+        ai_scores=ai_scores,
+        ranking_inputs=ranking_inputs,
+        ranked=ranked,
+        cv_analysis_results=cv_analysis_results,
+        final_top_n=final_top_n,
+        cv_generation_debug_records=cv_generation_debug_records,
+        profile=profile,
+        config=config,
+    )
+    stage_quality_metrics = _collect_stage_quality_metrics(stage_transition_artifacts)
     summary: dict[str, Any] = {
         "run_id": run_id,
         "total_jobs": len(raw_jobs),
@@ -2835,32 +2979,10 @@ def run_pipeline(
             ],
             "backfilled_job_urls": backfilled_job_urls,
         },
+        "stage_quality_metrics": stage_quality_metrics,
         "cv_generation_debug_records": cv_generation_debug_records,
         "mapping_suggestions": _collect_mapping_suggestions(enriched, run_id),
-        "stage_transition_artifacts": _build_stage_transition_artifacts(
-            raw_jobs=raw_jobs,
-            normalized=normalized,
-            deduplicated_jobs=deduplicated_jobs,
-            pre_filter_rejected_jobs=pre_filter_rejected_jobs,
-            enriched=enriched,
-            passed_jobs=passed_jobs,
-            candidate_filter_rejected_jobs=candidate_filter_rejected_jobs,
-            raw_shortlist=raw_shortlist,
-            shortlist=shortlist,
-            backfilled_job_urls=backfilled_job_urls,
-            vector_top_n=vector_top_n,
-            candidate_summary=candidate_summary,
-            candidate_query_components=candidate_query_components,
-            candidate_query_debug=candidate_query_debug,
-            ai_scores=ai_scores,
-            ranking_inputs=ranking_inputs,
-            ranked=ranked,
-            cv_analysis_results=cv_analysis_results,
-            final_top_n=final_top_n,
-            cv_generation_debug_records=cv_generation_debug_records,
-            profile=profile,
-            config=config,
-        ),
+        "stage_transition_artifacts": stage_transition_artifacts,
         "export_results": _build_export_results(
             raw_jobs=raw_jobs,
             enriched=enriched,

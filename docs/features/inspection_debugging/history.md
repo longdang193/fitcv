@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.12.0 — active
+
+- Run detail now exposes a compact `Stage Quality Metrics` section so bottlenecks are visible without opening every stage JSON
+- Stage artifacts and run results now carry authoritative stage-owned metric blocks for shortlist backfill rate, ranking label distribution, `cv_analysis` skip/ready/failure rates, and `cv_generation` accepted/validation-fail/runtime-failure rates
+- Metric blocks stay bounded and omit later stages on partial manual runs instead of rendering misleading placeholders
+
 ### 2.11.0 — active
 
 - `cv_analysis` artifacts can now show lexical-versus-semantic channel subscores, effective hybrid weights, semantic methods, and semantic embedding reuse state

@@ -1278,6 +1278,80 @@ def test_run_detail_event_timeline_appears_after_tab_panes():
     )
 
 
+def test_run_detail_renders_stage_quality_metrics_when_available():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="quality-metrics-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        results_export_json=json.dumps(
+            {
+                "stage_quality_metrics": {
+                    "shortlist": {
+                        "backfill_rate": 0.33,
+                        "backfilled_jobs_total": 1,
+                        "scoring_shortlisted_jobs_total": 3,
+                    },
+                    "ranking": {
+                        "label_distribution": {
+                            "strong_rate": 0.25,
+                            "strong_count": 1,
+                            "total_scored": 4,
+                        }
+                    },
+                    "cv_analysis": {
+                        "skip_rate": 0.5,
+                        "skipped_fit_gate": 1,
+                        "total_processed": 2,
+                    },
+                }
+            }
+        ),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/quality-metrics-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Stage Quality Metrics" in html
+    assert "Shortlist Backfill Rate" in html
+    assert "33%" in html
+    assert "1 / 3" in html
+    assert "Ranking Strong Rate" in html
+    assert "25%" in html
+    assert "CV Analysis Skip Rate" in html
+    assert "50%" in html
+
+
+def test_run_detail_hides_stage_quality_metrics_when_absent():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="quality-metrics-2",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        results_export_json=json.dumps({"results": []}),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/quality-metrics-2")
+
+    assert resp.status_code == 200
+    assert "Stage Quality Metrics" not in resp.text
+
+
 # ── grouped settings endpoint ─────────────────────────────────────────────────
 
 _VALID_WEIGHTS = {

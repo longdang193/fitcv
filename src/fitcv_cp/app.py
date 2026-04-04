@@ -119,6 +119,130 @@ RUN_MODE_LABELS = {
 }
 
 
+def _stage_quality_metric_row(
+    *,
+    stage_id: str,
+    label: str,
+    rate: float | int | None,
+    numerator: int | None,
+    denominator: int | None,
+    hint: str,
+) -> dict[str, Any] | None:
+    if rate is None or numerator is None or denominator is None:
+        return None
+    return {
+        "stage_id": stage_id,
+        "label": label,
+        "rate": float(rate),
+        "rate_percent": int(round(float(rate) * 100)),
+        "numerator": int(numerator),
+        "denominator": int(denominator),
+        "hint": hint,
+    }
+
+
+def _build_stage_quality_metric_rows(stage_quality_metrics: dict[str, Any]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    shortlist = dict(stage_quality_metrics.get("shortlist") or {})
+    shortlist_row = _stage_quality_metric_row(
+        stage_id="shortlist",
+        label="Shortlist Backfill Rate",
+        rate=shortlist.get("backfill_rate"),
+        numerator=shortlist.get("backfilled_jobs_total"),
+        denominator=shortlist.get("scoring_shortlisted_jobs_total"),
+        hint="High values usually mean shortlist recall is relying on backfill.",
+    )
+    if shortlist_row:
+        rows.append(shortlist_row)
+
+    ranking_distribution = dict((stage_quality_metrics.get("ranking") or {}).get("label_distribution") or {})
+    ranking_specs = (
+        ("Ranking Strong Rate", "strong_rate", "strong_count", "Strong labels among scored ranking inputs."),
+        ("Ranking Stretch Rate", "stretch_rate", "stretch_count", "Stretch labels among scored ranking inputs."),
+        ("Ranking Skip Rate", "skip_rate", "skip_count", "Skip labels among scored ranking inputs."),
+    )
+    for label, rate_key, count_key, hint in ranking_specs:
+        row = _stage_quality_metric_row(
+            stage_id="ranking",
+            label=label,
+            rate=ranking_distribution.get(rate_key),
+            numerator=ranking_distribution.get(count_key),
+            denominator=ranking_distribution.get("total_scored"),
+            hint=hint,
+        )
+        if row:
+            rows.append(row)
+
+    cv_analysis = dict(stage_quality_metrics.get("cv_analysis") or {})
+    cv_analysis_specs = (
+        ("CV Analysis Skip Rate", "skip_rate", "skipped_fit_gate", "Jobs blocked by the fit gate after ranking."),
+        (
+            "CV Analysis Ready Rate",
+            "generation_ready_rate",
+            "generation_ready",
+            "Jobs that are ready to hand off to CV generation.",
+        ),
+        (
+            "CV Analysis Failure Rate",
+            "analysis_failed_rate",
+            "analysis_failed",
+            "Analysis records that failed before generation handoff.",
+        ),
+    )
+    for label, rate_key, count_key, hint in cv_analysis_specs:
+        row = _stage_quality_metric_row(
+            stage_id="cv_analysis",
+            label=label,
+            rate=cv_analysis.get(rate_key),
+            numerator=cv_analysis.get(count_key),
+            denominator=cv_analysis.get("total_processed"),
+            hint=hint,
+        )
+        if row:
+            rows.append(row)
+
+    cv_generation = dict(stage_quality_metrics.get("cv_generation") or {})
+    cv_generation_specs = (
+        (
+            "CV Generation Accepted Rate",
+            "accepted_rate",
+            "accepted",
+            "Accepted CV outputs among attempted generation jobs.",
+        ),
+        (
+            "CV Generation Validation-Fail Rate",
+            "validation_fail_rate",
+            "validation_failed",
+            "Generated CVs rejected by validation.",
+        ),
+        (
+            "CV Generation Failure Rate",
+            "generation_failed_rate",
+            "generation_failed",
+            "Runtime failures during CV generation.",
+        ),
+        (
+            "CV Generation Persistence-Fail Rate",
+            "persistence_failed_rate",
+            "persistence_failed",
+            "Generated CVs that failed while saving.",
+        ),
+    )
+    for label, rate_key, count_key, hint in cv_generation_specs:
+        row = _stage_quality_metric_row(
+            stage_id="cv_generation",
+            label=label,
+            rate=cv_generation.get(rate_key),
+            numerator=cv_generation.get(count_key),
+            denominator=cv_generation.get("total_attempted"),
+            hint=hint,
+        )
+        if row:
+            rows.append(row)
+
+    return rows
+
+
 def _can_upload_synonym_overlay(run: PipelineRun) -> bool:
     return (
         run.run_mode == "manual_staged"
@@ -1282,9 +1406,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         ]
         deduplicated_before_enrichment: list[dict[str, str | list[str] | None]] = []
         pipeline_outcomes_by_job_url: dict[str, dict[str, str | None]] = {}
+        stage_quality_metrics: dict[str, Any] = {}
+        stage_quality_metric_rows: list[dict[str, Any]] = []
         if run.results_export_json:
             try:
                 export_payload = _json.loads(run.results_export_json)
+                stage_quality_metrics = dict(export_payload.get("stage_quality_metrics") or {})
+                stage_quality_metric_rows = _build_stage_quality_metric_rows(stage_quality_metrics)
                 pipeline_outcomes_by_job_url = {
                     str(row.get("job_url") or ""): {
                         "status": str(row.get("pipeline_status") or ""),
@@ -1313,6 +1441,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             except (_json.JSONDecodeError, TypeError, AttributeError):
                 deduplicated_before_enrichment = []
                 pipeline_outcomes_by_job_url = {}
+                stage_quality_metrics = {}
+                stage_quality_metric_rows = []
 
         # Build job title lookup: job_url → title (used for cv_versions generated output labels)
         job_title_by_url: dict[str, str] = {
@@ -1351,6 +1481,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "enriched_jobs": enriched_jobs,
                 "filter_results_by_job_url": filter_results_by_job_url,
                 "pipeline_outcomes_by_job_url": pipeline_outcomes_by_job_url,
+                "stage_quality_metrics": stage_quality_metrics,
+                "stage_quality_metric_rows": stage_quality_metric_rows,
                 "pre_enrichment_rejects": pre_enrichment_rejects,
                 "deduplicated_before_enrichment": deduplicated_before_enrichment,
                 "job_title_by_url": job_title_by_url,

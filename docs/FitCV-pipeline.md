@@ -24,6 +24,7 @@ status: []
 11. Generate tailored CV
 12. Validate output against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support
 13. Store versions + tracking
+14. Emit stage-level quality metrics so shortlist, ranking, `cv_analysis`, and `cv_generation` bottlenecks are visible in run inspection without opening every stage artifact
 ```
 
 ## Add a JD normalization + enrichment layer before embeddings
