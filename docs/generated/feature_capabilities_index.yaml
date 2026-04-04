@@ -29,6 +29,12 @@ capabilities:
   feature_id: cv_system
 - capability: CV-generation prompt guidance now explicitly constrains responsibility, domain, and role-positioning claims to the selected evidence bundle
   feature_id: cv_system
+- capability: `cv_analysis` lexical-vs-semantic weight controls for responsibility and domain alignment
+  feature_id: settings_system
+- capability: `cv_analysis` semantic-alignment enable/model controls
+  feature_id: settings_system
+- capability: `cv_analysis` artifacts can now expose lexical-versus-semantic subscores, effective hybrid weights, semantic methods, and semantic embedding reuse state for domain and responsibility alignment
+  feature_id: inspection_debugging
 - capability: Cancel queued runs directly from the queue via RQ
   feature_id: run_lifecycle_controls
 - capability: Canonical merge preserving order
@@ -77,6 +83,8 @@ capabilities:
   feature_id: settings_system
 - capability: Grouped form validation
   feature_id: settings_system
+- capability: Validation that each `cv_analysis` lexical/semantic weight pair sums to `1.0`
+  feature_id: settings_system
 - capability: Human-readable section headings
   feature_id: ui_consistency_theming
 - capability: Immutable snapshots for all trigger modes
@@ -108,6 +116,7 @@ capabilities:
 - capability: `cv_generation` validation snapshots now distinguish deterministic selected-evidence grounding violations from softer selected-evidence support failures
   feature_id: inspection_debugging
 - capability: `cv_generation` artifacts now expose compact hybrid support-source summaries for debugging accepted and rejected outputs
+- capability: Shortlist inspection now stays explicit about active retrieval inputs, describing reusable job-embedding provenance without implying unused candidate chunk embeddings are part of the live path
   feature_id: inspection_debugging
 - capability: Shortlist artifacts and run-results shortlist debug can now expose fresh-vs-reused embedding provenance plus structured signature metadata
   feature_id: inspection_debugging
@@ -134,11 +143,16 @@ capabilities:
 - capability: Selected-evidence hard facts now gate CV validation before profile-wide fallback when `cv_analysis` provided a bounded evidence bundle
   feature_id: cv_system
 - capability: Softer role, domain, and responsibility claims now use a bounded hybrid validation path that stays scoped to selected `cv_analysis` evidence
+  feature_id: cv_system
 - capability: Ranking can now infer fallback target-role, role-family, and domain intent from recent profile evidence when explicit YAML preferences are sparse
   feature_id: cv_system
 - capability: Ranking `title_relevance` now uses bounded semantic role alignment instead of pure lexical token overlap
   feature_id: cv_system
 - capability: Ranking `preference_fit` now scores weighted domain, role-family, and location-type preference alignment
+  feature_id: cv_system
+- capability: `cv_analysis` final evidence selection now stays bounded while preferring broader coverage of job needs instead of purely additive heuristic score
+  feature_id: cv_system
+- capability: `cv_analysis` now scores domain and responsibility alignment with hybrid lexical-plus-semantic matching, including stage-owned semantic embedding reuse for the candidate evidence and job snippets it actually consumes
   feature_id: cv_system
 - capability: Responsive wrapping
   feature_id: ui_consistency_theming
@@ -163,6 +177,7 @@ capabilities:
 - capability: Shortlist now reuses the single candidate-query embedding used for vector retrieval when the bounded query signature and candidate-query embedding contract still match
   feature_id: cv_system
 - capability: Shortlist no longer generates unused candidate-chunk embeddings as part of shortlist execution
+- capability: Active shortlist runtime now prepares reusable job embeddings plus the deterministic candidate query vector only; candidate chunk embeddings are not part of the live path unless a later stage explicitly adopts them
   feature_id: cv_system
 - capability: Shortlist now builds a stable structured embedding-input signature before generating `job_summary` vectors
   feature_id: pipeline_performance

@@ -9,10 +9,12 @@ retrieve_evidence        : compatibility wrapper that returns final selected evi
 store_evidence_selection : persist selected evidence to BigQuery (integration)
 """
 
+import math
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from fitcv.embeddings import generate_embedding
 from fitcv.ranking import _ROLE_FAMILY_NEIGHBORS, _infer_role_family, _normalize_text
 
 
@@ -39,6 +41,14 @@ RETRIEVAL_CHANNELS = (
     RESPONSIBILITY_ALIGNMENT_CHANNEL,
 )
 DEFAULT_CHANNEL_POOL_SIZE = 4
+DEFAULT_SEMANTIC_ALIGNMENT_ENABLED = False
+DEFAULT_SEMANTIC_ALIGNMENT_MODEL = "text-embedding-005"
+DEFAULT_RESPONSIBILITY_LEXICAL_WEIGHT = 0.25
+DEFAULT_RESPONSIBILITY_SEMANTIC_WEIGHT = 0.75
+DEFAULT_DOMAIN_LEXICAL_WEIGHT = 0.40
+DEFAULT_DOMAIN_SEMANTIC_WEIGHT = 0.60
+SEMANTIC_METHOD_DISABLED = "disabled"
+SEMANTIC_METHOD_EMBEDDING = "embedding_similarity"
 SELECTION_CHANNEL_WEIGHTS: dict[str, float] = {
     REQUIRED_SKILL_SUPPORT_CHANNEL: 0.40,
     RESPONSIBILITY_ALIGNMENT_CHANNEL: 0.30,
@@ -47,6 +57,7 @@ SELECTION_CHANNEL_WEIGHTS: dict[str, float] = {
 }
 SELECTION_MULTI_CHANNEL_BONUS = 0.05
 SELECTION_TYPE_WEIGHT_FACTOR = 0.10
+SELECTION_RESIDUAL_SCORE_FACTOR = 0.05
 SELECTION_NEW_TYPE_BONUS = 0.03
 SELECTION_SAME_TYPE_PENALTY = 0.02
 ROLE_ALIGNMENT_NEIGHBOR_SCORE = 0.75
@@ -144,6 +155,146 @@ def _overlap_ratio(lhs: set[str], rhs: set[str]) -> float:
     return len(lhs & rhs) / len(rhs)
 
 
+def _clamp_score(value: float) -> float:
+    return max(0.0, min(float(value), 1.0))
+
+
+def _cosine_similarity(lhs: list[float], rhs: list[float]) -> float:
+    if not lhs or not rhs or len(lhs) != len(rhs):
+        return 0.0
+    numerator = sum(left * right for left, right in zip(lhs, rhs, strict=False))
+    lhs_norm = math.sqrt(sum(value * value for value in lhs))
+    rhs_norm = math.sqrt(sum(value * value for value in rhs))
+    if lhs_norm <= 0.0 or rhs_norm <= 0.0:
+        return 0.0
+    return _clamp_score(numerator / (lhs_norm * rhs_norm))
+
+
+def _semantic_alignment_settings(config: dict[str, Any] | None) -> dict[str, Any]:
+    semantic_alignment: dict[str, Any] = {}
+    if isinstance(config, dict):
+        cv_analysis_config = dict(config.get("cv_analysis") or {})
+        semantic_alignment = dict(cv_analysis_config.get("semantic_alignment") or {})
+    return {
+        "enabled": bool(
+            semantic_alignment.get("enabled", DEFAULT_SEMANTIC_ALIGNMENT_ENABLED)
+            if isinstance(config, dict)
+            else False
+        ),
+        "model": str(semantic_alignment.get("model") or DEFAULT_SEMANTIC_ALIGNMENT_MODEL),
+        "responsibility_lexical_weight": float(
+            semantic_alignment.get(
+                "responsibility_lexical_weight",
+                DEFAULT_RESPONSIBILITY_LEXICAL_WEIGHT,
+            )
+        ),
+        "responsibility_semantic_weight": float(
+            semantic_alignment.get(
+                "responsibility_semantic_weight",
+                DEFAULT_RESPONSIBILITY_SEMANTIC_WEIGHT,
+            )
+        ),
+        "domain_lexical_weight": float(
+            semantic_alignment.get("domain_lexical_weight", DEFAULT_DOMAIN_LEXICAL_WEIGHT)
+        ),
+        "domain_semantic_weight": float(
+            semantic_alignment.get("domain_semantic_weight", DEFAULT_DOMAIN_SEMANTIC_WEIGHT)
+        ),
+        "channel_pool_size": int(
+            semantic_alignment.get("channel_pool_size", DEFAULT_CHANNEL_POOL_SIZE)
+        ),
+    }
+
+
+def _semantic_runtime_state() -> dict[str, Any]:
+    return {
+        "embedding_cache": {},
+        "candidate_embedding_fresh_count": 0,
+        "candidate_embedding_reused_count": 0,
+        "job_embedding_fresh_count": 0,
+        "job_embedding_reused_count": 0,
+    }
+
+
+def _semantic_reuse_state(runtime_state: dict[str, Any]) -> dict[str, str]:
+    candidate_fresh = int(runtime_state.get("candidate_embedding_fresh_count") or 0)
+    candidate_reused = int(runtime_state.get("candidate_embedding_reused_count") or 0)
+    job_fresh = int(runtime_state.get("job_embedding_fresh_count") or 0)
+    job_reused = int(runtime_state.get("job_embedding_reused_count") or 0)
+
+    def _status_for(fresh_count: int, reused_count: int) -> str:
+        if fresh_count > 0 and reused_count > 0:
+            return "mixed_fresh_and_reused"
+        if fresh_count > 0:
+            return "fresh_embedding"
+        if reused_count > 0:
+            return "reused_cached_embedding"
+        return "not_requested"
+
+    return {
+        "candidate_evidence": _status_for(candidate_fresh, candidate_reused),
+        "job_context": _status_for(job_fresh, job_reused),
+    }
+
+
+def _semantic_embedding_counts(runtime_state: dict[str, Any]) -> dict[str, dict[str, int]]:
+    return {
+        "candidate_evidence": {
+            "fresh": int(runtime_state.get("candidate_embedding_fresh_count") or 0),
+            "reused": int(runtime_state.get("candidate_embedding_reused_count") or 0),
+        },
+        "job_context": {
+            "fresh": int(runtime_state.get("job_embedding_fresh_count") or 0),
+            "reused": int(runtime_state.get("job_embedding_reused_count") or 0),
+        },
+    }
+
+
+def _semantic_methods(enabled: bool) -> dict[str, str]:
+    method = SEMANTIC_METHOD_EMBEDDING if enabled else SEMANTIC_METHOD_DISABLED
+    return {
+        RESPONSIBILITY_ALIGNMENT_CHANNEL: method,
+        DOMAIN_ALIGNMENT_CHANNEL: method,
+    }
+
+
+def _embed_text_cached(
+    text: str,
+    *,
+    config: dict[str, Any],
+    model_name: str,
+    runtime_state: dict[str, Any],
+    cache_namespace: str,
+) -> list[float]:
+    normalized_text = " ".join(str(text).split()).strip()
+    if not normalized_text:
+        return []
+    cache_key = f"{cache_namespace}:{normalized_text.casefold()}"
+    embedding_cache = runtime_state["embedding_cache"]
+    cached = embedding_cache.get(cache_key)
+    if cached is not None:
+        if cache_namespace == "candidate":
+            runtime_state["candidate_embedding_reused_count"] = int(
+                runtime_state.get("candidate_embedding_reused_count") or 0
+            ) + 1
+        elif cache_namespace == "job":
+            runtime_state["job_embedding_reused_count"] = int(
+                runtime_state.get("job_embedding_reused_count") or 0
+            ) + 1
+        return list(cached)
+    vector = list(generate_embedding(normalized_text, config, model_name=model_name))
+    embedding_cache[cache_key] = vector
+    if cache_namespace == "candidate":
+        runtime_state["candidate_embedding_fresh_count"] = int(
+            runtime_state.get("candidate_embedding_fresh_count") or 0
+        ) + 1
+    elif cache_namespace == "job":
+        runtime_state["job_embedding_fresh_count"] = int(
+            runtime_state.get("job_embedding_fresh_count") or 0
+        ) + 1
+    return list(vector)
+
+
 def _context_terms(job_context: dict[str, Any]) -> list[str]:
     terms: list[str] = []
     terms.extend(list(job_context.get("required_skills") or []))
@@ -206,6 +357,83 @@ def _coerce_job_context(job_context: dict[str, Any] | list[str]) -> dict[str, An
     return context
 
 
+def _preferred_evidence_id(raw: dict[str, Any], fallback_id: str) -> str:
+    explicit_id = _normalize_optional_text(raw.get("id"))
+    return explicit_id or fallback_id
+
+
+def _job_domain_text(job_context: dict[str, Any]) -> str:
+    return " ".join(
+        part
+        for part in (
+            _normalize_text(job_context.get("domain")),
+            _normalize_text(job_context.get("job_family")),
+        )
+        if part
+    )
+
+
+def _item_domain_text(item: dict[str, Any]) -> str:
+    scoring_context = _normalize_text(item.get("scoring_context"))
+    if scoring_context:
+        return scoring_context
+    return " ".join(
+        part
+        for part in [
+            _normalize_text(item.get("name")),
+            *[_normalize_text(value) for value in list(item.get("domain_tags") or [])],
+        ]
+        if part
+    )
+
+
+def _item_responsibility_text(item: dict[str, Any]) -> str:
+    scoring_context = _normalize_text(item.get("scoring_context"))
+    if scoring_context:
+        return scoring_context
+    return " ".join(
+        part
+        for part in [_normalize_text(value) for value in list(item.get("responsibility_themes") or [])]
+        if part
+    )
+
+
+def _semantic_similarity(
+    *,
+    job_texts: list[str],
+    item_text: str,
+    config: dict[str, Any],
+    model_name: str,
+    runtime_state: dict[str, Any],
+) -> float:
+    if not item_text or not job_texts:
+        return 0.0
+    item_vector = _embed_text_cached(
+        item_text,
+        config=config,
+        model_name=model_name,
+        runtime_state=runtime_state,
+        cache_namespace="candidate",
+    )
+    if not item_vector:
+        return 0.0
+    best_score = 0.0
+    for job_text in job_texts:
+        if not job_text:
+            continue
+        job_vector = _embed_text_cached(
+            job_text,
+            config=config,
+            model_name=model_name,
+            runtime_state=runtime_state,
+            cache_namespace="job",
+        )
+        if not job_vector:
+            continue
+        best_score = max(best_score, _cosine_similarity(item_vector, job_vector))
+    return _clamp_score(best_score)
+
+
 def normalise_evidence_item(
     raw: dict[str, Any],
     evidence_type: str,
@@ -219,7 +447,7 @@ def normalise_evidence_item(
     responsibility_themes = _canonicalize_terms(_normalize_text_list(raw.get("responsibility_themes")))
     role_family = _normalize_text(raw.get("role_family")) or None
 
-    evidence_id = _build_evidence_id(evidence_type, source_ref, name)
+    evidence_id = _preferred_evidence_id(raw, _build_evidence_id(evidence_type, source_ref, name))
     return {
         "evidence_id": evidence_id,
         "evidence_type": evidence_type,
@@ -274,8 +502,12 @@ def _normalise_experience_entry(
     responsibility_themes = _canonicalize_terms(_normalize_text_list(experience.get("responsibility_themes")))
     role_family = _normalize_text(experience.get("role_family")) or _infer_role_family(role)
     scoring_parts = [role, company, *bullet_texts, *domain_tags, *responsibility_themes]
+    evidence_id = _preferred_evidence_id(
+        experience,
+        _build_evidence_id("experience_entry", source_ref, name),
+    )
     return {
-        "evidence_id": _build_evidence_id("experience_entry", source_ref, name),
+        "evidence_id": evidence_id,
         "evidence_type": "experience_entry",
         "name": name,
         "role": role,
@@ -326,7 +558,10 @@ def _normalise_project_entry(
     skills = _normalize_text_list(project.get("skills"))
     domain_tags = _canonicalize_terms(_normalize_text_list(project.get("domain_tags")))
     responsibility_themes = _canonicalize_terms(_normalize_text_list(project.get("responsibility_themes")))
-    evidence_id = _build_evidence_id("project_entry", source_ref, name)
+    evidence_id = _preferred_evidence_id(
+        project,
+        _build_evidence_id("project_entry", source_ref, name),
+    )
     scoring_context = _build_project_scoring_context(
         name=name,
         business_value=business_value,
@@ -606,7 +841,7 @@ def _score_role_alignment(item: dict[str, Any], job_context: dict[str, Any]) -> 
     return max(family_score, lexical_score)
 
 
-def _score_domain_alignment(item: dict[str, Any], job_context: dict[str, Any]) -> float:
+def _score_domain_alignment_lexical(item: dict[str, Any], job_context: dict[str, Any]) -> float:
     domain_terms = _canonicalize_term_set(
         [
             _normalize_optional_text(job_context.get("domain")),
@@ -624,7 +859,7 @@ def _score_domain_alignment(item: dict[str, Any], job_context: dict[str, Any]) -
     return _overlap_ratio(_tokenize(str(item.get("scoring_context") or "")), domain_terms)
 
 
-def _score_responsibility_alignment(item: dict[str, Any], job_context: dict[str, Any]) -> float:
+def _score_responsibility_alignment_lexical(item: dict[str, Any], job_context: dict[str, Any]) -> float:
     responsibilities = list(job_context.get("responsibilities") or [])
     if not responsibilities:
         return 0.0
@@ -639,16 +874,108 @@ def _score_responsibility_alignment(item: dict[str, Any], job_context: dict[str,
     )
 
 
-def _channel_score(item: dict[str, Any], channel: str, job_context: dict[str, Any]) -> float:
+def _hybrid_score(lexical_score: float, semantic_score: float, lexical_weight: float, semantic_weight: float) -> float:
+    return _clamp_score((lexical_score * lexical_weight) + (semantic_score * semantic_weight))
+
+
+def _score_domain_alignment_components(
+    item: dict[str, Any],
+    job_context: dict[str, Any],
+    *,
+    config: dict[str, Any] | None,
+    semantic_settings: dict[str, Any],
+    runtime_state: dict[str, Any],
+) -> dict[str, float]:
+    lexical_score = _score_domain_alignment_lexical(item, job_context)
+    semantic_score = 0.0
+    if semantic_settings["enabled"] and config is not None:
+        semantic_score = _semantic_similarity(
+            job_texts=[_job_domain_text(job_context)],
+            item_text=_item_domain_text(item),
+            config=config,
+            model_name=str(semantic_settings["model"]),
+            runtime_state=runtime_state,
+        )
+    return {
+        "lexical": round(lexical_score, 6),
+        "semantic": round(semantic_score, 6),
+        "combined": round(
+            _hybrid_score(
+                lexical_score,
+                semantic_score,
+                float(semantic_settings["domain_lexical_weight"]),
+                float(semantic_settings["domain_semantic_weight"]),
+            ),
+            6,
+        ),
+    }
+
+
+def _score_responsibility_alignment_components(
+    item: dict[str, Any],
+    job_context: dict[str, Any],
+    *,
+    config: dict[str, Any] | None,
+    semantic_settings: dict[str, Any],
+    runtime_state: dict[str, Any],
+) -> dict[str, float]:
+    lexical_score = _score_responsibility_alignment_lexical(item, job_context)
+    semantic_score = 0.0
+    if semantic_settings["enabled"] and config is not None:
+        semantic_score = _semantic_similarity(
+            job_texts=[str(value) for value in list(job_context.get("responsibilities") or []) if value],
+            item_text=_item_responsibility_text(item),
+            config=config,
+            model_name=str(semantic_settings["model"]),
+            runtime_state=runtime_state,
+        )
+    return {
+        "lexical": round(lexical_score, 6),
+        "semantic": round(semantic_score, 6),
+        "combined": round(
+            _hybrid_score(
+                lexical_score,
+                semantic_score,
+                float(semantic_settings["responsibility_lexical_weight"]),
+                float(semantic_settings["responsibility_semantic_weight"]),
+            ),
+            6,
+        ),
+    }
+
+
+def _channel_score_components(
+    item: dict[str, Any],
+    channel: str,
+    job_context: dict[str, Any],
+    *,
+    config: dict[str, Any] | None,
+    semantic_settings: dict[str, Any],
+    runtime_state: dict[str, Any],
+) -> dict[str, float]:
     if channel == REQUIRED_SKILL_SUPPORT_CHANNEL:
-        return _score_required_skill_support(item, job_context)
+        score = _score_required_skill_support(item, job_context)
+        return {"lexical": round(score, 6), "semantic": 0.0, "combined": round(score, 6)}
     if channel == ROLE_ALIGNMENT_CHANNEL:
-        return _score_role_alignment(item, job_context)
+        score = _score_role_alignment(item, job_context)
+        return {"lexical": round(score, 6), "semantic": 0.0, "combined": round(score, 6)}
     if channel == DOMAIN_ALIGNMENT_CHANNEL:
-        return _score_domain_alignment(item, job_context)
+        return _score_domain_alignment_components(
+            item,
+            job_context,
+            config=config,
+            semantic_settings=semantic_settings,
+            runtime_state=runtime_state,
+        )
     if channel == RESPONSIBILITY_ALIGNMENT_CHANNEL:
-        return _score_responsibility_alignment(item, job_context)
-    return 0.0
+        return _score_responsibility_alignment_components(
+            item,
+            job_context,
+            config=config,
+            semantic_settings=semantic_settings,
+            runtime_state=runtime_state,
+        )
+    return {"lexical": 0.0, "semantic": 0.0, "combined": 0.0}
 
 
 def _channel_rationale(channel: str, item: dict[str, Any], job_context: dict[str, Any]) -> list[str]:
@@ -696,10 +1023,21 @@ def _select_channel_candidates(
     channel: str,
     job_context: dict[str, Any],
     pool_size: int,
+    config: dict[str, Any] | None,
+    semantic_settings: dict[str, Any],
+    runtime_state: dict[str, Any],
 ) -> list[dict[str, Any]]:
     candidates: list[dict[str, Any]] = []
     for item in items:
-        channel_score = _channel_score(item, channel, job_context)
+        channel_subscore = _channel_score_components(
+            item,
+            channel,
+            job_context,
+            config=config,
+            semantic_settings=semantic_settings,
+            runtime_state=runtime_state,
+        )
+        channel_score = float(channel_subscore["combined"])
         if channel_score <= 0.0:
             continue
         candidates.append(
@@ -707,6 +1045,7 @@ def _select_channel_candidates(
                 **item,
                 "channel": channel,
                 "channel_score": channel_score,
+                "channel_subscore": channel_subscore,
                 "channel_rationale": _channel_rationale(channel, item, job_context),
             }
         )
@@ -733,11 +1072,12 @@ def _merge_channel_pools(channel_pools: dict[str, list[dict[str, Any]]]) -> list
                 merged_by_id[evidence_id] = {
                     key: value
                     for key, value in item.items()
-                    if key not in {"channel", "channel_score", "channel_rationale"}
+                    if key not in {"channel", "channel_score", "channel_subscore", "channel_rationale"}
                 }
                 existing = merged_by_id[evidence_id]
                 existing["matched_channels"] = []
                 existing["channel_scores"] = {}
+                existing["channel_subscores"] = {}
                 existing["channel_rationales"] = {}
             matched_channels = list(existing.get("matched_channels") or [])
             if channel not in matched_channels:
@@ -746,6 +1086,9 @@ def _merge_channel_pools(channel_pools: dict[str, list[dict[str, Any]]]) -> list
             channel_scores = dict(existing.get("channel_scores") or {})
             channel_scores[channel] = float(item.get("channel_score") or 0.0)
             existing["channel_scores"] = channel_scores
+            channel_subscores = dict(existing.get("channel_subscores") or {})
+            channel_subscores[channel] = dict(item.get("channel_subscore") or {})
+            existing["channel_subscores"] = channel_subscores
             channel_rationales = dict(existing.get("channel_rationales") or {})
             channel_rationales[channel] = list(item.get("channel_rationale") or [])
             existing["channel_rationales"] = channel_rationales
@@ -771,6 +1114,18 @@ def _base_selection_score(item: dict[str, Any]) -> float:
     multi_channel_bonus = max(len(matched_channels) - 1, 0) * SELECTION_MULTI_CHANNEL_BONUS
     type_bonus = TYPE_WEIGHTS.get(str(item.get("evidence_type") or ""), 0.0) * SELECTION_TYPE_WEIGHT_FACTOR
     return weighted_score + multi_channel_bonus + type_bonus
+
+
+def _coverage_gain(
+    item: dict[str, Any],
+    covered_channel_scores: dict[str, float],
+) -> float:
+    channel_scores = dict(item.get("channel_scores") or {})
+    return sum(
+        max(float(channel_scores.get(channel) or 0.0) - covered_channel_scores.get(channel, 0.0), 0.0)
+        * SELECTION_CHANNEL_WEIGHTS[channel]
+        for channel in RETRIEVAL_CHANNELS
+    )
 
 
 def _selection_reasons(item: dict[str, Any]) -> list[str]:
@@ -809,6 +1164,26 @@ def _finalize_selected_item(item: dict[str, Any], job_context: dict[str, Any]) -
     return finalized
 
 
+def _debug_candidate_sample(item: dict[str, Any]) -> dict[str, Any]:
+    sample: dict[str, Any] = {
+        "evidence_id": str(item.get("evidence_id") or ""),
+        "evidence_type": str(item.get("evidence_type") or ""),
+        "source_ref": str(item.get("source_ref") or ""),
+        "name": str(item.get("name") or ""),
+        "matched_channels": list(item.get("matched_channels") or []),
+        "selection_reasons": list(item.get("selection_reasons") or []),
+        "selection_score": round(float(item.get("selection_score") or 0.0), 6),
+    }
+    channel_subscores = dict(item.get("channel_subscores") or {})
+    if channel_subscores:
+        sample["channel_subscores"] = channel_subscores
+    return {
+        key: value
+        for key, value in sample.items()
+        if value not in ("", None, [], {})
+    }
+
+
 def _select_final_evidence(
     merged_pool: list[dict[str, Any]],
     *,
@@ -820,13 +1195,17 @@ def _select_final_evidence(
 
     selected: list[dict[str, Any]] = []
     selected_types: list[str] = []
+    covered_channel_scores = {channel: 0.0 for channel in RETRIEVAL_CHANNELS}
     remaining = list(merged_pool)
     while remaining and len(selected) < top_k:
         best_index = -1
         best_score = -1.0
         for index, item in enumerate(remaining):
             evidence_type = str(item.get("evidence_type") or "")
-            dynamic_score = _base_selection_score(item)
+            dynamic_score = (
+                _coverage_gain(item, covered_channel_scores)
+                + (_base_selection_score(item) * SELECTION_RESIDUAL_SCORE_FACTOR)
+            )
             if evidence_type and evidence_type not in selected_types:
                 dynamic_score += SELECTION_NEW_TYPE_BONUS
             dynamic_score -= selected_types.count(evidence_type) * SELECTION_SAME_TYPE_PENALTY
@@ -838,26 +1217,69 @@ def _select_final_evidence(
         chosen = dict(remaining.pop(best_index))
         evidence_type = str(chosen.get("evidence_type") or "")
         selected_types.append(evidence_type)
+        channel_scores = dict(chosen.get("channel_scores") or {})
+        for channel in RETRIEVAL_CHANNELS:
+            covered_channel_scores[channel] = max(
+                covered_channel_scores[channel],
+                float(channel_scores.get(channel) or 0.0),
+            )
         chosen["selection_score"] = round(best_score, 6)
         chosen["selection_reasons"] = _selection_reasons(chosen)
         selected.append(_finalize_selected_item(chosen, job_context))
     return selected
 
 
+def _top_unselected_candidates(
+    merged_pool: list[dict[str, Any]],
+    selected_evidence: list[dict[str, Any]],
+    *,
+    limit: int = 3,
+) -> list[dict[str, Any]]:
+    if limit <= 0:
+        return []
+    selected_ids = {
+        str(item.get("evidence_id") or "")
+        for item in selected_evidence
+        if str(item.get("evidence_id") or "")
+    }
+    unselected = [
+        item for item in merged_pool
+        if str(item.get("evidence_id") or "") not in selected_ids
+    ]
+    ranked_unselected = sorted(
+        unselected,
+        key=lambda item: (
+            float(item.get("selection_score") or _base_selection_score(item)),
+            len(list(item.get("matched_channels") or [])),
+            TYPE_WEIGHTS.get(str(item.get("evidence_type") or ""), 0.0),
+            str(item.get("name") or ""),
+        ),
+        reverse=True,
+    )
+    return [_debug_candidate_sample(item) for item in ranked_unselected[:limit]]
+
+
 def retrieve_evidence_bundle(
     profile: dict[str, Any],
     job_context: dict[str, Any] | list[str],
     top_k: int,
+    *,
+    config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Retrieve evidence via separate channels, then merge/dedupe/select."""
     coerced_job_context = _coerce_job_context(job_context)
     base_items = _collect_base_items(profile)
+    semantic_settings = _semantic_alignment_settings(config)
+    runtime_state = _semantic_runtime_state()
     channel_pools = {
         channel: _select_channel_candidates(
             items=base_items,
             channel=channel,
             job_context=coerced_job_context,
-            pool_size=DEFAULT_CHANNEL_POOL_SIZE,
+            pool_size=int(semantic_settings["channel_pool_size"]),
+            config=config,
+            semantic_settings=semantic_settings,
+            runtime_state=runtime_state,
         )
         for channel in RETRIEVAL_CHANNELS
     }
@@ -867,6 +1289,24 @@ def retrieve_evidence_bundle(
         top_k=top_k,
         job_context=coerced_job_context,
     )
+    semantic_alignment = {
+        "enabled": bool(semantic_settings["enabled"]),
+        "semantic_methods": _semantic_methods(bool(semantic_settings["enabled"])),
+        "reuse_state": _semantic_reuse_state(runtime_state),
+        "embedding_counts": _semantic_embedding_counts(runtime_state),
+    }
+    hybrid_alignment = {
+        "responsibility": {
+            "lexical_weight": round(float(semantic_settings["responsibility_lexical_weight"]), 6),
+            "semantic_weight": round(float(semantic_settings["responsibility_semantic_weight"]), 6),
+        },
+        "domain": {
+            "lexical_weight": round(float(semantic_settings["domain_lexical_weight"]), 6),
+            "semantic_weight": round(float(semantic_settings["domain_semantic_weight"]), 6),
+        },
+    }
+    for item in selected_evidence:
+        item["semantic_alignment"] = dict(semantic_alignment)
     return {
         "selected_evidence": selected_evidence,
         "selected_evidence_ids": [str(item.get("evidence_id") or "") for item in selected_evidence],
@@ -874,8 +1314,13 @@ def retrieve_evidence_bundle(
             channel: len(channel_pools.get(channel, []))
             for channel in RETRIEVAL_CHANNELS
         },
+        "effective_channel_pool_size": int(semantic_settings["channel_pool_size"]),
         "merged_pool_size": sum(len(pool) for pool in channel_pools.values()),
         "deduped_pool_size": len(merged_pool),
+        "selected_evidence_count": len(selected_evidence),
+        "unselected_top_candidates": _top_unselected_candidates(merged_pool, selected_evidence),
+        "hybrid_alignment": hybrid_alignment,
+        "semantic_alignment": semantic_alignment,
     }
 
 
@@ -893,7 +1338,14 @@ def retrieve_evidence(
 
     resolved_context: dict[str, Any] | list[str]
     resolved_context = job_context
-    return list(retrieve_evidence_bundle(profile, resolved_context, top_k).get("selected_evidence") or [])
+    return list(
+        retrieve_evidence_bundle(
+            profile,
+            resolved_context,
+            top_k,
+        ).get("selected_evidence")
+        or []
+    )
 
 
 def store_evidence_selection(

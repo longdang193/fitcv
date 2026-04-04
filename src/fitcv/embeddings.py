@@ -314,7 +314,11 @@ def build_candidate_chunks(profile: dict[str, Any]) -> list[dict[str, Any]]:
 
 # ── integration: Vertex AI embedding ─────────────────────────────────────────
 
-def generate_embedding(text: str, config: dict[str, Any]) -> list[float]:
+def generate_embedding(
+    text: str,
+    config: dict[str, Any],
+    model_name: str | None = None,
+) -> list[float]:
     """Call Vertex AI text-embedding-005 and return the embedding vector.
 
     Requires GOOGLE_APPLICATION_CREDENTIALS.
@@ -328,7 +332,7 @@ def generate_embedding(text: str, config: dict[str, Any]) -> list[float]:
         project=str(config["gcp_project"]),
         location=get_vertex_location(config),
     )
-    model = TextEmbeddingModel.from_pretrained("text-embedding-005")
+    model = TextEmbeddingModel.from_pretrained(str(model_name or SHORTLIST_DEFAULT_EMBEDDING_MODEL))
     embeddings = model.get_embeddings([text])
     return embeddings[0].values  # type: ignore[return-value]
 
