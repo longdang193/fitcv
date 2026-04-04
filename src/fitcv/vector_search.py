@@ -23,11 +23,24 @@ config["vector_max_candidate_skills"]: max skills in candidate query text (defau
 config["retrieval_strategy"]        : stored in vector_shortlist (default "job_summary_v1")
 """
 
+import hashlib
+import json
+import logging
 from datetime import datetime, timezone
 from typing import Any
 
+from fitcv.candidate import flatten_skills
+from fitcv.embeddings import generate_embedding, get_shortlist_embedding_model
+from fitcv.ranking import _infer_role_family
 
 DEFAULT_RECENT_ROLE_COUNT = 3
+DEFAULT_ROLE_FAMILY_HINT_COUNT = 3
+DEFAULT_DOMAIN_HINT_COUNT = 5
+CANDIDATE_QUERY_SCHEMA_VERSION = "shortlist_candidate_query_v1"
+REUSED_CACHED_QUERY_EMBEDDING_STATUS = "reused_cached_query_embedding"
+FRESH_QUERY_EMBEDDING_STATUS = "fresh_query_embedding"
+
+logger = logging.getLogger(__name__)
 
 
 def _dedupe_shortlist_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -45,6 +58,171 @@ def _dedupe_shortlist_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 # ── candidate query text ──────────────────────────────────────────────────────
 
+def _append_unique_text(values: list[str], candidate: str, seen: set[str]) -> None:
+    text = str(candidate or "").strip()
+    if not text:
+        return
+    lowered = text.lower()
+    if lowered in seen:
+        return
+    seen.add(lowered)
+    values.append(text)
+
+
+def _normalize_query_scalar(value: Any) -> str:
+    return " ".join(str(value or "").split()).strip()
+
+
+def _canonicalize_for_hash(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: _canonicalize_for_hash(value[key])
+            for key in sorted(value)
+        }
+    if isinstance(value, list):
+        return [_canonicalize_for_hash(item) for item in value]
+    if isinstance(value, str):
+        return value.casefold()
+    return value
+
+
+def build_candidate_query_components(
+    profile: dict[str, Any],
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Return the bounded deterministic component groups used for shortlist retrieval."""
+    max_skills = int((config or {}).get("vector_max_candidate_skills", 15))
+
+    headline = str(profile.get("headline") or "").strip()
+    prefs = profile.get("preferences", {}) or {}
+    target_role = str(prefs.get("target_role") or "").strip()
+
+    recent_roles: list[str] = []
+    seen_recent_roles: set[str] = set()
+    for experience in profile.get("experiences", []) or []:
+        role = str(experience.get("role") or "").strip()
+        if not role:
+            continue
+        _append_unique_text(recent_roles, role, seen_recent_roles)
+        if len(recent_roles) >= DEFAULT_RECENT_ROLE_COUNT:
+            break
+
+    flattened_skills: list[str] = []
+    seen_skills: set[str] = set()
+    for skill in flatten_skills(profile):
+        _append_unique_text(flattened_skills, skill, seen_skills)
+        if len(flattened_skills) >= max_skills:
+            break
+
+    role_family_hints: list[str] = []
+    seen_role_families: set[str] = set()
+    for role_family in prefs.get("role_families", []) or []:
+        _append_unique_text(role_family_hints, str(role_family), seen_role_families)
+        if len(role_family_hints) >= DEFAULT_ROLE_FAMILY_HINT_COUNT:
+            break
+    if len(role_family_hints) < DEFAULT_ROLE_FAMILY_HINT_COUNT:
+        inferred_target_family = _infer_role_family(target_role)
+        if inferred_target_family:
+            _append_unique_text(role_family_hints, inferred_target_family, seen_role_families)
+    if len(role_family_hints) < DEFAULT_ROLE_FAMILY_HINT_COUNT:
+        for experience in profile.get("experiences", []) or []:
+            explicit_family = str(experience.get("role_family") or "").strip()
+            inferred_family = _infer_role_family(
+                str(experience.get("role") or ""),
+                explicit_family=explicit_family or None,
+            )
+            if inferred_family:
+                _append_unique_text(role_family_hints, inferred_family, seen_role_families)
+            if len(role_family_hints) >= DEFAULT_ROLE_FAMILY_HINT_COUNT:
+                break
+
+    domain_hints: list[str] = []
+    seen_domains: set[str] = set()
+    for domain in prefs.get("domains", []) or []:
+        _append_unique_text(domain_hints, str(domain), seen_domains)
+        if len(domain_hints) >= DEFAULT_DOMAIN_HINT_COUNT:
+            break
+    if len(domain_hints) < DEFAULT_DOMAIN_HINT_COUNT:
+        for experience in profile.get("experiences", []) or []:
+            for domain_tag in experience.get("domain_tags", []) or []:
+                _append_unique_text(domain_hints, str(domain_tag), seen_domains)
+                if len(domain_hints) >= DEFAULT_DOMAIN_HINT_COUNT:
+                    break
+            if len(domain_hints) >= DEFAULT_DOMAIN_HINT_COUNT:
+                break
+    if len(domain_hints) < DEFAULT_DOMAIN_HINT_COUNT:
+        for project in profile.get("projects", []) or []:
+            for domain_tag in project.get("domain_tags", []) or []:
+                _append_unique_text(domain_hints, str(domain_tag), seen_domains)
+                if len(domain_hints) >= DEFAULT_DOMAIN_HINT_COUNT:
+                    break
+            if len(domain_hints) >= DEFAULT_DOMAIN_HINT_COUNT:
+                break
+
+    return {
+        "headline": headline,
+        "target_role": target_role,
+        "recent_roles": recent_roles,
+        "role_family_hints": role_family_hints,
+        "flattened_skills": flattened_skills,
+        "domain_hints": domain_hints,
+    }
+
+
+def build_candidate_query_signature_record(components: dict[str, Any]) -> dict[str, Any]:
+    """Return the stable shortlist query payload plus its hash signature."""
+    payload = {
+        "headline": _normalize_query_scalar(components.get("headline") or ""),
+        "target_role": _normalize_query_scalar(components.get("target_role") or ""),
+        "recent_roles": [
+            _normalize_query_scalar(value)
+            for value in list(components.get("recent_roles") or [])
+            if _normalize_query_scalar(value)
+        ],
+        "role_family_hints": [
+            _normalize_query_scalar(value)
+            for value in list(components.get("role_family_hints") or [])
+            if _normalize_query_scalar(value)
+        ],
+        "flattened_skills": [
+            _normalize_query_scalar(value)
+            for value in list(components.get("flattened_skills") or [])
+            if _normalize_query_scalar(value)
+        ],
+        "domain_hints": [
+            _normalize_query_scalar(value)
+            for value in list(components.get("domain_hints") or [])
+            if _normalize_query_scalar(value)
+        ],
+    }
+    payload = {
+        key: value
+        for key, value in payload.items()
+        if value not in ("", [], None)
+    }
+    canonical_payload = _canonicalize_for_hash(payload)
+    payload_json = json.dumps(canonical_payload, sort_keys=True, separators=(",", ":"))
+    signature = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+    return {
+        "payload": payload,
+        "payload_json": json.dumps(payload, sort_keys=True, separators=(",", ":")),
+        "signature": signature,
+    }
+
+
+def build_candidate_query_embedding_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
+    """Fingerprint shortlist candidate-query embedding behavior to invalidate reuse."""
+    payload = {
+        "embedding_model": get_shortlist_embedding_model(config),
+        "candidate_query_schema_version": CANDIDATE_QUERY_SCHEMA_VERSION,
+    }
+    payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    fingerprint = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+    return {
+        "payload": payload,
+        "fingerprint": fingerprint,
+    }
+
 def build_candidate_query_text(
     profile: dict[str, Any],
     config: dict[str, Any] | None = None,
@@ -61,38 +239,153 @@ def build_candidate_query_text(
         Skills: <comma-joined skills>
         Target domains: <comma-joined domains>
     """
-    max_skills = int((config or {}).get("vector_max_candidate_skills", 15))
+    components = build_candidate_query_components(profile, config)
     parts: list[str] = []
 
-    headline = (profile.get("headline") or "").strip()
+    headline = str(components.get("headline") or "").strip()
     if headline:
         parts.append(f"Candidate: {headline}")
 
-    prefs = profile.get("preferences", {}) or {}
-    target_role = str(prefs.get("target_role") or "").strip()
+    target_role = str(components.get("target_role") or "").strip()
     if target_role:
         parts.append(f"Target role: {target_role}")
 
-    recent_roles: list[str] = []
-    for experience in profile.get("experiences", []) or []:
-        role = str(experience.get("role") or "").strip()
-        if role and role not in recent_roles:
-            recent_roles.append(role)
-        if len(recent_roles) >= DEFAULT_RECENT_ROLE_COUNT:
-            break
+    recent_roles = list(components.get("recent_roles") or [])
     if recent_roles:
         parts.append(f"Recent roles: {', '.join(recent_roles)}")
 
-    skills = profile.get("skills", []) or []
-    skill_names = [str(s.get("name", "")) for s in skills if s.get("name")][:max_skills]
+    role_family_hints = list(components.get("role_family_hints") or [])
+    if role_family_hints:
+        parts.append(f"Role families: {', '.join(role_family_hints)}")
+
+    skill_names = list(components.get("flattened_skills") or [])
     if skill_names:
         parts.append(f"Skills: {', '.join(skill_names)}")
 
-    domains = prefs.get("domains", []) or []
+    domains = list(components.get("domain_hints") or [])
     if domains:
-        parts.append(f"Target domains: {', '.join(str(d) for d in domains)}")
+        parts.append(f"Domain hints: {', '.join(str(d) for d in domains)}")
 
     return "\n".join(parts)
+
+
+def _load_latest_candidate_query_embedding(
+    *,
+    client: Any,
+    table_ref: str,
+    candidate_query_signature: str,
+) -> dict[str, Any] | None:
+    """Fetch the latest cached shortlist candidate-query embedding for a signature."""
+    if not candidate_query_signature:
+        return None
+
+    sql = f"""
+SELECT
+  candidate_query_signature,
+  candidate_query_contract_fingerprint,
+  candidate_query_text,
+  candidate_query_components_json,
+  embedding
+FROM `{table_ref}`
+WHERE candidate_query_signature = @candidate_query_signature
+ORDER BY created_at DESC
+LIMIT 1
+""".strip()
+    from google.cloud import bigquery  # type: ignore[import-untyped]
+
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[
+            bigquery.ScalarQueryParameter("candidate_query_signature", "STRING", candidate_query_signature)
+        ]
+    )
+    rows = list(client.query(sql, job_config=job_config).result())
+    if not rows:
+        return None
+    row = rows[0]
+    return {
+        "candidate_query_signature": _normalize_query_scalar(
+            getattr(row, "candidate_query_signature", "")
+        ),
+        "candidate_query_contract_fingerprint": _normalize_query_scalar(
+            getattr(row, "candidate_query_contract_fingerprint", "")
+        ),
+        "candidate_query_text": _normalize_query_scalar(
+            getattr(row, "candidate_query_text", "")
+        ),
+        "candidate_query_components_json": _normalize_query_scalar(
+            getattr(row, "candidate_query_components_json", "")
+        ),
+        "embedding": list(getattr(row, "embedding", []) or []),
+    }
+
+
+def resolve_candidate_query_embedding(
+    profile: dict[str, Any],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    """Return the shortlist candidate query plus a reused or fresh embedding vector."""
+    from google.cloud import bigquery  # type: ignore[import-untyped]
+    from google.oauth2 import service_account  # type: ignore[import-untyped]
+
+    components = build_candidate_query_components(profile, config)
+    query_text = build_candidate_query_text(profile, config)
+    signature_record = build_candidate_query_signature_record(components)
+    contract_record = build_candidate_query_embedding_contract_fingerprint(config)
+
+    project = str(config["gcp_project"])
+    dataset = str(config["bigquery_dataset"])
+    key_path = str(config["service_account_key"])
+    credentials = service_account.Credentials.from_service_account_file(key_path)
+    client = bigquery.Client(project=project, credentials=credentials)
+    table_ref = f"{project}.{dataset}.candidate_query_embeddings"
+    try:
+        cached_row = _load_latest_candidate_query_embedding(
+            client=client,
+            table_ref=table_ref,
+            candidate_query_signature=signature_record["signature"],
+        )
+    except Exception as exc:
+        logger.warning("Candidate query embedding cache lookup failed; falling back to fresh embedding: %s", exc)
+        cached_row = None
+
+    if cached_row and (
+        cached_row.get("candidate_query_contract_fingerprint") == contract_record["fingerprint"]
+    ):
+        return {
+            "text": query_text,
+            "components": components,
+            "embedding": list(cached_row.get("embedding") or []),
+            "candidate_query_signature": signature_record["signature"],
+            "candidate_query_contract_fingerprint": contract_record["fingerprint"],
+            "candidate_query_reuse_status": REUSED_CACHED_QUERY_EMBEDDING_STATUS,
+        }
+
+    embedding_vector = generate_embedding(query_text, config)
+    now = datetime.now(tz=timezone.utc).isoformat()
+    rows = [
+        {
+            "candidate_query_signature": signature_record["signature"],
+            "candidate_query_contract_fingerprint": contract_record["fingerprint"],
+            "candidate_query_text": query_text,
+            "candidate_query_components_json": signature_record["payload_json"],
+            "embedding": embedding_vector,
+            "created_at": now,
+        }
+    ]
+    try:
+        errors = client.insert_rows_json(table_ref, rows)
+        if errors:
+            logger.warning("BigQuery insert errors for candidate_query_embeddings: %s", errors)
+    except Exception as exc:
+        logger.warning("Candidate query embedding cache insert failed; continuing with fresh embedding: %s", exc)
+    return {
+        "text": query_text,
+        "components": components,
+        "embedding": embedding_vector,
+        "candidate_query_signature": signature_record["signature"],
+        "candidate_query_contract_fingerprint": contract_record["fingerprint"],
+        "candidate_query_reuse_status": FRESH_QUERY_EMBEDDING_STATUS,
+    }
 
 
 # ── VECTOR_SEARCH SQL builder ─────────────────────────────────────────────────
@@ -191,7 +484,9 @@ def run_vector_search(
     passed_job_urls: list[str],
     config: dict[str, Any],
     top_n: int | None = None,
-) -> list[dict[str, Any]]:
+    *,
+    include_debug: bool = False,
+) -> list[dict[str, Any]] | dict[str, Any]:
     """Generate candidate query embedding and execute VECTOR_SEARCH.
 
     top_n defaults to config["vector_top_n"] (50 if missing).
@@ -216,7 +511,6 @@ def run_vector_search(
 
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
-    from fitcv.embeddings import generate_embedding
 
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
@@ -225,8 +519,8 @@ def run_vector_search(
     credentials = service_account.Credentials.from_service_account_file(key_path)
     client = bigquery.Client(project=project, credentials=credentials)
 
-    query_text = build_candidate_query_text(profile, config)
-    embedding_vector = generate_embedding(query_text, config)
+    candidate_query_record = resolve_candidate_query_embedding(profile, config)
+    embedding_vector = list(candidate_query_record.get("embedding") or [])
 
     sql = build_vector_search_query(
         top_n=effective_top_n,
@@ -246,7 +540,17 @@ def run_vector_search(
         {"job_url": row.job_url, "vector_similarity": row.vector_similarity, "vector_rank": row.vector_rank}
         for row in rows
     ]
-    return _dedupe_shortlist_rows(shortlist)
+    deduped = _dedupe_shortlist_rows(shortlist)
+    if include_debug:
+        return {
+            "rows": deduped,
+            "candidate_query": {
+                key: value
+                for key, value in candidate_query_record.items()
+                if key != "embedding"
+            },
+        }
+    return deduped
 
 
 # ── integration: store shortlist ──────────────────────────────────────────────

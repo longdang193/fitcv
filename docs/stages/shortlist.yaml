@@ -1,20 +1,21 @@
 shortlist:
   stage_id: shortlist
   name: Shortlist
-  summary: Turn passed jobs into a retrieval-aware scoring shortlist by reusing unchanged job-summary embeddings when safe, searching only the latest active embedding row per canonical job URL, then capturing raw hits, shortlist transitions, and any backfill needed before scoring.
+  summary: Turn passed jobs into a retrieval-aware scoring shortlist by building a richer bounded candidate query from the full profile evidence surface, reusing the single shortlist candidate-query embedding and unchanged job-summary embeddings when safe, searching only the latest active embedding row per canonical job URL, then capturing raw hits, shortlist transitions, and any backfill needed before scoring.
   boundaries:
     - raw retrieval output enters here and the scoring shortlist leaves here
     - this stage owns the distinction between raw vector hits and the later scoring shortlist
     - shortlist transition reasons should be explainable here rather than inferred later
   inputs:
     - passed jobs
-    - candidate query text or retrieval query context
+    - candidate query text, bounded candidate-query components, and one reusable candidate query embedding derived from the profile evidence surface
     - vector search results
   outputs:
     - raw vector hits
     - scoring shortlist
     - shortlist transition reasons including any backfill
     - raw row versus raw unique-job retrieval counts
+    - bounded shortlist candidate-query components and candidate-query reuse provenance for debugging
     - fresh-versus-reused embedding provenance for passed jobs
     - bounded `stage_transition_artifacts.shortlist` runtime block with input, output, and changed-state samples
   depends_on:
@@ -31,11 +32,15 @@ shortlist:
       - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
       - docs/superpowers/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
       - docs/superpowers/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+      - docs/superpowers/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+      - docs/superpowers/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
     plan:
       - docs/superpowers/plans/2026-03-31-stage-transition-artifacts-implementation.md
       - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
       - docs/superpowers/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
       - docs/superpowers/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+      - docs/superpowers/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+      - docs/superpowers/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
     history: []
   keywords:
     - shortlist

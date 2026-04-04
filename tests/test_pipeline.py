@@ -2382,6 +2382,19 @@ def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortli
         backfilled_job_urls=[],
         vector_top_n=50,
         candidate_summary="Candidate: Analyst",
+        candidate_query_components={
+            "headline": "Analyst",
+            "target_role": "Data Analyst",
+            "recent_roles": ["Data Analyst"],
+            "role_family_hints": ["analytics"],
+            "flattened_skills": ["SQL", "Python"],
+            "domain_hints": ["banking"],
+        },
+        candidate_query_debug={
+            "candidate_query_reuse_status": "reused_cached_query_embedding",
+            "candidate_query_signature": "candidate-query-sig-1",
+            "candidate_query_contract_fingerprint": "candidate-query-contract-1",
+        },
         ai_scores=[],
         ranking_inputs=[],
         ranked=[],
@@ -2399,6 +2412,9 @@ def test_build_stage_transition_artifacts_reports_unique_job_and_raw_row_shortli
     assert shortlist_block["output_counts"]["embedding_reused_jobs"] == 1
     assert shortlist_block["output_counts"]["embedding_fresh_jobs"] == 1
     assert shortlist_block["output_counts"]["embedding_total_jobs"] == 2
+    assert shortlist_block["decision_summary"]["candidate_query_reuse_status"] == "reused_cached_query_embedding"
+    assert shortlist_block["decision_summary"]["candidate_query_signature"] == "candidate-query-sig-1"
+    assert shortlist_block["decision_summary"]["candidate_query_contract_fingerprint"] == "candidate-query-contract-1"
     assert shortlist_block["outputs_sample"][1]["vector_rank"] == 2
     assert shortlist_block["outputs_sample"][1]["shortlist_outcome"] == "returned_by_vector_search"
     assert shortlist_block["outputs_sample"][1]["raw_hit_present"] is True
@@ -2795,7 +2811,22 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
     mock_enrich.return_value = [first_job, second_job]
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [first_job["job_url"], second_job["job_url"]], "rejected": []}
-    mock_vec.return_value = [{"job_url": first_job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_vec.return_value = {
+        "rows": [{"job_url": first_job["job_url"], "similarity_score": 0.9, "rank": 1}],
+        "candidate_query": {
+            "text": "Candidate: Data Engineer\nTarget role: Data Engineer\nRecent roles: DE\nRole families: data_engineering\nSkills: SQL, Python",
+            "components": {
+                "headline": "Data Engineer",
+                "target_role": "Data Engineer",
+                "recent_roles": ["DE"],
+                "role_family_hints": ["data_engineering"],
+                "flattened_skills": ["SQL", "Python"],
+            },
+            "candidate_query_reuse_status": "reused_cached_query_embedding",
+            "candidate_query_signature": "candidate-query-sig-1",
+            "candidate_query_contract_fingerprint": "candidate-query-contract-1",
+        },
+    }
     mock_ai.return_value = [first_job, second_job]
     mock_build_feat.return_value = [first_job, second_job]
     mock_rank.return_value = []
@@ -2836,10 +2867,21 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
         "embedding_fresh_jobs": 0,
         "embedding_total_jobs": 2,
         "retrieval_anomaly_urls": [],
-        "candidate_query_text": "Candidate: Data Engineer\nTarget role: Data Engineer\nRecent roles: DE\nSkills: SQL, Python",
+        "candidate_query_text": "Candidate: Data Engineer\nTarget role: Data Engineer\nRecent roles: DE\nRole families: data_engineering\nSkills: SQL, Python",
+        "candidate_query_reuse_status": "reused_cached_query_embedding",
+        "candidate_query_signature": "candidate-query-sig-1",
+        "candidate_query_contract_fingerprint": "candidate-query-contract-1",
+        "candidate_query_components": {
+            "headline": "Data Engineer",
+            "target_role": "Data Engineer",
+            "recent_roles": ["DE"],
+            "role_family_hints": ["data_engineering"],
+            "flattened_skill_sample": ["SQL", "Python"],
+        },
         "not_shortlisted_job_urls": [second_job["job_url"]],
         "backfilled_job_urls": [second_job["job_url"]],
     }
+    mock_embed_cand.assert_not_called()
 
 
 @patch("fitcv.pipeline.store_cv_version")
