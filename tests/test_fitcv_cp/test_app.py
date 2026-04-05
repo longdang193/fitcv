@@ -159,7 +159,8 @@ def test_admin_upload_trigger_success(tmp_path):
     """Test POST /admin/upload-trigger saves file and calls trigger logic."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run"), \
-         patch("fitcv_cp.app.enqueue_run", return_value="run-123"), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
              "pipeline": {"final_top_n": 10},
@@ -178,6 +179,50 @@ def test_admin_upload_trigger_success(tmp_path):
 
     assert resp.status_code == 201, resp.text
     assert "run_id" in resp.json()
+
+
+def test_admin_upload_trigger_persists_run_scoped_synonym_overlay() -> None:
+    captured = {}
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p",
+             "bigquery_dataset": "d",
+             "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": "data/candidate_profile.yaml"},
+             "skill_synonyms": {"gcp": "google cloud"},
+             "skill_synonyms_runtime": {
+                 "base_policy_path": "config/taxonomy/skill_synonyms.yaml",
+                 "overlay_paths": [],
+                 "has_overlay": False,
+                 "entry_count": 1,
+             },
+         }):
+        files = {
+            "jobs_file": ("custom_jobs.json", b'[{"title": "Engineer", "job_url": "http://x.com"}]', "application/json"),
+            "synonym_overlay_file": ("custom_overlay.yaml", b"skill_synonyms:\n  ga4: google analytics\n", "application/x-yaml"),
+        }
+        data = {
+            "config_path": ".env.yaml",
+            "jobs_input_mode": "upload",
+            "candidate_profile_mode": "default_config",
+            "synonym_overlay_mode": "upload",
+        }
+
+        resp = TestClient(_app()).post("/admin/upload-trigger", data=data, files=files)
+
+    assert resp.status_code == 201, resp.text
+    effective = json.loads(captured["run"].effective_settings_json)
+    assert effective["skill_synonyms"]["ga4"] == "google analytics"
+    assert effective["skill_synonyms_runtime"]["has_run_overlay"] is True
+    assert effective["skill_synonyms_runtime"]["run_overlay_source"] == "trigger_upload"
 
 
 def test_admin_continue_run_requeues_manual_paused_run() -> None:
@@ -206,7 +251,7 @@ def test_admin_continue_run_requeues_manual_paused_run() -> None:
     mock_checkpoint.assert_called_once()
 
 
-def test_admin_run_detail_shows_synonym_overlay_upload_for_manual_enrich_checkpoint() -> None:
+def test_admin_run_detail_shows_synonym_overlay_card_for_manual_enrich_checkpoint() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -233,8 +278,53 @@ def test_admin_run_detail_shows_synonym_overlay_upload_for_manual_enrich_checkpo
         resp = TestClient(_app()).get("/admin/runs/run-overlay-btn")
 
     assert resp.status_code == 200
-    assert "Upload Synonym Overlay YAML" in resp.text
+    assert "Synonym Overlay" in resp.text
+    assert "Replace Run Overlay YAML" in resp.text
     assert 'action="/admin/runs/run-overlay-btn/synonym-overlay"' in resp.text
+
+
+def test_admin_run_detail_shows_trigger_uploaded_synonym_overlay_state() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-overlay-state",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps(
+            {
+                "skill_synonyms": {"gcp": "google cloud", "ga4": "google analytics"},
+                "skill_synonyms_runtime": {
+                    "base_policy_path": "config/taxonomy/skill_synonyms.yaml",
+                    "overlay_paths": [],
+                    "has_overlay": True,
+                    "entry_count": 2,
+                    "has_run_overlay": True,
+                    "run_overlay_source": "trigger_upload",
+                    "run_overlay_filename": "custom_overlay.yaml",
+                    "run_overlay_uploaded_at": "2026-04-05T23:30:00Z",
+                    "run_overlay_entry_count": 1,
+                },
+            }
+        ),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-overlay-state")
+
+    assert resp.status_code == 200
+    assert "Synonym Overlay" in resp.text
+    assert "Trigger Upload" in resp.text
+    assert "custom_overlay.yaml" in resp.text
 
 
 def test_admin_upload_synonym_overlay_updates_run_effective_settings() -> None:
@@ -525,7 +615,7 @@ def test_admin_run_detail_success_banner():
     assert "Refresh Status" in resp.text  # still present on run_detail page
 
 
-def test_admin_run_detail_shows_download_results_json_button():
+def test_admin_run_detail_shows_exports_card_with_results_link():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -541,8 +631,9 @@ def test_admin_run_detail_shows_download_results_json_button():
     patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/test-export-btn")
     assert resp.status_code == 200
+    assert "Run Exports" in resp.text
     assert 'href="/admin/runs/test-export-btn/export.json"' in resp.text
-    assert "Download Results JSON" in resp.text
+    assert "Results JSON" in resp.text
 
 
 def test_admin_run_detail_shows_download_cv_debug_json_button():
@@ -562,10 +653,10 @@ def test_admin_run_detail_shows_download_cv_debug_json_button():
         resp = TestClient(_app()).get("/admin/runs/test-debug-btn")
     assert resp.status_code == 200
     assert 'href="/admin/runs/test-debug-btn/cv-debug.json"' in resp.text
-    assert "Download CV Debug JSON" in resp.text
+    assert "CV Debug JSON" in resp.text
 
 
-def test_admin_run_detail_shows_download_stage_artifacts_json_button():
+def test_admin_run_detail_shows_stage_artifacts_export_in_exports_card():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -582,8 +673,8 @@ def test_admin_run_detail_shows_download_stage_artifacts_json_button():
         resp = TestClient(_app()).get("/admin/runs/test-stage-artifacts-btn")
     assert resp.status_code == 200
     assert 'href="/admin/runs/test-stage-artifacts-btn/stage-artifacts.json"' in resp.text
-    assert "Download Stage Artifacts JSON" in resp.text
-    assert resp.text.index("Event Timeline") < resp.text.index("Download Stage Artifacts JSON")
+    assert "Stage Artifacts JSON" in resp.text
+    assert resp.text.index("Run Exports") < resp.text.index("Event Timeline")
 
 
 def test_admin_run_detail_shows_download_settings_used_json_button():
@@ -603,10 +694,10 @@ def test_admin_run_detail_shows_download_settings_used_json_button():
         resp = TestClient(_app()).get("/admin/runs/test-settings-btn")
     assert resp.status_code == 200
     assert 'href="/admin/runs/test-settings-btn/settings-used.json"' in resp.text
-    assert "Download Settings Used JSON" in resp.text
+    assert "Settings Used JSON" in resp.text
 
 
-def test_admin_run_detail_shows_aggregate_mapping_suggestions_button_without_run_snapshot() -> None:
+def test_admin_run_detail_hides_aggregate_mapping_suggestions_button() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -621,8 +712,8 @@ def test_admin_run_detail_shows_aggregate_mapping_suggestions_button_without_run
     patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/test-mapping-aggregate-btn")
     assert resp.status_code == 200
-    assert 'href="/admin/mapping-suggestions.json"' in resp.text
-    assert "Download Aggregate Mapping Suggestions JSON" in resp.text
+    assert 'href="/admin/mapping-suggestions.json"' not in resp.text
+    assert "Aggregate Mapping Suggestions JSON" not in resp.text
 
 
 def test_run_detail_timeline_shows_stage_download_for_mapped_event():
@@ -1278,7 +1369,7 @@ def test_run_detail_event_timeline_appears_after_tab_panes():
     )
 
 
-def test_run_detail_renders_stage_quality_metrics_when_available():
+def test_run_detail_renders_run_health_when_quality_metrics_available():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -1320,7 +1411,8 @@ def test_run_detail_renders_stage_quality_metrics_when_available():
 
     assert resp.status_code == 200
     html = resp.text
-    assert "Stage Quality Metrics" in html
+    assert "Run Health" in html
+    assert "Stage Quality Metrics" not in html
     assert "Shortlist Backfill Rate" in html
     assert "33%" in html
     assert "1 / 3" in html
@@ -1330,7 +1422,7 @@ def test_run_detail_renders_stage_quality_metrics_when_available():
     assert "50%" in html
 
 
-def test_run_detail_hides_stage_quality_metrics_when_absent():
+def test_run_detail_hides_run_health_when_quality_metrics_absent():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -1349,10 +1441,10 @@ def test_run_detail_hides_stage_quality_metrics_when_absent():
         resp = TestClient(_app()).get("/admin/runs/quality-metrics-2")
 
     assert resp.status_code == 200
-    assert "Stage Quality Metrics" not in resp.text
+    assert "Run Health" not in resp.text
 
 
-def test_run_detail_renders_late_stage_reuse_metrics_when_available():
+def test_run_detail_renders_run_health_when_late_stage_reuse_metrics_available():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -1389,7 +1481,8 @@ def test_run_detail_renders_late_stage_reuse_metrics_when_available():
 
     assert resp.status_code == 200
     html = resp.text
-    assert "Late-Stage Reuse" in html
+    assert "Run Health" in html
+    assert "Late-Stage Reuse" not in html
     assert "Ranking AI-Score Reuse Rate" in html
     assert "CV Analysis Reuse Rate" in html
     assert "50%" in html
@@ -1416,7 +1509,8 @@ def test_run_detail_hides_late_stage_reuse_metrics_when_absent():
         resp = TestClient(_app()).get("/admin/runs/reuse-metrics-2")
 
     assert resp.status_code == 200
-    assert "Late-Stage Reuse" not in resp.text
+    assert "Ranking AI-Score Reuse Rate" not in resp.text
+    assert "CV Analysis Reuse Rate" not in resp.text
 
 
 # ── grouped settings endpoint ─────────────────────────────────────────────────

@@ -23,25 +23,6 @@
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'unarchive', this)">Unarchive Run</button>
     {% endif %}
     <a href="/admin/runs/{{ run.run_id }}" class="btn-secondary">⟳ Refresh Status</a>
-    {% if run.status.value == 'succeeded' and run.results_export_json %}
-      <a href="/admin/runs/{{ run.run_id }}/export.json" class="btn-secondary">⬇ Download Results JSON</a>
-    {% endif %}
-    {% if run.status.value == 'succeeded' and run.cv_generation_debug_json %}
-      <a href="/admin/runs/{{ run.run_id }}/cv-debug.json" class="btn-secondary">⬇ Download CV Debug JSON</a>
-    {% endif %}
-    {% if run.status.value == 'succeeded' and run.settings_used_json %}
-      <a href="/admin/runs/{{ run.run_id }}/settings-used.json" class="btn-secondary">⬇ Download Settings Used JSON</a>
-    {% endif %}
-    {% if run.mapping_suggestions_json %}
-      <a href="/admin/runs/{{ run.run_id }}/mapping-suggestions.json" class="btn-secondary">⬇ Download Mapping Suggestions JSON</a>
-    {% endif %}
-    <a href="/admin/mapping-suggestions.json" class="btn-secondary">⬇ Download Aggregate Mapping Suggestions JSON</a>
-    {% if can_upload_synonym_overlay %}
-      <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">
-        <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:15rem">
-        <button type="submit" class="btn-secondary">Upload Synonym Overlay YAML</button>
-      </form>
-    {% endif %}
     <a href="/admin/runs" class="btn-secondary">← All Runs</a>
   </div>
 </div>
@@ -72,11 +53,6 @@
     <span class="k">Last Completed</span><span class="v"><code>{{ run.last_completed_stage or '—' }}</code></span>
     <span class="k">Next Stage</span><span class="v"><code>{{ run.next_stage or 'complete' }}</code></span>
     <span class="k">Completed Stages</span><span class="v">{% if run.completed_stages %}<code>{{ run.completed_stages | join(', ') }}</code>{% else %}—{% endif %}</span>
-    <span class="k">Synonym Overlay</span><span class="v">{% if synonym_overlay_info.has_run_overlay %}<span class="badge badge-info">uploaded</span>{% else %}default only{% endif %}</span>
-    {% if synonym_overlay_info.has_run_overlay %}
-    <span class="k">Overlay File</span><span class="v"><code>{{ synonym_overlay_info.filename or '—' }}</code></span>
-    <span class="k">Overlay Entries</span><span class="v">{{ synonym_overlay_info.entry_count }}</span>
-    {% endif %}
     {% endif %}
     {% if run.started_at and run.finished_at %}
     <span class="k">Duration</span><span class="v">{{ ((run.finished_at - run.started_at).total_seconds() | int) }}s</span>
@@ -87,40 +63,82 @@
   </div>
 </div>
 
-{% if stage_quality_metric_rows %}
+{% if synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay %}
 <div class="card">
-  <h3 style="margin:0 0 0.85rem">Stage Quality Metrics</h3>
-  <div style="display:flex;flex-direction:column;gap:0.75rem">
-    {% for metric in stage_quality_metric_rows %}
-    <div style="display:flex;gap:1rem;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;padding-bottom:0.75rem;border-bottom:1px solid var(--accent)">
-      <div style="display:flex;flex-direction:column;gap:0.25rem;min-width:16rem">
-        <strong>{{ metric.label }}</strong>
-        <span class="meta">{{ metric.hint }}</span>
-      </div>
-      <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
-        <span class="badge badge-info">{{ metric.rate_percent }}%</span>
-        <code>{{ metric.numerator }} / {{ metric.denominator }}</code>
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <div>
+      <h3 style="margin:0 0 0.35rem">Synonym Overlay</h3>
+      <div class="meta">
+        {% if synonym_overlay_info.has_run_overlay %}
+          Run-scoped synonym mappings are active for this run.
+        {% elif can_upload_synonym_overlay %}
+          No run-specific overlay is active yet. You can replace the default synonym config before continuing into <code>rule_filter</code>.
+        {% endif %}
       </div>
     </div>
+    {% if synonym_overlay_info.has_run_overlay %}
+    <span class="badge badge-info">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
+    {% endif %}
+  </div>
+
+  <div class="kv">
+    <span class="k">Status</span>
+    <span class="v">{% if synonym_overlay_info.has_run_overlay %}<span class="badge badge-info">run-specific overlay active</span>{% else %}default config only{% endif %}</span>
+    {% if synonym_overlay_info.has_run_overlay %}
+    <span class="k">Source</span><span class="v">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
+    <span class="k">Overlay File</span><span class="v"><code>{{ synonym_overlay_info.filename or '—' }}</code></span>
+    <span class="k">Overlay Entries</span><span class="v">{{ synonym_overlay_info.entry_count }}</span>
+    <span class="k">Uploaded</span><span class="v">{{ synonym_overlay_info.uploaded_at or '—' }}</span>
+    {% endif %}
+    <span class="k">Effective Synonyms</span><span class="v">{{ synonym_overlay_info.effective_entry_count or '—' }}</span>
+  </div>
+
+  {% if can_upload_synonym_overlay %}
+  <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">
+    <div class="meta" style="margin-bottom:0.65rem">Stage by Stage runs can replace the current run overlay after <code>enrich</code> and before <code>rule_filter</code>. This override does not change the shared default config.</div>
+    <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
+      <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:18rem">
+      <button type="submit" class="btn-secondary">Replace Run Overlay YAML</button>
+    </form>
+  </div>
+  {% elif run.run_mode == 'run_all' and synonym_overlay_info.has_run_overlay %}
+  <div class="meta" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">Automatic runs use trigger-time synonym uploads only.</div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if run_export_links %}
+<div class="card">
+  <h3 style="margin:0 0 0.85rem">Run Exports</h3>
+  <div class="run-export-grid">
+    {% for export_link in run_export_links %}
+    <a href="{{ export_link.href }}" class="run-export-link">⬇ {{ export_link.label }}</a>
     {% endfor %}
   </div>
 </div>
 {% endif %}
 
-{% if late_stage_reuse_metric_rows %}
+{% if run_health_rows %}
 <div class="card">
-  <h3 style="margin:0 0 0.85rem">Late-Stage Reuse</h3>
-  <div style="display:flex;flex-direction:column;gap:0.75rem">
-    {% for metric in late_stage_reuse_metric_rows %}
-    <div style="display:flex;gap:1rem;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;padding-bottom:0.75rem;border-bottom:1px solid var(--accent)">
-      <div style="display:flex;flex-direction:column;gap:0.25rem;min-width:16rem">
-        <strong>{{ metric.label }}</strong>
-        <span class="meta">{{ metric.hint }}</span>
-      </div>
-      <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <h3 style="margin:0">Run Health</h3>
+    <span class="meta">Compact stage quality and late-stage reuse diagnostics.</span>
+  </div>
+  <div class="run-health-grid">
+    {% for metric in run_health_rows %}
+    <div class="run-health-tile">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
+        <div>
+          <div class="run-health-label">{{ metric.label }}</div>
+          <div class="meta">{{ metric.hint }}</div>
+        </div>
         <span class="badge badge-info">{{ metric.rate_percent }}%</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
         <code>{{ metric.numerator }} / {{ metric.denominator }}</code>
+        {% if metric.fresh_count is defined %}
         <span class="meta">fresh: {{ metric.fresh_count }}</span>
+        {% endif %}
       </div>
     </div>
     {% endfor %}
@@ -218,11 +236,8 @@
     <table class="enr-table">
       <thead>
         <tr>
-          <th>Job Title</th>
-          <th>Location Type</th>
-          <th>Seniority</th>
-          <th>Job Family</th>
-          <th>Domain</th>
+          <th>Job</th>
+          <th>Fit Context</th>
           <th>Required Skills (top 5)</th>
           <th>Filter</th>
           <th>Pipeline Outcome</th>
@@ -237,10 +252,14 @@
             data-domain="{{ (job.domain or '') | lower }}"
             data-family="{{ (job.job_family or '') | lower }}">
           <td><a href="{{ job.job_url }}" target="_blank">{{ job.title or job.job_url }}</a></td>
-          <td><code>{{ job.location_type or '—' }}</code></td>
-          <td><code>{{ job.seniority or '—' }}</code></td>
-          <td><code>{{ job.job_family or '—' }}</code></td>
-          <td><code>{{ job.domain or '—' }}</code></td>
+          <td class="meta">
+            <div class="fit-context-stack">
+              <span><strong>Location:</strong> {{ job.location_type or '—' }}</span>
+              <span><strong>Seniority:</strong> {{ job.seniority or '—' }}</span>
+              <span><strong>Family:</strong> {{ job.job_family or '—' }}</span>
+              <span><strong>Domain:</strong> {{ job.domain or '—' }}</span>
+            </div>
+          </td>
           <td class="meta">
             {% if job.required_skills %}
               {{ job.required_skills[:5] | join(', ') }}{% if job.required_skills | length > 5 %}, <em class="meta">+{{ job.required_skills | length - 5 }} more</em>{% endif %}
@@ -283,7 +302,7 @@
         </tr>
         {% endfor %}
         <tr id="enr-empty-row" style="display:none">
-          <td colspan="8" style="text-align:center;padding:1.5rem">
+          <td colspan="5" style="text-align:center;padding:1.5rem">
             No jobs match the current controls.
             <a href="#" style="margin-left:0.5rem" onclick="EnrichedTable.resetControls();return false;">Show all</a>
           </td>
@@ -458,11 +477,6 @@
     </tbody>
   </table>
 </div>
-{% if run.status.value in ('succeeded', 'awaiting_continue') and run.stage_transition_artifacts_json %}
-<div style="display:flex;justify-content:flex-end;margin-top:0.75rem">
-  <a href="/admin/runs/{{ run.run_id }}/stage-artifacts.json" class="btn-secondary">⬇ Download Stage Artifacts JSON</a>
-</div>
-{% endif %}
 
 <script>
 function showTab(id) {
@@ -507,6 +521,48 @@ async function lifecycleAction(runId, action, btn) {
 </script>
 
 <style>
+.run-export-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(14rem, 1fr));
+  gap:0.75rem;
+}
+
+.run-export-link {
+  display:flex;
+  align-items:center;
+  gap:0.5rem;
+  padding:0.7rem 0.9rem;
+  border:1px solid var(--accent);
+  border-radius:10px;
+  background:rgba(255,255,255,0.02);
+  text-decoration:none;
+}
+
+.run-health-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(16rem, 1fr));
+  gap:0.85rem;
+}
+
+.run-health-tile {
+  padding:0.9rem 1rem;
+  border:1px solid var(--accent);
+  border-radius:12px;
+  background:rgba(255,255,255,0.02);
+}
+
+.run-health-label {
+  font-weight:600;
+  margin-bottom:0.2rem;
+}
+
+.fit-context-stack {
+  display:flex;
+  flex-direction:column;
+  gap:0.2rem;
+  min-width:11rem;
+}
+
 .enr-table th {
   position: sticky;
   top: 0;
