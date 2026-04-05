@@ -188,6 +188,16 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "group": "timing",
         "config_path": ["enrichment_concurrency"],
     },
+    # ── Run Lifecycle ─────────────────────────────────────────────────────────
+    {
+        "key": "run_lifecycle.max_runtime_minutes",
+        "type": "int",
+        "default": 240,
+        "label": "Maximum Run Duration (Minutes)",
+        "description": "Maximum allowed age for a non-terminal run before the control plane times it out and closes it automatically.",
+        "group": "run_lifecycle",
+        "config_path": ["run_lifecycle", "max_runtime_minutes"],
+    },
     # ── Ranking Policy ────────────────────────────────────────────────────────
     {
         "key": "ranking_weights.ai_score",
@@ -533,6 +543,9 @@ SETTINGS_SECTIONS: dict[str, list[str]] = {
         "rerank_sleep_secs",
         "enrichment_batch_size",
         "enrichment_concurrency",
+    ],
+    "run-lifecycle": [
+        "run_lifecycle.max_runtime_minutes",
     ],
     "global-job-filters": [
         "global_job_filters.applications_count_max",

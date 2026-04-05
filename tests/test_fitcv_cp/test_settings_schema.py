@@ -15,6 +15,7 @@ def test_all_expected_keys_present():
     assert "cv_analysis.semantic_alignment.enabled" in keys
     assert "cv_analysis.semantic_alignment.responsibility_lexical_weight" in keys
     assert "cv_analysis.semantic_alignment.domain_semantic_weight" in keys
+    assert "run_lifecycle.max_runtime_minutes" in keys
     assert "ranking_weights.ai_score" in keys
     assert "fit_label_thresholds.strong" in keys
     assert "gap_thresholds.strong_min_matched_ratio" in keys
@@ -171,6 +172,21 @@ def test_global_job_filters_validate_accepts_positive():
         "global_job_filters.applications_count_max": 200,
         "global_job_filters.max_age_days": 30,
     })  # must not raise
+
+
+def test_run_lifecycle_max_runtime_minutes_validate_accepts_positive() -> None:
+    validate_settings({"run_lifecycle.max_runtime_minutes": 240})
+
+
+def test_run_lifecycle_max_runtime_minutes_validate_rejects_zero() -> None:
+    with pytest.raises(ValidationError):
+        validate_settings({"run_lifecycle.max_runtime_minutes": 0})
+
+
+def test_apply_settings_to_config_run_lifecycle_writes_nested_path() -> None:
+    config: dict = {}
+    apply_settings_to_config(config, {"run_lifecycle.max_runtime_minutes": 180})
+    assert config["run_lifecycle"]["max_runtime_minutes"] == 180
 
 
 # ── rule_filter.selected_filters settings ────────────────────────────────────
@@ -350,6 +366,7 @@ def test_settings_sections_has_expected_slugs():
     assert set(SETTINGS_SECTIONS.keys()) == {
         "retrieval",
         "timing",
+        "run-lifecycle",
         "global-job-filters",
         "rule-filter",
     }

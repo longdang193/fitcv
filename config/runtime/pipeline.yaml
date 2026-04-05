@@ -20,6 +20,9 @@ pipeline:
   final_top_n: 10                      # canonical final ranked list size
   evidence_top_k: 5                    # canonical cv_analysis evidence bundle size
 
+run_lifecycle:
+  max_runtime_minutes: 240             # admin control-plane timeout guard for unfinished runs
+
 vector_top_n: 50                       # top-N returned by VECTOR_SEARCH
 vector_max_candidate_skills: 15        # max skills included in candidate query text
 retrieval_strategy: job_summary_v1     # stored in vector_shortlist.retrieval_strategy

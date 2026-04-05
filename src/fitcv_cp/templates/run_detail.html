@@ -10,6 +10,7 @@
     {% endif %}
     {% if can_continue_manual_run %}
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'continue', this)">Run Next Stage</button>
+      <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'stop', this)">Stop Run</button>
     {% elif run.status.value in ('queued', 'running') %}
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'stop', this)">Stop Run</button>
     {% elif is_stale_cancelling(run) %}

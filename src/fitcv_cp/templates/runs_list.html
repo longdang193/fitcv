@@ -12,6 +12,72 @@
   </div>
 </div>
 
+<style>
+  .runs-table {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .runs-table th,
+  .runs-table td {
+    vertical-align: top;
+    overflow: hidden;
+  }
+
+  .runs-table .col-select { width: 2.25rem; }
+  .runs-table .col-run-id { width: 5.5rem; }
+  .runs-table .col-status { width: 4.5rem; }
+  .runs-table .col-mode { width: 4.5rem; }
+  .runs-table .col-created-at { width: 6.5rem; }
+  .runs-table .col-duration { width: 4.5rem; }
+
+  .run-jobs-path {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: top;
+  }
+
+  .run-created-at {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  .run-status-text,
+  .run-mode-text {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+
+  .run-status-text[data-status="succeeded"] { color: var(--badge-success-fg); }
+  .run-status-text[data-status="failed"] { color: var(--badge-error-fg); }
+  .run-status-text[data-status="queued"],
+  .run-status-text[data-status="running"],
+  .run-status-text[data-status="awaiting_continue"],
+  .run-status-text[data-status="cancelling"] { color: var(--badge-info-fg); }
+  .run-status-text[data-status="cancelled"] { color: var(--text-muted); }
+
+  .run-mode-text {
+    color: var(--badge-info-fg);
+  }
+
+  .run-next-stage {
+    display: inline-block;
+    margin-top: 0.2rem;
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
+</style>
+
 <!-- ── Trigger Form ──────────────────────────────────────────────────────── -->
 <div class="section-card">
 
@@ -82,64 +148,70 @@
 
 <!-- ── Runs Table ─────────────────────────────────────────────────────────── -->
 <div class="section-card" style="padding:0;overflow:hidden">
-  <table>
+  <div id="bulk-action-bar" style="display:none;padding:0.75rem 1rem;border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+    <div class="meta"><strong id="selected-run-count">0 selected</strong></div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button type="button" class="btn-secondary" onclick="bulkLifecycleAction('cancel', this)">Cancel selected</button>
+      <button type="button" class="btn-secondary" onclick="bulkLifecycleAction('archive', this)">Archive selected</button>
+      <button type="button" class="btn-secondary" onclick="bulkLifecycleAction('unarchive', this)">Unarchive selected</button>
+    </div>
+  </div>
+  <table class="runs-table">
     <thead>
       <tr>
-        <th>Run ID</th>
-        <th>Status</th>
-        <th>Mode</th>
-        <th>Triggered By</th>
+        <th class="col-select" style="white-space:nowrap">
+          <input type="checkbox" id="select-all-runs" aria-label="Select visible runs" onchange="toggleSelectAllRuns(this)">
+        </th>
+        <th class="col-run-id">Run ID</th>
+        <th class="col-status">Status</th>
+        <th class="col-mode">Mode</th>
         <th>Jobs Path</th>
-        <th>Created At</th>
-        <th>Duration</th>
-        <th>Actions</th>
+        <th class="col-created-at">Created</th>
+        <th class="col-duration">Duration</th>
       </tr>
     </thead>
     <tbody>
       {% for run in runs %}
       <tr>
+        <td>
+          <input
+            type="checkbox"
+            name="selected_run_ids"
+            value="{{ run.run_id }}"
+            aria-label="Select run {{ run.run_id }}"
+            onchange="updateBulkActionBar()"
+          >
+        </td>
         <td><a href="/admin/runs/{{ run.run_id }}"><code>{{ run.run_id[:8] }}…</code></a></td>
         <td>
-          <span class="badge badge-{{ run.status.value }}">{{ run.status.value }}</span>
-          {% if run.archived_at %}<span class="badge badge-neutral" style="margin-left:0.25rem">archived</span>{% endif %}
+          <span class="run-status-text" data-status="{{ run.status.value }}">{{ run.status.value }}</span>
+          {% if run.archived_at %}<div class="meta" style="margin-top:0.15rem">archived</div>{% endif %}
         </td>
         <td class="meta">
-          <span class="badge badge-info">{{ 'Manual staged' if run.run_mode == 'manual_staged' else 'Automatic' }}</span>
+          <span class="run-mode-text">{{ 'Manual' if run.run_mode == 'manual_staged' else 'Auto' }}</span>
           {% if run.status.value == 'awaiting_continue' and run.next_stage %}
-          <div style="margin-top:0.3rem"><code>next: {{ run.next_stage }}</code></div>
+          <div class="run-next-stage"><code>next: {{ run.next_stage }}</code></div>
           {% endif %}
         </td>
-        <td>{{ run.triggered_by }}</td>
-        <td><code>{{ run.jobs_path }}</code></td>
-        <td class="meta">{{ run.created_at.strftime('%Y-%m-%d %H:%M:%S') if run.created_at else '—' }}</td>
+        <td><code class="run-jobs-path" title="{{ run.jobs_path }}">{{ run.jobs_path }}</code></td>
+        <td class="meta">
+          {% if run.created_at %}
+          <span class="run-created-at">
+            <span>{{ run.created_at.strftime('%Y-%m-%d') }}</span>
+            <span>{{ run.created_at.strftime('%H:%M:%S') }}</span>
+          </span>
+          {% else %}
+          —
+          {% endif %}
+        </td>
         <td class="meta">
           {% if run.started_at and run.finished_at %}
             {{ ((run.finished_at - run.started_at).total_seconds() | int) }}s
           {% else %}—{% endif %}
         </td>
-        <td class="meta" style="white-space:nowrap">
-          {% if run.status.value == 'awaiting_continue' and run.run_mode == 'manual_staged' %}
-            <button class="btn-secondary" style="font-size:0.8rem;padding:0.2rem 0.6rem"
-                    onclick="lifecycleAction('{{ run.run_id }}', 'continue', this)">Run Next Stage</button>
-          {% elif run.status.value in ('queued', 'running') %}
-            <button class="btn-secondary" style="font-size:0.8rem;padding:0.2rem 0.6rem"
-                    onclick="lifecycleAction('{{ run.run_id }}', 'stop', this)">Stop Run</button>
-          {% elif is_stale_cancelling(run) %}
-            <button class="btn-secondary" style="font-size:0.8rem;padding:0.2rem 0.6rem"
-                    onclick="lifecycleAction('{{ run.run_id }}', 'repair-cancellation', this)">Repair Status</button>
-          {% elif run.status.value in ('succeeded', 'failed', 'cancelled') and not run.archived_at %}
-            <button class="btn-secondary" style="font-size:0.8rem;padding:0.2rem 0.6rem"
-                    onclick="lifecycleAction('{{ run.run_id }}', 'archive', this)">Archive</button>
-          {% elif run.archived_at %}
-            <button class="btn-secondary" style="font-size:0.8rem;padding:0.2rem 0.6rem"
-                    onclick="lifecycleAction('{{ run.run_id }}', 'unarchive', this)">Unarchive</button>
-          {% else %}
-            <span class="meta">—</span>
-          {% endif %}
-        </td>
       </tr>
       {% else %}
-      <tr class="empty-row"><td colspan="8">No runs yet</td></tr>
+      <tr class="empty-row"><td colspan="7">No runs yet</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -222,36 +294,149 @@ async function triggerRun() {
   }
 }
 
-async function lifecycleAction(runId, action, btn) {
-  btn.disabled = true;
-  const origText = btn.textContent;
-  btn.textContent = '…';
-  // Preserve current view filter
-  const currentView = new URLSearchParams(location.search).get('view') || 'active';
+function showLifecycleBanner(message, kind = 'info') {
+  let banner = document.getElementById('lifecycle-error-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'lifecycle-error-banner';
+    banner.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);padding:0.75rem 1.5rem;border-radius:8px;z-index:9999;font-size:0.9rem;border:1px solid transparent';
+    document.body.appendChild(banner);
+  }
+  const styles = {
+    success: {
+      background: 'var(--badge-success-bg)',
+      color: 'var(--badge-success-fg)',
+      border: 'var(--badge-success-fg)',
+    },
+    error: {
+      background: 'var(--badge-error-bg)',
+      color: 'var(--badge-error-fg)',
+      border: 'var(--badge-error-fg)',
+    },
+    info: {
+      background: 'var(--badge-info-bg)',
+      color: 'var(--badge-info-fg)',
+      border: 'var(--badge-info-fg)',
+    },
+  };
+  const tone = styles[kind] || styles.info;
+  banner.style.background = tone.background;
+  banner.style.color = tone.color;
+  banner.style.borderColor = tone.border;
+  banner.textContent = message;
+  setTimeout(() => { if (banner) banner.remove(); }, 4000);
+}
+
+function persistLifecycleNotice(message, kind = 'success') {
   try {
-    const resp = await fetch('/admin/runs/' + runId + '/' + action, { method: 'POST' });
-    if (resp.ok) {
-      // Reload with same view filter
-      location.href = '/admin/runs?view=' + currentView;
-    } else {
-      const body = await resp.json().catch(() => ({ detail: resp.statusText }));
-      // Show inline error without losing page state
-      let banner = document.getElementById('lifecycle-error-banner');
-      if (!banner) {
-        banner = document.createElement('div');
-        banner.id = 'lifecycle-error-banner';
-        banner.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);background:var(--badge-error-bg);color:var(--badge-error-fg);border:1px solid var(--badge-error-fg);padding:0.75rem 1.5rem;border-radius:8px;z-index:9999;font-size:0.9rem';
-        document.body.appendChild(banner);
-      }
-      banner.textContent = '⚠ ' + (body.detail || 'Action failed');
-      setTimeout(() => { if (banner) banner.remove(); }, 4000);
-      btn.disabled = false;
-      btn.textContent = origText;
-    }
+    sessionStorage.setItem('fitcv-run-list-lifecycle-notice', JSON.stringify({ message, kind }));
   } catch (e) {
-    btn.disabled = false;
-    btn.textContent = origText;
+    // Ignore storage failures; the redirect still refreshes the page state.
   }
 }
+
+function restoreLifecycleNotice() {
+  try {
+    const raw = sessionStorage.getItem('fitcv-run-list-lifecycle-notice');
+    if (!raw) {
+      return;
+    }
+    sessionStorage.removeItem('fitcv-run-list-lifecycle-notice');
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.message) {
+      showLifecycleBanner(parsed.message, parsed.kind || 'success');
+    }
+  } catch (e) {
+    // Ignore malformed or unavailable storage.
+  }
+}
+
+function selectedRunCheckboxes() {
+  return Array.from(document.querySelectorAll('input[name="selected_run_ids"]'));
+}
+
+function selectedRunIds() {
+  return selectedRunCheckboxes()
+    .filter((checkbox) => checkbox.checked)
+    .map((checkbox) => checkbox.value);
+}
+
+function updateBulkActionBar() {
+  const checkboxes = selectedRunCheckboxes();
+  const selected = selectedRunIds();
+  const bar = document.getElementById('bulk-action-bar');
+  const count = document.getElementById('selected-run-count');
+  const selectAll = document.getElementById('select-all-runs');
+  if (count) {
+    count.textContent = selected.length === 1 ? '1 selected' : `${selected.length} selected`;
+  }
+  if (bar) {
+    bar.style.display = selected.length ? 'flex' : 'none';
+  }
+  if (selectAll) {
+    selectAll.checked = checkboxes.length > 0 && selected.length === checkboxes.length;
+    selectAll.indeterminate = selected.length > 0 && selected.length < checkboxes.length;
+  }
+}
+
+function toggleSelectAllRuns(source) {
+  selectedRunCheckboxes().forEach((checkbox) => {
+    checkbox.checked = source.checked;
+  });
+  updateBulkActionBar();
+}
+
+async function bulkLifecycleAction(action, btn) {
+  const runIds = selectedRunIds();
+  if (!runIds.length) {
+    alert('Select at least one run first.');
+    return;
+  }
+
+  const actionLabel = {
+    cancel: 'cancel',
+    archive: 'archive',
+    unarchive: 'unarchive',
+  }[action] || action;
+  if (!confirm(`Apply "${actionLabel}" to ${runIds.length} selected run(s)?`)) {
+    return;
+  }
+
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '…';
+  const currentView = new URLSearchParams(location.search).get('view') || 'active';
+  try {
+    const resp = await fetch(`/admin/runs/bulk/${action}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ run_ids: runIds }),
+    });
+    const body = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      alert(body.detail || 'Bulk action failed');
+      return;
+    }
+    const skipped = Number(body.skipped || 0);
+    const processed = Number(body.processed || 0);
+    const actionLabel = {
+      cancel: 'Cancelled',
+      archive: 'Archived',
+      unarchive: 'Unarchived',
+    }[action] || 'Updated';
+    const summary = skipped > 0
+      ? `${actionLabel} ${processed} run(s); skipped ${skipped}.`
+      : `${actionLabel} ${processed} run(s).`;
+    persistLifecycleNotice(summary, skipped > 0 ? 'info' : 'success');
+    location.href = '/admin/runs?view=' + currentView;
+  } catch (e) {
+    alert('Bulk action failed');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+restoreLifecycleNotice();
 </script>
 {% endblock %}

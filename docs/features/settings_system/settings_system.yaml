@@ -1,9 +1,9 @@
 settings_system:
   name: Settings System
-  version: 2.8.0
+  version: 2.9.0
   status: active
   type: add
-  summary: Admins can view and edit pipeline tuning defaults through the admin UI, including richer ranking calibration surfaces and `cv_analysis` hybrid semantic-alignment controls, while baseline defaults now resolve from centralized YAML/config ownership instead of drifting as duplicated schema literals, persisted overrides still live in BigQuery, the canonical config room is organized into responsibility-based `config/runtime`, `config/policy`, and `config/taxonomy` subfolders, dormant CV content-rule toggles are no longer presented as live settings, and metadata-only CV fields such as `cv_prompt_version` and legacy `cv_template_path` are no longer exposed as active admin controls.
+  summary: Admins can view and edit pipeline tuning defaults through the admin UI, including richer ranking calibration surfaces, `cv_analysis` hybrid semantic-alignment controls, and a lifecycle max-runtime guard, while baseline defaults now resolve from centralized YAML/config ownership instead of drifting as duplicated schema literals, persisted overrides still live in BigQuery, the canonical config room is organized into responsibility-based `config/runtime`, `config/policy`, and `config/taxonomy` subfolders, dormant CV content-rule toggles are no longer presented as live settings, and metadata-only CV fields such as `cv_prompt_version` and legacy `cv_template_path` are no longer exposed as active admin controls.
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -15,6 +15,7 @@ settings_system:
     - Settings schema registry
     - Retrieval settings
     - Timing and throttling settings
+    - Run lifecycle timeout settings
     - Global job filters
     - Ranking settings with six-feature sum-to-one validation
     - Explicit zero-weight semantics for supported ranking features

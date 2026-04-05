@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 2.9.0 — active
+
+- The admin settings UI now exposes `run_lifecycle.max_runtime_minutes` as the server-owned timeout guard for unfinished runs
+- This lifecycle setting lives outside the CV surface and keeps timeout ownership with the control plane instead of ad-hoc UI behavior
+
 ### 2.8.0 — active
 
 - The admin settings UI no longer exposes metadata-only `cv_prompt_version` or legacy `cv_template_path` as if they were live runtime controls

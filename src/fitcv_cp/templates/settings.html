@@ -162,6 +162,7 @@
 {% for section_slug, section_label, section_helper in [
     ("retrieval",          "Retrieval Settings",   "Controls how many jobs are retrieved, scored, and surfaced per run."),
     ("timing",             "Timing Settings",      "Sleep delays between API calls to avoid rate-limiting."),
+    ("run-lifecycle",      "Run Lifecycle Settings", "Server-owned timeout and lifecycle guardrails for unfinished runs."),
     ("global-job-filters", "Global Job Filters",   "System-wide filters applied before enrichment. Jobs failing these are never sent to the LLM."),
     ("rule-filter",        "Rule Filter Settings", "Choose which deterministic post-enrichment rule filters block jobs versus only mark them for downstream inspection."),
 ] %}
