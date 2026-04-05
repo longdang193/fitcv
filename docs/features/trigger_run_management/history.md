@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.11.0 — active
+
+- Run detail now gates stage-owned exports by stage reachability so files like `Mapping Suggestions JSON` are not offered prematurely
+- The timeline now keeps stage JSON download links on aggregate stage rows instead of repeating them on per-job subevents
+- The synonym-overlay card now exposes the actual YAML snapshot when available, making run-scoped synonym inspection more actionable
+
 ### 2.10.0 — active
 
 - Runs page now lets operators attach a run-scoped synonym-overlay YAML before trigger for both `Run All` and `Stage by Stage`

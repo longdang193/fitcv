@@ -36,6 +36,20 @@ from fitcv_cp.models import RunEvent, RunStatus
 logger = logging.getLogger(__name__)
 _MAX_DEBUG_MARKDOWN_CHARS = 4000
 _LATE_STAGE_REUSE_RUN_SCAN_LIMIT = 50
+_SETTINGS_COMPATIBILITY_KEYS = {
+    "vector_top_n",
+    "rerank_top_n",
+    "cv_generation_model",
+    "prompt_version",
+    "cv_max_pages",
+    "required_cv_sections",
+}
+_CV_GENERATION_ATTEMPTED_STATUSES = {
+    "accepted",
+    "validation_failed",
+    "generation_failed",
+    "persistence_failed",
+}
 
 
 def _get_bq() -> bigquery.Client:
@@ -93,8 +107,12 @@ def _build_results_export_payload(
     def _iso_or_none(value: Any) -> str | None:
         return value.isoformat() if isinstance(value, datetime.datetime) else None
 
+    diagnostic_support = {
+        "late_stage_reuse_snapshots": _json_safe(summary.get("late_stage_reuse_snapshots") or {}),
+    }
     payload = {
         "run_id": run_id,
+        "results_schema_version": "results_job_ledger_v1",
         "status": RunStatus.SUCCEEDED.value,
         "triggered_by": _string_or_none(getattr(run_record, "triggered_by", "")) or "",
         "created_at": _iso_or_none(getattr(run_record, "created_at", None)),
@@ -109,12 +127,10 @@ def _build_results_export_payload(
             "ranked": int(summary.get("ranked", 0)),
             "cvs_generated": int(summary.get("cvs_generated", 0)),
         },
-        "shortlist_debug": _json_safe(summary.get("shortlist_debug") or {}),
-        "stage_quality_metrics": _json_safe(summary.get("stage_quality_metrics") or {}),
-        "late_stage_reuse_metrics": _json_safe(summary.get("late_stage_reuse_metrics") or {}),
-        "late_stage_reuse_snapshots": _json_safe(summary.get("late_stage_reuse_snapshots") or {}),
         "results": _json_safe(export_results),
     }
+    if diagnostic_support["late_stage_reuse_snapshots"]:
+        payload["diagnostic_support"] = diagnostic_support
     return json.dumps(payload, ensure_ascii=False)
 
 
@@ -157,7 +173,12 @@ def _collect_late_stage_reuse_snapshots(
                 exc,
             )
             continue
-        reuse_payload = dict(payload.get("late_stage_reuse_snapshots") or {})
+        diagnostic_support = dict(payload.get("diagnostic_support") or {})
+        reuse_payload = dict(
+            diagnostic_support.get("late_stage_reuse_snapshots")
+            or payload.get("late_stage_reuse_snapshots")
+            or {}
+        )
         snapshots["ranking_ai_scores"].extend(
             [
                 dict(item)
@@ -193,13 +214,28 @@ def _build_cv_generation_debug_payload(
         for record in list(summary.get("cv_generation_debug_records") or [])
     ]
     ranked_jobs_total = int(summary.get("ranked", 0))
+    attempted_generation_jobs_total = sum(
+        1
+        for record in debug_records
+        if str(record.get("status") or "") in _CV_GENERATION_ATTEMPTED_STATUSES
+    )
+    omission_reason_counts: dict[str, int] = {}
+    for record in debug_records:
+        status = str(record.get("status") or "")
+        if status in _CV_GENERATION_ATTEMPTED_STATUSES:
+            continue
+        omission_reason_counts[status] = omission_reason_counts.get(status, 0) + 1
+    non_attempted_ranked_jobs_total = sum(omission_reason_counts.values())
     payload = {
         "run_id": run_id,
         "status": RunStatus.SUCCEEDED.value,
-        "debug_schema_version": "cv_generation_debug_v1",
+        "debug_schema_version": "cv_generation_debug_v2",
         "created_at": finished_at.isoformat(),
         "ranked_jobs_total": ranked_jobs_total,
         "debug_records_captured": len(debug_records),
+        "attempted_generation_jobs_total": attempted_generation_jobs_total,
+        "non_attempted_ranked_jobs_total": non_attempted_ranked_jobs_total,
+        "omission_reason_counts": omission_reason_counts,
         "snapshot_complete": len(debug_records) == ranked_jobs_total,
         "debug_records": debug_records,
     }
@@ -250,11 +286,17 @@ def _build_settings_used_payload(
     config_path: str,
     finished_at: datetime.datetime,
 ) -> str:
+    effective_settings = dict(effective_config or {})
+    compatibility_projection = {
+        key: effective_settings.pop(key)
+        for key in list(effective_settings.keys())
+        if key in _SETTINGS_COMPATIBILITY_KEYS
+    }
     payload = {
         "run_id": run_id,
-        "settings_schema_version": "settings_used_v1",
+        "settings_schema_version": "settings_used_v2",
         "created_at": finished_at.isoformat(),
-        "effective_settings": effective_config or {},
+        "effective_settings": effective_settings,
         "sources": {
             "config_path": str(config_path or getattr(run_record, "config_path", "") or ""),
             "effective_settings_snapshot_present": effective_config is not None,
@@ -272,6 +314,8 @@ def _build_settings_used_payload(
             ),
         },
     }
+    if compatibility_projection:
+        payload["compatibility_projection"] = compatibility_projection
     return json.dumps(payload, ensure_ascii=False)
 
 

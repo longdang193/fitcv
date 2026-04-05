@@ -42,7 +42,13 @@ from fitcv.candidate import (
     load_profile_json_text,
     load_profile_yaml,
 )
-from fitcv.config import CV_SECTION_KEY_TO_NAME, load_config
+from fitcv.config import (
+    CV_SECTION_KEY_TO_NAME,
+    get_cv_generation_model,
+    get_cv_generation_prompt_version,
+    get_gemini_model,
+    load_config,
+)
 from fitcv.cv_generator import generate_cv
 from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
 from fitcv.enrich import (
@@ -144,6 +150,22 @@ def _extract_job_url(job: dict[str, Any]) -> str:
 
 def _extract_job_title(job: dict[str, Any]) -> str:
     return str(job.get("title") or job.get("job_title") or "")
+
+
+def _prompt_runtime_metadata(
+    config: dict[str, Any],
+    *,
+    stage_id: str,
+    prompt_key: str,
+) -> dict[str, str]:
+    stage_block = dict((config.get("prompts_runtime") or {}).get(stage_id) or {})
+    prompt_block = dict(stage_block.get(prompt_key) or {})
+    return {
+        "prompt_id": str(prompt_block.get("prompt_id") or ""),
+        "prompt_version": str(prompt_block.get("version") or ""),
+        "template_path": str(prompt_block.get("template_path") or ""),
+        "stage_id": str(prompt_block.get("stage_id") or ""),
+    }
 
 
 def _normalize_shortlist_row(shortlist_row: dict[str, Any]) -> dict[str, Any]:
@@ -479,6 +501,8 @@ def _build_export_results(
                 "ranking_fit_label": cv_row.get("ranking_fit_label") or cv_row.get("fit_classification"),
                 "fit_classification": cv_row.get("fit_classification"),
                 "model_used": cv_row.get("cv_generation_model"),
+                "prompt_id": cv_row.get("cv_prompt_id"),
+                "prompt_template_path": cv_row.get("cv_prompt_template_path"),
                 "prompt_version": cv_row.get("cv_prompt_version"),
                 "schema_version": (
                     cv_row.get("structured_cv", {}) or {}
@@ -1139,6 +1163,8 @@ def _build_cv_generation_debug_record(
     markdown_final: str | None,
     enabled_sections: list[str] | None,
     cv_generation_model: str | None,
+    cv_prompt_id: str | None,
+    cv_prompt_template_path: str | None,
     cv_prompt_version: str | None,
     error: dict[str, str] | None,
 ) -> dict[str, Any]:
@@ -1170,6 +1196,8 @@ def _build_cv_generation_debug_record(
         "markdown_final": markdown_final,
         "enabled_sections": list(enabled_sections or []),
         "cv_generation_model": cv_generation_model,
+        "cv_prompt_id": cv_prompt_id,
+        "cv_prompt_template_path": cv_prompt_template_path,
         "cv_prompt_version": cv_prompt_version,
         "error": error,
     }
@@ -1229,9 +1257,9 @@ def _stage_block_not_reached(stage: str) -> dict[str, Any]:
         "input_counts": {},
         "output_counts": {},
         "decision_summary": {},
-        "inputs_sample": [],
         "outputs_sample": [],
         "dropped_or_changed_sample": [],
+        "inputs_sample": [],
     }
 
 
@@ -1563,6 +1591,8 @@ def _debug_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | None
         "repair_attempt": record.get("repair_attempt"),
         "enabled_sections": record.get("enabled_sections"),
         "cv_generation_model": record.get("cv_generation_model"),
+        "cv_prompt_id": record.get("cv_prompt_id"),
+        "cv_prompt_template_path": record.get("cv_prompt_template_path"),
         "cv_prompt_version": record.get("cv_prompt_version"),
         "structured_cv_final": record.get("structured_cv_final"),
         "markdown_final": record.get("markdown_final"),
@@ -1591,6 +1621,8 @@ def _debug_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | Non
         "repair_attempt": record.get("repair_attempt"),
         "enabled_sections": record.get("enabled_sections"),
         "cv_generation_model": record.get("cv_generation_model"),
+        "cv_prompt_id": record.get("cv_prompt_id"),
+        "cv_prompt_template_path": record.get("cv_prompt_template_path"),
         "cv_prompt_version": record.get("cv_prompt_version"),
         "structured_cv_final": record.get("structured_cv_final"),
         "error": record.get("error"),
@@ -1617,9 +1649,9 @@ def _stage_block(
         "input_counts": input_counts,
         "output_counts": output_counts,
         "decision_summary": decision_summary,
-        "inputs_sample": inputs_sample,
         "outputs_sample": outputs_sample,
         "dropped_or_changed_sample": dropped_or_changed_sample,
+        "inputs_sample": inputs_sample,
     }
     if settings_refs:
         block["settings_refs"] = settings_refs
@@ -1763,6 +1795,16 @@ def _build_stage_transition_artifacts(
         elif status == "persistence_failed":
             cv_status_counts["persistence_failed_count"] += 1
     enrich_prompt_provenance = get_enrich_prompt_provenance(config)
+    ranking_prompt_provenance = _prompt_runtime_metadata(
+        config,
+        stage_id="ranking",
+        prompt_key="ai_score",
+    )
+    cv_generation_prompt_provenance = _prompt_runtime_metadata(
+        config,
+        stage_id="cv_generation",
+        prompt_key="structured_write",
+    )
     enrich_reuse_counts = {
         "reused_rows": sum(
             1 for job in enriched
@@ -1816,7 +1858,7 @@ def _build_stage_transition_artifacts(
     cv_generation_quality_metrics = _build_cv_generation_quality_metrics(cv_generation_debug_records)
 
     return {
-        "schema_version": "stage_transition_artifacts_v5",
+        "schema_version": "stage_transition_artifacts_v6",
         "stages": {
             "normalize": _stage_block(
                 stage_id="normalize",
@@ -2021,6 +2063,10 @@ def _build_stage_transition_artifacts(
                     "ranking_fit_label_counts": ranking_fit_distribution,
                     "quality_metrics": ranking_quality_metrics,
                     "reuse_metrics": ranking_reuse_metrics,
+                    "ranking_prompt_id": ranking_prompt_provenance["prompt_id"],
+                    "ranking_prompt_version": ranking_prompt_provenance["prompt_version"],
+                    "ranking_prompt_template_path": ranking_prompt_provenance["template_path"],
+                    "ai_score_model": get_gemini_model(config),
                     "configured_ranking_weights": ranking_weights,
                     "configured_missing_value_defaults": ranking_defaults,
                     "configured_preference_fit_weights": preference_fit_weights,
@@ -2044,6 +2090,7 @@ def _build_stage_transition_artifacts(
                     "missing_value_defaults",
                     "fit_label_thresholds",
                     "pipeline.final_top_n",
+                    "prompts.ranking.ai_score.prompt_id",
                 ],
             ) if ranking_reached else _stage_block_not_reached("ranking"),
             "cv_analysis": _stage_block(
@@ -2165,8 +2212,10 @@ def _build_stage_transition_artifacts(
                         if str(record.get("status") or "") == "ready_for_generation"
                     ),
                     "quality_metrics": cv_generation_quality_metrics,
-                    "cv_generation_model": str(config.get("cv", {}).get("generation", {}).get("model") or ""),
-                    "cv_prompt_version": str(config.get("cv", {}).get("generation", {}).get("prompt_version") or ""),
+                    "cv_generation_model": get_cv_generation_model(config),
+                    "cv_prompt_id": cv_generation_prompt_provenance["prompt_id"],
+                    "cv_prompt_version": get_cv_generation_prompt_version(config),
+                    "cv_prompt_template_path": cv_generation_prompt_provenance["template_path"],
                 },
                 inputs_sample=_sample_rows(
                     [record for record in cv_analysis_results if str(record.get("status") or "") == "ready_for_generation"],
@@ -2180,7 +2229,7 @@ def _build_stage_transition_artifacts(
                     ],
                     _debug_record_changed_sample,
                 ),
-                settings_refs=["cv.generation.model", "cv.generation.prompt_version"],
+                settings_refs=["cv.generation.model", "prompts.cv_generation.structured_write.prompt_id"],
             ) if cv_generation_reached else _stage_block_not_reached("cv_generation"),
         },
     }
@@ -2704,8 +2753,15 @@ def run_pipeline(
         _merge_ranked_job_with_enriched_context(job, enriched_by_url)
         for job in ranked
     ]
-    cv_generation_model_value = str(config.get("cv", {}).get("generation", {}).get("model") or "")
-    cv_prompt_version_value = str(config.get("cv", {}).get("generation", {}).get("prompt_version") or "")
+    cv_generation_prompt_runtime = _prompt_runtime_metadata(
+        config,
+        stage_id="cv_generation",
+        prompt_key="structured_write",
+    )
+    cv_generation_model_value = get_cv_generation_model(config)
+    cv_prompt_id_value = cv_generation_prompt_runtime["prompt_id"]
+    cv_prompt_template_path_value = cv_generation_prompt_runtime["template_path"]
+    cv_prompt_version_value = get_cv_generation_prompt_version(config)
     enabled_cv_sections = _cv_generation_enabled_sections(config)
     if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("cv_analysis"):
         if cancellation_check and cancellation_check():
@@ -2747,6 +2803,8 @@ def run_pipeline(
                             markdown_final=None,
                             enabled_sections=enabled_cv_sections,
                             cv_generation_model=cv_generation_model_value,
+                            cv_prompt_id=cv_prompt_id_value,
+                            cv_prompt_template_path=cv_prompt_template_path_value,
                             cv_prompt_version=cv_prompt_version_value,
                             error=debug_error if isinstance(debug_error, dict) else None,
                         )
@@ -2853,6 +2911,8 @@ def run_pipeline(
                             markdown_final=None,
                             enabled_sections=enabled_cv_sections,
                             cv_generation_model=cv_generation_model_value,
+                            cv_prompt_id=cv_prompt_id_value,
+                            cv_prompt_template_path=cv_prompt_template_path_value,
                             cv_prompt_version=cv_prompt_version_value,
                             error=analysis_record["error"],
                         )
@@ -2909,6 +2969,8 @@ def run_pipeline(
                         markdown_final=None,
                         enabled_sections=enabled_cv_sections,
                         cv_generation_model=cv_generation_model_value,
+                        cv_prompt_id=cv_prompt_id_value,
+                        cv_prompt_template_path=cv_prompt_template_path_value,
                         cv_prompt_version=cv_prompt_version_value,
                         error=analysis_record["error"],
                     )
@@ -3050,6 +3112,8 @@ def run_pipeline(
                         markdown_final=None,
                         enabled_sections=enabled_cv_sections,
                         cv_generation_model=cv_generation_model_value,
+                        cv_prompt_id=cv_prompt_id_value,
+                        cv_prompt_template_path=cv_prompt_template_path_value,
                         cv_prompt_version=cv_prompt_version_value,
                         error={
                             "stage": "validation",
@@ -3071,13 +3135,13 @@ def run_pipeline(
                 ai_score=float(job.get("ai_score") or 0.0),
                 final_score=float(job.get("final_score") or 0.0),
                 evidence_ids=[str(e.get("evidence_id") or "") for e in evidence],
-                prompt_version=str(config["cv"]["generation"]["prompt_version"]),
+                prompt_version=cv_prompt_version_value,
                 cv_markdown=cv,
                 gap_summary=gap,
                 fit_classification=fit,
                 cv_structured=structured_cv,
-                cv_generation_model=str(config["cv"]["generation"]["model"]),
-                cv_prompt_version=str(config["cv"]["generation"]["prompt_version"]),
+                cv_generation_model=cv_generation_model_value,
+                cv_prompt_version=cv_prompt_version_value,
             )
             store_cv_version(version, config)
             results.append({
@@ -3087,8 +3151,10 @@ def run_pipeline(
                 "cv_version_id": version["version_id"],
                 "gap": gap,
                 "structured_cv": structured_cv,
-                "cv_generation_model": str(config["cv"]["generation"]["model"]),
-                "cv_prompt_version": str(config["cv"]["generation"]["prompt_version"]),
+                "cv_generation_model": cv_generation_model_value,
+                "cv_prompt_id": cv_prompt_id_value,
+                "cv_prompt_template_path": cv_prompt_template_path_value,
+                "cv_prompt_version": cv_prompt_version_value,
                 "cv_markdown": cv,
                 "generated_at": version.get("generated_at"),
                 "fit_classification": fit,
@@ -3109,6 +3175,8 @@ def run_pipeline(
                     markdown_final=markdown_final,
                     enabled_sections=enabled_cv_sections,
                     cv_generation_model=cv_generation_model_value,
+                    cv_prompt_id=cv_prompt_id_value,
+                    cv_prompt_template_path=cv_prompt_template_path_value,
                     cv_prompt_version=cv_prompt_version_value,
                     error=None,
                 )
@@ -3135,6 +3203,8 @@ def run_pipeline(
                     markdown_final=markdown_final if failure_status == "persistence_failed" else None,
                     enabled_sections=enabled_cv_sections,
                     cv_generation_model=cv_generation_model_value,
+                    cv_prompt_id=cv_prompt_id_value,
+                    cv_prompt_template_path=cv_prompt_template_path_value,
                     cv_prompt_version=cv_prompt_version_value,
                     error={
                         "stage": failure_stage,

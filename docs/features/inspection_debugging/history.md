@@ -2,6 +2,24 @@
 
 ## Changelog
 
+### 2.17.0 — active
+
+- `results.json` now stays job-centric as the run ledger, while `stage-artifacts.json` remains the bundled diagnostics export for stage-owned metrics, reuse, and samples
+- Run detail now derives `Run Health` from stage-transition artifacts instead of relying on overlapping run-results diagnostic blocks
+- Late-stage reuse snapshots remain available for internal reuse lookup, but they now live under a bounded diagnostic-support block instead of the main operator-facing results ledger
+
+### 2.16.0 — active
+
+- Run-detail exports are now stage-gated, so stage-owned downloads such as `Mapping Suggestions JSON` only appear after the owning stage has actually been reached
+- The synonym-overlay card now shows a collapsible YAML snapshot instead of relying on `Effective Synonyms: N` as the primary inspection signal
+- Event timeline rows now use humanized stage labels, compact aggregate stage summaries, aggregate-only stage download links, and severity-based `Run Health` tiles for faster diagnosis
+
+### 2.15.0 — active
+
+- `settings-used.json` now keeps canonical operator-facing settings in `effective_settings` and moves compatibility-era flat keys into an explicit `compatibility_projection` block when present
+- Ranking-stage artifacts now expose the active AI-score prompt ID, template path, and model, while `cv_generation` artifacts and debug snapshots expose the active structured writer prompt ID and template path
+- `cv-debug.json` now reports attempted-vs-non-attempted ranked-job coverage plus omission reasons so `snapshot_complete` is easier to interpret without cross-referencing other exports
+
 ### 2.13.0 — active
 
 - Run detail now exposes a compact `Late-Stage Reuse` section for `ranking` AI-score reuse and `cv_analysis` reuse

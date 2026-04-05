@@ -2,6 +2,16 @@
 
 ## Changelog
 
+### 1.26.0 — active
+
+- Final run exports now keep `results.json` focused on the per-job outcome ledger, while stage-owned diagnostics remain in `stage-artifacts.json` and per-stage artifacts
+- Late-stage reuse snapshots remain available for exact-match reuse lookup, but they now live under an internal diagnostic-support block instead of the main operator-facing run-results surface
+
+### 1.25.0 — active
+
+- `cv_generation` validation now rejects unresolved candidate-name placeholders such as `[Candidate Name]` instead of accepting them as valid output
+- CV-generation diagnostics now report the active structured prompt identity directly, rather than relying on `cv_prompt_version` as the only provenance breadcrumb
+
 ### 1.24.0 — active
 
 - `cv_prompt_version` is no longer presented as an operator-facing CV setting; active prompt selection remains owned by `config/runtime/prompts.yaml` and the prompt registry

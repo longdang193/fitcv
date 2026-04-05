@@ -37,12 +37,6 @@ def test_worker_persists_results_export_json_on_success():
         "passed_filter": 3,
         "ranked": 2,
         "cvs_generated": 1,
-        "shortlist_debug": {
-            "vector_search_top_n": 50,
-            "passed_jobs_total": 3,
-            "shortlisted_jobs_total": 2,
-            "candidate_query_text": "Candidate: Senior Data Engineer",
-        },
         "export_results": [{"job_url": "https://example.com/1", "pipeline_status": "ranked_with_cv"}],
     }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
@@ -54,8 +48,11 @@ def test_worker_persists_results_export_json_on_success():
     stored_json = mock_store_export.call_args.args[1]
     payload = json.loads(stored_json)
     assert payload["run_id"] == "r1"
+    assert payload["results_schema_version"] == "results_job_ledger_v1"
     assert payload["summary"]["ranked"] == 2
-    assert payload["shortlist_debug"]["shortlisted_jobs_total"] == 2
+    assert "stage_quality_metrics" not in payload
+    assert "late_stage_reuse_metrics" not in payload
+    assert "shortlist_debug" not in payload
     assert payload["results"][0]["job_url"] == "https://example.com/1"
 
 
@@ -111,7 +108,7 @@ def test_worker_persists_structured_cv_fields_in_results_export_json():
     assert payload["results"][0]["cv"]["structured"] == structured_cv
 
 
-def test_worker_persists_stage_quality_metrics_in_results_export_json():
+def test_worker_excludes_stage_quality_metrics_from_results_export_json():
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
@@ -148,11 +145,10 @@ def test_worker_persists_stage_quality_metrics_in_results_export_json():
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     payload = json.loads(mock_store_export.call_args.args[1])
-    assert payload["stage_quality_metrics"]["shortlist"]["backfill_rate"] == 0.0
-    assert payload["stage_quality_metrics"]["cv_generation"]["accepted_rate"] == 0.5
+    assert "stage_quality_metrics" not in payload
 
 
-def test_worker_persists_late_stage_reuse_payload_in_results_export_json():
+def test_worker_moves_late_stage_reuse_snapshots_under_diagnostic_support():
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
@@ -193,13 +189,12 @@ def test_worker_persists_late_stage_reuse_payload_in_results_export_json():
     }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.list_runs", return_value=[]), \
-       patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export:
+        patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     payload = json.loads(mock_store_export.call_args.args[1])
-    assert payload["late_stage_reuse_metrics"]["ranking"]["reused_ai_scores"] == 1
-    assert payload["late_stage_reuse_metrics"]["cv_analysis"]["reuse_rate"] == 1.0
-    assert payload["late_stage_reuse_snapshots"]["schema_version"] == "late_stage_reuse_v1"
+    assert "late_stage_reuse_metrics" not in payload
+    assert payload["diagnostic_support"]["late_stage_reuse_snapshots"]["schema_version"] == "late_stage_reuse_v1"
 
 
 def test_worker_passes_collected_late_stage_reuse_snapshots_to_run_pipeline():
@@ -218,14 +213,16 @@ def test_worker_passes_collected_late_stage_reuse_snapshots_to_run_pipeline():
     prior_run.run_id = "prior-run"
     prior_run.status = RunStatus.SUCCEEDED
     prior_run.results_export_json = json.dumps({
-        "late_stage_reuse_snapshots": {
-            "schema_version": "late_stage_reuse_v1",
-            "ranking_ai_scores": [
-                {"job_url": "https://example.com/1", "ai_score_input_fingerprint": "fp-1", "ai_score_row": {"job_url": "https://example.com/1"}}
-            ],
-            "cv_analysis_records": [
-                {"job_url": "https://example.com/1", "analysis_input_fingerprint": "afp-1", "analysis_record": {"job_url": "https://example.com/1"}}
-            ],
+        "diagnostic_support": {
+            "late_stage_reuse_snapshots": {
+                "schema_version": "late_stage_reuse_v1",
+                "ranking_ai_scores": [
+                    {"job_url": "https://example.com/1", "ai_score_input_fingerprint": "fp-1", "ai_score_row": {"job_url": "https://example.com/1"}}
+                ],
+                "cv_analysis_records": [
+                    {"job_url": "https://example.com/1", "analysis_input_fingerprint": "afp-1", "analysis_record": {"job_url": "https://example.com/1"}}
+                ],
+            }
         }
     })
 
@@ -301,6 +298,68 @@ def test_worker_persists_cv_generation_debug_json_on_success():
     assert payload["debug_records"][0]["job_url"] == "https://example.com/1"
     assert payload["debug_records"][0]["ranking_fit_label"] == "strong"
     assert payload["debug_records"][0]["decision_chain"]["primary_fit"]["source"] == "reranker"
+
+
+def test_worker_persists_cv_generation_debug_coverage_accounting():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r1",
+        "total_jobs": 5,
+        "passed_filter": 3,
+        "ranked": 2,
+        "cvs_generated": 1,
+        "cv_generation_debug_records": [
+            {
+                "job_url": "https://example.com/1",
+                "status": "accepted",
+                "ranking_fit_label": "strong",
+                "fit_classification": "strong",
+                "decision_chain": {},
+                "evidence_used": [],
+                "gap_summary": {"matched": ["SQL"]},
+                "structured_cv_initial": {"schema_version": "cv_doc_v1"},
+                "validation_initial": {"valid": True, "missing_sections": [], "grounding_violations": [], "skill_violations": [], "warnings": []},
+                "repair_attempt": {"performed": False, "missing_sections": []},
+                "structured_cv_final": {"schema_version": "cv_doc_v1"},
+                "markdown_final": "# CV",
+                "error": None,
+            },
+            {
+                "job_url": "https://example.com/2",
+                "status": "skipped_fit_gate",
+                "ranking_fit_label": "skip",
+                "fit_classification": "skip",
+                "decision_chain": {},
+                "evidence_used": [],
+                "gap_summary": {"matched": [], "missing": ["SQL"]},
+                "structured_cv_initial": None,
+                "validation_initial": None,
+                "repair_attempt": {"performed": False, "missing_sections": []},
+                "structured_cv_final": None,
+                "markdown_final": None,
+                "error": None,
+            },
+        ],
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_cv_generation_debug") as mock_store_debug:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    payload = json.loads(mock_store_debug.call_args.args[1])
+    assert payload["attempted_generation_jobs_total"] == 1
+    assert payload["non_attempted_ranked_jobs_total"] == 1
+    assert payload["omission_reason_counts"] == {"skipped_fit_gate": 1}
+    assert payload["snapshot_complete"] is True
 
 
 def test_worker_persists_stage_transition_artifacts_json_on_success():
@@ -397,11 +456,56 @@ def test_worker_persists_settings_used_json_on_success():
 
     payload = json.loads(mock_store_settings.call_args.args[1])
     assert payload["run_id"] == "r1"
-    assert payload["settings_schema_version"] == "settings_used_v1"
+    assert payload["settings_schema_version"] == "settings_used_v2"
     assert payload["effective_settings"]["pipeline"]["final_top_n"] == 10
     assert payload["sources"]["config_path"] == ".env.yaml"
     assert payload["sources"]["effective_settings_snapshot_present"] is True
     assert payload["sources"]["prompts_runtime"]["enrich"]["extraction"]["prompt_id"] == "enrich.extraction.v1"
+
+
+def test_worker_settings_used_export_canonicalizes_legacy_compatibility_keys():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock()
+    mock_run.effective_settings_json = json.dumps({
+        "vector_top_n": 40,
+        "rerank_top_n": 15,
+        "cv_generation_model": "legacy-model",
+        "cv_max_pages": 3,
+        "pipeline": {"vector_search_top_n": 50, "ai_score_top_n": 10, "final_top_n": 5},
+        "cv": {"generation": {"model": "gemini-2.5-flash"}, "validation": {"max_pages": 2}},
+        "prompts_runtime": {
+            "ranking": {"ai_score": {"prompt_id": "ranking.ai_score.v1", "template_path": "ranking.md"}},
+        },
+    })
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r1",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 1,
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_settings_used") as mock_store_settings:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    payload = json.loads(mock_store_settings.call_args.args[1])
+    assert "vector_top_n" not in payload["effective_settings"]
+    assert "rerank_top_n" not in payload["effective_settings"]
+    assert "cv_generation_model" not in payload["effective_settings"]
+    assert "cv_max_pages" not in payload["effective_settings"]
+    assert payload["compatibility_projection"]["vector_top_n"] == 40
+    assert payload["compatibility_projection"]["rerank_top_n"] == 15
+    assert payload["compatibility_projection"]["cv_generation_model"] == "legacy-model"
+    assert payload["compatibility_projection"]["cv_max_pages"] == 3
 
 
 def test_worker_settings_used_persistence_failure_does_not_fail_run():

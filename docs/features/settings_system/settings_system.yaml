@@ -1,9 +1,9 @@
 settings_system:
   name: Settings System
-  version: 2.9.0
+  version: 2.10.0
   status: active
   type: add
-  summary: Admins can view and edit pipeline tuning defaults through the admin UI, including richer ranking calibration surfaces, `cv_analysis` hybrid semantic-alignment controls, and a lifecycle max-runtime guard, while baseline defaults now resolve from centralized YAML/config ownership instead of drifting as duplicated schema literals, persisted overrides still live in BigQuery, the canonical config room is organized into responsibility-based `config/runtime`, `config/policy`, and `config/taxonomy` subfolders, dormant CV content-rule toggles are no longer presented as live settings, and metadata-only CV fields such as `cv_prompt_version` and legacy `cv_template_path` are no longer exposed as active admin controls.
+  summary: Admins can view and edit pipeline tuning defaults through the admin UI, including richer ranking calibration surfaces, `cv_analysis` hybrid semantic-alignment controls, and a lifecycle max-runtime guard, while baseline defaults now resolve from centralized YAML/config ownership instead of drifting as duplicated schema literals, persisted overrides still live in BigQuery, the canonical config room is organized into responsibility-based `config/runtime`, `config/policy`, and `config/taxonomy` subfolders, dormant CV content-rule toggles are no longer presented as live settings, metadata-only CV fields such as `cv_prompt_version` and legacy `cv_template_path` are no longer exposed as active admin controls, and operator-facing settings-used exports now present canonical settings instead of compatibility-era duplicate keys.
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -34,6 +34,7 @@ settings_system:
     - Trigger-time effective settings snapshot
     - Admin settings defaults now hydrate from the loaded baseline config for supported paths instead of acting as a competing default store
     - Admin settings default hydration now follows the reorganized config-room layout while preserving flat-path compatibility during the migration window
+    - Operator-facing settings-used exports now keep canonical nested settings as the primary contract and move compatibility-era flat keys into an explicit compatibility block when needed
   refs:
     docs:
       - docs/fitcv-control-plane-setup.md

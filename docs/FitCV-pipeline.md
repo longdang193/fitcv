@@ -22,7 +22,7 @@ status: []
 9. Select top jobs
 10. Retrieve best candidate evidence for each job, with exact-match `cv_analysis` outputs reused safely when the ranked-job analysis fingerprint and contract still match
 11. Generate tailored CV
-12. Validate output against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support
+12. Validate output against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support, including unresolved-placeholder rejection for draft headers such as `[Candidate Name]`
 13. Store versions + tracking
 14. Emit stage-level quality metrics so shortlist, ranking, `cv_analysis`, and `cv_generation` bottlenecks are visible in run inspection without opening every stage artifact
 15. Persist bounded late-stage reuse snapshots and reuse-rate metrics so repeated ranking and `cv_analysis` runs can skip unchanged expensive work safely

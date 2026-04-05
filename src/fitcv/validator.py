@@ -116,6 +116,7 @@ _SOFT_ALIGNMENT_ALIASES: dict[str, tuple[str, ...]] = {
 _SOFT_SIMILARITY_THRESHOLD = 0.30
 _UNRESOLVED_PLACEHOLDER_PATTERNS = (
     re.compile(r"\[your name\]", re.IGNORECASE),
+    re.compile(r"\[candidate name\]", re.IGNORECASE),
     re.compile(r"\[your email\]", re.IGNORECASE),
     re.compile(r"\[your phone\]", re.IGNORECASE),
     re.compile(r"\[linkedin url\]", re.IGNORECASE),

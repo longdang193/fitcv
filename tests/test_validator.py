@@ -266,6 +266,26 @@ def test_run_all_validations_length_warning() -> None:
     assert any("length" in w.lower() for w in result["warnings"])
 
 
+def test_run_all_validations_rejects_candidate_name_placeholder() -> None:
+    profile = {
+        "name": "Real Candidate",
+        "experiences": [{"company": "ACME"}],
+        "projects": [],
+        "skills": ["SQL"],
+    }
+    cv_text = (
+        "# [Candidate Name]\n"
+        "## Summary\nGrounded summary\n"
+        "## Skills\nSQL\n"
+        "## Experience\nEngineer at ACME"
+    )
+
+    result = run_all_validations(cv_text, profile=profile, config=_CV_CONFIG)
+
+    assert result["valid"] is False
+    assert any("Candidate Name" in violation for violation in result["grounding_violations"])
+
+
 def test_run_all_validations_accepts_skill_dicts_in_profile() -> None:
     profile = {
         "experiences": [{"role": "DE", "company": "ACME", "start": "2020", "end": "2022"}],

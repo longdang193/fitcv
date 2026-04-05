@@ -22,7 +22,7 @@
     {% elif run.archived_at %}
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'unarchive', this)">Unarchive Run</button>
     {% endif %}
-    <a href="/admin/runs/{{ run.run_id }}" class="btn-secondary">⟳ Refresh Status</a>
+    <a href="/admin/runs/{{ run.run_id }}" class="btn-secondary" id="manual-refresh-link">⟳ Refresh Status</a>
     <a href="/admin/runs" class="btn-secondary">← All Runs</a>
   </div>
 </div>
@@ -90,8 +90,17 @@
     <span class="k">Overlay Entries</span><span class="v">{{ synonym_overlay_info.entry_count }}</span>
     <span class="k">Uploaded</span><span class="v">{{ synonym_overlay_info.uploaded_at or '—' }}</span>
     {% endif %}
-    <span class="k">Effective Synonyms</span><span class="v">{{ synonym_overlay_info.effective_entry_count or '—' }}</span>
+    <span class="k">Effective Entries</span><span class="v">{{ synonym_overlay_info.effective_entry_count or '—' }}</span>
   </div>
+
+  {% if synonym_overlay_info.snapshot_yaml %}
+  <details style="margin-top:1rem">
+    <summary class="meta" style="cursor:pointer;user-select:none">
+      ▾ {{ synonym_overlay_info.snapshot_label or 'Synonym' }} YAML Snapshot
+    </summary>
+    <pre class="code-area" style="overflow-x:auto;max-height:320px;overflow-y:auto;margin-top:0.75rem">{{ synonym_overlay_info.snapshot_yaml }}</pre>
+  </details>
+  {% endif %}
 
   {% if can_upload_synonym_overlay %}
   <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">
@@ -126,13 +135,22 @@
   </div>
   <div class="run-health-grid">
     {% for metric in run_health_rows %}
-    <div class="run-health-tile">
+    <div class="run-health-tile run-health-{{ metric.severity or 'info' }}">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem">
         <div>
           <div class="run-health-label">{{ metric.label }}</div>
           <div class="meta">{{ metric.hint }}</div>
         </div>
-        <span class="badge badge-info">{{ metric.rate_percent }}%</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-{{ 'error' if metric.severity == 'error' else ('warning' if metric.severity == 'warning' else ('success' if metric.severity == 'success' else 'info')) }}">
+            {% if metric.denominator and metric.denominator > 0 %}
+              {{ metric.rate_percent }}%
+            {% else %}
+              —
+            {% endif %}
+          </span>
+          <span class="meta" style="font-weight:600">{{ metric.severity_label }}</span>
+        </div>
       </div>
       <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-top:0.55rem">
         <code>{{ metric.numerator }} / {{ metric.denominator }}</code>
@@ -460,7 +478,7 @@
       {% for ev in events %}
       <tr>
         <td class="meta">{{ ev.created_at.strftime('%H:%M:%S') if ev.created_at else '—' }}</td>
-        <td><code>{{ ev.stage }}</code></td>
+        <td><span class="badge badge-info">{{ ev.stage_label }}</span></td>
         <td><span class="badge badge-{{ ev.level }}">{{ ev.level }}</span></td>
         <td class="meta" style="max-width:600px;word-break:break-word">{{ ev.message }}</td>
         <td class="meta">
@@ -518,6 +536,43 @@ async function lifecycleAction(runId, action, btn) {
     btn.textContent = origText;
   }
 }
+
+(function autoRefreshRunDetail() {
+   const liveStatuses = new Set(['queued', 'running', 'cancelling']);
+   const currentStatus = '{{ run.status.value }}';
+   if (!liveStatuses.has(currentStatus)) return;
+   const runId = '{{ run.run_id }}';
+   const currentLastCompleted = '{{ run.last_completed_stage or "" }}';
+   const currentNextStage = '{{ run.next_stage or "" }}';
+   const currentCheckpoint = '{{ run.checkpoint_status or "" }}';
+   const currentFinishedAt = '{{ run.finished_at.isoformat() if run.finished_at else "" }}';
+
+  async function poll() {
+    try {
+      const resp = await fetch('/runs/' + runId, { headers: { 'Accept': 'application/json' } });
+      if (!resp.ok) return;
+      const payload = await resp.json();
+      const nextStatus = payload.status || '';
+      const nextLastCompleted = payload.last_completed_stage || '';
+      const nextNextStage = payload.next_stage || '';
+      const nextCheckpoint = payload.checkpoint_status || '';
+      const nextFinishedAt = payload.finished_at || '';
+      if (
+        nextStatus !== currentStatus ||
+        nextLastCompleted !== currentLastCompleted ||
+        nextNextStage !== currentNextStage ||
+        nextCheckpoint !== currentCheckpoint ||
+        nextFinishedAt !== currentFinishedAt
+      ) {
+        window.location.reload();
+      }
+    } catch (e) {
+      // Keep polling quiet; manual refresh remains available.
+    }
+  }
+
+  window.setInterval(poll, 5000);
+})();
 </script>
 
 <style>
@@ -548,6 +603,31 @@ async function lifecycleAction(runId, action, btn) {
   padding:0.9rem 1rem;
   border:1px solid var(--accent);
   border-radius:12px;
+  background:rgba(255,255,255,0.02);
+}
+
+.run-health-success {
+  border-color:rgba(46, 204, 113, 0.45);
+  background:rgba(46, 204, 113, 0.08);
+}
+
+.run-health-warning {
+  border-color:rgba(243, 156, 18, 0.45);
+  background:rgba(243, 156, 18, 0.08);
+}
+
+.run-health-error {
+  border-color:rgba(231, 76, 60, 0.45);
+  background:rgba(231, 76, 60, 0.08);
+}
+
+.run-health-info {
+  border-color:rgba(52, 152, 219, 0.35);
+  background:rgba(52, 152, 219, 0.06);
+}
+
+.run-health-muted {
+  border-color:rgba(255, 255, 255, 0.08);
   background:rgba(255,255,255,0.02);
 }
 
