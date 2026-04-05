@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 2.10.0 — active
+
+- Operator-facing `settings-used.json` exports now keep canonical nested settings in the primary surface and move compatibility-era flat keys into an explicit compatibility block when needed
+- This keeps runtime compatibility intact while making the exported settings contract match the active admin UI more closely
+
 ### 2.9.0 — active
 
 - The admin settings UI now exposes `run_lifecycle.max_runtime_minutes` as the server-owned timeout guard for unfinished runs

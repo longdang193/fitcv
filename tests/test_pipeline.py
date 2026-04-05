@@ -23,9 +23,11 @@ import pytest
 
 from fitcv.pipeline import (
     _build_stage_transition_artifacts,
+    _build_cv_generation_debug_record,
     _collect_mapping_suggestions,
     _enrich_jobs_with_reuse,
     _materialize_scoring_shortlist,
+    _stage_block,
     build_ranking_features,
     create_run_id,
 )
@@ -117,6 +119,31 @@ def test_build_ranking_features_includes_vector_similarity() -> None:
     features = build_ranking_features(_make_shortlist(), _make_ai_scores(), profile, {})
     job1 = next(f for f in features if f["job_url"] == "https://example.com/1")
     assert job1["vector_similarity"] == pytest.approx(0.9)
+
+
+def test_stage_block_orders_outcome_samples_before_inputs() -> None:
+    block = _stage_block(
+        stage_id="ranking",
+        status="completed",
+        input_counts={"rows": 3},
+        output_counts={"rows": 2},
+        decision_summary={"ranked_jobs": 2},
+        inputs_sample=[{"job_url": "https://jobs.example.com/in"}],
+        outputs_sample=[{"job_url": "https://jobs.example.com/out"}],
+        dropped_or_changed_sample=[{"job_url": "https://jobs.example.com/drop"}],
+    )
+
+    assert list(block.keys()) == [
+        "stage_id",
+        "stage",
+        "status",
+        "input_counts",
+        "output_counts",
+        "decision_summary",
+        "outputs_sample",
+        "dropped_or_changed_sample",
+        "inputs_sample",
+    ]
 
 
 def test_build_ranking_features_accepts_vector_search_field_names() -> None:
@@ -379,6 +406,96 @@ def test_build_ranking_features_drops_jobs_missing_from_ai_scores() -> None:
     profile: dict = {"preferences": {}}
     features = build_ranking_features(shortlist, _make_ai_scores(), profile, {})
     assert all(f["job_url"] != "https://example.com/99" for f in features)
+
+
+def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_provenance() -> None:
+    config = _minimal_config()
+    config["prompts_runtime"] = {
+        "enrich": {"extraction": {"prompt_id": "enrich.extraction.v1", "template_path": "enrich.md"}},
+        "ranking": {"ai_score": {"prompt_id": "ranking.ai_score.v1", "template_path": "ranking_ai_score_v1.md"}},
+        "cv_generation": {
+            "structured_write": {
+                "prompt_id": "cv_generation.structured_write.v1",
+                "template_path": "cv_generation_structured_write_v1.md",
+            }
+        },
+    }
+    raw_job = _minimal_job()
+    enriched_job = {**raw_job, "title": "Data Analyst"}
+    ai_score_row = {
+        "job_url": raw_job["job_url"],
+        "ai_score": 0.8,
+        "fit_label": "strong",
+        "score_reasoning": "Good fit",
+        "matched_strengths": ["SQL"],
+        "key_risks": [],
+        "ai_score_reuse_status": "fresh_compute",
+        "ai_score_input_fingerprint": "ai-score-fp",
+    }
+    ranked_row = {
+        "job_url": raw_job["job_url"],
+        "title": "Data Analyst",
+        "final_score": 0.82,
+        "ai_score": 0.8,
+        "fit_label": "strong",
+        "vector_similarity": 0.9,
+        "vector_rank": 1,
+    }
+    cv_debug_record = _build_cv_generation_debug_record(
+        job=ranked_row,
+        status="accepted",
+        fit_classification="strong",
+        evidence_used=[],
+        evidence_selection_summary={"selected_evidence_count": 1},
+        analysis_input_summary={"required_skills": ["SQL"]},
+        gap_summary={"matched": ["SQL"], "partial": [], "missing": []},
+        structured_cv_initial={"schema_version": "cv_doc_v1"},
+        validation_initial={"valid": True, "missing_sections": [], "grounding_violations": [], "skill_violations": [], "warnings": []},
+        repair_attempt={"performed": False, "missing_sections": []},
+        structured_cv_final={"schema_version": "cv_doc_v1"},
+        markdown_final="# CV",
+        enabled_sections=["Experience", "Skills"],
+        cv_generation_model="gemini-2.5-flash",
+        cv_prompt_id="cv_generation.structured_write.v1",
+        cv_prompt_template_path="cv_generation_structured_write_v1.md",
+        cv_prompt_version="v1",
+        error=None,
+    )
+
+    artifacts = _build_stage_transition_artifacts(
+        raw_jobs=[raw_job],
+        normalized=[raw_job],
+        deduplicated_jobs=[],
+        pre_filter_rejected_jobs=[],
+        enriched=[enriched_job],
+        passed_jobs=[enriched_job],
+        candidate_filter_rejected_jobs=[],
+        raw_shortlist=[{"job_url": raw_job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        shortlist=[{"job_url": raw_job["job_url"], "vector_similarity": 0.9, "vector_rank": 1, "shortlist_origin": "vector_search"}],
+        backfilled_job_urls=[],
+        vector_top_n=10,
+        candidate_summary="Candidate summary",
+        candidate_query_components={},
+        candidate_query_debug={},
+        ai_scores=[ai_score_row],
+        ranking_inputs=[ranked_row],
+        ranked=[ranked_row],
+        cv_analysis_results=[{"job_url": raw_job["job_url"], "status": "ready_for_generation", "evidence_selection_summary": {"selected_evidence_count": 1}}],
+        final_top_n=5,
+        cv_generation_debug_records=[cv_debug_record],
+        profile=_minimal_profile(),
+        config=config,
+    )
+
+    ranking_summary = artifacts["stages"]["ranking"]["decision_summary"]
+    assert ranking_summary["ranking_prompt_id"] == "ranking.ai_score.v1"
+    assert ranking_summary["ranking_prompt_template_path"] == "ranking_ai_score_v1.md"
+    assert ranking_summary["ai_score_model"] == "gemini-2.5-flash"
+
+    cv_generation_summary = artifacts["stages"]["cv_generation"]["decision_summary"]
+    assert cv_generation_summary["cv_prompt_id"] == "cv_generation.structured_write.v1"
+    assert cv_generation_summary["cv_prompt_template_path"] == "cv_generation_structured_write_v1.md"
+    assert cv_generation_summary["cv_generation_model"] == "gemini-2.5-flash"
 
 
 def test_build_ranking_features_preserves_structured_job_fields_from_shortlist() -> None:
@@ -3104,6 +3221,8 @@ def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> Non
         markdown_final="# CV",
         enabled_sections=["summary", "experience", "skills"],
         cv_generation_model="gemini-2.5-flash",
+        cv_prompt_id="cv_generation.structured_write.v1",
+        cv_prompt_template_path="cv_generation_structured_write_v1.md",
         cv_prompt_version="v1",
         error=None,
     )
@@ -3130,6 +3249,8 @@ def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> Non
     assert sample["analysis_input_summary"]["job_family"] == "analytics"
     assert sample["enabled_sections"] == ["summary", "experience", "skills"]
     assert sample["cv_generation_model"] == "gemini-2.5-flash"
+    assert sample["cv_prompt_id"] == "cv_generation.structured_write.v1"
+    assert sample["cv_prompt_template_path"] == "cv_generation_structured_write_v1.md"
     assert sample["cv_prompt_version"] == "v1"
     assert sample["structured_cv_final"] == {"schema_version": "cv_doc_v1"}
 

@@ -1,9 +1,9 @@
 trigger_run_management:
   name: Trigger & Run Management
-  version: 2.10.0
+  version: 2.11.0
   status: active
   type: add
-  summary: "Admins can trigger runs via path reference, file upload, or pasted JSON in either automatic or staged/manual mode, attach a run-scoped synonym overlay before trigger for either mode, continue paused manual runs one stage at a time from persisted checkpoints, replace the run overlay after enrich before continuing into rule filter, cancel paused `awaiting_continue` runs when they should not resume, pause again at `cv_analysis` before `cv_generation`, inspect run progress from a selection-first runs list plus run detail, and export structured run artifacts including `cv_analysis` evidence-selection provenance when available."
+  summary: "Admins can trigger runs via path reference, file upload, or pasted JSON in either automatic or staged/manual mode, attach a run-scoped synonym overlay before trigger for either mode, continue paused manual runs one stage at a time from persisted checkpoints, replace the run overlay after enrich before continuing into rule filter, cancel paused `awaiting_continue` runs when they should not resume, pause again at `cv_analysis` before `cv_generation`, inspect run progress from a selection-first runs list plus run detail, and export structured run artifacts with stage-aware availability, richer synonym diagnostics, and less duplicate timeline clutter."
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -24,6 +24,7 @@ trigger_run_management:
     - Run detail remains the single-run action surface for continue, stop, archive, unarchive, and repair controls
     - Run detail now groups run-scoped downloads into a compact export surface instead of a wide button row
     - Run detail now merges stage quality and late-stage reuse into a compact `Run Health` diagnostics surface
+    - Run detail now keeps stage-slice download links on aggregate stage rows instead of repeating them on per-job subevents
     - "Archive filter: Active / All / Archived"
     - "Three job-input modes: path, upload, paste"
     - "Three candidate-profile modes: default_config, upload, paste"
@@ -38,6 +39,7 @@ trigger_run_management:
     - `Run All` and `Stage by Stage` runs can both snapshot a run-scoped synonym-overlay YAML at trigger time
     - Manual staged runs paused after `enrich` can replace the run-scoped synonym-overlay YAML before continuing into `rule_filter`
     - Run detail exposes synonym-overlay state in a dedicated card instead of a crowded top-row action upload
+    - Run detail synonym-overlay inspection now shows the active/default YAML snapshot when available
     - Manual staged runs now hand off from `ranking -> cv_analysis -> cv_generation` with persisted checkpoint payloads instead of treating all Layer 4 work as one stage
     - CV results banner on run detail
     - CV downloads
@@ -77,6 +79,7 @@ trigger_run_management:
       - docs/superpowers/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
       - docs/superpowers/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
       - docs/superpowers/specs/2026-04-05-23-20-pre-trigger-and-staged-synonym-overlay-spec.md
+      - docs/superpowers/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-runs-list-enhancements-implementation.md
       - docs/superpowers/plans/2026-03-25-admin-ux-improvements-implementation.md
@@ -94,6 +97,7 @@ trigger_run_management:
       - docs/superpowers/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
       - docs/superpowers/plans/2026-04-05-22-55-run-detail-information-architecture-cleanup-plan.md
       - docs/superpowers/plans/2026-04-05-23-35-pre-trigger-and-staged-synonym-overlay-plan.md
+      - docs/superpowers/plans/2026-04-06-00-05-run-detail-artifact-gating-and-diagnostics-cleanup-plan.md
     history:
       - docs/features/trigger_run_management/history.md
   keywords:

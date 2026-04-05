@@ -259,6 +259,7 @@ def apply_runtime_skill_synonym_overlay(
     source: str,
     filename: str,
     uploaded_at: str,
+    raw_yaml: str | None = None,
 ) -> dict[str, Any]:
     """Return cfg with a run-scoped synonym overlay merged in."""
     updated_cfg = dict(cfg)
@@ -277,6 +278,8 @@ def apply_runtime_skill_synonym_overlay(
     runtime["run_overlay_filename"] = filename
     runtime["run_overlay_uploaded_at"] = uploaded_at
     runtime["run_overlay_entry_count"] = len(overlay_synonyms)
+    if raw_yaml is not None:
+        runtime["run_overlay_yaml"] = str(raw_yaml)
     updated_cfg["skill_synonyms"] = merged_synonyms
     updated_cfg["skill_synonyms_runtime"] = runtime
     return updated_cfg

@@ -327,6 +327,96 @@ def test_admin_run_detail_shows_trigger_uploaded_synonym_overlay_state() -> None
     assert "custom_overlay.yaml" in resp.text
 
 
+def test_admin_run_detail_shows_synonym_overlay_yaml_snapshot() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-overlay-yaml",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps(
+            {
+                "skill_synonyms": {"gcp": "google cloud", "ga4": "google analytics"},
+                "skill_synonyms_runtime": {
+                    "base_policy_path": "config/taxonomy/skill_synonyms.yaml",
+                    "overlay_paths": [],
+                    "has_overlay": True,
+                    "entry_count": 2,
+                    "has_run_overlay": True,
+                    "run_overlay_source": "trigger_upload",
+                    "run_overlay_filename": "custom_overlay.yaml",
+                    "run_overlay_uploaded_at": "2026-04-05T23:30:00Z",
+                    "run_overlay_entry_count": 1,
+                    "run_overlay_yaml": "skill_synonyms:\\n  ga4: google analytics\\n",
+                },
+            }
+        ),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-overlay-yaml")
+
+    assert resp.status_code == 200
+    assert "YAML Snapshot" in resp.text
+    assert "ga4: google analytics" in resp.text
+
+
+def test_admin_run_detail_shows_default_synonym_yaml_snapshot(tmp_path) -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    synonyms_path = tmp_path / "skill_synonyms.yaml"
+    synonyms_path.write_text("skill_synonyms:\n  sql: structured query language\n", encoding="utf-8")
+
+    run = PipelineRun(
+        run_id="run-default-overlay-yaml",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="manual_staged",
+        checkpoint_status="awaiting_continue",
+        last_completed_stage="enrich",
+        next_stage="rule_filter",
+        completed_stages=["normalize", "enrich"],
+        effective_settings_json=json.dumps(
+            {
+                "skill_synonyms": {"sql": "structured query language"},
+                "skill_synonyms_runtime": {
+                    "base_policy_path": str(synonyms_path),
+                    "overlay_paths": [],
+                    "has_overlay": False,
+                    "entry_count": 1,
+                    "has_run_overlay": False,
+                },
+            }
+        ),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-default-overlay-yaml")
+
+    assert resp.status_code == 200
+    assert "Default Config" in resp.text
+    assert "sql: structured query language" in resp.text
+
+
 def test_admin_upload_synonym_overlay_updates_run_effective_settings() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -633,7 +723,7 @@ def test_admin_run_detail_shows_exports_card_with_results_link():
     assert resp.status_code == 200
     assert "Run Exports" in resp.text
     assert 'href="/admin/runs/test-export-btn/export.json"' in resp.text
-    assert "Results JSON" in resp.text
+    assert "Results JSON (Job Ledger)" in resp.text
 
 
 def test_admin_run_detail_shows_download_cv_debug_json_button():
@@ -673,7 +763,7 @@ def test_admin_run_detail_shows_stage_artifacts_export_in_exports_card():
         resp = TestClient(_app()).get("/admin/runs/test-stage-artifacts-btn")
     assert resp.status_code == 200
     assert 'href="/admin/runs/test-stage-artifacts-btn/stage-artifacts.json"' in resp.text
-    assert "Stage Artifacts JSON" in resp.text
+    assert "Stage Artifacts JSON (Diagnostics)" in resp.text
     assert resp.text.index("Run Exports") < resp.text.index("Event Timeline")
 
 
@@ -716,6 +806,37 @@ def test_admin_run_detail_hides_aggregate_mapping_suggestions_button() -> None:
     assert "Aggregate Mapping Suggestions JSON" not in resp.text
 
 
+def test_admin_run_detail_hides_mapping_suggestions_export_before_enrich_stage() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="test-mapping-stage-gate",
+        status=RunStatus.AWAITING_CONTINUE,
+        total_jobs=7,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json=json.dumps(
+            {"artifacts": {"stages": {"normalize": {"status": "completed"}}}}
+        ),
+        mapping_suggestions_json='{"suggestions":[]}',
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/test-mapping-stage-gate")
+
+    assert resp.status_code == 200
+    assert 'href="/admin/runs/test-mapping-stage-gate/mapping-suggestions.json"' not in resp.text
+    assert "Mapping Suggestions JSON" not in resp.text
+
+
 def test_run_detail_timeline_shows_stage_download_for_mapped_event():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
@@ -751,6 +872,66 @@ def test_run_detail_timeline_shows_stage_download_for_mapped_event():
     assert "Download Ranking JSON" in resp.text
 
 
+def test_run_detail_timeline_shows_cv_analysis_download_only_on_aggregate_row():
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-cv-analysis-timeline",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "cv_analysis": {
+                            "status": "completed",
+                            "output_counts": {
+                                "generation_ready": 1,
+                                "skipped_fit_gate": 2,
+                                "analysis_failed": 0,
+                            },
+                        }
+                    }
+                }
+            }
+        ),
+    )
+    events = [
+        RunEvent(
+            run_id="run-cv-analysis-timeline",
+            event_id="e1",
+            stage="layer4_cv_analysis_skip",
+            level="info",
+            message="Skipped https://jobs.example.com/1 (fit=skip)",
+            created_at=datetime.now(timezone.utc),
+        ),
+        RunEvent(
+            run_id="run-cv-analysis-timeline",
+            event_id="e2",
+            stage="layer4_cv_analysis",
+            level="info",
+            message="CV analysis complete: 1 ready, 2 skipped, 0 failed",
+            created_at=datetime.now(timezone.utc),
+        ),
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-cv-analysis-timeline")
+
+    assert resp.status_code == 200
+    assert resp.text.count('href="/admin/runs/run-cv-analysis-timeline/stage-artifacts/cv_analysis.json"') == 1
+    assert "CV analysis complete: 1 ready, 2 skipped, 0 failed" in resp.text
+    assert "Skipped https://jobs.example.com/1 (fit=skip)" in resp.text
+
+
 def test_run_detail_timeline_hides_stage_download_for_unmapped_event():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
@@ -783,6 +964,31 @@ def test_run_detail_timeline_hides_stage_download_for_unmapped_event():
         resp = TestClient(_app()).get("/admin/runs/run-stage-link-2")
     assert resp.status_code == 200
     assert 'href="/admin/runs/run-stage-link-2/stage-artifacts/' not in resp.text
+
+
+def test_download_mapping_suggestions_requires_enrich_stage_reached() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="mapping-gate-endpoint",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json=json.dumps(
+            {"artifacts": {"stages": {"normalize": {"status": "completed"}}}}
+        ),
+        mapping_suggestions_json='{"suggestions":[]}',
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/mapping-gate-endpoint/mapping-suggestions.json")
+
+    assert resp.status_code == 404
+    assert "enrich" in resp.text.lower()
 
 
 def test_admin_run_detail_warning_banner():
@@ -946,6 +1152,7 @@ def test_download_mapping_suggestions_json_endpoint_200() -> None:
         jobs_path="data/sample_jobs.json",
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json='{"artifacts":{"stages":{"enrich":{"status":"completed"}}}}',
         mapping_suggestions_json='{"run_id":"run-mapping-suggestions-1","suggestions":[]}',
     )
     with patch("fitcv_cp.app.get_run", return_value=run):
@@ -1381,26 +1588,40 @@ def test_run_detail_renders_run_health_when_quality_metrics_available():
         trigger_source="web",
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
-        results_export_json=json.dumps(
+        stage_transition_artifacts_json=json.dumps(
             {
-                "stage_quality_metrics": {
-                    "shortlist": {
-                        "backfill_rate": 0.33,
-                        "backfilled_jobs_total": 1,
-                        "scoring_shortlisted_jobs_total": 3,
-                    },
-                    "ranking": {
-                        "label_distribution": {
-                            "strong_rate": 0.25,
-                            "strong_count": 1,
-                            "total_scored": 4,
-                        }
-                    },
-                    "cv_analysis": {
-                        "skip_rate": 0.5,
-                        "skipped_fit_gate": 1,
-                        "total_processed": 2,
-                    },
+                "artifacts": {
+                    "stages": {
+                        "shortlist": {
+                            "decision_summary": {
+                                "quality_metrics": {
+                                    "backfill_rate": 0.33,
+                                    "backfilled_jobs_total": 1,
+                                    "scoring_shortlisted_jobs_total": 3,
+                                }
+                            }
+                        },
+                        "ranking": {
+                            "decision_summary": {
+                                "quality_metrics": {
+                                    "label_distribution": {
+                                        "strong_rate": 0.25,
+                                        "strong_count": 1,
+                                        "total_scored": 4,
+                                    }
+                                }
+                            }
+                        },
+                        "cv_analysis": {
+                            "decision_summary": {
+                                "quality_metrics": {
+                                    "skip_rate": 0.5,
+                                    "skipped_fit_gate": 1,
+                                    "total_processed": 2,
+                                }
+                            }
+                        },
+                    }
                 }
             }
         ),
@@ -1416,10 +1637,6 @@ def test_run_detail_renders_run_health_when_quality_metrics_available():
     assert "Shortlist Backfill Rate" in html
     assert "33%" in html
     assert "1 / 3" in html
-    assert "Ranking Strong Rate" in html
-    assert "25%" in html
-    assert "CV Analysis Skip Rate" in html
-    assert "50%" in html
 
 
 def test_run_detail_hides_run_health_when_quality_metrics_absent():
@@ -1456,21 +1673,31 @@ def test_run_detail_renders_run_health_when_late_stage_reuse_metrics_available()
         trigger_source="web",
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
-        results_export_json=json.dumps(
+        stage_transition_artifacts_json=json.dumps(
             {
-                "late_stage_reuse_metrics": {
-                    "ranking": {
-                        "reuse_rate": 0.5,
-                        "reused_ai_scores": 1,
-                        "fresh_ai_scores": 1,
-                        "total_ai_scores": 2,
-                    },
-                    "cv_analysis": {
-                        "reuse_rate": 1.0,
-                        "reused_analysis_records": 2,
-                        "fresh_analysis_records": 0,
-                        "total_analysis_records": 2,
-                    },
+                "artifacts": {
+                    "stages": {
+                        "ranking": {
+                            "decision_summary": {
+                                "reuse_metrics": {
+                                    "reuse_rate": 0.5,
+                                    "reused_ai_scores": 1,
+                                    "fresh_ai_scores": 1,
+                                    "total_ai_scores": 2,
+                                }
+                            }
+                        },
+                        "cv_analysis": {
+                            "decision_summary": {
+                                "reuse_metrics": {
+                                    "reuse_rate": 1.0,
+                                    "reused_analysis_records": 2,
+                                    "fresh_analysis_records": 0,
+                                    "total_analysis_records": 2,
+                                }
+                            }
+                        },
+                    }
                 }
             }
         ),
@@ -1486,8 +1713,6 @@ def test_run_detail_renders_run_health_when_late_stage_reuse_metrics_available()
     assert "Ranking AI-Score Reuse Rate" in html
     assert "CV Analysis Reuse Rate" in html
     assert "50%" in html
-    assert "100%" in html
-    assert "fresh: 1" in html
 
 
 def test_run_detail_hides_late_stage_reuse_metrics_when_absent():

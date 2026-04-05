@@ -118,6 +118,161 @@ RUN_MODE_LABELS = {
     "run_all": "Automatic",
     "manual_staged": "Manual staged",
 }
+STAGE_SEQUENCE: tuple[str, ...] = (
+    "normalize",
+    "enrich",
+    "rule_filter",
+    "shortlist",
+    "ranking",
+    "cv_analysis",
+    "cv_generation",
+)
+TIMELINE_STAGE_LABELS: dict[str, str] = {
+    "pipeline_start": "Pipeline",
+    "layer1_normalize": "Normalize",
+    "layer1b_pre_filter": "Pre-Enrichment Filter",
+    "layer1_jobs": "Enrich",
+    "layer2_candidate": "Candidate Profile",
+    "layer3_filter": "Rule Filter",
+    "layer3_shortlist": "Shortlist",
+    "layer3_ai_score": "Ranking",
+    "layer3_ranking": "Ranking",
+    "layer4_cv_analysis": "CV Analysis",
+    "layer4_cv_analysis_skip": "CV Analysis",
+    "layer4_cv_skip": "CV Analysis",
+    "layer4_cv_validation_failed": "CV Generation",
+    "pipeline_complete": "CV Generation",
+    "stage_checkpoint": "Checkpoint",
+    "manual_continue_requested": "Manual Continue",
+    "pipeline_failed": "Pipeline",
+    "synonym_overlay_uploaded": "Synonym Overlay",
+}
+TIMELINE_STAGE_DOWNLOADABLE_EVENTS: set[str] = {
+    "layer1_normalize",
+    "layer1_jobs",
+    "layer3_filter",
+    "layer3_shortlist",
+    "layer3_ranking",
+    "layer4_cv_analysis",
+    "layer4_cv_validation_failed",
+    "pipeline_complete",
+}
+NEGATIVE_METRIC_LABEL_MARKERS = (
+    "Backfill Rate",
+    "Skip Rate",
+    "Failure Rate",
+    "Validation-Fail Rate",
+    "Persistence-Fail Rate",
+)
+POSITIVE_METRIC_LABEL_MARKERS = (
+    "Ready Rate",
+    "Accepted Rate",
+    "Strong Rate",
+)
+
+
+def _load_stage_transition_artifacts_payload(run: PipelineRun) -> dict[str, Any]:
+    if not run.stage_transition_artifacts_json:
+        return {}
+    try:
+        payload = _json.loads(run.stage_transition_artifacts_json)
+    except (_json.JSONDecodeError, TypeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _stage_artifacts_by_id(run: PipelineRun) -> dict[str, dict[str, Any]]:
+    payload = _load_stage_transition_artifacts_payload(run)
+    artifacts = payload.get("artifacts")
+    if not isinstance(artifacts, dict):
+        return {}
+    stages = artifacts.get("stages")
+    if not isinstance(stages, dict):
+        return {}
+    result: dict[str, dict[str, Any]] = {}
+    for stage_id, stage_payload in stages.items():
+        if isinstance(stage_payload, dict):
+            result[str(stage_id)] = stage_payload
+    return result
+
+
+def _stage_quality_metrics_from_stage_artifacts(
+    stage_artifacts_by_id: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    metrics_by_stage: dict[str, Any] = {}
+    for stage_id, stage_payload in stage_artifacts_by_id.items():
+        decision_summary = dict(stage_payload.get("decision_summary") or {})
+        metrics = decision_summary.get("quality_metrics")
+        if isinstance(metrics, dict) and metrics:
+            metrics_by_stage[stage_id] = metrics
+    return metrics_by_stage
+
+
+def _late_stage_reuse_metrics_from_stage_artifacts(
+    stage_artifacts_by_id: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    metrics_by_stage: dict[str, Any] = {}
+    for stage_id in ("ranking", "cv_analysis"):
+        stage_payload = dict(stage_artifacts_by_id.get(stage_id) or {})
+        decision_summary = dict(stage_payload.get("decision_summary") or {})
+        reuse_metrics = decision_summary.get("reuse_metrics")
+        if isinstance(reuse_metrics, dict) and reuse_metrics:
+            metrics_by_stage[stage_id] = reuse_metrics
+    return metrics_by_stage
+
+
+def _run_has_stage_artifact(run: PipelineRun, stage_id: str) -> bool:
+    return stage_id in _stage_artifacts_by_id(run)
+
+
+def _run_has_reached_stage(run: PipelineRun, stage_id: str) -> bool:
+    normalized_stage_id = str(stage_id or "").strip()
+    if not normalized_stage_id:
+        return False
+    completed_stages = [str(item).strip() for item in list(run.completed_stages or []) if str(item).strip()]
+    if normalized_stage_id in completed_stages:
+        return True
+    last_completed_stage = str(run.last_completed_stage or "").strip()
+    if not last_completed_stage:
+        return False
+    try:
+        target_index = STAGE_SEQUENCE.index(normalized_stage_id)
+        last_index = STAGE_SEQUENCE.index(last_completed_stage)
+    except ValueError:
+        return normalized_stage_id == last_completed_stage
+    return target_index <= last_index
+
+
+def _metric_severity(metric: dict[str, Any]) -> tuple[str, str]:
+    rate = float(metric.get("rate") or 0.0)
+    denominator = int(metric.get("denominator") or 0)
+    label = str(metric.get("label") or "")
+    category = str(metric.get("category") or "")
+    if denominator <= 0:
+        return "muted", "Pending"
+    if category == "reuse":
+        if rate >= 0.5:
+            return "success", "Healthy"
+        if rate > 0:
+            return "info", "Observed"
+        return "muted", "Fresh only"
+    if any(marker in label for marker in NEGATIVE_METRIC_LABEL_MARKERS):
+        if rate >= 0.5:
+            return "error", "Needs attention"
+        if rate >= 0.2:
+            return "warning", "Watch"
+        return "success", "Healthy"
+    if any(marker in label for marker in POSITIVE_METRIC_LABEL_MARKERS):
+        if rate >= 0.75:
+            return "success", "Healthy"
+        if rate >= 0.4:
+            return "warning", "Watch"
+        return "error", "Needs attention"
+    if "Stretch Rate" in label:
+        if rate >= 0.6:
+            return "warning", "Stretch-heavy"
+        return "info", "Observed"
+    return "info", "Observed"
 
 
 def _stage_quality_metric_row(
@@ -283,23 +438,34 @@ def _build_run_health_rows(
     for row in stage_quality_metric_rows:
         item = dict(row)
         item["category"] = "quality"
+        severity, severity_label = _metric_severity(item)
+        item["severity"] = severity
+        item["severity_label"] = severity_label
         rows.append(item)
     for row in late_stage_reuse_metric_rows:
         item = dict(row)
         item["category"] = "reuse"
+        severity, severity_label = _metric_severity(item)
+        item["severity"] = severity
+        item["severity_label"] = severity_label
         rows.append(item)
     return rows
 
 
 def _build_run_export_links(run: PipelineRun) -> list[dict[str, str]]:
     links: list[dict[str, str]] = []
+    stage_artifacts_by_id = _stage_artifacts_by_id(run)
     if run.status == RunStatus.SUCCEEDED and run.results_export_json:
-        links.append({"label": "Results JSON", "href": f"/admin/runs/{run.run_id}/export.json"})
+        links.append({"label": "Results JSON (Job Ledger)", "href": f"/admin/runs/{run.run_id}/export.json"})
     if run.status == RunStatus.SUCCEEDED and run.cv_generation_debug_json:
         links.append({"label": "CV Debug JSON", "href": f"/admin/runs/{run.run_id}/cv-debug.json"})
     if run.status == RunStatus.SUCCEEDED and run.settings_used_json:
         links.append({"label": "Settings Used JSON", "href": f"/admin/runs/{run.run_id}/settings-used.json"})
-    if run.mapping_suggestions_json:
+    if (
+        run.mapping_suggestions_json
+        and _run_has_reached_stage(run, "enrich")
+        and "enrich" in stage_artifacts_by_id
+    ):
         links.append(
             {
                 "label": "Mapping Suggestions JSON",
@@ -309,7 +475,7 @@ def _build_run_export_links(run: PipelineRun) -> list[dict[str, str]]:
     if run.status.value in ("succeeded", "awaiting_continue") and run.stage_transition_artifacts_json:
         links.append(
             {
-                "label": "Stage Artifacts JSON",
+                "label": "Stage Artifacts JSON (Diagnostics)",
                 "href": f"/admin/runs/{run.run_id}/stage-artifacts.json",
             }
         )
@@ -354,6 +520,28 @@ def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
         "staged_override": "Staged Override",
         "upload": "Staged Override",
     }
+    snapshot_yaml = ""
+    snapshot_label = ""
+    run_overlay_yaml = str(runtime.get("run_overlay_yaml") or "")
+    if run_overlay_yaml.strip():
+        snapshot_yaml = run_overlay_yaml
+        snapshot_label = source_labels.get(source, "Run Overlay") if source else "Run Overlay"
+    else:
+        base_policy_path = str(runtime.get("base_policy_path") or "").strip()
+        candidate_paths = []
+        if base_policy_path:
+            raw_path = Path(base_policy_path)
+            candidate_paths.append(raw_path)
+            if not raw_path.is_absolute():
+                candidate_paths.append(Path.cwd() / raw_path)
+        for candidate in candidate_paths:
+            try:
+                if candidate.is_file():
+                    snapshot_yaml = candidate.read_text(encoding="utf-8")
+                    snapshot_label = "Default Config"
+                    break
+            except OSError:
+                continue
     return {
         "has_run_overlay": bool(runtime.get("has_run_overlay")),
         "source": source,
@@ -363,6 +551,8 @@ def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
         "uploaded_at": str(runtime.get("run_overlay_uploaded_at") or ""),
         "effective_entry_count": int(runtime.get("entry_count") or 0),
         "has_default_overlay": bool(runtime.get("has_overlay")),
+        "snapshot_yaml": snapshot_yaml,
+        "snapshot_label": snapshot_label,
     }
 
 
@@ -471,6 +661,102 @@ def _timeline_stage_download_for_event(event_stage: str) -> str | None:
     if not normalized:
         return None
     return TIMELINE_STAGE_DOWNLOADS.get(normalized)
+
+
+def _timeline_event_allows_stage_download(event_stage: str) -> bool:
+    return str(event_stage or "").strip() in TIMELINE_STAGE_DOWNLOADABLE_EVENTS
+
+
+def _timeline_stage_label(event_stage: str) -> str:
+    normalized = str(event_stage or "").strip()
+    if not normalized:
+        return "—"
+    return TIMELINE_STAGE_LABELS.get(normalized, normalized.replace("_", " ").title())
+
+
+def _timeline_stage_summary_message(
+    event: RunEvent,
+    stage_artifacts_by_id: dict[str, dict[str, Any]],
+) -> str:
+    stage_id = _timeline_stage_download_for_event(event.stage)
+    if not stage_id:
+        return event.message
+    artifact = stage_artifacts_by_id.get(stage_id) or {}
+    outputs = artifact.get("output_counts") if isinstance(artifact.get("output_counts"), dict) else {}
+    decision = artifact.get("decision_summary") if isinstance(artifact.get("decision_summary"), dict) else {}
+    if event.stage == "layer1_normalize":
+        kept = outputs.get("normalized_jobs")
+        raw_jobs = outputs.get("raw_jobs") or decision.get("raw_jobs")
+        removed = outputs.get("deduplicated_jobs")
+        if kept is not None and removed is not None:
+            raw_label = f" of {raw_jobs}" if raw_jobs is not None else ""
+            return f"Normalize complete: kept {kept}{raw_label} jobs, removed {removed} duplicate(s)"
+    if event.stage == "layer1_jobs":
+        enriched = outputs.get("enriched_jobs")
+        rejected = outputs.get("pre_enrichment_rejected_jobs")
+        fresh = decision.get("fresh_rows")
+        reused = decision.get("reused_rows")
+        details = []
+        if enriched is not None:
+            details.append(f"{enriched} enriched")
+        if rejected is not None:
+            details.append(f"{rejected} rejected before enrich")
+        if fresh is not None:
+            details.append(f"fresh={fresh}")
+        if reused is not None:
+            details.append(f"reused={reused}")
+        if details:
+            return f"Enrich complete: {', '.join(details)}"
+    if event.stage == "layer3_filter":
+        passed = outputs.get("passed_jobs")
+        rejected = outputs.get("candidate_filter_rejected_jobs")
+        if passed is not None and rejected is not None:
+            return f"Rule filter complete: {passed} passed, {rejected} rejected"
+    if event.stage == "layer3_shortlist":
+        shortlisted = outputs.get("shortlisted_jobs") or outputs.get("scoring_shortlist_jobs")
+        backfilled = outputs.get("backfilled_jobs") or decision.get("backfilled_jobs")
+        details = []
+        if shortlisted is not None:
+            details.append(f"{shortlisted} shortlisted")
+        if backfilled is not None:
+            details.append(f"{backfilled} backfilled")
+        if details:
+            return f"Shortlist complete: {', '.join(details)}"
+    if event.stage == "layer3_ranking":
+        ranked = outputs.get("ranked_jobs")
+        distribution = decision.get("label_distribution") if isinstance(decision.get("label_distribution"), dict) else {}
+        details = []
+        if ranked is not None:
+            details.append(f"{ranked} ranked")
+        for key, label in (("strong_count", "strong"), ("stretch_count", "stretch"), ("skip_count", "skip")):
+            count = distribution.get(key)
+            if count is not None:
+                details.append(f"{label}={count}")
+        if details:
+            return f"Ranking complete: {', '.join(details)}"
+    if event.stage == "layer4_cv_analysis":
+        ready = outputs.get("generation_ready")
+        skipped = outputs.get("skipped_fit_gate")
+        failed = outputs.get("analysis_failed")
+        if ready is not None and skipped is not None and failed is not None:
+            return f"CV analysis complete: {ready} ready, {skipped} skipped, {failed} failed"
+    if event.stage in {"layer4_cv_validation_failed", "pipeline_complete"}:
+        accepted = outputs.get("accepted")
+        validation_failed = outputs.get("validation_failed")
+        generation_failed = outputs.get("generation_failed")
+        persistence_failed = outputs.get("persistence_failed")
+        details = []
+        if accepted is not None:
+            details.append(f"{accepted} accepted")
+        if validation_failed is not None:
+            details.append(f"{validation_failed} validation failed")
+        if generation_failed is not None:
+            details.append(f"{generation_failed} failed")
+        if persistence_failed is not None:
+            details.append(f"{persistence_failed} persistence failed")
+        if details:
+            return f"CV generation complete: {', '.join(details)}"
+    return event.message
 
 
 def _stage_download_label(stage_id: str | None) -> str | None:
@@ -803,6 +1089,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         candidate_profile_json: str | None = None,
         run_synonym_overlay: dict[str, str] | None = None,
         run_synonym_overlay_filename: str | None = None,
+        run_synonym_overlay_raw_yaml: str | None = None,
         run_synonym_overlay_source: str = "trigger_upload",
         run_mode: str = "run_all",
     ) -> dict:
@@ -839,6 +1126,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 source=run_synonym_overlay_source,
                 filename=str(run_synonym_overlay_filename or "").strip(),
                 uploaded_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                raw_yaml=str(run_synonym_overlay_raw_yaml or ""),
             )
 
         run_id = str(uuid.uuid4())
@@ -1071,6 +1359,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         # ── Run-scoped synonym overlay resolution ───────────────────────
         synonym_overlay_payload: dict[str, str] | None = None
         synonym_overlay_filename: str | None = None
+        synonym_overlay_raw_yaml: str | None = None
         if synonym_overlay_mode == "default_config":
             pass
         elif synonym_overlay_mode == "upload":
@@ -1088,6 +1377,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 synonym_overlay_payload = parse_skill_synonym_overlay_yaml(raw_text)
             except ValueError as exc:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
+            synonym_overlay_raw_yaml = raw_text
         else:
             raise HTTPException(status_code=422, detail=f"Unknown synonym_overlay_mode: {synonym_overlay_mode!r}")
 
@@ -1102,6 +1392,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             candidate_profile_json=candidate_json_snapshot,
             run_synonym_overlay=synonym_overlay_payload,
             run_synonym_overlay_filename=synonym_overlay_filename,
+            run_synonym_overlay_raw_yaml=synonym_overlay_raw_yaml,
             run_synonym_overlay_source="trigger_upload",
             run_mode=run_mode,
         )
@@ -1606,6 +1897,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             source="staged_override",
             filename=filename,
             uploaded_at=uploaded_at,
+            raw_yaml=raw_text,
         )
         update_run_effective_settings(
             run_id,
@@ -1768,22 +2060,34 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=404)
         run = _enforce_run_timeout_guard(run, max_runtime_minutes=_run_max_runtime_minutes())
         events = get_events(run_id, bq, project=project, dataset=dataset)
+        stage_artifacts_by_id = _stage_artifacts_by_id(run)
+        stage_quality_metrics = _stage_quality_metrics_from_stage_artifacts(stage_artifacts_by_id)
+        stage_quality_metric_rows = _build_stage_quality_metric_rows(stage_quality_metrics)
+        late_stage_reuse_metrics = _late_stage_reuse_metrics_from_stage_artifacts(stage_artifacts_by_id)
+        late_stage_reuse_metric_rows = _build_late_stage_reuse_metric_rows(late_stage_reuse_metrics)
+        run_health_rows = _build_run_health_rows(stage_quality_metric_rows, late_stage_reuse_metric_rows)
         timeline_events: list[dict[str, Any]] = []
         for ev in events:
             stage_id = _timeline_stage_download_for_event(ev.stage)
+            stage_download_url = None
+            stage_download_label = None
+            if (
+                stage_id
+                and _timeline_event_allows_stage_download(ev.stage)
+                and stage_id in stage_artifacts_by_id
+            ):
+                stage_download_url = f"/admin/runs/{run_id}/stage-artifacts/{stage_id}.json"
+                stage_download_label = _stage_download_label(stage_id)
             timeline_events.append(
                 {
                     "created_at": ev.created_at,
                     "stage": ev.stage,
+                    "stage_label": _timeline_stage_label(ev.stage),
                     "level": ev.level,
-                    "message": ev.message,
+                    "message": _timeline_stage_summary_message(ev, stage_artifacts_by_id),
                     "stage_id": stage_id,
-                    "stage_download_url": (
-                        f"/admin/runs/{run_id}/stage-artifacts/{stage_id}.json"
-                        if stage_id and run.stage_transition_artifacts_json
-                        else None
-                    ),
-                    "stage_download_label": _stage_download_label(stage_id),
+                    "stage_download_url": stage_download_url,
+                    "stage_download_label": stage_download_label,
                 }
             )
         cv_versions = list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
@@ -1803,19 +2107,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         ]
         deduplicated_before_enrichment: list[dict[str, str | list[str] | None]] = []
         pipeline_outcomes_by_job_url: dict[str, dict[str, str | None]] = {}
-        stage_quality_metrics: dict[str, Any] = {}
-        stage_quality_metric_rows: list[dict[str, Any]] = []
-        late_stage_reuse_metrics: dict[str, Any] = {}
-        late_stage_reuse_metric_rows: list[dict[str, Any]] = []
-        run_health_rows: list[dict[str, Any]] = []
         if run.results_export_json:
             try:
                 export_payload = _json.loads(run.results_export_json)
-                stage_quality_metrics = dict(export_payload.get("stage_quality_metrics") or {})
-                stage_quality_metric_rows = _build_stage_quality_metric_rows(stage_quality_metrics)
-                late_stage_reuse_metrics = dict(export_payload.get("late_stage_reuse_metrics") or {})
-                late_stage_reuse_metric_rows = _build_late_stage_reuse_metric_rows(late_stage_reuse_metrics)
-                run_health_rows = _build_run_health_rows(stage_quality_metric_rows, late_stage_reuse_metric_rows)
                 pipeline_outcomes_by_job_url = {
                     str(row.get("job_url") or ""): {
                         "status": str(row.get("pipeline_status") or ""),
@@ -1844,11 +2138,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             except (_json.JSONDecodeError, TypeError, AttributeError):
                 deduplicated_before_enrichment = []
                 pipeline_outcomes_by_job_url = {}
-                stage_quality_metrics = {}
-                stage_quality_metric_rows = []
-                late_stage_reuse_metrics = {}
-                late_stage_reuse_metric_rows = []
-                run_health_rows = []
 
         # Build job title lookup: job_url → title (used for cv_versions generated output labels)
         job_title_by_url: dict[str, str] = {
@@ -2019,6 +2308,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
+        if not (_run_has_reached_stage(run, "enrich") and _run_has_stage_artifact(run, "enrich")):
+            raise HTTPException(
+                status_code=404,
+                detail="Mapping suggestions export is not available until enrich has completed for this run",
+            )
         if not run.mapping_suggestions_json:
             raise HTTPException(status_code=404, detail="Mapping suggestions export is not available for this run")
         pretty_json = _json.dumps(_json.loads(run.mapping_suggestions_json), ensure_ascii=False, indent=2)
