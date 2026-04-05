@@ -21,7 +21,6 @@ config["cv"] is the canonical nested object:
   - cv.generation.model    : LLM model name
   - cv.generation.prompt_version : version tag
   - cv.composition.<section>.enabled : bool
-  - cv.content_rules.<rule> : bool
   - cv.validation.max_pages : int
 
 Backward-compatibility projection (TEMPORARY — remove after plan 2 lands)
@@ -69,7 +68,7 @@ _POLICY_FILE_CANDIDATES = [
 _DEFAULT_ENV_CANDIDATES = (".env.yaml", "config/env.yaml")
 _DEFAULT_ENRICH_PROMPT_ID = "enrich.extraction.v1"
 _DEFAULT_RANKING_AI_SCORE_PROMPT_ID = "ranking.ai_score.v1"
-_DEFAULT_CV_GENERATION_WRITE_PROMPT_ID = "cv_generation.write.v1"
+_DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID = "cv_generation.structured_write.v1"
 _INFRA_ENV_OVERRIDES = {
     "gcp_project": "GCP_PROJECT",
     "bigquery_dataset": "BIGQUERY_DATASET",
@@ -312,12 +311,16 @@ def _apply_prompt_defaults(cfg: dict[str, Any]) -> dict[str, Any]:
     cv_generation_prompt_cfg = prompts.get("cv_generation")
     if not isinstance(cv_generation_prompt_cfg, dict):
         cv_generation_prompt_cfg = {}
-    write_cfg = cv_generation_prompt_cfg.get("write")
-    if not isinstance(write_cfg, dict):
-        write_cfg = {}
-    write_prompt_id = str(write_cfg.get("prompt_id") or _DEFAULT_CV_GENERATION_WRITE_PROMPT_ID).strip()
-    write_cfg["prompt_id"] = write_prompt_id or _DEFAULT_CV_GENERATION_WRITE_PROMPT_ID
-    cv_generation_prompt_cfg["write"] = write_cfg
+    structured_write_cfg = cv_generation_prompt_cfg.get("structured_write")
+    if not isinstance(structured_write_cfg, dict):
+        structured_write_cfg = {}
+    structured_write_prompt_id = str(
+        structured_write_cfg.get("prompt_id") or _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID
+    ).strip()
+    structured_write_cfg["prompt_id"] = (
+        structured_write_prompt_id or _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID
+    )
+    cv_generation_prompt_cfg["structured_write"] = structured_write_cfg
     prompts["cv_generation"] = cv_generation_prompt_cfg
     cfg["prompts"] = prompts
     return cfg
@@ -334,11 +337,11 @@ def _build_prompts_runtime(cfg: dict[str, Any]) -> dict[str, Any]:
         or _DEFAULT_RANKING_AI_SCORE_PROMPT_ID
     )
     ranking_definition = get_prompt_definition(ranking_prompt_id)
-    cv_generation_prompt_id = str(
-        (((cfg.get("prompts") or {}).get("cv_generation") or {}).get("write") or {}).get("prompt_id")
-        or _DEFAULT_CV_GENERATION_WRITE_PROMPT_ID
+    cv_generation_structured_prompt_id = str(
+        (((cfg.get("prompts") or {}).get("cv_generation") or {}).get("structured_write") or {}).get("prompt_id")
+        or _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID
     )
-    cv_generation_definition = get_prompt_definition(cv_generation_prompt_id)
+    cv_generation_structured_definition = get_prompt_definition(cv_generation_structured_prompt_id)
     return {
         "enrich": {
             "extraction": {
@@ -357,12 +360,12 @@ def _build_prompts_runtime(cfg: dict[str, Any]) -> dict[str, Any]:
             }
         },
         "cv_generation": {
-            "write": {
-                "prompt_id": cv_generation_definition.prompt_id,
-                "version": cv_generation_definition.version,
-                "template_path": str(cv_generation_definition.template_path),
-                "stage_id": cv_generation_definition.stage_id,
-            }
+            "structured_write": {
+                "prompt_id": cv_generation_structured_definition.prompt_id,
+                "version": cv_generation_structured_definition.version,
+                "template_path": str(cv_generation_structured_definition.template_path),
+                "stage_id": cv_generation_structured_definition.stage_id,
+            },
         }
     }
 
@@ -390,16 +393,18 @@ def _validate_prompt_config(cfg: dict[str, Any]) -> None:
     except KeyError as exc:
         raise ValueError(f"Unknown ranking ai_score prompt_id: {ranking_prompt_id}") from exc
 
-    cv_generation_prompt_id = str(
-        (((cfg.get("prompts") or {}).get("cv_generation") or {}).get("write") or {}).get("prompt_id")
+    cv_generation_structured_prompt_id = str(
+        (((cfg.get("prompts") or {}).get("cv_generation") or {}).get("structured_write") or {}).get("prompt_id")
         or ""
     ).strip()
-    if not cv_generation_prompt_id:
-        raise ValueError("prompts.cv_generation.write.prompt_id is required")
+    if not cv_generation_structured_prompt_id:
+        raise ValueError("prompts.cv_generation.structured_write.prompt_id is required")
     try:
-        get_prompt_definition(cv_generation_prompt_id)
+        get_prompt_definition(cv_generation_structured_prompt_id)
     except KeyError as exc:
-        raise ValueError(f"Unknown cv_generation write prompt_id: {cv_generation_prompt_id}") from exc
+        raise ValueError(
+            f"Unknown cv_generation structured_write prompt_id: {cv_generation_structured_prompt_id}"
+        ) from exc
 
 
 def _resolve_config_relative_path(config_dir: Path, raw_path: str | Path) -> Path:
@@ -595,12 +600,11 @@ def _validate_nested_cv_config(cfg: dict[str, Any]) -> None:
             f"cv.composition errors for preset '{preset}': {comp_result['errors']}"
         )
 
-    # content_rules block
-    if "content_rules" not in cv_cfg:
-        raise ValueError("cv.content_rules is required")
-    cr = cv_cfg["content_rules"]
-    if not isinstance(cr, dict):
-        raise ValueError("cv.content_rules must be a dict")
+    # content_rules was retired from the active pipeline contract.
+    # Older config files may still include the block; it is ignored.
+    if "content_rules" in cv_cfg and not isinstance(cv_cfg["content_rules"], dict):
+        raise ValueError("cv.content_rules must be a dict when provided")
+    cv_cfg.pop("content_rules", None)
 
     # validation block
     if "validation" not in cv_cfg:
@@ -710,12 +714,12 @@ def get_ranking_prompt_id(config: dict[str, Any]) -> str:
     return prompt_id or _DEFAULT_RANKING_AI_SCORE_PROMPT_ID
 
 
-def get_cv_generation_prompt_id(config: dict[str, Any]) -> str:
+def get_cv_generation_structured_prompt_id(config: dict[str, Any]) -> str:
     prompt_id = str(
-        (((config.get("prompts") or {}).get("cv_generation") or {}).get("write") or {}).get("prompt_id")
-        or _DEFAULT_CV_GENERATION_WRITE_PROMPT_ID
+        (((config.get("prompts") or {}).get("cv_generation") or {}).get("structured_write") or {}).get("prompt_id")
+        or _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID
     ).strip()
-    return prompt_id or _DEFAULT_CV_GENERATION_WRITE_PROMPT_ID
+    return prompt_id or _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID
 
 
 def get_cv_generation_model(config: dict[str, Any]) -> str:

@@ -13,7 +13,7 @@ capabilities:
   feature_id: settings_system
 - capability: CSS custom properties design tokens
   feature_id: ui_consistency_theming
-- capability: CV composition model (visibility, detail level per section)
+  - capability: CV composition model (section visibility controls)
   feature_id: cv_system
 - capability: CV composition settings
   feature_id: settings_system
@@ -61,7 +61,7 @@ capabilities:
   feature_id: bounded_parallel_enrichment
 - capability: Consistent action hierarchy (primary, secondary, section)
   feature_id: ui_consistency_theming
-- capability: Content rules (evidence_grounded_only, JD terminology alignment)
+- capability: Warning-only CV max-pages validation
   feature_id: cv_system
 - capability: Cooperative cancellation at safe checkpoints for running jobs
   feature_id: run_lifecycle_controls

@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', updateWeightsTotal);
   <div class="page-header" style="margin-bottom:1.5rem">
     <div>
       <div class="section-title">CV Generation</div>
-      <div class="section-helper">Settings governing how candidate CV documents are generated. Use the Preset selector to choose a template family; composition controls define which sections are included and how they are styled.</div>
+      <div class="section-helper">Settings governing how candidate CV documents are generated. Use the Preset selector to choose a template family; composition controls define which sections are included.</div>
     </div>
   </div>
 
@@ -378,7 +378,7 @@ document.addEventListener('DOMContentLoaded', updateWeightsTotal);
     <div class="sub-card-header">
       <div>
         <div class="sub-card-title">Composition</div>
-        <div class="sub-card-helper">Control which sections appear in generated CVs and how they are formatted.</div>
+        <div class="sub-card-helper">Control which sections appear in generated CVs.</div>
       </div>
       {% if group_error and 'cv-composition' in group_error %}
       <div class="error-box" style="margin-bottom:0.75rem">
@@ -427,38 +427,7 @@ document.addEventListener('DOMContentLoaded', updateWeightsTotal);
     </form>
   </div>
 
-  {# ── Group 3: Content Rules ─────────────────────────────────────────────── #}
-  <div class="sub-card settings-panel">
-    <div class="sub-card-header">
-      <div>
-        <div class="sub-card-title">Content Rules</div>
-        <div class="sub-card-helper">Policies applied when generating CV content.</div>
-      </div>
-      {% if group_error and 'cv-content-rules' in group_error %}
-      <div class="error-box" style="margin-bottom:0.75rem">
-        <strong>Validation error</strong>
-        <span>{{ group_error['cv-content-rules'] }}</span>
-      </div>
-      {% endif %}
-    </div>
-    <form id="form-cv-content-rules" method="post" action="/admin/settings/group/cv-content-rules">
-      <div class="sub-card-body settings-panel-body">
-        <div class="settings-field-list">
-          {% for entry in schema if entry.key in cv_groups['cv-content-rules'] %}
-          {% set draft_val = group_draft['cv-content-rules'][entry.key] if group_draft and 'cv-content-rules' in group_draft and entry.key in group_draft['cv-content-rules'] else none %}
-          {% set current_val = draft_val if draft_val is not none else effective[entry.key] %}
-          {{ render_settings_row(entry, effective[entry.key], current_val) }}
-          {% endfor %}
-        </div>
-      </div>
-      <div class="sub-card-footer">
-        <button type="button" class="btn-secondary" data-reset-form="form-cv-content-rules">Use Defaults</button>
-        <button type="submit" class="btn-section">Save Content Rules Settings</button>
-      </div>
-    </form>
-  </div>
-
-  {# ── Group 4: Validation ────────────────────────────────────────────────── #}
+  {# ── Group 3: Validation ────────────────────────────────────────────────── #}
   <div class="sub-card settings-panel">
     <div class="sub-card-header">
       <div>

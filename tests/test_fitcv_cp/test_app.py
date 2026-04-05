@@ -1578,18 +1578,42 @@ def test_grouped_save_audit_identity_encoded_in_updated_by():
 
 # ── POST /admin/settings/section/{section_name} ───────────────────────────────
 
+def _retrieval_section_form(
+    *,
+    vector_search_top_n: str = "100",
+    ai_score_top_n: str = "20",
+    final_top_n: str = "10",
+    evidence_top_k: str = "5",
+    semantic_alignment_enabled: str = "true",
+    semantic_alignment_model: str = "text-embedding-005",
+    responsibility_lexical_weight: str = "0.25",
+    responsibility_semantic_weight: str = "0.75",
+    domain_lexical_weight: str = "0.40",
+    domain_semantic_weight: str = "0.60",
+    channel_pool_size: str = "4",
+) -> dict[str, str]:
+    return {
+        "pipeline.vector_search_top_n": vector_search_top_n,
+        "pipeline.ai_score_top_n": ai_score_top_n,
+        "pipeline.final_top_n": final_top_n,
+        "pipeline.evidence_top_k": evidence_top_k,
+        "cv_analysis.semantic_alignment.enabled": semantic_alignment_enabled,
+        "cv_analysis.semantic_alignment.model": semantic_alignment_model,
+        "cv_analysis.semantic_alignment.responsibility_lexical_weight": responsibility_lexical_weight,
+        "cv_analysis.semantic_alignment.responsibility_semantic_weight": responsibility_semantic_weight,
+        "cv_analysis.semantic_alignment.domain_lexical_weight": domain_lexical_weight,
+        "cv_analysis.semantic_alignment.domain_semantic_weight": domain_semantic_weight,
+        "cv_analysis.semantic_alignment.channel_pool_size": channel_pool_size,
+    }
+
+
 def test_post_settings_section_valid_redirects():
     """Valid payload for retrieval section returns 303."""
     with patch("fitcv_cp.app.save_settings_group"), \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/settings/section/retrieval",
-            data={
-                "pipeline.vector_search_top_n": "100",
-                "pipeline.ai_score_top_n": "20",
-                "pipeline.final_top_n": "10",
-                "pipeline.evidence_top_k": "5",
-            },
+            data=_retrieval_section_form(),
         )
     assert resp.status_code == 303
     assert resp.headers["location"] == "/admin/settings"
@@ -1609,12 +1633,7 @@ def test_post_settings_section_invalid_value_returns_422():
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/settings/section/retrieval",
-            data={
-                "pipeline.vector_search_top_n": "not-a-number",
-                "pipeline.ai_score_top_n": "20",
-                "pipeline.final_top_n": "10",
-                "pipeline.evidence_top_k": "5",
-            },
+            data=_retrieval_section_form(vector_search_top_n="not-a-number"),
         )
     assert resp.status_code == 422
 
@@ -2867,14 +2886,13 @@ def test_settings_page_renders_cv_generation_section():
 
 
 def test_settings_page_renders_cv_sub_cards():
-    """Settings page includes Preset, Composition, Content Rules, and Validation sub-cards."""
+    """Settings page includes Preset, Composition, and Validation sub-cards."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
     assert "Preset" in html
     assert "Composition" in html
-    assert "Content Rules" in html
     assert "Validation" in html
 
 
@@ -2991,10 +3009,9 @@ def test_settings_page_renders_use_defaults_button_per_cv_block() -> None:
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert html.count("Use Defaults") >= 4
+    assert html.count("Use Defaults") >= 3
     assert 'data-reset-form="form-cv-preset"' in html
     assert 'data-reset-form="form-cv-composition"' in html
-    assert 'data-reset-form="form-cv-content-rules"' in html
     assert 'data-reset-form="form-cv-validation"' in html
 
 
@@ -3005,7 +3022,7 @@ def test_settings_page_exposes_default_values_for_browser_reset() -> None:
     html = resp.text
     assert 'data-default-value="gemini-2.5-flash"' in html
     assert 'data-default-value="true"' in html
-    assert 'data-default-value="concise"' in html
+    assert 'data-default-value="concise"' not in html
 
 
 def test_settings_page_hides_legacy_required_controls() -> None:
@@ -3026,17 +3043,17 @@ def test_settings_page_shows_effective_current_values_for_composition_defaults()
     assert resp.status_code == 200
     html = resp.text
     assert '<span class="current-value">Yes</span>' in html
-    assert '<span class="current-value">compact</span>' in html
-    assert '<span class="current-value">concise</span>' in html
+    assert '<span class="current-value">compact</span>' not in html
+    assert '<span class="current-value">concise</span>' not in html
 
 
-def test_settings_page_renders_cv_content_rules_section():
-    """Settings page includes cv-content-rules sub-card."""
+def test_settings_page_does_not_render_cv_content_rules_section():
+    """Settings page no longer includes the removed cv-content-rules sub-card."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert "Content Rules" in html
+    assert "Content Rules" not in html
 
 
 def test_settings_page_renders_cv_preset_inputs():
@@ -3051,28 +3068,49 @@ def test_settings_page_renders_cv_preset_inputs():
 
 
 def test_settings_page_renders_cv_composition_inputs():
-    """Settings page includes inputs for all composition fields."""
+    """Settings page includes inputs only for active composition fields."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    for name in ("cv_summary_style", "cv_education_enabled", "cv_education_detail",
-                 "cv_experience_enabled", "cv_experience_bullet_style",
-                 "cv_skills_enabled", "cv_skills_max_items",
-                 "cv_certifications_enabled", "cv_projects_enabled",
-                 "cv_publications_enabled", "cv_publications_detail",
-                 "cv_languages_enabled", "cv_languages_detail"):
+    for name in (
+        "cv_summary_enabled",
+        "cv_education_enabled",
+        "cv_experience_enabled",
+        "cv_skills_enabled",
+        "cv_certifications_enabled",
+        "cv_projects_enabled",
+        "cv_publications_enabled",
+        "cv_languages_enabled",
+    ):
         assert f'name="{name}"' in html, f"Missing input for {name}"
 
 
-def test_settings_page_renders_cv_content_rules_inputs():
-    """Settings page includes inputs for all content-rules fields."""
+def test_settings_page_does_not_render_retired_cv_composition_formatting_inputs():
+    """Settings page no longer renders dormant CV composition formatting/detail controls."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    for name in (
+        "cv_summary_style",
+        "cv_education_detail",
+        "cv_experience_bullet_style",
+        "cv_skills_max_items",
+        "cv_publications_detail",
+        "cv_languages_detail",
+    ):
+        assert f'name="{name}"' not in html, f"Unexpected input for retired field {name}"
+
+
+def test_settings_page_does_not_render_removed_cv_content_rules_inputs():
+    """Settings page no longer includes inputs for removed content-rule fields."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
     for name in ("cv_emphasize_required_skills", "cv_align_jd_terminology", "cv_evidence_grounded_only"):
-        assert f'name="{name}"' in html, f"Missing input for {name}"
+        assert f'name="{name}"' not in html, f"Unexpected input for removed field {name}"
 
 
 def test_settings_page_renders_cv_validation_inputs():
@@ -3100,12 +3138,12 @@ def test_settings_page_cv_composition_save_button():
     assert "Save Composition Settings" in resp.text
 
 
-def test_settings_page_cv_content_rules_save_button():
-    """Settings page has 'Save Content Rules Settings' button for cv-content-rules group."""
+def test_settings_page_does_not_render_cv_content_rules_save_button():
+    """Settings page no longer renders a save button for the removed content-rules group."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
-    assert "Save Content Rules Settings" in resp.text
+    assert "Save Content Rules Settings" not in resp.text
 
 
 def test_settings_page_cv_validation_new_save_button():
@@ -3175,65 +3213,50 @@ def test_grouped_save_cv_composition_valid_redirects():
         resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/settings/group/cv-composition",
             data={
-                "cv_summary_style": "concise",
+                "cv_summary_enabled": "true",
                 "cv_education_enabled": "true",
-                "cv_education_detail": "compact",
                 "cv_experience_enabled": "true",
-                "cv_experience_bullet_style": "action_project_result",
                 "cv_skills_enabled": "true",
-                "cv_skills_max_items": "12",
                 "cv_certifications_enabled": "true",
                 "cv_projects_enabled": "true",
                 "cv_publications_enabled": "false",
-                "cv_publications_detail": "compact",
                 "cv_languages_enabled": "true",
-                "cv_languages_detail": "compact",
             },
         )
     assert resp.status_code == 303
     mock_save.assert_called_once()
 
-
-def test_grouped_save_cv_composition_rejects_zero_max_items():
-    """cv_skills_max_items=0 → 422; no write."""
+def test_grouped_save_cv_composition_rejects_invalid_bool():
+    """Invalid boolean in cv-composition → 422; no write."""
     with patch("fitcv_cp.app.save_settings_group") as mock_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).post(
             "/admin/settings/group/cv-composition",
             data={
-                "cv_summary_style": "concise",
+                "cv_summary_enabled": "true",
                 "cv_education_enabled": "true",
-                "cv_education_detail": "compact",
-                "cv_experience_enabled": "true",
-                "cv_experience_bullet_style": "action_project_result",
+                "cv_experience_enabled": "not-a-bool",
                 "cv_skills_enabled": "true",
-                "cv_skills_max_items": "0",
                 "cv_certifications_enabled": "true",
                 "cv_projects_enabled": "true",
                 "cv_publications_enabled": "false",
-                "cv_publications_detail": "compact",
                 "cv_languages_enabled": "true",
-                "cv_languages_detail": "compact",
             },
         )
     assert resp.status_code == 422
     mock_save.assert_not_called()
 
 
-def test_grouped_save_cv_content_rules_valid_redirects():
-    """Valid cv-content-rules form POST → 303 redirect."""
+def test_grouped_save_removed_cv_content_rules_returns_404():
+    """Removed cv-content-rules group can no longer be posted."""
     with patch("fitcv_cp.app.save_settings_group") as mock_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/settings/group/cv-content-rules",
-            data={
-                "cv_emphasize_required_skills": "true",
-                "cv_align_jd_terminology": "true",
-                "cv_evidence_grounded_only": "false",
-            },
+            data={},
         )
-    assert resp.status_code == 303
-    mock_save.assert_called_once()
+    assert resp.status_code == 404
+    mock_save.assert_not_called()
 
 
 def test_grouped_save_cv_validation_new_valid_redirects():
@@ -3286,19 +3309,14 @@ def test_grouped_save_cv_composition_invalid_does_not_partial_save():
         resp = TestClient(_app()).post(
             "/admin/settings/group/cv-composition",
             data={
-                "cv_summary_style": "",
+                "cv_summary_enabled": "definitely-not-bool",
                 "cv_education_enabled": "true",
-                "cv_education_detail": "compact",
                 "cv_experience_enabled": "true",
-                "cv_experience_bullet_style": "action_project_result",
                 "cv_skills_enabled": "true",
-                "cv_skills_max_items": "12",
                 "cv_certifications_enabled": "true",
                 "cv_projects_enabled": "true",
                 "cv_publications_enabled": "false",
-                "cv_publications_detail": "compact",
                 "cv_languages_enabled": "true",
-                "cv_languages_detail": "compact",
             },
         )
     assert resp.status_code == 422

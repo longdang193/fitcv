@@ -32,6 +32,15 @@ def test_get_prompt_definition_returns_cv_generation_write_metadata() -> None:
     assert definition.template_path.name == "cv_generation_write_v1.md"
 
 
+def test_get_prompt_definition_returns_cv_generation_structured_write_metadata() -> None:
+    definition = get_prompt_definition("cv_generation.structured_write.v1")
+
+    assert definition.prompt_id == "cv_generation.structured_write.v1"
+    assert definition.stage_id == "cv_generation"
+    assert definition.version == "v1"
+    assert definition.template_path.name == "cv_generation_structured_write_v1.md"
+
+
 def test_render_prompt_includes_expected_runtime_context() -> None:
     rendered = render_prompt(
         "enrich.extraction.v1",
@@ -84,6 +93,28 @@ def test_render_prompt_cv_generation_write_includes_sections() -> None:
     assert "Data Analyst" in rendered.text
     assert "Do not invent claims." in rendered.text
     assert "## Summary" in rendered.text
+
+
+def test_render_prompt_cv_generation_structured_write_includes_schema() -> None:
+    rendered = render_prompt(
+        "cv_generation.structured_write.v1",
+        {
+            "title": "Data Analyst",
+            "required_skills": "SQL, Python",
+            "selected_evidence": "- Experience",
+            "evidence_usage_guidance": "- Use evidence",
+            "analysis_summary": "Selected evidence count: 2",
+            "constraints": "Do not invent claims.",
+            "section_evidence": "(none)",
+            "output_template": "## Summary",
+            "structured_schema": '{"sections": {}}',
+            "output_instruction": "Write only valid JSON matching the schema below.",
+        },
+    )
+
+    assert "structured JSON document" in rendered.text
+    assert "## Structured JSON Schema" in rendered.text
+    assert '{"sections": {}}' in rendered.text
 
 
 def test_render_prompt_raises_for_missing_required_variables() -> None:

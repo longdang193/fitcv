@@ -10,10 +10,8 @@ cv:
   composition:
     summary:
       enabled: true
-      style: concise
     education:
       enabled: true
-      detail: compact
       include_institution: true
       include_major: true
       include_grade: false
@@ -23,11 +21,8 @@ cv:
     experience:
       enabled: true
       require_achievements: true
-      bullet_style: action_project_result
-      detail: standard
     skills:
       enabled: true
-      max_items: 12
       display_mode: grouped
     certifications:
       enabled: true
@@ -35,16 +30,9 @@ cv:
       max_items: 5
     projects:
       enabled: true
-      detail: standard
     publications:
       enabled: false
-      detail: compact
     languages:
       enabled: true
-      detail: compact
-  content_rules:
-    emphasize_required_skills: true
-    align_jd_terminology: true
-    evidence_grounded_only: true
   validation:
     max_pages: 2

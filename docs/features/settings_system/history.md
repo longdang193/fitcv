@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 2.7.0 — active
+
+- The admin settings UI no longer exposes the three dormant CV content-rule toggles as if they were meaningful runtime switches
+- `CV Maximum Pages` remains the only user-facing CV validation setting and continues to map to warning-only runtime behavior
+
 ### 2.6.0 — active
 
 - Retrieval settings now expose `cv_analysis.semantic_alignment.*` controls, including enable/model settings and lexical-versus-semantic weights for responsibility and domain alignment

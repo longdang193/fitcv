@@ -464,41 +464,37 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         {
             "id": "summary",
             "title": "Summary",
-            "helper": "Professional summary tone and emphasis.",
+            "helper": "Whether a professional summary section appears in generated CVs.",
             "include_key": "cv_summary_enabled",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_summary_enabled"]},
-                {"title": "Formatting", "keys": ["cv_summary_style"]},
             ],
         },
         {
             "id": "education",
             "title": "Education",
-            "helper": "Visibility and detail settings for education.",
+            "helper": "Whether an education section appears in generated CVs.",
             "include_key": "cv_education_enabled",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_education_enabled"]},
-                {"title": "Formatting", "keys": ["cv_education_detail"]},
             ],
         },
         {
             "id": "experience",
             "title": "Experience",
-            "helper": "Whether experience appears and how bullets are written.",
+            "helper": "Whether a work experience section appears in generated CVs.",
             "include_key": "cv_experience_enabled",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_experience_enabled"]},
-                {"title": "Formatting", "keys": ["cv_experience_bullet_style"]},
             ],
         },
         {
             "id": "skills",
             "title": "Skills",
-            "helper": "Visibility and limits for the skills section.",
+            "helper": "Whether a skills section appears in generated CVs.",
             "include_key": "cv_skills_enabled",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_skills_enabled"]},
-                {"title": "Formatting", "keys": ["cv_skills_max_items"]},
             ],
         },
         {
@@ -522,21 +518,19 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         {
             "id": "publications",
             "title": "Publications",
-            "helper": "Visibility and detail settings for publications.",
+            "helper": "Whether a publications section appears in generated CVs.",
             "include_key": "cv_publications_enabled",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_publications_enabled"]},
-                {"title": "Formatting", "keys": ["cv_publications_detail"]},
             ],
         },
         {
             "id": "languages",
             "title": "Languages",
-            "helper": "Visibility and detail settings for languages.",
+            "helper": "Whether a languages section appears in generated CVs.",
             "include_key": "cv_languages_enabled",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_languages_enabled"]},
-                {"title": "Formatting", "keys": ["cv_languages_detail"]},
             ],
         },
     ]

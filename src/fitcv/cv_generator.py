@@ -15,7 +15,7 @@ config["cv"]["generation"]["model"]        : LLM model name
 config["cv"]["generation"]["prompt_version"] : version tag (for record only)
 config["cv"]["preset"]                   : preset name — used to resolve template path
 config["cv"]["composition"]             : section composition rules (informative in generator)
-config["cv"]["content_rules"]           : content constraints
+config["cv"]["validation"]              : validation constraints
 
 Template resolution uses cv_presets.get_template_path(config["cv"]["preset"]).
 Direct cv_template_path reads are no longer the primary path.
@@ -39,7 +39,7 @@ from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
     CV_STRUCTURED_SECTION_KEYS,
     get_cv_generation_model,
-    get_cv_generation_prompt_id,
+    get_cv_generation_structured_prompt_id,
     get_required_structured_section_keys,
 )
 from fitcv.contracts import (
@@ -66,6 +66,7 @@ _TEMPLATE_VARIANTS: dict[str, str] = {
 _DEFAULT_VARIANT = "standard"
 DEFAULT_CV_LOCALE = "en"
 DEFAULT_SUPPORTING_EVIDENCE_PER_ROLE = 1
+LEGACY_MARKDOWN_PROMPT_ID = "cv_generation.write.v1"
 
 
 # ── template variant selector ─────────────────────────────────────────────────
@@ -421,6 +422,159 @@ def _coerce_string_list(values: Any) -> list[str]:
     return result
 
 
+def _build_generation_prompt_context(
+    *,
+    jd: dict[str, Any],
+    evidence: list[dict[str, Any]],
+    gap: dict[str, Any],
+    template: str,
+    profile: dict[str, Any] | None,
+    config: dict[str, Any] | None,
+    evidence_selection_summary: dict[str, Any] | None,
+    repair_missing_sections: list[str] | None,
+) -> dict[str, str]:
+    title = str(jd.get("title") or "")
+    required_skills = list(jd.get("required_skills") or [])
+
+    enabled_section_names = _get_enabled_section_names(config)
+    evidence_lines = _build_selected_evidence_lines(
+        evidence,
+        jd_skills=required_skills,
+        enabled_section_names=enabled_section_names,
+    )
+    evidence_usage_guidance = _build_evidence_usage_guidance(evidence)
+
+    matched_skills = list(gap.get("matched") or [])
+    missing_skills = list(gap.get("missing") or [])
+
+    constraint_lines: list[str] = []
+    if missing_skills:
+        constraint_lines.append(
+            "Do NOT claim the candidate has the following skills "
+            f"(they are missing from their profile): {', '.join(missing_skills)}"
+        )
+    if matched_skills:
+        constraint_lines.append(
+            f"The candidate does have: {', '.join(matched_skills)}"
+        )
+    if profile:
+        approved_skills = flatten_skills(profile)
+        known_employers = [
+            str(exp.get("company") or "")
+            for exp in (profile.get("experiences") or [])
+            if exp.get("company")
+        ]
+        known_projects = [
+            str(project.get("name") or "")
+            for project in (profile.get("projects") or [])
+            if project.get("name")
+        ]
+        if known_employers:
+            constraint_lines.append(
+                "Do not invent employer names. Only use employers from the candidate profile: "
+                + ", ".join(known_employers)
+            )
+        if known_projects:
+            constraint_lines.append(
+                "Do not invent project names. Only use project names from the candidate profile: "
+                + ", ".join(known_projects)
+            )
+        if approved_skills:
+            constraint_lines.append(
+                "In the Skills section, only use skills from this approved list: "
+                + ", ".join(approved_skills)
+            )
+    if enabled_section_names:
+        constraint_lines.append(
+            "The generated CV MUST include these sections in this order: "
+            + ", ".join(enabled_section_names)
+        )
+    if repair_missing_sections:
+        constraint_lines.append(
+            "Regenerate the CV and fix the previous structural failure by including these missing sections with grounded content: "
+            + ", ".join(repair_missing_sections)
+        )
+        constraint_lines.append(
+            "Do not leave required sections empty. Each required section must contain at least one grounded line or bullet."
+        )
+
+    if config is not None:
+        composition = (config.get("cv") or {}).get("composition") or {}
+        for section_key, section_cfg in composition.items():
+            if isinstance(section_cfg, dict) and not section_cfg.get("enabled", True):
+                display_name = CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title())
+                constraint_lines.append(
+                    f"Do NOT include a '{display_name}' section."
+                )
+    if any(str(item.get("evidence_type") or "") == "experience_entry" for item in evidence):
+        constraint_lines.append(
+            "For the Experience section, emphasize the bullets most relevant to the target JD."
+        )
+        constraint_lines.append(
+            "For the Experience section, summarize or combine grounded facts where helpful."
+        )
+    if evidence:
+        constraint_lines.append(
+            "Stay within the selected evidence bundle for this job."
+        )
+        constraint_lines.append(
+            "If a responsibility, domain, or role-positioning claim is not supported by the selected evidence, omit it."
+        )
+
+    constraints = "\n".join(constraint_lines) or "(no specific constraints)"
+    filtered_template = _filter_template_by_enabled_sections(template, enabled_section_names)
+    section_evidence_lines: list[str] = []
+    if "Certifications" in enabled_section_names:
+        certification_lines = _format_certification_lines(profile)
+        if certification_lines:
+            section_evidence_lines.append(
+                "Use these candidate certifications when filling the Certifications section:\n"
+                + "\n".join(f"- {line}" for line in certification_lines)
+            )
+    if "Languages" in enabled_section_names:
+        language_lines = _format_language_lines(profile)
+        if language_lines:
+            section_evidence_lines.append(
+                "Use these candidate languages when filling the Languages section:\n"
+                + "\n".join(f"- {line}" for line in language_lines)
+            )
+    section_evidence = "\n\n".join(section_evidence_lines) or "(no additional section-specific evidence)"
+    analysis_summary_lines: list[str] = []
+    if evidence_selection_summary:
+        selected_count = evidence_selection_summary.get("selected_evidence_count")
+        if selected_count is not None:
+            analysis_summary_lines.append(
+                f"Selected evidence count: {selected_count}"
+            )
+        selected_ids = _coerce_string_list(
+            evidence_selection_summary.get("selected_evidence_ids")
+        )
+        if selected_ids:
+            analysis_summary_lines.append(
+                "Selected evidence ids: " + ", ".join(selected_ids)
+            )
+        channel_counts = evidence_selection_summary.get("channel_counts")
+        if isinstance(channel_counts, dict) and channel_counts:
+            ordered_counts = ", ".join(
+                f"{key}={channel_counts[key]}"
+                for key in sorted(channel_counts)
+            )
+            analysis_summary_lines.append(
+                "Evidence channel counts: " + ordered_counts
+            )
+    analysis_summary = "\n".join(analysis_summary_lines) or "(no analysis summary available)"
+    return {
+        "title": title,
+        "required_skills": ", ".join(required_skills) or "(none specified)",
+        "selected_evidence": evidence_lines,
+        "evidence_usage_guidance": evidence_usage_guidance,
+        "analysis_summary": analysis_summary,
+        "constraints": constraints,
+        "section_evidence": section_evidence,
+        "output_template": filtered_template,
+    }
+
+
 def _build_default_sections(
     *,
     profile: dict[str, Any] | None,
@@ -700,16 +854,6 @@ def build_structured_generation_prompt(
     evidence_selection_summary: dict[str, Any] | None = None,
     repair_missing_sections: list[str] | None = None,
 ) -> str:
-    base_prompt = build_generation_prompt(
-        jd=jd,
-        evidence=evidence,
-        gap=gap,
-        template=template,
-        profile=profile,
-        config=config,
-        evidence_selection_summary=evidence_selection_summary,
-        repair_missing_sections=repair_missing_sections,
-    )
     structured_schema = textwrap.dedent(
         """\
         {
@@ -732,19 +876,28 @@ def build_structured_generation_prompt(
         }
         """
     )
-    return (
-        base_prompt
-        .replace(
-            "You are a professional CV writer. Generate a tailored CV in markdown format.",
-            "You are a professional CV writer. Generate a tailored CV as a structured JSON document.",
-        )
-        .replace("## Output Template", "## Rendering Reference Template")
-        .replace(
-            "Write only the completed CV markdown. Do not add commentary.",
-            "Write only valid JSON matching the schema below. Do not add commentary. Do not wrap the JSON in markdown code fences.\n\n"
-            f"## Structured JSON Schema\n{structured_schema}",
-        )
+    prompt_context = _build_generation_prompt_context(
+        jd=jd,
+        evidence=evidence,
+        gap=gap,
+        template=template,
+        profile=profile,
+        config=config,
+        evidence_selection_summary=evidence_selection_summary,
+        repair_missing_sections=repair_missing_sections,
     )
+    prompt_id = get_cv_generation_structured_prompt_id(config or {})
+    return render_prompt(
+        prompt_id,
+        {
+            **prompt_context,
+            "structured_schema": structured_schema,
+            "output_instruction": (
+                "Write only valid JSON matching the schema below. "
+                "Do not add commentary. Do not wrap the JSON in markdown code fences."
+            ),
+        },
+    ).text
 
 
 # ── prompt assembly ───────────────────────────────────────────────────────────
@@ -770,151 +923,20 @@ def build_generation_prompt(
 
     Returns a plain string suitable for sending to an LLM as a single user message.
     """
-    title = str(jd.get("title") or "")
-    required_skills = list(jd.get("required_skills") or [])
-
-    enabled_section_names = _get_enabled_section_names(config)
-    evidence_lines = _build_selected_evidence_lines(
-        evidence,
-        jd_skills=required_skills,
-        enabled_section_names=enabled_section_names,
+    prompt_context = _build_generation_prompt_context(
+        jd=jd,
+        evidence=evidence,
+        gap=gap,
+        template=template,
+        profile=profile,
+        config=config,
+        evidence_selection_summary=evidence_selection_summary,
+        repair_missing_sections=repair_missing_sections,
     )
-    evidence_usage_guidance = _build_evidence_usage_guidance(evidence)
-
-    matched_skills = list(gap.get("matched") or [])
-    missing_skills = list(gap.get("missing") or [])
-
-    constraint_lines: list[str] = []
-    if missing_skills:
-        constraint_lines.append(
-            "Do NOT claim the candidate has the following skills "
-            f"(they are missing from their profile): {', '.join(missing_skills)}"
-        )
-    if matched_skills:
-        constraint_lines.append(
-            f"The candidate does have: {', '.join(matched_skills)}"
-        )
-    if profile:
-        approved_skills = flatten_skills(profile)
-        known_employers = [
-            str(exp.get("company") or "")
-            for exp in (profile.get("experiences") or [])
-            if exp.get("company")
-        ]
-        known_projects = [
-            str(project.get("name") or "")
-            for project in (profile.get("projects") or [])
-            if project.get("name")
-        ]
-        if known_employers:
-            constraint_lines.append(
-                "Do not invent employer names. Only use employers from the candidate profile: "
-                + ", ".join(known_employers)
-            )
-        if known_projects:
-            constraint_lines.append(
-                "Do not invent project names. Only use project names from the candidate profile: "
-                + ", ".join(known_projects)
-            )
-        if approved_skills:
-            constraint_lines.append(
-                "In the Skills section, only use skills from this approved list: "
-                + ", ".join(approved_skills)
-            )
-    if enabled_section_names:
-        constraint_lines.append(
-            "The generated CV MUST include these sections in this order: "
-            + ", ".join(enabled_section_names)
-        )
-    if repair_missing_sections:
-        constraint_lines.append(
-            "Regenerate the CV and fix the previous structural failure by including these missing sections with grounded content: "
-            + ", ".join(repair_missing_sections)
-        )
-        constraint_lines.append(
-            "Do not leave required sections empty. Each required section must contain at least one grounded line or bullet."
-        )
-
-    # Disabled-section constraints: tell the LLM to omit sections the
-    # admin has turned off in the composition config.
-    if config is not None:
-        composition = (config.get("cv") or {}).get("composition") or {}
-        for section_key, section_cfg in composition.items():
-            if isinstance(section_cfg, dict) and not section_cfg.get("enabled", True):
-                display_name = CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title())
-                constraint_lines.append(
-                    f"Do NOT include a '{display_name}' section."
-                )
-    if any(str(item.get("evidence_type") or "") == "experience_entry" for item in evidence):
-        constraint_lines.append(
-            "For the Experience section, emphasize the bullets most relevant to the target JD."
-        )
-        constraint_lines.append(
-            "For the Experience section, summarize or combine grounded facts where helpful."
-        )
-    if evidence:
-        constraint_lines.append(
-            "Stay within the selected evidence bundle for this job."
-        )
-        constraint_lines.append(
-            "If a responsibility, domain, or role-positioning claim is not supported by the selected evidence, omit it."
-        )
-
-    constraints = "\n".join(constraint_lines) or "(no specific constraints)"
-    filtered_template = _filter_template_by_enabled_sections(template, enabled_section_names)
-    section_evidence_lines: list[str] = []
-    if "Certifications" in enabled_section_names:
-        certification_lines = _format_certification_lines(profile)
-        if certification_lines:
-            section_evidence_lines.append(
-                "Use these candidate certifications when filling the Certifications section:\n"
-                + "\n".join(f"- {line}" for line in certification_lines)
-            )
-    if "Languages" in enabled_section_names:
-        language_lines = _format_language_lines(profile)
-        if language_lines:
-            section_evidence_lines.append(
-                "Use these candidate languages when filling the Languages section:\n"
-                + "\n".join(f"- {line}" for line in language_lines)
-            )
-    section_evidence = "\n\n".join(section_evidence_lines) or "(no additional section-specific evidence)"
-    analysis_summary_lines: list[str] = []
-    if evidence_selection_summary:
-        selected_count = evidence_selection_summary.get("selected_evidence_count")
-        if selected_count is not None:
-            analysis_summary_lines.append(
-                f"Selected evidence count: {selected_count}"
-            )
-        selected_ids = _coerce_string_list(
-            evidence_selection_summary.get("selected_evidence_ids")
-        )
-        if selected_ids:
-            analysis_summary_lines.append(
-                "Selected evidence ids: " + ", ".join(selected_ids)
-            )
-        channel_counts = evidence_selection_summary.get("channel_counts")
-        if isinstance(channel_counts, dict) and channel_counts:
-            ordered_counts = ", ".join(
-                f"{key}={channel_counts[key]}"
-                for key in sorted(channel_counts)
-            )
-            analysis_summary_lines.append(
-                "Evidence channel counts: " + ordered_counts
-            )
-    analysis_summary = "\n".join(analysis_summary_lines) or "(no analysis summary available)"
-
-    prompt_id = get_cv_generation_prompt_id(config or {})
     return render_prompt(
-        prompt_id,
+        LEGACY_MARKDOWN_PROMPT_ID,
         {
-            "title": title,
-            "required_skills": ", ".join(required_skills) or "(none specified)",
-            "selected_evidence": evidence_lines,
-            "evidence_usage_guidance": evidence_usage_guidance,
-            "analysis_summary": analysis_summary,
-            "constraints": constraints,
-            "section_evidence": section_evidence,
-            "output_template": filtered_template,
+            **prompt_context,
             "output_instruction": "Write only the completed CV markdown. Do not add commentary.",
         },
     ).text

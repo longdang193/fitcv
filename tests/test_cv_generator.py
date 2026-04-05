@@ -25,6 +25,7 @@ import pytest
 from fitcv.cv_generator import (
     build_empty_structured_cv,
     build_generation_prompt,
+    build_structured_generation_prompt,
     generate_cv,
     render_cv_markdown,
     _normalize_structured_cv,
@@ -935,6 +936,27 @@ def test_build_generation_prompt_includes_analysis_aware_evidence_guidance() -> 
     assert "Use evidence tagged `responsibility_alignment` to craft experience bullets around similar work and outcomes." in prompt
     assert "Matched channels: required_skill_support, responsibility_alignment" in prompt
     assert "Selection reasons: domain_alignment, role_alignment" in prompt
+
+
+def test_build_structured_generation_prompt_uses_dedicated_structured_template() -> None:
+    prompt = build_structured_generation_prompt(
+        jd={"title": "Data Analyst", "required_skills": ["SQL", "Python"]},
+        evidence=[],
+        gap={"matched": ["SQL"], "missing": ["dbt"]},
+        template="## Summary\n...",
+        config={
+            "prompts": {
+                "cv_generation": {
+                    "structured_write": {"prompt_id": "cv_generation.structured_write.v1"},
+                }
+            }
+        },
+    )
+
+    assert "Generate a tailored CV as a structured JSON document." in prompt
+    assert "## Structured JSON Schema" in prompt
+    assert "Write only valid JSON matching the schema below." in prompt
+    assert "Write only the completed CV markdown." not in prompt
 
 
 def test_europass_template_includes_publications_section() -> None:

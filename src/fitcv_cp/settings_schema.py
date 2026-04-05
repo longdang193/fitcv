@@ -30,9 +30,6 @@ _CV_GENERATION_MODELS = [
 ]
 _CV_PROMPT_VERSIONS = ["v1"]
 _CV_PRESET_OPTIONS = sorted(SUPPORTED_PRESETS)
-_CV_DETAIL_OPTIONS = ["compact", "standard", "detailed"]
-_CV_SUMMARY_STYLE_OPTIONS = ["concise", "achievement_focused", "skills_focused"]
-_CV_EXPERIENCE_BULLET_OPTIONS = ["standard", "action_project_result"]
 _RULE_FILTER_SELECTABLE_OPTIONS = [
     "seniority_mismatch",
     "location_type_excluded",
@@ -395,16 +392,6 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "config_path": ["cv", "composition", "summary", "enabled"],
     },
     {
-        "key": "cv_summary_style",
-        "type": "str",
-        "default": "concise",
-        "label": "Summary Style",
-        "description": "Style of the professional summary section in generated CVs.",
-        "options": _CV_SUMMARY_STYLE_OPTIONS,
-        "group": "cv_composition",
-        "config_path": ["cv", "composition", "summary", "style"],
-    },
-    {
         "key": "cv_education_enabled",
         "type": "bool",
         "default": True,
@@ -412,16 +399,6 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Whether to include an Education section in generated CVs.",
         "group": "cv_composition",
         "config_path": ["cv", "composition", "education", "enabled"],
-    },
-    {
-        "key": "cv_education_detail",
-        "type": "str",
-        "default": "compact",
-        "label": "Education Detail Level",
-        "description": "How much detail to include in the Education section: compact, standard, or detailed.",
-        "options": _CV_DETAIL_OPTIONS,
-        "group": "cv_composition",
-        "config_path": ["cv", "composition", "education", "detail"],
     },
     {
         "key": "cv_experience_enabled",
@@ -433,16 +410,6 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "config_path": ["cv", "composition", "experience", "enabled"],
     },
     {
-        "key": "cv_experience_bullet_style",
-        "type": "str",
-        "default": "action_project_result",
-        "label": "Experience Bullet Style",
-        "description": "Style of bullet points in work experience entries.",
-        "options": _CV_EXPERIENCE_BULLET_OPTIONS,
-        "group": "cv_composition",
-        "config_path": ["cv", "composition", "experience", "bullet_style"],
-    },
-    {
         "key": "cv_skills_enabled",
         "type": "bool",
         "default": True,
@@ -450,15 +417,6 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Whether to include a Skills section in generated CVs.",
         "group": "cv_composition",
         "config_path": ["cv", "composition", "skills", "enabled"],
-    },
-    {
-        "key": "cv_skills_max_items",
-        "type": "int",
-        "default": 12,
-        "label": "Skills Max Items",
-        "description": "Maximum number of skills to include in the Skills section.",
-        "group": "cv_composition",
-        "config_path": ["cv", "composition", "skills", "max_items"],
     },
     {
         "key": "cv_certifications_enabled",
@@ -488,16 +446,6 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "config_path": ["cv", "composition", "publications", "enabled"],
     },
     {
-        "key": "cv_publications_detail",
-        "type": "str",
-        "default": "compact",
-        "label": "Publications Detail Level",
-        "description": "How much detail to include in the Publications section: compact, standard, or detailed.",
-        "options": _CV_DETAIL_OPTIONS,
-        "group": "cv_composition",
-        "config_path": ["cv", "composition", "publications", "detail"],
-    },
-    {
         "key": "cv_languages_enabled",
         "type": "bool",
         "default": True,
@@ -505,44 +453,6 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Whether to include a Languages section in generated CVs.",
         "group": "cv_composition",
         "config_path": ["cv", "composition", "languages", "enabled"],
-    },
-    {
-        "key": "cv_languages_detail",
-        "type": "str",
-        "default": "compact",
-        "label": "Languages Detail Level",
-        "description": "How much detail to include in the Languages section: compact, standard, or detailed.",
-        "options": _CV_DETAIL_OPTIONS,
-        "group": "cv_composition",
-        "config_path": ["cv", "composition", "languages", "detail"],
-    },
-    # ── CV Content Rules ──────────────────────────────────────────────────────
-    {
-        "key": "cv_emphasize_required_skills",
-        "type": "bool",
-        "default": True,
-        "label": "Emphasize Required Skills",
-        "description": "When enabled, required skills from the job description are prominently featured in the CV.",
-        "group": "cv_content_rules",
-        "config_path": ["cv", "content_rules", "emphasize_required_skills"],
-    },
-    {
-        "key": "cv_align_jd_terminology",
-        "type": "bool",
-        "default": True,
-        "label": "Align JD Terminology",
-        "description": "When enabled, the CV uses terminology matching the job description.",
-        "group": "cv_content_rules",
-        "config_path": ["cv", "content_rules", "align_jd_terminology"],
-    },
-    {
-        "key": "cv_evidence_grounded_only",
-        "type": "bool",
-        "default": True,
-        "label": "Evidence Grounded Only",
-        "description": "When enabled, only claims with evidence from the candidate profile are included in the CV.",
-        "group": "cv_content_rules",
-        "config_path": ["cv", "content_rules", "evidence_grounded_only"],
     },
     # ── CV Validation ────────────────────────────────────────────────────────
     {
@@ -670,24 +580,13 @@ CV_GROUPS: dict[str, list[str]] = {
     ],
     "cv-composition": [
         "cv_summary_enabled",
-        "cv_summary_style",
         "cv_education_enabled",
-        "cv_education_detail",
         "cv_experience_enabled",
-        "cv_experience_bullet_style",
         "cv_skills_enabled",
-        "cv_skills_max_items",
         "cv_certifications_enabled",
         "cv_projects_enabled",
         "cv_publications_enabled",
-        "cv_publications_detail",
         "cv_languages_enabled",
-        "cv_languages_detail",
-    ],
-    "cv-content-rules": [
-        "cv_emphasize_required_skills",
-        "cv_align_jd_terminology",
-        "cv_evidence_grounded_only",
     ],
     "cv-validation": [
         "cv_max_pages",
