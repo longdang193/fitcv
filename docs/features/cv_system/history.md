@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 1.24.0 — active
+
+- `cv_prompt_version` is no longer presented as an operator-facing CV setting; active prompt selection remains owned by `config/runtime/prompts.yaml` and the prompt registry
+- Legacy `cv_template_path` remains internal fallback-only instead of being treated as an active admin-editable CV control
+
 ### 1.23.0 — active
 
 - The dormant CV content-rule toggles (`Emphasize Required Skills`, `Align JD Terminology`, and `Evidence Grounded Only`) were removed from the active pipeline contract and admin settings surface

@@ -488,7 +488,7 @@ def run_vector_search(
 ) -> list[dict[str, Any]] | dict[str, Any]:
     """Generate candidate query embedding and execute VECTOR_SEARCH.
 
-    top_n defaults to config["vector_top_n"] (50 if missing).
+    top_n defaults to config["pipeline"]["vector_search_top_n"] (50 if missing).
 
     Steps:
     1. Build candidate query text (deterministic, no embedding call)
@@ -506,7 +506,11 @@ def run_vector_search(
     if not passed_job_urls:
         return []
 
-    effective_top_n = top_n if top_n is not None else int(config.get("vector_top_n", 50))
+    effective_top_n = (
+        top_n
+        if top_n is not None
+        else int((config.get("pipeline") or {}).get("vector_search_top_n") or config.get("vector_top_n", 50))
+    )
 
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]

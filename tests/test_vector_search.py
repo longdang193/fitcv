@@ -9,8 +9,9 @@ from fitcv.vector_search import (
     build_candidate_query_embedding_contract_fingerprint,
     build_candidate_query_signature_record,
     build_candidate_query_text,
-    resolve_candidate_query_embedding,
     build_vector_search_query,
+    resolve_candidate_query_embedding,
+    run_vector_search,
 )
 
 
@@ -383,3 +384,43 @@ def test_run_vector_search_returns_shortlist(config: dict, sample_profile_path) 
     # Use empty passed_job_urls to test graceful short-circuit
     result = run_vector_search(profile, passed_job_urls=[], config=config, top_n=10)
     assert isinstance(result, list)
+
+
+def test_run_vector_search_prefers_nested_pipeline_top_n_over_legacy_flat_key() -> None:
+    profile = {
+        "headline": "Data Analyst",
+        "skills": [{"name": "SQL"}],
+        "preferences": {"domains": ["banking"]},
+    }
+
+    with (
+        patch("google.cloud.bigquery.Client") as mock_bigquery_client,
+        patch("google.oauth2.service_account.Credentials.from_service_account_file"),
+        patch("fitcv.vector_search.resolve_candidate_query_embedding") as mock_resolve_embedding,
+    ):
+        mock_resolve_embedding.return_value = {
+            "embedding": [0.1, 0.2],
+            "candidate_query_signature": "sig",
+            "candidate_query_contract_fingerprint": "contract",
+            "candidate_query_reuse_status": "fresh_query_embedding",
+            "text": "query",
+            "components": {},
+        }
+        client = mock_bigquery_client.return_value
+        client.query.return_value.result.return_value = []
+
+        run_vector_search(
+            profile=profile,
+            passed_job_urls=["https://example.com/job-1"],
+            config={
+                "gcp_project": "fitcv-test",
+                "bigquery_dataset": "fitcv",
+                "service_account_key": "/tmp/fake.json",
+                "pipeline": {"vector_search_top_n": 7},
+                "vector_top_n": 99,
+            },
+        )
+
+    rendered_query = client.query.call_args.args[0]
+    assert "top_k => 7" in rendered_query
+    assert "top_k => 99" not in rendered_query

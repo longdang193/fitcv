@@ -454,9 +454,9 @@ def test_cv_settings_keys_registered():
     keys = {s["key"] for s in SETTINGS_SCHEMA}
     assert "cv_preset" in keys
     assert "cv_generation_model" in keys
-    assert "cv_template_path" in keys  # kept for backward compat; not in UI
-    assert "cv_prompt_version" in keys
     assert "cv_max_pages" in keys
+    assert "cv_template_path" not in keys
+    assert "cv_prompt_version" not in keys
 
 
 def test_cv_settings_have_correct_group():
@@ -464,19 +464,14 @@ def test_cv_settings_have_correct_group():
     # preset and composition fields are in new groups
     assert schema_by_key["cv_preset"]["group"] == "cv_preset"
     assert schema_by_key["cv_generation_model"]["group"] == "cv_composition"
-    assert schema_by_key["cv_prompt_version"]["group"] == "cv_composition"
     assert schema_by_key["cv_summary_enabled"]["group"] == "cv_composition"
     assert schema_by_key["cv_max_pages"]["group"] == "cv_validation"
-    # kept for backward compat
-    assert schema_by_key["cv_template_path"]["group"] == "cv_generation"
 
 
 def test_cv_settings_defaults():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert schema_by_key["cv_preset"]["default"] == "europass"
     assert schema_by_key["cv_generation_model"]["default"] == "gemini-2.5-flash"
-    assert schema_by_key["cv_prompt_version"]["default"] == "v1"
-    assert schema_by_key["cv_template_path"]["default"] == "templates/cv_template.md"
     assert schema_by_key["cv_max_pages"]["default"] == 2
 
 
@@ -484,8 +479,6 @@ def test_cv_settings_types():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert schema_by_key["cv_preset"]["type"] == "str"
     assert schema_by_key["cv_generation_model"]["type"] == "str"
-    assert schema_by_key["cv_template_path"]["type"] == "str"
-    assert schema_by_key["cv_prompt_version"]["type"] == "str"
     assert schema_by_key["cv_max_pages"]["type"] == "int"
     assert schema_by_key["cv_summary_enabled"]["type"] == "bool"
     assert schema_by_key["cv_education_enabled"]["type"] == "bool"
@@ -510,7 +503,6 @@ def test_cv_generation_keys_in_cv_groups():
     from fitcv_cp.settings_schema import CV_GROUPS
     assert "cv_preset" in CV_GROUPS["cv-preset"]
     assert "cv_generation_model" in CV_GROUPS["cv-preset"]
-    assert "cv_prompt_version" in CV_GROUPS["cv-preset"]
 
 
 def test_cv_groups_all_keys_in_schema():
@@ -557,7 +549,7 @@ def test_cv_preset_group():
 def test_cv_generation_fields_registered():
     keys = {s["key"] for s in SETTINGS_SCHEMA}
     assert "cv_generation_model" in keys
-    assert "cv_prompt_version" in keys
+    assert "cv_prompt_version" not in keys
 
 
 def test_cv_generation_model_type():
@@ -565,19 +557,9 @@ def test_cv_generation_model_type():
     assert schema_by_key["cv_generation_model"]["type"] == "str"
 
 
-def test_cv_prompt_version_type():
-    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["cv_prompt_version"]["type"] == "str"
-
-
 def test_cv_generation_model_group():
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert schema_by_key["cv_generation_model"]["group"] == "cv_composition"
-
-
-def test_cv_prompt_version_group():
-    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["cv_prompt_version"]["group"] == "cv_composition"
 
 
 # ── Composition fields ───────────────────────────────────────────────────────────
@@ -707,7 +689,6 @@ def test_cv_groups_preset_has_correct_keys():
     from fitcv_cp.settings_schema import CV_GROUPS
     assert "cv_preset" in CV_GROUPS["cv-preset"]
     assert "cv_generation_model" in CV_GROUPS["cv-preset"]
-    assert "cv_prompt_version" in CV_GROUPS["cv-preset"]
 
 
 def test_cv_groups_composition_has_all_composition_keys():
@@ -804,10 +785,8 @@ def test_apply_settings_to_config_cv_generation_nested():
     config: dict = {}
     apply_settings_to_config(config, {
         "cv_generation_model": "gemini-2.5-flash",
-        "cv_prompt_version": "v2",
     })
     assert config["cv"]["generation"]["model"] == "gemini-2.5-flash"
-    assert config["cv"]["generation"]["prompt_version"] == "v2"
 
 
 def test_apply_settings_to_config_cv_preset_with_existing_cv_structure():
@@ -823,7 +802,6 @@ def test_valid_cv_preset_group_payload_passes():
     validate_settings({
         "cv_preset": "europass",
         "cv_generation_model": "gemini-2.5-flash",
-        "cv_prompt_version": "v1",
     })  # must not raise
 
 
@@ -860,11 +838,6 @@ def test_cv_generation_model_options_are_constrained() -> None:
         "gemini-2.5-flash-lite",
         "gemini-2.5-pro",
     ]
-
-
-def test_cv_prompt_version_default():
-    schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
-    assert schema_by_key["cv_prompt_version"]["default"] == "v1"
 
 
 def test_cv_summary_enabled_default() -> None:

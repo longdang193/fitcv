@@ -280,7 +280,7 @@ def run_ai_scoring(
 ) -> list[dict[str, Any]]:
     """Score at most top_n shortlisted jobs.
 
-    top_n defaults to config["rerank_top_n"] (50 if missing).
+    top_n defaults to config["pipeline"]["ai_score_top_n"] (50 if missing).
     sleep between calls is config["rerank_sleep_secs"] (0.5 if missing).
 
     shortlist: list of job dicts from VECTOR_SEARCH (must include job_url and
@@ -291,7 +291,11 @@ def run_ai_scoring(
     """
     import time
 
-    effective_top_n = top_n if top_n is not None else int(config.get("rerank_top_n", 50))
+    effective_top_n = (
+        top_n
+        if top_n is not None
+        else int((config.get("pipeline") or {}).get("ai_score_top_n") or config.get("rerank_top_n", 50))
+    )
     sleep_secs = float(config.get("rerank_sleep_secs", 0.5))
     scored: list[dict[str, Any]] = []
     for i, job in enumerate(shortlist[:effective_top_n]):
