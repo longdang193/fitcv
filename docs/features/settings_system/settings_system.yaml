@@ -1,9 +1,9 @@
 settings_system:
   name: Settings System
-  version: 2.6.0
+  version: 2.7.0
   status: active
   type: add
-  summary: Admins can view and edit pipeline tuning defaults through the admin UI, including richer ranking calibration surfaces and `cv_analysis` hybrid semantic-alignment controls, while baseline defaults now resolve from centralized YAML/config ownership instead of drifting as duplicated schema literals, persisted overrides still live in BigQuery, and the canonical config room is now organized into responsibility-based `config/runtime`, `config/policy`, and `config/taxonomy` subfolders.
+  summary: Admins can view and edit pipeline tuning defaults through the admin UI, including richer ranking calibration surfaces and `cv_analysis` hybrid semantic-alignment controls, while baseline defaults now resolve from centralized YAML/config ownership instead of drifting as duplicated schema literals, persisted overrides still live in BigQuery, the canonical config room is organized into responsibility-based `config/runtime`, `config/policy`, and `config/taxonomy` subfolders, and dormant CV content-rule toggles are no longer presented as live settings.
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -25,7 +25,8 @@ settings_system:
     - `cv_analysis` lexical-vs-semantic weight controls for responsibility and domain alignment
     - Validation that each `cv_analysis` lexical/semantic weight pair sums to `1.0`
     - CV generation settings
-    - CV composition settings
+    - CV composition visibility settings
+    - Warning-only CV max-pages validation setting
     - Grouped form validation
     - Per-run overrides
     - Trigger-time effective settings snapshot

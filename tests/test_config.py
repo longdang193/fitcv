@@ -8,7 +8,7 @@ import pytest
 
 from fitcv.config import (
     apply_runtime_skill_synonym_overlay,
-    get_cv_generation_prompt_id,
+    get_cv_generation_structured_prompt_id,
     get_gemini_model,
     get_ranking_prompt_id,
     get_vertex_location,
@@ -736,7 +736,7 @@ def test_load_config_adds_default_ranking_and_cv_generation_prompt_ids() -> None
     cfg = load_config()
 
     assert cfg["prompts"]["ranking"]["ai_score"]["prompt_id"] == "ranking.ai_score.v1"
-    assert cfg["prompts"]["cv_generation"]["write"]["prompt_id"] == "cv_generation.write.v1"
+    assert cfg["prompts"]["cv_generation"]["structured_write"]["prompt_id"] == "cv_generation.structured_write.v1"
 
 
 def test_load_config_builds_prompts_runtime_for_all_major_stages() -> None:
@@ -744,7 +744,7 @@ def test_load_config_builds_prompts_runtime_for_all_major_stages() -> None:
 
     assert cfg["prompts_runtime"]["enrich"]["extraction"]["prompt_id"] == "enrich.extraction.v1"
     assert cfg["prompts_runtime"]["ranking"]["ai_score"]["prompt_id"] == "ranking.ai_score.v1"
-    assert cfg["prompts_runtime"]["cv_generation"]["write"]["prompt_id"] == "cv_generation.write.v1"
+    assert cfg["prompts_runtime"]["cv_generation"]["structured_write"]["prompt_id"] == "cv_generation.structured_write.v1"
 
 
 def test_config_accessors_resolve_centralized_prompt_ids_and_model_defaults() -> None:
@@ -752,7 +752,14 @@ def test_config_accessors_resolve_centralized_prompt_ids_and_model_defaults() ->
 
     assert get_gemini_model(cfg) == "gemini-2.5-flash"
     assert get_ranking_prompt_id(cfg) == "ranking.ai_score.v1"
-    assert get_cv_generation_prompt_id(cfg) == "cv_generation.write.v1"
+    assert get_cv_generation_structured_prompt_id(cfg) == "cv_generation.structured_write.v1"
+
+
+def test_load_config_exposes_only_active_cv_generation_prompt_contract() -> None:
+    cfg = load_config()
+
+    assert "write" not in cfg["prompts"]["cv_generation"]
+    assert "write" not in cfg["prompts_runtime"]["cv_generation"]
 
 
 def test_load_config_rejects_unknown_enrich_prompt_id() -> None:

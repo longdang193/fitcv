@@ -28,6 +28,13 @@ _PROMPT_REGISTRY: dict[str, PromptDefinition] = {
         template_path=_TEMPLATES_DIR / "cv_generation_write_v1.md",
         summary="Primary CV generation writer prompt for markdown CV output.",
     ),
+    "cv_generation.structured_write.v1": PromptDefinition(
+        prompt_id="cv_generation.structured_write.v1",
+        stage_id="cv_generation",
+        version="v1",
+        template_path=_TEMPLATES_DIR / "cv_generation_structured_write_v1.md",
+        summary="Primary CV generation writer prompt for structured JSON CV output.",
+    ),
 }
 
 

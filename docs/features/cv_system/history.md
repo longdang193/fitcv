@@ -2,6 +2,16 @@
 
 ## Changelog
 
+### 1.23.0 — active
+
+- The dormant CV content-rule toggles (`Emphasize Required Skills`, `Align JD Terminology`, and `Evidence Grounded Only`) were removed from the active pipeline contract and admin settings surface
+- `CV Maximum Pages` remains as the sole user-facing CV validation control, and page overflow continues to be treated as a warning instead of a hard failure
+
+### 1.22.0 — active
+
+- `cv_generation.structured_write.v1` is now the sole active `cv_generation` runtime prompt contract in config and runtime provenance
+- The dormant markdown writer prompt is no longer part of the active pipeline contract, which makes prompt config and debugging output match the real structured-first execution path
+
 ### 1.21.0 — active
 
 - `ranking` can now reuse exact-match AI-score rows per job when the stage-owned AI-score fingerprint and reranker contract still match
