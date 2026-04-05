@@ -2777,7 +2777,7 @@ def test_run_detail_tab3_legacy_fallback_does_not_mention_default_config_limitat
 # ── CV settings grouped save ──────────────────────────────────────────────────
 
 def test_grouped_save_cv_generation_valid_redirects():
-    """cv-preset is the new default group for model/prompt; old cv-generation group removed."""
+    """cv-preset is the new default group for preset/model; old cv-generation group removed."""
     # The old /admin/settings/group/cv-generation route no longer exists (group renamed)
     # This test verifies the new /admin/settings/group/cv-preset route works
     with patch("fitcv_cp.app.save_settings_group") as mock_save, \
@@ -2787,7 +2787,6 @@ def test_grouped_save_cv_generation_valid_redirects():
             data={
                 "cv_preset": "europass",
                 "cv_generation_model": "gemini-2.5-flash",
-                "cv_prompt_version": "v1",
             },
         )
     assert resp.status_code == 303
@@ -2803,7 +2802,6 @@ def test_grouped_save_cv_generation_rejects_empty_model():
             data={
                 "cv_preset": "europass",
                 "cv_generation_model": "",
-                "cv_prompt_version": "v1",
             },
         )
     assert resp.status_code == 422
@@ -2897,14 +2895,14 @@ def test_settings_page_renders_cv_sub_cards():
 
 
 def test_settings_page_renders_cv_preset_inputs():
-    """Settings page includes inputs for cv_preset, cv_generation_model, cv_prompt_version."""
+    """Settings page includes inputs for cv_preset and cv_generation_model."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
     assert 'name="cv_preset"' in html
     assert 'name="cv_generation_model"' in html
-    assert 'name="cv_prompt_version"' in html
+    assert 'name="cv_prompt_version"' not in html
 
 
 def test_settings_page_cv_sections_no_raw_yaml():
@@ -3057,14 +3055,14 @@ def test_settings_page_does_not_render_cv_content_rules_section():
 
 
 def test_settings_page_renders_cv_preset_inputs():
-    """Settings page includes inputs for cv_preset, cv_generation_model, cv_prompt_version."""
+    """Settings page includes inputs for cv_preset and cv_generation_model."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
     assert 'name="cv_preset"' in html
     assert 'name="cv_generation_model"' in html
-    assert 'name="cv_prompt_version"' in html
+    assert 'name="cv_prompt_version"' not in html
 
 
 def test_settings_page_renders_cv_composition_inputs():
@@ -3181,13 +3179,12 @@ def test_grouped_save_cv_preset_valid_redirects():
                 data={
                     "cv_preset": "europass",
                     "cv_generation_model": "gemini-2.5-flash",
-                    "cv_prompt_version": "v1",
                 },
             )
     assert resp.status_code == 303
     mock_save.assert_called_once()
     saved_keys = set(mock_save.call_args[0][0].keys())
-    assert saved_keys == {"cv_preset", "cv_generation_model", "cv_prompt_version"}
+    assert saved_keys == {"cv_preset", "cv_generation_model"}
 
 
 def test_grouped_save_cv_preset_rejects_empty():
@@ -3199,7 +3196,6 @@ def test_grouped_save_cv_preset_rejects_empty():
             data={
                 "cv_preset": "",
                 "cv_generation_model": "gemini-2.5-flash",
-                "cv_prompt_version": "v2",
             },
         )
     assert resp.status_code == 422
@@ -3295,7 +3291,6 @@ def test_grouped_save_cv_preset_invalid_does_not_partial_save():
             data={
                 "cv_preset": "",
                 "cv_generation_model": "gemini-2.5-flash",
-                "cv_prompt_version": "v2",
             },
         )
     assert resp.status_code == 422

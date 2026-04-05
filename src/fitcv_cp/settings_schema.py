@@ -28,7 +28,6 @@ _CV_GENERATION_MODELS = [
     "gemini-2.5-flash-lite",
     "gemini-2.5-pro",
 ]
-_CV_PROMPT_VERSIONS = ["v1"]
 _CV_PRESET_OPTIONS = sorted(SUPPORTED_PRESETS)
 _RULE_FILTER_SELECTABLE_OPTIONS = [
     "seniority_mismatch",
@@ -353,25 +352,6 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "config_path": ["cv", "generation", "model"],
     },
     {
-        "key": "cv_prompt_version",
-        "type": "str",
-        "default": "v1",
-        "label": "Prompt Version",
-        "description": "Version identifier for the CV generation prompt used.",
-        "options": _CV_PROMPT_VERSIONS,
-        "group": "cv_composition",
-        "config_path": ["cv", "generation", "prompt_version"],
-    },
-    {
-        "key": "cv_template_path",
-        "type": "str",
-        "default": "templates/cv_template.md",
-        "label": "CV Template Path",
-        "description": "Path to the Jinja2 template used for CV generation.",
-        "group": "cv_generation",
-        "config_path": ["cv_template_path"],
-    },
-    {
         "key": "cv_preset",
         "type": "str",
         "default": "europass",
@@ -576,7 +556,6 @@ CV_GROUPS: dict[str, list[str]] = {
     "cv-preset": [
         "cv_preset",
         "cv_generation_model",
-        "cv_prompt_version",
     ],
     "cv-composition": [
         "cv_summary_enabled",

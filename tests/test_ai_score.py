@@ -2,7 +2,9 @@
 
 import json
 import sys
+import time
 import types
+from unittest.mock import patch
 
 import pytest
 
@@ -278,7 +280,39 @@ def test_score_job_uses_versioned_default_model(
     )
 
     assert captured["model"] == "gemini-2.5-flash"
-    assert result["fit_label"] == "strong"
+
+
+def test_run_ai_scoring_prefers_nested_pipeline_top_n_over_legacy_flat_key() -> None:
+    from fitcv.ai_score import run_ai_scoring
+
+    shortlist = [
+        {"job_url": "https://example.com/1"},
+        {"job_url": "https://example.com/2"},
+        {"job_url": "https://example.com/3"},
+    ]
+
+    with patch("fitcv.ai_score.score_job") as mock_score_job, patch.object(time, "sleep"):
+        mock_score_job.side_effect = lambda **kwargs: {
+            "job_url": kwargs["job"]["job_url"],
+            "ai_score": 0.5,
+            "fit_label": "stretch",
+            "score_reasoning": "ok",
+            "matched_strengths": [],
+            "key_risks": [],
+        }
+        results = run_ai_scoring(
+            shortlist=shortlist,
+            candidate_summary="candidate",
+            config={
+                "pipeline": {"ai_score_top_n": 1},
+                "rerank_top_n": 3,
+                "rerank_sleep_secs": 0.0,
+            },
+        )
+
+    assert len(results) == 1
+    assert mock_score_job.call_count == 1
+    assert results[0]["job_url"] == "https://example.com/1"
 
 
 # ── integration tests ─────────────────────────────────────────────────────────

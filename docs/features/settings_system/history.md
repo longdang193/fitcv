@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 2.8.0 — active
+
+- The admin settings UI no longer exposes metadata-only `cv_prompt_version` or legacy `cv_template_path` as if they were live runtime controls
+- Active runtime consumers now prefer canonical nested retrieval settings (`pipeline.vector_search_top_n` and `pipeline.ai_score_top_n`) while retaining compatibility fallbacks where needed
+
 ### 2.7.0 — active
 
 - The admin settings UI no longer exposes the three dormant CV content-rule toggles as if they were meaningful runtime switches
