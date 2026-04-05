@@ -130,6 +130,24 @@
   <hr>
 
   <div style="margin-bottom:1rem">
+    <label class="section-helper" style="display:block;margin-bottom:0.4rem">Synonym Overlay</label>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+      <button type="button" class="btn-secondary" id="synonym-tab-default" data-active="true" onclick="setSynonymOverlayMode('default_config')">⚙ Default Config</button>
+      <button type="button" class="btn-secondary" id="synonym-tab-upload" data-active="false" onclick="setSynonymOverlayMode('upload')">⬆ Upload YAML</button>
+    </div>
+  </div>
+
+  <div id="synonym-pane-default" style="margin-bottom:1rem">
+    <span class="meta">Uses the shared synonym config for this run. Stage by Stage runs can later replace it after <code>enrich</code> and before <code>rule_filter</code>.</span>
+  </div>
+  <div id="synonym-pane-upload" style="display:none;margin-bottom:1rem">
+    <input type="file" id="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml">
+    <span class="meta" style="display:block;margin-top:0.25rem">Applies to this run only. <code>Run All</code> uses this trigger-time overlay; <code>Stage by Stage</code> can replace it later before Rule Filter.</span>
+  </div>
+
+  <hr>
+
+  <div style="margin-bottom:1rem">
     <label class="section-helper" style="display:block;margin-bottom:0.4rem">Execution Mode</label>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
       <button type="button" class="btn-secondary" id="mode-tab-run_all" data-active="true" onclick="setRunMode('run_all')">▶ Run All</button>
@@ -220,6 +238,7 @@
 <script>
 let _jobsMode = 'path';
 let _profMode = 'default_config';
+let _synonymOverlayMode = 'default_config';
 let _runMode = 'run_all';
 
 function setJobsMode(m) {
@@ -236,6 +255,15 @@ function setProfMode(m) {
     const key = k === 'default' ? 'default_config' : k;
     document.getElementById('prof-pane-' + k).style.display = key === m ? '' : 'none';
     document.getElementById('prof-tab-' + k).dataset.active = String(key === m);
+  });
+}
+
+function setSynonymOverlayMode(m) {
+  _synonymOverlayMode = m;
+  ['default', 'upload'].forEach(k => {
+    const key = k === 'default' ? 'default_config' : k;
+    document.getElementById('synonym-pane-' + k).style.display = key === m ? '' : 'none';
+    document.getElementById('synonym-tab-' + k).dataset.active = String(key === m);
   });
 }
 
@@ -276,6 +304,13 @@ async function triggerRun() {
       fd.append('candidate_profile_file', pf);
     } else if (_profMode === 'paste') {
       fd.append('candidate_profile_text', document.getElementById('candidate_profile_text').value);
+    }
+
+    fd.append('synonym_overlay_mode', _synonymOverlayMode);
+    if (_synonymOverlayMode === 'upload') {
+      const sf = document.getElementById('synonym_overlay_file').files[0];
+      if (!sf) { alert('Please select a synonym overlay YAML file.'); return; }
+      fd.append('synonym_overlay_file', sf);
     }
 
     const resp = await fetch('/admin/upload-trigger', { method: 'POST', body: fd });

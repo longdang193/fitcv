@@ -275,6 +275,47 @@ def _build_late_stage_reuse_metric_rows(late_stage_reuse_metrics: dict[str, Any]
     return rows
 
 
+def _build_run_health_rows(
+    stage_quality_metric_rows: list[dict[str, Any]],
+    late_stage_reuse_metric_rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for row in stage_quality_metric_rows:
+        item = dict(row)
+        item["category"] = "quality"
+        rows.append(item)
+    for row in late_stage_reuse_metric_rows:
+        item = dict(row)
+        item["category"] = "reuse"
+        rows.append(item)
+    return rows
+
+
+def _build_run_export_links(run: PipelineRun) -> list[dict[str, str]]:
+    links: list[dict[str, str]] = []
+    if run.status == RunStatus.SUCCEEDED and run.results_export_json:
+        links.append({"label": "Results JSON", "href": f"/admin/runs/{run.run_id}/export.json"})
+    if run.status == RunStatus.SUCCEEDED and run.cv_generation_debug_json:
+        links.append({"label": "CV Debug JSON", "href": f"/admin/runs/{run.run_id}/cv-debug.json"})
+    if run.status == RunStatus.SUCCEEDED and run.settings_used_json:
+        links.append({"label": "Settings Used JSON", "href": f"/admin/runs/{run.run_id}/settings-used.json"})
+    if run.mapping_suggestions_json:
+        links.append(
+            {
+                "label": "Mapping Suggestions JSON",
+                "href": f"/admin/runs/{run.run_id}/mapping-suggestions.json",
+            }
+        )
+    if run.status.value in ("succeeded", "awaiting_continue") and run.stage_transition_artifacts_json:
+        links.append(
+            {
+                "label": "Stage Artifacts JSON",
+                "href": f"/admin/runs/{run.run_id}/stage-artifacts.json",
+            }
+        )
+    return links
+
+
 def _can_upload_synonym_overlay(run: PipelineRun) -> bool:
     return (
         run.run_mode == "manual_staged"
@@ -307,12 +348,21 @@ def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
     runtime = payload.get("skill_synonyms_runtime")
     if not isinstance(runtime, dict):
         return {"has_run_overlay": False}
+    source = str(runtime.get("run_overlay_source") or "").strip().lower()
+    source_labels = {
+        "trigger_upload": "Trigger Upload",
+        "staged_override": "Staged Override",
+        "upload": "Staged Override",
+    }
     return {
         "has_run_overlay": bool(runtime.get("has_run_overlay")),
+        "source": source,
+        "source_label": source_labels.get(source, "Run Overlay") if source else "",
         "filename": str(runtime.get("run_overlay_filename") or ""),
         "entry_count": int(runtime.get("run_overlay_entry_count") or 0),
         "uploaded_at": str(runtime.get("run_overlay_uploaded_at") or ""),
         "effective_entry_count": int(runtime.get("entry_count") or 0),
+        "has_default_overlay": bool(runtime.get("has_overlay")),
     }
 
 
@@ -751,6 +801,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         jobs_input_json: str | None = None,
         candidate_profile_source: str | None = None,
         candidate_profile_json: str | None = None,
+        run_synonym_overlay: dict[str, str] | None = None,
+        run_synonym_overlay_filename: str | None = None,
+        run_synonym_overlay_source: str = "trigger_upload",
         run_mode: str = "run_all",
     ) -> dict:
         """Like _execute_trigger but records run-scoped input metadata."""
@@ -778,6 +831,15 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         # Inject runtime candidate profile override
         if candidate_profile_json:
             effective_config.setdefault("runtime_inputs", {})["candidate_profile_json"] = candidate_profile_json
+
+        if run_synonym_overlay:
+            effective_config = apply_runtime_skill_synonym_overlay(
+                effective_config,
+                run_synonym_overlay,
+                source=run_synonym_overlay_source,
+                filename=str(run_synonym_overlay_filename or "").strip(),
+                uploaded_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            )
 
         run_id = str(uuid.uuid4())
         run = PipelineRun(
@@ -831,6 +893,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         candidate_profile_mode: str = Form("default_config"),  # "default_config" | "upload" | "paste"
         candidate_profile_file: UploadFile | None = File(None),
         candidate_profile_text: str = Form(""),
+        synonym_overlay_mode: str = Form("default_config"),
+        synonym_overlay_file: UploadFile | None = File(None),
     ) -> dict:
         from fitcv.candidate import load_profile_json_text as _load_json_profile
         from fastapi import HTTPException as _HTTPEx
@@ -1004,6 +1068,29 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         else:
             raise HTTPException(status_code=422, detail=f"Unknown candidate_profile_mode: {candidate_profile_mode!r}")
 
+        # ── Run-scoped synonym overlay resolution ───────────────────────
+        synonym_overlay_payload: dict[str, str] | None = None
+        synonym_overlay_filename: str | None = None
+        if synonym_overlay_mode == "default_config":
+            pass
+        elif synonym_overlay_mode == "upload":
+            if not synonym_overlay_file or not synonym_overlay_file.filename:
+                raise HTTPException(status_code=422, detail="synonym_overlay_file required for upload mode")
+            synonym_overlay_filename = str(synonym_overlay_file.filename or "").strip()
+            raw_bytes = await synonym_overlay_file.read()
+            if not raw_bytes:
+                raise HTTPException(status_code=422, detail="Uploaded synonym overlay file is empty")
+            try:
+                raw_text = raw_bytes.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise HTTPException(status_code=422, detail="Synonym overlay must be UTF-8 encoded text") from exc
+            try:
+                synonym_overlay_payload = parse_skill_synonym_overlay_yaml(raw_text)
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+        else:
+            raise HTTPException(status_code=422, detail=f"Unknown synonym_overlay_mode: {synonym_overlay_mode!r}")
+
         return _execute_trigger_with_inputs(
             jobs_path=actual_jobs_path,
             config_path=config_path,
@@ -1013,6 +1100,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             jobs_input_json=jobs_input_json_snapshot,
             candidate_profile_source=candidate_profile_source,
             candidate_profile_json=candidate_json_snapshot,
+            run_synonym_overlay=synonym_overlay_payload,
+            run_synonym_overlay_filename=synonym_overlay_filename,
+            run_synonym_overlay_source="trigger_upload",
             run_mode=run_mode,
         )
 
@@ -1513,7 +1603,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         updated_config = apply_runtime_skill_synonym_overlay(
             effective_config,
             overlay_synonyms,
-            source="upload",
+            source="staged_override",
             filename=filename,
             uploaded_at=uploaded_at,
         )
@@ -1717,6 +1807,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         stage_quality_metric_rows: list[dict[str, Any]] = []
         late_stage_reuse_metrics: dict[str, Any] = {}
         late_stage_reuse_metric_rows: list[dict[str, Any]] = []
+        run_health_rows: list[dict[str, Any]] = []
         if run.results_export_json:
             try:
                 export_payload = _json.loads(run.results_export_json)
@@ -1724,6 +1815,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 stage_quality_metric_rows = _build_stage_quality_metric_rows(stage_quality_metrics)
                 late_stage_reuse_metrics = dict(export_payload.get("late_stage_reuse_metrics") or {})
                 late_stage_reuse_metric_rows = _build_late_stage_reuse_metric_rows(late_stage_reuse_metrics)
+                run_health_rows = _build_run_health_rows(stage_quality_metric_rows, late_stage_reuse_metric_rows)
                 pipeline_outcomes_by_job_url = {
                     str(row.get("job_url") or ""): {
                         "status": str(row.get("pipeline_status") or ""),
@@ -1756,6 +1848,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 stage_quality_metric_rows = []
                 late_stage_reuse_metrics = {}
                 late_stage_reuse_metric_rows = []
+                run_health_rows = []
 
         # Build job title lookup: job_url → title (used for cv_versions generated output labels)
         job_title_by_url: dict[str, str] = {
@@ -1785,6 +1878,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             except (_json.JSONDecodeError, TypeError):
                 candidate_profile_pretty = run.candidate_profile_json
 
+        run_export_links = _build_run_export_links(run)
+
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
                 "run": run,
@@ -1798,6 +1893,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "stage_quality_metric_rows": stage_quality_metric_rows,
                 "late_stage_reuse_metrics": late_stage_reuse_metrics,
                 "late_stage_reuse_metric_rows": late_stage_reuse_metric_rows,
+                "run_health_rows": run_health_rows,
+                "run_export_links": run_export_links,
                 "pre_enrichment_rejects": pre_enrichment_rejects,
                 "deduplicated_before_enrichment": deduplicated_before_enrichment,
                 "job_title_by_url": job_title_by_url,

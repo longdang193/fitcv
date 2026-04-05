@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.10.0 — active
+
+- Runs page now lets operators attach a run-scoped synonym-overlay YAML before trigger for both `Run All` and `Stage by Stage`
+- Manual staged runs still support a later enrich-checkpoint replacement upload before continuing into `rule_filter`
+- Run detail now shows synonym-overlay state in a dedicated card instead of mixing the upload control into the top action row
+
 ### 2.9.0 — active
 
 - Runs list is now selection-first: row-level lifecycle actions were removed from the table, and bulk actions remain the list-level control surface
@@ -101,6 +107,12 @@
 - Run-results export now includes shortlist debug context, including a per-row `shortlist_debug` block for passed jobs and a top-level shortlist summary with the candidate query text and shortlist counts
 - `not_shortlisted` rows now explain that the job URL was not returned by vector search instead of only showing null scores
 - Layer 4 gap matching now handles long requirement phrases more usefully and excludes obviously non-skill requirements from the fit-ratio denominator
+
+### 1.6.0 — active
+
+- Run detail now groups run-scoped JSON downloads into a compact `Run Exports` surface instead of a long top-row button pile
+- Run detail now merges stage-quality and late-stage-reuse diagnostics into one compact `Run Health` card
+- Enriched-jobs inspection now collapses fit metadata into a stacked `Fit Context` cell so `Pipeline Outcome` stays visible
 
 ### 1.5.1 — active
 
