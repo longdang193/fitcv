@@ -2,6 +2,30 @@
 
 ## Changelog
 
+### 2.9.0 — active
+
+- Runs list is now selection-first: row-level lifecycle actions were removed from the table, and bulk actions remain the list-level control surface
+- The visible runs-table columns were reduced to the core operational fields so the list no longer overlaps around `Triggered By`, `Created`, and `Duration`
+- Single-run lifecycle controls remain on run detail, so one-off continue/stop/archive actions are still available without crowding the list
+
+### 2.8.0 — active
+
+- Runs list now uses a compact per-row `⋯` action trigger instead of wide inline action buttons
+- Long `jobs_path` values are truncated in-row with the full path preserved on hover
+- This rollout keeps both bulk actions and per-run lifecycle controls visible without pushing the action column off-screen
+
+### 2.7.0 — active
+
+- Paused manual runs in `awaiting_continue` now expose `Stop Run` alongside `Run Next Stage`
+- The runs list and run detail both surface the broadened cancel rule so operators do not need to resume a paused run before ending it
+- This rollout keeps existing continue/resume behavior intact while making paused-run termination explicit
+
+### 2.6.0 — active
+
+- Runs list now supports visible-row selection with a conditional bulk action bar
+- Operators can apply bulk cancel, archive, and unarchive actions without losing the existing per-run controls
+- This rollout keeps lifecycle eligibility server-owned and limits phase 1 selection semantics to the currently visible list rows
+
 ### 2.5.0 — active
 
 - Stage-slice downloads for `cv_analysis` can now expose channel-level evidence retrieval counts and final selected-evidence rationale before `cv_generation`

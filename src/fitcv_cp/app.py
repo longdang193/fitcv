@@ -1,4 +1,5 @@
 """FastAPI admin control plane app."""
+import dataclasses
 import datetime
 import json as _json
 import uuid
@@ -456,6 +457,32 @@ class SettingUpdate(BaseModel):
     updated_by: str = "admin"
 
 
+class BulkRunActionRequest(BaseModel):
+    run_ids: list[str]
+
+    @field_validator("run_ids")
+    @classmethod
+    def run_ids_not_empty(cls, v: list[str]) -> list[str]:
+        normalized = [str(item or "").strip() for item in v]
+        filtered = [item for item in normalized if item]
+        if not filtered:
+            raise ValueError("run_ids must include at least one run id")
+        deduped = list(dict.fromkeys(filtered))
+        return deduped
+
+
+def _can_cancel_run(run: PipelineRun) -> bool:
+    return run.status in {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.AWAITING_CONTINUE}
+
+
+def _can_archive_run(run: PipelineRun) -> bool:
+    return run.status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED} and run.archived_at is None
+
+
+def _can_unarchive_run(run: PipelineRun) -> bool:
+    return run.archived_at is not None
+
+
 def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     app = FastAPI(title="FitCV Admin Control Plane")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -572,6 +599,87 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             return False
         now = datetime.datetime.now(datetime.timezone.utc)
         return (now - run.cancel_requested_at) >= datetime.timedelta(minutes=2)
+
+    def _run_max_runtime_minutes() -> int:
+        default_minutes = int(schema_by_key["run_lifecycle.max_runtime_minutes"]["default"])
+        active_settings = load_active_settings(bq=bq, project=project, dataset=dataset)
+        value = active_settings.get("run_lifecycle.max_runtime_minutes", default_minutes)
+        try:
+            return max(1, int(value))
+        except (TypeError, ValueError):
+            return default_minutes
+
+    def _timeout_reference_timestamp(run: PipelineRun) -> datetime.datetime | None:
+        if run.status in {RunStatus.RUNNING, RunStatus.CANCELLING}:
+            return run.started_at or run.created_at
+        if run.status in {RunStatus.QUEUED, RunStatus.AWAITING_CONTINUE}:
+            return run.created_at
+        return None
+
+    def _timeout_transition_for_run(run: PipelineRun, max_runtime_minutes: int) -> tuple[RunStatus, str, str | None]:
+        if run.status == RunStatus.QUEUED:
+            return (
+                RunStatus.CANCELLED,
+                f"Run timed out after waiting more than {max_runtime_minutes} minute(s) in the queue.",
+                None,
+            )
+        if run.status == RunStatus.AWAITING_CONTINUE:
+            return (
+                RunStatus.CANCELLED,
+                f"Run timed out after waiting more than {max_runtime_minutes} minute(s) for manual continuation.",
+                None,
+            )
+        return (
+            RunStatus.FAILED,
+            f"Run exceeded the maximum runtime of {max_runtime_minutes} minute(s).",
+            "run_lifecycle_timeout",
+        )
+
+    def _enforce_run_timeout_guard(run: PipelineRun, *, max_runtime_minutes: int | None = None) -> PipelineRun:
+        if run.status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}:
+            return run
+        if max_runtime_minutes is None:
+            max_runtime_minutes = _run_max_runtime_minutes()
+        reference_at = _timeout_reference_timestamp(run)
+        if reference_at is None:
+            return run
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if (now - reference_at) < datetime.timedelta(minutes=max_runtime_minutes):
+            return run
+
+        target_status, message, error_stage = _timeout_transition_for_run(run, max_runtime_minutes)
+        if run.status == RunStatus.QUEUED and run.queue_job_id:
+            cancel_queued_run(run.queue_job_id, redis_url=redis_url)
+        update_kwargs: dict[str, Any] = {
+            "project": project,
+            "dataset": dataset,
+            "finished_at": now,
+        }
+        if target_status == RunStatus.FAILED:
+            update_kwargs["error_message"] = message
+            update_kwargs["error_stage"] = error_stage
+        update_run_status(run.run_id, target_status, bq, **update_kwargs)
+        append_event(
+            RunEvent(
+                run_id=run.run_id,
+                event_id=str(uuid.uuid4()),
+                stage="run_timed_out",
+                level="warning",
+                message=message,
+                created_at=now,
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        update_fields: dict[str, Any] = {
+            "status": target_status,
+            "finished_at": now,
+        }
+        if target_status == RunStatus.FAILED:
+            update_fields["error_message"] = message
+            update_fields["error_stage"] = error_stage
+        return dataclasses.replace(run, **update_fields)
 
     def _execute_trigger(
         jobs_path: str,
@@ -1124,25 +1232,49 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             runs = list_runs(bq, project=project, dataset=dataset, include_archived=True)
         else:  # default: active
             runs = list_runs(bq, project=project, dataset=dataset, include_archived=False)
+        max_runtime_minutes = _run_max_runtime_minutes()
+        runs = [_enforce_run_timeout_guard(run, max_runtime_minutes=max_runtime_minutes) for run in runs]
         return templates.TemplateResponse(
             request=request, name="runs_list.html",
-            context={"runs": runs, "view": view, "is_stale_cancelling": _is_stale_cancelling}
+            context={"runs": runs, "view": view}
         )
 
     @app.post("/admin/runs/{run_id}/stop")
     def admin_stop_run(run_id: str) -> dict:
-        """Stop a queued or running run. Returns JSON for fetch() callers."""
+        """Stop a cancellable run. Returns JSON for fetch() callers."""
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        eligible = {RunStatus.QUEUED, RunStatus.RUNNING}
-        if run.status not in eligible:
+        if not _can_cancel_run(run):
             raise HTTPException(
                 status_code=409,
                 detail=f"Cannot stop run with status '{run.status.value}'",
             )
         now = datetime.datetime.now(datetime.timezone.utc)
         event_id = str(uuid.uuid4())
+        if run.status == RunStatus.AWAITING_CONTINUE:
+            update_run_status(
+                run_id,
+                RunStatus.CANCELLED,
+                bq,
+                project=project,
+                dataset=dataset,
+                finished_at=now,
+            )
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=event_id,
+                    stage="run_cancelled",
+                    level="warning",
+                    message="Run cancelled while awaiting manual continuation",
+                    created_at=now,
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+            return {"status": "cancelled", "run_id": run_id}
         if run.status == RunStatus.QUEUED and run.queue_job_id:
             cancelled_in_queue = cancel_queued_run(run.queue_job_id, redis_url=redis_url)
             if cancelled_in_queue:
@@ -1195,6 +1327,158 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             bq, project=project, dataset=dataset,
         )
         return {"status": "cancelling", "run_id": run_id}
+
+    @app.post("/admin/runs/bulk/cancel")
+    def admin_bulk_cancel_runs(payload: BulkRunActionRequest) -> dict[str, Any]:
+        processed_run_ids: list[str] = []
+        skipped_items: list[dict[str, str]] = []
+        for run_id in payload.run_ids:
+            run = get_run(run_id, bq, project=project, dataset=dataset)
+            if run is None:
+                skipped_items.append({"run_id": run_id, "reason": "not_found"})
+                continue
+            if not _can_cancel_run(run):
+                skipped_items.append({"run_id": run_id, "reason": "not_cancellable"})
+                continue
+
+            if run.status == RunStatus.AWAITING_CONTINUE:
+                update_run_status(
+                    run_id,
+                    RunStatus.CANCELLED,
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                    finished_at=datetime.datetime.now(datetime.timezone.utc),
+                )
+                append_event(
+                    RunEvent(
+                        run_id=run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="run_cancelled",
+                        level="warning",
+                        message="Run cancelled while awaiting manual continuation",
+                        created_at=datetime.datetime.now(datetime.timezone.utc),
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+                processed_run_ids.append(run_id)
+                continue
+
+            target_status = RunStatus.CANCELLING.value
+            if run.status == RunStatus.QUEUED:
+                target_status = RunStatus.CANCELLED.value
+                if run.queue_job_id:
+                    cancelled_in_queue = cancel_queued_run(run.queue_job_id, redis_url=redis_url)
+                    target_status = RunStatus.CANCELLED.value if cancelled_in_queue else RunStatus.CANCELLING.value
+                elif run.started_at is not None:
+                    target_status = RunStatus.CANCELLING.value
+
+            request_run_cancel(run_id, "admin", target_status, bq, project=project, dataset=dataset)
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="cancel_requested",
+                    level="warning",
+                    message=(
+                        "Bulk cancel requested — run cancelled from queue"
+                        if target_status == RunStatus.CANCELLED.value
+                        else "Bulk cancel requested — run will be cancelled at next checkpoint"
+                    ),
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+            processed_run_ids.append(run_id)
+
+        return {
+            "action": "cancel",
+            "requested": len(payload.run_ids),
+            "processed": len(processed_run_ids),
+            "skipped": len(skipped_items),
+            "processed_run_ids": processed_run_ids,
+            "skipped_items": skipped_items,
+        }
+
+    @app.post("/admin/runs/bulk/archive")
+    def admin_bulk_archive_runs(payload: BulkRunActionRequest) -> dict[str, Any]:
+        processed_run_ids: list[str] = []
+        skipped_items: list[dict[str, str]] = []
+        for run_id in payload.run_ids:
+            run = get_run(run_id, bq, project=project, dataset=dataset)
+            if run is None:
+                skipped_items.append({"run_id": run_id, "reason": "not_found"})
+                continue
+            if not _can_archive_run(run):
+                skipped_items.append({"run_id": run_id, "reason": "not_archivable"})
+                continue
+
+            archive_run(run_id, "admin", bq, project=project, dataset=dataset)
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="run_archived",
+                    level="info",
+                    message="Run archived by admin (bulk action)",
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+            processed_run_ids.append(run_id)
+
+        return {
+            "action": "archive",
+            "requested": len(payload.run_ids),
+            "processed": len(processed_run_ids),
+            "skipped": len(skipped_items),
+            "processed_run_ids": processed_run_ids,
+            "skipped_items": skipped_items,
+        }
+
+    @app.post("/admin/runs/bulk/unarchive")
+    def admin_bulk_unarchive_runs(payload: BulkRunActionRequest) -> dict[str, Any]:
+        processed_run_ids: list[str] = []
+        skipped_items: list[dict[str, str]] = []
+        for run_id in payload.run_ids:
+            run = get_run(run_id, bq, project=project, dataset=dataset)
+            if run is None:
+                skipped_items.append({"run_id": run_id, "reason": "not_found"})
+                continue
+            if not _can_unarchive_run(run):
+                skipped_items.append({"run_id": run_id, "reason": "not_unarchivable"})
+                continue
+
+            unarchive_run(run_id, bq, project=project, dataset=dataset)
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="run_unarchived",
+                    level="info",
+                    message="Run unarchived by admin (bulk action)",
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+            processed_run_ids.append(run_id)
+
+        return {
+            "action": "unarchive",
+            "requested": len(payload.run_ids),
+            "processed": len(processed_run_ids),
+            "skipped": len(skipped_items),
+            "processed_run_ids": processed_run_ids,
+            "skipped_items": skipped_items,
+        }
 
     @app.post("/admin/runs/{run_id}/synonym-overlay")
     async def admin_upload_run_synonym_overlay(
@@ -1317,14 +1601,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        eligible = {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}
-        if run.status not in eligible:
+        if not _can_archive_run(run):
             raise HTTPException(
                 status_code=409,
                 detail=f"Cannot archive run with status '{run.status.value}'",
             )
-        if run.archived_at is not None:
-            raise HTTPException(status_code=409, detail="Run is already archived")
         archive_run(run_id, "admin", bq, project=project, dataset=dataset)
         append_event(
             RunEvent(
@@ -1377,7 +1658,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.archived_at is None:
+        if not _can_unarchive_run(run):
             raise HTTPException(status_code=409, detail="Run is not archived")
         unarchive_run(run_id, bq, project=project, dataset=dataset)
         append_event(
@@ -1395,6 +1676,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404)
+        run = _enforce_run_timeout_guard(run, max_runtime_minutes=_run_max_runtime_minutes())
         events = get_events(run_id, bq, project=project, dataset=dataset)
         timeline_events: list[dict[str, Any]] = []
         for ev in events:

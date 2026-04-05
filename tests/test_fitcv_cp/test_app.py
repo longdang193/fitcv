@@ -1751,6 +1751,18 @@ def test_admin_stop_succeeded_run_returns_409():
     assert resp.status_code == 409
 
 
+def test_admin_stop_awaiting_continue_run_returns_cancelled() -> None:
+    run = _make_run_mock(status="awaiting_continue")
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event") as mock_append_event:
+        resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/stop")
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "cancelled"
+    assert mock_update_status.call_args.args[1].value == "cancelled"
+    assert mock_append_event.call_count == 1
+
+
 def test_admin_stop_unknown_run_returns_404():
     with patch("fitcv_cp.app.get_run", return_value=None):
         resp = TestClient(_app()).post("/admin/runs/nonexistent/stop")
@@ -1827,6 +1839,126 @@ def test_admin_unarchive_non_archived_run_returns_409():
     assert resp.status_code == 409
 
 
+def test_admin_bulk_cancel_mixed_eligibility_returns_processed_and_skipped_summary():
+    run1 = _make_full_run_mock(status="queued", run_id="run-bulk-1")
+    run2 = _make_full_run_mock(status="succeeded", run_id="run-bulk-2")
+
+    def _get_run(run_id, *args, **kwargs):
+        return {"run-bulk-1": run1, "run-bulk-2": run2}.get(run_id)
+
+    with patch("fitcv_cp.app.get_run", side_effect=_get_run), \
+         patch("fitcv_cp.app.cancel_queued_run", return_value=False), \
+         patch("fitcv_cp.app.request_run_cancel") as mock_request_cancel, \
+         patch("fitcv_cp.app.append_event") as mock_append_event:
+        resp = TestClient(_app()).post(
+            "/admin/runs/bulk/cancel",
+            json={"run_ids": ["run-bulk-1", "run-bulk-2"]},
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["requested"] == 2
+    assert body["processed"] == 1
+    assert body["skipped"] == 1
+    assert body["processed_run_ids"] == ["run-bulk-1"]
+    assert body["skipped_items"] == [{"run_id": "run-bulk-2", "reason": "not_cancellable"}]
+    assert mock_request_cancel.call_count == 1
+    assert mock_append_event.call_count == 1
+
+
+def test_admin_bulk_cancel_awaiting_continue_run_directly_cancels():
+    run = _make_full_run_mock(status="awaiting_continue", run_id="run-bulk-awaiting")
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.request_run_cancel") as mock_request_cancel, \
+         patch("fitcv_cp.app.append_event") as mock_append_event:
+        resp = TestClient(_app()).post(
+            "/admin/runs/bulk/cancel",
+            json={"run_ids": ["run-bulk-awaiting"]},
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["processed"] == 1
+    assert body["processed_run_ids"] == ["run-bulk-awaiting"]
+    assert mock_update_status.call_args.args[1].value == "cancelled"
+    mock_request_cancel.assert_not_called()
+    assert mock_append_event.call_count == 1
+
+
+def test_admin_bulk_archive_terminal_runs_only():
+    run1 = _make_full_run_mock(status="succeeded", run_id="run-archive-1")
+    run2 = _make_full_run_mock(status="running", run_id="run-archive-2")
+
+    def _get_run(run_id, *args, **kwargs):
+        return {"run-archive-1": run1, "run-archive-2": run2}.get(run_id)
+
+    with patch("fitcv_cp.app.get_run", side_effect=_get_run), \
+         patch("fitcv_cp.app.archive_run") as mock_archive_run, \
+         patch("fitcv_cp.app.append_event") as mock_append_event:
+        resp = TestClient(_app()).post(
+            "/admin/runs/bulk/archive",
+            json={"run_ids": ["run-archive-1", "run-archive-2"]},
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["processed"] == 1
+    assert body["processed_run_ids"] == ["run-archive-1"]
+    assert body["skipped_items"] == [{"run_id": "run-archive-2", "reason": "not_archivable"}]
+    mock_archive_run.assert_called_once()
+    mock_append_event.assert_called_once()
+
+
+def test_admin_bulk_unarchive_archived_runs_only():
+    import datetime
+
+    run1 = _make_full_run_mock(
+        status="succeeded",
+        run_id="run-unarchive-1",
+        archived_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    run2 = _make_full_run_mock(status="failed", run_id="run-unarchive-2", archived_at=None)
+
+    def _get_run(run_id, *args, **kwargs):
+        return {"run-unarchive-1": run1, "run-unarchive-2": run2}.get(run_id)
+
+    with patch("fitcv_cp.app.get_run", side_effect=_get_run), \
+         patch("fitcv_cp.app.unarchive_run") as mock_unarchive_run, \
+         patch("fitcv_cp.app.append_event") as mock_append_event:
+        resp = TestClient(_app()).post(
+            "/admin/runs/bulk/unarchive",
+            json={"run_ids": ["run-unarchive-1", "run-unarchive-2"]},
+        )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["processed"] == 1
+    assert body["processed_run_ids"] == ["run-unarchive-1"]
+    assert body["skipped_items"] == [{"run_id": "run-unarchive-2", "reason": "not_unarchivable"}]
+    mock_unarchive_run.assert_called_once()
+    mock_append_event.assert_called_once()
+
+
+def test_admin_bulk_lifecycle_rejects_empty_run_ids():
+    resp = TestClient(_app()).post("/admin/runs/bulk/cancel", json={"run_ids": []})
+    assert resp.status_code == 422
+
+
+def test_admin_bulk_lifecycle_rejects_unknown_run_ids():
+    with patch("fitcv_cp.app.get_run", return_value=None):
+        resp = TestClient(_app()).post(
+            "/admin/runs/bulk/archive",
+            json={"run_ids": ["missing-run"]},
+        )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["processed"] == 0
+    assert body["skipped"] == 1
+    assert body["skipped_items"] == [{"run_id": "missing-run", "reason": "not_found"}]
+
+
 def test_admin_runs_active_view_passes_archive_filter():
     with patch("fitcv_cp.app.list_runs", return_value=[]) as mock_list:
         resp = TestClient(_app()).get("/admin/runs?view=active")
@@ -1849,6 +1981,7 @@ def test_admin_runs_archived_view_passes_archived_only():
 def _make_full_run_mock(status="queued", archived_at=None, run_id="run-ui-1"):
     from fitcv_cp.models import PipelineRun, RunStatus
     import datetime
+    now = datetime.datetime.now(datetime.timezone.utc)
     return PipelineRun(
         run_id=run_id,
         status=RunStatus(status),
@@ -1856,7 +1989,7 @@ def _make_full_run_mock(status="queued", archived_at=None, run_id="run-ui-1"):
         trigger_source="ui",
         jobs_path="data/jobs.json",
         config_path=".env.yaml",
-        created_at=datetime.datetime(2026, 3, 26, 12, 0, 0, tzinfo=datetime.timezone.utc),
+        created_at=now - datetime.timedelta(minutes=5),
         archived_at=archived_at,
     )
 
@@ -1871,47 +2004,118 @@ def test_runs_list_shows_active_all_archived_filter_tabs():
     assert "All" in body
 
 
-def test_runs_list_queued_row_shows_stop_button():
+def test_runs_list_is_selection_first_without_row_action_controls():
     run = _make_full_run_mock(status="queued")
     with patch("fitcv_cp.app.list_runs", return_value=[run]):
         resp = TestClient(_app()).get("/admin/runs")
-    assert "Stop Run" in resp.text
+    html = resp.text
+    assert "Actions" not in html
+    assert "Stop Run" not in html
+    assert "Run Next Stage" not in html
+    assert "Repair Status" not in html
+    assert "Triggered By" not in html
 
 
-def test_runs_list_running_row_shows_stop_button():
-    run = _make_full_run_mock(status="running")
+def test_runs_list_renders_bulk_selection_checkboxes():
+    run = _make_full_run_mock(status="queued", run_id="run-bulk-ui-1")
     with patch("fitcv_cp.app.list_runs", return_value=[run]):
         resp = TestClient(_app()).get("/admin/runs")
-    assert "Stop Run" in resp.text
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'id="select-all-runs"' in html
+    assert 'name="selected_run_ids"' in html
 
 
-def test_runs_list_stale_cancelling_row_shows_repair_button():
-    run = _make_full_run_mock(status="cancelling")
-    run.started_at = None
-    run.finished_at = None
+def test_runs_list_renders_bulk_action_bar_hooks():
+    run = _make_full_run_mock(status="queued", run_id="run-bulk-ui-1")
     with patch("fitcv_cp.app.list_runs", return_value=[run]):
         resp = TestClient(_app()).get("/admin/runs")
-    assert "Repair Status" in resp.text
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'id="bulk-action-bar"' in html
+    assert "Cancel selected" in html
+    assert "Archive selected" in html
+    assert "Unarchive selected" in html
 
 
-def test_runs_list_started_stale_cancelling_row_shows_repair_button():
+def test_runs_list_shows_core_operational_columns_only():
+    run = _make_full_run_mock(status="queued", run_id="run-compact-actions")
+    with patch("fitcv_cp.app.list_runs", return_value=[run]):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Run ID" in html
+    assert "Status" in html
+    assert "Mode" in html
+    assert "Jobs Path" in html
+    assert "Created" in html
+    assert "Duration" in html
+    assert "Triggered By" not in html
+    assert "Actions" not in html
+
+
+def test_runs_list_jobs_path_is_truncated_with_full_title():
+    run = _make_full_run_mock(status="queued", run_id="run-jobs-path")
+    run.jobs_path = "data/uploads/very_long_nested_folder_name/another_folder/really_long_jobs_snapshot_name.json"
+    with patch("fitcv_cp.app.list_runs", return_value=[run]):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'class="run-jobs-path"' in html
+    assert 'title="data/uploads/very_long_nested_folder_name/another_folder/really_long_jobs_snapshot_name.json"' in html
+
+
+def test_settings_page_renders_run_lifecycle_section() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Run Lifecycle Settings" in html
+    assert 'name="run_lifecycle.max_runtime_minutes"' in html
+
+
+def test_admin_runs_timeouts_running_runs_to_failed() -> None:
     import datetime
 
-    run = _make_full_run_mock(status="cancelling")
     now = datetime.datetime.now(datetime.timezone.utc)
-    run.started_at = now - datetime.timedelta(minutes=15)
-    run.cancel_requested_at = now - datetime.timedelta(minutes=5)
-    run.finished_at = None
-    with patch("fitcv_cp.app.list_runs", return_value=[run]):
+    run = _make_full_run_mock(status="running", run_id="run-timeout-running")
+    run.created_at = now - datetime.timedelta(hours=3)
+    run.started_at = now - datetime.timedelta(hours=2)
+
+    with patch("fitcv_cp.app.list_runs", return_value=[run]), \
+         patch("fitcv_cp.app.load_active_settings", return_value={"run_lifecycle.max_runtime_minutes": 60}), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event") as mock_append_event:
         resp = TestClient(_app()).get("/admin/runs")
-    assert "Repair Status" in resp.text
+
+    assert resp.status_code == 200
+    args = mock_update_status.call_args.args
+    assert args[0] == "run-timeout-running"
+    assert args[1] == RunStatus.FAILED
+    assert mock_append_event.call_args.args[0].stage == "run_timed_out"
 
 
-def test_runs_list_succeeded_row_shows_archive_button():
-    run = _make_full_run_mock(status="succeeded")
-    with patch("fitcv_cp.app.list_runs", return_value=[run]):
+def test_admin_runs_timeouts_awaiting_continue_runs_to_cancelled() -> None:
+    import datetime
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    run = _make_full_run_mock(status="awaiting_continue", run_id="run-timeout-awaiting")
+    run.run_mode = "manual_staged"
+    run.next_stage = "cv_generation"
+    run.created_at = now - datetime.timedelta(hours=5)
+    run.started_at = now - datetime.timedelta(hours=4)
+
+    with patch("fitcv_cp.app.list_runs", return_value=[run]), \
+         patch("fitcv_cp.app.load_active_settings", return_value={"run_lifecycle.max_runtime_minutes": 120}), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event") as mock_append_event:
         resp = TestClient(_app()).get("/admin/runs")
-    assert "Archive" in resp.text
+
+    assert resp.status_code == 200
+    args = mock_update_status.call_args.args
+    assert args[0] == "run-timeout-awaiting"
+    assert args[1] == RunStatus.CANCELLED
+    assert mock_append_event.call_args.args[0].stage == "run_timed_out"
 
 
 def test_run_detail_queued_shows_stop_run():
@@ -1924,6 +2128,21 @@ def test_run_detail_queued_shows_stop_run():
          patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/run-ui-1")
     assert resp.status_code == 200
+    assert "Stop Run" in resp.text
+
+
+def test_run_detail_awaiting_continue_shows_run_next_stage_and_stop_run():
+    run = _make_full_run_mock(status="awaiting_continue")
+    run.run_mode = "manual_staged"
+    run.next_stage = "ranking"
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-ui-1")
+    assert resp.status_code == 200
+    assert "Run Next Stage" in resp.text
     assert "Stop Run" in resp.text
 
 

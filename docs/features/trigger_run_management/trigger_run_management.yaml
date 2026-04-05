@@ -1,9 +1,9 @@
 trigger_run_management:
   name: Trigger & Run Management
-  version: 2.5.0
+  version: 2.9.0
   status: active
   type: add
-  summary: "Admins can trigger runs via path reference, file upload, or pasted JSON in either automatic or staged/manual mode, continue paused manual runs one stage at a time from persisted checkpoints, upload a run-scoped synonym overlay after enrich before continuing into rule filter, pause again at `cv_analysis` before `cv_generation`, inspect run progress from a status-aware list/detail UI, and export structured run artifacts including `cv_analysis` evidence-selection provenance when available."
+  summary: "Admins can trigger runs via path reference, file upload, or pasted JSON in either automatic or staged/manual mode, continue paused manual runs one stage at a time from persisted checkpoints, cancel paused `awaiting_continue` runs when they should not resume, upload a run-scoped synonym overlay after enrich before continuing into rule filter, pause again at `cv_analysis` before `cv_generation`, inspect run progress from a selection-first runs list plus run detail, and export structured run artifacts including `cv_analysis` evidence-selection provenance when available."
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -20,7 +20,8 @@ trigger_run_management:
     - cv_analysis
     - cv_generation
   capabilities:
-    - Runs list page with status badges, timestamps, and per-run action buttons
+    - Runs list page with status badges, timestamps, visible-row bulk selection, truncated secondary fields, and selection-first bulk lifecycle actions
+    - Run detail remains the single-run action surface for continue, stop, archive, unarchive, and repair controls
     - "Archive filter: Active / All / Archived"
     - "Three job-input modes: path, upload, paste"
     - "Three candidate-profile modes: default_config, upload, paste"
