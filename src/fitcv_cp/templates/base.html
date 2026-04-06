@@ -234,7 +234,6 @@
       display: block;
     }
     .pane-container .card { padding: 0; border: none; }
-
     /* ── Table ────────────────────────────────────────────────────────────── */
     table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
     th {
@@ -382,6 +381,11 @@
 
     /* ── Divider ──────────────────────────────────────────────────────────── */
     hr { border: none; border-top: 1px solid var(--divider); margin: 1rem 0; }
+
+    /* ── Details / summary ────────────────────────────────────────────────── */
+    /* Hide browser-native disclosure triangle — we use our own ▾ character. */
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
 
     /* ── Tab bar ──────────────────────────────────────────────────────────── */
     .tab-bar { display: flex; gap: 0.5rem; margin-bottom: 0; border-bottom: 2px solid var(--border); padding-bottom: 0; }

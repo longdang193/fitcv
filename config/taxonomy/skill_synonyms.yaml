@@ -14,11 +14,23 @@ skill_synonyms:
   aws: amazon web services
   azure: microsoft azure
   ml: machine learning
+  bigquery ml: machine learning
   nlp: natural language processing
+  gemini: genai
+  vertex ai: genai
+  llm: genai
+  llms: genai
+  large language models: genai
+  rag: genai
+  prompt engineering: genai
+  vector databases: genai
   postgres: postgresql
   pg: postgresql
   airflow: apache airflow
   looker studio: looker
+  powerbi: power bi
+  github: git
+  git / github: git
   dbt core: dbt
   spark: apache spark
   kafka: apache kafka

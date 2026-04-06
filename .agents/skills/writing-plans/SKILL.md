@@ -1,145 +1,260 @@
 ---
 name: writing-plans
-description: Use when you have a spec or requirements for a multi-step task, before touching code
+description: Use when you have a confirmed spec with triage block for a multi-step task, before touching code. Enforces the triage gate: do not proceed without a completed triage block from planning-dispatch. Consolidates project_plan_generation duties.
 ---
 
 # Writing Plans
 
 ## Overview
 
-Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+Write implementation plans for an engineer with little project context. Be explicit about files, tests, commands, and validation. Keep plans DRY, YAGNI, TDD-oriented, and broken into small tasks.
 
-Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+Assume the engineer is capable but unfamiliar with the codebase and domain.
 
 **Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
 
-**Context:** This should be run in a dedicated worktree (created by brainstorming skill).
+**Default save path:** `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<topic>-plan.md`  
+(User preference overrides this.)
 
-**Save plans to:** `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md`
-- (User preferences for plan location override this default)
+---
+
+## Doc-System Alignment
+
+Use the project doc system:
+
+```text
+code/                       → real truth
+docs/stages/*.yaml          → stage contracts when stage-aware docs are in scope
+docs/features/*.yaml        → structured truth
+docs/features/<feature_id>/ → feature-specific explanation + history
+docs/*.md                   → cross-cutting explanation
+README.md                   → overview
+docs/generated/             → generated discovery
+```
+
+Rules:
+
+- The affected `docs/features/<feature_id>.yaml` file is the current-state anchor when a managed feature exists
+- Cross-cutting operating-system work may use `Feature: none`
+- Stage-heavy plans should name affected stages and the primary lens
+- Feature-specific history belongs under `docs/features/<feature_id>/`
+- Cross-cutting architecture belongs under `docs/*.md`
+- The plan must link back to the feature contract when one exists, and to the spec
+- Generated discovery is refreshed after source updates; do not edit it manually
+
+---
+
+## Pre-Plan Check
+
+Do not write the plan until these are true:
+
+1. `planning-dispatch` triage exists
+2. the affected feature is identified, or the plan explicitly records that this is cross-cutting work with `Feature: none`
+3. the relevant `docs/features/<feature_id>.yaml` exists when a managed feature is changing, or the plan explicitly says it must be created before implementation starts
+4. the spec exists if the design is non-trivial
+
+Minimum triage:
+
+```text
+Feature type: ADD | MODIFY | REPLACE
+Summary: <1 sentence>
+Reasoning: <why this classification>
+Invariants:
+  - <must hold true>
+Dependencies:
+  - <if known>
+Affected stages:
+  - <stage_id> | none
+Affected features:
+  - <feature_id> | none
+Primary lens: stage | feature | mixed
+Affected docs:
+  feature_yaml: `docs/features/<feature_id>.yaml` | none
+  feature_history: `docs/features/<feature_id>/history.md` | none
+  feature_docs:
+    - `docs/features/<feature_id>/<doc>.md`
+  cross_cutting_docs:
+    - `docs/<doc>.md`
+  readme: `README.md` | none
+  generated:
+    - `docs/generated/<file>`
+Generated refresh required: yes | no
+Spec needed: yes | no
+Plan needed: yes | no
+```
+
+Optional for risky work:
+
+```text
+Rollback trigger:
+Rollback method:
+Migration needed: yes | no
+Risk level: low | medium | high
+```
+
+If triage is missing, stop and invoke `planning-dispatch`.
+
+---
 
 ## Scope Check
 
-If the spec covers multiple independent subsystems, it should have been broken into sub-project specs during brainstorming. If it wasn't, suggest breaking this into separate plans — one per subsystem. Each plan should produce working, testable software on its own.
+If the spec covers multiple independent subsystems, suggest splitting into separate plans. Each plan should produce a coherent, testable increment.
 
-## File Structure
+---
 
-Before defining tasks, map out which files will be created or modified and what each one is responsible for. This is where decomposition decisions get locked in.
+## File Structure First
 
-- Design units with clear boundaries and well-defined interfaces. Each file should have one clear responsibility.
-- You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
-- Files that change together should live together. Split by responsibility, not by technical layer.
-- In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
+Before tasks, map:
 
-This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
+- files to create
+- files to modify
+- tests to add/update
+- docs to update
+- generated outputs that must be refreshed
 
-## Bite-Sized Task Granularity
+Prefer focused files and clear boundaries. Follow existing repo patterns unless a small local cleanup is necessary for this feature.
 
-**Each step is one action (2-5 minutes):**
-- "Write the failing test" - step
-- "Run it to make sure it fails" - step
-- "Implement the minimal code to make the test pass" - step
-- "Run the tests and make sure they pass" - step
-- "Commit" - step
+---
 
-## Plan Document Header
+## Task Granularity
 
-**Every plan MUST start with this header:**
+Each step should be small and concrete.
 
-```markdown
+Good:
+
+- write failing test
+- run failing test
+- implement minimal code
+- run passing test
+- commit
+
+Avoid bundling multiple actions into one step.
+
+---
+
+## Plan Header
+
+Every plan should start like this:
+
+```md
 # [Feature Name] Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+**Feature:** `docs/features/<feature_id>.yaml`  
+**Spec:** `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<topic>-spec.md`  
+**Type:** add | modify | replace  
+**Status:** planned | building  
 
-**Goal:** [One sentence describing what this builds]
+> **For agentic workers:** Use `executing-plans` or `subagent-driven-development` to implement task-by-task.
 
-**Architecture:** [2-3 sentences about approach]
+**Goal:** [1 sentence]
 
-**Tech Stack:** [Key technologies/libraries]
+**Architecture:** [2–3 sentences]
+
+**Key Invariants:**
+- [constraint]
+- [constraint]
+
+**Rollout / Revert:**  
+- rollback_trigger: [if needed]  
+- rollback_method: [if needed]
 
 ---
 ```
 
+Every plan must also include this section near the top:
+
+```md
+## Doc Update Matrix
+
+- Feature contract: `docs/features/<feature_id>.yaml`
+- Stage contracts: `docs/stages/<stage_id>.yaml` | none
+- Feature history: `docs/features/<feature_id>/history.md` | none
+- Feature-specific docs: `docs/features/<feature_id>/<doc>.md` | none
+- Cross-cutting docs: `docs/<doc>.md` | none
+- README: `README.md` | none
+- Generated discovery: `docs/generated/<file>` | none
+```
+
+---
+
 ## Task Structure
 
-````markdown
-### Task N: [Component Name]
+Use this shape:
+
+```md
+### Task N: [Name]
 
 **Files:**
-- Create: `exact/path/to/file.py`
-- Modify: `exact/path/to/existing.py:123-145`
-- Test: `tests/exact/path/to/test.py`
+- Create: `path/to/new_file.py`
+- Modify: `path/to/existing_file.py`
+- Test: `tests/path/test_file.py`
+- Docs: exact entries from the Doc Update Matrix
 
-- [ ] **Step 1: Write the failing test**
-
-```python
-def test_specific_behavior():
-    result = function(input)
-    assert result == expected
+- [ ] Step 1: Write the failing test
+- [ ] Step 2: Run it and confirm failure
+- [ ] Step 3: Implement the smallest passing change
+- [ ] Step 4: Run tests and confirm pass
+- [ ] Step 5: Update docs/YAML if required
+- [ ] Step 6: Regenerate `docs/generated/` if required
+- [ ] Step 7: Commit
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+Include exact commands where useful.
 
-Run: `pytest tests/path/test.py::test_name -v`
-Expected: FAIL with "function not defined"
+---
 
-- [ ] **Step 3: Write minimal implementation**
+## Required Coverage
 
-```python
-def function(input):
-    return expected
-```
+A complete plan should specify:
 
-- [ ] **Step 4: Run test to verify it passes**
+- exact file paths
+- test files and commands
+- doc targets split by contract / feature history / feature-specific docs / cross-cutting docs / README / generated discovery
+- which `docs/features/*.yaml` files change, or whether this is validly `Feature: none`
+- which `docs/stages/*.yaml` files change when stage-aware docs are in scope
+- whether `docs/generated/` must be regenerated
+- commit points
 
-Run: `pytest tests/path/test.py::test_name -v`
-Expected: PASS
+Do not write vague steps like “add validation” or “update docs”.
 
-- [ ] **Step 5: Commit**
-
-```bash
-git add tests/path/test.py src/path/file.py
-git commit -m "feat: add specific feature"
-```
-````
-
-## Remember
-- Exact file paths always
-- Complete code in plan (not "add validation")
-- Exact commands with expected output
-- Reference relevant skills with @ syntax
-- DRY, YAGNI, TDD, frequent commits
+---
 
 ## Plan Review Loop
 
-After writing the complete plan:
+After writing the plan:
 
-1. Dispatch a single plan-document-reviewer subagent (see plan-document-reviewer-prompt.md) with precisely crafted review context — never your session history. This keeps the reviewer focused on the plan, not your thought process.
-   - Provide: path to the plan document, path to spec document
-2. If ❌ Issues Found: fix the issues, re-dispatch reviewer for the whole plan
-3. If ✅ Approved: proceed to execution handoff
+- dispatch `plan-document-reviewer`
+- fix issues
+- re-review up to 3 times
+- if still unresolved, surface to human
 
-**Review loop guidance:**
-- Same agent that wrote the plan fixes it (preserves context)
-- If loop exceeds 3 iterations, surface to human for guidance
-- Reviewers are advisory — explain disagreements if you believe feedback is incorrect
+Provide the reviewer only:
+
+- plan path
+- spec path
+- feature YAML path
+
+---
 
 ## Execution Handoff
 
-After saving the plan, offer execution choice:
+After saving the plan, offer:
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Two execution options:**
+**"Plan complete and saved to `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<topic>-plan.md`. Two execution options:**
 
-**1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
-
-**2. Inline Execution** - Execute tasks in this session using executing-plans, batch execution with checkpoints
+1. **Subagent-Driven (recommended)** — fresh subagent per task
+2. **Inline Execution** — execute in this session with `executing-plans`
 
 **Which approach?"**
 
-**If Subagent-Driven chosen:**
-- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
-- Fresh subagent per task + two-stage review
+---
 
-**If Inline Execution chosen:**
-- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
-- Batch execution with checkpoints for review
+## Anti-Patterns
+
+- writing a plan before reading the feature YAML
+- forcing a fake feature contract onto cross-cutting operating-system work
+- assuming `FEATURES.md`
+- saving plans under `docs/plans/`
+- writing vague tasks without file paths or test commands
+- forgetting doc updates
+- forgetting `docs/generated/` refresh when source layers changed

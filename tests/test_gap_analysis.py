@@ -110,6 +110,81 @@ def test_compute_gap_partial_via_synonym() -> None:
     assert "Google Cloud" not in result["missing"]
 
 
+def test_classify_skill_match_phrase_requirement_contains_candidate_skill() -> None:
+    """Long JD phrases should still match explicit candidate skills they mention."""
+    result = classify_skill_match("Python programming for data science", ["Python", "SQL"])
+    assert result["result"] == "matched"
+    assert result["candidate"] == "Python"
+
+
+def test_classify_skill_match_matches_compact_spacing_variant_as_raw_match() -> None:
+    result = classify_skill_match("PowerBI", ["Power BI", "SQL"])
+    assert result["result"] == "matched"
+    assert result["candidate"] == "Power BI"
+
+
+def test_classify_skill_match_matches_segmented_skill_variant_as_phrase_match() -> None:
+    result = classify_skill_match("Git", ["Git / GitHub", "SQL"])
+    assert result["result"] == "matched"
+    assert result["candidate"] == "Git / GitHub"
+
+
+def test_compute_gap_phrase_requirements_ignore_non_skill_items_for_fit_count() -> None:
+    result = compute_gap(
+        required_skills=[
+            "Master's or PhD Degree in Data Science",
+            "Python programming for data science",
+            "Proficient in SQL and database operations",
+            "Advanced English proficiency (C1 or above)",
+            "Ability to learn new methods",
+        ],
+        candidate_skills=["Python", "SQL"],
+        years_required=5,
+        years_candidate=5,
+    )
+    assert result["matched"] == [
+        "Python programming for data science",
+        "Proficient in SQL and database operations",
+    ]
+    assert result["matchable_required_count"] == 2
+    assert result["ignored_for_fit"] == [
+        "Master's or PhD Degree in Data Science",
+        "Advanced English proficiency (C1 or above)",
+        "Ability to learn new methods",
+    ]
+
+
+def test_compute_gap_ignores_generic_analyst_requirements_for_fit_count() -> None:
+    result = compute_gap(
+        required_skills=[
+            "SQL",
+            "PowerBI",
+            "Git",
+            "Experience in Requirements Management",
+            "Strong analytical skills",
+        ],
+        candidate_skills=["SQL", "Power BI", "Git / GitHub"],
+        years_required=3,
+        years_candidate=3,
+    )
+    assert result["matched"] == ["SQL", "PowerBI", "Git"]
+    assert result["ignored_for_fit"] == [
+        "Experience in Requirements Management",
+        "Strong analytical skills",
+    ]
+    assert result["matchable_required_count"] == 3
+
+
+def test_compute_gap_phrase_requirement_matches_skill_alias_inside_requirement() -> None:
+    result = classify_skill_match(
+        "Experience with GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+        ["Gemini", "Python"],
+        config={"skill_synonyms": {"gemini": "genai"}},
+    )
+    assert result["result"] == "matched"
+    assert result["candidate"] == "Gemini"
+
+
 def test_compute_gap_partial_has_dict_shape() -> None:
     """partial entries must have required, candidate, canonical keys."""
     result = compute_gap(
@@ -194,6 +269,30 @@ def test_compute_gap_years_range_string_parses_minimum() -> None:
         years_candidate=2,
     )
     assert result["years_risk"] is True
+
+
+def test_compute_gap_prefers_canonical_years_fields_when_provided() -> None:
+    result = compute_gap(
+        required_skills=["SQL"],
+        candidate_skills=["SQL"],
+        years_required=1,
+        years_experience_min=4,
+        years_experience_max=6,
+        years_candidate=3,
+    )
+    assert result["years_risk"] is True
+    assert result["overclaim_risk"] == ["years_gap: candidate has 3 years, 4 required"]
+
+
+def test_compute_gap_does_not_emit_leadership_overclaim_from_candidate_evidence_in_phase1() -> None:
+    result = compute_gap(
+        required_skills=["Team leadership", "SQL"],
+        candidate_skills=["SQL"],
+        years_required=None,
+        years_candidate=5,
+        candidate_evidence=["Built pipelines and dashboards"],
+    )
+    assert result["overclaim_risk"] == []
 
 
 # ── classify_fit ──────────────────────────────────────────────────────────────

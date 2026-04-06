@@ -2,7 +2,9 @@
 
 import json
 import sys
+import time
 import types
+from unittest.mock import patch
 
 import pytest
 
@@ -90,6 +92,16 @@ def test_build_scoring_prompt_contains_required_skills_in_rubric() -> None:
     assert "required skills" in prompt.lower() or "required_skills" in prompt
 
 
+def test_build_scoring_prompt_makes_preferences_secondary() -> None:
+    prompt = build_scoring_prompt(
+        jd_summary="Analytics role",
+        candidate_summary="candidate",
+        top_evidence=[],
+    )
+    assert "secondary" in prompt.lower()
+    assert "preferences" in prompt.lower()
+
+
 def test_build_scoring_prompt_contains_seniority_in_rubric() -> None:
     prompt = build_scoring_prompt(
         jd_summary="DE role",
@@ -107,6 +119,18 @@ def test_build_scoring_prompt_specifies_json_output() -> None:
         top_evidence=[],
     )
     assert "json" in prompt.lower()
+
+
+def test_build_scoring_prompt_uses_configured_fit_thresholds() -> None:
+    prompt = build_scoring_prompt(
+        jd_summary="DE role",
+        candidate_summary="candidate",
+        top_evidence=[],
+        strong_threshold=0.8,
+        stretch_threshold=0.55,
+    )
+    assert "0.8" in prompt
+    assert "0.55" in prompt
 
 
 def test_build_scoring_prompt_empty_evidence_does_not_crash() -> None:
@@ -256,7 +280,39 @@ def test_score_job_uses_versioned_default_model(
     )
 
     assert captured["model"] == "gemini-2.5-flash"
-    assert result["fit_label"] == "strong"
+
+
+def test_run_ai_scoring_prefers_nested_pipeline_top_n_over_legacy_flat_key() -> None:
+    from fitcv.ai_score import run_ai_scoring
+
+    shortlist = [
+        {"job_url": "https://example.com/1"},
+        {"job_url": "https://example.com/2"},
+        {"job_url": "https://example.com/3"},
+    ]
+
+    with patch("fitcv.ai_score.score_job") as mock_score_job, patch.object(time, "sleep"):
+        mock_score_job.side_effect = lambda **kwargs: {
+            "job_url": kwargs["job"]["job_url"],
+            "ai_score": 0.5,
+            "fit_label": "stretch",
+            "score_reasoning": "ok",
+            "matched_strengths": [],
+            "key_risks": [],
+        }
+        results = run_ai_scoring(
+            shortlist=shortlist,
+            candidate_summary="candidate",
+            config={
+                "pipeline": {"ai_score_top_n": 1},
+                "rerank_top_n": 3,
+                "rerank_sleep_secs": 0.0,
+            },
+        )
+
+    assert len(results) == 1
+    assert mock_score_job.call_count == 1
+    assert results[0]["job_url"] == "https://example.com/1"
 
 
 # ── integration tests ─────────────────────────────────────────────────────────

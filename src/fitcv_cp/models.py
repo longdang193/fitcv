@@ -7,6 +7,7 @@ from typing import Optional
 class RunStatus(str, Enum):
     QUEUED = "queued"
     RUNNING = "running"
+    AWAITING_CONTINUE = "awaiting_continue"
     CANCELLING = "cancelling"
     CANCELLED = "cancelled"
     SUCCEEDED = "succeeded"
@@ -49,11 +50,22 @@ class PipelineRun:
     error_message: Optional[str] = None
     error_stage: Optional[str] = None   # which stage the run failed at
     effective_settings_json: Optional[str] = None  # merged config snapshot at trigger time
+    results_export_json: Optional[str] = None      # immutable run-results export snapshot for completed runs
+    cv_generation_debug_json: Optional[str] = None  # immutable run-scoped CV-generation debug snapshot
+    stage_transition_artifacts_json: Optional[str] = None  # immutable run-scoped stage transition artifact snapshot
+    settings_used_json: Optional[str] = None  # immutable run-scoped effective-settings snapshot
+    mapping_suggestions_json: Optional[str] = None  # immutable run-scoped mapping suggestions snapshot
+    run_mode: str = "run_all"
+    checkpoint_status: Optional[str] = None
+    next_stage: Optional[str] = None
+    last_completed_stage: Optional[str] = None
+    completed_stages: Optional[list[str]] = None
+    checkpoint_payload_json: Optional[str] = None
     # run-scoped input metadata
     jobs_input_source: Optional[str] = None           # "path" | "upload" | "paste"
-    jobs_input_json: Optional[str] = None             # canonical JSON snapshot (paste/upload merged payload)
+    jobs_input_json: Optional[str] = None             # canonical resolved jobs-input snapshot for supported trigger modes in new runs
     candidate_profile_source: Optional[str] = None    # "default_config" | "upload" | "paste"
-    candidate_profile_json: Optional[str] = None      # canonical JSON snapshot (upload/paste)
+    candidate_profile_json: Optional[str] = None      # canonical resolved candidate-profile snapshot for supported trigger modes in new runs
     # lifecycle controls
     queue_job_id: Optional[str] = None               # RQ job id for queued-run cancellation
     cancel_requested_at: Optional[datetime.datetime] = None

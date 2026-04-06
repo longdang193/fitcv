@@ -5,6 +5,7 @@ from fitcv.normalize import (
     deduplicate_jobs,
     deduplicate_near_duplicates,
     normalize_batch,
+    normalize_batch_with_exclusions,
     normalize_job,
     normalize_whitespace,
     parse_applications_count,
@@ -221,3 +222,18 @@ def test_normalize_batch_handles_raw_scraper_keys_before_deduplication() -> None
     result = normalize_batch(jobs)
     assert len(result) == 2
     assert {job["job_url"] for job in result} == {"url1", "url2"}
+
+
+def test_normalize_batch_with_exclusions_tracks_removed_duplicates() -> None:
+    jobs = [
+        {"job_url": "url1", "company_id": "101", "title": "DE", "description": "Same JD", "applications_count": "5 applicants", "salary": ""},
+        {"job_url": "url1", "company_id": "101", "title": "DE", "description": "Same JD", "applications_count": "5 applicants", "salary": ""},
+        {"job_url": "url2", "company_id": "101", "title": "DE", "description": "Same JD", "applications_count": "5 applicants", "salary": ""},
+    ]
+    kept, excluded = normalize_batch_with_exclusions(jobs)
+    assert len(kept) == 1
+    assert [row["dedupe_reason"] for row in excluded] == [
+        "duplicate_job_url",
+        "near_duplicate_job_posting",
+    ]
+    assert [row["input_index"] for row in excluded] == [1, 2]

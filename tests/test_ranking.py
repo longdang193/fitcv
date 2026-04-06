@@ -1,6 +1,10 @@
 import pytest
 
 from fitcv.ranking import (
+    compute_feature_contributions,
+    get_active_missing_value_defaults,
+    get_preference_fit_weights,
+    get_active_ranking_weights,
     compute_final_score,
     compute_must_have_match,
     compute_preference_fit,
@@ -22,7 +26,7 @@ _DEFAULT_WEIGHTS = {
 
 _NULL_DEFAULTS = {
     "ai_score": 0.0,
-    "must_have_match": 0.0,
+    "must_have_match": 0.5,
     "vector_similarity": 0.0,
     "title_relevance": 0.5,
     "seniority_fit": 0.5,
@@ -35,14 +39,21 @@ _NULL_DEFAULTS = {
 def test_compute_final_score_weighted():
     features = {
         "ai_score": 0.8,
-        "must_have_match": 0.9,
+        "must_have_match": 1.0,
         "vector_similarity": 0.7,
-        "title_relevance": 0.6,
+        "title_relevance": 0.5,
         "seniority_fit": 1.0,
-        "preference_fit": 0.5,
+        "preference_fit": 0.0,
     }
     score = compute_final_score(features, _DEFAULT_WEIGHTS, _NULL_DEFAULTS)
-    expected = 0.40 * 0.8 + 0.20 * 0.9 + 0.15 * 0.7 + 0.10 * 0.6 + 0.10 * 1.0 + 0.05 * 0.5
+    expected = (
+        0.40 * 0.8
+        + 0.20 * 1.0
+        + 0.15 * 0.7
+        + 0.10 * 0.5
+        + 0.10 * 1.0
+        + 0.05 * 0.0
+    )
     assert abs(score - expected) < 0.001
 
 
@@ -56,24 +67,21 @@ def test_compute_final_score_handles_missing_ai_score():
         "preference_fit": 1.0,
     }
     score = compute_final_score(features, _DEFAULT_WEIGHTS, _NULL_DEFAULTS)
-    # Without ai_score (0.0 default), score must be < 1.0
-    assert score < 1.0
-    # Expected: sum of all other weights = 0.60
-    assert abs(score - 0.60) < 0.001
+    expected = 0.20 + 0.15 + 0.10 + 0.10 + 0.05
+    assert abs(score - expected) < 0.001
 
 
-def test_compute_final_score_handles_missing_title_relevance():
-    """Missing title_relevance → fallback 0.5 (neutral)."""
+def test_compute_final_score_handles_missing_vector_similarity():
+    """Missing vector_similarity → fallback 0.0 (conservative)."""
     features = {
         "ai_score": 0.8,
-        "must_have_match": 0.8,
-        "vector_similarity": 0.8,
-        "seniority_fit": 0.8,
-        "preference_fit": 0.8,
+        "must_have_match": 1.0,
+        "title_relevance": 1.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 1.0,
     }
     score = compute_final_score(features, _DEFAULT_WEIGHTS, _NULL_DEFAULTS)
-    # title_relevance defaults to 0.5
-    expected = (0.4+0.2+0.15+0.1+0.05)*0.8 + 0.1*0.5
+    expected = (0.40 * 0.8) + 0.20 + 0.10 + 0.10 + 0.05
     assert abs(score - expected) < 0.001
 
 
@@ -88,7 +96,6 @@ def test_compute_final_score_accepts_config_weights():
         "preference_fit": 0.0,
     }
     custom_weights = {
-        **_DEFAULT_WEIGHTS,
         "ai_score": 1.0,
         "must_have_match": 0.0,
         "vector_similarity": 0.0,
@@ -98,6 +105,100 @@ def test_compute_final_score_accepts_config_weights():
     }
     # With weight fully on ai_score=1.0, final score should be 1.0
     assert abs(compute_final_score(features, custom_weights, _NULL_DEFAULTS) - 1.0) < 0.001
+
+
+def test_get_active_ranking_weights_returns_full_six_feature_contract() -> None:
+    config = {
+        "ranking_weights": {
+            "ai_score": 0.4,
+            "must_have_match": 0.2,
+            "vector_similarity": 0.15,
+            "title_relevance": 0.1,
+            "seniority_fit": 0.1,
+            "preference_fit": 0.05,
+        }
+    }
+
+    weights = get_active_ranking_weights(config)
+
+    assert weights == {
+        "ai_score": 0.4,
+        "must_have_match": 0.2,
+        "vector_similarity": 0.15,
+        "title_relevance": 0.1,
+        "seniority_fit": 0.1,
+        "preference_fit": 0.05,
+    }
+
+
+def test_get_active_ranking_weights_preserves_zero_weight_features() -> None:
+    config = {
+        "ranking_weights": {
+            "ai_score": 0.73,
+            "must_have_match": 0.0,
+            "vector_similarity": 0.27,
+            "title_relevance": 0.0,
+            "seniority_fit": 0.0,
+            "preference_fit": 0.0,
+        }
+    }
+
+    weights = get_active_ranking_weights(config)
+
+    assert weights == {
+        "ai_score": 0.73,
+        "must_have_match": 0.0,
+        "vector_similarity": 0.27,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.0,
+        "preference_fit": 0.0,
+    }
+
+
+def test_get_active_missing_value_defaults_prefers_canonical_key() -> None:
+    config = {
+        "missing_value_defaults": {
+            "ai_score": 0.0,
+            "must_have_match": 0.5,
+            "vector_similarity": 0.25,
+            "title_relevance": 0.5,
+            "seniority_fit": 0.5,
+            "preference_fit": 0.25,
+        },
+        "ranking_null_defaults": {
+            "ai_score": 0.0,
+            "vector_similarity": 0.99,
+        },
+    }
+
+    defaults = get_active_missing_value_defaults(config)
+
+    assert defaults == {
+        "ai_score": 0.0,
+        "must_have_match": 0.5,
+        "vector_similarity": 0.25,
+        "title_relevance": 0.5,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.25,
+    }
+
+
+def test_get_preference_fit_weights_uses_runtime_config() -> None:
+    weights = get_preference_fit_weights(
+        {
+            "preference_fit_weights": {
+                "domain": 0.6,
+                "role_family": 0.25,
+                "location_type": 0.15,
+            }
+        }
+    )
+
+    assert weights == {
+        "domain": 0.6,
+        "role_family": 0.25,
+        "location_type": 0.15,
+    }
 
 
 # ── compute_must_have_match ───────────────────────────────────────────────────
@@ -162,20 +263,80 @@ def test_compute_title_relevance():
     assert compute_title_relevance("Data", None) == 0.5
 
 
+def test_compute_title_relevance_uses_semantic_role_alignment() -> None:
+    config = {
+        "role_taxonomy": {
+            "canonical_role_by_alias": {
+                "business intelligence analyst": "data analyst",
+                "data analyst": "data analyst",
+                "analytics engineer": "analytics engineer",
+                "data engineer": "data engineer",
+                "machine learning engineer": "machine learning engineer",
+            },
+            "role_family_by_role": {
+                "data analyst": "analytics",
+                "analytics engineer": "data_engineering",
+                "data engineer": "data_engineering",
+                "machine learning engineer": "ml_engineering",
+            },
+            "role_family_neighbors": {
+                "analytics": ("data_science",),
+                "data_engineering": ("ml_engineering",),
+                "ml_engineering": ("data_engineering",),
+            },
+        }
+    }
+    assert compute_title_relevance("Business Intelligence Analyst", "Data Analyst", config=config) == 1.0
+    assert compute_title_relevance("Analytics Engineer", "Data Engineer", config=config) == 1.0
+    assert compute_title_relevance("Machine Learning Engineer", "Data Analyst", config=config) == 0.0
+
+
 # ── compute_preference_fit ────────────────────────────────────────────────────
 
 def test_compute_preference_fit():
     prefs = {"domains": ["fintech", "health"], "location_types": ["remote"]}
-    assert compute_preference_fit({"domain": "fintech", "location_type": "remote"}, prefs) == 1.0
-    assert compute_preference_fit({"domain": "fintech", "location_type": "onsite"}, prefs) == 0.5
-    assert compute_preference_fit({"domain": "retail", "location_type": "onsite"}, prefs) == 0.0
+    config = {"preference_fit_weights": {"domain": 0.5, "role_family": 0.3, "location_type": 0.2}}
+    assert compute_preference_fit({"domain": "fintech", "location_type": "remote"}, prefs, config) == 0.85
+    assert compute_preference_fit({"domain": "fintech", "location_type": "onsite"}, prefs, config) == 0.65
+    assert compute_preference_fit({"domain": "retail", "location_type": "onsite"}, prefs, config) == 0.15
     # no preferences = 0.5 neutral
-    assert compute_preference_fit({"domain": "fintech"}, {}) == 0.5
+    assert compute_preference_fit({"domain": "fintech"}, {}, config) == 0.5
 
 
-def test_compute_preference_fit_matches_job_family_when_domains_are_role_categories():
-    prefs = {"domains": ["data_science"], "location_types": []}
-    assert compute_preference_fit({"domain": "finance", "job_family": "data_science"}, prefs) == 1.0
+def test_compute_preference_fit_weights_domain_role_family_and_location_separately() -> None:
+    prefs = {
+        "domains": ["fintech"],
+        "role_families": ["analytics"],
+        "location_types": ["remote"],
+    }
+    config = {"preference_fit_weights": {"domain": 0.5, "role_family": 0.3, "location_type": 0.2}}
+
+    assert compute_preference_fit(
+        {"domain": "telecommunications", "job_family": "analytics", "location_type": "remote"},
+        prefs,
+        config,
+    ) == 0.5
+
+
+def test_compute_feature_contributions_sum_to_final_score() -> None:
+    features = {
+        "ai_score": 0.8,
+        "must_have_match": 1.0,
+        "vector_similarity": 0.7,
+        "title_relevance": 0.9,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.5,
+    }
+    contributions = compute_feature_contributions(features, _DEFAULT_WEIGHTS, _NULL_DEFAULTS)
+
+    assert contributions == {
+        "ai_score": pytest.approx(0.32),
+        "must_have_match": pytest.approx(0.2),
+        "vector_similarity": pytest.approx(0.105),
+        "title_relevance": pytest.approx(0.09),
+        "seniority_fit": pytest.approx(0.1),
+        "preference_fit": pytest.approx(0.025),
+    }
 
 
 # ── rank_jobs ─────────────────────────────────────────────────────────────────

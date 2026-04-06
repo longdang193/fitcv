@@ -17,13 +17,15 @@ status: []
 6. Create two matching layers
    - rule / feature matching
    - semantic retrieval with embeddings
-7. Use BigQuery VECTOR_SEARCH to shortlist jobs
-8. Use BigQuery AI.SCORE to rerank shortlisted jobs
+7. Use BigQuery VECTOR_SEARCH to shortlist jobs, building the candidate query from flattened profile skills plus bounded role-family/domain hints, reusing the single shortlist candidate-query embedding when the deterministic query signature and contract still match, searching only the latest active persistent `job_summary` embedding per canonical `job_url`, and reusing unchanged job-summary embeddings when the shortlist signature and embedding contract still match
+8. Use BigQuery AI.SCORE to rerank shortlisted jobs with a stricter rubric that prioritizes required-skill evidence, seniority readiness, and role alignment while keeping preference signals secondary; when candidate YAML preferences are sparse, ranking first derives deterministic fallback intent from recent role and domain evidence, and exact-match AI-score rows can be reused safely when the ranking-stage fingerprint and contract still match
 9. Select top jobs
-10. Retrieve best candidate evidence for each job
+10. Retrieve best candidate evidence for each job, with exact-match `cv_analysis` outputs reused safely when the ranked-job analysis fingerprint and contract still match
 11. Generate tailored CV
-12. Validate output
+12. Validate output against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support, including unresolved-placeholder rejection for draft headers such as `[Candidate Name]`
 13. Store versions + tracking
+14. Emit stage-level quality metrics so shortlist, ranking, `cv_analysis`, and `cv_generation` bottlenecks are visible in run inspection without opening every stage artifact
+15. Persist bounded late-stage reuse snapshots and reuse-rate metrics so repeated ranking and `cv_analysis` runs can skip unchanged expensive work safely
 ```
 
 ## Add a JD normalization + enrichment layer before embeddings
@@ -58,6 +60,13 @@ Extract fields like:
 * location type
 * required skills
 * preferred skills
+
+In the current pipeline, enrich also supports a safe reuse path for repeated jobs:
+
+* build a stable raw-job fingerprint from normalized pre-enrichment inputs
+* build an enrich-contract fingerprint from the effective prompt/model/schema behavior
+* reuse a shared `structured_jobs` row only when both fingerprints match
+* skip the enrich LLM call for those exact-match rows while still preserving fresh-vs-reused provenance in run-scoped outputs
 * responsibilities
 * domain
 * tech stack
@@ -66,6 +75,8 @@ Extract fields like:
 * must-have vs nice-to-have
 * job family
 
+Keep `required_skills` and `preferred_skills` as raw extracted phrases. If you need canonical skill matching later, represent that separately as normalized skill entities rather than lowercased requirement prose.
+
 So instead of storing only raw text, store something like:
 
 ```json
@@ -73,8 +84,18 @@ So instead of storing only raw text, store something like:
   "job_id": "...",
   "title": "Data Engineer",
   "company": "...",
-  "required_skills": ["SQL", "Python", "Airflow", "BigQuery"],
-  "preferred_skills": ["dbt", "Kafka"],
+  "required_skills": ["proficient in SQL and Python for analytics engineering"],
+  "required_skill_entities": [
+    {"raw_text": "proficient in SQL and Python for analytics engineering", "canonical": "sql"},
+    {"raw_text": "proficient in SQL and Python for analytics engineering", "canonical": "python"}
+  ],
+  "required_skills_canonical": ["sql", "python"],
+  "preferred_skills": ["experience with dbt and Kafka"],
+  "preferred_skill_entities": [
+    {"raw_text": "experience with dbt and Kafka", "canonical": "dbt"},
+    {"raw_text": "experience with dbt and Kafka", "canonical": "kafka"}
+  ],
+  "preferred_skills_canonical": ["dbt", "kafka"],
   "responsibilities": [...],
   "seniority": "mid",
   "location_type": "remote",
@@ -178,17 +199,17 @@ A good pattern is:
 ```text
 final_score =
 0.40 * ai_score
-+ 0.20 * must_have_skill_match
++ 0.20 * must_have_match
 + 0.15 * vector_similarity
-+ 0.10 * title_relevance
++ 0.10 * title_relevance        # semantic role alignment
 + 0.10 * seniority_fit
-+ 0.05 * preference_fit
++ 0.05 * preference_fit        # weighted domain + role family + location alignment
 ```
 
 #### Why this matters
 
 * `VECTOR_SEARCH` is good for **recall**
-* `AI.SCORE` is good for **final judgment**
+* `AI.SCORE` is good for **final judgment** when the rubric is explicit about primary vs secondary signals
 * structured rules help avoid dumb matches
 
 So this becomes more practical than using a generic transformer ranker.
@@ -260,6 +281,16 @@ The evidence retrieval step answers:
 > Which proof points from my background best support this specific job?
 
 These are different questions and should be handled separately.
+
+The current `cv_analysis` flow now treats evidence retrieval as a small staged pipeline of its own:
+
+1. retrieve separate evidence pools for:
+   - required skill support
+   - role alignment
+   - domain alignment
+   - responsibility alignment
+2. merge and dedupe those pools by stable `evidence_id`
+3. rerank the merged pool into one bounded final evidence bundle for `cv_generation`
 
 ## Generate from templates + constraints
 
@@ -351,6 +382,7 @@ After applications, track:
 Then later improve:
 
 * enrichment prompts / schemas
+* centralized prompt registry for LLM-backed stage templates and prompt provenance
 * `AI.SCORE` rubric
 * weightings in final score
 * rule filters
@@ -420,30 +452,38 @@ Rule-based filtering
   - visa
   - seniority
   - must-have skills
+  - admin-selectable blocking vs mark-only deterministic checks
     ↓
 Embeddings generation
+  - reuse unchanged shortlist job-summary embeddings when the structured signature and embedding contract still match
   - structured JD summary
-  - candidate evidence blocks
+  - one deterministic candidate query vector for shortlist retrieval
     ↓
 BigQuery VECTOR_SEARCH
   - shortlist top-N jobs
     ↓
 BigQuery AI.SCORE
   - score shortlist against candidate profile
+  - reuse exact-match AI-score rows when the ranking-stage fingerprint and contract still match
     ↓
 Final ranking
   - ai_score
   - must-have match
   - vector similarity
-  - seniority/title/preference fit
+  - semantic title relevance
+  - seniority fit
+  - weighted preference fit
     ↓
 Top-N jobs
     ↓
 Per-job evidence retrieval
-  - best projects
-  - best achievements
-  - best skills
-  - best experience bullets
+  - required-skill support pool
+  - role-alignment pool
+  - domain-alignment pool
+  - responsibility-alignment pool
+  - merge, dedupe, and rerank into one final evidence bundle
+  - reuse exact-match `cv_analysis` records when the analysis-stage fingerprint and contract still match
+  - active `cv_analysis` retrieval stays profile-based today; candidate chunk embeddings remain a future stage-owned option rather than part of the live path
     ↓
 Gap analysis
     ↓
@@ -455,6 +495,49 @@ Store versioned outputs
     ↓
 Application tracker / feedback loop
 ```
+
+## Execution modes
+
+The control plane now supports two orchestration modes over the same stage order:
+
+- `run_all`
+- `manual_staged`
+
+`run_all` keeps the existing continuous execution path.
+
+`manual_staged` pauses after each major stage and persists checkpoint state:
+
+1. `normalize`
+2. `enrich`
+3. `rule_filter`
+4. `shortlist`
+5. `ranking`
+6. `cv_analysis`
+7. `cv_generation`
+
+For manual runs, the control plane persists:
+
+- `checkpoint_status`
+- `next_stage`
+- `last_completed_stage`
+- `completed_stages`
+- a serialized checkpoint payload used to resume the next stage without restarting the full pipeline by default
+
+When a manual run pauses after `enrich`, the admin can optionally upload a run-scoped synonym-overlay YAML before continuing into `rule_filter`. That overlay is merged with the base skill synonym map for the rest of that run only.
+
+This keeps the pipeline architecture the same while making stage-local debugging much easier.
+
+## Config room
+
+Configurable YAML assets now live under one top-level `config/` room with responsibility-based subfolders:
+
+- `config/runtime/`
+- `config/policy/`
+- `config/taxonomy/`
+
+The loader prefers that layout and still supports the older flat `config/*.yaml` files during the migration window. Prompt text remains under `src/fitcv/prompts/templates/`, and the rendered CV template remains under `templates/`.
+
+In selectable-screening mode, `rule_filter` still evaluates all six deterministic post-enrichment checks. The admin-configured `rule_filter.selected_filters` setting only decides which failed checks reject versus which failed checks are emitted as non-blocking `marks` for downstream inspection.
 
 ## Best mental model
 

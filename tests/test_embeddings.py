@@ -1,12 +1,18 @@
 """Tests for fitcv.embeddings — all pure unit tests (no cloud calls)."""
 
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
 from fitcv.embeddings import (
+    FRESH_EMBEDDING_STATUS,
+    REUSED_CACHED_EMBEDDING_STATUS,
+    build_embedding_contract_fingerprint,
     build_candidate_chunks,
     build_job_summary_chunk,
+    build_job_summary_signature_payload,
+    build_job_summary_signature_record,
     build_job_summary_text,
 )
 
@@ -46,12 +52,87 @@ class TestBuildJobSummaryText:
     def test_joins_skills_comma_separated(self) -> None:
         jd = {"title": "DE", "required_skills": ["SQL", "Python", "BigQuery"]}
         text = build_job_summary_text(jd)
-        assert "SQL, Python, BigQuery" in text
+        assert "Required skills:" in text
+        assert "BigQuery" in text
+        assert "Python" in text
+        assert "SQL" in text
 
-    def test_joins_responsibilities_semicolon_separated(self) -> None:
+    def test_includes_location_type_when_present(self) -> None:
+        jd = {"title": "DE", "location_type": "remote"}
+        text = build_job_summary_text(jd)
+        assert "Location type: remote" in text
+
+    def test_omits_responsibilities_from_stable_shortlist_summary_contract(self) -> None:
         jd = {"title": "DE", "responsibilities": ["Build pipelines", "Write tests"]}
         text = build_job_summary_text(jd)
-        assert "Build pipelines; Write tests" in text
+        assert "Responsibilities:" not in text
+
+
+class TestBuildJobSummarySignaturePayload:
+    def test_prefers_canonical_skill_lists_and_sorts_them(self) -> None:
+        jd = {
+            "title": "Senior Data Analyst",
+            "location_type": "remote",
+            "seniority": "senior",
+            "job_family": "analytics",
+            "required_skills": ["PowerBI", "SQL"],
+            "required_skills_canonical": ["sql", "power bi", "sql"],
+            "preferred_skills": ["dbt", "Airflow"],
+            "preferred_skills_canonical": ["apache airflow", "dbt"],
+        }
+
+        payload = build_job_summary_signature_payload(jd)
+
+        assert payload == {
+            "title": "Senior Data Analyst",
+            "location_type": "remote",
+            "seniority": "senior",
+            "job_family": "analytics",
+            "required_skills": ["power bi", "sql"],
+            "preferred_skills": ["apache airflow", "dbt"],
+        }
+
+    def test_falls_back_to_raw_skills_when_canonical_lists_missing(self) -> None:
+        jd = {
+            "title": "Data Engineer",
+            "required_skills": ["Python", "SQL", "python"],
+            "preferred_skills": ["dbt", "Airflow"],
+        }
+
+        payload = build_job_summary_signature_payload(jd)
+
+        assert payload["required_skills"] == ["Python", "SQL"]
+        assert payload["preferred_skills"] == ["Airflow", "dbt"]
+
+
+class TestBuildJobSummarySignatureRecord:
+    def test_signature_is_stable_when_skill_order_changes(self) -> None:
+        first = {
+            "title": "Data Engineer",
+            "location_type": "remote",
+            "required_skills_canonical": ["sql", "python"],
+            "preferred_skills_canonical": ["dbt", "apache airflow"],
+            "seniority": "mid",
+            "job_family": "analytics",
+        }
+        second = {
+            "title": "Data Engineer",
+            "location_type": "remote",
+            "required_skills_canonical": ["python", "sql"],
+            "preferred_skills_canonical": ["apache airflow", "dbt"],
+            "seniority": "mid",
+            "job_family": "analytics",
+        }
+
+        assert build_job_summary_signature_record(first) == build_job_summary_signature_record(second)
+
+
+class TestBuildEmbeddingContractFingerprint:
+    def test_contract_changes_when_embedding_model_changes(self) -> None:
+        first = build_embedding_contract_fingerprint({})
+        second = build_embedding_contract_fingerprint({"shortlist_embedding_model": "text-embedding-004"})
+
+        assert first["fingerprint"] != second["fingerprint"]
 
 
 class TestBuildJobSummaryChunk:
@@ -210,8 +291,89 @@ def test_embed_and_store_jobs_does_not_delete_existing_rows_before_insert(
     inserted = embed_and_store_jobs(jobs, config)
 
     assert inserted == 1
-    client.query.assert_not_called()
+    client.query.assert_called_once()
+    assert "DELETE" not in client.query.call_args.args[0]
     client.insert_rows_json.assert_called_once()
+
+
+@patch("google.cloud.bigquery.Client")
+@patch("google.oauth2.service_account.Credentials.from_service_account_file")
+@patch("fitcv.embeddings.generate_embedding")
+def test_embed_and_store_jobs_reuses_matching_latest_embeddings_and_only_inserts_misses(
+    mock_generate_embedding: object,
+    mock_from_service_account_file: object,
+    mock_bigquery_client: object,
+) -> None:
+    from fitcv.embeddings import embed_and_store_jobs
+
+    client = mock_bigquery_client.return_value
+    client.insert_rows_json.return_value = []
+
+    config = {
+        "gcp_project": "fitcv-test",
+        "bigquery_dataset": "fitcv",
+        "service_account_key": "/tmp/fake.json",
+    }
+    jobs = [
+        {
+            "job_url": "https://example.com/1",
+            "title": "Data Engineer",
+            "location_type": "remote",
+            "required_skills_canonical": ["sql", "python"],
+            "preferred_skills_canonical": ["dbt"],
+            "seniority": "mid",
+            "job_family": "analytics",
+        },
+        {
+            "job_url": "https://example.com/2",
+            "title": "Analytics Engineer",
+            "location_type": "hybrid",
+            "required_skills_canonical": ["sql", "dbt"],
+            "preferred_skills_canonical": ["apache airflow"],
+            "seniority": "mid",
+            "job_family": "analytics",
+        },
+    ]
+
+    reused_signature = build_job_summary_signature_record(jobs[0])
+    contract = build_embedding_contract_fingerprint(config)
+    client.query.return_value.result.return_value = [
+        SimpleNamespace(
+            job_url=jobs[0]["job_url"],
+            embedding_input_signature=reused_signature["signature"],
+            embedding_contract_fingerprint=contract["fingerprint"],
+        ),
+        SimpleNamespace(
+            job_url=jobs[1]["job_url"],
+            embedding_input_signature="stale-signature",
+            embedding_contract_fingerprint=contract["fingerprint"],
+        ),
+    ]
+    mock_generate_embedding.return_value = [0.1, 0.2]
+
+    inserted = embed_and_store_jobs(jobs, config)
+
+    assert inserted == 1
+    mock_generate_embedding.assert_called_once()
+    client.insert_rows_json.assert_called_once()
+    inserted_rows = client.insert_rows_json.call_args.args[1]
+    assert inserted_rows == [
+        {
+            "job_url": "https://example.com/2",
+            "chunk_type": "job_summary",
+            "chunk_text": build_job_summary_chunk(jobs[1])[0]["chunk_text"],
+            "embedding": [0.1, 0.2],
+            "created_at": inserted_rows[0]["created_at"],
+            "embedding_input_signature": build_job_summary_signature_record(jobs[1])["signature"],
+            "embedding_contract_fingerprint": contract["fingerprint"],
+            "embedding_input_signature_payload_json": inserted_rows[0]["embedding_input_signature_payload_json"],
+        }
+    ]
+    assert jobs[0]["embedding_reuse_status"] == REUSED_CACHED_EMBEDDING_STATUS
+    assert jobs[0]["embedding_input_signature"] == reused_signature["signature"]
+    assert jobs[0]["embedding_contract_fingerprint"] == contract["fingerprint"]
+    assert jobs[1]["embedding_reuse_status"] == FRESH_EMBEDDING_STATUS
+    assert jobs[1]["embedding_contract_fingerprint"] == contract["fingerprint"]
 
 
 # ── integration tests (require GOOGLE_APPLICATION_CREDENTIALS) ────────────────

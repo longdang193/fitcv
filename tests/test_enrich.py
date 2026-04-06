@@ -1,5 +1,6 @@
 """Tests for fitcv.enrich — all pure unit tests (no LLM calls)."""
 
+from datetime import datetime, timezone
 import sys
 import types
 
@@ -9,12 +10,16 @@ from fitcv.enrich import (
     EnrichmentOutput,
     _apply_structured_normalization,
     build_extraction_prompt,
+    build_enrich_contract_fingerprint,
+    build_raw_job_fingerprint,
     enrich_job,
     load_run_structured_jobs,
     load_structured_jobs,
+    lookup_reusable_structured_jobs,
     merge_scraped_and_enriched,
     parse_extraction_response,
 )
+from fitcv.prompts.models import PromptDefinition
 
 
 # ── build_extraction_prompt ───────────────────────────────────────────────────
@@ -52,6 +57,221 @@ def test_build_extraction_prompt_requires_all_keys_present() -> None:
     assert "Every schema key must be present" in prompt
     assert "Use [] for unknown list fields" in prompt
     assert "Use null for unknown scalar fields" in prompt
+
+
+def test_build_extraction_prompt_uses_effective_prompt_id_from_config() -> None:
+    prompt = build_extraction_prompt(
+        description="Remote SQL role",
+        scraped_metadata={},
+        config={"prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}}},
+    )
+    assert "expert recruiter extracting structured information" in prompt
+
+
+def test_build_raw_job_fingerprint_is_stable_for_whitespace_and_case_changes() -> None:
+    job_a = {
+        "job_url": "https://example.com/jobs/1",
+        "title": "Data Analyst",
+        "company_name": "Acme GmbH",
+        "location": "Berlin, Germany",
+        "description": "Build KPI dashboards with SQL and Python.\nOwn reporting.\n",
+        "contract_type": "Full-time",
+        "experience_level": "Mid-Senior level",
+        "source": "LinkedIn",
+        "applications_count_int": 25,
+    }
+    job_b = {
+        "job_url": "https://example.com/jobs/1",
+        "title": "  data analyst  ",
+        "company_name": " ACME GMBH ",
+        "location": "berlin,   germany",
+        "description": "Build KPI dashboards with SQL and Python. Own reporting.",
+        "contract_type": " full-time ",
+        "experience_level": " mid-senior level ",
+        "source": "linkedin",
+        "applications_count_int": 999,
+    }
+
+    result_a = build_raw_job_fingerprint(job_a)
+    result_b = build_raw_job_fingerprint(job_b)
+
+    assert "applications_count_int" not in result_a["payload"]
+    assert result_a["fingerprint"] == result_b["fingerprint"]
+
+
+def test_build_enrich_contract_fingerprint_changes_when_prompt_contract_changes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = {
+        "gemini_model": "gemini-2.5-flash",
+        "prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}},
+    }
+    baseline = build_enrich_contract_fingerprint(config)
+
+    monkeypatch.setattr(
+        "fitcv.enrich.get_prompt_definition",
+        lambda prompt_id: PromptDefinition(
+            prompt_id=prompt_id,
+            stage_id="enrich",
+            version="v999",
+            template_path=__import__("pathlib").Path("fitcv/prompts/templates/enrich_extraction_v999.md"),
+            summary="test override",
+        ),
+    )
+
+    changed = build_enrich_contract_fingerprint(config)
+
+    assert baseline["fingerprint"] != changed["fingerprint"]
+
+
+def test_lookup_reusable_structured_jobs_returns_exact_fingerprint_and_contract_matches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeRow:
+        def items(self):
+            return [
+                ("job_url", "https://example.com/jobs/1"),
+                ("required_skills", ["SQL", "Python"]),
+                ("required_skills_canonical", ["sql", "python"]),
+                ("required_skill_entities_json", '[{"raw_text":"SQL","canonical":"sql"}]'),
+                ("mapping_suggestions_json", '[{"must_have_skill":"sql","matches":true,"alias":"sql","canonical":"sql","confidence":1.0}]'),
+                ("raw_job_fingerprint", "raw-fingerprint-match"),
+                ("enrich_contract_fingerprint", "contract-fingerprint-match"),
+                ("enrich_reuse_status", "fresh_enrichment"),
+                ("enrichment_version", "v1"),
+                ("enrichment_model", "gemini-2.5-flash"),
+                ("enriched_at", "2026-04-03T00:00:00+00:00"),
+            ]
+
+    class FakeResult:
+        def result(self):
+            return self
+
+        def __iter__(self):
+            return iter([FakeRow()])
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            captured["client_kwargs"] = kwargs
+
+        def query(self, sql: str, job_config: object) -> FakeResult:
+            captured["sql"] = sql
+            captured["job_config"] = job_config
+            return FakeResult()
+
+    fake_bigquery = types.SimpleNamespace(
+        Client=FakeClient,
+        QueryJobConfig=lambda **kwargs: types.SimpleNamespace(**kwargs),
+        ArrayQueryParameter=lambda name, field_type, values: types.SimpleNamespace(name=name, field_type=field_type, values=values),
+    )
+    fake_service_account = types.SimpleNamespace(
+        Credentials=types.SimpleNamespace(
+            from_service_account_file=lambda path: "creds"
+        )
+    )
+    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
+    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
+    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
+    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+
+    jobs = [
+        {
+            "job_url": "https://example.com/jobs/1",
+            "title": "Data Analyst",
+            "company_name": "Acme",
+            "description": "Build dashboards with SQL and Python.",
+        }
+    ]
+
+    reusable = lookup_reusable_structured_jobs(
+        jobs,
+        {
+            "gcp_project": "fitcv-491123",
+            "bigquery_dataset": "fitcv",
+            "service_account_key": "/tmp/key.json",
+        },
+        raw_job_fingerprints={"https://example.com/jobs/1": "raw-fingerprint-match"},
+        enrich_contract_fingerprint="contract-fingerprint-match",
+    )
+
+    assert list(reusable) == ["https://example.com/jobs/1"]
+    assert reusable["https://example.com/jobs/1"]["required_skill_entities"] == [
+        {"raw_text": "SQL", "canonical": "sql"}
+    ]
+    assert reusable["https://example.com/jobs/1"]["mapping_suggestions"][0]["canonical"] == "sql"
+
+
+def test_lookup_reusable_structured_jobs_normalises_datetime_enriched_at(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeRow:
+        def items(self):
+            return [
+                ("job_url", "https://example.com/jobs/1"),
+                ("required_skills", ["SQL", "Python"]),
+                ("required_skills_canonical", ["sql", "python"]),
+                ("required_skill_entities_json", '[{"raw_text":"SQL","canonical":"sql"}]'),
+                ("mapping_suggestions_json", "[]"),
+                ("raw_job_fingerprint", "raw-fingerprint-match"),
+                ("enrich_contract_fingerprint", "contract-fingerprint-match"),
+                ("enrich_reuse_status", "fresh_enrichment"),
+                ("enrichment_version", "v1"),
+                ("enrichment_model", "gemini-2.5-flash"),
+                ("enriched_at", datetime(2026, 4, 3, 12, 0, 0, tzinfo=timezone.utc)),
+            ]
+
+    class FakeResult:
+        def result(self):
+            return self
+
+        def __iter__(self):
+            return iter([FakeRow()])
+
+    class FakeClient:
+        def __init__(self, **kwargs: object) -> None:
+            pass
+
+        def query(self, sql: str, job_config: object) -> FakeResult:
+            return FakeResult()
+
+    fake_bigquery = types.SimpleNamespace(
+        Client=FakeClient,
+        QueryJobConfig=lambda **kwargs: types.SimpleNamespace(**kwargs),
+        ArrayQueryParameter=lambda name, field_type, values: types.SimpleNamespace(name=name, field_type=field_type, values=values),
+    )
+    fake_service_account = types.SimpleNamespace(
+        Credentials=types.SimpleNamespace(
+            from_service_account_file=lambda path: "creds"
+        )
+    )
+    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
+    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
+    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
+    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+
+    jobs = [
+        {
+            "job_url": "https://example.com/jobs/1",
+            "title": "Data Analyst",
+            "company_name": "Acme",
+            "description": "Build dashboards with SQL and Python.",
+        }
+    ]
+
+    reusable = lookup_reusable_structured_jobs(
+        jobs,
+        {
+            "gcp_project": "fitcv-491123",
+            "bigquery_dataset": "fitcv",
+            "service_account_key": "/tmp/key.json",
+        },
+        raw_job_fingerprints={"https://example.com/jobs/1": "raw-fingerprint-match"},
+        enrich_contract_fingerprint="contract-fingerprint-match",
+    )
+
+    assert reusable["https://example.com/jobs/1"]["enriched_at"] == "2026-04-03T12:00:00+00:00"
 
 
 # ── parse_extraction_response — valid JSON ────────────────────────────────────
@@ -132,6 +352,34 @@ def test_parse_extraction_response_bad_seniority_returns_none() -> None:
     assert result["parsed"]["seniority"] is None
 
 
+def test_parse_extraction_response_uses_skill_entities_for_canonical_fields() -> None:
+    raw = """
+    {
+      "required_skills": [
+        "proficient in Python programming for data science",
+        "English advanced (C1) or above"
+      ],
+      "required_skill_entities": [
+        {"raw_text": "proficient in Python programming for data science", "canonical": "python", "confidence": 0.96}
+      ],
+      "preferred_skills": ["PowerBI"],
+      "preferred_skill_entities": [
+        {"raw_text": "PowerBI", "canonical": "power bi", "confidence": 0.98}
+      ]
+    }
+    """
+    result = parse_extraction_response(raw)
+    assert result["parsed"]["required_skills_canonical"] == ["python"]
+    assert result["parsed"]["preferred_skills_canonical"] == ["power bi"]
+    assert result["parsed"]["required_skill_entities"] == [
+        {
+            "raw_text": "proficient in Python programming for data science",
+            "canonical": "python",
+            "confidence": 0.96,
+        }
+    ]
+
+
 # ── merge_scraped_and_enriched ────────────────────────────────────────────────
 
 def test_merge_scraped_and_enriched_preserves_scraped_fields() -> None:
@@ -151,6 +399,16 @@ def test_merge_scraped_and_enriched_adds_audit_fields() -> None:
     assert "enriched_at" in merged
 
 
+def test_merge_scraped_and_enriched_normalizes_datetime_enriched_at() -> None:
+    scraped = {"job_url": "url1", "title": "DE"}
+    enriched = {
+        "required_skills": ["SQL"],
+        "enriched_at": datetime(2026, 4, 3, 12, 0, 0, tzinfo=timezone.utc),
+    }
+    merged = merge_scraped_and_enriched(scraped, enriched)
+    assert merged["enriched_at"] == "2026-04-03T12:00:00+00:00"
+
+
 def test_merge_scraped_and_enriched_uses_config_model() -> None:
     scraped = {"job_url": "url1", "title": "DE"}
     enriched = {}
@@ -158,6 +416,92 @@ def test_merge_scraped_and_enriched_uses_config_model() -> None:
     merged = merge_scraped_and_enriched(scraped, enriched, config=config)
     assert merged["enrichment_model"] == "gemini-2.0-flash"
     assert merged["enrichment_version"] == "v1"
+
+
+def test_enrich_job_renders_prompt_via_prompt_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeResponse:
+        parsed = EnrichmentOutput(
+            required_skills=["SQL"],
+            preferred_skills=[],
+            responsibilities=[],
+            tech_stack=[],
+            keywords=[],
+            location_type="remote",
+            seniority="mid",
+            domain="fintech",
+            job_family="analytics",
+            years_experience_min=None,
+            years_experience_max=None,
+            required_skill_entities=[],
+            preferred_skill_entities=[],
+        )
+        text = ""
+
+    class FakeModels:
+        def generate_content(self, *, model: str, contents: str, config: object) -> FakeResponse:
+            captured["model"] = model
+            captured["contents"] = contents
+            captured["config"] = config
+            return FakeResponse()
+
+    class FakeClient:
+        models = FakeModels()
+
+    monkeypatch.setattr("fitcv.enrich._make_genai_client", lambda config: FakeClient())
+
+    result = enrich_job(
+        {
+            "job_url": "https://example.com/jobs/1",
+            "title": "Data Analyst",
+            "description": "Need SQL for analytics work.",
+        },
+        {
+            "gemini_model": "gemini-2.5-flash",
+            "prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}},
+        },
+    )
+
+    assert "Need SQL for analytics work." in str(captured["contents"])
+    assert result["required_skills"] == ["SQL"]
+
+
+def test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields() -> None:
+    scraped = {"job_url": "url1", "title": "DE"}
+    enriched = {
+        "required_skills": ["Python programming for data science"],
+        "required_skills_canonical": ["python"],
+        "required_skill_entities": [
+            {"raw_text": "Python programming for data science", "canonical": "python"}
+        ],
+        "mapping_suggestions": [
+            {
+                "must_have_skill": "python",
+                "matches": True,
+                "alias": "python programming for data science",
+                "canonical": "python",
+                "confidence": 1.0,
+            }
+        ],
+        "location_type_raw": "Remote",
+        "location_type": "remote",
+        "domain_raw": "FinTech",
+        "domain": "fintech",
+    }
+
+    merged = merge_scraped_and_enriched(scraped, enriched)
+
+    assert merged["required_skills"] == ["Python programming for data science"]
+    assert merged["required_skills_canonical"] == ["python"]
+    assert merged["required_skill_entities"] == [
+        {"raw_text": "Python programming for data science", "canonical": "python"}
+    ]
+    assert merged["mapping_suggestions"][0]["alias"] == "python programming for data science"
+    assert merged["location_type_raw"] == "Remote"
+    assert merged["location_type"] == "remote"
+    assert merged["domain_raw"] == "FinTech"
+    assert merged["domain"] == "fintech"
 
 
 def test_load_structured_jobs_uses_explicit_staging_schema(
@@ -802,6 +1146,195 @@ def test_apply_structured_normalization_strips_whitespace() -> None:
     result = _apply_structured_normalization(output, config=None)
     assert result["domain"] == "fintech"
     assert result["job_family"] == "ml engineering"
+
+
+def test_apply_structured_normalization_emits_canonical_skill_companions() -> None:
+    output = EnrichmentOutput(
+        required_skills=["GCP", "Python programming for data science"],
+        preferred_skills=["PowerBI"],
+        required_skill_entities=[
+            {"raw_text": "GCP", "canonical": "google cloud", "confidence": 0.99},
+            {"raw_text": "Python programming for data science", "canonical": "python", "confidence": 0.96},
+        ],
+        preferred_skill_entities=[
+            {"raw_text": "PowerBI", "canonical": "power bi", "confidence": 0.98},
+        ],
+        tech_stack=["BigQuery"],
+        keywords=["LLM"],
+    )
+
+    result = _apply_structured_normalization(
+        output,
+        config={
+            "skill_synonyms": {
+                "gcp": "google cloud",
+                "powerbi": "power bi",
+                "llm": "genai",
+            }
+        },
+    )
+
+    assert result["required_skills"] == ["GCP", "Python programming for data science"]
+    assert result["required_skills_canonical"] == [
+        "google cloud",
+        "python",
+    ]
+    assert result["preferred_skills_canonical"] == ["power bi"]
+    assert "tech_stack_canonical" not in result
+    assert "keywords_canonical" not in result
+    assert result["required_skill_entities"] == [
+        {"raw_text": "GCP", "canonical": "google cloud", "confidence": 0.99},
+        {
+            "raw_text": "Python programming for data science",
+            "canonical": "python",
+            "confidence": 0.96,
+        },
+    ]
+    assert result["preferred_skill_entities"] == [
+        {"raw_text": "PowerBI", "canonical": "power bi", "confidence": 0.98}
+    ]
+    assert result["mapping_suggestions"] == [
+        {
+            "must_have_skill": "google cloud",
+            "matches": True,
+            "alias": "gcp",
+            "canonical": "google cloud",
+            "confidence": 0.99,
+        },
+        {
+            "must_have_skill": "power bi",
+            "matches": True,
+            "alias": "powerbi",
+            "canonical": "power bi",
+            "confidence": 0.98,
+        },
+    ]
+
+
+def test_apply_structured_normalization_excludes_non_skill_requirement_content() -> None:
+    output = EnrichmentOutput(
+        required_skills=[
+            "Master's or PhD Degree in Data Science, Statistics, Mathematics, Computer Science, or related quantitative field",
+            "at least 5 years of hands-on data science experience with proven business impact",
+            "proficient in Python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+            "proficient in SQL and database operations for data manipulation and analysis",
+            "English advanced (C1) or above",
+        ],
+        required_skill_entities=[
+            {
+                "raw_text": "proficient in Python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "python",
+                "confidence": 0.96,
+            },
+            {
+                "raw_text": "proficient in Python programming for data science (pandas, numpy, scipy, scikit-learn, statsmodels)",
+                "canonical": "pandas",
+                "confidence": 0.94,
+            },
+            {
+                "raw_text": "proficient in SQL and database operations for data manipulation and analysis",
+                "canonical": "sql",
+                "confidence": 0.95,
+            },
+        ],
+    )
+
+    result = _apply_structured_normalization(output, config={})
+
+    assert result["required_skills_canonical"] == ["python", "pandas", "sql"]
+    assert all("degree" not in skill for skill in result["required_skills_canonical"])
+    assert all("english" not in skill for skill in result["required_skills_canonical"])
+    assert len(result["required_skill_entities"]) == 3
+
+
+def test_apply_structured_normalization_filters_soft_skills_languages_and_domain_knowledge() -> None:
+    output = EnrichmentOutput(
+        required_skills=[
+            "Analytical Focus",
+            "Attention to detail",
+            "German communication",
+            "Telecom domain experience",
+            "Prompt Engineering",
+            "Vector Databases",
+            "SQL",
+        ],
+        required_skill_entities=[
+            {"raw_text": "Analytical Focus", "canonical": "analytical thinking", "confidence": 1.0},
+            {"raw_text": "Attention to detail", "canonical": "attention to detail", "confidence": 1.0},
+            {"raw_text": "German communication", "canonical": "german", "confidence": 1.0},
+            {"raw_text": "Telecom domain experience", "canonical": "telecommunications domain knowledge", "confidence": 1.0},
+            {"raw_text": "Prompt Engineering", "canonical": "genai", "confidence": 0.95},
+            {"raw_text": "Vector Databases", "canonical": "genai", "confidence": 0.95},
+            {"raw_text": "SQL", "canonical": "sql", "confidence": 1.0},
+        ],
+    )
+
+    result = _apply_structured_normalization(output, config={})
+
+    assert result["required_skills_canonical"] == ["sql"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "SQL", "canonical": "sql", "confidence": 1.0}
+    ]
+    assert result["mapping_suggestions"] == []
+
+
+def test_apply_structured_normalization_uses_conservative_alias_fallback_when_entities_absent() -> None:
+    output = EnrichmentOutput(
+        required_skills=["GCP", "Python programming for data science"],
+        preferred_skills=["PowerBI"],
+    )
+
+    result = _apply_structured_normalization(
+        output,
+        config={
+            "skill_synonyms": {
+                "gcp": "google cloud",
+                "powerbi": "power bi",
+            }
+        },
+    )
+
+    assert result["required_skills_canonical"] == ["google cloud"]
+    assert result["preferred_skills_canonical"] == ["power bi"]
+    assert result["required_skill_entities"] == [
+        {"raw_text": "GCP", "canonical": "google cloud", "confidence": 1.0}
+    ]
+    assert result["mapping_suggestions"] == [
+        {
+            "must_have_skill": "google cloud",
+            "matches": True,
+            "alias": "gcp",
+            "canonical": "google cloud",
+            "confidence": 1.0,
+        },
+        {
+            "must_have_skill": "power bi",
+            "matches": True,
+            "alias": "powerbi",
+            "canonical": "power bi",
+            "confidence": 1.0,
+        },
+    ]
+
+
+def test_apply_structured_normalization_preserves_raw_scalar_companions() -> None:
+    output = EnrichmentOutput(
+        location_type="Remote",
+        seniority="Senior",
+        domain=" FinTech ",
+        job_family=" Data_Engineering ",
+    )
+
+    result = _apply_structured_normalization(output, config=None)
+
+    assert result["location_type_raw"] == "Remote"
+    assert result["location_type"] == "remote"
+    assert result["seniority_raw"] == "Senior"
+    assert result["seniority"] == "senior"
+    assert result["domain_raw"] == " FinTech "
+    assert result["domain"] == "fintech"
+    assert result["job_family_raw"] == " Data_Engineering "
+    assert result["job_family"] == "data_engineering"
 
 
 # ── enrich_job primary and fallback paths ─────────────────────────────────────
