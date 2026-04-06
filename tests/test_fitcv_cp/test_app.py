@@ -3058,23 +3058,33 @@ def test_settings_ranking_section_has_no_tailwind_classes():
         assert prefix not in section_slice, f"Tailwind class '{prefix}' found in ranking section"
 
 
-def test_settings_ranking_contains_three_sub_cards():
-    """The ranking section must render exactly three .sub-card elements."""
+def test_settings_ranking_contains_group_forms():
+    """The ranking section keeps the four grouped ranking forms in the task-first layout."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    count = html.count('class="sub-card settings-panel"')
-    assert count >= 3, f"Expected at least 3 sub-card elements, got {count}"
+    for form_id in (
+        "form-ranking-weights",
+        "form-preference-fit-weights",
+        "form-fit-label-thresholds",
+        "form-gap-thresholds",
+    ):
+        assert f'<form id="{form_id}"' in html
 
 
-def test_settings_ranking_sub_cards_have_save_buttons_with_correct_form_targets():
-    """Each ranking sub-card must have a submit button inside its group form."""
+def test_settings_ranking_group_forms_have_save_buttons_with_correct_form_targets():
+    """Each ranking grouped form keeps its nested submit button in the new layout."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    for form_id in ("form-ranking-weights", "form-fit-label-thresholds", "form-gap-thresholds"):
+    for form_id in (
+        "form-ranking-weights",
+        "form-preference-fit-weights",
+        "form-fit-label-thresholds",
+        "form-gap-thresholds",
+    ):
         # Locate the form element
         form_open = f'<form id="{form_id}"'
         form_start = html.index(form_open)
@@ -3590,39 +3600,79 @@ def test_get_settings_page_includes_cv_groups():
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     # Template receives cv_groups from context
-    assert "CV Generation" in resp.text
+    assert "CV Output" in resp.text
 
 
 # ── CV settings page rendering ────────────────────────────────────────────────
 
-def test_settings_page_renders_cv_generation_section():
-    """Settings page includes 'CV Generation' section."""
+def test_settings_page_renders_task_first_sections():
+    """Settings page is organized around operator tasks, not only raw schema buckets."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
-    assert "CV Generation" in resp.text
+    html = resp.text
+    assert "Selection" in html
+    assert "Ranking" in html
+    assert "CV Output" in html
+    assert "Run Safety" in html
+    assert "Advanced" in html
 
 
 def test_settings_page_renders_cv_sub_cards():
-    """Settings page includes Preset, Composition, and Validation sub-cards."""
+    """CV Output keeps the meaningful output-focused sub-surfaces."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert "Preset" in html
-    assert "Composition" in html
+    assert "Template" in html
+    assert "Model" in html
+    assert "Section Visibility" in html
     assert "Validation" in html
 
 
-def test_settings_page_renders_cv_preset_inputs():
-    """Settings page includes inputs for cv_preset and cv_generation_model."""
+def test_settings_page_renders_single_option_controls_as_metadata():
+    """Single-option pseudo-choice controls are shown as metadata, not editable inputs."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert 'name="cv_preset"' in html
+    assert "Currently fixed by the active runtime contract" in html
+    assert "europass" in html.lower()
+    assert "text-embedding-005" in html
+    assert 'name="cv_preset"' not in html
+    assert 'name="cv_analysis.semantic_alignment.model"' not in html
     assert 'name="cv_generation_model"' in html
     assert 'name="cv_prompt_version"' not in html
+
+
+def test_settings_page_uses_advanced_disclosure_for_expert_controls() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Advanced Retrieval Tuning" in html
+    assert "Advanced Runtime Tuning" in html
+    assert "Timing and throttling controls" in html
+    assert "<details" in html
+
+
+def test_settings_page_marks_dirty_rows_when_draft_differs_from_effective() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={"enrichment_sleep_secs": 1.0}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/section/timing",
+            data={
+                "enrichment_sleep_secs": "2.0",
+                "rerank_sleep_secs": "0.5",
+                "enrichment_batch_size": "10",
+                "enrichment_concurrency": "0",
+            },
+        )
+    assert resp.status_code == 422
+    html = resp.text
+    assert 'class="settings-field-row is-dirty"' in html
+    assert "1 unsaved edit" in html or "2 unsaved edits" in html
+    assert "Current:" in html
+    assert "1.0" in html
 
 
 def test_settings_page_cv_sections_no_raw_yaml():
@@ -3646,29 +3696,31 @@ def test_settings_page_cv_max_pages_is_numeric_input():
 # ── Preset-based CV settings page rendering ──────────────────────────────────────
 
 def test_settings_page_renders_cv_preset_section():
-    """Settings page includes cv-preset sub-card."""
+    """CV Output includes the template/model card."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert "Preset" in html
+    assert "Template" in html
+    assert "Model" in html
 
 
 def test_settings_page_renders_cv_composition_section():
-    """Settings page includes cv-composition sub-card."""
+    """CV Output includes the visibility-focused composition block."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert "Composition" in html
+    assert "Section Visibility" in html
 
 
-def test_settings_page_renders_cv_composition_section_cards() -> None:
-    """Composition settings are grouped into per-section cards, not a flat table only."""
+def test_settings_page_renders_cv_visibility_matrix() -> None:
+    """Composition settings render in a denser visibility matrix."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
+    assert 'class="composition-matrix"' in html
     for label in (
         "Summary",
         "Education",
@@ -3679,7 +3731,7 @@ def test_settings_page_renders_cv_composition_section_cards() -> None:
         "Publications",
         "Languages",
     ):
-        assert f'<div class="composition-section-title">{label}</div>' in html
+        assert f'<div class="composition-row-title">{label}</div>' in html
 
 
 def test_settings_page_renders_summary_visibility_toggle() -> None:
@@ -3688,7 +3740,7 @@ def test_settings_page_renders_summary_visibility_toggle() -> None:
     assert resp.status_code == 200
     html = resp.text
     assert 'name="cv_summary_enabled"' in html
-    assert "Always shown" not in html
+    assert "Included" in html or "Hidden" in html
 
 
 def test_settings_page_renders_cv_model_as_select_with_supported_options() -> None:
@@ -3760,7 +3812,8 @@ def test_settings_page_shows_effective_current_values_for_composition_defaults()
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert '<span class="current-value">Yes</span>' in html
+    assert "Current:" in html
+    assert "Included" in html or "Hidden" in html
     assert '<span class="current-value">compact</span>' not in html
     assert '<span class="current-value">concise</span>' not in html
 
@@ -3774,13 +3827,13 @@ def test_settings_page_does_not_render_cv_content_rules_section():
     assert "Content Rules" not in html
 
 
-def test_settings_page_renders_cv_preset_inputs():
-    """Settings page includes inputs for cv_preset and cv_generation_model."""
+def test_settings_page_renders_cv_model_input_without_cv_preset_input():
+    """Settings page keeps cv_generation_model editable while cv_preset becomes metadata-only."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert 'name="cv_preset"' in html
+    assert 'name="cv_preset"' not in html
     assert 'name="cv_generation_model"' in html
     assert 'name="cv_prompt_version"' not in html
 

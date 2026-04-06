@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.11.0 — active
+
+- The admin settings page is now organized around operator tasks (`Selection`, `Ranking`, `CV Output`, `Run Safety`, and `Advanced`) instead of presenting the schema as a flat registry dump
+- Single-option pseudo-choice controls such as `cv_preset` and `cv_analysis.semantic_alignment.model` are now rendered as fixed runtime metadata instead of editable dropdowns
+- The page now makes current-versus-draft state clearer, highlights unsaved edits, and renders CV section visibility in a denser matrix layout
+
 ### 2.10.0 — active
 
 - Operator-facing `settings-used.json` exports now keep canonical nested settings in the primary surface and move compatibility-era flat keys into an explicit compatibility block when needed

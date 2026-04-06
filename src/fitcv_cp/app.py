@@ -992,6 +992,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     app = FastAPI(title="FitCV Admin Control Plane")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
+    metadata_only_keys = {
+        entry["key"]
+        for entry in SETTINGS_SCHEMA
+        if isinstance(entry.get("options"), list) and len(entry.get("options", [])) <= 1
+    }
     composition_sections = [
         {
             "id": "summary",
@@ -1066,6 +1071,184 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             ],
         },
     ]
+    cv_visibility_rows = [
+        {
+            "title": section["title"],
+            "helper": section["helper"],
+            "key": section["include_key"],
+        }
+        for section in composition_sections
+    ]
+    settings_page_sections = [
+        {
+            "id": "selection",
+            "title": "Selection",
+            "helper": "Shape how many jobs enter each expensive stage and which deterministic filters block them early.",
+            "cards": [
+                {
+                    "id": "selection-funnel",
+                    "title": "Retrieval Settings",
+                    "helper": "Higher values broaden recall but increase shortlist, reranking, and downstream latency.",
+                    "submit_kind": "section",
+                    "submit_slug": "retrieval",
+                    "keys": [
+                        "pipeline.vector_search_top_n",
+                        "pipeline.ai_score_top_n",
+                        "pipeline.final_top_n",
+                        "pipeline.evidence_top_k",
+                    ],
+                },
+                {
+                    "id": "selection-global-filters",
+                    "title": "Global Job Filters",
+                    "helper": "Reject jobs before enrichment so low-value candidates never reach later stages.",
+                    "submit_kind": "section",
+                    "submit_slug": "global-job-filters",
+                    "keys": [
+                        "global_job_filters.applications_count_max",
+                        "global_job_filters.max_age_days",
+                    ],
+                },
+                {
+                    "id": "selection-rule-filter",
+                    "title": "Rule Filter Settings",
+                    "helper": "Choose which post-enrichment checks reject jobs versus only record downstream marks.",
+                    "submit_kind": "section",
+                    "submit_slug": "rule-filter",
+                    "keys": ["rule_filter.selected_filters"],
+                },
+            ],
+        },
+        {
+            "id": "ranking",
+            "title": "Ranking",
+            "helper": "Tune how shortlisted jobs are scored, labeled, and gap-penalized.",
+            "cards": [
+                {
+                    "id": "ranking-weights",
+                    "title": "Ranking Weights",
+                    "helper": "All six weights must sum to 1.0 (±0.01).",
+                    "submit_kind": "group",
+                    "submit_slug": "ranking-weights",
+                    "keys": RANKING_GROUPS["ranking-weights"],
+                },
+                {
+                    "id": "ranking-preference-fit",
+                    "title": "Preference Fit Mix",
+                    "helper": "Split preference alignment across domain, role family, and location type.",
+                    "submit_kind": "group",
+                    "submit_slug": "preference-fit-weights",
+                    "form_id": "form-preference-fit-weights",
+                    "keys": RANKING_GROUPS["preference-fit-weights"],
+                },
+                {
+                    "id": "ranking-fit-thresholds",
+                    "title": "Fit Label Thresholds",
+                    "helper": "Set the score boundaries for Strong and Stretch fit labels.",
+                    "submit_kind": "group",
+                    "submit_slug": "fit-label-thresholds",
+                    "form_id": "form-fit-label-thresholds",
+                    "keys": RANKING_GROUPS["fit-label-thresholds"],
+                },
+                {
+                    "id": "ranking-gap-thresholds",
+                    "title": "Gap Thresholds",
+                    "helper": "Control when missing-skill ratios start degrading Strong and Stretch classifications.",
+                    "submit_kind": "group",
+                    "submit_slug": "gap-thresholds",
+                    "form_id": "form-gap-thresholds",
+                    "keys": RANKING_GROUPS["gap-thresholds"],
+                },
+            ],
+        },
+        {
+            "id": "cv-output",
+            "title": "CV Output",
+            "helper": "Choose the generation model, control section visibility, and bound output length.",
+            "cards": [
+                {
+                    "id": "cv-template-model",
+                    "title": "Template & Model",
+                    "helper": "Fixed preset metadata plus the active generation model for future runs.",
+                    "submit_kind": "group",
+                    "submit_slug": "cv-preset",
+                    "form_id": "form-cv-preset",
+                    "save_label": "Save Preset Settings",
+                    "keys": CV_GROUPS["cv-preset"],
+                },
+                {
+                    "id": "cv-visibility",
+                    "title": "Section Visibility",
+                    "helper": "Decide which sections appear in generated CVs without exposing retired formatting-only knobs.",
+                    "submit_kind": "group",
+                    "submit_slug": "cv-composition",
+                    "form_id": "form-cv-composition",
+                    "save_label": "Save Composition Settings",
+                    "keys": CV_GROUPS["cv-composition"],
+                    "layout": "composition_matrix",
+                },
+                {
+                    "id": "cv-validation",
+                    "title": "Validation",
+                    "helper": "Keep the warning-only page budget visible and easy to tune.",
+                    "submit_kind": "group",
+                    "submit_slug": "cv-validation",
+                    "form_id": "form-cv-validation",
+                    "save_label": "Save Validation Settings",
+                    "keys": CV_GROUPS["cv-validation"],
+                },
+            ],
+        },
+        {
+            "id": "run-safety",
+            "title": "Run Safety",
+            "helper": "Control server-owned protections that keep stuck runs from drifting indefinitely.",
+            "cards": [
+                {
+                    "id": "run-safety-timeout",
+                    "title": "Run Lifecycle Settings",
+                    "helper": "Safety guard for stuck runs. Higher values reduce false timeouts but allow longer zombie-run windows.",
+                    "submit_kind": "section",
+                    "submit_slug": "run-lifecycle",
+                    "keys": SETTINGS_SECTIONS["run-lifecycle"],
+                },
+            ],
+        },
+        {
+            "id": "advanced",
+            "title": "Advanced",
+            "helper": "Expert-only tuning for semantic alignment, batching, concurrency, and throttle behavior.",
+            "cards": [
+                {
+                    "id": "advanced-retrieval",
+                    "title": "Advanced Retrieval Tuning",
+                    "helper": "Hybrid semantic-alignment controls. Useful when evidence quality drifts more than raw throughput.",
+                    "submit_kind": "section",
+                    "submit_slug": "retrieval",
+                    "keys": [
+                        "cv_analysis.semantic_alignment.enabled",
+                        "cv_analysis.semantic_alignment.model",
+                        "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+                        "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+                        "cv_analysis.semantic_alignment.domain_lexical_weight",
+                        "cv_analysis.semantic_alignment.domain_semantic_weight",
+                        "cv_analysis.semantic_alignment.channel_pool_size",
+                    ],
+                    "is_advanced": True,
+                },
+                {
+                    "id": "advanced-runtime",
+                    "title": "Advanced Runtime Tuning",
+                    "helper": "Timing and throttling controls. Higher concurrency does not bypass global rate limits, so use carefully.",
+                    "submit_kind": "section",
+                    "submit_slug": "timing",
+                    "save_label": "Save Timing Settings",
+                    "keys": SETTINGS_SECTIONS["timing"],
+                    "is_advanced": True,
+                },
+            ],
+        },
+    ]
 
     @app.get("/healthz")
     def healthz() -> dict:
@@ -1076,6 +1259,98 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             entry["key"]: active.get(entry["key"], entry["default"])
             for entry in SETTINGS_SCHEMA
         }
+        active_group_name = extra.get("active_group_name")
+        active_section_name = extra.get("active_section_name")
+        group_draft = extra.get("group_draft") or {}
+        section_draft = extra.get("section_draft") or {}
+        group_error = extra.get("group_error") or {}
+        section_errors = extra.get("section_errors") or {}
+
+        def _display_value_for_settings(value: Any, entry_type: str) -> str:
+            if entry_type == "bool":
+                return "Yes" if bool(value) else "No"
+            if isinstance(value, list):
+                return ", ".join(str(item) for item in value) if value else "—"
+            return str(value)
+
+        def _draft_value_for_card(
+            *,
+            submit_kind: str,
+            submit_slug: str,
+            key: str,
+        ) -> Any | None:
+            if submit_kind == "group" and active_group_name == submit_slug and key in group_draft.get(submit_slug, {}):
+                return group_draft[submit_slug][key]
+            if submit_kind == "section" and active_section_name == submit_slug and key in section_draft:
+                return section_draft[key]
+            return None
+
+        def _card_error_for(submit_kind: str, submit_slug: str, keys: list[str]) -> str | None:
+            if submit_kind == "group":
+                return group_error.get(submit_slug)
+            if active_section_name != submit_slug:
+                return None
+            for key in keys:
+                if key in section_errors:
+                    return section_errors[key]
+            return None
+
+        def _build_card(card_spec: dict[str, Any]) -> dict[str, Any]:
+            submit_kind = str(card_spec["submit_kind"])
+            submit_slug = str(card_spec["submit_slug"])
+            action = (
+                f"/admin/settings/group/{submit_slug}"
+                if submit_kind == "group"
+                else f"/admin/settings/section/{submit_slug}"
+            )
+            entries: list[dict[str, Any]] = []
+            for key in card_spec["keys"]:
+                entry = schema_by_key[key]
+                effective_value = effective[key]
+                draft_value = _draft_value_for_card(
+                    submit_kind=submit_kind,
+                    submit_slug=submit_slug,
+                    key=key,
+                )
+                current_value = draft_value if draft_value is not None else effective_value
+                entries.append(
+                    {
+                        "entry": entry,
+                        "effective_value": effective_value,
+                        "current_value": current_value,
+                        "effective_display": _display_value_for_settings(effective_value, str(entry["type"])),
+                        "current_display": _display_value_for_settings(current_value, str(entry["type"])),
+                        "is_dirty": current_value != effective_value,
+                        "is_metadata_only": key in metadata_only_keys,
+                    }
+                )
+            dirty_count = sum(1 for item in entries if item["is_dirty"])
+            return {
+                "id": card_spec["id"],
+                "title": card_spec["title"],
+                "helper": card_spec["helper"],
+                "submit_kind": submit_kind,
+                "submit_slug": submit_slug,
+                "action": action,
+                "form_id": card_spec.get("form_id", f"form-{card_spec['id']}"),
+                "save_label": card_spec.get("save_label", f"Save {card_spec['title']}"),
+                "entries": entries,
+                "keys": list(card_spec["keys"]),
+                "dirty_count": dirty_count,
+                "error_message": _card_error_for(submit_kind, submit_slug, list(card_spec["keys"])),
+                "layout": card_spec.get("layout", "list"),
+                "is_advanced": bool(card_spec.get("is_advanced", False)),
+            }
+
+        settings_page_task_sections = [
+            {
+                "id": section["id"],
+                "title": section["title"],
+                "helper": section["helper"],
+                "cards": [_build_card(card) for card in section["cards"]],
+            }
+            for section in settings_page_sections
+        ]
         context: dict[str, Any] = {
             "schema": SETTINGS_SCHEMA,
             "schema_by_key": schema_by_key,
@@ -1085,6 +1360,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "ranking_groups": RANKING_GROUPS,
             "cv_groups": CV_GROUPS,
             "composition_sections": composition_sections,
+            "cv_visibility_rows": cv_visibility_rows,
+            "metadata_only_keys": metadata_only_keys,
+            "settings_page_task_sections": settings_page_task_sections,
+            "settings_metadata_note": "Currently fixed by the active runtime contract",
         }
         context.update(extra)
         return context
@@ -1683,6 +1962,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     active,
                     group_error={group_name: msg},
                     group_draft={group_name: {key: _settings_form_value(form, key) for key in keys}},
+                    active_group_name=group_name,
                 ),
                 status_code=422,
             )
@@ -1755,6 +2035,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     active,
                     section_errors=errors,
                     section_draft={key: _settings_form_value(form, key) for key in keys},
+                    active_section_name=section_name,
                 ),
                 status_code=422,
             )

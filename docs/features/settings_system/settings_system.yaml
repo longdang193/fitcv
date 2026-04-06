@@ -1,9 +1,9 @@
 settings_system:
   name: Settings System
-  version: 2.10.0
+  version: 2.11.0
   status: active
   type: add
-  summary: Admins can view and edit pipeline tuning defaults through the admin UI, including richer ranking calibration surfaces, `cv_analysis` hybrid semantic-alignment controls, and a lifecycle max-runtime guard, while baseline defaults now resolve from centralized YAML/config ownership instead of drifting as duplicated schema literals, persisted overrides still live in BigQuery, the canonical config room is organized into responsibility-based `config/runtime`, `config/policy`, and `config/taxonomy` subfolders, dormant CV content-rule toggles are no longer presented as live settings, metadata-only CV fields such as `cv_prompt_version` and legacy `cv_template_path` are no longer exposed as active admin controls, and operator-facing settings-used exports now present canonical settings instead of compatibility-era duplicate keys.
+  summary: Admins can view and edit pipeline tuning defaults through a task-first settings UI with clearer current-vs-draft feedback, basic-versus-advanced disclosure, denser CV output controls, and metadata-only treatment for fixed single-option runtime fields, while baseline defaults still resolve from centralized YAML/config ownership, persisted overrides still live in BigQuery, and operator-facing settings-used exports continue to present canonical settings instead of compatibility-era duplicate keys.
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -28,6 +28,11 @@ settings_system:
     - CV generation settings
     - CV composition visibility settings
     - Warning-only CV max-pages validation setting
+    - Task-first admin settings UI sections for Selection, Ranking, CV Output, Run Safety, and Advanced tuning
+    - Basic-versus-advanced disclosure for expert-only tuning knobs
+    - Metadata-only rendering for single-option pseudo-choice controls such as the fixed CV preset and semantic-alignment model
+    - Clearer current-versus-draft and unsaved-change visibility in the settings UI
+    - Denser CV section-visibility matrix instead of repeated long-form cards
     - Metadata-only CV prompt/template fields retired from the active admin settings surface
     - Grouped form validation
     - Per-run overrides
