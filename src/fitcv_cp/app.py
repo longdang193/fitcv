@@ -115,8 +115,8 @@ STAGE_DOWNLOAD_LABELS: dict[str, str] = {
     "cv_generation": "Download CV Generation JSON",
 }
 RUN_MODE_LABELS = {
-    "run_all": "Automatic",
-    "manual_staged": "Manual staged",
+    "run_all": "Run All",
+    "manual_staged": "Stage by Stage",
 }
 STAGE_SEQUENCE: tuple[str, ...] = (
     "normalize",
@@ -490,7 +490,7 @@ def _build_run_export_links(run: PipelineRun) -> list[dict[str, str]]:
                 "href": f"/admin/runs/{run.run_id}/mapping-suggestions.json",
             }
         )
-    if run.status.value in ("succeeded", "awaiting_continue") and run.stage_transition_artifacts_json:
+    if run.stage_transition_artifacts_json and run.status != RunStatus.QUEUED:
         links.append(
             {
                 "label": "Stage Artifacts JSON (Diagnostics)",
@@ -1207,7 +1207,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 {
                     "id": "run-safety-timeout",
                     "title": "Run Lifecycle Settings",
-                    "helper": "Safety guard for stuck runs. Higher values reduce false timeouts but allow longer zombie-run windows.",
+                    "helper": "Safety guard for queued, running, and Stage by Stage manual-wait runs. Higher values reduce false timeouts but allow longer zombie-run windows.",
                     "submit_kind": "section",
                     "submit_slug": "run-lifecycle",
                     "keys": SETTINGS_SECTIONS["run-lifecycle"],
@@ -1512,7 +1512,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             run_mode=run_mode,
             checkpoint_status="pending_first_stage" if run_mode == "manual_staged" else None,
             next_stage="normalize" if run_mode == "manual_staged" else None,
-            completed_stages=[] if run_mode == "manual_staged" else None,
+            completed_stages=[],
         )
         insert_run(run, bq, project=project, dataset=dataset)
         _, queue_job_id = enqueue_run_with_job_id(
@@ -1594,7 +1594,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             run_mode=run_mode,
             checkpoint_status="pending_first_stage" if run_mode == "manual_staged" else None,
             next_stage="normalize" if run_mode == "manual_staged" else None,
-            completed_stages=[] if run_mode == "manual_staged" else None,
+            completed_stages=[],
         )
         insert_run(run, bq, project=project, dataset=dataset)
         _, queue_job_id = enqueue_run_with_job_id(
@@ -2384,7 +2384,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         if run.run_mode != "manual_staged":
-            raise HTTPException(status_code=409, detail="Only manual staged runs can be continued")
+            raise HTTPException(status_code=409, detail="Only Stage by Stage runs can be continued")
         if run.status != RunStatus.AWAITING_CONTINUE:
             raise HTTPException(
                 status_code=409,

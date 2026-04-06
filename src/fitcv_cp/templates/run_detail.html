@@ -48,11 +48,13 @@
     <span class="k">Created</span><span class="v">{{ run.created_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.created_at else '—' }}</span>
     <span class="k">Started</span><span class="v">{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.started_at else '—' }}</span>
     <span class="k">Finished</span><span class="v">{{ run.finished_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.finished_at else '—' }}</span>
+    {% if run.last_completed_stage or run.completed_stages %}
+    <span class="k">Last Completed</span><span class="v"><code>{{ run.last_completed_stage or '—' }}</code></span>
+    <span class="k">Completed Stages</span><span class="v">{% if run.completed_stages %}<code>{{ run.completed_stages | join(', ') }}</code>{% else %}—{% endif %}</span>
+    {% endif %}
     {% if run.run_mode == 'manual_staged' %}
     <span class="k">Checkpoint</span><span class="v">{{ run.checkpoint_status or '—' }}</span>
-    <span class="k">Last Completed</span><span class="v"><code>{{ run.last_completed_stage or '—' }}</code></span>
     <span class="k">Next Stage</span><span class="v"><code>{{ run.next_stage or 'complete' }}</code></span>
-    <span class="k">Completed Stages</span><span class="v">{% if run.completed_stages %}<code>{{ run.completed_stages | join(', ') }}</code>{% else %}—{% endif %}</span>
     {% endif %}
     {% if run.started_at and run.finished_at %}
     <span class="k">Duration</span><span class="v">{{ ((run.finished_at - run.started_at).total_seconds() | int) }}s</span>
@@ -61,6 +63,9 @@
     <span class="k">Passed Filter</span><span class="v">{{ run.passed_filter if run.passed_filter is not none else '—' }}</span>
     <span class="k">Ranked</span><span class="v">{{ run.ranked if run.ranked is not none else '—' }}</span>
   </div>
+  {% if run.run_mode == 'manual_staged' %}
+  <div class="meta" style="margin-top:1rem">Stage by Stage pauses for operator review. Manual wait time is also governed by the Maximum Run Duration safety guard.</div>
+  {% endif %}
 </div>
 
 {% if synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay %}
@@ -111,7 +116,7 @@
     </form>
   </div>
   {% elif run.run_mode == 'run_all' and synonym_overlay_info.has_run_overlay %}
-  <div class="meta" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">Automatic runs use trigger-time synonym uploads only.</div>
+  <div class="meta" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">Run All uses trigger-time synonym uploads only.</div>
   {% endif %}
 </div>
 {% endif %}

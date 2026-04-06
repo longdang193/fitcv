@@ -1,9 +1,9 @@
 run_lifecycle_controls:
   name: Run Lifecycle Controls
-  version: 1.3.0
+  version: 1.4.0
   status: active
   type: add
-  summary: Admins can stop queued, running, or paused `awaiting_continue` runs, archive or unarchive completed runs, apply lifecycle actions in bulk from the runs list, and rely on a server-owned max-runtime timeout guard for unfinished runs.
+  summary: Admins can stop queued, running, or paused `awaiting_continue` runs, archive or unarchive completed runs, apply lifecycle actions in bulk from the runs list, and rely on a server-owned max-runtime timeout guard whose diagnostics distinguish active runtime from Stage by Stage manual-wait time.
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -16,6 +16,7 @@ run_lifecycle_controls:
     - Direct cancellation of paused manual runs in `awaiting_continue`
     - Stale cancellation repair endpoint
     - State-aware max-runtime timeout handling for queued, running, cancelling, and paused manual runs
+    - Timeout copy now distinguishes queue wait, active runtime, and Stage by Stage manual-wait time
     - Archive and unarchive terminal runs
     - Batch cancel, archive, and unarchive endpoints with explicit processed/skipped summaries
     - Full audit trail in pipeline_run_events

@@ -27,7 +27,7 @@
   .runs-table .col-select { width: 2.25rem; }
   .runs-table .col-run-id { width: 5.5rem; }
   .runs-table .col-status { width: 4.5rem; }
-  .runs-table .col-mode { width: 4.5rem; }
+  .runs-table .col-mode { width: 6.75rem; }
   .runs-table .col-created-at { width: 6.5rem; }
   .runs-table .col-duration { width: 4.5rem; }
 
@@ -206,7 +206,7 @@
           {% if run.archived_at %}<div class="meta" style="margin-top:0.15rem">archived</div>{% endif %}
         </td>
         <td class="meta">
-          <span class="run-mode-text">{{ 'Manual' if run.run_mode == 'manual_staged' else 'Auto' }}</span>
+          <span class="run-mode-text">{{ 'Stage by Stage' if run.run_mode == 'manual_staged' else 'Run All' }}</span>
           {% if run.status.value == 'awaiting_continue' and run.next_stage %}
           <div class="run-next-stage"><code>next: {{ run.next_stage }}</code></div>
           {% endif %}

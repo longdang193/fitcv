@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.15.0 — active
+
+- `Run All` now persists shared stage progress and stage-owned artifacts as each stage boundary is reached instead of waiting until final success
+- `Run All` and `Stage by Stage` now share canonical labels across trigger, runs list, and run detail surfaces
+- Staged-only continuation and the staged-only post-enrich synonym override remain the only intentional mid-run control differences
+
 ### 2.14.0 — active
 
 - Run-results exports now stay job-centric and no longer carry row-level shortlist-debug baggage that is already owned by shortlist-stage diagnostics

@@ -24,6 +24,7 @@ from fitcv_cp.bq_store import (
     get_run,
     list_runs,
     update_run_checkpoint,
+    update_run_progress,
     update_run_cv_generation_debug,
     update_run_mapping_suggestions,
     update_run_results_export,
@@ -363,6 +364,57 @@ def _summary_has_reached_stage(summary: dict[str, Any], stage_id: str) -> bool:
     return str(stage_block.get("status") or "").strip().lower() not in {"", "not_reached"}
 
 
+def _persist_shared_progress_snapshot(
+    *,
+    run_id: str,
+    summary: dict[str, Any],
+    snapshot_at: datetime.datetime,
+    bq: Any,
+    project: str,
+    dataset: str,
+    run_status: RunStatus,
+) -> None:
+    update_run_status(
+        run_id,
+        run_status,
+        bq,
+        project=project,
+        dataset=dataset,
+        summary=summary,
+    )
+    update_run_progress(
+        run_id,
+        bq,
+        project=project,
+        dataset=dataset,
+        last_completed_stage=str(summary.get("last_completed_stage") or "").strip() or None,
+        completed_stages=list(summary.get("completed_stages") or []),
+    )
+    update_run_stage_transition_artifacts(
+        run_id,
+        _build_stage_transition_artifacts_payload(
+            run_id=run_id,
+            summary=summary,
+            finished_at=snapshot_at,
+        ),
+        bq,
+        project=project,
+        dataset=dataset,
+    )
+    if _summary_has_reached_stage(summary, "enrich"):
+        update_run_mapping_suggestions(
+            run_id,
+            _build_mapping_suggestions_payload(
+                run_id=run_id,
+                summary=summary,
+                created_at=snapshot_at,
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+
+
 def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
     project = os.environ.get("GCP_PROJECT", "")
     dataset = os.environ.get("BIGQUERY_DATASET", "fitcv")
@@ -443,6 +495,41 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             dataset=dataset,
         )
 
+        def _stage_progress_callback(progress_summary: dict[str, Any]) -> None:
+            if run_mode != "run_all":
+                return
+            snapshot_time = datetime.datetime.now(datetime.timezone.utc)
+            try:
+                _persist_shared_progress_snapshot(
+                    run_id=run_id,
+                    summary=progress_summary,
+                    snapshot_at=snapshot_time,
+                    bq=bq,
+                    project=project,
+                    dataset=dataset,
+                    run_status=RunStatus.RUNNING,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "[run_id=%s] Failed to persist run-all progress snapshot after %s: %s",
+                    run_id,
+                    progress_summary.get("last_completed_stage"),
+                    exc,
+                )
+                try:
+                    append_event(
+                        _snapshot_persist_failed_event(run_id, "stage_progress", str(exc)),
+                        bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+                except Exception as inner:
+                    logger.warning(
+                        "[run_id=%s] Failed to append stage progress persistence warning event: %s",
+                        run_id,
+                        inner,
+                    )
+
         summary = run_pipeline(
             jobs_path=jobs_path,
             config_path=config_path,
@@ -454,6 +541,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             stop_after_stage=next_stage if run_mode == "manual_staged" else None,
             checkpoint_payload=checkpoint_payload,
             reuse_snapshots=late_stage_reuse_snapshots,
+            stage_progress_callback=_stage_progress_callback if run_mode == "run_all" else None,
         )
 
         paused_after_stage = str(summary.get("paused_after_stage") or "").strip() or None
@@ -553,25 +641,36 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             run_id, RunStatus.SUCCEEDED, bq, project=project, dataset=dataset,
             finished_at=finished_at, summary=summary,
         )
-        update_run_checkpoint(
-            run_id,
-            bq,
-            project=project,
-            dataset=dataset,
-            checkpoint_status="completed",
-            next_stage=None,
-            last_completed_stage="cv_generation",
-            completed_stages=[
-                "normalize",
-                "enrich",
-                "rule_filter",
-                "shortlist",
-                "ranking",
-                "cv_analysis",
-                "cv_generation",
-            ],
-            checkpoint_payload_json=None,
-        )
+        completed_stages = [
+            "normalize",
+            "enrich",
+            "rule_filter",
+            "shortlist",
+            "ranking",
+            "cv_analysis",
+            "cv_generation",
+        ]
+        if run_mode == "manual_staged":
+            update_run_checkpoint(
+                run_id,
+                bq,
+                project=project,
+                dataset=dataset,
+                checkpoint_status="completed",
+                next_stage=None,
+                last_completed_stage="cv_generation",
+                completed_stages=completed_stages,
+                checkpoint_payload_json=None,
+            )
+        else:
+            update_run_progress(
+                run_id,
+                bq,
+                project=project,
+                dataset=dataset,
+                last_completed_stage="cv_generation",
+                completed_stages=completed_stages,
+            )
         export_results = list(summary.get("export_results") or [])
         try:
             update_run_results_export(

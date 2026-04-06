@@ -1,9 +1,9 @@
 inspection_debugging:
   name: Inspection & Debugging
-  version: 2.20.0
+  version: 2.21.0
   status: active
   type: add
-  summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, richer shortlist candidate-query components, explicit shortlist candidate-query reuse provenance, ranking contribution visibility and calibration surfaces, late-stage reuse diagnostics for `ranking` and `cv_analysis`, slimmer job-ledger exports, stage-local artifacts, compact severity-based run health with explicit `Pending` vs `N/A`, stage-gated export availability, a job-ledger `results.json` split from bundled stage diagnostics, outcome-first artifact samples, stable normalize timeline ownership, aggregate-first timeline summaries, distinct `cv_analysis` and `cv_generation` outcomes, multi-channel evidence-selection provenance, lexical-vs-semantic alignment detail, inputs used, generated CVs, explicit decision detail, hybrid validation provenance from deterministic and soft-claim grounding checks, canonicalized settings-used exports, clearer `cv-debug` coverage accounting, and prompt-id-based provenance for both ranking and the active structured-only `cv_generation` path."
+  summary: "Admins can see what the pipeline did for a run, including shared stage progress for both `Run All` and `Stage by Stage`, paused staged checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, richer shortlist candidate-query components, explicit shortlist candidate-query reuse provenance, ranking contribution visibility and calibration surfaces, late-stage reuse diagnostics for `ranking` and `cv_analysis`, slimmer job-ledger exports, stage-local artifacts, compact severity-based run health with explicit `Pending` vs `N/A`, stage-gated export availability, a job-ledger `results.json` split from bundled stage diagnostics, outcome-first artifact samples, stable normalize timeline ownership, aggregate-first timeline summaries, distinct `cv_analysis` and `cv_generation` outcomes, multi-channel evidence-selection provenance, lexical-vs-semantic alignment detail, inputs used, generated CVs, explicit decision detail, hybrid validation provenance from deterministic and soft-claim grounding checks, canonicalized settings-used exports, clearer `cv-debug` coverage accounting, and prompt-id-based provenance for both ranking and the active structured-only `cv_generation` path."
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -24,7 +24,8 @@ inspection_debugging:
     - Filter outcome display with reasons and non-blocking marks
     - Pre-enrichment rejects visible separately
     - Immutable snapshots for all trigger modes
-    - Run detail shows execution mode, checkpoint status, last completed stage, next stage, and completed-stage list for manual staged runs
+    - Run detail shows execution mode plus shared `last_completed_stage` and completed-stage progress for both `Run All` and `Stage by Stage`
+    - Checkpoint status and `next_stage` remain staged-only controls layered on top of the shared progress model
     - Paused manual runs expose a `Run Next Stage` control in run detail and runs list views
     - Run detail can show whether a run-scoped synonym overlay is active for a manual run paused after `enrich`
     - Run detail synonym inspection now shows a collapsible YAML snapshot for either the active run overlay or the default synonym config when available
@@ -113,6 +114,7 @@ inspection_debugging:
       - docs/superpowers/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
       - docs/superpowers/specs/2026-04-06-01-15-run-detail-stage-gating-and-pending-health-fix-spec.md
       - docs/superpowers/specs/2026-04-06-02-35-pipeline-dead-weight-cleanup-spec.md
+      - docs/superpowers/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-run-scoped-enrichment-inspection-implementation.md
       - docs/superpowers/plans/2026-03-26-run-detail-inspection-tabs-implementation.md
@@ -147,6 +149,7 @@ inspection_debugging:
       - docs/superpowers/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
       - docs/superpowers/plans/2026-04-06-01-25-run-detail-stage-gating-and-pending-health-fix-plan.md
       - docs/superpowers/plans/2026-04-06-02-50-pipeline-dead-weight-cleanup-plan.md
+      - docs/superpowers/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
     history:
       - docs/features/inspection_debugging/history.md
   keywords:
