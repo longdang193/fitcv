@@ -498,6 +498,16 @@ def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunE
 
 def _row_to_run(row: Any) -> PipelineRun:
     r = dict(row)
+    raw_status = str(r.get("status") or "").strip().lower()
+    try:
+        status = RunStatus(raw_status)
+    except ValueError:
+        logger.warning(
+            "Unknown pipeline run status %r for run_id=%s; coercing to failed for admin compatibility",
+            raw_status,
+            r.get("run_id"),
+        )
+        status = RunStatus.FAILED
     completed_stages_raw = r.get("completed_stages_json")
     completed_stages: list[str] | None = None
     if isinstance(completed_stages_raw, str) and completed_stages_raw.strip():
@@ -511,7 +521,7 @@ def _row_to_run(row: Any) -> PipelineRun:
         completed_stages = [str(item) for item in completed_stages_raw]
     return PipelineRun(
         run_id=r["run_id"],
-        status=RunStatus(r["status"]),
+        status=status,
         triggered_by=r.get("triggered_by") or "",
         trigger_source=r.get("trigger_source") or "",
         jobs_path=r.get("jobs_path") or "",

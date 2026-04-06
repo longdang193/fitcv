@@ -571,6 +571,7 @@ def test_worker_mapping_suggestions_persistence_failure_appends_warning_event() 
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
     mock_run.cancel_requested_at = None
+    mock_run.checkpoint_payload_json = None
     mock_run.triggered_by = "admin"
     mock_run.jobs_input_source = "upload"
     mock_run.candidate_profile_source = "default_config"
@@ -585,6 +586,11 @@ def test_worker_mapping_suggestions_persistence_failure_appends_warning_event() 
         "ranked": 1,
         "cvs_generated": 1,
         "mapping_suggestions": [{"alias": "gcp", "canonical": "google cloud"}],
+        "completed_stages": ["normalize", "enrich"],
+        "last_completed_stage": "enrich",
+        "stage_transition_artifacts": {
+            "artifacts": {"stages": {"enrich": {"status": "completed"}}}
+        },
     }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_mapping_suggestions", side_effect=RuntimeError("missing column")), \
@@ -805,6 +811,43 @@ def test_worker_manual_staged_run_pauses_and_persists_checkpoint() -> None:
     assert mock_status.call_args_list[-1].args[1] == RunStatus.AWAITING_CONTINUE
     assert mock_checkpoint.called
     assert mock_stage_artifacts.called
+
+
+def test_worker_manual_staged_normalize_checkpoint_does_not_persist_mapping_suggestions() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock()
+    mock_run.effective_settings_json = None
+    mock_run.cancel_requested_at = None
+    mock_run.run_mode = "manual_staged"
+    mock_run.next_stage = "normalize"
+    mock_run.checkpoint_payload_json = None
+    mock_run.started_at = None
+
+    with patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+         patch("fitcv_cp.worker_job.run_pipeline", return_value={
+             "run_id": "r1",
+             "paused_after_stage": "normalize",
+             "next_stage": "enrich",
+             "completed_stages": ["normalize"],
+             "checkpoint_payload": {"normalized": []},
+             "stage_transition_artifacts": {
+                 "schema_version": "stage_transition_artifacts_v6",
+                 "artifacts": {"stages": {"normalize": {"status": "completed"}}},
+             },
+             "total_jobs": 5,
+             "passed_filter": 0,
+             "ranked": 0,
+             "cvs_generated": 0,
+         }), \
+         patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+         patch("fitcv_cp.worker_job.update_run_checkpoint"), \
+         patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts"), \
+         patch("fitcv_cp.worker_job.update_run_mapping_suggestions") as mock_mapping, \
+         patch("fitcv_cp.worker_job.update_run_status"):
+        execute_pipeline_run(run_id="r1", jobs_path="data/jobs.json", config_path=".env.yaml")
+
+    mock_mapping.assert_not_called()
 
 
 def test_worker_manual_resume_passes_checkpoint_payload_to_pipeline() -> None:

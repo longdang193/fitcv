@@ -334,6 +334,35 @@ def _build_mapping_suggestions_payload(
     return json.dumps(payload, ensure_ascii=False)
 
 
+def _summary_has_reached_stage(summary: dict[str, Any], stage_id: str) -> bool:
+    normalized_stage_id = str(stage_id or "").strip()
+    if not normalized_stage_id:
+        return False
+    completed_stages = [
+        str(item).strip()
+        for item in list(summary.get("completed_stages") or [])
+        if str(item).strip()
+    ]
+    if normalized_stage_id in completed_stages:
+        return True
+    if str(summary.get("last_completed_stage") or "").strip() == normalized_stage_id:
+        return True
+    stage_transition_artifacts = summary.get("stage_transition_artifacts")
+    if not isinstance(stage_transition_artifacts, dict):
+        return False
+    artifacts = stage_transition_artifacts.get("artifacts")
+    stage_root = artifacts if isinstance(artifacts, dict) else stage_transition_artifacts
+    if not isinstance(stage_root, dict):
+        return False
+    stages = stage_root.get("stages")
+    if not isinstance(stages, dict):
+        return False
+    stage_block = stages.get(normalized_stage_id)
+    if not isinstance(stage_block, dict):
+        return False
+    return str(stage_block.get("status") or "").strip().lower() not in {"", "not_reached"}
+
+
 def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
     project = os.environ.get("GCP_PROJECT", "")
     dataset = os.environ.get("BIGQUERY_DATASET", "fitcv")
@@ -471,37 +500,38 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     run_id,
                     exc,
                 )
-            try:
-                update_run_mapping_suggestions(
-                    run_id,
-                    _build_mapping_suggestions_payload(
-                        run_id=run_id,
-                        summary=summary,
-                        created_at=checkpoint_time,
-                    ),
-                    bq,
-                    project=project,
-                    dataset=dataset,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "[run_id=%s] Failed to persist mapping suggestions snapshot at checkpoint: %s",
-                    run_id,
-                    exc,
-                )
+            if _summary_has_reached_stage(summary, "enrich"):
                 try:
-                    append_event(
-                        _snapshot_persist_failed_event(run_id, "mapping_suggestions", str(exc)),
+                    update_run_mapping_suggestions(
+                        run_id,
+                        _build_mapping_suggestions_payload(
+                            run_id=run_id,
+                            summary=summary,
+                            created_at=checkpoint_time,
+                        ),
                         bq,
                         project=project,
                         dataset=dataset,
                     )
-                except Exception as inner:
+                except Exception as exc:
                     logger.warning(
-                        "[run_id=%s] Failed to append mapping suggestions persistence warning event: %s",
+                        "[run_id=%s] Failed to persist mapping suggestions snapshot at checkpoint: %s",
                         run_id,
-                        inner,
+                        exc,
                     )
+                    try:
+                        append_event(
+                            _snapshot_persist_failed_event(run_id, "mapping_suggestions", str(exc)),
+                            bq,
+                            project=project,
+                            dataset=dataset,
+                        )
+                    except Exception as inner:
+                        logger.warning(
+                            "[run_id=%s] Failed to append mapping suggestions persistence warning event: %s",
+                            run_id,
+                            inner,
+                        )
             append_event(
                 RunEvent(
                     run_id=run_id,
@@ -603,33 +633,34 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             )
         except Exception as exc:
             logger.warning("[run_id=%s] Failed to persist settings-used snapshot: %s", run_id, exc)
-        try:
-            update_run_mapping_suggestions(
-                run_id,
-                _build_mapping_suggestions_payload(
-                    run_id=run_id,
-                    summary=summary,
-                    created_at=finished_at,
-                ),
-                bq,
-                project=project,
-                dataset=dataset,
-            )
-        except Exception as exc:
-            logger.warning("[run_id=%s] Failed to persist mapping suggestions snapshot: %s", run_id, exc)
+        if _summary_has_reached_stage(summary, "enrich"):
             try:
-                append_event(
-                    _snapshot_persist_failed_event(run_id, "mapping_suggestions", str(exc)),
+                update_run_mapping_suggestions(
+                    run_id,
+                    _build_mapping_suggestions_payload(
+                        run_id=run_id,
+                        summary=summary,
+                        created_at=finished_at,
+                    ),
                     bq,
                     project=project,
                     dataset=dataset,
                 )
-            except Exception as inner:
-                logger.warning(
-                    "[run_id=%s] Failed to append mapping suggestions persistence warning event: %s",
-                    run_id,
-                    inner,
-                )
+            except Exception as exc:
+                logger.warning("[run_id=%s] Failed to persist mapping suggestions snapshot: %s", run_id, exc)
+                try:
+                    append_event(
+                        _snapshot_persist_failed_event(run_id, "mapping_suggestions", str(exc)),
+                        bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+                except Exception as inner:
+                    logger.warning(
+                        "[run_id=%s] Failed to append mapping suggestions persistence warning event: %s",
+                        run_id,
+                        inner,
+                    )
 
     except PipelineCancelled as exc:
         # ── Step 5 (alt): Pipeline was cancelled at a checkpoint ──────────────

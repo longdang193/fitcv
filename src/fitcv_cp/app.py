@@ -243,13 +243,29 @@ def _run_has_reached_stage(run: PipelineRun, stage_id: str) -> bool:
     return target_index <= last_index
 
 
-def _metric_severity(metric: dict[str, Any]) -> tuple[str, str]:
+def _stage_status_by_id(stage_artifacts_by_id: dict[str, Any]) -> dict[str, str]:
+    statuses: dict[str, str] = {}
+    for stage_id, block in dict(stage_artifacts_by_id or {}).items():
+        if not isinstance(block, dict):
+            continue
+        normalized_stage_id = str(stage_id or "").strip()
+        if not normalized_stage_id:
+            continue
+        statuses[normalized_stage_id] = str(block.get("status") or "").strip().lower()
+    return statuses
+
+
+def _metric_severity(metric: dict[str, Any], stage_statuses: dict[str, str] | None = None) -> tuple[str, str]:
     rate = float(metric.get("rate") or 0.0)
     denominator = int(metric.get("denominator") or 0)
     label = str(metric.get("label") or "")
     category = str(metric.get("category") or "")
-    if denominator <= 0:
+    stage_id = str(metric.get("stage_id") or "").strip()
+    stage_status = str((stage_statuses or {}).get(stage_id) or "").strip().lower()
+    if stage_status in {"", "not_reached"}:
         return "muted", "Pending"
+    if denominator <= 0:
+        return "info", "N/A"
     if category == "reuse":
         if rate >= 0.5:
             return "success", "Healthy"
@@ -433,19 +449,21 @@ def _build_late_stage_reuse_metric_rows(late_stage_reuse_metrics: dict[str, Any]
 def _build_run_health_rows(
     stage_quality_metric_rows: list[dict[str, Any]],
     late_stage_reuse_metric_rows: list[dict[str, Any]],
+    stage_artifacts_by_id: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    stage_statuses = _stage_status_by_id(dict(stage_artifacts_by_id or {}))
     for row in stage_quality_metric_rows:
         item = dict(row)
         item["category"] = "quality"
-        severity, severity_label = _metric_severity(item)
+        severity, severity_label = _metric_severity(item, stage_statuses)
         item["severity"] = severity
         item["severity_label"] = severity_label
         rows.append(item)
     for row in late_stage_reuse_metric_rows:
         item = dict(row)
         item["category"] = "reuse"
-        severity, severity_label = _metric_severity(item)
+        severity, severity_label = _metric_severity(item, stage_statuses)
         item["severity"] = severity
         item["severity_label"] = severity_label
         rows.append(item)
@@ -654,6 +672,157 @@ def _format_pipeline_outcome_detail(row: dict[str, Any]) -> str | None:
     if not detail_parts:
         return None
     return " | ".join(detail_parts)
+
+
+def _results_export_rows(run: PipelineRun) -> list[dict[str, Any]]:
+    if not run.results_export_json:
+        return []
+    try:
+        payload = _json.loads(run.results_export_json)
+    except (_json.JSONDecodeError, TypeError, AttributeError):
+        return []
+    rows = payload.get("results")
+    if not isinstance(rows, list):
+        return []
+    return [dict(row) for row in rows if isinstance(row, dict)]
+
+
+def _job_title_by_url_from_results_rows(rows: list[dict[str, Any]]) -> dict[str, str]:
+    return {
+        str(row.get("job_url") or ""): str(row.get("job_title") or "")
+        for row in rows
+        if row.get("job_url")
+    }
+
+
+def _coerce_positive_int(value: Any, *, default: int, minimum: int = 1, maximum: int = 200) -> int:
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, parsed))
+
+
+def _paginate_rows(rows: list[dict[str, Any]], *, page: int, page_size: int) -> dict[str, int]:
+    total = len(rows)
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    current_page = min(max(1, page), total_pages)
+    start = (current_page - 1) * page_size
+    end = start + page_size
+    return {
+        "total": total,
+        "total_pages": total_pages,
+        "current_page": current_page,
+        "start": start,
+        "end": min(end, total),
+    }
+
+
+def _build_enriched_tab_context(
+    run: PipelineRun,
+    *,
+    run_id: str,
+    project: str,
+    dataset: str,
+    bq: Any,
+    filter_name: str,
+    query: str,
+    page: int,
+    page_size: int,
+) -> dict[str, Any]:
+    enriched_jobs = list_run_structured_jobs(run_id, bq, project=project, dataset=dataset)
+    filter_results = list_filter_results_for_run(run_id, bq, project=project, dataset=dataset)
+    filter_results_by_job_url: dict[str, dict[str, Any]] = {
+        str(row.get("job_url") or ""): row for row in filter_results if row.get("job_url")
+    }
+    enriched_job_urls = {str(job.get("job_url") or "") for job in enriched_jobs if job.get("job_url")}
+    pre_enrichment_rejects = [
+        row for row in filter_results
+        if str(row.get("job_url") or "") not in enriched_job_urls and row.get("reasons")
+    ]
+    results_rows = _results_export_rows(run)
+    pipeline_outcomes_by_job_url: dict[str, dict[str, str | None]] = {
+        str(row.get("job_url") or ""): {
+            "status": str(row.get("pipeline_status") or ""),
+            "label": PIPELINE_OUTCOME_META.get(
+                str(row.get("pipeline_status") or ""),
+                {"label": str(row.get("pipeline_status") or "Unknown pipeline outcome")},
+            )["label"],
+            "badge_class": PIPELINE_OUTCOME_META.get(
+                str(row.get("pipeline_status") or ""),
+                {"badge_class": "badge-info"},
+            )["badge_class"],
+            "detail": _format_pipeline_outcome_detail(row),
+        }
+        for row in results_rows
+        if row.get("job_url")
+    }
+    deduplicated_before_enrichment = [
+        {
+            "job_url": row.get("job_url"),
+            "job_title": row.get("job_title"),
+            "reasons": row.get("reject_reasons") or [],
+        }
+        for row in results_rows
+        if row.get("pipeline_status") == "deduplicated_before_enrichment"
+    ]
+
+    enriched_passed_count = sum(
+        1 for job in enriched_jobs
+        if filter_results_by_job_url.get(str(job.get("job_url") or ""), {}).get("passed") is True
+    )
+    enriched_rejected_count = sum(
+        1 for job in enriched_jobs
+        if filter_results_by_job_url.get(str(job.get("job_url") or ""), {}).get("passed") is False
+    )
+
+    normalized_filter = str(filter_name or "all").strip().lower()
+    if normalized_filter not in {"all", "passed", "rejected", "unknown"}:
+        normalized_filter = "all"
+    normalized_query = str(query or "").strip().lower()
+    filtered_rows: list[dict[str, Any]] = []
+    for job in enriched_jobs:
+        job_url = str(job.get("job_url") or "")
+        filter_result = filter_results_by_job_url.get(job_url, {})
+        passed = filter_result.get("passed")
+        if normalized_filter == "passed" and passed is not True:
+            continue
+        if normalized_filter == "rejected" and passed is not False:
+            continue
+        if normalized_filter == "unknown" and passed is not None:
+            continue
+        if normalized_query:
+            haystack = " ".join(
+                str(job.get(field) or "").lower()
+                for field in ("title", "domain", "job_family", "location_type", "seniority")
+            )
+            if normalized_query not in haystack:
+                continue
+        filtered_rows.append(job)
+
+    pager = _paginate_rows(filtered_rows, page=page, page_size=page_size)
+    visible_rows = filtered_rows[pager["start"]:pager["end"]]
+    return {
+        "run": run,
+        "enriched_jobs": visible_rows,
+        "filter_results_by_job_url": filter_results_by_job_url,
+        "pipeline_outcomes_by_job_url": pipeline_outcomes_by_job_url,
+        "pre_enrichment_rejects": pre_enrichment_rejects,
+        "deduplicated_before_enrichment": deduplicated_before_enrichment,
+        "enriched_passed_count": enriched_passed_count,
+        "enriched_rejected_count": enriched_rejected_count,
+        "enriched_total_count": len(enriched_jobs),
+        "enriched_filtered_total_count": pager["total"],
+        "enriched_current_page": pager["current_page"],
+        "enriched_total_pages": pager["total_pages"],
+        "enriched_page_size": page_size,
+        "enriched_page_start": pager["start"] + 1 if pager["total"] else 0,
+        "enriched_page_end": pager["end"],
+        "enriched_filter": normalized_filter,
+        "enriched_query": query,
+        "enriched_has_prev": pager["current_page"] > 1,
+        "enriched_has_next": pager["current_page"] < pager["total_pages"],
+    }
 
 
 def _timeline_stage_download_for_event(event_stage: str) -> str | None:
@@ -2059,15 +2228,26 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if run is None:
             raise HTTPException(status_code=404)
         run = _enforce_run_timeout_guard(run, max_runtime_minutes=_run_max_runtime_minutes())
+        timeline_limit = _coerce_positive_int(
+            request.query_params.get("timeline_limit"),
+            default=25,
+            minimum=10,
+            maximum=200,
+        )
         events = get_events(run_id, bq, project=project, dataset=dataset)
         stage_artifacts_by_id = _stage_artifacts_by_id(run)
         stage_quality_metrics = _stage_quality_metrics_from_stage_artifacts(stage_artifacts_by_id)
         stage_quality_metric_rows = _build_stage_quality_metric_rows(stage_quality_metrics)
         late_stage_reuse_metrics = _late_stage_reuse_metrics_from_stage_artifacts(stage_artifacts_by_id)
         late_stage_reuse_metric_rows = _build_late_stage_reuse_metric_rows(late_stage_reuse_metrics)
-        run_health_rows = _build_run_health_rows(stage_quality_metric_rows, late_stage_reuse_metric_rows)
+        run_health_rows = _build_run_health_rows(
+            stage_quality_metric_rows,
+            late_stage_reuse_metric_rows,
+            stage_artifacts_by_id,
+        )
         timeline_events: list[dict[str, Any]] = []
-        for ev in events:
+        visible_events = events[-timeline_limit:]
+        for ev in visible_events:
             stage_id = _timeline_stage_download_for_event(ev.stage)
             stage_download_url = None
             stage_download_label = None
@@ -2091,82 +2271,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 }
             )
         cv_versions = list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
-        enriched_jobs = list_run_structured_jobs(run_id, bq, project=project, dataset=dataset)
-        filter_results = list_filter_results_for_run(run_id, bq, project=project, dataset=dataset)
-
-        # Build per-job filter outcome lookup: job_url → {passed, reasons}
-        filter_results_by_job_url: dict[str, dict] = {
-            row["job_url"]: row for row in filter_results
-        }
-
-        # Jobs rejected before enrichment have filter_results rows but no enriched row.
-        enriched_job_urls = {j["job_url"] for j in enriched_jobs}
-        pre_enrichment_rejects = [
-            row for row in filter_results
-            if row["job_url"] not in enriched_job_urls and row.get("reasons")
-        ]
-        deduplicated_before_enrichment: list[dict[str, str | list[str] | None]] = []
-        pipeline_outcomes_by_job_url: dict[str, dict[str, str | None]] = {}
-        if run.results_export_json:
-            try:
-                export_payload = _json.loads(run.results_export_json)
-                pipeline_outcomes_by_job_url = {
-                    str(row.get("job_url") or ""): {
-                        "status": str(row.get("pipeline_status") or ""),
-                        "label": PIPELINE_OUTCOME_META.get(
-                            str(row.get("pipeline_status") or ""),
-                            {"label": str(row.get("pipeline_status") or "Unknown pipeline outcome")},
-                        )["label"],
-                        "badge_class": PIPELINE_OUTCOME_META.get(
-                            str(row.get("pipeline_status") or ""),
-                            {"badge_class": "badge-info"},
-                        )["badge_class"],
-                        "detail": _format_pipeline_outcome_detail(row),
-                    }
-                    for row in export_payload.get("results", [])
-                    if row.get("job_url")
-                }
-                deduplicated_before_enrichment = [
-                    {
-                        "job_url": row.get("job_url"),
-                        "job_title": row.get("job_title"),
-                        "reasons": row.get("reject_reasons") or [],
-                    }
-                    for row in export_payload.get("results", [])
-                    if row.get("pipeline_status") == "deduplicated_before_enrichment"
-                ]
-            except (_json.JSONDecodeError, TypeError, AttributeError):
-                deduplicated_before_enrichment = []
-                pipeline_outcomes_by_job_url = {}
-
-        # Build job title lookup: job_url → title (used for cv_versions generated output labels)
-        job_title_by_url: dict[str, str] = {
-            j["job_url"]: j.get("title") or ""
-            for j in enriched_jobs
-        }
-
-        # Pre-compute pass/reject counts for the enriched jobs summary row.
-        # Rows where filter result is missing are NOT counted as rejected — they are "unknown".
-        # This preserves the existing three-state distinction (pass / reject / —).
-        enriched_passed_count = sum(
-            1 for j in enriched_jobs
-            if filter_results_by_job_url.get(j["job_url"], {}).get("passed") is True
-        )
-        enriched_rejected_count = sum(
-            1 for j in enriched_jobs
-            if filter_results_by_job_url.get(j["job_url"], {}).get("passed") is False
-        )
-
-        # Candidate profile display
-        candidate_profile_parsed: dict | None = None
-        candidate_profile_pretty: str | None = None
-        if run.candidate_profile_json:
-            try:
-                candidate_profile_parsed = _json.loads(run.candidate_profile_json)
-                candidate_profile_pretty = _json.dumps(candidate_profile_parsed, indent=2, ensure_ascii=False)
-            except (_json.JSONDecodeError, TypeError):
-                candidate_profile_pretty = run.candidate_profile_json
-
+        results_rows = _results_export_rows(run)
+        job_title_by_url = _job_title_by_url_from_results_rows(results_rows)
         run_export_links = _build_run_export_links(run)
 
         return templates.TemplateResponse(
@@ -2174,23 +2280,16 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "run": run,
                 "run_mode_label": RUN_MODE_LABELS.get(run.run_mode, run.run_mode),
                 "events": timeline_events,
+                "timeline_has_more": len(events) > timeline_limit,
+                "timeline_next_limit": min(timeline_limit + 25, 200),
                 "cv_versions": cv_versions,
-                "enriched_jobs": enriched_jobs,
-                "filter_results_by_job_url": filter_results_by_job_url,
-                "pipeline_outcomes_by_job_url": pipeline_outcomes_by_job_url,
                 "stage_quality_metrics": stage_quality_metrics,
                 "stage_quality_metric_rows": stage_quality_metric_rows,
                 "late_stage_reuse_metrics": late_stage_reuse_metrics,
                 "late_stage_reuse_metric_rows": late_stage_reuse_metric_rows,
                 "run_health_rows": run_health_rows,
                 "run_export_links": run_export_links,
-                "pre_enrichment_rejects": pre_enrichment_rejects,
-                "deduplicated_before_enrichment": deduplicated_before_enrichment,
                 "job_title_by_url": job_title_by_url,
-                "enriched_passed_count": enriched_passed_count,
-                "enriched_rejected_count": enriched_rejected_count,
-                "candidate_profile_parsed": candidate_profile_parsed,
-                "candidate_profile_pretty": candidate_profile_pretty,
                 "is_stale_cancelling": _is_stale_cancelling,
                 "can_continue_manual_run": (
                     run.run_mode == "manual_staged"
@@ -2200,6 +2299,69 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "can_upload_synonym_overlay": _can_upload_synonym_overlay(run),
                 "synonym_overlay_info": _extract_run_synonym_overlay_info(run),
             }
+        )
+
+    @app.get("/admin/runs/{run_id}/tabs/enriched", response_class=HTMLResponse)
+    def admin_run_detail_tab_enriched(
+        request: Request,
+        run_id: str,
+        page: int = 1,
+        page_size: int = 25,
+        filter_name: str = "all",
+        q: str = "",
+    ) -> HTMLResponse:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404)
+        page = _coerce_positive_int(page, default=1, minimum=1, maximum=10000)
+        page_size = _coerce_positive_int(page_size, default=25, minimum=10, maximum=100)
+        context = _build_enriched_tab_context(
+            run,
+            run_id=run_id,
+            project=project,
+            dataset=dataset,
+            bq=bq,
+            filter_name=filter_name,
+            query=q,
+            page=page,
+            page_size=page_size,
+        )
+        return templates.TemplateResponse(
+            request=request,
+            name="run_detail_tab_enriched.html",
+            context=context,
+        )
+
+    @app.get("/admin/runs/{run_id}/tabs/jobs-input", response_class=HTMLResponse)
+    def admin_run_detail_tab_jobs_input(request: Request, run_id: str) -> HTMLResponse:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404)
+        return templates.TemplateResponse(
+            request=request,
+            name="run_detail_tab_jobs_input.html",
+            context={"run": run},
+        )
+
+    @app.get("/admin/runs/{run_id}/tabs/profile", response_class=HTMLResponse)
+    def admin_run_detail_tab_profile(request: Request, run_id: str) -> HTMLResponse:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404)
+        candidate_profile_pretty: str | None = None
+        if run.candidate_profile_json:
+            try:
+                candidate_profile_parsed = _json.loads(run.candidate_profile_json)
+                candidate_profile_pretty = _json.dumps(candidate_profile_parsed, indent=2, ensure_ascii=False)
+            except (_json.JSONDecodeError, TypeError):
+                candidate_profile_pretty = run.candidate_profile_json
+        return templates.TemplateResponse(
+            request=request,
+            name="run_detail_tab_profile.html",
+            context={
+                "run": run,
+                "candidate_profile_pretty": candidate_profile_pretty,
+            },
         )
 
     @app.get("/admin/cvs/{version_id}/download")

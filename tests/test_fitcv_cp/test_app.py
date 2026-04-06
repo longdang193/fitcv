@@ -872,6 +872,70 @@ def test_run_detail_timeline_shows_stage_download_for_mapped_event():
     assert "Download Ranking JSON" in resp.text
 
 
+def test_run_detail_paused_after_normalize_shows_normalize_download_on_timeline_row():
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-normalize-timeline",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/uploads/example_merged_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        checkpoint_status="awaiting_continue",
+        last_completed_stage="normalize",
+        next_stage="enrich",
+        completed_stages=["normalize"],
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "normalize": {
+                            "status": "completed",
+                            "output_counts": {
+                                "raw_jobs": 10,
+                                "normalized_jobs": 10,
+                                "deduplicated_jobs": 0,
+                            },
+                        }
+                    }
+                }
+            }
+        ),
+    )
+    events = [
+        RunEvent(
+            run_id="run-normalize-timeline",
+            event_id="e1",
+            stage="layer1_normalize",
+            level="info",
+            message="Normalization dedupe: kept 10 of 10 jobs, removed 0 duplicate(s)",
+            created_at=datetime.now(timezone.utc),
+        ),
+        RunEvent(
+            run_id="run-normalize-timeline",
+            event_id="e2",
+            stage="stage_checkpoint",
+            level="info",
+            message="Paused after normalize; next stage: enrich",
+            created_at=datetime.now(timezone.utc),
+        ),
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-normalize-timeline")
+
+    assert resp.status_code == 200
+    assert 'href="/admin/runs/run-normalize-timeline/stage-artifacts/normalize.json"' in resp.text
+    assert "Download Normalize JSON" in resp.text
+    assert "Normalize complete: kept 10 of 10 jobs, removed 0 duplicate(s)" in resp.text
+
+
 def test_run_detail_timeline_shows_cv_analysis_download_only_on_aggregate_row():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
@@ -1152,6 +1216,8 @@ def test_download_mapping_suggestions_json_endpoint_200() -> None:
         jobs_path="data/sample_jobs.json",
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
+        completed_stages=["normalize", "enrich"],
+        last_completed_stage="enrich",
         stage_transition_artifacts_json='{"artifacts":{"stages":{"enrich":{"status":"completed"}}}}',
         mapping_suggestions_json='{"run_id":"run-mapping-suggestions-1","suggestions":[]}',
     )
@@ -1393,10 +1459,9 @@ def test_admin_run_detail_shows_enriched_jobs_section():
     )), patch("fitcv_cp.app.get_events", return_value=[]), \
     patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
     patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched_jobs):
-        resp = TestClient(_app()).get("/admin/runs/test-123")
+        resp = TestClient(_app()).get("/admin/runs/test-123/tabs/enriched")
 
     assert resp.status_code == 200
-    assert "Enriched Jobs" in resp.text
     assert "Senior Data Engineer" in resp.text
     assert "remote" in resp.text
     assert "senior" in resp.text
@@ -1417,11 +1482,9 @@ def test_admin_run_detail_empty_enriched_jobs_renders_gracefully():
     )), patch("fitcv_cp.app.get_events", return_value=[]), \
     patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
     patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]):
-        resp = TestClient(_app()).get("/admin/runs/test-empty")
+        resp = TestClient(_app()).get("/admin/runs/test-empty/tabs/enriched")
 
     assert resp.status_code == 200
-    assert "Enriched Jobs" in resp.text
-    # empty state message
     assert "No enrichment data" in resp.text or "enriched" in resp.text.lower()
 
 
@@ -1451,7 +1514,7 @@ def test_admin_run_detail_enriched_jobs_shows_required_skills():
     )), patch("fitcv_cp.app.get_events", return_value=[]), \
     patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
     patch("fitcv_cp.app.list_run_structured_jobs", return_value=enriched_jobs):
-        resp = TestClient(_app()).get("/admin/runs/test-456")
+        resp = TestClient(_app()).get("/admin/runs/test-456/tabs/enriched")
 
     assert resp.status_code == 200
     assert "Python" in resp.text
@@ -1504,6 +1567,33 @@ def test_run_detail_default_tab_is_enriched():
     assert "active" in html[max(0, btn_pos - 80):btn_pos + 10]
 
 
+def test_run_detail_initial_shell_does_not_query_enriched_rows() -> None:
+    """Initial run-detail render stays lightweight and avoids enriched/filter queries."""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="tab-shell-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs") as mock_jobs, \
+         patch("fitcv_cp.app.list_filter_results_for_run") as mock_filters:
+        resp = TestClient(_app()).get("/admin/runs/tab-shell-1")
+
+    assert resp.status_code == 200
+    assert "Enriched job diagnostics load on demand." in resp.text
+    mock_jobs.assert_not_called()
+    mock_filters.assert_not_called()
+
+
 def test_run_detail_tab2_fallback_when_no_jobs_snapshot():
     """Tab 2 shows source/path fallback when jobs_input_json is absent."""
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -1518,7 +1608,7 @@ def test_run_detail_tab2_fallback_when_no_jobs_snapshot():
     )
     p = _run_detail_base_patches(run)
     with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/tab-test-2")
+        resp = TestClient(_app()).get("/admin/runs/tab-test-2/tabs/jobs-input")
 
     assert resp.status_code == 200
     html = resp.text
@@ -1541,15 +1631,13 @@ def test_run_detail_tab3_null_source_shows_not_recorded_not_default_config():
     )
     p = _run_detail_base_patches(run)
     with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/tab-test-3")
+        resp = TestClient(_app()).get("/admin/runs/tab-test-3/tabs/profile")
 
     assert resp.status_code == 200
     html = resp.text
     assert "No candidate profile snapshot" in html
-    pane_start = html.index('id="pane-profile"')
-    pane_html = html[pane_start:pane_start + 2000]
-    assert "not recorded" in pane_html
-    assert "default_config" not in pane_html
+    assert "not recorded" in html
+    assert "default_config" not in html
 
 
 def test_run_detail_event_timeline_appears_after_tab_panes():
@@ -1713,6 +1801,60 @@ def test_run_detail_renders_run_health_when_late_stage_reuse_metrics_available()
     assert "Ranking AI-Score Reuse Rate" in html
     assert "CV Analysis Reuse Rate" in html
     assert "50%" in html
+
+
+def test_run_detail_run_health_marks_unreached_metrics_as_pending_and_zero_denominator_reached_metrics_as_na():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="health-pending-na-1",
+        status=RunStatus.AWAITING_CONTINUE,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "cv_analysis": {
+                            "status": "not_reached",
+                            "decision_summary": {
+                                "quality_metrics": {
+                                    "skip_rate": 0.0,
+                                    "skipped_fit_gate": 0,
+                                    "total_processed": 0,
+                                }
+                            },
+                        },
+                        "ranking": {
+                            "status": "completed",
+                            "decision_summary": {
+                                "reuse_metrics": {
+                                    "reuse_rate": 0.0,
+                                    "reused_ai_scores": 0,
+                                    "fresh_ai_scores": 0,
+                                    "total_ai_scores": 0,
+                                }
+                            },
+                        },
+                    }
+                }
+            }
+        ),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/health-pending-na-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "CV Analysis Skip Rate" in html
+    assert "Ranking AI-Score Reuse Rate" in html
+    assert "Pending" in html
+    assert "N/A" in html
 
 
 def test_run_detail_hides_late_stage_reuse_metrics_when_absent():
@@ -2572,7 +2714,7 @@ def test_run_detail_shows_deduplicated_before_enrichment_section():
         results_export_json=export_payload,
     )
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
     assert resp.status_code == 200
     assert "Post-dedupe enriched jobs" in resp.text
     assert "Deduplicated before enrichment: 1" in resp.text
@@ -2607,7 +2749,7 @@ def test_run_detail_shows_marks_for_passed_jobs() -> None:
         ],
     )
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
 
     assert resp.status_code == 200
     assert "Marks: must_have_skill_missing" in resp.text
@@ -2642,7 +2784,7 @@ def test_run_detail_enriched_shows_pipeline_outcome_for_passed_non_ranked_job():
         results_export_json=export_payload,
     )
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
     assert resp.status_code == 200
     assert "Pipeline Outcome" in resp.text
     assert "Passed filter, not shortlisted" in resp.text
@@ -2683,7 +2825,7 @@ def test_run_detail_enriched_shows_pipeline_outcome_for_ranked_fit_skip_job():
         results_export_json=export_payload,
     )
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
     assert resp.status_code == 200
     assert "Pipeline Outcome" in resp.text
     assert "Ranked, skipped by fit gate" in resp.text
@@ -2693,16 +2835,40 @@ def test_run_detail_enriched_shows_pipeline_outcome_for_ranked_fit_skip_job():
 
 def test_run_detail_cv_versions_show_job_title():
     """CV output link uses the enriched job title instead of generic 'View Job'."""
+    import json as _json
+    import datetime as _dt
+    from fitcv_cp.models import PipelineRun, RunStatus
     cv = {"version_id": "cv1", "job_url": "https://jobs.example.com/1",
           "fit_classification": "strong",
           "generated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc)}
     enriched = [{"job_url": "https://jobs.example.com/1", "title": "Senior Data Engineer",
                  "domain": "data", "job_family": "engineering", "required_skills": [],
                  "location_type": "remote", "seniority": "senior"}]
+    export_payload = _json.dumps({
+        "results": [
+            {
+                "job_url": "https://jobs.example.com/1",
+                "job_title": "Senior Data Engineer",
+                "pipeline_status": "ranked_with_cv",
+            }
+        ]
+    })
     patches = _run_detail_patches(cv_versions=[cv], enriched_jobs=enriched,
                                   filter_results=[{"job_url": "https://jobs.example.com/1",
-                                                   "passed": True, "reasons": []}])
-    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+                                                   "passed": True, "reasons": []}],
+                                  results_export_json=export_payload)
+    run_with_cv = PipelineRun(
+        run_id="run-detail-test",
+        status=RunStatus("succeeded"),
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=_dt.datetime(2026, 3, 27, 9, 0, 0, tzinfo=_dt.timezone.utc),
+        cvs_generated=1,
+        results_export_json=export_payload,
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run_with_cv), patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-test")
     assert resp.status_code == 200
     assert "Senior Data Engineer" in resp.text
@@ -2791,7 +2957,7 @@ def test_run_detail_enriched_shows_summary_counts():
     fr = [{"job_url": "https://j.test/1", "passed": True, "reasons": []}]
     patches = _run_detail_patches(enriched_jobs=enriched, filter_results=fr)
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
     assert "Post-dedupe enriched jobs:" in resp.text
     assert "Passed:" in resp.text
     assert "Rejected:" in resp.text
@@ -2803,10 +2969,11 @@ def test_run_detail_enriched_shows_filter_controls():
                  "job_family": "f", "required_skills": [], "location_type": None, "seniority": None}]
     patches = _run_detail_patches(enriched_jobs=enriched)
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
-    assert "setFilter('all')" in resp.text or ">All<" in resp.text
-    assert "setFilter('passed')" in resp.text or ">Passed<" in resp.text
-    assert "setFilter('rejected')" in resp.text or ">Rejected<" in resp.text
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
+    assert 'name="filter_name"' in resp.text
+    assert ">All<" in resp.text
+    assert ">Passed<" in resp.text
+    assert ">Rejected<" in resp.text
 
 
 def test_run_detail_enriched_shows_search_box():
@@ -2815,30 +2982,28 @@ def test_run_detail_enriched_shows_search_box():
                  "job_family": "f", "required_skills": [], "location_type": None, "seniority": None}]
     patches = _run_detail_patches(enriched_jobs=enriched)
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
     assert 'id="enr-search"' in resp.text
 
 
-def test_run_detail_enriched_rows_have_data_attributes():
-    """Enriched job rows have data-filter, data-title, data-domain, data-family attributes."""
+def test_run_detail_enriched_rows_render_server_side_without_data_attributes():
+    """Enriched fragment is server-paginated and no longer depends on client-side row attributes."""
     enriched = [{"job_url": "https://j.test/1", "title": "ML Engineer", "domain": "AI",
                  "job_family": "engineering", "required_skills": [], "location_type": None, "seniority": None}]
     fr = [{"job_url": "https://j.test/1", "passed": True, "reasons": []}]
     patches = _run_detail_patches(enriched_jobs=enriched, filter_results=fr)
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
-    assert 'data-filter=' in resp.text
-    assert 'data-title=' in resp.text
-    assert 'data-domain=' in resp.text
-    assert 'data-family=' in resp.text
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
+    assert 'data-filter=' not in resp.text
+    assert 'name="q"' in resp.text
 
 
 def test_run_detail_enriched_shows_pagination():
     """Pagination controls are present for the enriched jobs tab."""
     patches = _run_detail_patches()
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
-    assert "enr-prev" in resp.text or "Prev" in resp.text
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
+    assert "Page 1 of 1" in resp.text or "No enrichment data" in resp.text
 
 
 def test_run_detail_enriched_unknown_filter_not_counted_as_rejected():
@@ -2853,10 +3018,27 @@ def test_run_detail_enriched_unknown_filter_not_counted_as_rejected():
     # j.test/no-fr has no filter result → must be 'unknown', not 'rejected'
     patches = _run_detail_patches(enriched_jobs=enriched, filter_results=fr)
     with patches[0], patches[1], patches[2], patches[3], patches[4]:
-        resp = TestClient(_app()).get("/admin/runs/run-detail-test")
-    assert 'data-filter="unknown"' in resp.text
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched?filter_name=unknown")
+    assert "Engineer B" in resp.text
     # Rejected count should be 0 (no explicit reject), not 1
     assert "Rejected: 0" in resp.text
+
+
+def test_run_detail_enriched_tab_paginates_server_side():
+    """Enriched tab returns only the requested page slice."""
+    enriched = [
+        {"job_url": f"https://j.test/{i}", "title": f"Job {i}", "domain": "d",
+         "job_family": "f", "required_skills": [], "location_type": None, "seniority": None}
+        for i in range(1, 61)
+    ]
+    patches = _run_detail_patches(enriched_jobs=enriched, filter_results=[])
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched?page=2&page_size=25")
+    assert resp.status_code == 200
+    assert "Page 2 of 3" in resp.text
+    assert "Job 1" not in resp.text
+    assert "Job 26" in resp.text
+    assert "Job 50" in resp.text
 
 
 
@@ -3231,7 +3413,7 @@ def test_run_detail_tab2_shows_snapshot_for_path_source():
     )
     p = _run_detail_base_patches(run)
     with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/snap-test-1")
+        resp = TestClient(_app()).get("/admin/runs/snap-test-1/tabs/jobs-input")
 
     assert resp.status_code == 200
     html = resp.text
@@ -3255,7 +3437,7 @@ def test_run_detail_tab2_legacy_fallback_does_not_mention_path_mode_limitation()
     )
     p = _run_detail_base_patches(run)
     with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/snap-test-2")
+        resp = TestClient(_app()).get("/admin/runs/snap-test-2/tabs/jobs-input")
 
     assert resp.status_code == 200
     html = resp.text
@@ -3280,7 +3462,7 @@ def test_run_detail_tab3_shows_snapshot_for_default_config_source():
     )
     p = _run_detail_base_patches(run)
     with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/snap-test-3")
+        resp = TestClient(_app()).get("/admin/runs/snap-test-3/tabs/profile")
 
     assert resp.status_code == 200
     html = resp.text
@@ -3303,7 +3485,7 @@ def test_run_detail_tab3_legacy_fallback_does_not_mention_default_config_limitat
     )
     p = _run_detail_base_patches(run)
     with p[0], p[1], p[2], p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/snap-test-4")
+        resp = TestClient(_app()).get("/admin/runs/snap-test-4/tabs/profile")
 
     assert resp.status_code == 200
     html = resp.text
