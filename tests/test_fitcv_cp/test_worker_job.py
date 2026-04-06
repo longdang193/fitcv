@@ -850,6 +850,94 @@ def test_worker_manual_staged_normalize_checkpoint_does_not_persist_mapping_sugg
     mock_mapping.assert_not_called()
 
 
+def test_worker_run_all_persists_stage_progress_without_checkpoint_state() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock()
+    mock_run.effective_settings_json = None
+    mock_run.cancel_requested_at = None
+    mock_run.run_mode = "run_all"
+    mock_run.next_stage = None
+    mock_run.checkpoint_payload_json = None
+    mock_run.started_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "path"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.finished_at = None
+
+    def _run_pipeline_side_effect(**kwargs):
+        kwargs["stage_progress_callback"](
+            {
+                "run_id": "r1",
+                "last_completed_stage": "enrich",
+                "completed_stages": ["normalize", "enrich"],
+                "next_stage": "rule_filter",
+                "total_jobs": 5,
+                "passed_filter": 0,
+                "ranked": 0,
+                "cvs_generated": 0,
+                "mapping_suggestions": [{"alias": "gcp", "canonical": "google cloud"}],
+                "stage_transition_artifacts": {
+                    "schema_version": "stage_transition_artifacts_v6",
+                    "artifacts": {
+                        "stages": {
+                            "normalize": {"status": "completed"},
+                            "enrich": {"status": "completed"},
+                        }
+                    },
+                },
+            }
+        )
+        return {
+            "run_id": "r1",
+            "total_jobs": 5,
+            "passed_filter": 3,
+            "ranked": 2,
+            "cvs_generated": 1,
+            "export_results": [],
+            "stage_transition_artifacts": {
+                "schema_version": "stage_transition_artifacts_v6",
+                "artifacts": {
+                    "stages": {
+                        "normalize": {"status": "completed"},
+                        "enrich": {"status": "completed"},
+                        "rule_filter": {"status": "completed"},
+                        "shortlist": {"status": "completed"},
+                        "ranking": {"status": "completed"},
+                        "cv_analysis": {"status": "completed"},
+                        "cv_generation": {"status": "completed"},
+                    }
+                },
+            },
+        }
+
+    with patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+         patch("fitcv_cp.worker_job.run_pipeline", side_effect=_run_pipeline_side_effect) as mock_pipeline, \
+         patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+         patch("fitcv_cp.worker_job.update_run_checkpoint") as mock_checkpoint, \
+         patch("fitcv_cp.worker_job.update_run_progress") as mock_progress, \
+         patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts") as mock_stage_artifacts, \
+         patch("fitcv_cp.worker_job.update_run_mapping_suggestions") as mock_mapping, \
+         patch("fitcv_cp.worker_job.update_run_results_export"), \
+         patch("fitcv_cp.worker_job.update_run_cv_generation_debug"), \
+         patch("fitcv_cp.worker_job.update_run_settings_used"), \
+         patch("fitcv_cp.worker_job.update_run_status"):
+        execute_pipeline_run(run_id="r1", jobs_path="data/jobs.json", config_path=".env.yaml")
+
+    call_kwargs = mock_pipeline.call_args.kwargs
+    assert call_kwargs["start_stage"] is None
+    assert call_kwargs["stop_after_stage"] is None
+    assert call_kwargs["stage_progress_callback"] is not None
+    mock_checkpoint.assert_not_called()
+    assert mock_progress.call_count >= 2
+    first_progress = mock_progress.call_args_list[0]
+    assert first_progress.kwargs["last_completed_stage"] == "enrich"
+    assert first_progress.kwargs["completed_stages"] == ["normalize", "enrich"]
+    mock_stage_artifacts.assert_called()
+    mock_mapping.assert_called()
+
+
 def test_worker_manual_resume_passes_checkpoint_payload_to_pipeline() -> None:
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])

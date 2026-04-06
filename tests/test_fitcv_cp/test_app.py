@@ -2515,6 +2515,20 @@ def test_runs_list_shows_core_operational_columns_only():
     assert "Actions" not in html
 
 
+def test_runs_list_uses_canonical_run_mode_labels():
+    run_all = _make_full_run_mock(status="queued", run_id="run-all-label")
+    staged = _make_full_run_mock(status="awaiting_continue", run_id="run-staged-label")
+    staged.run_mode = "manual_staged"
+    staged.next_stage = "ranking"
+    with patch("fitcv_cp.app.list_runs", return_value=[run_all, staged]):
+        resp = TestClient(_app()).get("/admin/runs")
+    html = resp.text
+    assert "Run All" in html
+    assert "Stage by Stage" in html
+    assert "Auto" not in html
+    assert "Manual staged" not in html
+
+
 def test_runs_list_jobs_path_is_truncated_with_full_title():
     run = _make_full_run_mock(status="queued", run_id="run-jobs-path")
     run.jobs_path = "data/uploads/very_long_nested_folder_name/another_folder/really_long_jobs_snapshot_name.json"
@@ -2605,6 +2619,33 @@ def test_run_detail_awaiting_continue_shows_run_next_stage_and_stop_run():
     assert resp.status_code == 200
     assert "Run Next Stage" in resp.text
     assert "Stop Run" in resp.text
+
+
+def test_run_detail_run_all_shows_shared_progress_without_checkpoint_controls():
+    run = _make_full_run_mock(status="running")
+    run.run_mode = "run_all"
+    run.last_completed_stage = "enrich"
+    run.completed_stages = ["normalize", "enrich"]
+    run.stage_transition_artifacts_json = json.dumps(
+        {
+            "artifacts": {
+                "stages": {
+                    "normalize": {"status": "completed"},
+                    "enrich": {"status": "completed"},
+                }
+            }
+        }
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-ui-1")
+    assert resp.status_code == 200
+    assert "Run All" in resp.text
+    assert "Last Completed" in resp.text
+    assert "Completed Stages" in resp.text
+    assert '<span class="k">Checkpoint</span>' not in resp.text
+    assert "Stage Artifacts JSON (Diagnostics)" in resp.text
 
 
 def test_run_detail_succeeded_shows_archive_run():

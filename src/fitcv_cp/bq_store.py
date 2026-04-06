@@ -193,6 +193,39 @@ def update_run_checkpoint(
     _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
+def update_run_progress(
+    run_id: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+    last_completed_stage: Optional[str] = None,
+    completed_stages: Optional[list[str]] = None,
+) -> None:
+    """Persist shared stage progress without implying resumability."""
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        "SET checkpoint_status = NULL, "
+        "    next_stage = NULL, "
+        "    last_completed_stage = @last_completed_stage, "
+        "    completed_stages_json = @completed_stages_json, "
+        "    checkpoint_payload_json = NULL "
+        "WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("last_completed_stage", "STRING", last_completed_stage),
+            bq_module.ScalarQueryParameter(
+                "completed_stages_json",
+                "STRING",
+                json.dumps(completed_stages) if completed_stages is not None else None,
+            ),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+
+
 def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> None:
     table = f"{project}.{dataset}.pipeline_run_events"
     row = {

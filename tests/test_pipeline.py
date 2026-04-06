@@ -28,8 +28,10 @@ from fitcv.pipeline import (
     _enrich_jobs_with_reuse,
     _materialize_scoring_shortlist,
     _stage_block,
+    PipelineCancelled,
     build_ranking_features,
     create_run_id,
+    run_pipeline,
 )
 
 _ROLE_TAXONOMY_CONFIG = {
@@ -197,6 +199,38 @@ def test_build_ranking_features_carries_ai_score_fields() -> None:
     assert job1["preference_fit"] == pytest.approx(0.65)
     assert job1["feature_contributions"]["ai_score"] == pytest.approx(0.34)
     assert job1["feature_contributions"]["preference_fit"] == pytest.approx(0.0325)
+
+
+def test_run_pipeline_emits_run_all_stage_progress_after_normalize() -> None:
+    progress_snapshots: list[dict[str, object]] = []
+    config = {
+        "pipeline": {"vector_search_top_n": 25, "final_top_n": 10},
+        "paths": {"candidate_profile": "data/profile.yaml"},
+    }
+    raw_jobs = [{"job_url": "https://example.com/1", "job_title": "Data Analyst"}]
+    normalized_jobs = [{"job_url": "https://example.com/1", "job_title": "Data Analyst"}]
+
+    with patch("fitcv.pipeline.parse_jobs_file", return_value=raw_jobs), \
+         patch("fitcv.pipeline.normalize_batch", return_value=normalized_jobs), \
+         patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=(normalized_jobs, [])), \
+         patch("fitcv.pipeline.prepare_raw_rows", return_value=[]), \
+         patch("fitcv.pipeline.load_to_bigquery"), \
+         patch(
+             "fitcv.pipeline.apply_pre_enrichment_global_filters",
+             return_value={"passed": ["https://example.com/1"], "rejected": []},
+         ):
+        with pytest.raises(PipelineCancelled):
+            run_pipeline(
+                jobs_path="data/jobs.json",
+                config=config,
+                run_id="run-progress-1",
+                cancellation_check=lambda: True,
+                stage_progress_callback=progress_snapshots.append,
+            )
+
+    assert len(progress_snapshots) == 1
+    assert progress_snapshots[0]["last_completed_stage"] == "normalize"
+    assert progress_snapshots[0]["completed_stages"] == ["normalize"]
 
 
 def test_materialize_scoring_shortlist_excludes_raw_hits_absent_from_passed_jobs() -> None:

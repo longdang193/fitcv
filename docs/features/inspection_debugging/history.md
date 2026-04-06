@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.21.0 — active
+
+- Run detail now shows shared stage progress for both `Run All` and `Stage by Stage` instead of treating progress as a staged-only concept
+- `Run All` now persists reached-stage diagnostics during execution, so stage-owned artifact availability no longer lags behind continuous execution mode
+- Checkpoint-only controls remain staged-only, keeping shared progress separate from resumability
+
 ### 2.20.0 — active
 
 - The pipeline summary no longer computes retired top-level `stage_quality_metrics`, `late_stage_reuse_metrics`, or `shortlist_debug` blocks now that stage-owned diagnostics own those concerns

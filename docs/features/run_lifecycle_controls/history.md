@@ -2,6 +2,11 @@
 
 ## Changelog
 
+### 1.4.0 — active
+
+- Timeout wording now distinguishes queue wait, active runtime, and Stage by Stage manual-wait time
+- This keeps the existing server-owned timeout guard behavior while making the operator-facing contract clearer across the two execution modes
+
 ### 1.3.0 — active
 
 - The control plane now enforces a server-owned max-runtime guard for unfinished runs
