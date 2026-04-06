@@ -458,7 +458,6 @@ def test_stage_transition_artifacts_include_ranking_and_cv_generation_prompt_pro
         cv_generation_model="gemini-2.5-flash",
         cv_prompt_id="cv_generation.structured_write.v1",
         cv_prompt_template_path="cv_generation_structured_write_v1.md",
-        cv_prompt_version="v1",
         error=None,
     )
 
@@ -768,9 +767,8 @@ def test_run_pipeline_resume_from_cv_generation_recomputes_shortlist_debug_state
     )
 
     assert result["cvs_generated"] == 1
-    assert result["shortlist_debug"]["raw_vector_unique_jobs_total"] == 1
-    assert result["shortlist_debug"]["shortlisted_jobs_total"] == 1
-    assert result["shortlist_debug"]["not_shortlisted_job_urls"] == []
+    assert "shortlist_debug" not in result
+    assert result["export_results"][0]["pipeline_status"] == "ranked_with_cv"
 
 
 @patch("fitcv.pipeline.compute_gap")
@@ -2082,50 +2080,12 @@ def test_run_pipeline_returns_correct_schema(
     assert "passed_filter" in result
     assert "ranked" in result
     assert "cvs_generated" in result
-    assert "stage_quality_metrics" in result
+    assert "stage_quality_metrics" not in result
+    assert "late_stage_reuse_metrics" not in result
+    assert "shortlist_debug" not in result
     assert "stage_transition_artifacts" in result
     assert result["total_jobs"] == 1
     assert result["cvs_generated"] == 1
-    assert set(result["stage_quality_metrics"]) == {
-        "shortlist",
-        "ranking",
-        "cv_analysis",
-        "cv_generation",
-    }
-    assert result["stage_quality_metrics"]["shortlist"] == {
-        "backfill_rate": 0.0,
-        "backfilled_jobs_total": 0,
-        "scoring_shortlisted_jobs_total": 1,
-    }
-    assert result["stage_quality_metrics"]["ranking"]["label_distribution"] == {
-        "strong_count": 1,
-        "stretch_count": 0,
-        "skip_count": 0,
-        "strong_rate": 1.0,
-        "stretch_rate": 0.0,
-        "skip_rate": 0.0,
-        "total_scored": 1,
-    }
-    assert result["stage_quality_metrics"]["cv_analysis"] == {
-        "skip_rate": 0.0,
-        "generation_ready_rate": 1.0,
-        "analysis_failed_rate": 0.0,
-        "skipped_fit_gate": 0,
-        "generation_ready": 1,
-        "analysis_failed": 0,
-        "total_processed": 1,
-    }
-    assert result["stage_quality_metrics"]["cv_generation"] == {
-        "validation_fail_rate": 0.0,
-        "accepted_rate": 1.0,
-        "generation_failed_rate": 0.0,
-        "persistence_failed_rate": 0.0,
-        "accepted": 1,
-        "validation_failed": 0,
-        "generation_failed": 0,
-        "persistence_failed": 0,
-        "total_attempted": 1,
-    }
     stage_artifacts = result["stage_transition_artifacts"]
     assert stage_artifacts["schema_version"] == "stage_transition_artifacts_v5"
     assert set(stage_artifacts["stages"]) == {
@@ -3223,7 +3183,6 @@ def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> Non
         cv_generation_model="gemini-2.5-flash",
         cv_prompt_id="cv_generation.structured_write.v1",
         cv_prompt_template_path="cv_generation_structured_write_v1.md",
-        cv_prompt_version="v1",
         error=None,
     )
 
@@ -3251,7 +3210,6 @@ def test_build_cv_generation_debug_record_preserves_cv_analysis_context() -> Non
     assert sample["cv_generation_model"] == "gemini-2.5-flash"
     assert sample["cv_prompt_id"] == "cv_generation.structured_write.v1"
     assert sample["cv_prompt_template_path"] == "cv_generation_structured_write_v1.md"
-    assert sample["cv_prompt_version"] == "v1"
     assert sample["structured_cv_final"] == {"schema_version": "cv_doc_v1"}
 
 
@@ -3456,32 +3414,7 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
         if row["job_url"] == second_job["job_url"]
     )
     assert second_export_row["pipeline_status"] != "not_shortlisted"
-    assert result["shortlist_debug"] == {
-        "vector_search_top_n": 5,
-        "passed_jobs_total": 2,
-        "raw_vector_rows_total": 1,
-        "raw_vector_unique_jobs_total": 1,
-        "shortlisted_jobs_total": 1,
-        "scoring_shortlisted_jobs_total": 2,
-        "backfilled_jobs_total": 1,
-        "embedding_reused_jobs": 0,
-        "embedding_fresh_jobs": 0,
-        "embedding_total_jobs": 2,
-        "retrieval_anomaly_urls": [],
-        "candidate_query_text": "Candidate: Data Engineer\nTarget role: Data Engineer\nRecent roles: DE\nRole families: data_engineering\nSkills: SQL, Python",
-        "candidate_query_reuse_status": "reused_cached_query_embedding",
-        "candidate_query_signature": "candidate-query-sig-1",
-        "candidate_query_contract_fingerprint": "candidate-query-contract-1",
-        "candidate_query_components": {
-            "headline": "Data Engineer",
-            "target_role": "Data Engineer",
-            "recent_roles": ["DE"],
-            "role_family_hints": ["data_engineering"],
-            "flattened_skill_sample": ["SQL", "Python"],
-        },
-        "not_shortlisted_job_urls": [second_job["job_url"]],
-        "backfilled_job_urls": [second_job["job_url"]],
-    }
+    assert "shortlist_debug" not in result
     mock_embed_cand.assert_not_called()
 
 
@@ -4624,27 +4557,10 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         }
     ]
     assert export_results[2]["scores"]["vector_score"] is None
-    assert export_results[2]["shortlist_debug"] == {
-        "passed_rule_filter": True,
-        "returned_by_vector_search": False,
-        "raw_hit_present": False,
-        "retrieval_anomaly_present": False,
-        "reason": "job_url_not_returned_in_raw_hits",
-        "vector_search_top_n": 2,
-        "shortlist_origin": "not_returned_in_raw_hits",
-    }
+    assert "shortlist_debug" not in export_results[2]
     assert export_results[3]["pipeline_status"] == "shortlisted_not_scored"
     assert export_results[3]["scores"]["vector_score"] == pytest.approx(0.55)
-    assert export_results[3]["shortlist_debug"] == {
-        "passed_rule_filter": True,
-        "returned_by_vector_search": True,
-        "raw_hit_present": True,
-        "retrieval_anomaly_present": False,
-        "vector_search_top_n": 2,
-        "vector_rank": 3,
-        "vector_similarity": pytest.approx(0.55),
-        "shortlist_origin": "returned_by_vector_search",
-    }
+    assert "shortlist_debug" not in export_results[3]
     assert export_results[4]["pipeline_status"] == "scored_not_ranked"
     assert export_results[4]["scores"]["final_score"] == pytest.approx(0.45)
     assert export_results[5]["pipeline_status"] == "rejected_before_enrichment"

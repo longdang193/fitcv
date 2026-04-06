@@ -96,9 +96,7 @@ from fitcv.vector_search import run_vector_search
 logger = logging.getLogger(__name__)
 _REPAIRABLE_VALIDATION_FIELDS = ("grounding_violations", "skill_violations")
 _EXPORT_ENRICHED_JOB_FIELDS = (
-    "location_type_raw",
     "location_type",
-    "seniority_raw",
     "seniority",
     "required_skills",
     "required_skills_canonical",
@@ -107,16 +105,13 @@ _EXPORT_ENRICHED_JOB_FIELDS = (
     "preferred_skills_canonical",
     "preferred_skill_entities",
     "responsibilities",
-    "domain_raw",
     "domain",
     "tech_stack",
     "years_experience_min",
     "years_experience_max",
     "keywords",
-    "job_family_raw",
     "job_family",
     "mapping_suggestions",
-    "description_cleaned",
     "enrichment_version",
     "enrichment_model",
     "enriched_at",
@@ -503,7 +498,6 @@ def _build_export_results(
                 "model_used": cv_row.get("cv_generation_model"),
                 "prompt_id": cv_row.get("cv_prompt_id"),
                 "prompt_template_path": cv_row.get("cv_prompt_template_path"),
-                "prompt_version": cv_row.get("cv_prompt_version"),
                 "schema_version": (
                     cv_row.get("structured_cv", {}) or {}
                 ).get("schema_version") if isinstance(cv_row.get("structured_cv"), dict) else None,
@@ -523,7 +517,6 @@ def _build_export_results(
 
         raw_shortlist_row = raw_shortlist_by_url.get(job_url)
         scoring_shortlist_row = scoring_shortlist_by_url.get(job_url)
-        shortlist_debug = None
         if job_url in passed_by_url:
             shortlist_status = _shortlist_status_for_export_row(
                 job_url=job_url,
@@ -531,33 +524,6 @@ def _build_export_results(
                 raw_shortlist_row=raw_shortlist_row,
                 scoring_shortlist_row=scoring_shortlist_row,
             )
-            raw_hit_present = raw_shortlist_row is not None
-            retrieval_anomaly_present = False
-            shortlist_source_row = raw_shortlist_row or scoring_shortlist_row or {}
-            embedding_source_row = scoring_shortlist_row or passed_by_url.get(job_url, {})
-            shortlist_debug = {
-                "passed_rule_filter": True,
-                "returned_by_vector_search": raw_hit_present,
-                "raw_hit_present": raw_hit_present,
-                "retrieval_anomaly_present": retrieval_anomaly_present,
-                "reason": (
-                    None
-                    if raw_hit_present
-                    else "job_url_not_returned_in_raw_hits"
-                ),
-                "vector_search_top_n": vector_search_top_n,
-                "vector_rank": shortlist_source_row.get("vector_rank"),
-                "vector_similarity": shortlist_source_row.get("vector_similarity"),
-                "shortlist_origin": shortlist_status,
-                "embedding_reuse_status": embedding_source_row.get("embedding_reuse_status"),
-                "embedding_input_signature": embedding_source_row.get("embedding_input_signature"),
-                "embedding_contract_fingerprint": embedding_source_row.get("embedding_contract_fingerprint"),
-            }
-            shortlist_debug = {
-                key: value
-                for key, value in shortlist_debug.items()
-                if value is not None
-            }
         else:
             shortlist_status = "not_applicable"
 
@@ -616,7 +582,6 @@ def _build_export_results(
                     else None
                 ),
                 "decision_chain": decision_chain,
-                "shortlist_debug": shortlist_debug,
                 "rank": score_source.get("final_rank"),
                 "cv": cv_payload,
                 "_input_index": input_index,
@@ -1165,7 +1130,6 @@ def _build_cv_generation_debug_record(
     cv_generation_model: str | None,
     cv_prompt_id: str | None,
     cv_prompt_template_path: str | None,
-    cv_prompt_version: str | None,
     error: dict[str, str] | None,
 ) -> dict[str, Any]:
     ranking_fit_label = str(fit_classification or "").strip() or None
@@ -1198,7 +1162,6 @@ def _build_cv_generation_debug_record(
         "cv_generation_model": cv_generation_model,
         "cv_prompt_id": cv_prompt_id,
         "cv_prompt_template_path": cv_prompt_template_path,
-        "cv_prompt_version": cv_prompt_version,
         "error": error,
     }
 
@@ -1593,7 +1556,6 @@ def _debug_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | None
         "cv_generation_model": record.get("cv_generation_model"),
         "cv_prompt_id": record.get("cv_prompt_id"),
         "cv_prompt_template_path": record.get("cv_prompt_template_path"),
-        "cv_prompt_version": record.get("cv_prompt_version"),
         "structured_cv_final": record.get("structured_cv_final"),
         "markdown_final": record.get("markdown_final"),
     }
@@ -1623,7 +1585,6 @@ def _debug_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | Non
         "cv_generation_model": record.get("cv_generation_model"),
         "cv_prompt_id": record.get("cv_prompt_id"),
         "cv_prompt_template_path": record.get("cv_prompt_template_path"),
-        "cv_prompt_version": record.get("cv_prompt_version"),
         "structured_cv_final": record.get("structured_cv_final"),
         "error": record.get("error"),
     }
@@ -2214,7 +2175,6 @@ def _build_stage_transition_artifacts(
                     "quality_metrics": cv_generation_quality_metrics,
                     "cv_generation_model": get_cv_generation_model(config),
                     "cv_prompt_id": cv_generation_prompt_provenance["prompt_id"],
-                    "cv_prompt_version": get_cv_generation_prompt_version(config),
                     "cv_prompt_template_path": cv_generation_prompt_provenance["template_path"],
                 },
                 inputs_sample=_sample_rows(
@@ -2805,13 +2765,10 @@ def run_pipeline(
                             cv_generation_model=cv_generation_model_value,
                             cv_prompt_id=cv_prompt_id_value,
                             cv_prompt_template_path=cv_prompt_template_path_value,
-                            cv_prompt_version=cv_prompt_version_value,
                             error=debug_error if isinstance(debug_error, dict) else None,
                         )
                     )
-                    if reporter is not None and reused_status == "skipped_fit_gate":
-                        reporter.emit("layer4_cv_analysis_skip", "info", f"Skipped {job.get('job_url')} (fit=skip)")  # type: ignore[union-attr]
-                    elif reporter is not None and reused_status == "analysis_failed":
+                    if reporter is not None and reused_status == "analysis_failed":
                         reporter.emit("layer4_cv_error", "error", f"CV analysis failed for {job.get('job_url')}: {debug_error}")  # type: ignore[union-attr]
                 continue
             evidence: list[dict[str, Any]] = []
@@ -2913,12 +2870,9 @@ def run_pipeline(
                             cv_generation_model=cv_generation_model_value,
                             cv_prompt_id=cv_prompt_id_value,
                             cv_prompt_template_path=cv_prompt_template_path_value,
-                            cv_prompt_version=cv_prompt_version_value,
                             error=analysis_record["error"],
                         )
                     )
-                    if reporter is not None:
-                        reporter.emit("layer4_cv_analysis_skip", "info", f"Skipped {job.get('job_url')} (fit=skip)")  # type: ignore[union-attr]
                     continue
 
                 cv_analysis_results.append(
@@ -2971,8 +2925,7 @@ def run_pipeline(
                         cv_generation_model=cv_generation_model_value,
                         cv_prompt_id=cv_prompt_id_value,
                         cv_prompt_template_path=cv_prompt_template_path_value,
-                        cv_prompt_version=cv_prompt_version_value,
-                        error=analysis_record["error"],
+                            error=analysis_record["error"],
                     )
                 )
                 if reporter is not None:
@@ -3114,15 +3067,12 @@ def run_pipeline(
                         cv_generation_model=cv_generation_model_value,
                         cv_prompt_id=cv_prompt_id_value,
                         cv_prompt_template_path=cv_prompt_template_path_value,
-                        cv_prompt_version=cv_prompt_version_value,
                         error={
                             "stage": "validation",
                             "message": f"CV validation failed for {job.get('job_url')}",
                         },
                     )
                 )
-                if reporter is not None:
-                    reporter.emit("layer4_cv_validation_failed", "warning", f"CV validation failed for {job.get('job_url')}")  # type: ignore[union-attr]
                 continue
 
             structured_cv_final = structured_cv
@@ -3154,7 +3104,6 @@ def run_pipeline(
                 "cv_generation_model": cv_generation_model_value,
                 "cv_prompt_id": cv_prompt_id_value,
                 "cv_prompt_template_path": cv_prompt_template_path_value,
-                "cv_prompt_version": cv_prompt_version_value,
                 "cv_markdown": cv,
                 "generated_at": version.get("generated_at"),
                 "fit_classification": fit,
@@ -3177,7 +3126,6 @@ def run_pipeline(
                     cv_generation_model=cv_generation_model_value,
                     cv_prompt_id=cv_prompt_id_value,
                     cv_prompt_template_path=cv_prompt_template_path_value,
-                    cv_prompt_version=cv_prompt_version_value,
                     error=None,
                 )
             )
@@ -3205,7 +3153,6 @@ def run_pipeline(
                     cv_generation_model=cv_generation_model_value,
                     cv_prompt_id=cv_prompt_id_value,
                     cv_prompt_template_path=cv_prompt_template_path_value,
-                    cv_prompt_version=cv_prompt_version_value,
                     error={
                         "stage": failure_stage,
                         "message": str(exc),
@@ -3247,11 +3194,6 @@ def run_pipeline(
         profile=profile,
         config=config,
     )
-    stage_quality_metrics = _collect_stage_quality_metrics(stage_transition_artifacts)
-    late_stage_reuse_metrics = _build_late_stage_reuse_metrics(
-        ai_scores=ai_scores,
-        cv_analysis_results=cv_analysis_results,
-    )
     late_stage_reuse_snapshots = _build_late_stage_reuse_snapshots(
         ai_scores=ai_scores,
         cv_analysis_results=cv_analysis_results,
@@ -3262,60 +3204,6 @@ def run_pipeline(
         "passed_filter": len(passed_jobs),
         "ranked": len(ranked),
         "cvs_generated": len(results),
-        "shortlist_debug": {
-            "vector_search_top_n": vector_top_n,
-            "passed_jobs_total": len(passed_jobs),
-            "raw_vector_rows_total": len(raw_shortlist),
-            "raw_vector_unique_jobs_total": len(raw_shortlist_urls),
-            "shortlisted_jobs_total": len(raw_shortlist_urls),
-            "scoring_shortlisted_jobs_total": len(shortlist),
-            "backfilled_jobs_total": len(backfilled_job_urls),
-            "embedding_reused_jobs": sum(
-                1 for job in passed_jobs
-                if str(job.get("embedding_reuse_status") or "") == "reused_cached_embedding"
-            ),
-            "embedding_fresh_jobs": sum(
-                1 for job in passed_jobs
-                if str(job.get("embedding_reuse_status") or "") == "fresh_embedding"
-            ),
-            "embedding_total_jobs": len(passed_jobs),
-            "retrieval_anomaly_urls": raw_shortlist_anomaly_urls,
-            "candidate_query_text": candidate_summary,
-            **{
-                key: value
-                for key, value in {
-                    "candidate_query_reuse_status": str(
-                        candidate_query_debug.get("candidate_query_reuse_status") or ""
-                    ),
-                    "candidate_query_signature": str(
-                        candidate_query_debug.get("candidate_query_signature") or ""
-                    ),
-                    "candidate_query_contract_fingerprint": str(
-                        candidate_query_debug.get("candidate_query_contract_fingerprint") or ""
-                    ),
-                }.items()
-                if value
-            },
-            "candidate_query_components": {
-                key: value
-                for key, value in {
-                    "headline": str(candidate_query_components.get("headline") or ""),
-                    "target_role": str(candidate_query_components.get("target_role") or ""),
-                    "recent_roles": list(candidate_query_components.get("recent_roles") or []),
-                    "role_family_hints": list(candidate_query_components.get("role_family_hints") or []),
-                    "flattened_skill_sample": list(candidate_query_components.get("flattened_skills") or []),
-                    "domain_hints": list(candidate_query_components.get("domain_hints") or []),
-                }.items()
-                if value not in (None, "", [])
-            },
-            "not_shortlisted_job_urls": [
-                url for url in passed_job_urls
-                if url not in raw_shortlist_urls
-            ],
-            "backfilled_job_urls": backfilled_job_urls,
-        },
-        "stage_quality_metrics": stage_quality_metrics,
-        "late_stage_reuse_metrics": late_stage_reuse_metrics,
         "late_stage_reuse_snapshots": late_stage_reuse_snapshots,
         "cv_generation_debug_records": cv_generation_debug_records,
         "mapping_suggestions": _collect_mapping_suggestions(enriched, run_id),

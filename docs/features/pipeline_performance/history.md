@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 1.6.0 — active
+
+- Operator-facing enriched-job exports now keep canonical semantic fields and reuse/fingerprint provenance while dropping retired raw duplicate classification baggage
+- Large runs now avoid some row-scaled Layer 4 skip and validation-event noise by leaning on aggregate stage summaries and stage-owned artifacts instead
+- This keeps the runtime behavior unchanged while trimming dead-weight export and timeline volume
+
 ### 1.5.0 — active
 
 - Shortlist now computes a stable structured embedding-input signature before generating `job_summary` vectors
