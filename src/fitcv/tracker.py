@@ -63,6 +63,9 @@ def create_cv_version_record(
     cv_markdown: str,
     gap_summary: dict[str, Any],
     fit_classification: str,
+    cv_structured: dict[str, Any] | None = None,
+    cv_generation_model: str | None = None,
+    cv_prompt_version: str | None = None,
 ) -> dict[str, Any]:
     """Build a cv_versions record in memory.
 
@@ -84,11 +87,49 @@ def create_cv_version_record(
         "final_score": float(final_score),
         "evidence_ids": list(evidence_ids),
         "prompt_version": str(prompt_version),
+        "cv_prompt_version": str(cv_prompt_version or prompt_version),
+        "cv_generation_model": str(cv_generation_model or "") or None,
+        "cv_schema_version": (
+            str(cv_structured.get("schema_version") or "").strip()
+            if isinstance(cv_structured, dict)
+            else None
+        ),
+        "cv_structured_json": json.dumps(cv_structured) if isinstance(cv_structured, dict) else None,
         "cv_markdown": str(cv_markdown),
         "gap_summary": json.dumps(gap_summary),
         "fit_classification": str(fit_classification),
         "generated_at": datetime.now(tz=timezone.utc).isoformat(),
     }
+
+
+def _is_missing_structured_cv_column_error(errors: list[dict[str, Any]]) -> bool:
+    structured_fields = {
+        "cv_prompt_version",
+        "cv_generation_model",
+        "cv_schema_version",
+        "cv_structured_json",
+    }
+    for error in errors:
+        for item in error.get("errors") or []:
+            message = str(item.get("message") or "").lower()
+            location = str(item.get("location") or "")
+            if "no such field" in message and any(field in message for field in structured_fields):
+                return True
+            if location in structured_fields and str(item.get("reason") or "").lower() == "invalid":
+                return True
+    return False
+
+
+def _legacy_cv_version_record(record: dict[str, Any]) -> dict[str, Any]:
+    legacy_record = dict(record)
+    for field in (
+        "cv_prompt_version",
+        "cv_generation_model",
+        "cv_schema_version",
+        "cv_structured_json",
+    ):
+        legacy_record.pop(field, None)
+    return legacy_record
 
 
 def store_cv_version(record: dict[str, Any], config: dict[str, Any]) -> None:
@@ -109,6 +150,9 @@ def store_cv_version(record: dict[str, Any], config: dict[str, Any]) -> None:
     table_ref = f"{project}.{dataset}.cv_versions"
 
     errors = client.insert_rows_json(table_ref, [record])
+    if errors and _is_missing_structured_cv_column_error(errors):
+        legacy_record = _legacy_cv_version_record(record)
+        errors = client.insert_rows_json(table_ref, [legacy_record])
     if errors:
         raise RuntimeError(f"BigQuery insert errors for cv_versions: {errors}")
 

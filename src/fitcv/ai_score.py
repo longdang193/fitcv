@@ -3,7 +3,8 @@
 v1 design:
 - Shortlist-only: only re-rank top 20-50 jobs from VECTOR_SEARCH
 - Primary path: Python Vertex AI call (not BigQuery AI.SCORE)
-- Evidence-grounded: each job prompt includes top matched evidence chunks
+- Optional prompt evidence support exists, but the current runtime path does not
+  depend on evidence retrieval before reranking
 
 Scoring rubric (enforced in prompt):
 - Score 0.0 (no fit) → 1.0 (perfect fit)
@@ -23,10 +24,15 @@ store_ai_scores       : persist to fitcv.ai_score_results (integration)
 """
 
 import json
+import hashlib
 import logging
 import re
 from datetime import datetime, timezone
 from typing import Any
+
+from fitcv.config import get_gemini_model, get_ranking_prompt_id
+from fitcv.contracts import RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION
+from fitcv.prompts import render_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -34,24 +40,57 @@ logger = logging.getLogger(__name__)
 
 _VALID_FIT_LABELS = frozenset({"strong", "stretch", "skip"})
 
-_SCORING_RUBRIC = """\
-Score the candidate-to-job match using this rubric:
-- Score from 0.0 (no fit) to 1.0 (perfect fit)
-- Heavily weight: required skills coverage
-- Penalise: missing core technologies, seniority mismatch, years-of-experience gap
-- Reward: strong project evidence matching JD requirements, domain relevance
-- Classify into exactly one fit_label:
-    strong  (ai_score >= 0.7)
-    stretch (ai_score 0.4 – 0.69)
-    skip    (ai_score < 0.4)
-Return a JSON object ONLY — no prose, no markdown fences:
-{
-  "ai_score": <float 0.0–1.0>,
-  "fit_label": "<strong|stretch|skip>",
-  "score_reasoning": "<one-sentence explanation>",
-  "matched_strengths": ["<strength 1>", ...],
-  "key_risks": ["<risk 1>", ...]
-}"""
+_DEFAULT_STRONG_THRESHOLD = 0.70
+_DEFAULT_STRETCH_THRESHOLD = 0.40
+
+
+def _stable_json_fingerprint(payload: dict[str, Any]) -> str:
+    payload_json = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+
+
+def build_ai_score_contract_fingerprint(config: dict[str, Any]) -> dict[str, Any]:
+    thresholds = dict(config.get("fit_label_thresholds") or {})
+    payload = {
+        "gemini_model": get_gemini_model(config),
+        "prompt_schema_version": RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION,
+        "prompt_id": get_ranking_prompt_id(config),
+        "strong_threshold": float(thresholds.get("strong", _DEFAULT_STRONG_THRESHOLD)),
+        "stretch_threshold": float(thresholds.get("stretch", _DEFAULT_STRETCH_THRESHOLD)),
+    }
+    return {
+        "payload": payload,
+        "fingerprint": _stable_json_fingerprint(payload),
+    }
+
+
+def build_ai_score_input_fingerprint(
+    job: dict[str, Any],
+    candidate_summary: str,
+    top_evidence: list[str],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    from fitcv.embeddings import build_job_summary_text
+
+    thresholds = dict(config.get("fit_label_thresholds") or {})
+    prompt = build_scoring_prompt(
+        jd_summary=build_job_summary_text(job),
+        candidate_summary=candidate_summary,
+        top_evidence=top_evidence[:2],
+        strong_threshold=float(thresholds.get("strong", _DEFAULT_STRONG_THRESHOLD)),
+        stretch_threshold=float(thresholds.get("stretch", _DEFAULT_STRETCH_THRESHOLD)),
+        config=config,
+    )
+    contract_record = build_ai_score_contract_fingerprint(config)
+    payload = {
+        "job_url": str(job.get("job_url") or ""),
+        "prompt": prompt,
+        "contract_fingerprint": contract_record["fingerprint"],
+    }
+    return {
+        "payload": payload,
+        "fingerprint": _stable_json_fingerprint(payload),
+    }
 
 
 # ── prompt construction ────────────────────────────────────────────────────────
@@ -60,13 +99,17 @@ def build_scoring_prompt(
     jd_summary: str,
     candidate_summary: str,
     top_evidence: list[str],
+    *,
+    strong_threshold: float = _DEFAULT_STRONG_THRESHOLD,
+    stretch_threshold: float = _DEFAULT_STRETCH_THRESHOLD,
+    config: dict[str, Any] | None = None,
 ) -> str:
     """Build the structured reranking prompt for one job.
 
     Inputs:
         jd_summary        : labelled-section text from build_job_summary_text()
         candidate_summary : brief candidate paragraph (skills, experience level)
-        top_evidence      : top 0-2 candidate evidence chunk_text strings
+        top_evidence      : optional top 0-2 candidate evidence chunk_text strings
 
     Returns:
         A prompt string with rubric embedded. Model must return JSON only.
@@ -75,13 +118,17 @@ def build_scoring_prompt(
     if top_evidence:
         bullets = "\n".join(f"  - {e}" for e in top_evidence)
         evidence_section = f"\n\nTop matched candidate evidence:\n{bullets}"
-
-    return (
-        f"## Job Description\n{jd_summary}\n\n"
-        f"## Candidate Profile\n{candidate_summary}"
-        f"{evidence_section}\n\n"
-        f"## Scoring Rubric\n{_SCORING_RUBRIC}"
-    )
+    prompt_id = get_ranking_prompt_id(config or {})
+    return render_prompt(
+        prompt_id,
+        {
+            "jd_summary": jd_summary,
+            "candidate_summary": candidate_summary,
+            "evidence_section": evidence_section,
+            "strong_threshold": strong_threshold,
+            "stretch_threshold": stretch_threshold,
+        },
+    ).text
 
 
 # ── response parsing ──────────────────────────────────────────────────────────
@@ -100,7 +147,7 @@ def _fit_label_from_score(score: float, config: dict[str, Any] | None = None) ->
     return "skip"
 
 
-def parse_score_response(response_text: str) -> dict[str, Any]:
+def parse_score_response(response_text: str, config: dict[str, Any] | None = None) -> dict[str, Any]:
     """Parse and validate the model's JSON scoring response.
 
     Handles:
@@ -145,7 +192,7 @@ def parse_score_response(response_text: str) -> dict[str, Any]:
     # Validate / derive fit_label
     fit_label = str(data.get("fit_label", "")).lower().strip()
     if fit_label not in _VALID_FIT_LABELS:
-        fit_label = _fit_label_from_score(ai_score, config=None)
+        fit_label = _fit_label_from_score(ai_score, config=config)
 
     return {
         "ai_score":          ai_score,
@@ -203,18 +250,22 @@ def score_job(
     from fitcv.embeddings import build_job_summary_text
 
     jd_summary = build_job_summary_text(job)
+    thresholds = dict(config.get("fit_label_thresholds") or {})
     prompt = build_scoring_prompt(
         jd_summary=jd_summary,
         candidate_summary=candidate_summary,
         top_evidence=top_evidence[:2],
+        strong_threshold=float(thresholds.get("strong", _DEFAULT_STRONG_THRESHOLD)),
+        stretch_threshold=float(thresholds.get("stretch", _DEFAULT_STRETCH_THRESHOLD)),
+        config=config,
     )
 
-    model_name = str(config.get("gemini_model", "gemini-2.5-flash"))
+    model_name = get_gemini_model(config)
     client = _make_genai_client(config)
     response = client.models.generate_content(model=model_name, contents=prompt)
     raw_text = str(response.text or "")
 
-    result = parse_score_response(raw_text)
+    result = parse_score_response(raw_text, config=config)
     result["job_url"] = str(job.get("job_url", ""))
     return result
 
@@ -229,17 +280,22 @@ def run_ai_scoring(
 ) -> list[dict[str, Any]]:
     """Score at most top_n shortlisted jobs.
 
-    top_n defaults to config["rerank_top_n"] (50 if missing).
+    top_n defaults to config["pipeline"]["ai_score_top_n"] (50 if missing).
     sleep between calls is config["rerank_sleep_secs"] (0.5 if missing).
 
     shortlist: list of job dicts from VECTOR_SEARCH (must include job_url and
-               structured JD fields). Each item may include "top_evidence" (list[str]).
+               structured JD fields). Each item may optionally include
+               "top_evidence" (list[str]).
 
     Requires GOOGLE_APPLICATION_CREDENTIALS.
     """
     import time
 
-    effective_top_n = top_n if top_n is not None else int(config.get("rerank_top_n", 50))
+    effective_top_n = (
+        top_n
+        if top_n is not None
+        else int((config.get("pipeline") or {}).get("ai_score_top_n") or config.get("rerank_top_n", 50))
+    )
     sleep_secs = float(config.get("rerank_sleep_secs", 0.5))
     scored: list[dict[str, Any]] = []
     for i, job in enumerate(shortlist[:effective_top_n]):

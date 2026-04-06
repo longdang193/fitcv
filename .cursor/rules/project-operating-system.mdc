@@ -1,0 +1,40 @@
+---
+alwaysApply: true
+---
+# Project Operating System Rules
+
+These rules define the default project method for docs, features, and planning. Use them together.
+
+1. `operating-system/doc-system-lifecycle.md` — 5-layer doc system, source-of-truth model, naming, generated discovery
+2. `operating-system/stage-lifecycle.md` — stage model, stage-to-feature relationship, when stage classification is required
+3. `operating-system/feature-lifecycle.md` — feature classification, lifecycle states, `docs/features/*.yaml`, review
+4. `operating-system/planning-dispatch.md` — triage, skill selection, dispatch flow
+
+## How to Use
+
+For any task involving planning, features, or docs:
+
+1. Read the relevant rules.
+2. Apply them in this order:
+   - **Where does this belong?** → `doc-system-lifecycle`
+   - **Which stages and features are affected?** → `stage-lifecycle` then `feature-lifecycle`
+   - **What is the lightest correct planning path?** → `planning-dispatch`
+
+Use the source-of-truth model:
+
+```text
+code/                       → real truth
+docs/features/*.yaml        → structured truth
+docs/features/<feature_id>/ → feature-specific explanation + history
+docs/*.md                   → cross-cutting explanation
+README.md                   → overview
+docs/generated/             → generated discovery
+```
+
+Interpretation:
+
+- `operating-system/stage-lifecycle.md` defines stages as a navigation and ownership layer above features
+- `docs/features/<feature_id>.yaml` is the current feature contract
+- `docs/features/<feature_id>/` holds feature-specific history and focused docs
+- `docs/*.md` is for cross-feature architecture, pipelines, setup, and shared operational guidance
+- features remain the primary managed lifecycle units

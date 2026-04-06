@@ -13,11 +13,13 @@ tags:
   - ci-safe
 """
 
+import json
 import uuid
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from fitcv.tracker import create_cv_version_record, update_application_status
+from fitcv.tracker import create_cv_version_record, store_cv_version, update_application_status
 
 
 # ── create_cv_version_record ──────────────────────────────────────────────────
@@ -93,6 +95,77 @@ def test_create_cv_version_record_evidence_ids_preserved() -> None:
         fit_classification="strong",
     )
     assert record["evidence_ids"] == evidence
+
+
+def test_create_cv_version_record_includes_structured_cv_and_generation_metadata() -> None:
+    structured_cv = {
+        "schema_version": "cv_doc_v1",
+        "sections": {"summary": {"text": "Grounded summary."}},
+    }
+    record = create_cv_version_record(
+        job_url="u",
+        run_id="rid",
+        enrichment_version="v1",
+        vector_rank=1,
+        ai_score=0.8,
+        final_score=0.7,
+        evidence_ids=["ev-001"],
+        prompt_version="v1",
+        cv_markdown="# CV",
+        gap_summary={},
+        fit_classification="strong",
+        cv_structured=structured_cv,
+        cv_generation_model="gemini-2.5-pro",
+        cv_prompt_version="cv_prompt_v3",
+    )
+    assert json.loads(record["cv_structured_json"]) == structured_cv
+    assert record["cv_schema_version"] == "cv_doc_v1"
+    assert record["cv_generation_model"] == "gemini-2.5-pro"
+    assert record["cv_prompt_version"] == "cv_prompt_v3"
+
+
+def test_store_cv_version_falls_back_to_legacy_schema_when_structured_columns_missing() -> None:
+    record = create_cv_version_record(
+        job_url="u",
+        run_id="rid",
+        enrichment_version="v1",
+        vector_rank=1,
+        ai_score=0.8,
+        final_score=0.7,
+        evidence_ids=["ev-001"],
+        prompt_version="v1",
+        cv_markdown="# CV",
+        gap_summary={},
+        fit_classification="strong",
+        cv_structured={"schema_version": "cv_doc_v1", "sections": {"summary": {"text": "x"}}},
+        cv_generation_model="gemini-2.5-pro",
+        cv_prompt_version="cv_prompt_v3",
+    )
+    fake_client = MagicMock()
+    fake_client.insert_rows_json.side_effect = [
+        [{"index": 0, "errors": [{"reason": "invalid", "location": "cv_prompt_version", "message": "no such field: cv_prompt_version"}]}],
+        [],
+    ]
+
+    with patch("google.oauth2.service_account.Credentials.from_service_account_file", return_value=object()), patch(
+        "google.cloud.bigquery.Client",
+        return_value=fake_client,
+    ):
+        store_cv_version(
+            record,
+            {
+                "gcp_project": "fitcv-491123",
+                "bigquery_dataset": "fitcv",
+                "service_account_key": "sa_key.json",
+            },
+        )
+
+    assert fake_client.insert_rows_json.call_count == 2
+    retried_record = fake_client.insert_rows_json.call_args_list[1][0][1][0]
+    assert "cv_prompt_version" not in retried_record
+    assert "cv_generation_model" not in retried_record
+    assert "cv_schema_version" not in retried_record
+    assert "cv_structured_json" not in retried_record
 
 
 # ── update_application_status ─────────────────────────────────────────────────

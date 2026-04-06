@@ -32,10 +32,25 @@ BEFORE claiming any status or expressing satisfaction:
 4. VERIFY: Does output confirm the claim?
    - If NO: State actual status with evidence
    - If YES: State claim WITH evidence
-5. ONLY THEN: Make the claim
+5. DOC SYNC CHECK: If behavior changed, name the exact feature/doc targets updated or intentionally unchanged
+6. ONLY THEN: Make the claim
 
 Skip any step = lying, not verifying
 ```
+
+## Doc Sync Gate
+
+If the task changed behavior, contract, architecture, or navigation, completion requires explicit doc evidence.
+
+Minimum check:
+
+- identify the affected `docs/features/<feature_id>.yaml`, or explicitly justify why no contract change was needed
+- identify `docs/features/<feature_id>/history.md` and any other focused docs under `docs/features/<feature_id>/` that changed or were reviewed
+- identify any cross-feature docs under `docs/*.md` that changed or were reviewed
+- identify whether `README.md` changed
+- identify whether `docs/generated/*` was regenerated
+
+If behavior changed and no feature YAML/doc target is named, the task is not complete.
 
 ## Common Failures
 
@@ -48,12 +63,14 @@ Skip any step = lying, not verifying
 | Regression test works | Red-green cycle verified | Test passes once |
 | Agent completed | VCS diff shows changes | Agent reports "success" |
 | Requirements met | Line-by-line checklist | Tests passing |
+| Docs updated | Exact file list and regeneration evidence | "Docs updated as needed" |
 
 ## Red Flags - STOP
 
 - Using "should", "probably", "seems to"
 - Expressing satisfaction before verification ("Great!", "Perfect!", "Done!", etc.)
 - About to commit/push/PR without verification
+- About to claim completion without naming doc targets after behavior changes
 - Trusting agent success reports
 - Relying on partial verification
 - Thinking "just this once"
@@ -72,6 +89,7 @@ Skip any step = lying, not verifying
 | "I'm tired" | Exhaustion ≠ excuse |
 | "Partial check is enough" | Partial proves nothing |
 | "Different words so rule doesn't apply" | Spirit over letter |
+| "Docs probably don't need updates" | Name the targets or say why not |
 
 ## Key Patterns
 
@@ -99,6 +117,12 @@ Skip any step = lying, not verifying
 ❌ "Tests pass, phase complete"
 ```
 
+**Doc sync:**
+```
+✅ Name exact `docs/features/<feature_id>.yaml` / `docs/features/<feature_id>/history.md` / `docs/*.md` / `docs/generated/*` evidence
+❌ "No doc changes needed" without checking targets
+```
+
 **Agent delegation:**
 ```
 ✅ Agent reports success → Check VCS diff → Verify changes → Report actual state
@@ -123,6 +147,7 @@ From 24 failure memories:
 - Committing, PR creation, task completion
 - Moving to next task
 - Delegating to agents
+- Declaring behavior changes complete without doc sync evidence
 
 **Rule applies to:**
 - Exact phrases

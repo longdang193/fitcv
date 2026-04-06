@@ -54,7 +54,7 @@
 - Add: `docs/superpowers/migrations/2026-03-26-pipeline_runs-add-lifecycle-columns.sql`
 - Test: `tests/test_fitcv_cp/test_models.py`
 
-- [ ] **Step 1: Write failing model tests for new statuses and fields**
+- [x] **Step 1: Write failing model tests for new statuses and fields**
 
 Add assertions for:
 - `RunStatus.CANCELLING`
@@ -78,7 +78,7 @@ def test_run_status_values():
     }
 ```
 
-- [ ] **Step 2: Run model tests to verify failure**
+- [x] **Step 2: Run model tests to verify failure**
 
 Run:
 ```bash
@@ -88,7 +88,7 @@ Run:
 Expected:
 - FAIL because statuses and fields do not exist yet
 
-- [ ] **Step 3: Update `RunStatus` and `PipelineRun` in `models.py`**
+- [x] **Step 3: Update `RunStatus` and `PipelineRun` in `models.py`**
 
 Add:
 ```python
@@ -110,7 +110,7 @@ archived_at: Optional[datetime.datetime] = None
 archived_by: Optional[str] = None
 ```
 
-- [ ] **Step 4: Update `pipeline_runs.sql` for fresh bootstrap**
+- [x] **Step 4: Update `pipeline_runs.sql` for fresh bootstrap**
 
 Add columns to `assets/bigquery/pipeline_runs.sql`:
 ```sql
@@ -121,7 +121,7 @@ archived_at TIMESTAMP,
 archived_by STRING
 ```
 
-- [ ] **Step 5: Add migration SQL for existing datasets**
+- [x] **Step 5: Add migration SQL for existing datasets**
 
 Create `docs/superpowers/migrations/2026-03-26-pipeline_runs-add-lifecycle-columns.sql`:
 ```sql
@@ -133,7 +133,7 @@ ADD COLUMN IF NOT EXISTS archived_at TIMESTAMP,
 ADD COLUMN IF NOT EXISTS archived_by STRING;
 ```
 
-- [ ] **Step 6: Re-run model tests**
+- [x] **Step 6: Re-run model tests**
 
 Run:
 ```bash
@@ -143,7 +143,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/fitcv_cp/models.py assets/bigquery/pipeline_runs.sql \
@@ -160,7 +160,7 @@ git commit -m "feat(cp): add run lifecycle statuses and metadata"
 - Modify: `src/fitcv_cp/bq_store.py`
 - Test: `tests/test_fitcv_cp/test_bq_store.py`
 
-- [ ] **Step 1: Write failing BQ-store tests for lifecycle fields**
+- [x] **Step 1: Write failing BQ-store tests for lifecycle fields**
 
 Add tests for:
 - `insert_run()` includes `queue_job_id`
@@ -185,7 +185,7 @@ def test_row_to_run_maps_lifecycle_fields():
     assert run.queue_job_id == "rq-job-1"
 ```
 
-- [ ] **Step 2: Run BQ-store tests to verify failure**
+- [x] **Step 2: Run BQ-store tests to verify failure**
 
 Run:
 ```bash
@@ -195,14 +195,14 @@ Run:
 Expected:
 - FAIL on missing lifecycle support
 
-- [ ] **Step 3: Extend `insert_run()` and `_row_to_run()`**
+- [x] **Step 3: Extend `insert_run()` and `_row_to_run()`**
 
 Include all new lifecycle fields in insert/query mapping:
 ```python
 "queue_job_id", "cancel_requested_at", "cancel_requested_by", "archived_at", "archived_by"
 ```
 
-- [ ] **Step 4: Add focused lifecycle update helpers**
+- [x] **Step 4: Add focused lifecycle update helpers**
 
 Add helpers such as:
 ```python
@@ -217,7 +217,7 @@ Each helper must:
 - update only the intended columns
 - be small and single-purpose
 
-- [ ] **Step 5: Add archived-filter support to `list_runs()`**
+- [x] **Step 5: Add archived-filter support to `list_runs()`**
 
 Recommended signature:
 ```python
@@ -233,7 +233,7 @@ Deployment note:
 - this code must not ship before the lifecycle-column migration is applied
 - `list_runs()` will fail if `archived_at` does not yet exist in BigQuery
 
-- [ ] **Step 6: Add lifecycle event helper if it simplifies app/worker code**
+- [x] **Step 6: Add lifecycle event helper if it simplifies app/worker code**
 
 Optional helper:
 ```python
@@ -242,7 +242,7 @@ def append_lifecycle_event(run_id: str, stage: str, message: str, ...): ...
 
 Use only if it reduces repetition cleanly; otherwise reuse `append_event()`.
 
-- [ ] **Step 7: Re-run BQ-store tests**
+- [x] **Step 7: Re-run BQ-store tests**
 
 Run:
 ```bash
@@ -252,7 +252,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/fitcv_cp/bq_store.py tests/test_fitcv_cp/test_bq_store.py
@@ -270,7 +270,7 @@ git commit -m "feat(cp): add lifecycle persistence helpers"
 - Test: `tests/test_fitcv_cp/test_queue.py`
 - Test: `tests/test_fitcv_cp/test_worker_job.py`
 
-- [ ] **Step 1: Write failing queue and worker tests**
+- [x] **Step 1: Write failing queue and worker tests**
 
 Add tests for:
 - `enqueue_run()` returns both `run_id` and queue job id, or exposes queue job id for persistence
@@ -286,7 +286,7 @@ def test_worker_marks_cancelled_when_cancel_requested_before_pipeline():
     assert updated_statuses == [RunStatus.RUNNING, RunStatus.CANCELLED]
 ```
 
-- [ ] **Step 2: Run queue/worker tests to verify failure**
+- [x] **Step 2: Run queue/worker tests to verify failure**
 
 Run:
 ```bash
@@ -296,7 +296,7 @@ Run:
 Expected:
 - FAIL on missing cancellation behavior
 
-- [ ] **Step 3: Update `enqueue_run()` to capture the RQ job id**
+- [x] **Step 3: Update `enqueue_run()` to capture the RQ job id**
 
 Current code ignores the return value of `q.enqueue(...)`.
 Do **not** change the existing `enqueue_run()` return type in isolation, because `app.py` currently expects a single `run_id`.
@@ -315,7 +315,7 @@ def enqueue_run(...):
     return run_id
 ```
 
-- [ ] **Step 4: Add queue-side cancel helper**
+- [x] **Step 4: Add queue-side cancel helper**
 
 In `queue.py`, add:
 ```python
@@ -329,7 +329,7 @@ Behavior:
 - return `True` if execution was successfully prevented
 - return `False` if already claimed/missing
 
-- [ ] **Step 5: Add cooperative cancellation checks in `worker_job.py`**
+- [x] **Step 5: Add cooperative cancellation checks in `worker_job.py`**
 
 Define the worker order explicitly:
 
@@ -345,7 +345,7 @@ During execution:
 - pass a lightweight cancellation callback into `run_pipeline()` if supported
 - after `run_pipeline()` returns, if the run was cancelled mid-flight but still completed, preserve terminal status
 
-- [ ] **Step 6: Add checkpoint hook support in `pipeline.py`**
+- [x] **Step 6: Add checkpoint hook support in `pipeline.py`**
 
 Minimal design:
 ```python
@@ -367,7 +367,7 @@ Add a small internal exception, e.g.:
 class PipelineCancelled(Exception): ...
 ```
 
-- [ ] **Step 7: Map cancellation exception to lifecycle status**
+- [x] **Step 7: Map cancellation exception to lifecycle status**
 
 In `worker_job.py`:
 - if pipeline raises cancellation exception, update `finished_at`
@@ -375,7 +375,7 @@ In `worker_job.py`:
 - append `run_cancelled` event
 - do not treat as `failed`
 
-- [ ] **Step 8: Re-run queue/worker tests**
+- [x] **Step 8: Re-run queue/worker tests**
 
 Run:
 ```bash
@@ -385,7 +385,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/fitcv_cp/queue.py src/fitcv_cp/worker_job.py src/fitcv/pipeline.py \
@@ -401,7 +401,7 @@ git commit -m "feat(cp): add queue cancellation and worker stop checkpoints"
 - Modify: `src/fitcv_cp/app.py`
 - Test: `tests/test_fitcv_cp/test_app.py`
 
-- [ ] **Step 1: Write failing app tests for stop/archive/unarchive/filter routes**
+- [x] **Step 1: Write failing app tests for stop/archive/unarchive/filter routes**
 
 Add tests for:
 - `POST /admin/runs/{run_id}/stop` on queued run -> JSON success for `fetch()` caller
@@ -418,7 +418,7 @@ def test_admin_stop_queued_run_requests_cancel_and_returns_json():
     assert resp.status_code == 200
 ```
 
-- [ ] **Step 2: Run app tests to verify failure**
+- [x] **Step 2: Run app tests to verify failure**
 
 Run:
 ```bash
@@ -428,7 +428,7 @@ Run:
 Expected:
 - FAIL on missing routes and filter behavior
 
-- [ ] **Step 3: Persist `queue_job_id` at trigger time**
+- [x] **Step 3: Persist `queue_job_id` at trigger time**
 
 Update both trigger paths in `app.py`:
 - call `insert_run()` first as today
@@ -437,7 +437,7 @@ Update both trigger paths in `app.py`:
 
 Preserve the existing “DB row first, enqueue second” contract.
 
-- [ ] **Step 4: Add lifecycle action routes**
+- [x] **Step 4: Add lifecycle action routes**
 
 Add admin POST routes:
 ```python
@@ -464,7 +464,7 @@ Unarchive route behavior:
 - clear `archived_at/by`
 - append `run_unarchived`
 
-- [ ] **Step 5: Add runs-list filter handling**
+- [x] **Step 5: Add runs-list filter handling**
 
 Update `admin_runs()`:
 ```python
@@ -478,13 +478,13 @@ Map:
 
 Pass current view into template context.
 
-- [ ] **Step 6: Return proper conflicts instead of silent success**
+- [x] **Step 6: Return proper conflicts instead of silent success**
 
 For invalid repeated lifecycle actions:
 - raise `HTTPException(status_code=409, detail="...")` for API routes
 - for admin lifecycle UI actions, return structured JSON errors for `fetch()` callers so the page can show inline feedback and preserve current state
 
-- [ ] **Step 7: Re-run app tests**
+- [x] **Step 7: Re-run app tests**
 
 Run:
 ```bash
@@ -494,7 +494,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/fitcv_cp/app.py tests/test_fitcv_cp/test_app.py
@@ -510,7 +510,7 @@ git commit -m "feat(cp): add run lifecycle routes and list filters"
 - Modify: `src/fitcv_cp/templates/run_detail.html`
 - Test: `tests/test_fitcv_cp/test_app.py`
 
-- [ ] **Step 1: Write failing HTML assertions for lifecycle controls**
+- [x] **Step 1: Write failing HTML assertions for lifecycle controls**
 
 Add tests that assert:
 - runs list shows `Active`, `All`, `Archived` filters
@@ -519,7 +519,7 @@ Add tests that assert:
 - archived rows show `Unarchive`
 - run detail header shows the correct lifecycle action for each state
 
-- [ ] **Step 2: Run targeted HTML tests to verify failure**
+- [x] **Step 2: Run targeted HTML tests to verify failure**
 
 Run:
 ```bash
@@ -529,7 +529,7 @@ Run:
 Expected:
 - FAIL on missing controls
 
-- [ ] **Step 3: Update `runs_list.html`**
+- [x] **Step 3: Update `runs_list.html`**
 
 Add:
 - top-of-page filter controls for `Active`, `All`, `Archived`
@@ -542,7 +542,7 @@ Suggested rules:
 - archived rows -> `Unarchive`
 - `cancelling` -> muted status, no archive button
 
-- [ ] **Step 4: Update `run_detail.html`**
+- [x] **Step 4: Update `run_detail.html`**
 
 Add lifecycle actions to the header/meta action area:
 - `Stop Run` for `queued`, `running`
@@ -555,7 +555,7 @@ Also show archive state metadata if archived:
 <span class="badge badge-warning">Archived</span>
 ```
 
-- [ ] **Step 5: Surface lifecycle errors cleanly**
+- [x] **Step 5: Surface lifecycle errors cleanly**
 
 Use `fetch()` for lifecycle actions on both runs list and run detail.
 
@@ -568,7 +568,7 @@ If a lifecycle action succeeds:
 - update the action area optimistically if safe, or reload once after success
 - preserve the current runs-list filter or active run-detail tab if a reload is used
 
-- [ ] **Step 6: Re-run targeted HTML tests**
+- [x] **Step 6: Re-run targeted HTML tests**
 
 Run:
 ```bash
@@ -578,7 +578,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/fitcv_cp/templates/runs_list.html src/fitcv_cp/templates/run_detail.html \
@@ -594,7 +594,7 @@ git commit -m "feat(cp): add lifecycle actions to admin UI"
 - No new product files
 - Verify migration file and tests
 
-- [ ] **Step 1: Run focused lifecycle test suite**
+- [x] **Step 1: Run focused lifecycle test suite**
 
 Run:
 ```bash
@@ -609,7 +609,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 2: Run broader non-integration suite**
+- [x] **Step 2: Run broader non-integration suite**
 
 Run:
 ```bash
@@ -619,7 +619,7 @@ Run:
 Expected:
 - PASS
 
-- [ ] **Step 3: Apply or hand off BigQuery migration**
+- [x] **Step 3: Apply or hand off BigQuery migration**
 
 Required migration file:
 - `docs/superpowers/migrations/2026-03-26-pipeline_runs-add-lifecycle-columns.sql`
@@ -628,7 +628,7 @@ Confirm:
 - fresh bootstrap DDL updated in `assets/bigquery/pipeline_runs.sql`
 - existing dataset migration SQL is ready to apply
 
-- [ ] **Step 4: Manual admin verification**
+- [x] **Step 4: Manual admin verification**
 
 Check in browser:
 - trigger a run and confirm queued row gets a stop button
@@ -637,7 +637,7 @@ Check in browser:
 - switch to `Archived` and confirm archived run remains readable
 - open archived run detail and confirm `Unarchive Run` appears
 
-- [ ] **Step 5: Migration sequencing check**
+- [x] **Step 5: Migration sequencing check**
 
 Before deploying code that queries lifecycle columns, confirm the migration has been applied to the live dataset.
 
@@ -647,7 +647,7 @@ Required deployment order:
 
 Do not deploy code that filters on `archived_at` or reads lifecycle metadata before the migration exists in BigQuery.
 
-- [ ] **Step 6: Final commit**
+- [x] **Step 6: Final commit**
 
 ```bash
 git status --short

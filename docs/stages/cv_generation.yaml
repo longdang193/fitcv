@@ -1,0 +1,50 @@
+cv_generation:
+  stage_id: cv_generation
+  name: CV Generation
+  summary: Convert generation-ready CV-analysis records into accepted or rejected CV artifacts through structured prompt-driven writing, hybrid analysis-grounded validation, repair, and persistence without recomputing analysis or reselecting evidence by default, while emitting stage-owned accepted and validation-failure quality metrics for bottleneck diagnosis.
+  boundaries:
+    - cv-analysis-ready jobs enter and accepted or rejected CV artifacts leave
+    - generation, validation, repair, and persistence ownership belong to this stage
+    - evidence retrieval, gap analysis, and fit-gate ownership do not belong to this stage
+  inputs:
+    - generation-ready analysis records
+    - selected grounded evidence and gap explanation inputs prepared by `cv_analysis`
+    - CV generation settings plus section-visibility controls and warning-only max-pages validation settings
+    - one active structured runtime prompt contract for final-stage generation
+  outputs:
+    - structured CV artifacts
+    - rendered markdown CVs
+    - validation and repair outcomes
+    - final CV generation status
+    - bounded `stage_transition_artifacts.cv_generation` runtime block with input, output, and changed-state samples, including bounded upstream `cv_analysis` inputs, selected evidence context, and hybrid validation provenance for debugging
+    - `stage_transition_artifacts.cv_generation.decision_summary.quality_metrics` with accepted, validation-failed, generation-failed, and persistence-failed counts and rates
+  depends_on:
+    - cv_analysis
+  primary_features:
+    - cv_system
+  related_features:
+    - inspection_debugging
+    - trigger_run_management
+  refs:
+    docs: []
+    spec:
+      - docs/superpowers/specs/2026-03-31-stage-contract-docs-adoption-design.md
+      - docs/superpowers/specs/2026-03-31-stage-transition-artifacts-design.md
+      - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
+      - docs/superpowers/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+      - docs/superpowers/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
+      - docs/superpowers/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+      - docs/superpowers/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    plan:
+      - docs/superpowers/plans/2026-03-31-stage-transition-artifacts-implementation.md
+      - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
+      - docs/superpowers/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+      - docs/superpowers/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
+      - docs/superpowers/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+      - docs/superpowers/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    history: []
+  keywords:
+    - cv generation
+    - validation
+    - repair
+    - structured cv

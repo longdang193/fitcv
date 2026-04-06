@@ -7,6 +7,7 @@ import pytest
 
 from fitcv.candidate import (
     flatten_skills,
+    infer_effective_preferences,
     load_profile_json_text,
     load_profile_yaml,
     prepare_profile_rows,
@@ -83,6 +84,20 @@ def test_validate_profile_rejects_dangling_evidence_ref() -> None:
     assert any("proj_99" in e for e in errors)
 
 
+def test_validate_profile_accepts_education_evidence_ref() -> None:
+    """Skills may reference education IDs without being flagged as dangling."""
+    profile = {
+        "experiences": [],
+        "projects": [],
+        "achievements": [],
+        "education": [{"id": "edu_1", "degree": "M.Sc.", "institution": "TU Berlin"}],
+        "skills": [{"name": "Apache Spark", "evidence_refs": ["edu_1"]}],
+        "preferences": {},
+    }
+    errors = validate_profile(profile)
+    assert errors == [], f"Unexpected errors: {errors}"
+
+
 # ── flatten_skills ────────────────────────────────────────────────────────────
 
 def test_flatten_skills_extracts_unique() -> None:
@@ -109,6 +124,80 @@ def test_flatten_skills_includes_skills_section() -> None:
 def test_flatten_skills_empty_profile() -> None:
     profile: dict = {"experiences": [], "projects": [], "skills": []}
     assert flatten_skills(profile) == []
+
+
+def test_infer_effective_preferences_fills_missing_values_from_recent_profile_evidence() -> None:
+    profile = {
+        "preferences": {"location_types": ["remote", "hybrid"]},
+        "experiences": [
+            {"role": "Senior Data Analyst", "role_family": "analytics", "domain_tags": ["banking"], "bullets": []},
+            {"role": "BI Analyst", "domain_tags": ["retail"], "bullets": []},
+        ],
+        "projects": [{"name": "KPI Dashboard", "domain_tags": ["retail"]}],
+        "skills": [],
+        "achievements": [],
+    }
+    config = {
+        "role_taxonomy": {
+            "canonical_role_by_alias": {
+                "data analyst": "data analyst",
+                "senior data analyst": "data analyst",
+                "bi analyst": "data analyst",
+            },
+            "role_family_by_role": {
+                "data analyst": "analytics",
+            },
+        }
+    }
+
+    result = infer_effective_preferences(profile, config)
+
+    assert result["effective_preferences"] == {
+        "target_role": "Data Analyst",
+        "role_families": ["analytics"],
+        "domains": ["banking", "retail"],
+        "location_types": ["remote", "hybrid"],
+    }
+    assert result["preference_sources"]["target_role"] == "inferred_recent_experience"
+    assert result["preference_sources"]["role_families"] == "inferred_role_family_map"
+    assert result["preference_sources"]["domains"] == "inferred_profile_domain_tags"
+    assert result["preference_sources"]["location_types"] == "explicit_yaml"
+
+
+def test_infer_effective_preferences_preserves_explicit_preferences() -> None:
+    profile = {
+        "preferences": {
+            "target_role": "Analytics Engineer",
+            "role_families": ["data_engineering"],
+            "domains": ["fintech"],
+        },
+        "experiences": [
+            {"role": "Senior Data Analyst", "role_family": "analytics", "domain_tags": ["banking"], "bullets": []},
+        ],
+        "projects": [],
+        "skills": [],
+        "achievements": [],
+    }
+    config = {
+        "role_taxonomy": {
+            "canonical_role_by_alias": {
+                "senior data analyst": "data analyst",
+                "data analyst": "data analyst",
+            },
+            "role_family_by_role": {
+                "data analyst": "analytics",
+            },
+        }
+    }
+
+    result = infer_effective_preferences(profile, config)
+
+    assert result["effective_preferences"]["target_role"] == "Analytics Engineer"
+    assert result["effective_preferences"]["role_families"] == ["data_engineering"]
+    assert result["effective_preferences"]["domains"] == ["fintech"]
+    assert result["preference_sources"]["target_role"] == "explicit_yaml"
+    assert result["preference_sources"]["role_families"] == "explicit_yaml"
+    assert result["preference_sources"]["domains"] == "explicit_yaml"
 
 
 # ── prepare_profile_rows ──────────────────────────────────────────────────────
@@ -193,3 +282,54 @@ def test_load_profile_json_text_preserves_all_required_sections() -> None:
     result = load_profile_json_text(_json.dumps(_VALID_PROFILE_DICT))
     for section in ("experiences", "skills", "projects", "achievements", "preferences"):
         assert section in result
+
+
+def test_load_profile_json_text_normalizes_additive_alignment_metadata() -> None:
+    payload = _json.dumps(
+        {
+            "experiences": [
+                {
+                    "id": "exp_1",
+                    "role": "Data Analyst",
+                    "company": "Acme",
+                    "role_family": " analytics ",
+                    "domain_tags": [" banking ", "", None, "fintech"],
+                    "responsibility_themes": [" dashboarding ", " ", "kpi_reporting"],
+                    "bullets": [],
+                }
+            ],
+            "skills": [{"name": "SQL"}],
+            "projects": [
+                {
+                    "id": "proj_1",
+                    "name": "Dashboards",
+                    "domain_tags": [" banking "],
+                    "responsibility_themes": ["reporting_automation", ""],
+                }
+            ],
+            "achievements": [
+                {
+                    "id": "ach_1",
+                    "text": "Improved reporting",
+                    "domain_tags": [" banking ", ""],
+                }
+            ],
+            "preferences": {
+                "target_role": " Data Analyst ",
+                "role_families": [" analytics ", "", "data_science"],
+                "domains": [" banking ", "", "fintech"],
+            },
+        }
+    )
+
+    result = load_profile_json_text(payload)
+
+    assert result["preferences"]["target_role"] == "Data Analyst"
+    assert result["preferences"]["role_families"] == ["analytics", "data_science"]
+    assert result["preferences"]["domains"] == ["banking", "fintech"]
+    assert result["experiences"][0]["role_family"] == "analytics"
+    assert result["experiences"][0]["domain_tags"] == ["banking", "fintech"]
+    assert result["experiences"][0]["responsibility_themes"] == ["dashboarding", "kpi_reporting"]
+    assert result["projects"][0]["domain_tags"] == ["banking"]
+    assert result["projects"][0]["responsibility_themes"] == ["reporting_automation"]
+    assert result["achievements"][0]["domain_tags"] == ["banking"]

@@ -1,0 +1,11 @@
+refactor(docs): migrate features/ to new 5-layer doc system
+
+- Move 10 feature YAML files from root features/ to docs/features/<id>/ with
+  per-feature contract + history alongside each other
+- Rewrite YAML to canonical schema: refs: {spec, plan, docs, history},
+  capabilities, keywords; remove law, used_by, implementation fields
+- Add docs/generated/features_index.yaml and feature_overview.md as required
+  Layer 5 discovery artifacts
+- Rewrite README.md as entry-point only -- no feature registry, links to
+  generated discovery first
+- Align skill files with updated operating-system rules
