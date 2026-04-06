@@ -1,9 +1,9 @@
 inspection_debugging:
   name: Inspection & Debugging
-  version: 2.18.0
+  version: 2.20.0
   status: active
   type: add
-  summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, richer shortlist candidate-query components, explicit shortlist candidate-query reuse provenance, ranking contribution visibility and calibration surfaces, late-stage reuse diagnostics for `ranking` and `cv_analysis`, stage-local artifacts, compact severity-based run health with explicit `Pending` vs `N/A`, stage-gated export availability, a job-ledger `results.json` split from bundled stage diagnostics, outcome-first artifact samples, stable normalize timeline ownership, humanized timeline summaries, distinct `cv_analysis` and `cv_generation` outcomes, multi-channel evidence-selection provenance, lexical-vs-semantic alignment detail, inputs used, generated CVs, explicit decision detail, hybrid validation provenance from deterministic and soft-claim grounding checks, canonicalized settings-used exports, clearer `cv-debug` coverage accounting, and prompt-id-based provenance for both ranking and the active structured-only `cv_generation` path."
+  summary: "Admins can see what the pipeline did for a run, including paused manual checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, richer shortlist candidate-query components, explicit shortlist candidate-query reuse provenance, ranking contribution visibility and calibration surfaces, late-stage reuse diagnostics for `ranking` and `cv_analysis`, slimmer job-ledger exports, stage-local artifacts, compact severity-based run health with explicit `Pending` vs `N/A`, stage-gated export availability, a job-ledger `results.json` split from bundled stage diagnostics, outcome-first artifact samples, stable normalize timeline ownership, aggregate-first timeline summaries, distinct `cv_analysis` and `cv_generation` outcomes, multi-channel evidence-selection provenance, lexical-vs-semantic alignment detail, inputs used, generated CVs, explicit decision detail, hybrid validation provenance from deterministic and soft-claim grounding checks, canonicalized settings-used exports, clearer `cv-debug` coverage accounting, and prompt-id-based provenance for both ranking and the active structured-only `cv_generation` path."
   owner: fitcv_cp
   domains:
     - admin_ui
@@ -60,6 +60,7 @@ inspection_debugging:
     - Client-side filtering, search, and pagination for large tables
     - Job title as link label in generated outputs
     - Run detail pipeline outcomes can show explicit decision-chain detail when present in the run-results export
+    - Run-results exports now stay job-centric and omit retired row-level shortlist-debug baggage that is already owned by shortlist-stage diagnostics
     - CV-generation debug snapshots separate authoritative ranking fit from explanatory gap output
     - Shortlist artifacts now distinguish raw vector row counts from unique-job raw-hit counts
     - Shortlist debug payloads now report observed raw-hit status without overstating retrieval root causes
@@ -72,6 +73,7 @@ inspection_debugging:
     - Ranking artifacts, run results, and run detail can now expose exact-match AI-score reuse counts, reuse rates, reuse statuses, and AI-score input fingerprints
     - `cv_analysis` artifacts, run results, and run detail can now expose exact-match analysis reuse counts, reuse rates, reuse statuses, and analysis input fingerprints
     - Run results can now persist bounded late-stage reuse snapshots so reuse behavior can be audited without extra storage lookups
+    - Top-level duplicate stage-quality, reuse, and shortlist-summary blocks are retired from the pipeline summary in favor of stage-owned diagnostics
     - Run-scoped enriched job rows can now include canonical skill companions and parsed mapping suggestions for richer inspection/debug export
     - Run-scoped enriched job rows and enrich-stage artifacts can now expose raw-job fingerprints, enrich-contract fingerprints, and fresh-vs-reused enrich provenance
     - Rule-filter stage artifacts and run detail now show the active blocking-filter set plus mark-code counts for selectable screening
@@ -110,6 +112,7 @@ inspection_debugging:
       - docs/superpowers/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
       - docs/superpowers/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
       - docs/superpowers/specs/2026-04-06-01-15-run-detail-stage-gating-and-pending-health-fix-spec.md
+      - docs/superpowers/specs/2026-04-06-02-35-pipeline-dead-weight-cleanup-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-run-scoped-enrichment-inspection-implementation.md
       - docs/superpowers/plans/2026-03-26-run-detail-inspection-tabs-implementation.md
@@ -143,6 +146,7 @@ inspection_debugging:
       - docs/superpowers/plans/2026-04-06-00-05-run-detail-artifact-gating-and-diagnostics-cleanup-plan.md
       - docs/superpowers/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
       - docs/superpowers/plans/2026-04-06-01-25-run-detail-stage-gating-and-pending-health-fix-plan.md
+      - docs/superpowers/plans/2026-04-06-02-50-pipeline-dead-weight-cleanup-plan.md
     history:
       - docs/features/inspection_debugging/history.md
   keywords:

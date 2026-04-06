@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.20.0 — active
+
+- The pipeline summary no longer computes retired top-level `stage_quality_metrics`, `late_stage_reuse_metrics`, or `shortlist_debug` blocks now that stage-owned diagnostics own those concerns
+- `results.json` stays slimmer and more job-centric by dropping row-level `shortlist_debug` baggage while keeping decision-chain and outcome facts
+- Layer 4 timeline noise is reduced by dropping per-job skip and validation-failed event emission in favor of aggregate stage summaries plus stage-owned artifacts
+
 ### 2.19.0 — active
 
 - Run detail now renders as a lightweight summary shell while the `Enriched Jobs`, `Original Job Input`, and `Candidate Profile` tabs lazy-load their content as HTML fragments

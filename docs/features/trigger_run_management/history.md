@@ -2,6 +2,12 @@
 
 ## Changelog
 
+### 2.14.0 — active
+
+- Run-results exports now stay job-centric and no longer carry row-level shortlist-debug baggage that is already owned by shortlist-stage diagnostics
+- Large runs now avoid some row-scaled Layer 4 skip and validation-event noise, leaving aggregate stage summaries and stage-owned artifacts as the primary operator surface
+- This keeps run-detail behavior stable while reducing dead-weight export and timeline volume
+
 ### 2.13.0 — active
 
 - Run detail now opens as a summary-first shell and lazy-loads heavy inspection panes instead of blocking the first render on enriched-job queries

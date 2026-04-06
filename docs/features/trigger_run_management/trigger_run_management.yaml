@@ -55,7 +55,7 @@ trigger_run_management:
     - Run-results export includes structured CV data and CV generation metadata when available
     - Run-results export distinguishes non-ranked passed jobs as `not_shortlisted`, `shortlisted_not_scored`, or `scored_not_ranked`
     - Run-results export and run detail distinguish ranked jobs skipped by the Layer 4 fit gate as `ranked_skipped_fit_gate`
-    - Run-results export includes shortlist debug context so `not_shortlisted` rows show whether the job URL was returned by vector search
+    - Run-results export now stays job-centric and leaves shortlist retrieval debugging to shortlist-stage diagnostics instead of per-row shortlist debug baggage
     - Top-level shortlist debug distinguishes raw vector-search hits from the later scoring shortlist after any backfill
     - Shortlist debug now reports raw unique-job counts separately from raw row counts and carries explicit raw-hit flags for passed jobs in run-results export
     - Run-results export exposes an explicit decision chain per job covering shortlist path, primary fit authority, CV attempt/skip, and validation outcome
@@ -83,6 +83,7 @@ trigger_run_management:
       - docs/superpowers/specs/2026-04-05-23-20-pre-trigger-and-staged-synonym-overlay-spec.md
       - docs/superpowers/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
       - docs/superpowers/specs/2026-04-06-01-15-run-detail-stage-gating-and-pending-health-fix-spec.md
+      - docs/superpowers/specs/2026-04-06-02-35-pipeline-dead-weight-cleanup-spec.md
     plan:
       - docs/superpowers/plans/2026-03-25-runs-list-enhancements-implementation.md
       - docs/superpowers/plans/2026-03-25-admin-ux-improvements-implementation.md
@@ -102,6 +103,7 @@ trigger_run_management:
       - docs/superpowers/plans/2026-04-05-23-35-pre-trigger-and-staged-synonym-overlay-plan.md
       - docs/superpowers/plans/2026-04-06-00-05-run-detail-artifact-gating-and-diagnostics-cleanup-plan.md
       - docs/superpowers/plans/2026-04-06-01-25-run-detail-stage-gating-and-pending-health-fix-plan.md
+      - docs/superpowers/plans/2026-04-06-02-50-pipeline-dead-weight-cleanup-plan.md
     history:
       - docs/features/trigger_run_management/history.md
   keywords:
