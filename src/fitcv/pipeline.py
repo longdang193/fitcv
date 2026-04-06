@@ -2414,7 +2414,7 @@ def run_pipeline(
         raw_jobs = parse_jobs_file(jobs_path)
         normalized = normalize_batch(raw_jobs)
         _normalized_with_exclusions, deduplicated_jobs = normalize_batch_with_exclusions(raw_jobs)
-        if reporter is not None and deduplicated_jobs:
+        if reporter is not None:
             reporter.emit(  # type: ignore[union-attr]
                 "layer1_normalize",
                 "info",

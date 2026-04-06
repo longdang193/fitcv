@@ -2,6 +2,18 @@
 
 ## Changelog
 
+### 2.19.0 — active
+
+- Run detail now renders as a lightweight summary shell while the `Enriched Jobs`, `Original Job Input`, and `Candidate Profile` tabs lazy-load their content as HTML fragments
+- Enriched-job inspection moved from client-side row filtering to server-owned search, filter, and pagination so large runs no longer ship all rows in the initial HTML
+- The event timeline now defaults to a bounded latest-event slice with a progressive older-events expansion path instead of rendering the full history on first paint
+
+### 2.18.0 — active
+
+- Mapping-suggestions snapshots are now persisted only after `enrich`, so pre-enrich paused runs no longer surface an empty but valid export
+- Normalize now always emits an aggregate timeline row, which means paused-after-normalize runs can reach `Download Normalize JSON` through the normal stage-row ownership model even when zero duplicates were removed
+- `Run Health` now distinguishes unreached-stage `Pending` metrics from reached-but-empty `N/A` metrics instead of treating all `0/0` rows like a completed result
+
 ### 2.17.0 — active
 
 - `results.json` now stays job-centric as the run ledger, while `stage-artifacts.json` remains the bundled diagnostics export for stage-owned metrics, reuse, and samples

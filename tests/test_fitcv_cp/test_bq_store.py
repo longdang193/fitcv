@@ -68,6 +68,26 @@ def test_list_runs_returns_list():
     assert isinstance(list_runs(bq, project="p", dataset="d"), list)
 
 
+def test_list_runs_coerces_unknown_status_to_failed_for_admin_compatibility():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([
+        {
+            "run_id": "rid-1",
+            "status": "future_unknown_status",
+            "triggered_by": "admin",
+            "trigger_source": "ui",
+            "jobs_path": "data/sample_jobs.json",
+            "config_path": ".env.yaml",
+            "created_at": datetime.datetime.now(datetime.timezone.utc),
+        }
+    ])
+
+    runs = list_runs(bq, project="p", dataset="d")
+
+    assert len(runs) == 1
+    assert runs[0].status == RunStatus.FAILED
+
+
 def test_get_events_returns_list():
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])

@@ -2,6 +2,18 @@
 
 ## Changelog
 
+### 2.13.0 — active
+
+- Run detail now opens as a summary-first shell and lazy-loads heavy inspection panes instead of blocking the first render on enriched-job queries
+- The `Enriched Jobs` pane now uses server-owned search, filter, and pagination so large runs remain operable without shipping every row to the browser
+- Timeline rendering is now bounded on first paint, with older events loaded intentionally instead of by default
+
+### 2.12.0 — active
+
+- Mapping-suggestions exports now stay unavailable until `enrich` has actually been reached, instead of appearing from an empty pre-enrich snapshot
+- Normalize now always emits an aggregate timeline row so paused-after-normalize runs can download the normalize artifact through the timeline even when no duplicates were removed
+- Run detail health indicators now distinguish `Pending` unreached-stage metrics from reached-but-empty `N/A` metrics
+
 ### 2.11.0 — active
 
 - Run detail now gates stage-owned exports by stage reachability so files like `Mapping Suggestions JSON` are not offered prematurely

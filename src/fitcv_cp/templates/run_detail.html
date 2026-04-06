@@ -218,246 +218,22 @@
   <button class="tab-btn"        id="tab-btn-profile"    onclick="showTab('profile')">👤 Candidate Profile</button>
 </div>
 
-<!-- ── Tab 1: Enriched Jobs (default active) ─────────────────────────────── -->
-<div class="pane-container tab-pane active" id="pane-enriched">
-  {% if enriched_jobs %}
-  <!-- Summary counts -->
-  <div style="display:flex;gap:1rem;padding:0.75rem 1.25rem;border-bottom:1px solid var(--accent);flex-wrap:wrap;align-items:center">
-    <span class="meta">Post-dedupe enriched jobs: <strong>{{ enriched_jobs | length }}</strong></span>
-    <span class="badge badge-success" style="padding:0.2rem 0.6rem;font-size:0.8rem">Passed: {{ enriched_passed_count }}</span>
-    <span class="badge badge-error" style="padding:0.2rem 0.6rem;font-size:0.8rem">Rejected: {{ enriched_rejected_count }}</span>
-    {% if deduplicated_before_enrichment %}
-    <span class="badge badge-warning" style="padding:0.2rem 0.6rem;font-size:0.8rem">Deduplicated before enrichment: {{ deduplicated_before_enrichment | length }}</span>
-    {% endif %}
-    <span class="meta" style="margin-left:auto">This tab shows jobs after normalization dedupe.</span>
+<div class="pane-container tab-pane active" id="pane-enriched" data-tab-id="enriched" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/enriched">
+  <div class="card tab-loading-state">
+    <p class="meta">Enriched job diagnostics load on demand.</p>
   </div>
-  <!-- Filter + search controls -->
-  <div id="enr-controls" style="display:flex;gap:0.75rem;padding:0.75rem 1.25rem;border-bottom:1px solid var(--accent);flex-wrap:wrap;align-items:center">
-    <div style="display:flex;gap:0.4rem">
-      <button class="btn-secondary" id="enr-btn-all"      data-active="true"  style="font-size:0.8rem;padding:0.2rem 0.7rem" onclick="EnrichedTable.setFilter('all')">All</button>
-      <button class="btn-secondary" id="enr-btn-passed"   data-active="false" style="font-size:0.8rem;padding:0.2rem 0.7rem" onclick="EnrichedTable.setFilter('passed')">Passed</button>
-      <button class="btn-secondary" id="enr-btn-rejected" data-active="false" style="font-size:0.8rem;padding:0.2rem 0.7rem" onclick="EnrichedTable.setFilter('rejected')">Rejected</button>
-    </div>
-    <input id="enr-search" type="search" placeholder="Search title, domain, job family…"
-           style="flex:1;min-width:180px;font-size:0.85rem;padding:0.25rem 0.6rem"
-           oninput="EnrichedTable.onSearch(this.value)">
-    <div style="display:flex;gap:0.4rem;align-items:center;margin-left:auto">
-      <label class="meta" style="font-size:0.8rem" for="enr-page-size">Rows:</label>
-      <select id="enr-page-size" style="font-size:0.8rem;padding:0.2rem 0.4rem" onchange="EnrichedTable.setPageSize(parseInt(this.value))">
-        <option value="25">25</option>
-        <option value="50" selected>50</option>
-        <option value="100">100</option>
-      </select>
-    </div>
-  </div>
-  <div class="card" style="padding:0;overflow:hidden">
-    <table class="enr-table">
-      <thead>
-        <tr>
-          <th>Job</th>
-          <th>Fit Context</th>
-          <th>Required Skills (top 5)</th>
-          <th>Filter</th>
-          <th>Pipeline Outcome</th>
-        </tr>
-      </thead>
-      <tbody id="enr-tbody">
-        {% for job in enriched_jobs %}
-        {% set fr = filter_results_by_job_url.get(job.job_url) %}
-        {% set outcome = pipeline_outcomes_by_job_url.get(job.job_url) %}
-        <tr data-filter="{% if fr is not none %}{{ 'passed' if fr.passed else 'rejected' }}{% else %}unknown{% endif %}"
-            data-title="{{ (job.title or '') | lower }}"
-            data-domain="{{ (job.domain or '') | lower }}"
-            data-family="{{ (job.job_family or '') | lower }}">
-          <td><a href="{{ job.job_url }}" target="_blank">{{ job.title or job.job_url }}</a></td>
-          <td class="meta">
-            <div class="fit-context-stack">
-              <span><strong>Location:</strong> {{ job.location_type or '—' }}</span>
-              <span><strong>Seniority:</strong> {{ job.seniority or '—' }}</span>
-              <span><strong>Family:</strong> {{ job.job_family or '—' }}</span>
-              <span><strong>Domain:</strong> {{ job.domain or '—' }}</span>
-            </div>
-          </td>
-          <td class="meta">
-            {% if job.required_skills %}
-              {{ job.required_skills[:5] | join(', ') }}{% if job.required_skills | length > 5 %}, <em class="meta">+{{ job.required_skills | length - 5 }} more</em>{% endif %}
-            {% else %}
-              —
-            {% endif %}
-          </td>
-          <td style="white-space:nowrap">
-            {% if fr is not none %}
-              {% if fr.passed %}
-                <span class="badge badge-success" title="Passed all filters">&#10003; pass</span>
-                {% if fr.marks %}
-                <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">
-                  Marks: {{ fr.marks | map(attribute='code') | join(', ') }}
-                </div>
-                {% endif %}
-              {% else %}
-                <span class="badge badge-error" title="{{ fr.reasons | join(', ') }}">&#10007; reject</span>
-                <div class="field-error" style="margin-top:0.3rem">{{ fr.reasons | join(', ') }}</div>
-                {% if fr.marks %}
-                <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">
-                  Marks: {{ fr.marks | map(attribute='code') | join(', ') }}
-                </div>
-                {% endif %}
-              {% endif %}
-            {% else %}
-              <span class="empty-value">—</span>
-            {% endif %}
-          </td>
-          <td style="white-space:nowrap">
-            {% if outcome is not none %}
-              <span class="badge {{ outcome.badge_class }}" {% if outcome.detail %}title="{{ outcome.detail }}"{% endif %}>{{ outcome.label }}</span>
-              {% if outcome.detail %}
-              <div class="meta" style="margin-top:0.3rem;max-width:20rem;white-space:normal">{{ outcome.detail }}</div>
-              {% endif %}
-            {% else %}
-              <span class="empty-value">—</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-        <tr id="enr-empty-row" style="display:none">
-          <td colspan="5" style="text-align:center;padding:1.5rem">
-            No jobs match the current controls.
-            <a href="#" style="margin-left:0.5rem" onclick="EnrichedTable.resetControls();return false;">Show all</a>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <!-- Pagination bar -->
-  <div id="enr-pagination" style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 1.25rem;justify-content:flex-end">
-    <button id="enr-prev" class="btn-secondary" style="font-size:0.8rem;padding:0.2rem 0.6rem" onclick="EnrichedTable.prevPage()">← Prev</button>
-    <span id="enr-page-label" class="meta" style="font-size:0.85rem">Page 1 of 1</span>
-    <button id="enr-next" class="btn-secondary" style="font-size:0.8rem;padding:0.2rem 0.6rem" onclick="EnrichedTable.nextPage()">Next →</button>
-  </div>
-  {% else %}
-  <div class="card">
-    <p class="meta" style="text-align:center;padding:1.5rem">No enrichment data available for this run.</p>
-  </div>
-  {% endif %}
 </div>
 
-{% if pre_enrichment_rejects %}
-<div class="section-card" style="margin:1.5rem 0;padding:0;overflow:hidden">
-  <details>
-    <summary style="padding:0.75rem 1.25rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;user-select:none">
-      <span class="badge badge-error">&#10007; Rejected before enrichment</span>
-      <span class="badge badge-error" style="border-radius:999px">{{ pre_enrichment_rejects | length }}</span>
-      <span class="meta" style="margin-left:auto">Screened out by global filters before enrichment step.</span>
-    </summary>
-    <table>
-      <thead>
-        <tr>
-          <th>Job URL</th>
-          <th>Reject Reasons</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in pre_enrichment_rejects %}
-        <tr>
-          <td><a href="{{ row.job_url }}" target="_blank" class="meta">{{ row.job_url }}</a></td>
-          <td class="field-error">{{ row.reasons | join(', ') }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </details>
-</div>
-{% endif %}
-
-{% if deduplicated_before_enrichment %}
-<div class="section-card" style="margin:1.5rem 0;padding:0;overflow:hidden">
-  <details>
-    <summary style="padding:0.75rem 1.25rem;cursor:pointer;display:flex;align-items:center;gap:0.5rem;user-select:none">
-      <span class="badge badge-warning">↺ Deduplicated before enrichment</span>
-      <span class="badge badge-warning" style="border-radius:999px">{{ deduplicated_before_enrichment | length }}</span>
-      <span class="meta" style="margin-left:auto">Removed during normalization before enrichment/filtering.</span>
-    </summary>
-    <table>
-      <thead>
-        <tr>
-          <th>Job</th>
-          <th>Reason</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in deduplicated_before_enrichment %}
-        <tr>
-          <td>
-            {% if row.job_url %}
-            <a href="{{ row.job_url }}" target="_blank" class="meta">{{ row.job_title or row.job_url }}</a>
-            {% else %}
-            <span class="meta">{{ row.job_title or 'Unknown job' }}</span>
-            {% endif %}
-          </td>
-          <td class="field-error">{{ row.reasons | join(', ') }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </details>
-</div>
-{% endif %}
-
-<!-- ── Tab 2: Original Job Input ─────────────────────────────────────────── -->
-<div class="pane-container tab-pane" id="pane-jobs-input">
-  {% if run.jobs_input_json %}
-    <div class="card" style="margin-bottom:1rem">
-      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem">
-        <span class="badge badge-info">{{ run.jobs_input_source or 'paste' }}</span>
-        <span class="meta">Raw job payload captured at trigger time (immutable snapshot)</span>
-      </div>
-    </div>
-    <div class="card">
-      <details open>
-        <summary class="meta" style="cursor:pointer;margin-bottom:0.75rem;user-select:none">▾ Raw JSON</summary>
-        <pre class="code-area" style="overflow-x:auto;max-height:500px;overflow-y:auto;margin:0">{{ run.jobs_input_json }}</pre>
-      </details>
-    </div>
-  {% else %}
-    <div class="card">
-      <p class="meta" style="margin-bottom:0.5rem">
-        Source: {% if run.jobs_input_source %}<strong>{{ run.jobs_input_source }}</strong>{% else %}<span class="empty-value">— not recorded</span>{% endif %}
-        {% if run.jobs_path %}&nbsp;·&nbsp; Path: <code>{{ run.jobs_path }}</code>{% endif %}
-      </p>
-      <p class="meta">
-        No immutable raw snapshot was stored for this run.
-        This record was created before snapshot capture was available for this trigger mode.
-      </p>
-    </div>
-  {% endif %}
+<div class="pane-container tab-pane" id="pane-jobs-input" data-tab-id="jobs-input" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/jobs-input">
+  <div class="card tab-loading-state">
+    <p class="meta">Original trigger input snapshot loads on demand.</p>
+  </div>
 </div>
 
-<!-- ── Tab 3: Candidate Profile ──────────────────────────────────────────── -->
-<div class="pane-container tab-pane" id="pane-profile">
-  {% if candidate_profile_pretty %}
-    <div class="card" style="margin-bottom:1rem">
-      <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:1rem">
-        <span class="badge badge-info">{{ run.candidate_profile_source }}</span>
-        <span class="meta">Candidate profile captured at trigger time (immutable snapshot)</span>
-      </div>
-    </div>
-    <div class="card">
-      <details open>
-        <summary class="meta" style="cursor:pointer;margin-bottom:0.75rem;user-select:none">▾ Raw JSON</summary>
-        <pre class="code-area" style="overflow-x:auto;max-height:500px;overflow-y:auto;margin:0">{{ candidate_profile_pretty }}</pre>
-      </details>
-    </div>
-  {% else %}
-    <div class="card">
-      <p class="meta" style="margin-bottom:0.5rem">
-        Source: {% if run.candidate_profile_source %}<strong>{{ run.candidate_profile_source }}</strong>{% else %}<span class="empty-value">— not recorded</span>{% endif %}
-      </p>
-      <p class="meta">
-        No candidate profile snapshot was stored for this run.
-        This record was created before snapshot capture was available for this trigger mode.
-      </p>
-    </div>
-  {% endif %}
+<div class="pane-container tab-pane" id="pane-profile" data-tab-id="profile" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/profile">
+  <div class="card tab-loading-state">
+    <p class="meta">Candidate profile snapshot loads on demand.</p>
+  </div>
 </div>
 </div><!-- /.inspection-card -->
 
@@ -495,6 +271,11 @@
     </tbody>
   </table>
 </div>
+{% if timeline_has_more %}
+<div style="display:flex;justify-content:flex-end;margin-top:0.75rem">
+  <a href="/admin/runs/{{ run.run_id }}?timeline_limit={{ timeline_next_limit }}" class="btn-secondary">Load older events</a>
+</div>
+{% endif %}
 
 <script>
 function showTab(id) {
@@ -507,7 +288,56 @@ function showTab(id) {
   pane.style.display = 'block';
   pane.classList.add('active');
   document.getElementById('tab-btn-' + id).classList.add('active');
+  ensureTabLoaded(id);
 }
+
+async function ensureTabLoaded(id, overrideUrl = null) {
+  const pane = document.getElementById('pane-' + id);
+  if (!pane) return;
+  const url = overrideUrl || pane.dataset.tabUrl;
+  if (!url || pane.dataset.loading === 'true') return;
+  if (!overrideUrl && pane.dataset.loaded === 'true') return;
+  pane.dataset.loading = 'true';
+  if (pane.dataset.loaded !== 'true') {
+    pane.innerHTML = '<div class="card tab-loading-state"><p class="meta">Loading…</p></div>';
+  }
+  try {
+    const resp = await fetch(url, {
+      headers: { 'Accept': 'text/html', 'X-Requested-With': 'fitcv-tab-fragment' },
+      cache: 'no-store',
+    });
+    if (!resp.ok) throw new Error('Failed to load tab');
+    pane.innerHTML = await resp.text();
+    pane.dataset.loaded = 'true';
+  } catch (err) {
+    pane.innerHTML = '<div class="card"><p class="field-error">Could not load this tab right now.</p></div>';
+  } finally {
+    pane.dataset.loading = 'false';
+  }
+}
+
+function submitRunDetailTabForm(event, tabId, form) {
+  event.preventDefault();
+  const url = new URL(form.action, window.location.origin);
+  const params = new URLSearchParams();
+  for (const [key, value] of new FormData(form).entries()) {
+    if (value !== null && String(value).length > 0) {
+      params.set(key, String(value));
+    }
+  }
+  const target = url.pathname + (params.toString() ? '?' + params.toString() : '');
+  ensureTabLoaded(tabId, target);
+  return false;
+}
+
+document.addEventListener('click', event => {
+  const link = event.target.closest('[data-tab-fragment-url]');
+  if (!link) return;
+  event.preventDefault();
+  const tabId = link.dataset.tabId || link.closest('.tab-pane')?.dataset.tabId;
+  if (!tabId) return;
+  ensureTabLoaded(tabId, link.dataset.tabFragmentUrl);
+});
 
 async function lifecycleAction(runId, action, btn) {
   btn.disabled = true;
@@ -542,14 +372,36 @@ async function lifecycleAction(runId, action, btn) {
    const currentStatus = '{{ run.status.value }}';
    if (!liveStatuses.has(currentStatus)) return;
    const runId = '{{ run.run_id }}';
+   const pollIntervalMs = 15000;
    const currentLastCompleted = '{{ run.last_completed_stage or "" }}';
    const currentNextStage = '{{ run.next_stage or "" }}';
    const currentCheckpoint = '{{ run.checkpoint_status or "" }}';
    const currentFinishedAt = '{{ run.finished_at.isoformat() if run.finished_at else "" }}';
+   let pollTimer = null;
+   let inFlight = false;
+
+  function scheduleNextPoll(delayMs = pollIntervalMs) {
+    if (pollTimer) {
+      window.clearTimeout(pollTimer);
+    }
+    pollTimer = window.setTimeout(poll, delayMs);
+  }
 
   async function poll() {
+    if (document.visibilityState === 'hidden') {
+      scheduleNextPoll();
+      return;
+    }
+    if (inFlight) {
+      scheduleNextPoll();
+      return;
+    }
+    inFlight = true;
     try {
-      const resp = await fetch('/runs/' + runId, { headers: { 'Accept': 'application/json' } });
+      const resp = await fetch('/runs/' + runId, {
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store',
+      });
       if (!resp.ok) return;
       const payload = await resp.json();
       const nextStatus = payload.status || '';
@@ -568,10 +420,19 @@ async function lifecycleAction(runId, action, btn) {
       }
     } catch (e) {
       // Keep polling quiet; manual refresh remains available.
+    } finally {
+      inFlight = false;
+      scheduleNextPoll();
     }
   }
 
-  window.setInterval(poll, 5000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      scheduleNextPoll(1000);
+    }
+  });
+
+  scheduleNextPoll();
 })();
 </script>
 
@@ -643,6 +504,14 @@ async function lifecycleAction(runId, action, btn) {
   min-width:11rem;
 }
 
+.tab-loading-state {
+  min-height:8rem;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+
 .enr-table th {
   position: sticky;
   top: 0;
@@ -652,110 +521,11 @@ async function lifecycleAction(runId, action, btn) {
 </style>
 
 <script>
-const EnrichedTable = (() => {
-  let PAGE_SIZE = 50;
-  let currentFilter = 'all';
-  let currentSearch = '';
-  let currentPage = 1;
-  let allRows = [];
-  let visibleRows = [];
-
-  function init() {
-    const tbody = document.getElementById('enr-tbody');
-    if (!tbody) return;
-    // Exclude the empty-state sentinel row
-    allRows = Array.from(tbody.querySelectorAll('tr[data-filter]'));
-    render();
-  }
-
-  function render() {
-    const q = currentSearch.trim().toLowerCase();
-    visibleRows = allRows.filter(row => {
-      const f = row.dataset.filter;
-      if (currentFilter === 'passed'   && f !== 'passed')   return false;
-      if (currentFilter === 'rejected' && f !== 'rejected') return false;
-      if (q) {
-        const title  = row.dataset.title  || '';
-        const domain = row.dataset.domain || '';
-        const family = row.dataset.family || '';
-        if (!title.includes(q) && !domain.includes(q) && !family.includes(q)) return false;
-      }
-      return true;
-    });
-
-    const totalPages = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
-    if (currentPage > totalPages) currentPage = totalPages;
-    const start = (currentPage - 1) * PAGE_SIZE;
-    const end   = start + PAGE_SIZE;
-
-    // Show/hide rows
-    allRows.forEach(r => { r.style.display = 'none'; });
-    visibleRows.slice(start, end).forEach(r => { r.style.display = ''; });
-
-    // Empty state
-    const emptyRow = document.getElementById('enr-empty-row');
-    if (emptyRow) emptyRow.style.display = visibleRows.length === 0 ? '' : 'none';
-
-    updatePagination(totalPages);
-    updateFilterButtons();
-  }
-
-  function updatePagination(totalPages) {
-    const label = document.getElementById('enr-page-label');
-    const prev  = document.getElementById('enr-prev');
-    const next  = document.getElementById('enr-next');
-    const bar   = document.getElementById('enr-pagination');
-    if (!label) return;
-    label.textContent = `Page ${currentPage} of ${totalPages}`;
-    if (prev) prev.disabled = currentPage <= 1;
-    if (next) next.disabled = currentPage >= totalPages;
-    if (bar)  bar.style.display = totalPages <= 1 ? 'none' : 'flex';
-  }
-
-  function updateFilterButtons() {
-    ['all', 'passed', 'rejected'].forEach(f => {
-      const btn = document.getElementById('enr-btn-' + f);
-      if (btn) btn.dataset.active = String(f === currentFilter);
-    });
-  }
-
-  return {
-    setFilter(f) {
-      currentFilter = f;
-      currentPage   = 1;
-      render();
-    },
-    onSearch(q) {
-      currentSearch = q;
-      currentPage   = 1;
-      render();
-    },
-    setPageSize(n) {
-      PAGE_SIZE   = n;
-      currentPage = 1;
-      render();
-    },
-    prevPage() {
-      if (currentPage > 1) { currentPage--; render(); }
-    },
-    nextPage() {
-      const total = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
-      if (currentPage < total) { currentPage++; render(); }
-    },
-    resetControls() {
-      currentFilter = 'all';
-      currentSearch = '';
-      currentPage   = 1;
-      const searchEl = document.getElementById('enr-search');
-      if (searchEl) searchEl.value = '';
-      render();
-    },
-    init,
-  };
-})();
-
-document.addEventListener('DOMContentLoaded', () => EnrichedTable.init());
-// Also init synchronously if DOM is already ready
-if (document.readyState !== 'loading') EnrichedTable.init();
+document.addEventListener('DOMContentLoaded', () => {
+  window.setTimeout(() => ensureTabLoaded('enriched'), 50);
+});
+if (document.readyState !== 'loading') {
+  window.setTimeout(() => ensureTabLoaded('enriched'), 50);
+}
 </script>
 {% endblock %}
