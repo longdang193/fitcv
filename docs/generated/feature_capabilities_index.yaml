@@ -27,6 +27,9 @@ capabilities:
   feature_id: trigger_run_management
 - capability: CV validation against composition rules
   feature_id: cv_system
+- capability: CV-generation debug snapshots separate authoritative ranking fit from
+    explanatory gap output
+  feature_id: inspection_debugging
 - capability: Cancel queued runs directly from the queue via RQ
   feature_id: run_lifecycle_controls
 - capability: Canonical merge preserving order
@@ -53,6 +56,8 @@ capabilities:
   feature_id: bounded_parallel_enrichment
 - capability: Explicit rejection reasons in rule_filter_results
   feature_id: pipeline_performance
+- capability: Explicit zero-weight semantics for supported ranking features
+  feature_id: settings_system
 - capability: Fallback path for unparseable responses
   feature_id: pipeline_performance
 - capability: FastAPI web server
@@ -99,13 +104,29 @@ capabilities:
   feature_id: cv_system
 - capability: RQ background worker integration
   feature_id: admin_control_plane_core
-- capability: Ranking settings with cross-field validation
+- capability: Ranking settings with six-feature sum-to-one validation
   feature_id: settings_system
+- capability: Ranking-stage artifacts report the full six-feature ranking contract,
+    zero-weight features, and ranked-vs-not-ranked scoring context
+  feature_id: inspection_debugging
 - capability: Responsive wrapping
   feature_id: ui_consistency_theming
 - capability: Retrieval settings
   feature_id: settings_system
 - capability: Run detail page with 3-tab inspection interface
+  feature_id: inspection_debugging
+- capability: Run detail pipeline outcomes can show explicit decision-chain detail
+    when present in the run-results export
+  feature_id: inspection_debugging
+- capability: Run results JSON export
+  feature_id: trigger_run_management
+- capability: Run-scoped CV-generation debug snapshot download for succeeded runs
+    when available
+  feature_id: inspection_debugging
+- capability: Run-scoped settings-used JSON download for succeeded runs when available
+  feature_id: inspection_debugging
+- capability: Run-scoped stage-transition artifact download for succeeded runs when
+    available
   feature_id: inspection_debugging
 - capability: Runs list page with status badges, timestamps, and per-run action buttons
   feature_id: trigger_run_management
@@ -115,12 +136,18 @@ capabilities:
   feature_id: settings_system
 - capability: Shared component classes
   feature_id: ui_consistency_theming
+- capability: Stage-transition artifacts now include bounded pre-decision inputs,
+    decision summaries, and output/change-state samples for each major stage
+  feature_id: inspection_debugging
 - capability: Stale cancellation repair endpoint
   feature_id: run_lifecycle_controls
 - capability: 'Three candidate-profile modes: default_config, upload, paste'
   feature_id: trigger_run_management
 - capability: 'Three job-input modes: path, upload, paste'
   feature_id: trigger_run_management
+- capability: Timeline-linked per-stage stage-artifact downloads for recognized stage-boundary
+    events
+  feature_id: inspection_debugging
 - capability: Timing and throttling settings
   feature_id: settings_system
 - capability: Trigger-time effective settings snapshot
@@ -216,6 +243,8 @@ keywords:
   - settings_system
   reporter:
   - admin_control_plane_core
+  results export:
+  - trigger_run_management
   resume:
   - cv_system
   run detail:
