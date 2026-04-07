@@ -37,8 +37,8 @@ trigger_run_management:
     - Persisted manual checkpoint metadata including next stage, last completed stage, completed stages, and serialized checkpoint payloads remains exclusive to `Stage by Stage`
     - Manual staged runs pause after normalize, enrich, rule_filter, shortlist, ranking, and cv_analysis
     - Manual staged runs can continue from the next pending stage without restarting the whole pipeline
-    - `Run All` now persists stage-boundary progress snapshots during execution instead of waiting until final success to expose reached-stage diagnostics
-    - `Run All` and `Stage by Stage` runs can both snapshot a run-scoped synonym-overlay YAML at trigger time
+    - "`Run All` now persists stage-boundary progress snapshots during execution instead of waiting until final success to expose reached-stage diagnostics"
+    - "`Run All` and `Stage by Stage` runs can both snapshot a run-scoped synonym-overlay YAML at trigger time"
     - Manual staged runs paused after `enrich` can replace the run-scoped synonym-overlay YAML before continuing into `rule_filter`
     - Run detail exposes synonym-overlay state in a dedicated card instead of a crowded top-row action upload
     - Run detail synonym-overlay inspection now shows the active/default YAML snapshot when available
@@ -52,7 +52,7 @@ trigger_run_management:
     - Paused-after-normalize runs can now reach `Download Normalize JSON` through the aggregate normalize timeline row even when normalization removed zero duplicates
     - Timeline-linked stage-slice JSON downloads for recognized stage-boundary events
     - Stage-slice downloads now expose richer per-stage input, output, and changed-state samples instead of summary-only handoff blocks
-    - `cv_analysis` stage downloads can now expose channel-level evidence retrieval counts plus final selected-evidence rationale before `cv_generation`
+    - "`cv_analysis` stage downloads can now expose channel-level evidence retrieval counts plus final selected-evidence rationale before `cv_generation`"
     - CV-generation debug JSON export from run detail for succeeded runs when available
     - Run-results export includes structured CV data and CV generation metadata when available
     - Run-results export distinguishes non-ranked passed jobs as `not_shortlisted`, `shortlisted_not_scored`, or `scored_not_ranked`
