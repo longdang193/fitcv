@@ -73,12 +73,14 @@ The web server and worker share state through BigQuery (append-only events + per
 |---|---|
 | `docs/generated/features_index.yaml` | Machine-friendly index of all features — start here for navigation |
 | `docs/generated/feature_overview.md` | Human-readable feature summary and status |
+| `docs/generated/stages_index.yaml` | Machine-friendly index of active stage contracts |
+| `docs/generated/stage_overview.md` | Human-readable summary of active stage contracts |
 | `docs/fitcv-control-plane-setup.md` | Local dev setup, Docker, troubleshooting |
 | `docs/FitCV-pipeline.md` | High-level pipeline design (data engineering perspective) |
 | `docs/features/<feature_id>/` | Per-feature contract, explanation, and history |
+| `docs/stages/*.yaml` | Stage contract layer for adopted pipeline stages |
 | `docs/superpowers/specs/` | Feature specs and design docs |
 | `docs/superpowers/plans/` | Implementation plans |
-| `docs/superpowers/decisions/` | Architecture decision records |
 | `.cursor/rules/operating-system/` | Project methodology: doc lifecycle, feature lifecycle, planning dispatch |
 
 ### Source layout

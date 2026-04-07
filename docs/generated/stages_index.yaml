@@ -1,0 +1,12 @@
+# Generated Discovery — Do not edit manually
+# Source: docs/stages/*.yaml
+# Regenerate when any stage YAML changes
+
+stages:
+  - stage_id: ranking
+    name: Ranking
+    depends_on: [shortlist]
+    primary_features: [cv_system]
+    related_features: [inspection_debugging]
+    contract: docs/stages/ranking.yaml
+
