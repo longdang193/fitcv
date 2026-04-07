@@ -22,8 +22,8 @@ settings_system:
     - Ranking settings copy aligned to semantic role-alignment and weighted preference-alignment runtime semantics
     - Preference-fit subweights for domain, role-family, and location-type calibration
     - Fit-label threshold descriptions aligned to AI-reranker label calibration semantics
-    - `cv_analysis` semantic-alignment enable/model controls
-    - `cv_analysis` lexical-vs-semantic weight controls for responsibility and domain alignment
+    - "`cv_analysis` semantic-alignment enable/model controls"
+    - "`cv_analysis` lexical-vs-semantic weight controls for responsibility and domain alignment"
     - Validation that each `cv_analysis` lexical/semantic weight pair sums to `1.0`
     - CV generation settings
     - CV composition visibility settings

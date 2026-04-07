@@ -37,27 +37,27 @@ inspection_debugging:
     - Run-detail exports now hide stage-owned downloads such as `Mapping Suggestions JSON` until the owning stage has actually been reached and the owned stage artifact exists
     - Mapping-suggestions snapshots are no longer persisted before `enrich`, avoiding empty pre-stage exports
     - Normalize now always emits an aggregate timeline row that can own `Download Normalize JSON`, even when deduplication removes zero rows
-    - `results.json` now stays focused on the per-job run ledger while `stage-artifacts.json` remains the bundled diagnostic export for stage-owned metrics, reuse, and samples
+    - "`results.json` now stays focused on the per-job run ledger while `stage-artifacts.json` remains the bundled diagnostic export for stage-owned metrics, reuse, and samples"
     - Timeline rows now use humanized stage labels plus compact aggregate stage-summary messaging where stage artifacts are available
     - Stage-transition artifacts now include bounded pre-decision inputs, decision summaries, and output/change-state samples for each major stage
     - Stage-transition artifacts now order samples outcome-first with outputs and dropped-or-changed rows before raw inputs
     - Enrich-stage artifacts and settings-used snapshots can expose effective enrich prompt provenance, including prompt ID, version, template path, and model
     - Prompt provenance for `cv_generation` now reports only the active structured writer runtime prompt instead of implying a dormant markdown-generation prompt is live
     - Ranking-stage artifacts now expose the active AI-score prompt ID, prompt template path, and model so reranker drift is diagnosable from stage-local logs
-    - `cv_generation` artifacts and debug snapshots now expose the active structured writer prompt ID and template path instead of relying on `cv_prompt_version` alone
-    - `cv-debug.json` now explains ranked-job coverage with attempted-vs-non-attempted counts and omission reasons
-    - `settings-used.json` now presents canonical operator-facing settings and moves compatibility-era flat keys into an explicit `compatibility_projection` block when present
+    - "`cv_generation` artifacts and debug snapshots now expose the active structured writer prompt ID and template path instead of relying on `cv_prompt_version` alone"
+    - "`cv-debug.json` now explains ranked-job coverage with attempted-vs-non-attempted counts and omission reasons"
+    - "`settings-used.json` now presents canonical operator-facing settings and moves compatibility-era flat keys into an explicit `compatibility_projection` block when present"
     - Ranking-stage artifacts report the full six-feature ranking contract, zero-weight features, and ranked-vs-not-ranked scoring context
     - Newly generated stage-transition artifacts now version the split final-stage artifact shape as `stage_transition_artifacts_v6`
     - Ranking-stage artifacts and exports now expose per-feature weighted score contributions plus weighted preference-fit subcomponents
     - Ranking-stage decision summaries can now expose configured preference-fit weights and fit-label thresholds for calibration debugging
     - Run-scoped CV-generation debug snapshot download for succeeded runs when available
-    - `cv_analysis` stage artifacts now expose generation-ready, skipped-fit-gate, and analysis-failed records separately from CV writing outcomes
-    - `cv_analysis` stage artifacts and analysis records can now expose per-channel retrieval counts, merged-pool sizing, selected-evidence IDs, matched-channel metadata, and selection reasons
-    - `cv_analysis` artifacts can now expose lexical-versus-semantic subscores, effective hybrid weights, semantic methods, and semantic embedding reuse state for domain and responsibility alignment
-    - `cv_generation` stage artifacts now consume `cv_analysis` outputs and focus on writing, validation, repair, and persistence outcomes only
-    - `cv_generation` debug records and validation snapshots can now distinguish deterministic selected-evidence grounding violations from softer selected-evidence support failures
-    - `cv_generation` artifacts now expose compact validation support-source summaries so reviewers can see whether support came from deterministic or bounded soft-claim checks
+    - "`cv_analysis` stage artifacts now expose generation-ready, skipped-fit-gate, and analysis-failed records separately from CV writing outcomes"
+    - "`cv_analysis` stage artifacts and analysis records can now expose per-channel retrieval counts, merged-pool sizing, selected-evidence IDs, matched-channel metadata, and selection reasons"
+    - "`cv_analysis` artifacts can now expose lexical-versus-semantic subscores, effective hybrid weights, semantic methods, and semantic embedding reuse state for domain and responsibility alignment"
+    - "`cv_generation` stage artifacts now consume `cv_analysis` outputs and focus on writing, validation, repair, and persistence outcomes only"
+    - "`cv_generation` debug records and validation snapshots can now distinguish deterministic selected-evidence grounding violations from softer selected-evidence support failures"
+    - "`cv_generation` artifacts now expose compact validation support-source summaries so reviewers can see whether support came from deterministic or bounded soft-claim checks"
     - Client-side filtering, search, and pagination for large tables
     - Job title as link label in generated outputs
     - Run detail pipeline outcomes can show explicit decision-chain detail when present in the run-results export
@@ -72,7 +72,7 @@ inspection_debugging:
     - Shortlist inspection now stays explicit about active retrieval inputs, describing reusable job-embedding provenance without implying unused candidate chunk embeddings are part of the live path
     - Run detail, run-results exports, and stage artifacts can now expose compact stage-level quality metrics such as shortlist backfill rate, ranking label distribution, cv-analysis skip/ready rates, and cv-generation validation-fail or accepted rates
     - Ranking artifacts, run results, and run detail can now expose exact-match AI-score reuse counts, reuse rates, reuse statuses, and AI-score input fingerprints
-    - `cv_analysis` artifacts, run results, and run detail can now expose exact-match analysis reuse counts, reuse rates, reuse statuses, and analysis input fingerprints
+    - "`cv_analysis` artifacts, run results, and run detail can now expose exact-match analysis reuse counts, reuse rates, reuse statuses, and analysis input fingerprints"
     - Run results can now persist bounded late-stage reuse snapshots so reuse behavior can be audited without extra storage lookups
     - Top-level duplicate stage-quality, reuse, and shortlist-summary blocks are retired from the pipeline summary in favor of stage-owned diagnostics
     - Run-scoped enriched job rows can now include canonical skill companions and parsed mapping suggestions for richer inspection/debug export

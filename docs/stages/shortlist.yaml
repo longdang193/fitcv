@@ -19,7 +19,7 @@ shortlist:
     - fresh-versus-reused embedding provenance for passed jobs
     - bounded candidate-query context for the single retrieval vector used in this stage
     - bounded `stage_transition_artifacts.shortlist` runtime block with input, output, and changed-state samples
-    - `stage_transition_artifacts.shortlist.decision_summary.quality_metrics` with shortlist backfill-rate counts and rate
+    - "`stage_transition_artifacts.shortlist.decision_summary.quality_metrics` with shortlist backfill-rate counts and rate"
   depends_on:
     - rule_filter
   primary_features:

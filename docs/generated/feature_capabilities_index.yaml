@@ -1,6 +1,19 @@
 capabilities:
+- capability: Active shortlist runtime now prepares reusable job embeddings plus the
+    deterministic candidate query vector only; candidate chunk embeddings are not
+    part of the live path unless a later stage explicitly adopts them
+  feature_id: cv_system
+- capability: Adaptive Experience composition with JD-sensitive role-level bullet
+    selection
+  feature_id: cv_system
 - capability: Admin settings UI for CV configuration
   feature_id: cv_system
+- capability: Admin settings default hydration now follows the reorganized config-room
+    layout while preserving flat-path compatibility during the migration window
+  feature_id: settings_system
+- capability: Admin settings defaults now hydrate from the loaded baseline config
+    for supported paths instead of acting as a competing default store
+  feature_id: settings_system
 - capability: All-or-nothing rejection on validation failure
   feature_id: multi_file_job_input
 - capability: Archive and unarchive terminal runs
@@ -9,48 +22,58 @@ capabilities:
   feature_id: trigger_run_management
 - capability: Attached-tab inspection card pattern
   feature_id: ui_consistency_theming
+- capability: Basic-versus-advanced disclosure for expert-only tuning knobs
+  feature_id: settings_system
+- capability: Batch cancel, archive, and unarchive endpoints with explicit processed/skipped
+    summaries
+  feature_id: run_lifecycle_controls
 - capability: BigQuery-backed pipeline settings store
   feature_id: settings_system
 - capability: CSS custom properties design tokens
   feature_id: ui_consistency_theming
-  - capability: CV composition model (section visibility controls)
+- capability: CV composition model (section visibility controls)
   feature_id: cv_system
-- capability: CV composition settings
+- capability: CV composition visibility settings
   feature_id: settings_system
 - capability: CV download links
   feature_id: inspection_debugging
 - capability: CV downloads
   feature_id: trigger_run_management
+- capability: CV generation metadata persistence (schema version, model, prompt version)
+  feature_id: cv_system
 - capability: CV generation settings
   feature_id: settings_system
 - capability: CV results banner on run detail
   feature_id: trigger_run_management
-- capability: CV validation against composition rules
-  feature_id: cv_system
-- capability: Compact stage-level quality metrics in run detail, run results, and stage artifacts
-  feature_id: inspection_debugging
-- capability: Exact-match AI-score reuse for ranking rows when the stage-owned fingerprint and contract still match
-  feature_id: cv_system
-- capability: Exact-match `cv_analysis` reuse for ranked jobs when the stage-owned fingerprint and contract still match
-  feature_id: cv_system
-- capability: Late-stage reuse metrics and run-detail reuse summaries for `ranking` and `cv_analysis`
-  feature_id: inspection_debugging
-- capability: Run summaries and stage artifacts expose shortlist, ranking, `cv_analysis`, and `cv_generation` quality metrics
-  feature_id: cv_system
-- capability: CV-generation prompt guidance now explicitly constrains responsibility, domain, and role-positioning claims to the selected evidence bundle
-  feature_id: cv_system
-- capability: `cv_analysis` lexical-vs-semantic weight controls for responsibility and domain alignment
-  feature_id: settings_system
-- capability: `cv_analysis` semantic-alignment enable/model controls
-  feature_id: settings_system
-- capability: `cv_analysis` artifacts can now expose lexical-versus-semantic subscores, effective hybrid weights, semantic methods, and semantic embedding reuse state for domain and responsibility alignment
+- capability: CV-generation debug JSON export from run detail for succeeded runs when
+    available
+  feature_id: trigger_run_management
+- capability: CV-generation debug snapshots separate authoritative ranking fit from
+    explanatory gap output
   feature_id: inspection_debugging
 - capability: Cancel queued runs directly from the queue via RQ
   feature_id: run_lifecycle_controls
+- capability: Candidate profile YAML can now carry additive role-family, domain-tag,
+    and responsibility-theme metadata that improves `cv_analysis` evidence alignment
+    without breaking existing files
+  feature_id: cv_system
+- capability: Canonical YAML config ownership now lives under `config/runtime`, `config/policy`,
+    and `config/taxonomy`, while prompt text and CV rendering templates stay outside
+    the config room
+  feature_id: cv_system
 - capability: Canonical merge preserving order
   feature_id: multi_file_job_input
+- capability: Canonical skill companion lists and entity payloads for required/preferred
+    skills
+  feature_id: pipeline_performance
 - capability: Canonical snapshot capture for pasted and uploaded inputs
   feature_id: trigger_run_management
+- capability: Checkpoint status and `next_stage` remain staged-only controls layered
+    on top of the shared progress model
+  feature_id: inspection_debugging
+- capability: Clearer current-versus-draft and unsaved-change visibility in the settings
+    UI
+  feature_id: settings_system
 - capability: Client-side filtering, search, and pagination for large tables
   feature_id: inspection_debugging
 - capability: Client-side tab switching
@@ -61,40 +84,75 @@ capabilities:
   feature_id: bounded_parallel_enrichment
 - capability: Consistent action hierarchy (primary, secondary, section)
   feature_id: ui_consistency_theming
-- capability: Warning-only CV max-pages validation
-  feature_id: cv_system
 - capability: Cooperative cancellation at safe checkpoints for running jobs
   feature_id: run_lifecycle_controls
 - capability: Dark/light theme toggle with localStorage persistence
   feature_id: ui_consistency_theming
+- capability: Denser CV section-visibility matrix instead of repeated long-form cards
+  feature_id: settings_system
 - capability: Deterministic output order
   feature_id: bounded_parallel_enrichment
+- capability: Direct cancellation of paused manual runs in `awaiting_continue`
+  feature_id: run_lifecycle_controls
+- capability: 'Dual-artifact persistence: structured CV JSON plus rendered markdown'
+  feature_id: cv_system
+- capability: Effective run settings can be exported once as a dedicated settings-used
+    snapshot instead of being duplicated into every stage block
+  feature_id: cv_system
+- capability: Enrich extraction prompt text now comes from a centralized prompt registry
+    with config-selected prompt IDs
+  feature_id: pipeline_performance
+- capability: Enrich-contract fingerprinting invalidates reuse automatically when
+    prompt/model/schema behavior changes
+  feature_id: pipeline_performance
+- capability: Enrich-stage artifacts and settings-used snapshots can expose effective
+    enrich prompt provenance, including prompt ID, version, template path, and model
+  feature_id: inspection_debugging
+- capability: Enrich-stage mapping suggestion capture for review/debug surfaces
+  feature_id: pipeline_performance
+- capability: Enrich-stage raw-plus-canonical semantic companions for repeated downstream
+    fields
+  feature_id: pipeline_performance
 - capability: Explicit rejection reasons in rule_filter_results
   feature_id: pipeline_performance
+- capability: Explicit zero-weight semantics for supported ranking features
+  feature_id: settings_system
 - capability: Fallback path for unparseable responses
   feature_id: pipeline_performance
 - capability: FastAPI web server
   feature_id: admin_control_plane_core
-- capability: Fingerprint-based enrich-result reuse happens before LLM enrichment using normalized raw-job inputs
-  feature_id: pipeline_performance
-- capability: Fresh shortlist embeddings persist signature metadata so later runs can skip repeated embedding work safely
-  feature_id: pipeline_performance
-- capability: Fit-label threshold descriptions aligned to AI-reranker label calibration semantics
-  feature_id: settings_system
-- capability: Filter outcome display with reasons
+- capability: Filter outcome display with reasons and non-blocking marks
   feature_id: inspection_debugging
+- capability: Final run exports now keep `results.json` focused on compact per-job
+    outcomes while stage-owned diagnostics remain in `stage-artifacts.json` and per-stage
+    artifacts
+  feature_id: cv_system
+- capability: Fingerprint-based enrich-result reuse happens before LLM enrichment
+    using normalized raw-job inputs
+  feature_id: pipeline_performance
+- capability: Fit-label threshold descriptions aligned to AI-reranker label calibration
+    semantics
+  feature_id: settings_system
 - capability: Flash-free theme application
   feature_id: ui_consistency_theming
+- capability: Fresh shortlist embeddings persist signature metadata so later runs
+    can skip repeated embedding work safely
+  feature_id: pipeline_performance
 - capability: Full audit trail in pipeline_run_events
   feature_id: run_lifecycle_controls
+- capability: Gap analysis provides grounded explanation/support context without acting
+    as a competing fit classifier
+  feature_id: cv_system
 - capability: Gemini structured output with response_schema and Pydantic
   feature_id: pipeline_performance
 - capability: Global job filters
   feature_id: settings_system
+- capability: Grouped experience-entry preservation for richer Experience sections
+  feature_id: cv_system
 - capability: Grouped form validation
   feature_id: settings_system
-- capability: Validation that each `cv_analysis` lexical/semantic weight pair sums to `1.0`
-  feature_id: settings_system
+- capability: Grouped project-entry preservation for richer Projects sections
+  feature_id: cv_system
 - capability: Human-readable section headings
   feature_id: ui_consistency_theming
 - capability: Immutable snapshots for all trigger modes
@@ -103,16 +161,76 @@ capabilities:
   feature_id: admin_control_plane_core
 - capability: Job title as link label in generated outputs
   feature_id: inspection_debugging
+- capability: Large runs avoid some row-scaled Layer 4 event noise by relying more
+    on aggregate stage summaries plus stage-owned artifacts
+  feature_id: pipeline_performance
+- capability: Live run-scoped CV-generation debug snapshot capture for ranked jobs,
+    including initial structured output, validation state, repair metadata, and final
+    accepted artifact when available
+  feature_id: cv_system
+- capability: Manual staged runs can continue from the next pending stage without
+    restarting the whole pipeline
+  feature_id: trigger_run_management
+- capability: Manual staged runs now hand off from `ranking -> cv_analysis -> cv_generation`
+    with persisted checkpoint payloads instead of treating all Layer 4 work as one
+    stage
+  feature_id: trigger_run_management
+- capability: Manual staged runs pause after normalize, enrich, rule_filter, shortlist,
+    ranking, and cv_analysis
+  feature_id: trigger_run_management
+- capability: Manual staged runs paused after `enrich` can replace the run-scoped
+    synonym-overlay YAML before continuing into `rule_filter`
+  feature_id: trigger_run_management
+- capability: Mapping-suggestions exports now stay unavailable until `enrich` has
+    truly been reached and a real enrich-owned snapshot exists
+  feature_id: trigger_run_management
+- capability: Mapping-suggestions snapshots are no longer persisted before `enrich`,
+    avoiding empty pre-stage exports
+  feature_id: inspection_debugging
+- capability: Metadata-only CV prompt/template fields retired from the active admin
+    settings surface
+  feature_id: settings_system
+- capability: Metadata-only rendering for single-option pseudo-choice controls such
+    as the fixed CV preset and semantic-alignment model
+  feature_id: settings_system
 - capability: Multiple file inputs in trigger form
   feature_id: multi_file_job_input
+- capability: Newly generated stage-transition artifacts now version the split final-stage
+    artifact shape as `stage_transition_artifacts_v6`
+  feature_id: inspection_debugging
+- capability: Normalize now always emits an aggregate timeline row that can own `Download
+    Normalize JSON`, even when deduplication removes zero rows
+  feature_id: inspection_debugging
 - capability: One immutable snapshot stored per run
   feature_id: multi_file_job_input
+- capability: Operator-facing enriched-job exports now keep canonical semantic fields
+    and fingerprint/reuse provenance while omitting retired raw duplicate classification
+    baggage
+  feature_id: pipeline_performance
+- capability: Operator-facing settings-used exports now keep canonical nested settings
+    as the primary contract and move compatibility-era flat keys into an explicit
+    compatibility block when needed
+  feature_id: settings_system
+- capability: Paused manual runs expose a `Run Next Stage` control in run detail and
+    runs list views
+  feature_id: inspection_debugging
+- capability: Paused-after-normalize runs can now reach `Download Normalize JSON`
+    through the aggregate normalize timeline row even when normalization removed zero
+    duplicates
+  feature_id: trigger_run_management
 - capability: Per-file server-side validation
   feature_id: multi_file_job_input
 - capability: Per-job failure isolation
   feature_id: bounded_parallel_enrichment
 - capability: Per-run overrides
   feature_id: settings_system
+- capability: Persisted manual checkpoint metadata including next stage, last completed
+    stage, completed stages, and serialized checkpoint payloads remains exclusive
+    to `Stage by Stage`
+  feature_id: trigger_run_management
+- capability: Phase 1 active ranking contract limited to runtime-computed `ai_score`
+    and `vector_similarity`
+  feature_id: cv_system
 - capability: PipelineReporter integration
   feature_id: admin_control_plane_core
 - capability: Pre-enrichment global filters run first
@@ -121,90 +239,410 @@ capabilities:
   feature_id: pipeline_performance
 - capability: Pre-enrichment rejects visible separately
   feature_id: inspection_debugging
-- capability: Run-scoped enriched job rows and enrich-stage artifacts can now expose raw-job fingerprints, enrich-contract fingerprints, and fresh-vs-reused enrich provenance
-  feature_id: inspection_debugging
-- capability: `cv_generation` validation snapshots now distinguish deterministic selected-evidence grounding violations from softer selected-evidence support failures
-  feature_id: inspection_debugging
-- capability: `cv_generation` artifacts now expose compact hybrid support-source summaries for debugging accepted and rejected outputs
-  feature_id: inspection_debugging
-- capability: Shortlist inspection now stays explicit about active retrieval inputs, describing reusable job-embedding provenance without implying unused candidate chunk embeddings are part of the live path
-  feature_id: inspection_debugging
-- capability: Shortlist artifacts and run-results shortlist debug can now expose fresh-vs-reused embedding provenance plus structured signature metadata
-  feature_id: inspection_debugging
-- capability: Shortlist debug surfaces can now expose bounded candidate-query components such as flattened-skill samples plus inferred role-family and domain hints
-  feature_id: inspection_debugging
-- capability: Shortlist stage artifacts and shortlist debug payloads can now show whether the single candidate query embedding was reused or freshly created, including its signature and contract fingerprint
-  feature_id: inspection_debugging
+- capability: Preference-fit subweights for domain, role-family, and location-type
+    calibration
+  feature_id: settings_system
 - capability: Preset registry for template binding
   feature_id: cv_system
+- capability: Primary prompt text for `enrich`, `ranking`, and the active structured
+    `cv_generation` runtime path now lives in the shared prompt registry instead of
+    being split across stage modules
+  feature_id: cv_system
+- capability: Prompt provenance for `cv_generation` now reports only the active structured
+    writer runtime prompt instead of implying a dormant markdown-generation prompt
+    is live
+  feature_id: inspection_debugging
 - capability: RQ background worker integration
   feature_id: admin_control_plane_core
-- capability: Ranking settings with cross-field validation
-  feature_id: settings_system
-- capability: Preference-fit subweights for domain, role-family, and location-type calibration
-  feature_id: settings_system
-- capability: Ranking settings copy aligned to semantic role-alignment and weighted preference-alignment runtime semantics
-  feature_id: settings_system
-- capability: Ranking-stage artifacts and exports now expose per-feature weighted score contributions plus weighted preference-fit subcomponents
+- capability: Ranked jobs now use reranker fit as the sole post-filter authority for
+    ranking and CV eligibility
+  feature_id: trigger_run_management
+- capability: Ranking `preference_fit` now scores weighted domain, role-family, and
+    location-type preference alignment
+  feature_id: cv_system
+- capability: Ranking `title_relevance` now uses bounded semantic role alignment instead
+    of pure lexical token overlap
+  feature_id: cv_system
+- capability: Ranking and later CV-facing inspection can reuse enrich-stage canonical
+    skill companions instead of reinterpreting raw required-skill phrases
+  feature_id: cv_system
+- capability: Ranking artifacts, run results, and run detail can now expose exact-match
+    AI-score reuse counts, reuse rates, reuse statuses, and AI-score input fingerprints
   feature_id: inspection_debugging
-- capability: Ranking-stage decision summaries can now expose configured preference-fit weights and fit-label thresholds for calibration debugging
+- capability: Ranking can now infer fallback candidate intent from recent role and
+    domain evidence when explicit YAML preferences are sparse, while keeping explicit
+    preferences authoritative
+  feature_id: cv_system
+- capability: Ranking can now reuse exact-match AI-score rows per job when the reranker
+    input fingerprint and AI-score contract still match, while leaving final weighted
+    ranking fresh on the resulting scored rows
+  feature_id: cv_system
+- capability: Ranking reranker prompts now prioritize required-skill evidence, seniority
+    readiness, and role alignment while treating preferences as explicitly secondary
+  feature_id: cv_system
+- capability: Ranking settings copy aligned to semantic role-alignment and weighted
+    preference-alignment runtime semantics
+  feature_id: settings_system
+- capability: Ranking settings with six-feature sum-to-one validation
+  feature_id: settings_system
+- capability: Ranking-stage artifacts and exports now expose per-feature weighted
+    score contributions plus weighted preference-fit subcomponents
   feature_id: inspection_debugging
-- capability: Ranking reranker prompts now prioritize required-skill evidence, seniority readiness, and role alignment while treating preferences as explicitly secondary
-  feature_id: cv_system
-- capability: Selected-evidence hard facts now gate CV validation before profile-wide fallback when `cv_analysis` provided a bounded evidence bundle
-  feature_id: cv_system
-- capability: Softer role, domain, and responsibility claims now use a bounded hybrid validation path that stays scoped to selected `cv_analysis` evidence
-  feature_id: cv_system
-- capability: Ranking can now infer fallback target-role, role-family, and domain intent from recent profile evidence when explicit YAML preferences are sparse
-  feature_id: cv_system
-- capability: Ranking `title_relevance` now uses bounded semantic role alignment instead of pure lexical token overlap
-  feature_id: cv_system
-- capability: Ranking `preference_fit` now scores weighted domain, role-family, and location-type preference alignment
-  feature_id: cv_system
-- capability: `cv_analysis` final evidence selection now stays bounded while preferring broader coverage of job needs instead of purely additive heuristic score
-  feature_id: cv_system
-- capability: `cv_analysis` now scores domain and responsibility alignment with hybrid lexical-plus-semantic matching, including stage-owned semantic embedding reuse for the candidate evidence and job snippets it actually consumes
+- capability: Ranking-stage artifacts now expose the active AI-score prompt ID, prompt
+    template path, and model so reranker drift is diagnosable from stage-local logs
+  feature_id: inspection_debugging
+- capability: Ranking-stage artifacts report the full six-feature ranking contract,
+    zero-weight features, and ranked-vs-not-ranked scoring context
+  feature_id: inspection_debugging
+- capability: Ranking-stage decision summaries can now expose configured preference-fit
+    weights and fit-label thresholds for calibration debugging
+  feature_id: inspection_debugging
+- capability: Reranker fit is the sole post-filter authority for ranking-time fit
+    and CV-generation eligibility
   feature_id: cv_system
 - capability: Responsive wrapping
   feature_id: ui_consistency_theming
 - capability: Retrieval settings
   feature_id: settings_system
+- capability: Rule Filter settings can choose which deterministic post-enrichment
+    checks block versus only mark jobs
+  feature_id: trigger_run_management
+- capability: Rule-filter stage artifacts and run detail now show the active blocking-filter
+    set plus mark-code counts for selectable screening
+  feature_id: inspection_debugging
+- capability: Run detail can show whether a run-scoped synonym overlay is active for
+    a manual run paused after `enrich`
+  feature_id: inspection_debugging
+- capability: Run detail enriched-jobs table shows a compact pipeline outcome label
+    plus decision-chain detail in addition to filter pass/reject state
+  feature_id: trigger_run_management
+- capability: Run detail exposes synonym-overlay state in a dedicated card instead
+    of a crowded top-row action upload
+  feature_id: trigger_run_management
+- capability: Run detail now groups run-scoped downloads into a compact export surface
+    instead of a wide button row
+  feature_id: trigger_run_management
+- capability: Run detail now keeps stage-slice download links on aggregate stage rows
+    instead of repeating them on per-job subevents
+  feature_id: trigger_run_management
+- capability: Run detail now merges stage quality and late-stage reuse into a compact
+    `Run Health` diagnostics surface
+  feature_id: trigger_run_management
 - capability: Run detail page with 3-tab inspection interface
   feature_id: inspection_debugging
-- capability: Runs list page with status badges, timestamps, and per-run action buttons
+- capability: Run detail pipeline outcomes can show explicit decision-chain detail
+    when present in the run-results export
+  feature_id: inspection_debugging
+- capability: Run detail remains the single-run action surface for continue, stop,
+    archive, unarchive, and repair controls
   feature_id: trigger_run_management
+- capability: Run detail shows execution mode plus shared `last_completed_stage` and
+    completed-stage progress for both `Run All` and `Stage by Stage`
+  feature_id: inspection_debugging
+- capability: Run detail synonym inspection now shows a collapsible YAML snapshot
+    for either the active run overlay or the default synonym config when available
+  feature_id: inspection_debugging
+- capability: Run detail synonym-overlay inspection now shows the active/default YAML
+    snapshot when available
+  feature_id: trigger_run_management
+- capability: Run detail, run-results exports, and stage artifacts can now expose
+    compact stage-level quality metrics such as shortlist backfill rate, ranking label
+    distribution, cv-analysis skip/ready rates, and cv-generation validation-fail
+    or accepted rates
+  feature_id: inspection_debugging
+- capability: Run lifecycle timeout settings
+  feature_id: settings_system
+- capability: Run results JSON export
+  feature_id: trigger_run_management
+- capability: Run results can now persist bounded late-stage reuse snapshots so reuse
+    behavior can be audited without extra storage lookups
+  feature_id: inspection_debugging
+- capability: Run results now persist late-stage reuse snapshots and reuse-rate metrics
+    so later runs can reuse exact-match `ranking` AI-score and `cv_analysis` outputs
+    safely
+  feature_id: cv_system
+- capability: Run setup now includes a run-scoped `Synonym Overlay` input with `Default
+    Config` and `Upload YAML` options
+  feature_id: trigger_run_management
+- capability: Run summaries and stage artifacts now expose stage-level quality metrics
+    for shortlist, ranking, `cv_analysis`, and `cv_generation`
+  feature_id: cv_system
+- capability: Run summaries emit bounded stage-transition artifact blocks for `normalize`,
+    `enrich`, `rule_filter`, `shortlist`, `ranking`, `cv_analysis`, and `cv_generation`
+  feature_id: cv_system
+- capability: Run-detail exports now hide stage-owned downloads such as `Mapping Suggestions
+    JSON` until the owning stage has actually been reached and the owned stage artifact
+    exists
+  feature_id: inspection_debugging
+- capability: Run-results export and run detail distinguish ranked jobs skipped by
+    the Layer 4 fit gate as `ranked_skipped_fit_gate`
+  feature_id: trigger_run_management
+- capability: Run-results export distinguishes non-ranked passed jobs as `not_shortlisted`,
+    `shortlisted_not_scored`, or `scored_not_ranked`
+  feature_id: trigger_run_management
+- capability: Run-results export exposes an explicit decision chain per job covering
+    shortlist path, primary fit authority, CV attempt/skip, and validation outcome
+  feature_id: trigger_run_management
+- capability: Run-results export includes structured CV data and CV generation metadata
+    when available
+  feature_id: trigger_run_management
+- capability: Run-results export now stays job-centric and leaves shortlist retrieval
+    debugging to shortlist-stage diagnostics instead of per-row shortlist debug baggage
+  feature_id: trigger_run_management
+- capability: Run-results exports now stay job-centric and omit retired row-level
+    shortlist-debug baggage that is already owned by shortlist-stage diagnostics
+  feature_id: inspection_debugging
+- capability: Run-scoped CV-generation debug snapshot download for succeeded runs
+    when available
+  feature_id: inspection_debugging
+- capability: Run-scoped enriched job rows and enrich-stage artifacts can now expose
+    raw-job fingerprints, enrich-contract fingerprints, and fresh-vs-reused enrich
+    provenance
+  feature_id: inspection_debugging
+- capability: Run-scoped enriched job rows can now include canonical skill companions
+    and parsed mapping suggestions for richer inspection/debug export
+  feature_id: inspection_debugging
+- capability: Run-scoped settings-used JSON download for succeeded runs when available
+  feature_id: inspection_debugging
+- capability: Run-scoped stage-transition artifact download for succeeded runs and
+    paused manual runs when available
+  feature_id: inspection_debugging
+- capability: Runs list page with status badges, timestamps, visible-row bulk selection,
+    truncated secondary fields, and selection-first bulk lifecycle actions
+  feature_id: trigger_run_management
+- capability: Section-aware evidence retrieval for CV composition
+  feature_id: cv_system
 - capability: Server-side mode resolution
   feature_id: trigger_run_management
 - capability: Settings schema registry
   feature_id: settings_system
+- capability: Settings-used JSON export from run detail for succeeded runs when available
+  feature_id: trigger_run_management
+- capability: Settings-used snapshots now remain accurate after the config-room reorganization
+    into runtime, policy, and taxonomy subfolders
+  feature_id: inspection_debugging
+- capability: Shared `structured_jobs` reuse lookup avoids redundant enrich calls
+    while only fresh rows are upserted back into the shared table
+  feature_id: pipeline_performance
 - capability: Shared component classes
   feature_id: ui_consistency_theming
-- capability: Shared `structured_jobs` reuse lookup avoids redundant enrich calls while only fresh rows are upserted back into the shared table
+- capability: Shared role-title normalization for ranking and candidate-intent inference
+    now lives in central taxonomy config instead of ranking-local alias literals
+  feature_id: cv_system
+- capability: Shared stage progress metadata now persists `last_completed_stage`,
+    `completed_stages`, and reached stage artifacts for both execution modes
+  feature_id: trigger_run_management
+- capability: Shortlist artifacts and run-results shortlist debug can now expose fresh-vs-reused
+    embedding provenance plus structured signature metadata
+  feature_id: inspection_debugging
+- capability: Shortlist artifacts and run-results shortlist debug now expose latest-only
+    retrieval facts, explicit raw-hit flags, and clearer backfill-versus-miss distinctions
+  feature_id: inspection_debugging
+- capability: Shortlist artifacts now distinguish raw vector row counts from unique-job
+    raw-hit counts
+  feature_id: inspection_debugging
+- capability: Shortlist can now reuse unchanged passed-job embeddings when the structured
+    embedding signature and embedding contract both still match
+  feature_id: cv_system
+- capability: Shortlist candidate-query construction now uses flattened profile skills
+    plus bounded role-family and domain hints so retrieval sees more of the candidate's
+    real evidence surface
+  feature_id: cv_system
+- capability: Shortlist debug now reports raw unique-job counts separately from raw
+    row counts and carries explicit raw-hit flags for passed jobs in run-results export
+  feature_id: trigger_run_management
+- capability: Shortlist debug payloads now report observed raw-hit status without
+    overstating retrieval root causes
+  feature_id: inspection_debugging
+- capability: Shortlist debug surfaces can now expose bounded candidate-query components
+    such as flattened-skill samples plus inferred role-family and domain hints
+  feature_id: inspection_debugging
+- capability: Shortlist inspection now stays explicit about active retrieval inputs,
+    describing reusable job-embedding provenance without implying unused candidate
+    chunk embeddings are part of the live path
+  feature_id: inspection_debugging
+- capability: Shortlist no longer generates unused candidate-chunk embeddings as part
+    of shortlist execution
+  feature_id: cv_system
+- capability: Shortlist now builds a stable structured embedding-input signature before
+    generating `job_summary` vectors
   feature_id: pipeline_performance
-- capability: Shortlist can now reuse unchanged passed-job embeddings when the structured embedding signature and embedding contract both still match
+- capability: Shortlist now reuses the single candidate-query embedding used for vector
+    retrieval when the bounded query signature and candidate-query embedding contract
+    still match
   feature_id: cv_system
-- capability: Shortlist candidate-query construction now uses flattened profile skills plus bounded role-family and domain hints so retrieval sees more of the candidate's real evidence surface
+- capability: Shortlist retrieval now ranks only the latest active persistent `job_summary`
+    embedding per canonical `job_url` instead of letting historical duplicate rows
+    compete
   feature_id: cv_system
-- capability: Shortlist now reuses the single candidate-query embedding used for vector retrieval when the bounded query signature and candidate-query embedding contract still match
-  feature_id: cv_system
-- capability: Shortlist no longer generates unused candidate-chunk embeddings as part of shortlist execution
-  feature_id: cv_system
-- capability: Active shortlist runtime now prepares reusable job embeddings plus the deterministic candidate query vector only; candidate chunk embeddings are not part of the live path unless a later stage explicitly adopts them
-  feature_id: cv_system
-- capability: Shortlist now builds a stable structured embedding-input signature before generating `job_summary` vectors
+- capability: Shortlist reuses the latest stored embedding row for a `job_url` only
+    when both the structured signature and embedding contract fingerprint still match
   feature_id: pipeline_performance
-- capability: Shortlist reuses the latest stored embedding row for a `job_url` only when both the structured signature and embedding contract fingerprint still match
-  feature_id: pipeline_performance
+- capability: Shortlist stage artifacts and shortlist debug payloads can now show
+    whether the single candidate query embedding was reused or freshly created, including
+    its signature and contract fingerprint
+  feature_id: inspection_debugging
+- capability: Stage-slice downloads now expose richer per-stage input, output, and
+    changed-state samples instead of summary-only handoff blocks
+  feature_id: trigger_run_management
+- capability: Stage-transition artifacts JSON export from run detail for succeeded
+    runs and paused manual runs when available
+  feature_id: trigger_run_management
+- capability: Stage-transition artifacts now include bounded pre-decision inputs,
+    decision summaries, and output/change-state samples for each major stage
+  feature_id: inspection_debugging
+- capability: Stage-transition artifacts now order samples outcome-first with outputs
+    and dropped-or-changed rows before raw inputs
+  feature_id: inspection_debugging
+- capability: Stage-transition artifacts now preserve bounded input, output, and changed-state
+    context per stage rather than summary-only stage results
+  feature_id: cv_system
 - capability: Stale cancellation repair endpoint
   feature_id: run_lifecycle_controls
+- capability: State-aware max-runtime timeout handling for queued, running, cancelling,
+    and paused manual runs
+  feature_id: run_lifecycle_controls
+- capability: Structured CV document generation aligned to preset/composition settings
+  feature_id: cv_system
+- capability: Structured normalization and markdown validation share one config-driven
+    required-section contract with bounded completeness checks
+  feature_id: cv_system
+- capability: Task-first admin settings UI sections for Selection, Ranking, CV Output,
+    Run Safety, and Advanced tuning
+  feature_id: settings_system
 - capability: 'Three candidate-profile modes: default_config, upload, paste'
   feature_id: trigger_run_management
 - capability: 'Three job-input modes: path, upload, paste'
   feature_id: trigger_run_management
+- capability: Timeline rows now use humanized stage labels plus compact aggregate
+    stage-summary messaging where stage artifacts are available
+  feature_id: inspection_debugging
+- capability: Timeline-linked per-stage stage-artifact downloads for recognized aggregate
+    stage-boundary events only
+  feature_id: inspection_debugging
+- capability: Timeline-linked stage-slice JSON downloads for recognized stage-boundary
+    events
+  feature_id: trigger_run_management
+- capability: Timeout copy now distinguishes queue wait, active runtime, and Stage
+    by Stage manual-wait time
+  feature_id: run_lifecycle_controls
 - capability: Timing and throttling settings
   feature_id: settings_system
+- capability: Top-level duplicate stage-quality, reuse, and shortlist-summary blocks
+    are retired from the pipeline summary in favor of stage-owned diagnostics
+  feature_id: inspection_debugging
+- capability: Top-level shortlist debug distinguishes raw vector-search hits from
+    the later scoring shortlist after any backfill
+  feature_id: trigger_run_management
 - capability: Trigger-time effective settings snapshot
   feature_id: settings_system
+- capability: 'Two execution modes: `Run All` and `Stage by Stage`'
+  feature_id: trigger_run_management
+- capability: Validation that each `cv_analysis` lexical/semantic weight pair sums
+    to `1.0`
+  feature_id: settings_system
+- capability: Warning-only CV max-pages validation
+  feature_id: cv_system
+- capability: Warning-only CV max-pages validation setting
+  feature_id: settings_system
+- capability: '`Run All` and `Stage by Stage` runs can both snapshot a run-scoped
+    synonym-overlay YAML at trigger time'
+  feature_id: trigger_run_management
+- capability: '`Run All` now persists stage-boundary progress snapshots during execution
+    instead of waiting until final success to expose reached-stage diagnostics'
+  feature_id: trigger_run_management
+- capability: '`cv-debug.json` now explains ranked-job coverage with attempted-vs-non-attempted
+    counts and omission reasons'
+  feature_id: inspection_debugging
+- capability: '`cv_analysis` artifacts can now expose lexical-versus-semantic subscores,
+    effective hybrid weights, semantic methods, and semantic embedding reuse state
+    for domain and responsibility alignment'
+  feature_id: inspection_debugging
+- capability: '`cv_analysis` artifacts, run results, and run detail can now expose
+    exact-match analysis reuse counts, reuse rates, reuse statuses, and analysis input
+    fingerprints'
+  feature_id: inspection_debugging
+- capability: '`cv_analysis` can now reuse exact-match analysis records per ranked
+    job when the analysis input fingerprint and analysis contract still match, while
+    keeping fresh computation as the safe fallback'
+  feature_id: cv_system
+- capability: '`cv_analysis` evidence retrieval now over-retrieves separate required-skill,
+    role, domain, and responsibility candidate pools before merging, deduping by stable
+    `evidence_id`, and selecting one bounded final evidence bundle'
+  feature_id: cv_system
+- capability: '`cv_analysis` final evidence selection now stays bounded while preferring
+    broader coverage of job needs instead of purely additive heuristic score'
+  feature_id: cv_system
+- capability: '`cv_analysis` lexical-vs-semantic weight controls for responsibility
+    and domain alignment'
+  feature_id: settings_system
+- capability: '`cv_analysis` now owns ranked-job context merge, evidence retrieval,
+    gap analysis, and final fit-gate preparation before CV writing'
+  feature_id: cv_system
+- capability: '`cv_analysis` now scores domain and responsibility alignment with hybrid
+    lexical-plus-semantic matching, including stage-owned semantic embedding reuse
+    for the candidate evidence and job snippets it actually consumes'
+  feature_id: cv_system
+- capability: '`cv_analysis` selection-policy knobs now live in dedicated config instead
+    of stage-local constants, while shared contract/version identifiers and analysis-channel
+    semantics are imported from central runtime modules'
+  feature_id: cv_system
+- capability: '`cv_analysis` semantic-alignment enable/model controls'
+  feature_id: settings_system
+- capability: '`cv_analysis` stage artifacts and analysis records can now expose per-channel
+    retrieval counts, merged-pool sizing, selected-evidence IDs, matched-channel metadata,
+    and selection reasons'
+  feature_id: inspection_debugging
+- capability: '`cv_analysis` stage artifacts now expose generation-ready, skipped-fit-gate,
+    and analysis-failed records separately from CV writing outcomes'
+  feature_id: inspection_debugging
+- capability: '`cv_analysis` stage downloads can now expose channel-level evidence
+    retrieval counts plus final selected-evidence rationale before `cv_generation`'
+  feature_id: trigger_run_management
+- capability: '`cv_generation.structured_write.v1` is now the sole active `cv_generation`
+    runtime prompt contract; the legacy markdown writer prompt is no longer part of
+    active pipeline config or runtime provenance'
+  feature_id: cv_system
+- capability: '`cv_generation` artifacts and debug snapshots now expose the active
+    structured writer prompt ID and template path instead of relying on `cv_prompt_version`
+    alone'
+  feature_id: inspection_debugging
+- capability: '`cv_generation` artifacts now expose compact validation support-source
+    summaries so reviewers can see whether support came from deterministic or bounded
+    soft-claim checks'
+  feature_id: inspection_debugging
+- capability: '`cv_generation` debug records and validation snapshots can now distinguish
+    deterministic selected-evidence grounding violations from softer selected-evidence
+    support failures'
+  feature_id: inspection_debugging
+- capability: '`cv_generation` now consumes persisted `cv_analysis` outputs for writing,
+    validation, repair, and persistence instead of recomputing analysis by default'
+  feature_id: cv_system
+- capability: '`cv_generation` prompt guidance now explicitly tells the writer to
+    stay inside the selected evidence bundle for responsibility, domain, and role-positioning
+    claims'
+  feature_id: cv_system
+- capability: '`cv_generation` stage artifacts now consume `cv_analysis` outputs and
+    focus on writing, validation, repair, and persistence outcomes only'
+  feature_id: inspection_debugging
+- capability: '`cv_generation` validation now checks hard facts such as employers,
+    projects, and skills against the selected `cv_analysis` evidence bundle instead
+    of only the full candidate profile when selected evidence is available'
+  feature_id: cv_system
+- capability: '`cv_generation` validation now rejects unresolved candidate-name placeholders
+    such as `[Candidate Name]` instead of accepting them as valid output'
+  feature_id: cv_system
+- capability: '`cv_generation` validation now uses a bounded hybrid path for softer
+    role, domain, and responsibility claims, combining deterministic selected-theme/tag
+    support with compact selected-evidence text matching'
+  feature_id: cv_system
+- capability: '`results.json` now stays focused on the per-job run ledger while `stage-artifacts.json`
+    remains the bundled diagnostic export for stage-owned metrics, reuse, and samples'
+  feature_id: inspection_debugging
+- capability: '`settings-used.json` now presents canonical operator-facing settings
+    and moves compatibility-era flat keys into an explicit `compatibility_projection`
+    block when present'
+  feature_id: inspection_debugging
 - capability: enrichment_batch_size setting
   feature_id: bounded_parallel_enrichment
 - capability: enrichment_concurrency setting
@@ -257,6 +695,8 @@ keywords:
   - inspection_debugging
   design system:
   - ui_consistency_theming
+  embeddings:
+  - pipeline_performance
   enriched jobs:
   - inspection_debugging
   enrichment:
@@ -266,6 +706,8 @@ keywords:
   - cv_system
   filter outcomes:
   - inspection_debugging
+  fingerprint:
+  - pipeline_performance
   global filters:
   - pipeline_performance
   inspection:
@@ -296,8 +738,12 @@ keywords:
   - settings_system
   reporter:
   - admin_control_plane_core
+  results export:
+  - trigger_run_management
   resume:
   - cv_system
+  reuse:
+  - pipeline_performance
   run detail:
   - inspection_debugging
   run management:
@@ -309,6 +755,10 @@ keywords:
   - settings_system
   settings:
   - settings_system
+  shortlist:
+  - pipeline_performance
+  signature:
+  - pipeline_performance
   snapshots:
   - inspection_debugging
   stop:
