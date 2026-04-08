@@ -2,6 +2,43 @@
 
 ## Changelog
 
+### 2.28.0 — active
+
+- Run-scoped artifact headers now version the reranker-blocked truth family explicitly, export `run_mode` / `run_mode_label`, and make bundle manifests self-describing without control-plane lookup
+- `cv_analysis` reuse diagnostics now describe executed analysis rows separately from reranker-blocked rows, so run-health and stage-local reuse counters no longer mix "analyzed" with "blocked before analysis"
+
+### 2.27.0 — active
+
+- Compact `results.json` rows now keep reranker-blocked ranked jobs internally consistent by propagating `blocked_by_reranker_fit` into the compact `decision_chain` instead of falling back to a generic `not_run`
+- `cv-debug.json` ranked-job coverage accounting now counts reranker-blocked rows as explicit non-attempted ranked jobs with omission reasons, so coverage summaries no longer silently drop them
+
+### 2.26.0 — active
+
+- Final-stage artifacts and operator surfaces now distinguish reranker-blocked ranked jobs from true analyzed-and-skipped jobs with the explicit `blocked_by_reranker_fit` outcome
+- This keeps `results.json`, `cv_analysis` diagnostics, and run-detail messaging aligned with the real stage boundary instead of treating both outcomes as one generic skip path
+
+### 2.25.0 — active
+
+- Skipped-fit-gate rows in `results.json` no longer contradict themselves by pairing a row-level `cv_analysis.status = skipped_fit_gate` with a `decision_chain` placeholder of `not_run`
+- The compact ledger now treats skipped-fit-gate as a completed `cv_analysis` outcome while keeping `cv_generation` explicitly unattempted
+
+### 2.24.0 — active
+
+- `results.json` rows now stay compact and job-ledger-only by dropping full `original_job`, full `enriched_job`, bulky score-explanation substructures, and full CV bodies
+- `stage-artifacts.json` remains the heavy diagnostics bundle, so stage-owned samples, decision summaries, and provenance stay available without being duplicated into every job row
+- Skipped-fit-gate CV-generation debug records now preserve their fit-gate outcome reason consistently instead of losing it at the final-stage debug handoff
+
+### 2.23.0 — active
+
+- `cv_analysis` stage summaries no longer report misleading fresh/reused embedding totals that were produced by summing cumulative per-record cache snapshots
+- Per-record evidence-selection summaries still retain their local semantic embedding-count diagnostics for deep debugging
+
+### 2.22.0 — active
+
+- Run detail now offers `Download All Artifacts (.zip)` as a convenience bundle over the existing artifact contract
+- Bundle contents are stage-gated and availability-aware, so partial runs export only the artifacts they have actually reached
+- Each bundle now includes a lightweight `manifest.json` describing included and missing files
+
 ### 2.21.0 — active
 
 - Run detail now shows shared stage progress for both `Run All` and `Stage by Stage` instead of treating progress as a staged-only concept
@@ -165,6 +202,10 @@
 - Added a dedicated run-scoped `settings-used.json` download so effective run settings can be inspected without opening stage artifacts or internal snapshots
 - Event timeline rows for recognized stage-boundary events can now download the corresponding stage-slice JSON directly
 - This rollout stays download-only and does not add an in-page artifact viewer
+
+### 1.6.0 — active
+
+- Succeeded `Stage by Stage` runs now preserve reranker-blocked CV debug rows across the pause after `cv_analysis`, so final `results.json` and `cv-debug.json` match the already-correct `Run All` truth
 
 ### 1.5.0 — active
 

@@ -13,6 +13,8 @@ def test_all_expected_keys_present():
     keys = {s["key"] for s in SETTINGS_SCHEMA}
     assert "pipeline.final_top_n" in keys
     assert "cv_analysis.semantic_alignment.enabled" in keys
+    assert "cv_analysis.semantic_alignment.required_skill_lexical_weight" in keys
+    assert "cv_analysis.semantic_alignment.role_semantic_weight" in keys
     assert "cv_analysis.semantic_alignment.responsibility_lexical_weight" in keys
     assert "cv_analysis.semantic_alignment.domain_semantic_weight" in keys
     assert "run_lifecycle.max_runtime_minutes" in keys
@@ -260,11 +262,31 @@ def test_apply_settings_to_config_rule_filter_selected_filters_nested() -> None:
 
 def test_cv_analysis_semantic_alignment_validate_accepts_balanced_weight_pairs() -> None:
     validate_settings({
+        "cv_analysis.semantic_alignment.required_skill_lexical_weight": 0.70,
+        "cv_analysis.semantic_alignment.required_skill_semantic_weight": 0.30,
+        "cv_analysis.semantic_alignment.role_lexical_weight": 0.60,
+        "cv_analysis.semantic_alignment.role_semantic_weight": 0.40,
         "cv_analysis.semantic_alignment.responsibility_lexical_weight": 0.25,
         "cv_analysis.semantic_alignment.responsibility_semantic_weight": 0.75,
         "cv_analysis.semantic_alignment.domain_lexical_weight": 0.40,
         "cv_analysis.semantic_alignment.domain_semantic_weight": 0.60,
     })
+
+
+def test_cv_analysis_semantic_alignment_validate_rejects_unbalanced_required_skill_weights() -> None:
+    with pytest.raises(ValidationError, match="required-skill"):
+        validate_settings({
+            "cv_analysis.semantic_alignment.required_skill_lexical_weight": 0.50,
+            "cv_analysis.semantic_alignment.required_skill_semantic_weight": 0.20,
+        })
+
+
+def test_cv_analysis_semantic_alignment_validate_rejects_unbalanced_role_weights() -> None:
+    with pytest.raises(ValidationError, match="role"):
+        validate_settings({
+            "cv_analysis.semantic_alignment.role_lexical_weight": 0.20,
+            "cv_analysis.semantic_alignment.role_semantic_weight": 0.20,
+        })
 
 
 def test_cv_analysis_semantic_alignment_validate_rejects_unbalanced_responsibility_weights() -> None:
@@ -396,6 +418,10 @@ def test_settings_sections_retrieval_has_semantic_alignment_keys():
     assert "pipeline.evidence_top_k" in SETTINGS_SECTIONS["retrieval"]
     assert "cv_analysis.semantic_alignment.enabled" in SETTINGS_SECTIONS["retrieval"]
     assert "cv_analysis.semantic_alignment.model" in SETTINGS_SECTIONS["retrieval"]
+    assert "cv_analysis.semantic_alignment.required_skill_lexical_weight" in SETTINGS_SECTIONS["retrieval"]
+    assert "cv_analysis.semantic_alignment.required_skill_semantic_weight" in SETTINGS_SECTIONS["retrieval"]
+    assert "cv_analysis.semantic_alignment.role_lexical_weight" in SETTINGS_SECTIONS["retrieval"]
+    assert "cv_analysis.semantic_alignment.role_semantic_weight" in SETTINGS_SECTIONS["retrieval"]
     assert "cv_analysis.semantic_alignment.responsibility_lexical_weight" in SETTINGS_SECTIONS["retrieval"]
     assert "cv_analysis.semantic_alignment.responsibility_semantic_weight" in SETTINGS_SECTIONS["retrieval"]
     assert "cv_analysis.semantic_alignment.domain_lexical_weight" in SETTINGS_SECTIONS["retrieval"]

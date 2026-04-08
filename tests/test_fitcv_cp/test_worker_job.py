@@ -27,6 +27,7 @@ def test_worker_persists_results_export_json_on_success():
     mock_run.triggered_by = "admin"
     mock_run.jobs_input_source = "upload"
     mock_run.candidate_profile_source = "default_config"
+    mock_run.run_mode = "run_all"
     mock_run.created_at = None
     mock_run.started_at = None
     mock_run.finished_at = None
@@ -48,7 +49,9 @@ def test_worker_persists_results_export_json_on_success():
     stored_json = mock_store_export.call_args.args[1]
     payload = json.loads(stored_json)
     assert payload["run_id"] == "r1"
-    assert payload["results_schema_version"] == "results_job_ledger_v1"
+    assert payload["results_schema_version"] == "results_job_ledger_v3"
+    assert payload["run_mode"] == "run_all"
+    assert payload["run_mode_label"] == "Run All"
     assert payload["summary"]["ranked"] == 2
     assert "stage_quality_metrics" not in payload
     assert "late_stage_reuse_metrics" not in payload
@@ -56,7 +59,7 @@ def test_worker_persists_results_export_json_on_success():
     assert payload["results"][0]["job_url"] == "https://example.com/1"
 
 
-def test_worker_persists_structured_cv_fields_in_results_export_json():
+def test_worker_persists_compact_cv_fields_in_results_export_json():
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
@@ -64,11 +67,11 @@ def test_worker_persists_structured_cv_fields_in_results_export_json():
     mock_run.triggered_by = "admin"
     mock_run.jobs_input_source = "upload"
     mock_run.candidate_profile_source = "default_config"
+    mock_run.run_mode = "manual_staged"
     mock_run.created_at = None
     mock_run.started_at = None
     mock_run.finished_at = None
 
-    structured_cv = {"schema_version": "cv_doc_v1", "sections": {"summary": {"text": "Grounded summary."}}}
     with patch("fitcv_cp.worker_job.run_pipeline", return_value={
         "run_id": "r1",
         "total_jobs": 5,
@@ -84,17 +87,14 @@ def test_worker_persists_structured_cv_fields_in_results_export_json():
                 "cv_generation": {"status": "accepted", "attempted": True},
                 "validation": {"status": "accepted"},
             },
-            "cv": {
-                "version_id": "v1",
-                "ranking_fit_label": "strong",
-                "model_used": "gemini-2.5-pro",
-                "prompt_version": "cv_prompt_v3",
-                "schema_version": "cv_doc_v1",
-                "structured": structured_cv,
-                "markdown": "# CV",
-                "created_at": "2026-03-29T12:00:00+00:00",
-            },
-        }],
+                "cv": {
+                    "version_id": "v1",
+                    "ranking_fit_label": "strong",
+                    "model_used": "gemini-2.5-pro",
+                    "schema_version": "cv_doc_v1",
+                    "created_at": "2026-03-29T12:00:00+00:00",
+                },
+            }],
     }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export:
@@ -105,7 +105,8 @@ def test_worker_persists_structured_cv_fields_in_results_export_json():
     assert payload["results"][0]["cv"]["ranking_fit_label"] == "strong"
     assert payload["results"][0]["cv"]["model_used"] == "gemini-2.5-pro"
     assert payload["results"][0]["cv"]["schema_version"] == "cv_doc_v1"
-    assert payload["results"][0]["cv"]["structured"] == structured_cv
+    assert "structured" not in payload["results"][0]["cv"]
+    assert "markdown" not in payload["results"][0]["cv"]
 
 
 def test_worker_excludes_stage_quality_metrics_from_results_export_json():
@@ -116,6 +117,7 @@ def test_worker_excludes_stage_quality_metrics_from_results_export_json():
     mock_run.triggered_by = "admin"
     mock_run.jobs_input_source = "path"
     mock_run.candidate_profile_source = "default_config"
+    mock_run.run_mode = "run_all"
     mock_run.created_at = None
     mock_run.started_at = None
     mock_run.finished_at = None
@@ -174,10 +176,11 @@ def test_worker_moves_late_stage_reuse_snapshots_under_diagnostic_support():
                 "reuse_rate": 0.5,
             },
             "cv_analysis": {
-                "reused_analysis_records": 1,
-                "fresh_analysis_records": 0,
-                "total_analysis_records": 1,
-                "reuse_rate": 1.0,
+                "analysis_rows_executed": 1,
+                "reused_analysis_rows": 1,
+                "fresh_analysis_rows": 0,
+                "blocked_before_analysis_rows": 0,
+                "analysis_reuse_rate": 1.0,
             },
         },
         "late_stage_reuse_snapshots": {
@@ -292,6 +295,9 @@ def test_worker_persists_cv_generation_debug_json_on_success():
     mock_store_debug.assert_called_once()
     payload = json.loads(mock_store_debug.call_args.args[1])
     assert payload["run_id"] == "r1"
+    assert payload["debug_schema_version"] == "cv_generation_debug_v3"
+    assert payload["run_mode"] == "run_all"
+    assert payload["run_mode_label"] == "Run All"
     assert payload["ranked_jobs_total"] == 2
     assert payload["debug_records_captured"] == 1
     assert payload["snapshot_complete"] is False
@@ -360,6 +366,71 @@ def test_worker_persists_cv_generation_debug_coverage_accounting():
     assert payload["non_attempted_ranked_jobs_total"] == 1
     assert payload["omission_reason_counts"] == {"skipped_fit_gate": 1}
     assert payload["snapshot_complete"] is True
+
+
+def test_worker_persists_cv_generation_debug_coverage_for_reranker_blocked_rows():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.run_mode = "manual_staged"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r1",
+        "total_jobs": 5,
+        "passed_filter": 3,
+        "ranked": 3,
+        "cvs_generated": 1,
+        "cv_generation_debug_records": [
+            {
+                "job_url": "https://example.com/1",
+                "status": "accepted",
+                "ranking_fit_label": "stretch",
+                "fit_classification": "stretch",
+                "decision_chain": {},
+                "evidence_used": [],
+                "gap_summary": {"matched": ["SQL"]},
+                "structured_cv_initial": {"schema_version": "cv_doc_v1"},
+                "validation_initial": {"valid": True, "missing_sections": [], "grounding_violations": [], "skill_violations": [], "warnings": []},
+                "repair_attempt": {"performed": False, "missing_sections": []},
+                "structured_cv_final": {"schema_version": "cv_doc_v1"},
+                "markdown_final": "# CV",
+                "error": None,
+            }
+        ],
+        "cv_analysis_results": [
+            {
+                "job_url": "https://example.com/1",
+                "status": "ready_for_generation",
+                "analysis_reuse_status": "reused_exact_match",
+            },
+            {
+                "job_url": "https://example.com/2",
+                "status": "blocked_by_reranker_fit",
+                "analysis_reuse_status": "not_run_reranker_skip",
+            },
+            {
+                "job_url": "https://example.com/3",
+                "status": "blocked_by_reranker_fit",
+                "analysis_reuse_status": "not_run_reranker_skip",
+            },
+        ],
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_cv_generation_debug") as mock_store_debug:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    payload = json.loads(mock_store_debug.call_args.args[1])
+    assert payload["attempted_generation_jobs_total"] == 1
+    assert payload["non_attempted_ranked_jobs_total"] == 2
+    assert payload["omission_reason_counts"] == {"blocked_by_reranker_fit": 2}
+    assert payload["snapshot_complete"] is False
 
 
 def test_worker_persists_stage_transition_artifacts_json_on_success():

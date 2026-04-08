@@ -97,6 +97,23 @@ def test_build_generation_prompt_includes_grounding_constraints_from_profile() -
     assert "Do not invent project names" in prompt
 
 
+def test_build_generation_prompt_requires_exact_candidate_name_in_header() -> None:
+    prompt = build_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["SQL"]},
+        evidence=[{"name": "GA4 Project", "skills": ["SQL"]}],
+        gap={"matched": ["SQL"], "missing": []},
+        template="",
+        profile={
+            "name": "Jane Doe",
+            "experiences": [],
+            "projects": [],
+            "skills": [],
+        },
+    )
+    assert "Use this exact candidate name in the header: Jane Doe" in prompt
+    assert "Do not output placeholder names such as Candidate Name" in prompt
+
+
 def test_build_generation_prompt_restricts_skills_section_to_candidate_skill_whitelist() -> None:
     prompt = build_generation_prompt(
         jd={"title": "Data Engineer", "required_skills": ["SQL"]},

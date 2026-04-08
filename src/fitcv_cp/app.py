@@ -1,8 +1,10 @@
 """FastAPI admin control plane app."""
 import dataclasses
 import datetime
+import io
 import json as _json
 import uuid
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -46,8 +48,12 @@ PIPELINE_OUTCOME_META: dict[str, dict[str, str]] = {
         "label": "CV created",
         "badge_class": "badge-success",
     },
+    "ranked_blocked_by_reranker_fit": {
+        "label": "Ranked, blocked by reranker fit",
+        "badge_class": "badge-warning",
+    },
     "ranked_skipped_fit_gate": {
-        "label": "Ranked, skipped by fit gate",
+        "label": "Skipped after CV analysis",
         "badge_class": "badge-warning",
     },
     "ranked_no_cv": {
@@ -88,7 +94,8 @@ DECISION_CHAIN_LABELS: dict[str, str] = {
     "validation_failed": "validation failed",
     "generation_failed": "generation failed",
     "persistence_failed": "persistence failed",
-    "skipped_fit_gate": "skipped by fit gate",
+    "blocked_by_reranker_fit": "blocked by reranker fit",
+    "skipped_fit_gate": "skipped after CV analysis",
     "not_attempted": "not attempted",
     "not_run": "not run",
     "failed": "failed",
@@ -169,6 +176,38 @@ POSITIVE_METRIC_LABEL_MARKERS = (
     "Accepted Rate",
     "Strong Rate",
 )
+BUNDLE_STAGE_IDS: tuple[str, ...] = (
+    "normalize",
+    "enrich",
+    "rule_filter",
+    "shortlist",
+    "ranking",
+    "cv_analysis",
+    "cv_generation",
+)
+BUNDLE_ARTIFACT_FILENAMES: tuple[str, ...] = (
+    "results.json",
+    "stage-artifacts.json",
+    "normalize.json",
+    "enrich.json",
+    "rule_filter.json",
+    "shortlist.json",
+    "ranking.json",
+    "cv_analysis.json",
+    "cv_generation.json",
+    "settings-used.json",
+    "cv-debug.json",
+    "mapping-suggestions.json",
+)
+
+
+@dataclasses.dataclass(frozen=True)
+class RunArtifactFile:
+    filename: str
+    label: str
+    href: str
+    content: str
+    show_in_exports: bool = True
 
 
 def _load_stage_transition_artifacts_payload(run: PipelineRun) -> dict[str, Any]:
@@ -347,6 +386,12 @@ def _build_stage_quality_metric_rows(stage_quality_metrics: dict[str, Any]) -> l
 
     cv_analysis = dict(stage_quality_metrics.get("cv_analysis") or {})
     cv_analysis_specs = (
+        (
+            "CV Analysis Reranker Block Rate",
+            "blocked_by_reranker_fit_rate",
+            "blocked_by_reranker_fit",
+            "Ranked jobs stopped before CV analysis because reranker fit was skip.",
+        ),
         ("CV Analysis Skip Rate", "skip_rate", "skipped_fit_gate", "Jobs blocked by the fit gate after ranking."),
         (
             "CV Analysis Ready Rate",
@@ -434,13 +479,13 @@ def _build_late_stage_reuse_metric_rows(late_stage_reuse_metrics: dict[str, Any]
     cv_analysis_row = _stage_quality_metric_row(
         stage_id="cv_analysis",
         label="CV Analysis Reuse Rate",
-        rate=cv_analysis.get("reuse_rate"),
-        numerator=cv_analysis.get("reused_analysis_records"),
-        denominator=cv_analysis.get("total_analysis_records"),
+        rate=cv_analysis.get("analysis_reuse_rate"),
+        numerator=cv_analysis.get("reused_analysis_rows"),
+        denominator=cv_analysis.get("analysis_rows_executed"),
         hint="Exact-match analysis records reused from previous successful runs.",
     )
     if cv_analysis_row:
-        cv_analysis_row["fresh_count"] = int(cv_analysis.get("fresh_analysis_records") or 0)
+        cv_analysis_row["fresh_count"] = int(cv_analysis.get("fresh_analysis_rows") or 0)
         rows.append(cv_analysis_row)
 
     return rows
@@ -470,33 +515,126 @@ def _build_run_health_rows(
     return rows
 
 
-def _build_run_export_links(run: PipelineRun) -> list[dict[str, str]]:
-    links: list[dict[str, str]] = []
+def _pretty_json_string(raw_json: str) -> str:
+    return _json.dumps(_json.loads(raw_json), ensure_ascii=False, indent=2)
+
+
+def _build_stage_slice_payload(run: PipelineRun, stage_id: str) -> dict[str, Any] | None:
+    if stage_id not in BUNDLE_STAGE_IDS:
+        return None
+    if not run.stage_transition_artifacts_json:
+        return None
+    artifact_payload = _json.loads(run.stage_transition_artifacts_json)
+    artifacts = artifact_payload.get("artifacts") or {}
+    stages = artifacts.get("stages") or {}
+    stage_artifact = stages.get(stage_id)
+    if not isinstance(stage_artifact, dict):
+        return None
+    return {
+        "run_id": run.run_id,
+        "stage_id": stage_id,
+        "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+        "created_at": artifact_payload.get("created_at"),
+        "stage_artifact": stage_artifact,
+    }
+
+
+def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFile]:
+    files: list[RunArtifactFile] = []
     stage_artifacts_by_id = _stage_artifacts_by_id(run)
+
     if run.status == RunStatus.SUCCEEDED and run.results_export_json:
-        links.append({"label": "Results JSON (Job Ledger)", "href": f"/admin/runs/{run.run_id}/export.json"})
+        files.append(
+            RunArtifactFile(
+                filename="results.json",
+                label="Results JSON (Job Ledger)",
+                href=f"/admin/runs/{run.run_id}/export.json",
+                content=_pretty_json_string(run.results_export_json),
+            )
+        )
     if run.status == RunStatus.SUCCEEDED and run.cv_generation_debug_json:
-        links.append({"label": "CV Debug JSON", "href": f"/admin/runs/{run.run_id}/cv-debug.json"})
+        files.append(
+            RunArtifactFile(
+                filename="cv-debug.json",
+                label="CV Debug JSON",
+                href=f"/admin/runs/{run.run_id}/cv-debug.json",
+                content=_pretty_json_string(run.cv_generation_debug_json),
+            )
+        )
     if run.status == RunStatus.SUCCEEDED and run.settings_used_json:
-        links.append({"label": "Settings Used JSON", "href": f"/admin/runs/{run.run_id}/settings-used.json"})
-    if (
-        run.mapping_suggestions_json
-        and _run_has_reached_stage(run, "enrich")
-        and "enrich" in stage_artifacts_by_id
-    ):
-        links.append(
-            {
-                "label": "Mapping Suggestions JSON",
-                "href": f"/admin/runs/{run.run_id}/mapping-suggestions.json",
-            }
+        files.append(
+            RunArtifactFile(
+                filename="settings-used.json",
+                label="Settings Used JSON",
+                href=f"/admin/runs/{run.run_id}/settings-used.json",
+                content=_pretty_json_string(run.settings_used_json),
+            )
+        )
+    if run.mapping_suggestions_json and _run_has_reached_stage(run, "enrich") and "enrich" in stage_artifacts_by_id:
+        files.append(
+            RunArtifactFile(
+                filename="mapping-suggestions.json",
+                label="Mapping Suggestions JSON",
+                href=f"/admin/runs/{run.run_id}/mapping-suggestions.json",
+                content=_pretty_json_string(run.mapping_suggestions_json),
+            )
         )
     if run.stage_transition_artifacts_json and run.status != RunStatus.QUEUED:
+        files.append(
+            RunArtifactFile(
+                filename="stage-artifacts.json",
+                label="Stage Artifacts JSON (Diagnostics)",
+                href=f"/admin/runs/{run.run_id}/stage-artifacts.json",
+                content=_pretty_json_string(run.stage_transition_artifacts_json),
+            )
+        )
+        for stage_id in BUNDLE_STAGE_IDS:
+            payload = _build_stage_slice_payload(run, stage_id)
+            if payload is None:
+                continue
+            files.append(
+                RunArtifactFile(
+                    filename=f"{stage_id}.json",
+                    label=_stage_download_label(stage_id),
+                    href=f"/admin/runs/{run.run_id}/stage-artifacts/{stage_id}.json",
+                    content=_json.dumps(payload, ensure_ascii=False, indent=2),
+                    show_in_exports=False,
+                )
+            )
+    return files
+
+
+def _build_run_artifact_bundle_manifest(run: PipelineRun, files: list[RunArtifactFile]) -> dict[str, Any]:
+    included_files = [artifact.filename for artifact in files]
+    missing_files = [filename for filename in BUNDLE_ARTIFACT_FILENAMES if filename not in included_files]
+    return {
+        "run_id": run.run_id,
+        "status": run.status.value,
+        "run_mode": run.run_mode,
+        "run_mode_label": RUN_MODE_LABELS.get(run.run_mode, run.run_mode),
+        "created_at": run.created_at.isoformat() if run.created_at else None,
+        "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+        "bundle_schema_version": "run_artifact_bundle_v2",
+        "included_files": included_files,
+        "missing_files": missing_files,
+    }
+
+
+def _build_run_export_links(run: PipelineRun) -> list[dict[str, str]]:
+    artifact_files = _build_available_run_artifact_files(run)
+    links: list[dict[str, str]] = []
+    if artifact_files:
         links.append(
             {
-                "label": "Stage Artifacts JSON (Diagnostics)",
-                "href": f"/admin/runs/{run.run_id}/stage-artifacts.json",
+                "label": "Download All Artifacts (.zip)",
+                "href": f"/admin/runs/{run.run_id}/artifacts.zip",
+                "helper_text": "Includes all currently available run artifacts.",
             }
         )
+    for artifact in artifact_files:
+        if not artifact.show_in_exports:
+            continue
+        links.append({"label": artifact.label, "href": artifact.href})
     return links
 
 
@@ -657,10 +795,16 @@ def _format_pipeline_outcome_detail(row: dict[str, Any]) -> str | None:
         if fit_label:
             detail_parts.append(f"Primary fit: {fit_label}")
 
+    cv_analysis = decision_chain.get("cv_analysis")
+    if isinstance(cv_analysis, dict):
+        cv_analysis_status = _decision_chain_label(cv_analysis.get("status"))
+        if cv_analysis_status and cv_analysis_status not in {"not run", "ready_for_generation"}:
+            detail_parts.append(f"CV analysis: {cv_analysis_status}")
+
     cv_generation = decision_chain.get("cv_generation")
     if isinstance(cv_generation, dict):
         cv_status = _decision_chain_label(cv_generation.get("status"))
-        if cv_status and cv_status != "not applicable":
+        if cv_status and cv_status not in {"not applicable", "not attempted", "skipped after CV analysis"}:
             detail_parts.append(f"CV: {cv_status}")
 
     validation = decision_chain.get("validation")
@@ -2707,27 +2851,39 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if not run.stage_transition_artifacts_json:
-            raise HTTPException(status_code=404, detail="Stage transition artifacts export is not available for this run")
-        if stage_id not in {"normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis", "cv_generation"}:
-            raise HTTPException(status_code=404, detail="Unknown stage artifact")
-        artifact_payload = _json.loads(run.stage_transition_artifacts_json)
-        artifacts = artifact_payload.get("artifacts") or {}
-        stages = artifacts.get("stages") or {}
-        stage_artifact = stages.get(stage_id)
-        if not isinstance(stage_artifact, dict):
+        payload = _build_stage_slice_payload(run, stage_id)
+        if payload is None:
             raise HTTPException(status_code=404, detail="Stage artifact is not available for this run")
-        payload = {
-            "run_id": run_id,
-            "stage_id": stage_id,
-            "artifact_schema_version": "stage_transition_artifacts_stage_v1",
-            "created_at": artifact_payload.get("created_at"),
-            "stage_artifact": stage_artifact,
-        }
         return Response(
             content=_json.dumps(payload, ensure_ascii=False, indent=2),
             media_type="application/json",
             headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-{stage_id}.json"'},
+        )
+
+    @app.get("/admin/runs/{run_id}/artifacts.zip")
+    def download_run_artifact_bundle_zip(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        artifact_files = _build_available_run_artifact_files(run)
+        if not artifact_files:
+            raise HTTPException(
+                status_code=404,
+                detail="No run artifacts are currently available for this run",
+            )
+        manifest = _build_run_artifact_bundle_manifest(run, artifact_files)
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr(
+                "manifest.json",
+                _json.dumps(manifest, ensure_ascii=False, indent=2),
+            )
+            for artifact in artifact_files:
+                archive.writestr(artifact.filename, artifact.content)
+        return Response(
+            content=buffer.getvalue(),
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-artifacts.zip"'},
         )
 
     @app.get("/admin/runs/{run_id}/settings-used.json")

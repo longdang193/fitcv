@@ -43,6 +43,10 @@ TYPE_WEIGHTS: dict[str, float] = {
 RETRIEVAL_CHANNELS = ANALYSIS_CHANNEL_IDS
 DEFAULT_CHANNEL_POOL_SIZE = 4
 DEFAULT_SEMANTIC_ALIGNMENT_ENABLED = False
+DEFAULT_REQUIRED_SKILL_LEXICAL_WEIGHT = 0.70
+DEFAULT_REQUIRED_SKILL_SEMANTIC_WEIGHT = 0.30
+DEFAULT_ROLE_LEXICAL_WEIGHT = 0.60
+DEFAULT_ROLE_SEMANTIC_WEIGHT = 0.40
 DEFAULT_RESPONSIBILITY_LEXICAL_WEIGHT = 0.25
 DEFAULT_RESPONSIBILITY_SEMANTIC_WEIGHT = 0.75
 DEFAULT_DOMAIN_LEXICAL_WEIGHT = 0.40
@@ -227,6 +231,30 @@ def _semantic_alignment_settings(config: dict[str, Any] | None) -> dict[str, Any
             else False
         ),
         "model": str(semantic_alignment.get("model") or get_embedding_model(config or {})),
+        "required_skill_lexical_weight": float(
+            semantic_alignment.get(
+                "required_skill_lexical_weight",
+                DEFAULT_REQUIRED_SKILL_LEXICAL_WEIGHT,
+            )
+        ),
+        "required_skill_semantic_weight": float(
+            semantic_alignment.get(
+                "required_skill_semantic_weight",
+                DEFAULT_REQUIRED_SKILL_SEMANTIC_WEIGHT,
+            )
+        ),
+        "role_lexical_weight": float(
+            semantic_alignment.get(
+                "role_lexical_weight",
+                DEFAULT_ROLE_LEXICAL_WEIGHT,
+            )
+        ),
+        "role_semantic_weight": float(
+            semantic_alignment.get(
+                "role_semantic_weight",
+                DEFAULT_ROLE_SEMANTIC_WEIGHT,
+            )
+        ),
         "responsibility_lexical_weight": float(
             semantic_alignment.get(
                 "responsibility_lexical_weight",
@@ -363,6 +391,8 @@ def _semantic_embedding_counts(runtime_state: dict[str, Any]) -> dict[str, dict[
 def _semantic_methods(enabled: bool) -> dict[str, str]:
     method = SEMANTIC_METHOD_EMBEDDING if enabled else SEMANTIC_METHOD_DISABLED
     return {
+        REQUIRED_SKILL_SUPPORT_CHANNEL: method,
+        ROLE_ALIGNMENT_CHANNEL: method,
         RESPONSIBILITY_ALIGNMENT_CHANNEL: method,
         DOMAIN_ALIGNMENT_CHANNEL: method,
     }
@@ -481,6 +511,47 @@ def _job_domain_text(job_context: dict[str, Any]) -> str:
         )
         if part
     )
+
+
+def _job_required_skill_texts(job_context: dict[str, Any]) -> list[str]:
+    required_skills = [skill for skill in list(job_context.get("required_skills") or []) if skill]
+    if not required_skills:
+        return []
+    texts = list(required_skills)
+    combined = " ".join(required_skills)
+    if combined and combined not in texts:
+        texts.append(combined)
+    return texts
+
+
+def _item_required_skill_text(item: dict[str, Any]) -> str:
+    parts = [
+        *[_normalize_text(value) for value in list(item.get("skills") or [])],
+        _normalize_text(item.get("name")),
+        _normalize_text(item.get("scoring_context")),
+    ]
+    return " ".join(part for part in parts if part)
+
+
+def _job_role_texts(job_context: dict[str, Any]) -> list[str]:
+    parts = [
+        _normalize_text(job_context.get("job_title")),
+        _normalize_text(job_context.get("job_family")),
+    ]
+    texts = [part for part in parts if part]
+    combined = " ".join(texts)
+    if combined and combined not in texts:
+        texts.append(combined)
+    return texts
+
+
+def _item_role_text(item: dict[str, Any]) -> str:
+    parts = [
+        _normalize_text(item.get("role") or item.get("name")),
+        _normalize_text(item.get("role_family")),
+        _normalize_text(item.get("scoring_context")),
+    ]
+    return " ".join(part for part in parts if part)
 
 
 def _item_domain_text(item: dict[str, Any]) -> str:
@@ -951,6 +1022,39 @@ def _score_required_skill_support(item: dict[str, Any], job_context: dict[str, A
     )
 
 
+def _score_required_skill_support_components(
+    item: dict[str, Any],
+    job_context: dict[str, Any],
+    *,
+    config: dict[str, Any] | None,
+    semantic_settings: dict[str, Any],
+    runtime_state: dict[str, Any],
+) -> dict[str, float]:
+    lexical_score = _score_required_skill_support(item, job_context)
+    semantic_score = 0.0
+    if semantic_settings["enabled"] and config is not None:
+        semantic_score = _semantic_similarity(
+            job_texts=_job_required_skill_texts(job_context),
+            item_text=_item_required_skill_text(item),
+            config=config,
+            model_name=str(semantic_settings["model"]),
+            runtime_state=runtime_state,
+        )
+    return {
+        "lexical": round(lexical_score, 6),
+        "semantic": round(semantic_score, 6),
+        "combined": round(
+            _hybrid_score(
+                lexical_score,
+                semantic_score,
+                float(semantic_settings["required_skill_lexical_weight"]),
+                float(semantic_settings["required_skill_semantic_weight"]),
+            ),
+            6,
+        ),
+    }
+
+
 def _score_role_alignment(item: dict[str, Any], job_context: dict[str, Any]) -> float:
     job_title = _normalize_optional_text(job_context.get("job_title"))
     job_family = _normalize_text(job_context.get("job_family")) or infer_role_family(job_title)
@@ -968,6 +1072,39 @@ def _score_role_alignment(item: dict[str, Any], job_context: dict[str, Any]) -> 
         _tokenize(job_title),
     )
     return max(family_score, lexical_score)
+
+
+def _score_role_alignment_components(
+    item: dict[str, Any],
+    job_context: dict[str, Any],
+    *,
+    config: dict[str, Any] | None,
+    semantic_settings: dict[str, Any],
+    runtime_state: dict[str, Any],
+) -> dict[str, float]:
+    lexical_score = _score_role_alignment(item, job_context)
+    semantic_score = 0.0
+    if semantic_settings["enabled"] and config is not None:
+        semantic_score = _semantic_similarity(
+            job_texts=_job_role_texts(job_context),
+            item_text=_item_role_text(item),
+            config=config,
+            model_name=str(semantic_settings["model"]),
+            runtime_state=runtime_state,
+        )
+    return {
+        "lexical": round(lexical_score, 6),
+        "semantic": round(semantic_score, 6),
+        "combined": round(
+            _hybrid_score(
+                lexical_score,
+                semantic_score,
+                float(semantic_settings["role_lexical_weight"]),
+                float(semantic_settings["role_semantic_weight"]),
+            ),
+            6,
+        ),
+    }
 
 
 def _score_domain_alignment_lexical(item: dict[str, Any], job_context: dict[str, Any]) -> float:
@@ -1083,11 +1220,21 @@ def _channel_score_components(
     runtime_state: dict[str, Any],
 ) -> dict[str, float]:
     if channel == REQUIRED_SKILL_SUPPORT_CHANNEL:
-        score = _score_required_skill_support(item, job_context)
-        return {"lexical": round(score, 6), "semantic": 0.0, "combined": round(score, 6)}
+        return _score_required_skill_support_components(
+            item,
+            job_context,
+            config=config,
+            semantic_settings=semantic_settings,
+            runtime_state=runtime_state,
+        )
     if channel == ROLE_ALIGNMENT_CHANNEL:
-        score = _score_role_alignment(item, job_context)
-        return {"lexical": round(score, 6), "semantic": 0.0, "combined": round(score, 6)}
+        return _score_role_alignment_components(
+            item,
+            job_context,
+            config=config,
+            semantic_settings=semantic_settings,
+            runtime_state=runtime_state,
+        )
     if channel == DOMAIN_ALIGNMENT_CHANNEL:
         return _score_domain_alignment_components(
             item,
@@ -1433,6 +1580,14 @@ def retrieve_evidence_bundle(
         "embedding_counts": _semantic_embedding_counts(runtime_state),
     }
     hybrid_alignment = {
+        "required_skill_support": {
+            "lexical_weight": round(float(semantic_settings["required_skill_lexical_weight"]), 6),
+            "semantic_weight": round(float(semantic_settings["required_skill_semantic_weight"]), 6),
+        },
+        "role_alignment": {
+            "lexical_weight": round(float(semantic_settings["role_lexical_weight"]), 6),
+            "semantic_weight": round(float(semantic_settings["role_semantic_weight"]), 6),
+        },
         "responsibility": {
             "lexical_weight": round(float(semantic_settings["responsibility_lexical_weight"]), 6),
             "semantic_weight": round(float(semantic_settings["responsibility_semantic_weight"]), 6),

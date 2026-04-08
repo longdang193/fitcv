@@ -456,6 +456,10 @@ def test_retrieve_evidence_bundle_uses_semantic_alignment_for_paraphrased_matche
             "semantic_alignment": {
                 "enabled": True,
                 "model": "text-embedding-005",
+                "required_skill_lexical_weight": 0.70,
+                "required_skill_semantic_weight": 0.30,
+                "role_lexical_weight": 0.60,
+                "role_semantic_weight": 0.40,
                 "responsibility_lexical_weight": 0.25,
                 "responsibility_semantic_weight": 0.75,
                 "domain_lexical_weight": 0.40,
@@ -486,6 +490,8 @@ def test_retrieve_evidence_bundle_uses_semantic_alignment_for_paraphrased_matche
     domain_subscores = selected["channel_subscores"]["domain_alignment"]
 
     assert selected["semantic_alignment"]["enabled"] is True
+    assert selected["semantic_alignment"]["semantic_methods"]["required_skill_support"] == "embedding_similarity"
+    assert selected["semantic_alignment"]["semantic_methods"]["role_alignment"] == "embedding_similarity"
     assert selected["semantic_alignment"]["semantic_methods"]["responsibility_alignment"] == "embedding_similarity"
     assert selected["semantic_alignment"]["semantic_methods"]["domain_alignment"] == "embedding_similarity"
     assert responsibility_subscores["semantic"] > 0.7
@@ -497,6 +503,129 @@ def test_retrieve_evidence_bundle_uses_semantic_alignment_for_paraphrased_matche
     assert bundle["semantic_alignment"]["embedding_counts"]["candidate_evidence"]["fresh"] >= 1
     assert bundle["semantic_alignment"]["embedding_counts"]["job_context"]["fresh"] >= 1
     assert isinstance(bundle["unselected_top_candidates"], list)
+
+
+def test_retrieve_evidence_bundle_uses_semantic_alignment_for_required_skill_support(monkeypatch) -> None:
+    profile = {
+        "projects": [
+            {
+                "name": "Warehouse Schema Redesign",
+                "skills": ["Schema Design"],
+                "highlights": ["Restructured core warehouse entities for cleaner reporting."],
+            }
+        ],
+        "experiences": [],
+        "achievements": [],
+        "skills": [],
+    }
+    job = {
+        "job_url": "https://example.com/job-required-skill",
+        "title": "",
+        "job_family": "",
+        "domain": "",
+        "required_skills_canonical": ["data modeling"],
+        "responsibilities": [],
+    }
+    config = {
+        "cv_analysis": {
+            "semantic_alignment": {
+                "enabled": True,
+                "model": "text-embedding-005",
+                "required_skill_lexical_weight": 0.70,
+                "required_skill_semantic_weight": 0.30,
+                "role_lexical_weight": 0.60,
+                "role_semantic_weight": 0.40,
+                "responsibility_lexical_weight": 0.25,
+                "responsibility_semantic_weight": 0.75,
+                "domain_lexical_weight": 0.40,
+                "domain_semantic_weight": 0.60,
+                "channel_pool_size": 4,
+            }
+        }
+    }
+
+    def fake_generate_embedding(text: str, runtime_config: dict[str, object], model_name: str | None = None) -> list[float]:
+        del runtime_config, model_name
+        normalized = " ".join(str(text).lower().split())
+        if normalized == "data modeling":
+            return [1.0, 0.0, 0.0]
+        if "schema design" in normalized and "warehouse schema redesign" in normalized:
+            return [1.0, 0.0, 0.0]
+        return [0.0, 0.0, 1.0]
+
+    monkeypatch.setattr(evidence_module, "generate_embedding", fake_generate_embedding)
+
+    bundle = retrieve_evidence_bundle(profile, job, top_k=1, config=config)
+
+    selected = bundle["selected_evidence"][0]
+    required_subscores = selected["channel_subscores"]["required_skill_support"]
+
+    assert required_subscores["lexical"] == 0.0
+    assert required_subscores["semantic"] > 0.9
+    assert required_subscores["combined"] > 0.25
+    assert selected["semantic_alignment"]["semantic_methods"]["required_skill_support"] == "embedding_similarity"
+
+
+def test_retrieve_evidence_bundle_uses_semantic_alignment_for_role_alignment(monkeypatch) -> None:
+    profile = {
+        "experiences": [
+            {
+                "role": "Decision Support Lead",
+                "company": "Insight Co",
+                "bullets": [{"text": "Guided reporting strategy for executive stakeholders.", "skills": []}],
+            }
+        ],
+        "projects": [],
+        "achievements": [],
+        "skills": [],
+    }
+    job = {
+        "job_url": "https://example.com/job-role",
+        "title": "Business Intelligence Strategist",
+        "job_family": "",
+        "domain": "",
+        "required_skills_canonical": [],
+        "responsibilities": [],
+    }
+    config = {
+        "cv_analysis": {
+            "semantic_alignment": {
+                "enabled": True,
+                "model": "text-embedding-005",
+                "required_skill_lexical_weight": 0.70,
+                "required_skill_semantic_weight": 0.30,
+                "role_lexical_weight": 0.60,
+                "role_semantic_weight": 0.40,
+                "responsibility_lexical_weight": 0.25,
+                "responsibility_semantic_weight": 0.75,
+                "domain_lexical_weight": 0.40,
+                "domain_semantic_weight": 0.60,
+                "channel_pool_size": 4,
+            }
+        }
+    }
+
+    def fake_generate_embedding(text: str, runtime_config: dict[str, object], model_name: str | None = None) -> list[float]:
+        del runtime_config, model_name
+        normalized = " ".join(str(text).lower().split())
+        if normalized == "business intelligence strategist":
+            return [0.0, 1.0, 0.0]
+        if "decision support lead" in normalized and "guided reporting strategy" in normalized:
+            return [0.0, 1.0, 0.0]
+        return [0.0, 0.0, 1.0]
+
+    monkeypatch.setattr(evidence_module, "generate_embedding", fake_generate_embedding)
+    monkeypatch.setattr(evidence_module, "infer_role_family", lambda _text: None)
+
+    bundle = retrieve_evidence_bundle(profile, job, top_k=1, config=config)
+
+    selected = bundle["selected_evidence"][0]
+    role_subscores = selected["channel_subscores"]["role_alignment"]
+
+    assert role_subscores["lexical"] == 0.0
+    assert role_subscores["semantic"] > 0.9
+    assert role_subscores["combined"] > 0.35
+    assert selected["semantic_alignment"]["semantic_methods"]["role_alignment"] == "embedding_similarity"
 
 
 def test_retrieve_evidence_bundle_prefers_broader_channel_coverage_over_redundancy() -> None:

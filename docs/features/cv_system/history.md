@@ -2,6 +2,40 @@
 
 ## Changelog
 
+### 1.33.0 — active
+
+- `cv_generation` now tells the writer to use the real profile name in the header and performs one deterministic header-only repair when validation fails solely because of a candidate-name placeholder
+- The repair path rewrites only the candidate identity fields, rerenders markdown, reruns validation once, and keeps debug artifacts explicit about initial failure versus repaired acceptance
+
+### 1.32.0 — active
+
+- Run-scoped CV artifacts now export explicit contract-era versions and `run_mode` metadata, so final-stage bundles can be audited without relying on control-plane context
+- `cv_analysis` reuse diagnostics now separate executed analysis rows from reranker-blocked rows, which keeps late-stage reuse math aligned with the pre-analysis short-circuit path
+- `cv_generation` validation now rejects plain `Candidate Name` placeholders in structured headers and rendered markdown, instead of only catching bracketed forms such as `[Candidate Name]`
+
+### 1.31.0 — active
+
+- Reranker-blocked ranked jobs now stay explicit in compact exports and debug coverage summaries, so the final-stage artifact layer no longer understates the pre-analysis short-circuit as a generic not-run outcome
+
+### 1.30.0 — active
+
+- Ranked jobs with authoritative reranker `fit_label = skip` now stop before evidence retrieval and gap computation inside `cv_analysis`, instead of paying full late-stage analysis cost
+- The final-stage contract now distinguishes `blocked_by_reranker_fit` from `skipped_fit_gate`, so operator views and artifacts can tell apart "blocked before analysis" versus "analyzed and then skipped"
+
+### 1.29.0 — active
+
+- Compact `results.json` rows now keep skipped-fit-gate semantics aligned with the final-stage split: `cv_analysis` is treated as completed with a gate decision, while `cv_generation` remains explicitly unattempted
+
+### 1.28.0 — active
+
+- `cv_analysis` semantic alignment now covers `required_skill_support` and `role_alignment` in addition to domain and responsibility channels
+- Required-skill and role semantic lift stay bounded through dedicated lexical/semantic weight pairs, and stage artifacts now report the expanded channel-level semantic method coverage explicitly
+
+### 1.27.0 — active
+
+- `cv_analysis` stage artifacts no longer expose stage-level fresh/reused embedding totals derived from summed cumulative per-record cache snapshots
+- Record-local evidence-selection embedding counts remain available for deep investigation without pretending to be run-wide totals
+
 ### 1.26.0 — active
 
 - Final run exports now keep `results.json` focused on the per-job outcome ledger, while stage-owned diagnostics remain in `stage-artifacts.json` and per-stage artifacts
@@ -140,6 +174,10 @@
 - Project prompt construction now carries richer grounded context such as duration, business value, selected stack lines, and selected highlights when present
 - Sparse projects still degrade gracefully without invented impact language
 - Thin project evidence remains fallback/supporting only rather than the primary Projects construction path
+
+### 1.5.0 — active
+
+- Reranker-blocked ranked jobs now keep their non-attempted CV-generation truth through succeeded `Stage by Stage` finalization instead of degrading to generic `ranked_no_cv` semantics
 
 ### 1.4.0 — active
 

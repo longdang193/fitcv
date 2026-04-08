@@ -45,6 +45,14 @@ _DOMAIN_ALIGNMENT_WEIGHT_KEYS = {
     "cv_analysis.semantic_alignment.domain_lexical_weight",
     "cv_analysis.semantic_alignment.domain_semantic_weight",
 }
+_REQUIRED_SKILL_ALIGNMENT_WEIGHT_KEYS = {
+    "cv_analysis.semantic_alignment.required_skill_lexical_weight",
+    "cv_analysis.semantic_alignment.required_skill_semantic_weight",
+}
+_ROLE_ALIGNMENT_WEIGHT_KEYS = {
+    "cv_analysis.semantic_alignment.role_lexical_weight",
+    "cv_analysis.semantic_alignment.role_semantic_weight",
+}
 
 
 # ── schema registry ──────────────────────────────────────────────────────────
@@ -92,7 +100,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "type": "bool",
         "default": False,
         "label": "Semantic Alignment Enabled",
-        "description": "Enable hybrid lexical-plus-semantic scoring for cv_analysis domain and responsibility alignment.",
+        "description": "Enable hybrid lexical-plus-semantic scoring for cv_analysis required-skill, role, domain, and responsibility alignment.",
         "group": "retrieval",
         "config_path": ["cv_analysis", "semantic_alignment", "enabled"],
     },
@@ -101,10 +109,46 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "type": "str",
         "default": "text-embedding-005",
         "label": "Semantic Alignment Model",
-        "description": "Embedding model used for cv_analysis semantic domain and responsibility similarity.",
+        "description": "Embedding model used for cv_analysis semantic skill, role, domain, and responsibility similarity.",
         "options": ["text-embedding-005"],
         "group": "retrieval",
         "config_path": ["cv_analysis", "semantic_alignment", "model"],
+    },
+    {
+        "key": "cv_analysis.semantic_alignment.required_skill_lexical_weight",
+        "type": "float",
+        "default": 0.70,
+        "label": "Required Skill Lexical Weight",
+        "description": "Relative weight of lexical overlap inside cv_analysis required-skill support.",
+        "group": "retrieval",
+        "config_path": ["cv_analysis", "semantic_alignment", "required_skill_lexical_weight"],
+    },
+    {
+        "key": "cv_analysis.semantic_alignment.required_skill_semantic_weight",
+        "type": "float",
+        "default": 0.30,
+        "label": "Required Skill Semantic Weight",
+        "description": "Relative weight of embedding similarity inside cv_analysis required-skill support.",
+        "group": "retrieval",
+        "config_path": ["cv_analysis", "semantic_alignment", "required_skill_semantic_weight"],
+    },
+    {
+        "key": "cv_analysis.semantic_alignment.role_lexical_weight",
+        "type": "float",
+        "default": 0.60,
+        "label": "Role Lexical Weight",
+        "description": "Relative weight of lexical overlap and role-family heuristics inside cv_analysis role alignment.",
+        "group": "retrieval",
+        "config_path": ["cv_analysis", "semantic_alignment", "role_lexical_weight"],
+    },
+    {
+        "key": "cv_analysis.semantic_alignment.role_semantic_weight",
+        "type": "float",
+        "default": 0.40,
+        "label": "Role Semantic Weight",
+        "description": "Relative weight of embedding similarity inside cv_analysis role alignment.",
+        "group": "retrieval",
+        "config_path": ["cv_analysis", "semantic_alignment", "role_semantic_weight"],
     },
     {
         "key": "cv_analysis.semantic_alignment.responsibility_lexical_weight",
@@ -532,6 +576,10 @@ SETTINGS_SECTIONS: dict[str, list[str]] = {
         "pipeline.evidence_top_k",
         "cv_analysis.semantic_alignment.enabled",
         "cv_analysis.semantic_alignment.model",
+        "cv_analysis.semantic_alignment.required_skill_lexical_weight",
+        "cv_analysis.semantic_alignment.required_skill_semantic_weight",
+        "cv_analysis.semantic_alignment.role_lexical_weight",
+        "cv_analysis.semantic_alignment.role_semantic_weight",
         "cv_analysis.semantic_alignment.responsibility_lexical_weight",
         "cv_analysis.semantic_alignment.responsibility_semantic_weight",
         "cv_analysis.semantic_alignment.domain_lexical_weight",
@@ -734,6 +782,18 @@ def validate_settings(settings: dict[str, Any]) -> None:
         if abs(total - 1.0) > 0.01:
             raise ValidationError(
                 f"cv_analysis responsibility semantic alignment weights must sum to 1.0 (± 0.01), got {total:.4f}"
+            )
+    if _REQUIRED_SKILL_ALIGNMENT_WEIGHT_KEYS <= set(settings.keys()):
+        total = sum(float(settings[key]) for key in _REQUIRED_SKILL_ALIGNMENT_WEIGHT_KEYS)
+        if abs(total - 1.0) > 0.01:
+            raise ValidationError(
+                f"cv_analysis required-skill semantic alignment weights must sum to 1.0 (± 0.01), got {total:.4f}"
+            )
+    if _ROLE_ALIGNMENT_WEIGHT_KEYS <= set(settings.keys()):
+        total = sum(float(settings[key]) for key in _ROLE_ALIGNMENT_WEIGHT_KEYS)
+        if abs(total - 1.0) > 0.01:
+            raise ValidationError(
+                f"cv_analysis role semantic alignment weights must sum to 1.0 (± 0.01), got {total:.4f}"
             )
     if _DOMAIN_ALIGNMENT_WEIGHT_KEYS <= set(settings.keys()):
         total = sum(float(settings[key]) for key in _DOMAIN_ALIGNMENT_WEIGHT_KEYS)

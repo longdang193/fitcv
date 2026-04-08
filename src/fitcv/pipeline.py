@@ -49,7 +49,7 @@ from fitcv.config import (
     get_gemini_model,
     load_config,
 )
-from fitcv.cv_generator import generate_cv
+from fitcv.cv_generator import generate_cv, render_cv_markdown
 from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
 from fitcv.enrich import (
     FRESH_ENRICHMENT_STATUS,
@@ -124,9 +124,15 @@ _DEDUPE_REASON_LABELS = {
     "near_duplicate_job_posting": "near_duplicate_job_posting",
 }
 _EMPTY_REPAIR_ATTEMPT = {"performed": False, "missing_sections": []}
+_CANDIDATE_NAME_PLACEHOLDER_VALUES = {
+    "candidate name",
+    "your name",
+}
 _FIT_LABEL_ORDER = {"skip": 0, "stretch": 1, "strong": 2}
 _STAGE_ARTIFACT_SAMPLE_LIMIT = 20
 _STAGE_ARTIFACT_TEXT_LIMIT = 240
+CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS = "blocked_by_reranker_fit"
+PIPELINE_STATUS_RANKED_BLOCKED_BY_RERANKER = "ranked_blocked_by_reranker_fit"
 PIPELINE_STAGE_SEQUENCE = (
     "normalize",
     "enrich",
@@ -348,16 +354,6 @@ def _merge_ranked_job_with_enriched_context(
     }
 
 
-def _build_export_enriched_job(enriched_job: dict[str, Any] | None) -> dict[str, Any] | None:
-    if not enriched_job:
-        return None
-    return {
-        key: enriched_job[key]
-        for key in _EXPORT_ENRICHED_JOB_FIELDS
-        if key in enriched_job
-    }
-
-
 def _build_export_results(
     *,
     raw_jobs: list[dict[str, Any]],
@@ -407,6 +403,11 @@ def _build_export_results(
         for record in cv_generation_debug_records
         if str(record.get("status") or "") == "skipped_fit_gate" and str(record.get("job_url") or "")
     }
+    blocked_by_reranker_urls = {
+        str(record.get("job_url") or "")
+        for record in cv_generation_debug_records
+        if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS and str(record.get("job_url") or "")
+    }
     deduplicated_by_input_index = {
         int(job.get("input_index", -1)): job
         for job in deduplicated_jobs
@@ -438,6 +439,8 @@ def _build_export_results(
     def _status_for(job_url: str) -> str:
         if job_url in cv_by_url:
             return "ranked_with_cv"
+        if job_url in blocked_by_reranker_urls:
+            return PIPELINE_STATUS_RANKED_BLOCKED_BY_RERANKER
         if job_url in skipped_fit_gate_urls:
             return "ranked_skipped_fit_gate"
         if job_url in ranked_by_url:
@@ -458,15 +461,16 @@ def _build_export_results(
         status = str(row["pipeline_status"])
         category = {
             "ranked_with_cv": 0,
-            "ranked_skipped_fit_gate": 1,
-            "ranked_no_cv": 2,
-            "not_shortlisted": 3,
-            "shortlisted_not_scored": 4,
-            "scored_not_ranked": 5,
-            "rejected_after_enrichment": 6,
-            "rejected_before_enrichment": 7,
-            "deduplicated_before_enrichment": 8,
-            "unknown_pipeline_state": 9,
+            PIPELINE_STATUS_RANKED_BLOCKED_BY_RERANKER: 1,
+            "ranked_skipped_fit_gate": 2,
+            "ranked_no_cv": 3,
+            "not_shortlisted": 4,
+            "shortlisted_not_scored": 5,
+            "scored_not_ranked": 6,
+            "rejected_after_enrichment": 7,
+            "rejected_before_enrichment": 8,
+            "deduplicated_before_enrichment": 9,
+            "unknown_pipeline_state": 10,
         }.get(status, 10)
         scores = dict(row.get("scores") or {})
         final_score = float(scores.get("final_score") or 0.0)
@@ -479,7 +483,6 @@ def _build_export_results(
     rows: list[dict[str, Any]] = []
     for input_index, raw_job in enumerate(raw_jobs):
         job_url = _extract_job_url(raw_job)
-        original_job = raw_job
         enriched_job = enriched_by_url.get(job_url)
         deduplicated_job = deduplicated_by_input_index.get(input_index)
         score_source = {
@@ -552,13 +555,13 @@ def _build_export_results(
         rows.append(
             {
                 "job_url": job_url,
-                "job_title": _extract_job_title(enriched_job or original_job or {}),
-                "company": (enriched_job or original_job or {}).get("company_name")
-                or (enriched_job or original_job or {}).get("companyName"),
+                "job_title": _extract_job_title(enriched_job or raw_job or {}),
+                "company": (enriched_job or raw_job or {}).get("company_name")
+                or (enriched_job or raw_job or {}).get("companyName"),
                 "location_type": (enriched_job or {}).get("location_type"),
+                "seniority": (enriched_job or {}).get("seniority"),
+                "job_family": (enriched_job or {}).get("job_family"),
                 "domain": (enriched_job or {}).get("domain"),
-                "original_job": original_job,
-                "enriched_job": _build_export_enriched_job(enriched_job),
                 "pipeline_status": pipeline_status,
                 "reject_reasons": reject_reasons,
                 "rule_filter_marks": rule_filter_marks,
@@ -569,8 +572,6 @@ def _build_export_results(
                     "fit_label": score_source.get("fit_label"),
                     "ai_score_reuse_status": score_source.get("ai_score_reuse_status"),
                     "ai_score_input_fingerprint": score_source.get("ai_score_input_fingerprint"),
-                    "feature_contributions": score_source.get("feature_contributions"),
-                    "preference_fit_components": score_source.get("preference_fit_components"),
                 },
                 "cv_analysis": (
                     {
@@ -583,7 +584,15 @@ def _build_export_results(
                 ),
                 "decision_chain": decision_chain,
                 "rank": score_source.get("final_rank"),
-                "cv": cv_payload,
+                "cv": (
+                    {
+                        key: value
+                        for key, value in (cv_payload or {}).items()
+                        if key not in {"structured", "markdown"}
+                    }
+                    if cv_payload is not None
+                    else None
+                ),
                 "_input_index": input_index,
             }
         )
@@ -682,13 +691,21 @@ def _build_late_stage_reuse_metrics(
         1 for row in ai_scores
         if str(row.get("ai_score_reuse_status") or "") == "fresh_compute"
     )
-    reused_analysis_records = sum(
-        1 for row in cv_analysis_results
+    executed_analysis_rows = [
+        row for row in cv_analysis_results
+        if str(row.get("status") or "") != CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
+    ]
+    reused_analysis_rows = sum(
+        1 for row in executed_analysis_rows
         if str(row.get("analysis_reuse_status") or "") == "reused_exact_match"
     )
-    fresh_analysis_records = sum(
-        1 for row in cv_analysis_results
+    fresh_analysis_rows = sum(
+        1 for row in executed_analysis_rows
         if str(row.get("analysis_reuse_status") or "") == "fresh_compute"
+    )
+    blocked_before_analysis_rows = sum(
+        1 for row in cv_analysis_results
+        if str(row.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
     )
     return {
         "ranking": {
@@ -698,10 +715,11 @@ def _build_late_stage_reuse_metrics(
             "reuse_rate": _safe_rate(reused_ai_scores, len(ai_scores)),
         },
         "cv_analysis": {
-            "reused_analysis_records": reused_analysis_records,
-            "fresh_analysis_records": fresh_analysis_records,
-            "total_analysis_records": len(cv_analysis_results),
-            "reuse_rate": _safe_rate(reused_analysis_records, len(cv_analysis_results)),
+            "analysis_rows_executed": len(executed_analysis_rows),
+            "reused_analysis_rows": reused_analysis_rows,
+            "fresh_analysis_rows": fresh_analysis_rows,
+            "blocked_before_analysis_rows": blocked_before_analysis_rows,
+            "analysis_reuse_rate": _safe_rate(reused_analysis_rows, len(executed_analysis_rows)),
         },
     }
 
@@ -792,6 +810,7 @@ def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
         "ranking_inputs",
         "ranked",
         "cv_analysis_results",
+        "cv_generation_debug_records",
     )
     return {
         key: _json_safe_pipeline_value(state.get(key) or [])
@@ -952,6 +971,65 @@ def _should_retry_missing_sections(validation: dict[str, Any]) -> bool:
     return all(not validation.get(field) for field in _REPAIRABLE_VALIDATION_FIELDS)
 
 
+def _normalize_candidate_name_token(value: str) -> str:
+    normalized = str(value or "")
+    normalized = normalized.replace("[", " ").replace("]", " ")
+    normalized = " ".join(normalized.split()).strip().lower()
+    return normalized
+
+
+def _is_candidate_name_placeholder(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    return _normalize_candidate_name_token(value) in _CANDIDATE_NAME_PLACEHOLDER_VALUES
+
+
+def _resolved_candidate_profile_name(profile: dict[str, Any] | None) -> str:
+    if not isinstance(profile, dict):
+        return ""
+    candidate_name = str(profile.get("name") or "").strip()
+    if not candidate_name or _is_candidate_name_placeholder(candidate_name):
+        return ""
+    return candidate_name
+
+
+def _is_candidate_name_placeholder_validation(validation: dict[str, Any]) -> bool:
+    grounding_violations = list(validation.get("grounding_violations") or [])
+    if not grounding_violations:
+        return False
+    return all("candidate-name placeholder" in str(item).lower() for item in grounding_violations)
+
+
+def _should_repair_candidate_name_placeholder(
+    validation: dict[str, Any],
+    structured_cv: dict[str, Any] | None,
+    profile: dict[str, Any] | None,
+) -> bool:
+    if validation.get("valid"):
+        return False
+    if not isinstance(structured_cv, dict):
+        return False
+    if not _resolved_candidate_profile_name(profile):
+        return False
+    if list(validation.get("missing_sections") or []):
+        return False
+    if list(validation.get("skill_violations") or []):
+        return False
+    if list(validation.get("deterministic_grounding_violations") or []):
+        return False
+    if list(validation.get("semantic_grounding_violations") or []):
+        return False
+    if not _is_candidate_name_placeholder_validation(validation):
+        return False
+    sections = structured_cv.get("sections")
+    if not isinstance(sections, dict):
+        return False
+    header = sections.get("header")
+    if not isinstance(header, dict):
+        return False
+    return _is_candidate_name_placeholder(header.get("name"))
+
+
 def _unwrap_generated_cv(generated_cv: Any) -> tuple[dict[str, Any] | None, str]:
     if isinstance(generated_cv, dict):
         markdown = str(generated_cv.get("markdown") or "")
@@ -1046,6 +1124,27 @@ def _build_repair_attempt(missing_sections: list[str] | None = None) -> dict[str
     }
 
 
+def _build_candidate_name_repair_attempt() -> dict[str, Any]:
+    return {
+        "performed": True,
+        "missing_sections": [],
+        "reason": "candidate_name_placeholder",
+    }
+
+
+def _repair_candidate_name_placeholder(
+    structured_cv: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+) -> tuple[dict[str, Any], str]:
+    repaired_structured_cv = deepcopy(structured_cv)
+    sections = repaired_structured_cv.setdefault("sections", {})
+    header = sections.setdefault("header", {})
+    header["name"] = _resolved_candidate_profile_name(profile)
+    repaired_markdown = render_cv_markdown(repaired_structured_cv, config)
+    return repaired_structured_cv, repaired_markdown
+
+
 def _fit_label_from_ai_score(score: float, config: dict[str, Any]) -> str:
     thresholds = dict(config.get("fit_label_thresholds") or {})
     strong_threshold = float(thresholds.get("strong", 0.70))
@@ -1129,7 +1228,7 @@ def _build_decision_chain(
         },
         "cv_analysis": {
             "status": cv_analysis_status,
-            "completed": cv_analysis_status not in {"not_run", "failed"},
+            "completed": cv_analysis_status not in {"not_run", "failed", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS},
         },
         "cv_generation": {
             "status": cv_status,
@@ -1163,13 +1262,19 @@ def _build_cv_generation_debug_record(
 ) -> dict[str, Any]:
     ranking_fit_label = str(fit_classification or "").strip() or None
     ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
+    cv_analysis_status = status
+    cv_generation_status = status
+    if status in {"accepted", "validation_failed", "generation_failed", "persistence_failed"}:
+        cv_analysis_status = "ready_for_generation"
+    elif status == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
+        cv_generation_status = "not_attempted"
     decision_chain = _build_decision_chain(
         shortlist_status=_shortlist_status_for_ranked_job(job),
         advanced_to_scoring=True,
         ranking_fit_label=ranking_fit_label,
         ranking_fit_source=ranking_fit_source,
-        cv_analysis_status="ready_for_generation" if status in {"accepted", "validation_failed", "generation_failed", "persistence_failed"} else status,
-        cv_status=status,
+        cv_analysis_status=cv_analysis_status,
+        cv_status=cv_generation_status,
     )
     return {
         "job_url": str(job.get("job_url") or ""),
@@ -1191,7 +1296,9 @@ def _build_cv_generation_debug_record(
         "cv_generation_model": cv_generation_model,
         "cv_prompt_id": cv_prompt_id,
         "cv_prompt_template_path": cv_prompt_template_path,
-        "error": error,
+        # Reranker blocks and fit-gate skips are expected outcomes, not generation runtime errors.
+        "outcome_reason": error if status in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
+        "error": error if status not in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
     }
 
 
@@ -1210,9 +1317,14 @@ def _build_cv_analysis_record(
 ) -> dict[str, Any]:
     ranking_fit_label = str(fit_classification or "").strip() or None
     ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
-    cv_status = "not_attempted" if status == "ready_for_generation" else (
-        "skipped_fit_gate" if status == "skipped_fit_gate" else "failed"
-    )
+    if status == "ready_for_generation":
+        cv_status = "not_attempted"
+    elif status == "skipped_fit_gate":
+        cv_status = "skipped_fit_gate"
+    elif status == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
+        cv_status = "not_attempted"
+    else:
+        cv_status = "failed"
     decision_chain = _build_decision_chain(
         shortlist_status=_shortlist_status_for_ranked_job(job),
         advanced_to_scoring=True,
@@ -1235,9 +1347,9 @@ def _build_cv_analysis_record(
         "evidence_used": evidence_used,
         "evidence_selection_summary": dict(evidence_selection_summary or {}),
         "gap_summary": gap_summary,
-        # Fit-gate skips are expected analysis outcomes, not runtime errors.
-        "outcome_reason": error if status == "skipped_fit_gate" else None,
-        "error": error if status != "skipped_fit_gate" else None,
+        # Reranker blocks and fit-gate skips are expected analysis outcomes, not runtime errors.
+        "outcome_reason": error if status in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
+        "error": error if status not in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
     }
 
 
@@ -1340,6 +1452,7 @@ def _build_ranking_quality_metrics(ranking_inputs: list[dict[str, Any]]) -> dict
 
 
 def _build_cv_analysis_quality_metrics(cv_analysis_results: list[dict[str, Any]]) -> dict[str, Any]:
+    blocked_by_reranker_fit = 0
     generation_ready = 0
     skipped_fit_gate = 0
     analysis_failed = 0
@@ -1347,15 +1460,19 @@ def _build_cv_analysis_quality_metrics(cv_analysis_results: list[dict[str, Any]]
         status = str(record.get("status") or "").strip().lower()
         if status in {"ready_for_generation", "generation_ready"}:
             generation_ready += 1
+        elif status == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
+            blocked_by_reranker_fit += 1
         elif status == "skipped_fit_gate":
             skipped_fit_gate += 1
         elif status == "analysis_failed":
             analysis_failed += 1
-    total_processed = generation_ready + skipped_fit_gate + analysis_failed
+    total_processed = generation_ready + blocked_by_reranker_fit + skipped_fit_gate + analysis_failed
     return {
+        "blocked_by_reranker_fit_rate": _safe_rate(blocked_by_reranker_fit, total_processed),
         "skip_rate": _safe_rate(skipped_fit_gate, total_processed),
         "generation_ready_rate": _safe_rate(generation_ready, total_processed),
         "analysis_failed_rate": _safe_rate(analysis_failed, total_processed),
+        "blocked_by_reranker_fit": blocked_by_reranker_fit,
         "skipped_fit_gate": skipped_fit_gate,
         "generation_ready": generation_ready,
         "analysis_failed": analysis_failed,
@@ -1764,6 +1881,7 @@ def _build_stage_transition_artifacts(
         "ranked_jobs_total": len(ranked),
         "debug_records_captured": len(cv_generation_debug_records),
         "accepted_count": 0,
+        "blocked_by_reranker_fit_count": 0,
         "skipped_fit_gate_count": 0,
         "analysis_failed_count": 0,
         "validation_failed_count": 0,
@@ -1774,6 +1892,8 @@ def _build_stage_transition_artifacts(
         status = str(record.get("status") or "")
         if status == "accepted":
             cv_status_counts["accepted_count"] += 1
+        elif status == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
+            cv_status_counts["blocked_by_reranker_fit_count"] += 1
         elif status == "skipped_fit_gate":
             cv_status_counts["skipped_fit_gate_count"] += 1
         elif status == "analysis_failed":
@@ -1834,17 +1954,29 @@ def _build_stage_transition_artifacts(
         "total_ai_scores": len(ai_scores),
     }
     cv_analysis_quality_metrics = _build_cv_analysis_quality_metrics(cv_analysis_results)
+    cv_analysis_executed_rows = [
+        record for record in cv_analysis_results
+        if str(record.get("status") or "") != CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
+    ]
     cv_analysis_reuse_metrics = {
-        "reused_analysis_records": sum(
-            1 for record in cv_analysis_results
+        "analysis_rows_executed": len(cv_analysis_executed_rows),
+        "reused_analysis_rows": sum(
+            1 for record in cv_analysis_executed_rows
             if str(record.get("analysis_reuse_status") or "") == "reused_exact_match"
         ),
-        "fresh_analysis_records": sum(
-            1 for record in cv_analysis_results
+        "fresh_analysis_rows": sum(
+            1 for record in cv_analysis_executed_rows
             if str(record.get("analysis_reuse_status") or "") == "fresh_compute"
         ),
-        "total_analysis_records": len(cv_analysis_results),
+        "blocked_before_analysis_rows": sum(
+            1 for record in cv_analysis_results
+            if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
+        ),
     }
+    cv_analysis_reuse_metrics["analysis_reuse_rate"] = _safe_rate(
+        int(cv_analysis_reuse_metrics["reused_analysis_rows"]),
+        int(cv_analysis_reuse_metrics["analysis_rows_executed"]),
+    )
     cv_generation_quality_metrics = _build_cv_generation_quality_metrics(cv_generation_debug_records)
 
     return {
@@ -2088,6 +2220,10 @@ def _build_stage_transition_artifacts(
                 status="completed" if cv_analysis_reached else "not_reached",
                 input_counts={"ranked_jobs": len(ranked)},
                 output_counts={
+                    "blocked_by_reranker_fit": sum(
+                        1 for record in cv_analysis_results
+                        if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
+                    ),
                     "generation_ready": sum(
                         1 for record in cv_analysis_results
                         if str(record.get("status") or "") == "ready_for_generation"
@@ -2117,54 +2253,6 @@ def _build_stage_transition_artifacts(
                         int((record.get("evidence_selection_summary") or {}).get("merged_pool_size") or 0)
                         for record in cv_analysis_results
                     ),
-                    "candidate_evidence_embeddings_fresh": sum(
-                        int(
-                            (
-                                (record.get("evidence_selection_summary") or {})
-                                .get("semantic_alignment", {})
-                                .get("embedding_counts", {})
-                                .get("candidate_evidence", {})
-                                .get("fresh")
-                            ) or 0
-                        )
-                        for record in cv_analysis_results
-                    ),
-                    "candidate_evidence_embeddings_reused": sum(
-                        int(
-                            (
-                                (record.get("evidence_selection_summary") or {})
-                                .get("semantic_alignment", {})
-                                .get("embedding_counts", {})
-                                .get("candidate_evidence", {})
-                                .get("reused")
-                            ) or 0
-                        )
-                        for record in cv_analysis_results
-                    ),
-                    "job_context_embeddings_fresh": sum(
-                        int(
-                            (
-                                (record.get("evidence_selection_summary") or {})
-                                .get("semantic_alignment", {})
-                                .get("embedding_counts", {})
-                                .get("job_context", {})
-                                .get("fresh")
-                            ) or 0
-                        )
-                        for record in cv_analysis_results
-                    ),
-                    "job_context_embeddings_reused": sum(
-                        int(
-                            (
-                                (record.get("evidence_selection_summary") or {})
-                                .get("semantic_alignment", {})
-                                .get("embedding_counts", {})
-                                .get("job_context", {})
-                                .get("reused")
-                            ) or 0
-                        )
-                        for record in cv_analysis_results
-                    ),
                 },
                 inputs_sample=_sample_rows(ranked, _ranking_row_sample),
                 outputs_sample=_sample_rows(cv_analysis_results, _analysis_record_output_sample),
@@ -2173,6 +2261,10 @@ def _build_stage_transition_artifacts(
                     "pipeline.evidence_top_k",
                     "cv_analysis.semantic_alignment.enabled",
                     "cv_analysis.semantic_alignment.model",
+                    "cv_analysis.semantic_alignment.required_skill_lexical_weight",
+                    "cv_analysis.semantic_alignment.required_skill_semantic_weight",
+                    "cv_analysis.semantic_alignment.role_lexical_weight",
+                    "cv_analysis.semantic_alignment.role_semantic_weight",
                     "cv_analysis.semantic_alignment.responsibility_lexical_weight",
                     "cv_analysis.semantic_alignment.responsibility_semantic_weight",
                     "cv_analysis.semantic_alignment.domain_lexical_weight",
@@ -2833,6 +2925,51 @@ def run_pipeline(
             raise PipelineCancelled("Cancelled before CV analysis")
         cv_analysis_results = []
         for job in ranked_jobs_for_cv:
+            ranking_fit_label = _resolve_layer4_fit(job, gap_fit=None, config=config)
+            if ranking_fit_label == "skip":
+                logger.info(
+                    "[run_id=%s] Blocking job %s before CV analysis (reranker fit=skip)",
+                    run_id,
+                    job.get("job_url"),
+                )
+                analysis_record = _build_cv_analysis_record(
+                    job=job,
+                    status=CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
+                    analysis_input_fingerprint=None,
+                    analysis_reuse_status="not_run_reranker_skip",
+                    evidence_payload=[],
+                    evidence_used=[],
+                    evidence_selection_summary=None,
+                    gap_summary=None,
+                    fit_classification=ranking_fit_label,
+                    error={
+                        "stage": "reranker_fit",
+                        "message": f"Blocked {job.get('job_url')} before CV analysis (reranker fit=skip)",
+                    },
+                )
+                cv_analysis_results.append(analysis_record)
+                cv_generation_debug_records.append(
+                    _build_cv_generation_debug_record(
+                        job=job,
+                        status=CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
+                        fit_classification=ranking_fit_label,
+                        evidence_used=[],
+                        evidence_selection_summary=None,
+                        analysis_input_summary=_build_cv_generation_analysis_input_summary(job),
+                        gap_summary=None,
+                        structured_cv_initial=None,
+                        validation_initial=None,
+                        repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
+                        structured_cv_final=None,
+                        markdown_final=None,
+                        enabled_sections=enabled_cv_sections,
+                        cv_generation_model=cv_generation_model_value,
+                        cv_prompt_id=cv_prompt_id_value,
+                        cv_prompt_template_path=cv_prompt_template_path_value,
+                        error=analysis_record.get("outcome_reason"),
+                    )
+                )
+                continue
             analysis_fingerprint_record = build_cv_analysis_input_fingerprint(profile, job, config)
             reused_analysis_record = cv_analysis_reuse_index.get(analysis_fingerprint_record["fingerprint"])
             if reused_analysis_record is not None:
@@ -2975,7 +3112,7 @@ def run_pipeline(
                             cv_generation_model=cv_generation_model_value,
                             cv_prompt_id=cv_prompt_id_value,
                             cv_prompt_template_path=cv_prompt_template_path_value,
-                            error=analysis_record["error"],
+                            error=analysis_record.get("outcome_reason") or analysis_record["error"],
                         )
                     )
                     continue
@@ -3043,6 +3180,7 @@ def run_pipeline(
                 (
                     "CV analysis complete: "
                     f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == 'ready_for_generation')} ready, "
+                    f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS)} blocked by reranker, "
                     f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == 'skipped_fit_gate')} skipped, "
                     f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == 'analysis_failed')} failed"
                 ),
@@ -3124,6 +3262,25 @@ def run_pipeline(
                 analysis_grounding=analysis_grounding,
             )
             validation_initial = _build_validation_snapshot(validation)
+            if not validation["valid"] and _should_repair_candidate_name_placeholder(validation, structured_cv, profile):
+                repair_attempt = _build_candidate_name_repair_attempt()
+                logger.info(
+                    "[run_id=%s] Repairing candidate-name placeholder for %s",
+                    run_id,
+                    job.get("job_url"),
+                )
+                structured_cv, cv = _repair_candidate_name_placeholder(
+                    structured_cv,
+                    profile,
+                    config,
+                )
+                validation = run_all_validations(
+                    cv,
+                    profile,
+                    config,
+                    structured_cv=structured_cv,
+                    analysis_grounding=analysis_grounding,
+                )
             if not validation["valid"] and _should_retry_missing_sections(validation):
                 missing_sections = list(validation.get("missing_sections") or [])
                 repair_attempt = _build_repair_attempt(missing_sections)

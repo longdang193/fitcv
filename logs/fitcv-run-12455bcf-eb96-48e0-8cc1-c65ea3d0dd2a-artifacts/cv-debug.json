@@ -1,0 +1,847 @@
+{
+  "run_id": "12455bcf-eb96-48e0-8cc1-c65ea3d0dd2a",
+  "status": "succeeded",
+  "debug_schema_version": "cv_generation_debug_v3",
+  "run_mode": "manual_staged",
+  "run_mode_label": "Stage by Stage",
+  "created_at": "2026-04-08T14:16:34.986352+00:00",
+  "ranked_jobs_total": 3,
+  "debug_records_captured": 3,
+  "attempted_generation_jobs_total": 1,
+  "non_attempted_ranked_jobs_total": 2,
+  "omission_reason_counts": {
+    "blocked_by_reranker_fit": 2
+  },
+  "snapshot_complete": true,
+  "debug_records": [
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+      "job_title": "Business & Data Analyst - B2B2C",
+      "status": "blocked_by_reranker_fit",
+      "ranking_fit_label": "skip",
+      "fit_classification": "skip",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "blocked_by_reranker_fit",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "data analysis",
+          "KPI reporting",
+          "business intelligence",
+          "SQL",
+          "working with data lakes",
+          "BI/DWH tools",
+          "PowerBI",
+          "Looker",
+          "Tableau",
+          "advanced Excel",
+          "Google Sheets",
+          "pivoting",
+          "modelling",
+          "complex formulas",
+          "analytical ability",
+          "business models",
+          "value chains",
+          "technical systems",
+          "understanding performance drivers",
+          "business case development",
+          "benchmarking",
+          "strategic analysis"
+        ],
+        "preferred_skills": [
+          "Telecom domain experience",
+          "MVNE domain experience",
+          "MVNO domain experience"
+        ],
+        "responsibilities": [
+          "Own business and performance analysis across B2B2C products, partners, and markets",
+          "Analyze large datasets using SQL, Excel, and analytics tools to identify trends, risks, and opportunities",
+          "Build and maintain commercial and operational reports (revenue, margins, ARPU, churn, usage, onboarding KPIs, etc)",
+          "Translate raw data into clear narratives and recommendations for senior stakeholders",
+          "Support pricing analysis, partner performance reviews, and business cases",
+          "Work closely with Product, Sales, Finance, and Operations teams to align data with business reality",
+          "Ensure data accuracy, consistency, and logical interpretation across reports and dashboards."
+        ],
+        "job_family": "analytics",
+        "domain": "telecommunications"
+      },
+      "evidence_used": [],
+      "evidence_selection_summary": {},
+      "gap_summary": null,
+      "structured_cv_initial": null,
+      "validation_initial": null,
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": null,
+      "markdown_final": null,
+      "enabled_sections": [
+        "Experience",
+        "Certifications",
+        "Projects"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "/app/src/fitcv/prompts/templates/cv_generation_structured_write_v1.md",
+      "outcome_reason": {
+        "stage": "reranker_fit",
+        "message": "Blocked https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title before CV analysis (reranker fit=skip)"
+      },
+      "error": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+      "status": "blocked_by_reranker_fit",
+      "ranking_fit_label": "skip",
+      "fit_classification": "skip",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "skip"
+        },
+        "cv_analysis": {
+          "status": "blocked_by_reranker_fit",
+          "completed": false
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "Python programming for data science",
+          "Pandas",
+          "NumPy",
+          "SciPy",
+          "scikit-learn",
+          "statsmodels",
+          "Statistical analysis",
+          "Machine learning algorithms and methods",
+          "SQL and database operations",
+          "GenAI technologies (LLMs, RAG, prompt engineering, vector databases)",
+          "MLOps practices",
+          "Model deployment workflows",
+          "Modern frameworks (TensorFlow, PyTorch, LangChain)"
+        ],
+        "responsibilities": [
+          "Design original computational data science problems that simulate real-world analytical workflows across industries",
+          "Create problems requiring Python programming to solve (using pandas, numpy, scipy, sklearn, statsmodels)",
+          "Ensure problems are computationally intensive and cannot be solved manually within reasonable timeframes",
+          "Develop problems requiring non-trivial reasoning chains in data processing, statistical analysis, feature engineering, predictive modeling, and insight extraction",
+          "Create deterministic problems with reproducible answers: avoid stochastic elements or require fixed random seeds for exact reproducibility",
+          "Base problems on real business challenges: customer analytics, risk assessment, fraud detection, forecasting, optimization, and operational efficiency",
+          "Design end-to-end problems spanning the complete data science pipeline (data ingestion cleaning EDA modeling validation deployment considerations)",
+          "Incorporate big data processing scenarios requiring scalable computational approaches",
+          "Verify solutions using Python with standard data science libraries and statistical methods",
+          "Document problem statements clearly with realistic business contexts and provide verified correct answers",
+          "Creating training prompts",
+          "Refining model responses",
+          "Help shape the future of AI while ensuring technology benefits everyone"
+        ],
+        "job_family": "data_science",
+        "domain": "cross-industry",
+        "location_type": "remote"
+      },
+      "evidence_used": [],
+      "evidence_selection_summary": {},
+      "gap_summary": null,
+      "structured_cv_initial": null,
+      "validation_initial": null,
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": null,
+      "markdown_final": null,
+      "enabled_sections": [
+        "Experience",
+        "Certifications",
+        "Projects"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "/app/src/fitcv/prompts/templates/cv_generation_structured_write_v1.md",
+      "outcome_reason": {
+        "stage": "reranker_fit",
+        "message": "Blocked https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title before CV analysis (reranker fit=skip)"
+      },
+      "error": null
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+      "job_title": "Data Analyst - Retail Banking",
+      "status": "accepted",
+      "ranking_fit_label": "stretch",
+      "fit_classification": "stretch",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "accepted",
+          "attempted": true
+        },
+        "validation": {
+          "status": "accepted"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "SQL",
+          "Python",
+          "BI Tools",
+          "MicroStrategy",
+          "Power BI",
+          "Git",
+          "Data Vault",
+          "3NF",
+          "Amazon Redshift",
+          "Jira",
+          "Confluence"
+        ],
+        "responsibilities": [
+          "Work in the Business Intelligence area within an interdisciplinary team of experts, providing relevant data and insights to specialist units as a Data Analyst",
+          "Implement the functional requirements for the Private Customer division, which is responsible for product development, sales, and technical advancement of banking products such as current accounts, brokerage, and loans",
+          "Act as a sparring partner for the Product Owner and conduct workshops for order clarification and requirements specification",
+          "Analyze DKB-internal and external data sources and define/implement functional rules/logic for data integration in the Cloud Data Platform",
+          "Bridge the gap between business requirements and technical implementation, support the implementation, and thoroughly test new artifacts",
+          "Collaborate closely with Data Engineers and experts on data architecture, data modeling, Data Governance, data quality, and data protection",
+          "Actively participate in the Data Analyst Community, share knowledge, and stay up to date"
+        ],
+        "job_family": "analytics",
+        "domain": "retail banking",
+        "location_type": "hybrid"
+      },
+      "evidence_used": [
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[2]",
+          "name": "Junior Data Analyst — RetailCo AG",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.272727,
+              "semantic": 0.659,
+              "combined": 0.388609
+            },
+            "role_alignment": {
+              "lexical": 1.0,
+              "semantic": 0.702058,
+              "combined": 0.880823
+            },
+            "domain_alignment": {
+              "lexical": 0.5,
+              "semantic": 0.621293,
+              "combined": 0.572776
+            },
+            "responsibility_alignment": {
+              "lexical": 0.04878,
+              "semantic": 0.615863,
+              "combined": 0.474092
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[0]",
+          "name": "Reduced reporting latency by 40% by rebuilding GA4 → BigQuery pipeline with dbt.",
+          "matched_channels": [
+            "domain_alignment"
+          ],
+          "selection_reasons": [
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "domain_alignment": {
+              "lexical": 1.0,
+              "semantic": 0.509185,
+              "combined": 0.705511
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[2]",
+          "name": "Open-Source dbt Package for Marketing Attribution",
+          "matched_channels": [
+            "required_skill_support"
+          ],
+          "selection_reasons": [
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.181818,
+              "semantic": 0.630921,
+              "combined": 0.316549
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[0]",
+          "name": "Senior Data Engineer — Acme Analytics GmbH",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "domain_alignment",
+            "role_alignment"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.181818,
+              "semantic": 0.642745,
+              "combined": 0.320096
+            },
+            "role_alignment": {
+              "lexical": 0.25,
+              "semantic": 0.594157,
+              "combined": 0.387663
+            },
+            "domain_alignment": {
+              "lexical": 0.5,
+              "semantic": 0.519287,
+              "combined": 0.511572
+            },
+            "responsibility_alignment": {
+              "lexical": 0.036585,
+              "semantic": 0.675586,
+              "combined": 0.515836
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[2]",
+          "name": "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards.",
+          "matched_channels": [
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "selection_reasons": [
+            "domain_alignment",
+            "role_alignment"
+          ],
+          "channel_subscores": {
+            "role_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.605487,
+              "combined": 0.242195
+            },
+            "domain_alignment": {
+              "lexical": 0.5,
+              "semantic": 0.64617,
+              "combined": 0.587702
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        }
+      ],
+      "evidence_selection_summary": {
+        "channel_counts": {
+          "required_skill_support": 4,
+          "role_alignment": 4,
+          "domain_alignment": 4,
+          "responsibility_alignment": 4
+        },
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 16,
+        "deduped_pool_size": 7,
+        "selected_evidence_count": 5,
+        "selected_evidence_ids": [
+          "exp_3",
+          "ach_1",
+          "proj_3",
+          "exp_1",
+          "ach_3"
+        ],
+        "unselected_top_candidates": [
+          {
+            "evidence_id": "exp_2",
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[1]",
+            "name": "Data Engineer — Fintech Startup GmbH",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.181818,
+                "semantic": 0.638327,
+                "combined": 0.318771
+              },
+              "role_alignment": {
+                "lexical": 0.25,
+                "semantic": 0.678732,
+                "combined": 0.421493
+              },
+              "responsibility_alignment": {
+                "lexical": 0.04878,
+                "semantic": 0.651109,
+                "combined": 0.500527
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_2",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[1]",
+            "name": "Enabled real-time dashboard updates under 30 seconds via Pub/Sub → Dataflow streaming architecture.",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.012195,
+                "semantic": 0.545382,
+                "combined": 0.412086
+              }
+            }
+          }
+        ],
+        "hybrid_alignment": {
+          "required_skill_support": {
+            "lexical_weight": 0.7,
+            "semantic_weight": 0.3
+          },
+          "role_alignment": {
+            "lexical_weight": 0.6,
+            "semantic_weight": 0.4
+          },
+          "responsibility": {
+            "lexical_weight": 0.25,
+            "semantic_weight": 0.75
+          },
+          "domain": {
+            "lexical_weight": 0.4,
+            "semantic_weight": 0.6
+          }
+        },
+        "semantic_alignment": {
+          "enabled": true,
+          "semantic_methods": {
+            "required_skill_support": "embedding_similarity",
+            "role_alignment": "embedding_similarity",
+            "responsibility_alignment": "embedding_similarity",
+            "domain_alignment": "embedding_similarity"
+          },
+          "reuse_state": {
+            "candidate_evidence": "mixed_fresh_and_reused",
+            "job_context": "mixed_fresh_and_reused"
+          },
+          "embedding_counts": {
+            "candidate_evidence": {
+              "fresh": 32,
+              "reused": 20
+            },
+            "job_context": {
+              "fresh": 23,
+              "reused": 276
+            }
+          }
+        }
+      },
+      "gap_summary": {
+        "matched": [
+          "SQL",
+          "Python",
+          "Power BI",
+          "Git"
+        ],
+        "partial": [],
+        "missing": [
+          "BI Tools",
+          "MicroStrategy",
+          "Data Vault",
+          "3NF",
+          "Amazon Redshift",
+          "Jira",
+          "Confluence"
+        ],
+        "matchable_required_count": 11,
+        "ignored_for_fit": [],
+        "years_risk": false,
+        "overclaim_risk": []
+      },
+      "structured_cv_initial": {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "fit_classification": "stretch",
+        "target_role": "Data Analyst - Retail Banking",
+        "sections": {
+          "header": {
+            "name": "Nguyen Van A",
+            "title": "Data Analyst specializing in Retail Banking, leveraging SQL, Python, and Power BI for data-driven insights.",
+            "location": "Berlin, Germany",
+            "contact": {
+              "email": "nguyen.vana@email.com",
+              "phone": "+49 170 123 4567",
+              "linkedin": "https://linkedin.com/in/nguyenvana"
+            }
+          },
+          "summary": {
+            "text": ""
+          },
+          "experience": [
+            {
+              "role": "Senior Data Engineer",
+              "company": "Acme Analytics GmbH",
+              "start": "2023-01",
+              "end": "present",
+              "location": null,
+              "bullets": [
+                "Built GA4 to BigQuery pipeline processing 2M daily events with dbt transformations, reducing reporting latency by 40%.",
+                "Automated data quality checks with Great Expectations, integrating into CI/CD pipeline via GitHub Actions."
+              ]
+            },
+            {
+              "role": "Junior Data Analyst",
+              "company": "RetailCo AG",
+              "start": "2019-09",
+              "end": "2021-05",
+              "location": null,
+              "bullets": [
+                "Maintained and extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.",
+                "Automated weekly reporting workflows with Python scripts, saving 8 hours/month in reporting workflows."
+              ]
+            }
+          ],
+          "projects": [
+            {
+              "name": "Open-Source dbt Package for Marketing Attribution",
+              "context": null,
+              "bullets": [
+                "Developed a reusable dbt package for multi-touch marketing attribution (first-touch, last-touch, linear), garnering 150+ GitHub stars and adopted by 12 companies.",
+                "Ensured 100% test coverage using dbt-expectations and pytest, with CI/CD implemented via GitHub Actions."
+              ]
+            }
+          ],
+          "education": [],
+          "skills": {
+            "groups": []
+          },
+          "certifications": [
+            {
+              "name": "Google Professional Data Engineer",
+              "issuer": "Google Cloud",
+              "year": "2023"
+            },
+            {
+              "name": "dbt Analytics Engineering Certification",
+              "issuer": "dbt Labs",
+              "year": "2023"
+            },
+            {
+              "name": "AWS Certified Data Analytics — Specialty",
+              "issuer": "Amazon Web Services",
+              "year": "2022"
+            },
+            {
+              "name": "Certified Kubernetes Administrator (CKA)",
+              "issuer": "Cloud Native Computing Foundation",
+              "year": "2022"
+            }
+          ],
+          "publications": [],
+          "languages": []
+        }
+      },
+      "validation_initial": {
+        "valid": true,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {
+          "hard_fact_mode": "selected_evidence",
+          "soft_claim_mode": "hybrid_selected_evidence",
+          "selected_evidence_ids": [
+            "exp_3",
+            "ach_1",
+            "proj_3",
+            "exp_1",
+            "ach_3"
+          ],
+          "selected_evidence_count": 5,
+          "deterministic_supported_soft_claims": 7,
+          "semantic_supported_soft_claims": 0,
+          "evaluated_soft_claims": 7
+        }
+      },
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "fit_classification": "stretch",
+        "target_role": "Data Analyst - Retail Banking",
+        "sections": {
+          "header": {
+            "name": "Nguyen Van A",
+            "title": "Data Analyst specializing in Retail Banking, leveraging SQL, Python, and Power BI for data-driven insights.",
+            "location": "Berlin, Germany",
+            "contact": {
+              "email": "nguyen.vana@email.com",
+              "phone": "+49 170 123 4567",
+              "linkedin": "https://linkedin.com/in/nguyenvana"
+            }
+          },
+          "summary": {
+            "text": ""
+          },
+          "experience": [
+            {
+              "role": "Senior Data Engineer",
+              "company": "Acme Analytics GmbH",
+              "start": "2023-01",
+              "end": "present",
+              "location": null,
+              "bullets": [
+                "Built GA4 to BigQuery pipeline processing 2M daily events with dbt transformations, reducing reporting latency by 40%.",
+                "Automated data quality checks with Great Expectations, integrating into CI/CD pipeline via GitHub Actions."
+              ]
+            },
+            {
+              "role": "Junior Data Analyst",
+              "company": "RetailCo AG",
+              "start": "2019-09",
+              "end": "2021-05",
+              "location": null,
+              "bullets": [
+                "Maintained and extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.",
+                "Automated weekly reporting workflows with Python scripts, saving 8 hours/month in reporting workflows."
+              ]
+            }
+          ],
+          "projects": [
+            {
+              "name": "Open-Source dbt Package for Marketing Attribution",
+              "context": null,
+              "bullets": [
+                "Developed a reusable dbt package for multi-touch marketing attribution (first-touch, last-touch, linear), garnering 150+ GitHub stars and adopted by 12 companies.",
+                "Ensured 100% test coverage using dbt-expectations and pytest, with CI/CD implemented via GitHub Actions."
+              ]
+            }
+          ],
+          "education": [],
+          "skills": {
+            "groups": []
+          },
+          "certifications": [
+            {
+              "name": "Google Professional Data Engineer",
+              "issuer": "Google Cloud",
+              "year": "2023"
+            },
+            {
+              "name": "dbt Analytics Engineering Certification",
+              "issuer": "dbt Labs",
+              "year": "2023"
+            },
+            {
+              "name": "AWS Certified Data Analytics — Specialty",
+              "issuer": "Amazon Web Services",
+              "year": "2022"
+            },
+            {
+              "name": "Certified Kubernetes Administrator (CKA)",
+              "issuer": "Cloud Native Computing Foundation",
+              "year": "2022"
+            }
+          ],
+          "publications": [],
+          "languages": []
+        }
+      },
+      "markdown_final": "# Nguyen Van A\n**Data Analyst specializing in Retail Banking, leveraging SQL, Python, and Power BI for data-driven insights.**\n\n## Experience\n\n### Senior Data Engineer — Acme Analytics GmbH (2023-01–present)\n\n- Built GA4 to BigQuery pipeline processing 2M daily events with dbt transformations, reducing reporting latency by 40%.\n\n- Automated data quality checks with Great Expectations, integrating into CI/CD pipeline via GitHub Actions.\n\n\n### Junior Data Analyst — RetailCo AG (2019-09–2021-05)\n\n- Maintained and extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.\n\n- Automated weekly reporting workflows with Python scripts, saving 8 hours/month in reporting workflows.\n\n\n\n## Certifications\n\n- **Google Professional Data Engineer** — Google Cloud (2023)\n\n- **dbt Analytics Engineering Certification** — dbt Labs (2023)\n\n- **AWS Certified Data Analytics — Specialty** — Amazon Web Services (2022)\n\n- **Certified Kubernetes Administrator (CKA)** — Cloud Native Computing Foundation (2022)\n\n\n## Projects\n\n### Open-Source dbt Package for Marketing Attribution\nDeveloped a reusable dbt package for multi-touch marketing attribution (first-touch, last-touch, linear), garnering 150+ GitHub stars and adopted by 12 companies.\nEnsured 100% test coverage using dbt-expectations and pytest, with CI/CD implemented via GitHub Actions.\n",
+      "enabled_sections": [
+        "Experience",
+        "Certifications",
+        "Projects"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "/app/src/fitcv/prompts/templates/cv_generation_structured_write_v1.md",
+      "outcome_reason": null,
+      "error": null
+    }
+  ]
+}

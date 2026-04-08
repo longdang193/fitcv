@@ -1,0 +1,637 @@
+{
+  "run_id": "eddc16ca-4fd4-48df-85ae-d2c7facf1777",
+  "stage_id": "cv_analysis",
+  "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+  "created_at": "2026-04-08T14:00:03.281449+00:00",
+  "stage_artifact": {
+    "stage_id": "cv_analysis",
+    "stage": "cv_analysis",
+    "status": "completed",
+    "input_counts": {
+      "ranked_jobs": 3
+    },
+    "output_counts": {
+      "blocked_by_reranker_fit": 2,
+      "generation_ready": 1,
+      "skipped_fit_gate": 0,
+      "analysis_failed": 0
+    },
+    "decision_summary": {
+      "analysis_records_captured": 3,
+      "quality_metrics": {
+        "blocked_by_reranker_fit_rate": 0.6666666666666666,
+        "skip_rate": 0.0,
+        "generation_ready_rate": 0.3333333333333333,
+        "analysis_failed_rate": 0.0,
+        "blocked_by_reranker_fit": 2,
+        "skipped_fit_gate": 0,
+        "generation_ready": 1,
+        "analysis_failed": 0,
+        "total_processed": 3
+      },
+      "reuse_metrics": {
+        "analysis_rows_executed": 1,
+        "reused_analysis_rows": 1,
+        "fresh_analysis_rows": 0,
+        "blocked_before_analysis_rows": 2,
+        "analysis_reuse_rate": 1.0
+      },
+      "evidence_top_k": 5,
+      "effective_channel_pool_size": 4,
+      "selected_evidence_total": 5,
+      "merged_candidate_pool_total": 16
+    },
+    "outputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst - Retail Banking",
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "reused_exact_match",
+        "analysis_input_fingerprint": "2512d808192518063360ebe5e8d65667429569d684e70f2590885813376d97f5",
+        "ranking_fit_label": "stretch",
+        "fit_classification": "stretch",
+        "evidence_used": [
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[2]",
+            "name": "Junior Data Analyst — RetailCo AG",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.272727,
+                "semantic": 0.659,
+                "combined": 0.388609
+              },
+              "role_alignment": {
+                "lexical": 1.0,
+                "semantic": 0.702058,
+                "combined": 0.880823
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.621293,
+                "combined": 0.572776
+              },
+              "responsibility_alignment": {
+                "lexical": 0.04878,
+                "semantic": 0.615863,
+                "combined": 0.474092
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[0]",
+            "name": "Reduced reporting latency by 40% by rebuilding GA4 → BigQuery pipeline with dbt.",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 1.0,
+                "semantic": 0.509185,
+                "combined": 0.705511
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[2]",
+            "name": "Open-Source dbt Package for Marketing Attribution",
+            "matched_channels": [
+              "required_skill_support"
+            ],
+            "selection_reasons": [
+              "required_skill_support"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.181818,
+                "semantic": 0.630921,
+                "combined": 0.316549
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "Senior Data Engineer — Acme Analytics GmbH",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "domain_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.181818,
+                "semantic": 0.642745,
+                "combined": 0.320096
+              },
+              "role_alignment": {
+                "lexical": 0.25,
+                "semantic": 0.594157,
+                "combined": 0.387663
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.519287,
+                "combined": 0.511572
+              },
+              "responsibility_alignment": {
+                "lexical": 0.036585,
+                "semantic": 0.675586,
+                "combined": 0.515836
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards.",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.605487,
+                "combined": 0.242195
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.64617,
+                "combined": 0.587702
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          }
+        ],
+        "evidence_selection_summary": {
+          "channel_counts": {
+            "required_skill_support": 4,
+            "role_alignment": 4,
+            "domain_alignment": 4,
+            "responsibility_alignment": 4
+          },
+          "effective_channel_pool_size": 4,
+          "merged_pool_size": 16,
+          "deduped_pool_size": 7,
+          "selected_evidence_count": 5,
+          "selected_evidence_ids": [
+            "exp_3",
+            "ach_1",
+            "proj_3",
+            "exp_1",
+            "ach_3"
+          ],
+          "unselected_top_candidates": [
+            {
+              "evidence_id": "exp_2",
+              "evidence_type": "experience_entry",
+              "source_ref": "experiences[1]",
+              "name": "Data Engineer — Fintech Startup GmbH",
+              "matched_channels": [
+                "required_skill_support",
+                "role_alignment",
+                "responsibility_alignment"
+              ],
+              "selection_score": 0.0,
+              "channel_subscores": {
+                "required_skill_support": {
+                  "lexical": 0.181818,
+                  "semantic": 0.638327,
+                  "combined": 0.318771
+                },
+                "role_alignment": {
+                  "lexical": 0.25,
+                  "semantic": 0.678732,
+                  "combined": 0.421493
+                },
+                "responsibility_alignment": {
+                  "lexical": 0.04878,
+                  "semantic": 0.651109,
+                  "combined": 0.500527
+                }
+              }
+            },
+            {
+              "evidence_id": "ach_2",
+              "evidence_type": "achievement",
+              "source_ref": "achievements[1]",
+              "name": "Enabled real-time dashboard updates under 30 seconds via Pub/Sub → Dataflow streaming architecture.",
+              "matched_channels": [
+                "responsibility_alignment"
+              ],
+              "selection_score": 0.0,
+              "channel_subscores": {
+                "responsibility_alignment": {
+                  "lexical": 0.012195,
+                  "semantic": 0.545382,
+                  "combined": 0.412086
+                }
+              }
+            }
+          ],
+          "hybrid_alignment": {
+            "required_skill_support": {
+              "lexical_weight": 0.7,
+              "semantic_weight": 0.3
+            },
+            "role_alignment": {
+              "lexical_weight": 0.6,
+              "semantic_weight": 0.4
+            },
+            "responsibility": {
+              "lexical_weight": 0.25,
+              "semantic_weight": 0.75
+            },
+            "domain": {
+              "lexical_weight": 0.4,
+              "semantic_weight": 0.6
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        "gap_summary": {
+          "matched": [
+            "SQL",
+            "Python",
+            "Power BI",
+            "Git"
+          ],
+          "partial": [],
+          "missing": [
+            "BI Tools",
+            "MicroStrategy",
+            "Data Vault",
+            "3NF",
+            "Amazon Redshift",
+            "Jira",
+            "Confluence"
+          ],
+          "matchable_required_count": 11,
+          "ignored_for_fit": [],
+          "years_risk": false,
+          "overclaim_risk": []
+        }
+      }
+    ],
+    "dropped_or_changed_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+        "job_title": "Business & Data Analyst - B2B2C",
+        "change_type": "blocked_by_reranker_fit",
+        "analysis_reuse_status": "not_run_reranker_skip",
+        "ranking_fit_label": "skip",
+        "fit_classification": "skip",
+        "evidence_selection_summary": {},
+        "outcome_reason": {
+          "stage": "reranker_fit",
+          "message": "Blocked https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title before CV analysis (reranker fit=skip)"
+        }
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+        "change_type": "blocked_by_reranker_fit",
+        "analysis_reuse_status": "not_run_reranker_skip",
+        "ranking_fit_label": "skip",
+        "fit_classification": "skip",
+        "evidence_selection_summary": {},
+        "outcome_reason": {
+          "stage": "reranker_fit",
+          "message": "Blocked https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title before CV analysis (reranker fit=skip)"
+        }
+      }
+    ],
+    "inputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst - Retail Banking",
+        "ai_score": 0.45,
+        "ai_score_reuse_status": "reused_exact_match",
+        "ai_score_input_fingerprint": "f207f7d056ca10456996cbc00ed8d1bf8dfa1f91b9f890b5087dd23898df478a",
+        "must_have_match": 0.36363636363636365,
+        "vector_similarity": 0.6917557803408251,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.5,
+        "feature_contributions": {
+          "ai_score": 0.1575,
+          "must_have_match": 0.07272727272727274,
+          "vector_similarity": 0.17293894508520627,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.025,
+          "preference_fit": 0.05
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 1.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Senior Data Engineer",
+        "effective_role_families": [
+          "data_engineering",
+          "analytics"
+        ],
+        "effective_domains": [
+          "data_engineering",
+          "analytics",
+          "data_science",
+          "ml_engineering"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "locations": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml",
+          "salary_range": "explicit_yaml",
+          "notice_period": "explicit_yaml",
+          "exclude_contract_types": "explicit_yaml",
+          "exclude_experience_levels": "explicit_yaml"
+        },
+        "final_score": 0.478166217812479,
+        "ranking_fit_label": "stretch",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+        "job_title": "Business & Data Analyst - B2B2C",
+        "ai_score": 0.35,
+        "ai_score_reuse_status": "reused_exact_match",
+        "ai_score_input_fingerprint": "3cbc89f2f226bdae94503c62e356682839550c95557e507fae1723e998c735e0",
+        "must_have_match": 0.35714285714285715,
+        "vector_similarity": 0.7174154719813786,
+        "title_relevance": 0.0,
+        "seniority_fit": 0.5,
+        "preference_fit": 0.3,
+        "feature_contributions": {
+          "ai_score": 0.12249999999999998,
+          "must_have_match": 0.07142857142857144,
+          "vector_similarity": 0.17935386799534464,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.025,
+          "preference_fit": 0.03
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 1.0,
+          "location_type": 0.0
+        },
+        "effective_target_role": "Senior Data Engineer",
+        "effective_role_families": [
+          "data_engineering",
+          "analytics"
+        ],
+        "effective_domains": [
+          "data_engineering",
+          "analytics",
+          "data_science",
+          "ml_engineering"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "locations": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml",
+          "salary_range": "explicit_yaml",
+          "notice_period": "explicit_yaml",
+          "exclude_contract_types": "explicit_yaml",
+          "exclude_experience_levels": "explicit_yaml"
+        },
+        "final_score": 0.4282824394239161,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      },
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+        "ai_score": 0.25,
+        "ai_score_reuse_status": "reused_exact_match",
+        "ai_score_input_fingerprint": "d73b158d068734b79f3efb56cd5497f8c990fba1f1185616200b684de7d31c09",
+        "must_have_match": 0.2222222222222222,
+        "vector_similarity": 0.7332203100332552,
+        "title_relevance": 0.0,
+        "seniority_fit": 1.0,
+        "preference_fit": 0.2,
+        "feature_contributions": {
+          "ai_score": 0.0875,
+          "must_have_match": 0.044444444444444446,
+          "vector_similarity": 0.1833050775083138,
+          "title_relevance": 0.0,
+          "seniority_fit": 0.05,
+          "preference_fit": 0.020000000000000004
+        },
+        "preference_fit_components": {
+          "domain": 0.0,
+          "role_family": 0.0,
+          "location_type": 1.0
+        },
+        "effective_target_role": "Senior Data Engineer",
+        "effective_role_families": [
+          "data_engineering",
+          "analytics"
+        ],
+        "effective_domains": [
+          "data_engineering",
+          "analytics",
+          "data_science",
+          "ml_engineering"
+        ],
+        "preference_sources": {
+          "target_role": "explicit_yaml",
+          "role_families": "explicit_yaml",
+          "location_types": "explicit_yaml",
+          "locations": "explicit_yaml",
+          "domains": "explicit_yaml",
+          "seniority_target": "explicit_yaml",
+          "salary_range": "explicit_yaml",
+          "notice_period": "explicit_yaml",
+          "exclude_contract_types": "explicit_yaml",
+          "exclude_experience_levels": "explicit_yaml"
+        },
+        "final_score": 0.38524952195275824,
+        "ranking_fit_label": "skip",
+        "shortlist_origin": "vector_search"
+      }
+    ],
+    "settings_refs": [
+      "pipeline.evidence_top_k",
+      "cv_analysis.semantic_alignment.enabled",
+      "cv_analysis.semantic_alignment.model",
+      "cv_analysis.semantic_alignment.required_skill_lexical_weight",
+      "cv_analysis.semantic_alignment.required_skill_semantic_weight",
+      "cv_analysis.semantic_alignment.role_lexical_weight",
+      "cv_analysis.semantic_alignment.role_semantic_weight",
+      "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+      "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+      "cv_analysis.semantic_alignment.domain_lexical_weight",
+      "cv_analysis.semantic_alignment.domain_semantic_weight",
+      "cv_analysis.semantic_alignment.channel_pool_size"
+    ]
+  }
+}

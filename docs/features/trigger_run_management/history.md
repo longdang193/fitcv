@@ -2,6 +2,16 @@
 
 ## Changelog
 
+### 2.17.0 — active
+
+- Run-owned artifact bundles now export `run_mode` / `run_mode_label`, so downloaded diagnostics can distinguish `Run All` from `Stage by Stage` without a control-plane lookup
+
+### 2.16.0 — active
+
+- Run detail now offers `Download All Artifacts (.zip)` as a convenience bundle for currently available run-owned artifacts
+- The bundle follows the same stage-gating rules as the individual exports, so partial runs export only what they have actually reached
+- Individual artifact downloads remain unchanged and continue to be the authoritative surfaces
+
 ### 2.15.0 — active
 
 - `Run All` now persists shared stage progress and stage-owned artifacts as each stage boundary is reached instead of waiting until final success
@@ -155,6 +165,10 @@
 - Run-results export now distinguishes passed non-CV jobs as `not_shortlisted`, `shortlisted_not_scored`, or `scored_not_ranked` instead of collapsing them into one vague status
 - Run detail now shows a compact `Pipeline Outcome` label for enriched jobs so “passed filter” is no longer confused with “CV should have been generated”
 - Layer 4 CV generation now rebuilds ranked jobs from enriched context before gap analysis, so debug snapshots and gap summaries retain JD fields like title and required skills
+### 1.5.0 — active
+
+- `Stage by Stage` checkpoints now retain reranker-blocked CV debug rows through the final `cv_generation` resume so succeeded staged runs finish with truthful run-scoped artifacts
+
 
 ### 1.4.0 — active
 

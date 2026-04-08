@@ -15,7 +15,7 @@ services:
     volumes:
       - ./.env.yaml:/app/.env.yaml:ro
       - ./config/env.yaml:/app/config/env.yaml:ro
-      - ${GCP_SA_KEY_PATH:-../../sa_key.json}:/app/sa_key.json:ro
+      - ${GCP_SA_KEY_PATH:-./sa_key.json}:/app/sa_key.json:ro
       - fitcv_uploads:/app/data/uploads
     depends_on: [redis]
 
@@ -30,7 +30,7 @@ services:
     volumes:
       - ./.env.yaml:/app/.env.yaml:ro
       - ./config/env.yaml:/app/config/env.yaml:ro
-      - ${GCP_SA_KEY_PATH:-../../sa_key.json}:/app/sa_key.json:ro
+      - ${GCP_SA_KEY_PATH:-./sa_key.json}:/app/sa_key.json:ro
       - fitcv_uploads:/app/data/uploads
     depends_on: [redis]
 

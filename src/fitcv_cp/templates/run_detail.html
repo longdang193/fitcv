@@ -126,7 +126,12 @@
   <h3 style="margin:0 0 0.85rem">Run Exports</h3>
   <div class="run-export-grid">
     {% for export_link in run_export_links %}
-    <a href="{{ export_link.href }}" class="run-export-link">⬇ {{ export_link.label }}</a>
+    <div class="run-export-item">
+      <a href="{{ export_link.href }}" class="run-export-link">⬇ {{ export_link.label }}</a>
+      {% if export_link.helper_text %}
+      <div class="meta" style="margin-top:0.35rem">{{ export_link.helper_text }}</div>
+      {% endif %}
+    </div>
     {% endfor %}
   </div>
 </div>
@@ -457,6 +462,11 @@ async function lifecycleAction(runId, action, btn) {
   border-radius:10px;
   background:rgba(255,255,255,0.02);
   text-decoration:none;
+}
+
+.run-export-item {
+  display:flex;
+  flex-direction:column;
 }
 
 .run-health-grid {

@@ -257,6 +257,13 @@ capabilities:
 - capability: Ranked jobs now use reranker fit as the sole post-filter authority for
     ranking and CV eligibility
   feature_id: trigger_run_management
+- capability: Ranked jobs with authoritative reranker `fit_label = skip` now stop
+    before evidence retrieval inside `cv_analysis` and carry a distinct `blocked_by_reranker_fit`
+    status instead of paying full analysis cost
+  feature_id: cv_system
+- capability: Ranked jobs with authoritative reranker `fit_label = skip` now stop
+    before evidence retrieval, gap computation, and semantic alignment inside `cv_analysis`
+  feature_id: pipeline_performance
 - capability: Ranking `preference_fit` now scores weighted domain, role-family, and
     location-type preference alignment
   feature_id: cv_system
@@ -300,8 +307,15 @@ capabilities:
 - capability: Reranker fit is the sole post-filter authority for ranking-time fit
     and CV-generation eligibility
   feature_id: cv_system
+- capability: Reranker-blocked ranked jobs now carry a distinct `blocked_by_reranker_fit`
+    outcome instead of being conflated with true analyzed-and-skipped rows
+  feature_id: inspection_debugging
 - capability: Responsive wrapping
   feature_id: ui_consistency_theming
+- capability: Results-ledger rows now omit full `original_job`, full `enriched_job`,
+    bulky score-explanation substructures, and full CV bodies so operator-facing exports
+    stop duplicating stage-owned diagnostics
+  feature_id: inspection_debugging
 - capability: Retrieval settings
   feature_id: settings_system
 - capability: Rule Filter settings can choose which deterministic post-enrichment
@@ -310,6 +324,9 @@ capabilities:
 - capability: Rule-filter stage artifacts and run detail now show the active blocking-filter
     set plus mark-code counts for selectable screening
   feature_id: inspection_debugging
+- capability: Run detail can bundle currently available run-owned artifacts into one
+    zip download without changing stage ownership of the underlying files
+  feature_id: trigger_run_management
 - capability: Run detail can show whether a run-scoped synonym overlay is active for
     a manual run paused after `enrich`
   feature_id: inspection_debugging
@@ -328,6 +345,10 @@ capabilities:
 - capability: Run detail now merges stage quality and late-stage reuse into a compact
     `Run Health` diagnostics surface
   feature_id: trigger_run_management
+- capability: Run detail now offers `Download All Artifacts (.zip)` as a convenience
+    bundle of currently available run-scoped artifacts plus a manifest of included
+    and missing files
+  feature_id: inspection_debugging
 - capability: Run detail page with 3-tab inspection interface
   feature_id: inspection_debugging
 - capability: Run detail pipeline outcomes can show explicit decision-chain detail
@@ -482,6 +503,14 @@ capabilities:
     whether the single candidate query embedding was reused or freshly created, including
     its signature and contract fingerprint
   feature_id: inspection_debugging
+- capability: Skipped-fit-gate rows in `results.json` now keep the row-level `cv_analysis`
+    block and compact `decision_chain` aligned, so operator-facing outcomes no longer
+    mix `skipped_fit_gate` with `not_run`
+  feature_id: inspection_debugging
+- capability: Skipped-fit-gate rows in the compact results ledger now stay consistent
+    with the `cv_analysis`/`cv_generation` split instead of understating completed
+    gate decisions as `not_run`
+  feature_id: cv_system
 - capability: Stage-slice downloads now expose richer per-stage input, output, and
     changed-state samples instead of summary-only handoff blocks
   feature_id: trigger_run_management
@@ -554,6 +583,10 @@ capabilities:
 - capability: '`cv-debug.json` now explains ranked-job coverage with attempted-vs-non-attempted
     counts and omission reasons'
   feature_id: inspection_debugging
+- capability: '`cv_analysis.semantic_alignment` now exposes separate required-skill
+    and role lexical/semantic weight pairs so the most important fit channels can
+    receive semantic lift without losing bounded operator control'
+  feature_id: cv_system
 - capability: '`cv_analysis` artifacts can now expose lexical-versus-semantic subscores,
     effective hybrid weights, semantic methods, and semantic embedding reuse state
     for domain and responsibility alignment'
@@ -579,10 +612,15 @@ capabilities:
 - capability: '`cv_analysis` now owns ranked-job context merge, evidence retrieval,
     gap analysis, and final fit-gate preparation before CV writing'
   feature_id: cv_system
-- capability: '`cv_analysis` now scores domain and responsibility alignment with hybrid
-    lexical-plus-semantic matching, including stage-owned semantic embedding reuse
-    for the candidate evidence and job snippets it actually consumes'
+- capability: '`cv_analysis` now scores required-skill, role, domain, and responsibility
+    alignment with bounded hybrid lexical-plus-semantic matching, including stage-owned
+    semantic embedding reuse for the candidate evidence and job snippets it actually
+    consumes'
   feature_id: cv_system
+- capability: '`cv_analysis` now uses bounded semantic lift for required-skill and
+    role channels instead of reserving semantic work only for domain and responsibility
+    alignment'
+  feature_id: pipeline_performance
 - capability: '`cv_analysis` selection-policy knobs now live in dedicated config instead
     of stage-local constants, while shared contract/version identifiers and analysis-channel
     semantics are imported from central runtime modules'
@@ -593,12 +631,18 @@ capabilities:
     retrieval counts, merged-pool sizing, selected-evidence IDs, matched-channel metadata,
     and selection reasons'
   feature_id: inspection_debugging
+- capability: '`cv_analysis` stage artifacts now avoid reporting inflated stage-level
+    fresh/reused embedding totals by retiring the old cumulative-snapshot rollup fields'
+  feature_id: cv_system
 - capability: '`cv_analysis` stage artifacts now expose generation-ready, skipped-fit-gate,
     and analysis-failed records separately from CV writing outcomes'
   feature_id: inspection_debugging
 - capability: '`cv_analysis` stage downloads can now expose channel-level evidence
     retrieval counts plus final selected-evidence rationale before `cv_generation`'
   feature_id: trigger_run_management
+- capability: '`cv_analysis` stage-level embedding counters no longer sum cumulative
+    per-record cache snapshots into misleading fresh/reused totals'
+  feature_id: inspection_debugging
 - capability: '`cv_generation.structured_write.v1` is now the sole active `cv_generation`
     runtime prompt contract; the legacy markdown writer prompt is no longer part of
     active pipeline config or runtime provenance'
@@ -618,6 +662,11 @@ capabilities:
 - capability: '`cv_generation` now consumes persisted `cv_analysis` outputs for writing,
     validation, repair, and persistence instead of recomputing analysis by default'
   feature_id: cv_system
+- capability: '`cv_generation` now tells the writer to use the real profile name in
+    the header, rejects unresolved candidate-name placeholders such as `Candidate
+    Name` and `[Candidate Name]`, and performs one deterministic header-only repair
+    before final rejection when a real profile name is available'
+  feature_id: cv_system
 - capability: '`cv_generation` prompt guidance now explicitly tells the writer to
     stay inside the selected evidence bundle for responsibility, domain, and role-positioning
     claims'
@@ -629,13 +678,19 @@ capabilities:
     projects, and skills against the selected `cv_analysis` evidence bundle instead
     of only the full candidate profile when selected evidence is available'
   feature_id: cv_system
-- capability: '`cv_generation` validation now rejects unresolved candidate-name placeholders
-    such as `[Candidate Name]` instead of accepting them as valid output'
-  feature_id: cv_system
 - capability: '`cv_generation` validation now uses a bounded hybrid path for softer
     role, domain, and responsibility claims, combining deterministic selected-theme/tag
     support with compact selected-evidence text matching'
   feature_id: cv_system
+- capability: '`results.json` compact decision chains and `cv-debug.json` ranked-job
+    coverage accounting now propagate `blocked_by_reranker_fit` truthfully instead
+    of degrading reranker-blocked rows into generic `not_run` or dropping them from
+    non-attempted coverage'
+  feature_id: inspection_debugging
+- capability: '`results.json` now keeps only compact job-ledger fields instead of
+    repeating full job snapshots, heavy score-explanation internals, and full CV bodies
+    already represented elsewhere'
+  feature_id: pipeline_performance
 - capability: '`results.json` now stays focused on the per-job run ledger while `stage-artifacts.json`
     remains the bundled diagnostic export for stage-owned metrics, reuse, and samples'
   feature_id: inspection_debugging

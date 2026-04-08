@@ -286,6 +286,108 @@ def test_run_all_validations_rejects_candidate_name_placeholder() -> None:
     assert any("Candidate Name" in violation for violation in result["grounding_violations"])
 
 
+def test_run_all_validations_rejects_plain_candidate_name_header() -> None:
+    profile = {
+        "name": "Real Candidate",
+        "experiences": [{"company": "ACME"}],
+        "projects": [],
+        "skills": ["SQL"],
+    }
+    cv_text = (
+        "# Candidate Name\n"
+        "## Summary\nGrounded summary\n"
+        "## Skills\nSQL\n"
+        "## Experience\nEngineer at ACME"
+    )
+
+    result = run_all_validations(cv_text, profile=profile, config=_CV_CONFIG)
+
+    assert result["valid"] is False
+    assert any("Candidate Name" in violation for violation in result["grounding_violations"])
+
+
+def test_run_all_validations_rejects_candidate_name_in_structured_header() -> None:
+    profile = {
+        "name": "Real Candidate",
+        "experiences": [{"company": "ACME"}],
+        "projects": [],
+        "skills": ["SQL"],
+    }
+    cv_text = (
+        "# Real Candidate\n"
+        "## Summary\nGrounded summary\n"
+        "## Skills\nSQL\n"
+        "## Experience\nEngineer at ACME"
+    )
+    structured_cv = {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "sections": {
+            "header": {"name": "Candidate Name", "title": "Data Analyst", "location": None, "contact": {}},
+            "summary": {"text": "Grounded summary"},
+            "experience": [{"role": "Engineer", "company": "ACME"}],
+            "projects": [],
+            "education": [],
+            "skills": {"groups": [{"label": "Core", "items": ["SQL"]}]},
+            "certifications": [],
+            "publications": [],
+            "languages": [],
+        },
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=_CV_CONFIG,
+        structured_cv=structured_cv,
+    )
+
+    assert result["valid"] is False
+    assert any("Candidate Name" in violation for violation in result["grounding_violations"])
+
+
+def test_run_all_validations_accepts_real_candidate_name_header() -> None:
+    profile = {
+        "name": "Jane Doe",
+        "experiences": [{"company": "ACME"}],
+        "projects": [],
+        "skills": ["SQL"],
+    }
+    cv_text = (
+        "# Jane Doe\n"
+        "## Summary\nGrounded summary\n"
+        "## Skills\nSQL\n"
+        "## Experience\nEngineer at ACME"
+    )
+    structured_cv = {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "sections": {
+            "header": {"name": "Jane Doe", "title": "Data Analyst", "location": None, "contact": {}},
+            "summary": {"text": "Grounded summary"},
+            "experience": [{"role": "Engineer", "company": "ACME"}],
+            "projects": [],
+            "education": [],
+            "skills": {"groups": [{"label": "Core", "items": ["SQL"]}]},
+            "certifications": [],
+            "publications": [],
+            "languages": [],
+        },
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=_CV_CONFIG,
+        structured_cv=structured_cv,
+    )
+
+    assert result["valid"] is True
+    assert result["grounding_violations"] == []
+
+
 def test_run_all_validations_accepts_skill_dicts_in_profile() -> None:
     profile = {
         "experiences": [{"role": "DE", "company": "ACME", "start": "2020", "end": "2022"}],

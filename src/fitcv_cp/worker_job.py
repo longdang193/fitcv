@@ -51,6 +51,15 @@ _CV_GENERATION_ATTEMPTED_STATUSES = {
     "generation_failed",
     "persistence_failed",
 }
+_CV_DEBUG_ANALYSIS_OMISSION_STATUSES = {
+    "blocked_by_reranker_fit",
+    "skipped_fit_gate",
+    "analysis_failed",
+}
+_RUN_MODE_LABELS = {
+    "run_all": "Run All",
+    "manual_staged": "Stage by Stage",
+}
 
 
 def _get_bq() -> bigquery.Client:
@@ -105,6 +114,12 @@ def _build_results_export_payload(
     def _string_or_none(value: Any) -> str | None:
         return value if isinstance(value, str) else None
 
+    def _normalized_run_mode(value: Any) -> str:
+        run_mode = _string_or_none(value)
+        if run_mode in _RUN_MODE_LABELS:
+            return run_mode
+        return "run_all"
+
     def _iso_or_none(value: Any) -> str | None:
         return value.isoformat() if isinstance(value, datetime.datetime) else None
 
@@ -113,9 +128,11 @@ def _build_results_export_payload(
     }
     payload = {
         "run_id": run_id,
-        "results_schema_version": "results_job_ledger_v1",
+        "results_schema_version": "results_job_ledger_v3",
         "status": RunStatus.SUCCEEDED.value,
         "triggered_by": _string_or_none(getattr(run_record, "triggered_by", "")) or "",
+        "run_mode": _normalized_run_mode(getattr(run_record, "run_mode", None)),
+        "run_mode_label": _RUN_MODE_LABELS[_normalized_run_mode(getattr(run_record, "run_mode", None))],
         "created_at": _iso_or_none(getattr(run_record, "created_at", None)),
         "started_at": _iso_or_none(getattr(run_record, "started_at", None)),
         "finished_at": finished_at.isoformat(),
@@ -200,9 +217,19 @@ def _collect_late_stage_reuse_snapshots(
 def _build_cv_generation_debug_payload(
     *,
     run_id: str,
+    run_record: Any,
     summary: dict[str, Any],
     finished_at: datetime.datetime,
 ) -> str:
+    def _string_or_none(value: Any) -> str | None:
+        return value if isinstance(value, str) else None
+
+    def _normalized_run_mode(value: Any) -> str:
+        run_mode = _string_or_none(value)
+        if run_mode in _RUN_MODE_LABELS:
+            return run_mode
+        return "run_all"
+
     def _truncate_large_fields(record: dict[str, Any]) -> dict[str, Any]:
         truncated = dict(record)
         markdown_final = truncated.get("markdown_final")
@@ -220,17 +247,34 @@ def _build_cv_generation_debug_payload(
         for record in debug_records
         if str(record.get("status") or "") in _CV_GENERATION_ATTEMPTED_STATUSES
     )
+    debug_record_job_urls = {
+        str(record.get("job_url") or "")
+        for record in debug_records
+        if str(record.get("job_url") or "")
+    }
     omission_reason_counts: dict[str, int] = {}
     for record in debug_records:
         status = str(record.get("status") or "")
         if status in _CV_GENERATION_ATTEMPTED_STATUSES:
             continue
         omission_reason_counts[status] = omission_reason_counts.get(status, 0) + 1
+    for record in list(summary.get("cv_analysis_results") or []):
+        if not isinstance(record, dict):
+            continue
+        status = str(record.get("status") or "")
+        if status not in _CV_DEBUG_ANALYSIS_OMISSION_STATUSES:
+            continue
+        job_url = str(record.get("job_url") or "")
+        if job_url and job_url in debug_record_job_urls:
+            continue
+        omission_reason_counts[status] = omission_reason_counts.get(status, 0) + 1
     non_attempted_ranked_jobs_total = sum(omission_reason_counts.values())
     payload = {
         "run_id": run_id,
         "status": RunStatus.SUCCEEDED.value,
-        "debug_schema_version": "cv_generation_debug_v2",
+        "debug_schema_version": "cv_generation_debug_v3",
+        "run_mode": _normalized_run_mode(getattr(run_record, "run_mode", None)),
+        "run_mode_label": _RUN_MODE_LABELS[_normalized_run_mode(getattr(run_record, "run_mode", None))],
         "created_at": finished_at.isoformat(),
         "ranked_jobs_total": ranked_jobs_total,
         "debug_records_captured": len(debug_records),
@@ -693,6 +737,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 run_id,
                 _build_cv_generation_debug_payload(
                     run_id=run_id,
+                    run_record=run_record,
                     summary=summary,
                     finished_at=finished_at,
                 ),

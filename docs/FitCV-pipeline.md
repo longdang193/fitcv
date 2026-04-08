@@ -20,12 +20,18 @@ status: []
 7. Use BigQuery VECTOR_SEARCH to shortlist jobs, building the candidate query from flattened profile skills plus bounded role-family/domain hints, reusing the single shortlist candidate-query embedding when the deterministic query signature and contract still match, searching only the latest active persistent `job_summary` embedding per canonical `job_url`, and reusing unchanged job-summary embeddings when the shortlist signature and embedding contract still match
 8. Use BigQuery AI.SCORE to rerank shortlisted jobs with a stricter rubric that prioritizes required-skill evidence, seniority readiness, and role alignment while keeping preference signals secondary; when candidate YAML preferences are sparse, ranking first derives deterministic fallback intent from recent role and domain evidence, and exact-match AI-score rows can be reused safely when the ranking-stage fingerprint and contract still match
 9. Select top jobs
-10. Retrieve best candidate evidence for each job, with exact-match `cv_analysis` outputs reused safely when the ranked-job analysis fingerprint and contract still match
-11. Generate tailored CV
-12. Validate output against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support, including unresolved-placeholder rejection for draft headers such as `[Candidate Name]`
-13. Store versions + tracking
-14. Emit stage-level quality metrics so shortlist, ranking, `cv_analysis`, and `cv_generation` bottlenecks are visible in run inspection without opening every stage artifact
-15. Persist bounded late-stage reuse snapshots and reuse-rate metrics so repeated ranking and `cv_analysis` runs can skip unchanged expensive work safely
+10. For ranked jobs whose authoritative reranker `fit_label` is not `skip`, retrieve the best candidate evidence, with exact-match `cv_analysis` outputs reused safely when the ranked-job analysis fingerprint and contract still match
+11. Short-circuit reranker `skip` jobs before expensive `cv_analysis` evidence retrieval, recording them as blocked before analysis rather than analyzed-and-skipped
+12. Generate tailored CV
+13. Validate output against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support, including unresolved candidate-name placeholder rejection for draft headers such as `Candidate Name` and `[Candidate Name]`
+14. If validation fails only because the writer left a candidate-name placeholder in the header and a real profile name is available, deterministically repair the header identity, rerender markdown, and rerun validation once
+15. Store versions + tracking
+16. Emit stage-level quality metrics so shortlist, ranking, `cv_analysis`, and `cv_generation` bottlenecks are visible in run inspection without opening every stage artifact
+17. Persist bounded late-stage reuse snapshots and execution-aware reuse-rate metrics so repeated ranking and `cv_analysis` runs can skip unchanged expensive work safely without confusing blocked-before-analysis rows with executed analysis
+18. Export a compact per-job `results.json` ledger while keeping heavy stage samples and diagnostics in `stage-artifacts.json`
+19. Treat reranker-blocked rows as stopped before `cv_analysis`, while skipped-fit-gate rows remain completed-analysis outcomes with `cv_generation` explicitly unattempted
+20. Keep operator-facing artifacts honest about that split: compact `results.json` rows and `cv-debug.json` coverage summaries must count reranker-blocked ranked jobs explicitly instead of collapsing them into generic not-run states
+21. Version run-scoped artifact headers explicitly and export `run_mode` metadata so downloaded bundles can distinguish contract era and execution policy without control-plane lookup
 ```
 
 ## Add a JD normalization + enrichment layer before embeddings
@@ -575,6 +581,8 @@ How do I present the most relevant evidence for this role?
 * evidence retrieval
 * template-based CV generation
 * validation
+
+For ranked jobs with reranker `fit_label = skip`, Layer 4 now short-circuits before evidence retrieval in both `Run All` and final succeeded `Stage by Stage` artifacts. Those rows remain explicitly marked as reranker-blocked rather than degrading to generic `ranked_no_cv` outcomes after a staged pause/resume.
 
 That mental model is much stronger than just:
 
