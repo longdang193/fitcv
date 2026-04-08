@@ -1,120 +1,173 @@
-# FitCV Admin Control Plane
+# FitCV
 
-> An internal FastAPI administration UI and background-worker pipeline orchestrator for FitCV — a Gemini-powered job-to-CV matching system.
+> A job-matching and CV-generation system with an operator-facing control plane for running, inspecting, and tuning the pipeline.
 
----
+## Who Uses It
 
-## Why
+FitCV is built for a person or team that wants to turn a large set of raw job postings into a smaller set of high-confidence applications, with grounded CV output and strong operational visibility.
 
-FitCV generates tailored CVs for job applications by:
+Typical users are:
 
-1. Accepting a list of raw job postings
-2. Enriching them with structured metadata (skills, seniority, domain, etc.) via Gemini
-3. Matching them against a candidate profile using BigQuery vector search + AI scoring
-4. Generating grounded CV markdown for the top-ranked jobs
+- an internal operator running and reviewing application batches
+- an engineer building or maintaining the pipeline
+- a candidate-support workflow that needs inspection, traceability, and repeatable CV generation
 
-The pipeline runs asynchronously in a background worker. Without a control plane, operating it required terminal access to trigger runs, check status, and inspect outputs.
+## Problem
 
-This project adds an internal admin UI and a REST API so that pipeline runs can be managed without terminal access.
+The underlying workflow is messy if handled manually:
 
----
+- raw jobs arrive in inconsistent formats
+- job relevance is hard to judge at scale
+- generic CV rewriting is difficult to trust
+- pipeline runs are hard to operate without good inspection and control surfaces
 
-## What
+FitCV addresses that by combining structured enrichment, deterministic filtering, retrieval and ranking, grounded CV generation, and an admin control plane that makes the whole system observable and tunable.
 
-The FitCV Admin Control Plane provides:
+## Solution
 
-- **Trigger runs** — via file upload, pasted JSON, or path reference
-- **Inspect runs** — status, events, enriched jobs, filter outcomes, CV downloads
-- **Manage settings** — retrieval, timing, global filters, ranking, and CV generation settings through an admin UI backed by BigQuery key-value storage
-- **Lifecycle controls** — stop/pause running runs, archive/unarchive completed runs
+FitCV processes jobs in a staged pipeline:
 
-### Tech Stack
+1. normalize incoming job inputs into a stable schema
+2. enrich jobs into structured records with skills, seniority, domain, and role context
+3. apply deterministic rule filtering before expensive retrieval and ranking
+4. shortlist plausible jobs through retrieval
+5. rank shortlisted jobs with stricter fit logic
+6. analyze only the best candidates for grounded CV evidence
+7. generate validated CV outputs with repair safeguards
 
-| Layer | Technology |
-|---|---|
-| Web framework | FastAPI |
-| Templating | Jinja2 |
-| Background jobs | RQ + Redis |
-| Persistence | BigQuery |
-| Pipeline AI | Gemini (Vertex AI) |
-| Infrastructure | Docker + docker-compose |
+The admin control plane then lets operators trigger runs, inspect stage outputs, download artifacts, adjust settings, and manage run lifecycle actions without terminal-only workflows.
 
-### Architecture
+## Key Pipeline Stages
 
-```
-Browser
+- `normalize`
+  - cleans and deduplicates raw job inputs into a stable run-scoped job list
+- `enrich`
+  - extracts structured job fields and supports safe reuse when unchanged jobs already have valid enrich output
+- `rule_filter`
+  - removes deterministic mismatches before expensive ranking work begins
+- `shortlist`
+  - retrieves the most plausible jobs with bounded, reuse-aware retrieval inputs
+- `ranking`
+  - applies the authoritative post-filter fit decision and selects which jobs can move toward CV generation
+- `cv_analysis`
+  - retrieves candidate evidence, computes grounded gap summaries, and decides whether a ranked job is generation-ready
+- `cv_generation`
+  - writes, validates, repairs when safe, and persists final CV outputs
+
+## Major Control-Plane Features
+
+- Trigger runs from uploaded files, pasted JSON, or path-based inputs
+- Run in either `Run All` or `Stage by Stage` mode
+- Inspect run progress, stage artifacts, and per-job outcomes
+- Download bundled run artifacts and stage-owned diagnostics
+- Manage editable pipeline settings through the UI
+- Pause, continue, archive, and cancel runs through lifecycle controls
+
+## Engineering Highlights
+
+The most important system work in this repo is not just “generate CVs.” It is the surrounding reliability, diagnostics, and performance design:
+
+- **Stage-aware architecture**
+  - the pipeline is split into explicit stages with clear boundaries and stage-local artifacts
+- **Operator-facing inspection**
+  - runs expose compact ledgers, stage diagnostics, timeline events, and downloadable artifact bundles
+- **Reranker short-circuiting**
+  - weak ranked jobs are blocked before expensive CV-analysis evidence retrieval
+- **Artifact truth alignment**
+  - reranker-blocked, skipped-fit-gate, and generated outcomes are kept explicit in exported artifacts
+- **Performance and reuse work**
+  - enrichment, shortlist retrieval inputs, ranking rows, and CV-analysis outputs all support bounded reuse where contracts still match
+- **Generation safety**
+  - generated CVs are validated against grounded evidence, and specific low-risk failures such as placeholder candidate names can be repaired deterministically
+
+## Architecture
+
+```text
+Jobs JSON / upload / path input
   |
-  | HTTP POST /admin/upload-trigger
   v
-FastAPI server (src/fitcv_cp/)
-  |  insert pipeline_runs row (status: queued)
-  |  enqueue job to Redis
+FastAPI admin control plane
+  |  trigger runs, snapshot settings, persist run state
   v
-Redis (RQ broker)
-  |
-  | RQ worker dequeues
+RQ worker + Redis
+  |  execute pipeline stages
   v
-Worker (src/fitcv_cp/worker_job.py)
-  |  reads effective_settings_json from run record
-  |  calls run_pipeline(config=...)
-  |  updates pipeline_runs status + events
+Core FitCV pipeline
+  |  normalize -> enrich -> rule_filter -> shortlist -> ranking -> cv_analysis -> cv_generation
   v
-BigQuery (pipeline_runs, pipeline_run_events, cv_versions,
-          structured_jobs, run_structured_jobs, rule_filter_results)
+BigQuery
+  |  run state, events, structured jobs, rule-filter results, CV versions
+  v
+Admin inspection surfaces and downloadable artifacts
 ```
 
-The web server and worker share state through BigQuery (append-only events + per-run snapshots) and Redis (job queue). The worker never re-reads live settings — it reads the immutable `effective_settings_json` snapshot captured at trigger time.
+Operational invariants:
 
----
+- run records are inserted before queue enqueue
+- effective settings are snapshotted at trigger time
+- run inputs are treated as immutable once captured
+- run-scoped artifacts remain tied to the run that produced them
 
-## Where
+## Main Components
 
-| Document | What it covers |
-|---|---|
-| `docs/generated/features_index.yaml` | Machine-friendly index of all features — start here for navigation |
-| `docs/generated/feature_overview.md` | Human-readable feature summary and status |
-| `docs/generated/stages_index.yaml` | Machine-friendly index of active stage contracts |
-| `docs/generated/stage_overview.md` | Human-readable summary of active stage contracts |
-| `docs/fitcv-control-plane-setup.md` | Local dev setup, Docker, troubleshooting |
-| `docs/FitCV-pipeline.md` | High-level pipeline design (data engineering perspective) |
-| `docs/features/<feature_id>/` | Per-feature contract, explanation, and history |
-| `docs/stages/*.yaml` | Stage contract layer for adopted pipeline stages |
-| `docs/superpowers/archive/specs/` | Feature specs and design docs |
-| `docs/superpowers/archive/plans/` | Implementation plans |
-| `.cursor/rules/operating-system/` | Project methodology: doc lifecycle, feature lifecycle, planning dispatch |
+### Control plane
 
-### Source layout
+- `src/fitcv_cp/`
+  - FastAPI app
+  - run lifecycle routes
+  - settings management
+  - BigQuery-backed inspection surfaces
+  - worker integration
 
+### Core pipeline
+
+- `src/fitcv/`
+  - normalization and enrichment
+  - deterministic filtering
+  - shortlist retrieval
+  - ranking
+  - CV analysis and generation
+  - validation and repair safeguards
+
+## Docs
+
+- [FitCV-pipeline.md](/c:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/FitCV-pipeline.md)
+  Current-state pipeline architecture, execution flow, and major engineering safeguards.
+- [fitcv-control-plane-setup.md](/c:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/fitcv-control-plane-setup.md)
+  Local setup, Docker usage, credentials, and troubleshooting.
+- [feature_overview.md](/c:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/feature_overview.md)
+  Summary of active features.
+- [stage_overview.md](/c:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/stage_overview.md)
+  Summary of active pipeline stage contracts.
+
+## Source Layout
+
+```text
+src/fitcv_cp/     admin control plane
+src/fitcv/        core pipeline
+docs/features/    feature contracts and history
+docs/stages/      stage contracts
+docs/generated/   generated discovery docs
+tests/            automated coverage
+config/           runtime and policy configuration
+assets/           SQL and supporting assets
 ```
-src/fitcv_cp/          # Control plane (FastAPI app)
-  app.py               # Routes, trigger handlers, templates
-  models.py            # RunStatus enum, PipelineRun, RunEvent dataclasses
-  bq_store.py          # BigQuery reads/writes
-  queue.py             # Redis/RQ queue setup
-  worker_job.py        # RQ job: calls run_pipeline()
-  reporter.py          # Pipeline event callbacks
-  settings_schema.py   # Editable settings registry + validation
-  settings_store.py    # BigQuery-backed settings read/write
-  templates/           # Jinja2 admin pages
-    base.html          # Layout + design system tokens
-    runs_list.html     # /admin/runs
-    run_detail.html    # /admin/runs/{id}
-    settings.html      # /admin/settings
 
-src/fitcv/             # Core pipeline (unchanged by control plane)
-  pipeline.py          # run_pipeline() entrypoint
-  enrich.py            # Gemini enrichment
-  rule_filter.py       # Deterministic job filtering
-  ranking.py           # BigQuery AI scoring + ranking
-  cv_generator.py      # CV generation
-  validator.py         # CV output validation
-  config.py            # Config loading
+## Getting Started
+
+For setup and local execution, start with:
+
+- [fitcv-control-plane-setup.md](/c:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/fitcv-control-plane-setup.md)
+
+Typical Docker startup:
+
+```powershell
+docker compose up -d --build redis web worker
 ```
 
-### Key conventions
+The admin UI is available at:
 
-- **Run records are the source of truth.** `pipeline_runs` is inserted before any worker enqueue. If enqueue fails, the run sits in `queued` — the DB is never left in a half-committed state.
-- **Settings are snapshotted at trigger time.** `effective_settings_json` captures the merged YAML + BQ + per-run-overrides config. The worker reads this snapshot, not live settings.
-- **Snapshots are immutable.** `jobs_input_json` and `candidate_profile_json` on the run record are the canonical resolved inputs — never re-read from repo files at inspection time.
-- **Enriched jobs are run-scoped.** `run_structured_jobs` preserves per-run enrichment data for debugging. The latest-state `structured_jobs` table is not used for run-detail inspection.
+```text
+http://localhost:8000/admin/runs
+```
 

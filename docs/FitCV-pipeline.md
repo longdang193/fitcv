@@ -1,589 +1,310 @@
----
-aliases: []
-time: 2026-03-23 23:43:49
-tags:
-  - "#zoomcamp"
-status: []
----
+# FitCV Pipeline
 
-## High-level version
+## Purpose
 
-```text
-1. Input jobs JSON
-2. Normalize raw JDs
-3. Enrich / extract structured JD fields
-4. Build structured JD schema
-5. Build structured candidate profile schema
-6. Create two matching layers
-   - rule / feature matching
-   - semantic retrieval with embeddings
-7. Use BigQuery VECTOR_SEARCH to shortlist jobs, building the candidate query from flattened profile skills plus bounded role-family/domain hints, reusing the single shortlist candidate-query embedding when the deterministic query signature and contract still match, searching only the latest active persistent `job_summary` embedding per canonical `job_url`, and reusing unchanged job-summary embeddings when the shortlist signature and embedding contract still match
-8. Use BigQuery AI.SCORE to rerank shortlisted jobs with a stricter rubric that prioritizes required-skill evidence, seniority readiness, and role alignment while keeping preference signals secondary; when candidate YAML preferences are sparse, ranking first derives deterministic fallback intent from recent role and domain evidence, and exact-match AI-score rows can be reused safely when the ranking-stage fingerprint and contract still match
-9. Select top jobs
-10. For ranked jobs whose authoritative reranker `fit_label` is not `skip`, retrieve the best candidate evidence, with exact-match `cv_analysis` outputs reused safely when the ranked-job analysis fingerprint and contract still match
-11. Short-circuit reranker `skip` jobs before expensive `cv_analysis` evidence retrieval, recording them as blocked before analysis rather than analyzed-and-skipped
-12. Generate tailored CV
-13. Validate output against the selected `cv_analysis` evidence bundle with deterministic hard-fact checks plus bounded soft-claim support, including unresolved candidate-name placeholder rejection for draft headers such as `Candidate Name` and `[Candidate Name]`
-14. If validation fails only because the writer left a candidate-name placeholder in the header and a real profile name is available, deterministically repair the header identity, rerender markdown, and rerun validation once
-15. Store versions + tracking
-16. Emit stage-level quality metrics so shortlist, ranking, `cv_analysis`, and `cv_generation` bottlenecks are visible in run inspection without opening every stage artifact
-17. Persist bounded late-stage reuse snapshots and execution-aware reuse-rate metrics so repeated ranking and `cv_analysis` runs can skip unchanged expensive work safely without confusing blocked-before-analysis rows with executed analysis
-18. Export a compact per-job `results.json` ledger while keeping heavy stage samples and diagnostics in `stage-artifacts.json`
-19. Treat reranker-blocked rows as stopped before `cv_analysis`, while skipped-fit-gate rows remain completed-analysis outcomes with `cv_generation` explicitly unattempted
-20. Keep operator-facing artifacts honest about that split: compact `results.json` rows and `cv-debug.json` coverage summaries must count reranker-blocked ranked jobs explicitly instead of collapsing them into generic not-run states
-21. Version run-scoped artifact headers explicitly and export `run_mode` metadata so downloaded bundles can distinguish contract era and execution policy without control-plane lookup
-```
+FitCV turns noisy raw job postings into a smaller set of high-confidence opportunities and grounded CV outputs.
 
-## Add a JD normalization + enrichment layer before embeddings
+The pipeline is designed to do three things well:
 
-Do not go directly from raw jobs JSON to embeddings.
+- understand jobs through structured enrichment
+- narrow the candidate set before expensive work
+- generate CV outputs that are inspectable, evidence-grounded, and operationally traceable
 
-You need **two sub-steps** before embeddings:
+This document describes the current pipeline architecture, not the historical design notebook that led to it.
 
-### Step A: Normalize raw JDs
-
-Clean and standardize the input:
-
-* remove HTML / boilerplate
-* unify field names
-* deduplicate jobs
-* preserve raw text
-* standardize whitespace and encoding
-* map source-specific fields into a common raw schema
-
-This gives you a reliable `raw_jobs` table.
-
-### Step B: Enrich / extract structured JD fields
-
-Now create the fields that are usually **not explicitly available** in raw job JSON.
-
-Extract fields like:
-
-* company
-* job title
-* seniority
-* location
-* location type
-* required skills
-* preferred skills
-
-In the current pipeline, enrich also supports a safe reuse path for repeated jobs:
-
-* build a stable raw-job fingerprint from normalized pre-enrichment inputs
-* build an enrich-contract fingerprint from the effective prompt/model/schema behavior
-* reuse a shared `structured_jobs` row only when both fingerprints match
-* skip the enrich LLM call for those exact-match rows while still preserving fresh-vs-reused provenance in run-scoped outputs
-* responsibilities
-* domain
-* tech stack
-* years of experience
-* keywords
-* must-have vs nice-to-have
-* job family
-
-Keep `required_skills` and `preferred_skills` as raw extracted phrases. If you need canonical skill matching later, represent that separately as normalized skill entities rather than lowercased requirement prose.
-
-So instead of storing only raw text, store something like:
-
-```json
-{
-  "job_id": "...",
-  "title": "Data Engineer",
-  "company": "...",
-  "required_skills": ["proficient in SQL and Python for analytics engineering"],
-  "required_skill_entities": [
-    {"raw_text": "proficient in SQL and Python for analytics engineering", "canonical": "sql"},
-    {"raw_text": "proficient in SQL and Python for analytics engineering", "canonical": "python"}
-  ],
-  "required_skills_canonical": ["sql", "python"],
-  "preferred_skills": ["experience with dbt and Kafka"],
-  "preferred_skill_entities": [
-    {"raw_text": "experience with dbt and Kafka", "canonical": "dbt"},
-    {"raw_text": "experience with dbt and Kafka", "canonical": "kafka"}
-  ],
-  "preferred_skills_canonical": ["dbt", "kafka"],
-  "responsibilities": [...],
-  "seniority": "mid",
-  "location_type": "remote",
-  "job_family": "data_engineering",
-  "years_experience_min": 3,
-  "raw_text": "..."
-}
-```
-
-#### Why this matters
-
-Embeddings alone are fuzzy.
-
-Structured extraction gives you **clean matching features** that you can later combine with:
-
-* rule-based filters
-* `VECTOR_SEARCH`
-* `AI.SCORE`
-
-## Do the same for your own profile
-
-This is very important.
-
-Do not keep your CV as one long text blob.
-
-Create a structured candidate knowledge base:
+## End-to-End Flow
 
 ```text
-candidate_profile
-experience_library
-project_library
-skill_library
-achievement_library
-education
-certifications
-preferences
+Input jobs
+  -> normalize
+  -> enrich
+  -> rule_filter
+  -> shortlist
+  -> ranking
+  -> cv_analysis
+  -> cv_generation
+  -> persisted outputs and run artifacts
 ```
 
-Example:
+The control plane wraps that flow with:
 
-```json
-{
-  "project_name": "GA4 to BigQuery Pipeline",
-  "skills": ["BigQuery", "SQL", "ETL", "dbt"],
-  "business_value": "Built reusable analytics tables for e-commerce analysis",
-  "evidence": "GitHub repo link / project summary"
-}
-```
+- run creation and queueing
+- immutable settings snapshots
+- run-scoped artifact persistence
+- run inspection and lifecycle actions
 
-You do not want the model to invent qualifications.
+## Who The Pipeline Serves
 
-You want it to retrieve real evidence from your experience.
+The pipeline is meant for an operator who needs to:
 
-## Use BigQuery hybrid ranking, not embeddings alone
+- process many jobs in one run
+- inspect why jobs passed or failed
+- trust the difference between weak and strong matches
+- generate CVs only when the evidence is good enough
+- debug and tune the workflow without guesswork
 
-Your old flow was:
+## Stage Responsibilities
 
-> chunk → embeddings → transformer-based ranker
+### 1. `normalize`
 
-With Option 1, change that to a **3-stage ranking pipeline**:
+Purpose:
 
-### Stage A: rule-based filtering
+- clean incoming job inputs
+- standardize fields
+- deduplicate repeated postings
+- produce a stable run-scoped job list
 
-Fast filters:
+Why it matters:
 
-* location fit
-* visa / work authorization
-* seniority mismatch
-* domain mismatch
-* hard must-have skills
+- downstream stages should never have to reason about raw input noise directly
 
-This reduces noise before semantic search.
+### 2. `enrich`
 
-### Stage B: semantic retrieval with `VECTOR_SEARCH`
+Purpose:
 
-Use embeddings for:
+- extract structured job fields such as title, seniority, domain, location type, skills, and responsibilities
+- convert raw postings into a stable downstream contract
+- reuse prior enrich output safely when unchanged jobs and unchanged enrich contracts still match
 
-* semantic similarity between your candidate profile and the JD
-* matching beyond exact keyword overlap
-* finding jobs that are close in meaning, not only wording
+Why it matters:
 
-This stage is for **recall**:
+- later filtering, retrieval, ranking, and CV generation depend on structured job understanding, not raw text alone
 
-find the top 20–100 plausible jobs.
+### 3. `rule_filter`
 
-### Stage C: `AI.SCORE` reranking
+Purpose:
 
-Use `AI.SCORE` only on the shortlisted jobs from `VECTOR_SEARCH`.
+- apply deterministic eligibility checks before expensive retrieval and ranking work
+- separate clearly rejected jobs from jobs that may proceed
 
-Here, `AI.SCORE` acts like the final intelligent judge:
+Current role:
 
-* how suitable is this JD for your profile?
-* how strong is the match?
-* where are the risks?
-* should this be “apply now,” “stretch,” or “skip”?
+- this is the first strong cost-control boundary in the pipeline
+- it keeps obvious mismatches out of later LLM- and retrieval-backed stages
 
-### Final score
+### 4. `shortlist`
 
-A good pattern is:
+Purpose:
 
-```text
-final_score =
-0.40 * ai_score
-+ 0.20 * must_have_match
-+ 0.15 * vector_similarity
-+ 0.10 * title_relevance        # semantic role alignment
-+ 0.10 * seniority_fit
-+ 0.05 * preference_fit        # weighted domain + role family + location alignment
-```
+- retrieve the most plausible jobs from the passed set
+- build a bounded candidate query from the candidate profile
+- reuse shortlist inputs when the deterministic contract still matches
 
-#### Why this matters
+Why it matters:
 
-* `VECTOR_SEARCH` is good for **recall**
-* `AI.SCORE` is good for **final judgment** when the rubric is explicit about primary vs secondary signals
-* structured rules help avoid dumb matches
+- retrieval is used for recall, not final judgment
+- the goal is to reduce the passed set to a smaller, plausible ranking set
 
-So this becomes more practical than using a generic transformer ranker.
+### 5. `ranking`
 
-## Chunk smarter
+Purpose:
 
-Do not chunk blindly by character count.
+- apply the authoritative post-filter fit judgment
+- combine stricter fit logic with shortlist outputs
+- select the ranked jobs that are still eligible to continue
 
-For JDs, better chunk units are:
+Important current behavior:
 
-* summary / about role
-* responsibilities
-* must-have skills
-* preferred skills
-* benefits / company info
+- ranking is the stage that decides the authoritative reranker fit label
+- jobs marked `skip` here are no longer allowed to consume expensive downstream CV-analysis work
 
-For your profile, chunk by:
+### 6. `cv_analysis`
 
-* project
-* role
-* achievement
-* skill evidence block
+Purpose:
 
-Chunking by meaning is much better than chunking by length.
+- retrieve candidate evidence for the strongest ranked jobs
+- evaluate required-skill, role, domain, and responsibility support
+- compute grounded gap summaries
+- decide whether a ranked job is generation-ready
 
-Also, for ranking, you may not even need heavy chunking everywhere.
+Important current behavior:
 
-For many jobs, a strong **structured summary + raw text embedding** is enough for `VECTOR_SEARCH`.
+- reranker `skip` jobs are short-circuited before expensive evidence retrieval
+- only jobs that survive ranking fit are analyzed deeply
+- analyzed jobs are explicitly distinguished from jobs blocked before analysis
 
-## Separate job ranking from CV evidence retrieval
+### 7. `cv_generation`
 
-This is a major architectural improvement.
+Purpose:
 
-After ranking top jobs, do **another retrieval step**.
+- generate structured and markdown CV outputs
+- validate them against selected evidence
+- repair narrowly safe failures when deterministic correction is possible
+- persist accepted outputs and debug artifacts
 
-For each selected JD:
+Important current behavior:
 
-* retrieve the most relevant projects
-* retrieve the most relevant achievements
-* retrieve the most relevant skills
-* retrieve the most relevant experience bullets
+- generation is constrained by analysis-selected evidence
+- validation is part of the pipeline contract, not an optional afterthought
 
-So the generation step becomes:
+## Pipeline Safeguards
 
-```text
-Selected JD
-+ top supporting candidate evidence
-→ tailored CV generation
-```
+### Deterministic narrowing before expensive work
 
-Instead of:
+The system narrows jobs in multiple layers:
 
-```text
-Selected JD
-+ generic whole-profile prompt
-→ tailored CV
-```
+- normalization and deduplication
+- deterministic rule filtering
+- shortlist retrieval
+- ranking fit authority
+- CV-analysis fit readiness
 
-### Why this matters
+That prevents the most expensive stages from becoming a cleanup layer for obviously weak candidates.
 
-This makes the CV specific and grounded.
+### Reranker short-circuit before expensive CV analysis
 
-The ranking step answers:
+One of the biggest delivered improvements is that reranker `skip` jobs are now stopped before expensive CV-analysis evidence retrieval.
 
-> Which jobs fit me best?
+That means:
 
-The evidence retrieval step answers:
+- ranking remains the authoritative fit decision after filtering
+- weak ranked jobs do not consume unnecessary analysis work
+- artifacts still record those jobs truthfully as reranker-blocked rather than collapsing them into vague not-run states
 
-> Which proof points from my background best support this specific job?
+### Grounded generation and validation
 
-These are different questions and should be handled separately.
+CV generation is not treated as free-form writing. It is bounded by:
 
-The current `cv_analysis` flow now treats evidence retrieval as a small staged pipeline of its own:
+- selected evidence bundles
+- fit analysis outputs
+- validation rules
+- deterministic repair only for a narrow class of low-risk failures
 
-1. retrieve separate evidence pools for:
-   - required skill support
-   - role alignment
-   - domain alignment
-   - responsibility alignment
-2. merge and dedupe those pools by stable `evidence_id`
-3. rerank the merged pool into one bounded final evidence bundle for `cv_generation`
+This keeps the output more trustworthy and easier to debug.
 
-## Generate from templates + constraints
+## Control-Plane Integration
 
-Do not let the LLM fully freestyle the CV. CV generation should be controlled, not creative writing.
+The control plane is not separate from the pipeline story. It is how the system becomes operable.
 
-Use a fixed template:
+The control plane provides:
 
-* headline
-* summary
-* skills
-* experience bullets
-* projects
+- trigger surfaces for job inputs
+- settings snapshots at run start
+- persisted run records and event timelines
+- stage-local artifact downloads
+- compact results ledgers and deeper stage diagnostics
+- lifecycle controls for active and completed runs
 
-And constrain it:
+Without that layer, the pipeline would still exist, but it would be much harder to operate, inspect, and tune.
 
-* only use retrieved evidence
-* do not invent employers, years, tools
-* prioritize JD-required skills
-* keep bullet points measurable
-* preserve chronology
-* max 1–2 pages
+## Execution Modes
 
-## Add a gap analysis step
+The same stage order supports two execution policies:
 
-Before generating the CV, compute:
+- `Run All`
+- `Stage by Stage`
 
-* matched skills
-* missing skills
-* weak evidence areas
-* overclaim risk
+### `Run All`
 
-Example:
+- executes continuously through the stage order
+- best for normal batch operation
 
-```text
-Matched: SQL, Python, BigQuery
-Partial: dbt
-Missing: Airflow, Terraform
-Risk: JD asks for 5+ years; profile shows 2–3 years equivalent evidence
-```
+### `Stage by Stage`
 
-You can derive part of this from:
+- pauses after each major stage
+- persists checkpoint state between stages
+- allows stage-local review before continuing
 
-* structured skill overlap
-* rule-based checks
-* `AI.SCORE` explanation prompt
+Why this matters:
 
-### Why this matters
+- it turns the pipeline into a debuggable operator workflow, not just a background batch job
 
-Sometimes the best action is not “generate CV,” but:
+## Artifact Model
 
-* skip the job
-* mark as stretch
-* generate a lower-confidence version
-* suggest what to learn
+The pipeline now exposes a clearer artifact contract than earlier versions.
 
-## Add job classification
+### Compact ledger
 
-Not all jobs should get the same CV style.
+`results.json` is the compact per-job ledger:
 
-Classify jobs into categories like:
+- high-level job outcome
+- fit path
+- CV status
+- concise decision-chain facts
 
-* Data Engineer
-* Analytics Engineer
-* BI Developer
-* ML Engineer
-* Marketing Data Analyst
+### Stage diagnostics
 
-Then choose:
+Heavy stage detail lives in:
 
-* different summary wording
-* different project emphasis
-* different skill ordering
+- `stage-artifacts.json`
+- per-stage artifact files
+- `cv-debug.json`
 
-### Why this matters
+This separation matters because it keeps the main results export usable while still preserving deep debugging detail.
 
-One resume style does not fit all roles.
+### Truthful outcome distinctions
 
-This classification can happen before final CV generation, using structured JD fields plus `AI.SCORE` outputs if helpful.
+A major debugging cleanup in the project was making artifact truth explicit about late-stage outcomes, especially the difference between:
 
-## Add a feedback loop
+- reranker-blocked rows
+- analyzed-and-skipped rows
+- generation-attempted rows
+- accepted vs rejected generation outputs
 
-After applications, track:
+That work makes inspection much more trustworthy.
 
-* applied / not applied
-* interview / rejected / no response
-* which CV version was used
-* which scoring signals correlated with success
+## Biggest Engineering Improvements Delivered
 
-Then later improve:
+### 1. Better cost control before late stages
 
-* enrichment prompts / schemas
-* centralized prompt registry for LLM-backed stage templates and prompt provenance
-* `AI.SCORE` rubric
-* weightings in final score
-* rule filters
-* evidence retrieval logic
-
-### Why this matters
-
-Your system becomes a learning pipeline, not just a generator.
-
-## Add versioning and traceability
-
-For each generated CV, store:
-
-* job_id
-* enrichment version
-* vector shortlist rank
-* `ai_score`
-* final_score
-* retrieved evidence IDs
-* prompt version
-* output version
-* generation timestamp
+- deterministic rule filtering ahead of expensive work
+- reranker short-circuiting before CV-analysis evidence retrieval
 
-### Why this matters
+### 2. Better observability
 
-You can inspect:
+- stage-local artifacts
+- run health and stage diagnostics
+- exportable artifact bundles
+- compact results ledgers plus deeper debug artifacts
 
-* how the JD was interpreted
-* why this CV was generated
-* what evidence was used
-* whether the output was grounded
-* which ranking layer selected the job
-
-This is especially useful when debugging:
+### 3. Better artifact truth
 
-* enrichment quality
-* `VECTOR_SEARCH`
-* `AI.SCORE`
-
-## Stronger pipeline design
-
-Here is the adjusted version with an explicit **enrichment step**:
+- clearer status semantics across ranking, analysis, and generation
+- run-mode-aware exported artifacts
+- explicit handling for reranker-blocked rows and analyzed outcomes
 
-```text
-Raw Jobs JSON
-    ↓
-Normalize / clean / deduplicate
-    ↓
-JD enrichment / structured extraction
-  - extract title, skills, seniority, responsibilities
-  - infer must-have vs nice-to-have
-  - classify location type
-  - classify job family
-    ↓
-Store in:
-  - raw_jobs
-  - structured_jobs
-    ↓
-Candidate profile store
-  - experiences
-  - projects
-  - skills
-  - achievements
-    ↓
-Rule-based filtering
-  - location
-  - visa
-  - seniority
-  - must-have skills
-  - admin-selectable blocking vs mark-only deterministic checks
-    ↓
-Embeddings generation
-  - reuse unchanged shortlist job-summary embeddings when the structured signature and embedding contract still match
-  - structured JD summary
-  - one deterministic candidate query vector for shortlist retrieval
-    ↓
-BigQuery VECTOR_SEARCH
-  - shortlist top-N jobs
-    ↓
-BigQuery AI.SCORE
-  - score shortlist against candidate profile
-  - reuse exact-match AI-score rows when the ranking-stage fingerprint and contract still match
-    ↓
-Final ranking
-  - ai_score
-  - must-have match
-  - vector similarity
-  - semantic title relevance
-  - seniority fit
-  - weighted preference fit
-    ↓
-Top-N jobs
-    ↓
-Per-job evidence retrieval
-  - required-skill support pool
-  - role-alignment pool
-  - domain-alignment pool
-  - responsibility-alignment pool
-  - merge, dedupe, and rerank into one final evidence bundle
-  - reuse exact-match `cv_analysis` records when the analysis-stage fingerprint and contract still match
-  - active `cv_analysis` retrieval stays profile-based today; candidate chunk embeddings remain a future stage-owned option rather than part of the live path
-    ↓
-Gap analysis
-    ↓
-Template-based CV generation
-    ↓
-Validation / hallucination check
-    ↓
-Store versioned outputs
-    ↓
-Application tracker / feedback loop
-```
+### 4. Better reuse and performance
 
-## Execution modes
+- enrich reuse
+- shortlist input reuse
+- ranking reuse
+- CV-analysis reuse
+- execution-aware reuse diagnostics
 
-The control plane now supports two orchestration modes over the same stage order:
+### 5. Better generation safety
 
-- `run_all`
-- `manual_staged`
+- validation against selected evidence
+- deterministic repair for specific safe failures
+- reduced risk of low-quality or misleading accepted outputs
 
-`run_all` keeps the existing continuous execution path.
+## Mental Model
 
-`manual_staged` pauses after each major stage and persists checkpoint state:
+The cleanest way to think about FitCV is:
 
-1. `normalize`
-2. `enrich`
-3. `rule_filter`
-4. `shortlist`
-5. `ranking`
-6. `cv_analysis`
-7. `cv_generation`
+### Layer 1: understand the job
 
-For manual runs, the control plane persists:
+- normalize
+- enrich
 
-- `checkpoint_status`
-- `next_stage`
-- `last_completed_stage`
-- `completed_stages`
-- a serialized checkpoint payload used to resume the next stage without restarting the full pipeline by default
+### Layer 2: narrow the candidate set
 
-When a manual run pauses after `enrich`, the admin can optionally upload a run-scoped synonym-overlay YAML before continuing into `rule_filter`. That overlay is merged with the base skill synonym map for the rest of that run only.
+- rule_filter
+- shortlist
+- ranking
 
-This keeps the pipeline architecture the same while making stage-local debugging much easier.
+### Layer 3: personalize safely
 
-## Config room
+- cv_analysis
+- cv_generation
+- validation and repair
 
-Configurable YAML assets now live under one top-level `config/` room with responsibility-based subfolders:
+### Layer 4: operate and inspect
 
-- `config/runtime/`
-- `config/policy/`
-- `config/taxonomy/`
+- trigger runs
+- inspect stage outputs
+- download artifacts
+- tune settings
+- manage lifecycle actions
 
-The loader prefers that layout and still supports the older flat `config/*.yaml` files during the migration window. Prompt text remains under `src/fitcv/prompts/templates/`, and the rendered CV template remains under `templates/`.
+That is the main value of the system: not just generating a CV, but doing it through a staged, inspectable, and increasingly reliable pipeline.
 
-In selectable-screening mode, `rule_filter` still evaluates all six deterministic post-enrichment checks. The admin-configured `rule_filter.selected_filters` setting only decides which failed checks reject versus which failed checks are emitted as non-blocking `marks` for downstream inspection.
-
-## Best mental model
-
-Think of the system as:
-
-### Layer 1: understanding jobs
-
-What is this role actually asking for?
-
-* normalization
-* enrichment
-* structured JD schema
-
-### Layer 2: understanding you
-
-What verified evidence do I have?
-
-* structured candidate profile
-* projects
-* experiences
-* skills
-
-### Layer 3: matching
-
-How well do I fit?
-
-* rules filter
-* `VECTOR_SEARCH`
-* `AI.SCORE`
-
-### Layer 4: personalization
-
-How do I present the most relevant evidence for this role?
-
-* evidence retrieval
-* template-based CV generation
-* validation
-
-For ranked jobs with reranker `fit_label = skip`, Layer 4 now short-circuits before evidence retrieval in both `Run All` and final succeeded `Stage by Stage` artifacts. Those rows remain explicitly marked as reranker-blocked rather than degrading to generic `ranked_no_cv` outcomes after a staged pause/resume.
-
-That mental model is much stronger than just:
-
-> embed jobs and rewrite CVs.
