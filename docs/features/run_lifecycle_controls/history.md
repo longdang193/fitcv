@@ -38,10 +38,11 @@
 
 - Archive and unarchive terminal runs
 - Stale cancellation repair endpoint
-- Spec/plan: `docs/superpowers/specs/2026-03-26-run-lifecycle-controls-design.md`
+- Spec/plan: `docs/superpowers/archive/specs/2026-03-26-run-lifecycle-controls-design.md`
 
 ## Post-Execution Review
 
 - All capabilities from the contract are implemented and tested
 - Cooperative cancellation pattern checks BigQuery for `cancel_requested_at` at each checkpoint
 - Three-tier stop logic: queue cancel → pre-claim cancel → cooperative cancelling
+

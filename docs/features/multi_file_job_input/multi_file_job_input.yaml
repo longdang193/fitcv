@@ -19,9 +19,9 @@ multi_file_job_input:
   refs:
     docs: []
     spec:
-      - docs/superpowers/specs/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-design.md
+      - docs/superpowers/archive/specs/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-design.md
     plan:
-      - docs/superpowers/plans/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-implementation.md
+      - docs/superpowers/archive/plans/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-implementation.md
     history:
       - docs/features/multi_file_job_input/history.md
   keywords:
@@ -29,3 +29,4 @@ multi_file_job_input:
     - upload
     - job input
     - merge
+

@@ -20,9 +20,9 @@ bounded_parallel_enrichment:
   refs:
     docs: []
     spec:
-      - docs/superpowers/specs/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-design.md
+      - docs/superpowers/archive/specs/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-design.md
     plan:
-      - docs/superpowers/plans/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-implementation.md
+      - docs/superpowers/archive/plans/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-implementation.md
     history:
       - docs/features/bounded_parallel_enrichment/history.md
   keywords:
@@ -31,3 +31,4 @@ bounded_parallel_enrichment:
     - batch
     - concurrency
     - throughput
+
