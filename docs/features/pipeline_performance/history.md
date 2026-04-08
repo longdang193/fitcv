@@ -2,6 +2,29 @@
 
 ## Changelog
 
+### 1.11.0 — active
+
+- `cv_analysis` reuse metrics now report executed-analysis rows, reused executed rows, fresh executed rows, and reranker-blocked rows separately so performance debugging does not confuse blocked-ranked rows with analyzed work
+
+### 1.10.0 — active
+
+- The reranker short-circuit path now stays visible in operator-facing coverage accounting, so ranked jobs blocked before analysis are no longer dropped from CV-debug non-attempted totals
+
+### 1.9.0 — active
+
+- Reranker `skip` jobs now short-circuit before evidence retrieval, gap computation, and semantic alignment inside `cv_analysis`
+- This reduces late-stage work on ranked jobs that were already ineligible for CV generation according to the authoritative reranker fit label
+
+### 1.8.0 — active
+
+- `results.json` now behaves more like a true compact job ledger by dropping full job snapshots, bulky score-explanation internals, and full CV bodies that were already duplicated elsewhere
+- This keeps stage-owned diagnostics in `stage-artifacts.json` while reducing operator-facing export weight for each job row
+
+### 1.7.0 — active
+
+- `cv_analysis` now gives bounded semantic support to required-skill and role channels instead of limiting semantic lift to domain and responsibility alignment
+- The new channel-level weight pairs keep runtime behavior inspectable while improving semantic help on the highest-value fit signals
+
 ### 1.6.0 — active
 
 - Operator-facing enriched-job exports now keep canonical semantic fields and reuse/fingerprint provenance while dropping retired raw duplicate classification baggage

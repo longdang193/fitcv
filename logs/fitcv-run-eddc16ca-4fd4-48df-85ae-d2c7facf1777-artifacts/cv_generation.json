@@ -1,0 +1,980 @@
+{
+  "run_id": "eddc16ca-4fd4-48df-85ae-d2c7facf1777",
+  "stage_id": "cv_generation",
+  "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+  "created_at": "2026-04-08T14:00:03.281449+00:00",
+  "stage_artifact": {
+    "stage_id": "cv_generation",
+    "stage": "cv_generation",
+    "status": "completed",
+    "input_counts": {
+      "analysis_ready_jobs": 1
+    },
+    "output_counts": {
+      "accepted": 1,
+      "validation_failed": 0,
+      "generation_failed": 0,
+      "persistence_failed": 0
+    },
+    "decision_summary": {
+      "debug_records_captured": 3,
+      "analysis_ready_jobs_total": 1,
+      "quality_metrics": {
+        "validation_fail_rate": 0.0,
+        "accepted_rate": 1.0,
+        "generation_failed_rate": 0.0,
+        "persistence_failed_rate": 0.0,
+        "accepted": 1,
+        "validation_failed": 0,
+        "generation_failed": 0,
+        "persistence_failed": 0,
+        "total_attempted": 1
+      },
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "/app/src/fitcv/prompts/templates/cv_generation_structured_write_v1.md"
+    },
+    "outputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst - Retail Banking",
+        "status": "accepted",
+        "ranking_fit_label": "stretch",
+        "fit_classification": "stretch",
+        "analysis_input_summary": {
+          "required_skills": [
+            "SQL",
+            "Python",
+            "BI Tools",
+            "MicroStrategy",
+            "Power BI",
+            "Git",
+            "Data Vault",
+            "3NF",
+            "Amazon Redshift",
+            "Jira",
+            "Confluence"
+          ],
+          "responsibilities": [
+            "Work in the Business Intelligence area within an interdisciplinary team of experts, providing relevant data and insights to specialist units as a Data Analyst",
+            "Implement the functional requirements for the Private Customer division, which is responsible for product development, sales, and technical advancement of banking products such as current accounts, brokerage, and loans",
+            "Act as a sparring partner for the Product Owner and conduct workshops for order clarification and requirements specification",
+            "Analyze DKB-internal and external data sources and define/implement functional rules/logic for data integration in the Cloud Data Platform",
+            "Bridge the gap between business requirements and technical implementation, support the implementation, and thoroughly test new artifacts",
+            "Collaborate closely with Data Engineers and experts on data architecture, data modeling, Data Governance, data quality, and data protection",
+            "Actively participate in the Data Analyst Community, share knowledge, and stay up to date"
+          ],
+          "job_family": "analytics",
+          "domain": "retail banking",
+          "location_type": "hybrid"
+        },
+        "evidence_used": [
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[2]",
+            "name": "Junior Data Analyst — RetailCo AG",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.272727,
+                "semantic": 0.659,
+                "combined": 0.388609
+              },
+              "role_alignment": {
+                "lexical": 1.0,
+                "semantic": 0.702058,
+                "combined": 0.880823
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.621293,
+                "combined": 0.572776
+              },
+              "responsibility_alignment": {
+                "lexical": 0.04878,
+                "semantic": 0.615863,
+                "combined": 0.474092
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[0]",
+            "name": "Reduced reporting latency by 40% by rebuilding GA4 → BigQuery pipeline with dbt.",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 1.0,
+                "semantic": 0.509185,
+                "combined": 0.705511
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[2]",
+            "name": "Open-Source dbt Package for Marketing Attribution",
+            "matched_channels": [
+              "required_skill_support"
+            ],
+            "selection_reasons": [
+              "required_skill_support"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.181818,
+                "semantic": 0.630921,
+                "combined": 0.316549
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "Senior Data Engineer — Acme Analytics GmbH",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "domain_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.181818,
+                "semantic": 0.642745,
+                "combined": 0.320096
+              },
+              "role_alignment": {
+                "lexical": 0.25,
+                "semantic": 0.594157,
+                "combined": 0.387663
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.519287,
+                "combined": 0.511572
+              },
+              "responsibility_alignment": {
+                "lexical": 0.036585,
+                "semantic": 0.675586,
+                "combined": 0.515836
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards.",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.605487,
+                "combined": 0.242195
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.64617,
+                "combined": 0.587702
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          }
+        ],
+        "evidence_selection_summary": {
+          "channel_counts": {
+            "required_skill_support": 4,
+            "role_alignment": 4,
+            "domain_alignment": 4,
+            "responsibility_alignment": 4
+          },
+          "effective_channel_pool_size": 4,
+          "merged_pool_size": 16,
+          "deduped_pool_size": 7,
+          "selected_evidence_count": 5,
+          "selected_evidence_ids": [
+            "exp_3",
+            "ach_1",
+            "proj_3",
+            "exp_1",
+            "ach_3"
+          ],
+          "unselected_top_candidates": [
+            {
+              "evidence_id": "exp_2",
+              "evidence_type": "experience_entry",
+              "source_ref": "experiences[1]",
+              "name": "Data Engineer — Fintech Startup GmbH",
+              "matched_channels": [
+                "required_skill_support",
+                "role_alignment",
+                "responsibility_alignment"
+              ],
+              "selection_score": 0.0,
+              "channel_subscores": {
+                "required_skill_support": {
+                  "lexical": 0.181818,
+                  "semantic": 0.638327,
+                  "combined": 0.318771
+                },
+                "role_alignment": {
+                  "lexical": 0.25,
+                  "semantic": 0.678732,
+                  "combined": 0.421493
+                },
+                "responsibility_alignment": {
+                  "lexical": 0.04878,
+                  "semantic": 0.651109,
+                  "combined": 0.500527
+                }
+              }
+            },
+            {
+              "evidence_id": "ach_2",
+              "evidence_type": "achievement",
+              "source_ref": "achievements[1]",
+              "name": "Enabled real-time dashboard updates under 30 seconds via Pub/Sub → Dataflow streaming architecture.",
+              "matched_channels": [
+                "responsibility_alignment"
+              ],
+              "selection_score": 0.0,
+              "channel_subscores": {
+                "responsibility_alignment": {
+                  "lexical": 0.012195,
+                  "semantic": 0.545382,
+                  "combined": 0.412086
+                }
+              }
+            }
+          ],
+          "hybrid_alignment": {
+            "required_skill_support": {
+              "lexical_weight": 0.7,
+              "semantic_weight": 0.3
+            },
+            "role_alignment": {
+              "lexical_weight": 0.6,
+              "semantic_weight": 0.4
+            },
+            "responsibility": {
+              "lexical_weight": 0.25,
+              "semantic_weight": 0.75
+            },
+            "domain": {
+              "lexical_weight": 0.4,
+              "semantic_weight": 0.6
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        "gap_summary": {
+          "matched": [
+            "SQL",
+            "Python",
+            "Power BI",
+            "Git"
+          ],
+          "partial": [],
+          "missing": [
+            "BI Tools",
+            "MicroStrategy",
+            "Data Vault",
+            "3NF",
+            "Amazon Redshift",
+            "Jira",
+            "Confluence"
+          ],
+          "matchable_required_count": 11,
+          "ignored_for_fit": [],
+          "years_risk": false,
+          "overclaim_risk": []
+        },
+        "validation_initial": {
+          "valid": true,
+          "missing_sections": [],
+          "grounding_violations": [],
+          "deterministic_grounding_violations": [],
+          "semantic_grounding_violations": [],
+          "skill_violations": [],
+          "warnings": [],
+          "support_source_summary": {
+            "hard_fact_mode": "selected_evidence",
+            "soft_claim_mode": "hybrid_selected_evidence",
+            "selected_evidence_ids": [
+              "exp_3",
+              "ach_1",
+              "proj_3",
+              "exp_1",
+              "ach_3"
+            ],
+            "selected_evidence_count": 5,
+            "deterministic_supported_soft_claims": 7,
+            "semantic_supported_soft_claims": 0,
+            "evaluated_soft_claims": 7
+          }
+        },
+        "repair_attempt": {
+          "performed": false,
+          "missing_sections": []
+        },
+        "enabled_sections": [
+          "Experience",
+          "Certifications",
+          "Projects"
+        ],
+        "cv_generation_model": "gemini-2.5-flash",
+        "cv_prompt_id": "cv_generation.structured_write.v1",
+        "cv_prompt_template_path": "/app/src/fitcv/prompts/templates/cv_generation_structured_write_v1.md",
+        "structured_cv_final": {
+          "schema_version": "cv_doc_v1",
+          "preset": "europass",
+          "locale": "en",
+          "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+          "fit_classification": "stretch",
+          "target_role": "Data Analyst - Retail Banking",
+          "sections": {
+            "header": {
+              "name": "Nguyen Van A",
+              "title": "Data Analyst",
+              "location": "Berlin, Germany",
+              "contact": {
+                "email": "nguyen.vana@email.com",
+                "phone": "+49 170 123 4567",
+                "linkedin": "https://linkedin.com/in/nguyenvana"
+              }
+            },
+            "summary": {
+              "text": ""
+            },
+            "experience": [
+              {
+                "role": "Senior Data Engineer",
+                "company": "Acme Analytics GmbH",
+                "start": "2023-01",
+                "end": "present",
+                "location": null,
+                "bullets": [
+                  "Automated data quality checks with Great Expectations, integrating into CI/CD pipeline via GitHub Actions.",
+                  "Built GA4 to BigQuery pipeline processing 2M daily events with dbt transformations, reducing reporting latency by 40%."
+                ]
+              },
+              {
+                "role": "Junior Data Analyst",
+                "company": "RetailCo AG",
+                "start": "2019-09",
+                "end": "2021-05",
+                "location": null,
+                "bullets": [
+                  "Maintained and extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.",
+                  "Automated weekly reporting workflows with Python scripts and Windows Task Scheduler, saving 8 hours/month."
+                ]
+              }
+            ],
+            "projects": [
+              {
+                "name": "Open-Source dbt Package for Marketing Attribution",
+                "context": "Reusable dbt package enabling data teams to implement multi-touch marketing attribution (first-touch, last-touch, linear) without reinventing the wheel.",
+                "bullets": [
+                  "Achieved 150+ GitHub stars and adoption by 12 companies.",
+                  "Ensured 100% test coverage using dbt-expectations and pytest."
+                ]
+              }
+            ],
+            "education": [],
+            "skills": {
+              "groups": []
+            },
+            "certifications": [
+              {
+                "name": "Google Professional Data Engineer",
+                "issuer": "Google Cloud",
+                "year": "2023"
+              },
+              {
+                "name": "dbt Analytics Engineering Certification",
+                "issuer": "dbt Labs",
+                "year": "2023"
+              },
+              {
+                "name": "AWS Certified Data Analytics — Specialty",
+                "issuer": "Amazon Web Services",
+                "year": "2022"
+              },
+              {
+                "name": "Certified Kubernetes Administrator (CKA)",
+                "issuer": "Cloud Native Computing Foundation",
+                "year": "2022"
+              }
+            ],
+            "publications": [],
+            "languages": []
+          }
+        },
+        "markdown_final": "# Nguyen Van A\n**Data Analyst**\n\n## Experience\n\n### Senior Data Engineer — Acme Analytics GmbH (2023-01–present)\n\n- Automated data quality checks with Great Expectations, integrating into CI/CD pipeline via GitHub Actions.\n\n- Built GA4 to B...[truncated]"
+      }
+    ],
+    "dropped_or_changed_sample": [],
+    "inputs_sample": [
+      {
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "job_title": "Data Analyst - Retail Banking",
+        "status": "ready_for_generation",
+        "analysis_reuse_status": "reused_exact_match",
+        "analysis_input_fingerprint": "2512d808192518063360ebe5e8d65667429569d684e70f2590885813376d97f5",
+        "ranking_fit_label": "stretch",
+        "fit_classification": "stretch",
+        "evidence_used": [
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[2]",
+            "name": "Junior Data Analyst — RetailCo AG",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.272727,
+                "semantic": 0.659,
+                "combined": 0.388609
+              },
+              "role_alignment": {
+                "lexical": 1.0,
+                "semantic": 0.702058,
+                "combined": 0.880823
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.621293,
+                "combined": 0.572776
+              },
+              "responsibility_alignment": {
+                "lexical": 0.04878,
+                "semantic": 0.615863,
+                "combined": 0.474092
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[0]",
+            "name": "Reduced reporting latency by 40% by rebuilding GA4 → BigQuery pipeline with dbt.",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment"
+            ],
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 1.0,
+                "semantic": 0.509185,
+                "combined": 0.705511
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "project_entry",
+            "source_ref": "projects[2]",
+            "name": "Open-Source dbt Package for Marketing Attribution",
+            "matched_channels": [
+              "required_skill_support"
+            ],
+            "selection_reasons": [
+              "required_skill_support"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.181818,
+                "semantic": 0.630921,
+                "combined": 0.316549
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "Senior Data Engineer — Acme Analytics GmbH",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_reasons": [
+              "responsibility_alignment",
+              "domain_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.181818,
+                "semantic": 0.642745,
+                "combined": 0.320096
+              },
+              "role_alignment": {
+                "lexical": 0.25,
+                "semantic": 0.594157,
+                "combined": 0.387663
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.519287,
+                "combined": 0.511572
+              },
+              "responsibility_alignment": {
+                "lexical": 0.036585,
+                "semantic": 0.675586,
+                "combined": 0.515836
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          },
+          {
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards.",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_reasons": [
+              "domain_alignment",
+              "role_alignment"
+            ],
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.605487,
+                "combined": 0.242195
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.64617,
+                "combined": 0.587702
+              }
+            },
+            "semantic_alignment": {
+              "enabled": true,
+              "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity"
+              },
+              "reuse_state": {
+                "candidate_evidence": "mixed_fresh_and_reused",
+                "job_context": "mixed_fresh_and_reused"
+              },
+              "embedding_counts": {
+                "candidate_evidence": {
+                  "fresh": 32,
+                  "reused": 20
+                },
+                "job_context": {
+                  "fresh": 23,
+                  "reused": 276
+                }
+              }
+            }
+          }
+        ],
+        "evidence_selection_summary": {
+          "channel_counts": {
+            "required_skill_support": 4,
+            "role_alignment": 4,
+            "domain_alignment": 4,
+            "responsibility_alignment": 4
+          },
+          "effective_channel_pool_size": 4,
+          "merged_pool_size": 16,
+          "deduped_pool_size": 7,
+          "selected_evidence_count": 5,
+          "selected_evidence_ids": [
+            "exp_3",
+            "ach_1",
+            "proj_3",
+            "exp_1",
+            "ach_3"
+          ],
+          "unselected_top_candidates": [
+            {
+              "evidence_id": "exp_2",
+              "evidence_type": "experience_entry",
+              "source_ref": "experiences[1]",
+              "name": "Data Engineer — Fintech Startup GmbH",
+              "matched_channels": [
+                "required_skill_support",
+                "role_alignment",
+                "responsibility_alignment"
+              ],
+              "selection_score": 0.0,
+              "channel_subscores": {
+                "required_skill_support": {
+                  "lexical": 0.181818,
+                  "semantic": 0.638327,
+                  "combined": 0.318771
+                },
+                "role_alignment": {
+                  "lexical": 0.25,
+                  "semantic": 0.678732,
+                  "combined": 0.421493
+                },
+                "responsibility_alignment": {
+                  "lexical": 0.04878,
+                  "semantic": 0.651109,
+                  "combined": 0.500527
+                }
+              }
+            },
+            {
+              "evidence_id": "ach_2",
+              "evidence_type": "achievement",
+              "source_ref": "achievements[1]",
+              "name": "Enabled real-time dashboard updates under 30 seconds via Pub/Sub → Dataflow streaming architecture.",
+              "matched_channels": [
+                "responsibility_alignment"
+              ],
+              "selection_score": 0.0,
+              "channel_subscores": {
+                "responsibility_alignment": {
+                  "lexical": 0.012195,
+                  "semantic": 0.545382,
+                  "combined": 0.412086
+                }
+              }
+            }
+          ],
+          "hybrid_alignment": {
+            "required_skill_support": {
+              "lexical_weight": 0.7,
+              "semantic_weight": 0.3
+            },
+            "role_alignment": {
+              "lexical_weight": 0.6,
+              "semantic_weight": 0.4
+            },
+            "responsibility": {
+              "lexical_weight": 0.25,
+              "semantic_weight": 0.75
+            },
+            "domain": {
+              "lexical_weight": 0.4,
+              "semantic_weight": 0.6
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        "gap_summary": {
+          "matched": [
+            "SQL",
+            "Python",
+            "Power BI",
+            "Git"
+          ],
+          "partial": [],
+          "missing": [
+            "BI Tools",
+            "MicroStrategy",
+            "Data Vault",
+            "3NF",
+            "Amazon Redshift",
+            "Jira",
+            "Confluence"
+          ],
+          "matchable_required_count": 11,
+          "ignored_for_fit": [],
+          "years_risk": false,
+          "overclaim_risk": []
+        }
+      }
+    ],
+    "settings_refs": [
+      "cv.generation.model",
+      "prompts.cv_generation.structured_write.prompt_id"
+    ]
+  }
+}

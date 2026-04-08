@@ -121,6 +121,10 @@ _UNRESOLVED_PLACEHOLDER_PATTERNS = (
     re.compile(r"\[your phone\]", re.IGNORECASE),
     re.compile(r"\[linkedin url\]", re.IGNORECASE),
 )
+_CANDIDATE_NAME_PLACEHOLDER_VALUES = {
+    "candidate name",
+    "your name",
+}
 
 
 def _role_family_aliases(config: dict[str, Any]) -> dict[str, set[str]]:
@@ -208,6 +212,60 @@ def validate_output(cv_text: str, required_sections: list[str]) -> dict[str, Any
         "skill_violations": [],
         "warnings": [],
     }
+
+
+def _normalize_placeholder_name_token(value: str) -> str:
+    normalized = re.sub(r"[\[\]()*_`#]+", " ", str(value or ""))
+    normalized = re.sub(r"\s+", " ", normalized).strip().lower()
+    return normalized
+
+
+def _is_candidate_name_placeholder(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    normalized = _normalize_placeholder_name_token(value)
+    return normalized in _CANDIDATE_NAME_PLACEHOLDER_VALUES
+
+
+def _check_candidate_name_placeholders(
+    cv_text: str,
+    structured_cv: dict[str, Any] | None,
+) -> list[str]:
+    violations: list[str] = []
+    seen_values: set[str] = set()
+
+    if isinstance(structured_cv, dict):
+        sections = structured_cv.get("sections")
+        if isinstance(sections, dict):
+            header = sections.get("header")
+            if isinstance(header, dict):
+                header_name = header.get("name")
+                if _is_candidate_name_placeholder(header_name):
+                    normalized_name = str(header_name).strip()
+                    if normalized_name and normalized_name.lower() not in seen_values:
+                        seen_values.add(normalized_name.lower())
+                        violations.append(
+                            f"Unresolved candidate-name placeholder detected in CV header: {normalized_name}"
+                        )
+
+    for line in cv_text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if not stripped.startswith("#"):
+            continue
+        heading_text = stripped.lstrip("#").strip()
+        if not heading_text:
+            continue
+        if _is_candidate_name_placeholder(heading_text):
+            normalized_heading = str(heading_text).strip()
+            if normalized_heading.lower() not in seen_values:
+                seen_values.add(normalized_heading.lower())
+                violations.append(
+                    f"Unresolved candidate-name placeholder detected in CV header: {normalized_heading}"
+                )
+
+    return violations
 
 
 def _structured_section_has_content(section_key: str, section_value: Any) -> bool:
@@ -886,7 +944,11 @@ def run_all_validations(
         warnings.append(f"CV length warning: exceeds estimated {max_pages}-page limit")
 
     grounding_violations = list(
-        dict.fromkeys(grounding_violations + _check_unresolved_placeholders(cv_text))
+        dict.fromkeys(
+            grounding_violations
+            + _check_unresolved_placeholders(cv_text)
+            + _check_candidate_name_placeholders(cv_text, structured_cv)
+        )
     )
 
     is_valid = (

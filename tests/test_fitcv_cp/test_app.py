@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock, patch
+import io
 import json
+import zipfile
 from fastapi.testclient import TestClient
 from fitcv_cp.app import _timeline_stage_download_for_event, create_app
 from fitcv_cp.models import RunStatus
@@ -767,6 +769,27 @@ def test_admin_run_detail_shows_stage_artifacts_export_in_exports_card():
     assert resp.text.index("Run Exports") < resp.text.index("Event Timeline")
 
 
+def test_admin_run_detail_shows_bundle_zip_export_link():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    with patch("fitcv_cp.app.get_run", return_value=PipelineRun(
+        run_id="test-bundle-btn", status=RunStatus.SUCCEEDED,
+        cvs_generated=1, total_jobs=10, jobs_path="",
+        triggered_by="admin", trigger_source="web", config_path="config/default.yaml",
+        created_at=datetime.now(timezone.utc),
+        results_export_json='{"run_id":"test-bundle-btn","results":[]}',
+        stage_transition_artifacts_json='{"run_id":"test-bundle-btn","artifacts":{"stages":{"normalize":{"status":"completed"}}}}',
+    )), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/test-bundle-btn")
+    assert resp.status_code == 200
+    assert 'href="/admin/runs/test-bundle-btn/artifacts.zip"' in resp.text
+    assert "Download All Artifacts (.zip)" in resp.text
+
+
 def test_admin_run_detail_shows_download_settings_used_json_button():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -1431,6 +1454,145 @@ def test_download_cv_debug_json_endpoint_404_if_snapshot_missing():
     assert resp.status_code == 404
 
 
+def test_download_run_artifact_bundle_zip_endpoint_for_partial_run() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-bundle-partial-1",
+        status=RunStatus.AWAITING_CONTINUE,
+        run_mode="manual_staged",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        last_completed_stage="normalize",
+        completed_stages=["normalize"],
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "run_id": "run-bundle-partial-1",
+                "created_at": "2026-04-07T12:00:00+00:00",
+                "artifacts": {
+                    "stages": {
+                        "normalize": {
+                            "stage_id": "normalize",
+                            "status": "completed",
+                        }
+                    }
+                },
+            }
+        ),
+        mapping_suggestions_json='{"run_id":"run-bundle-partial-1","suggestions":[]}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-bundle-partial-1/artifacts.zip")
+
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "application/zip"
+    assert 'attachment; filename="fitcv-run-run-bundle-partial-1-artifacts.zip"' in resp.headers["content-disposition"]
+
+    with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
+        names = set(archive.namelist())
+        assert "manifest.json" in names
+        assert "stage-artifacts.json" in names
+        assert "normalize.json" in names
+        assert "mapping-suggestions.json" not in names
+        manifest = json.loads(archive.read("manifest.json"))
+    assert manifest["run_id"] == "run-bundle-partial-1"
+    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v2"
+    assert manifest["run_mode"] == "manual_staged"
+    assert manifest["run_mode_label"] == "Stage by Stage"
+    assert "normalize.json" in manifest["included_files"]
+    assert "mapping-suggestions.json" in manifest["missing_files"]
+
+
+def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-bundle-success-1",
+        status=RunStatus.SUCCEEDED,
+        run_mode="run_all",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        finished_at=datetime.now(timezone.utc),
+        last_completed_stage="enrich",
+        completed_stages=["normalize", "enrich"],
+        results_export_json='{"run_id":"run-bundle-success-1","results":[]}',
+        cv_generation_debug_json='{"run_id":"run-bundle-success-1","debug_records":[]}',
+        settings_used_json='{"run_id":"run-bundle-success-1","effective_settings":{"pipeline":{"final_top_n":10}}}',
+        mapping_suggestions_json='{"run_id":"run-bundle-success-1","suggestions":[]}',
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "run_id": "run-bundle-success-1",
+                "created_at": "2026-04-07T12:00:00+00:00",
+                    "artifacts": {
+                        "stages": {
+                            "normalize": {"stage_id": "normalize", "status": "completed"},
+                            "enrich": {"stage_id": "enrich", "status": "completed"},
+                            "rule_filter": {"stage_id": "rule_filter", "status": "completed"},
+                            "shortlist": {"stage_id": "shortlist", "status": "completed"},
+                            "ranking": {"stage_id": "ranking", "status": "completed"},
+                            "cv_analysis": {"stage_id": "cv_analysis", "status": "completed"},
+                            "cv_generation": {"stage_id": "cv_generation", "status": "completed"},
+                        }
+                    },
+                }
+            ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-bundle-success-1/artifacts.zip")
+
+    assert resp.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
+        names = set(archive.namelist())
+        assert "manifest.json" in names
+        assert "results.json" in names
+        assert "cv-debug.json" in names
+        assert "settings-used.json" in names
+        assert "stage-artifacts.json" in names
+        assert "normalize.json" in names
+        assert "enrich.json" in names
+        assert "rule_filter.json" in names
+        assert "shortlist.json" in names
+        assert "ranking.json" in names
+        assert "cv_analysis.json" in names
+        assert "cv_generation.json" in names
+        assert "mapping-suggestions.json" in names
+        manifest = json.loads(archive.read("manifest.json"))
+    assert manifest["run_id"] == "run-bundle-success-1"
+    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v2"
+    assert manifest["run_mode"] == "run_all"
+    assert manifest["run_mode_label"] == "Run All"
+    assert "results.json" in manifest["included_files"]
+    assert manifest["missing_files"] == []
+
+
+def test_download_run_artifact_bundle_zip_endpoint_404_if_no_artifacts_available() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-bundle-empty-1",
+        status=RunStatus.QUEUED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-bundle-empty-1/artifacts.zip")
+
+    assert resp.status_code == 404
+    assert "artifacts" in resp.text.lower()
+
+
 # ── enriched jobs on run detail ──────────────────────────────────────────────
 
 def test_admin_run_detail_shows_enriched_jobs_section():
@@ -1778,10 +1940,11 @@ def test_run_detail_renders_run_health_when_late_stage_reuse_metrics_available()
                         "cv_analysis": {
                             "decision_summary": {
                                 "reuse_metrics": {
-                                    "reuse_rate": 1.0,
-                                    "reused_analysis_records": 2,
-                                    "fresh_analysis_records": 0,
-                                    "total_analysis_records": 2,
+                                    "analysis_reuse_rate": 1.0,
+                                    "reused_analysis_rows": 2,
+                                    "fresh_analysis_rows": 0,
+                                    "analysis_rows_executed": 2,
+                                    "blocked_before_analysis_rows": 0,
                                 }
                             }
                         },
@@ -2047,6 +2210,10 @@ def _retrieval_section_form(
     evidence_top_k: str = "5",
     semantic_alignment_enabled: str = "true",
     semantic_alignment_model: str = "text-embedding-005",
+    required_skill_lexical_weight: str = "0.70",
+    required_skill_semantic_weight: str = "0.30",
+    role_lexical_weight: str = "0.60",
+    role_semantic_weight: str = "0.40",
     responsibility_lexical_weight: str = "0.25",
     responsibility_semantic_weight: str = "0.75",
     domain_lexical_weight: str = "0.40",
@@ -2060,6 +2227,10 @@ def _retrieval_section_form(
         "pipeline.evidence_top_k": evidence_top_k,
         "cv_analysis.semantic_alignment.enabled": semantic_alignment_enabled,
         "cv_analysis.semantic_alignment.model": semantic_alignment_model,
+        "cv_analysis.semantic_alignment.required_skill_lexical_weight": required_skill_lexical_weight,
+        "cv_analysis.semantic_alignment.required_skill_semantic_weight": required_skill_semantic_weight,
+        "cv_analysis.semantic_alignment.role_lexical_weight": role_lexical_weight,
+        "cv_analysis.semantic_alignment.role_semantic_weight": role_semantic_weight,
         "cv_analysis.semantic_alignment.responsibility_lexical_weight": responsibility_lexical_weight,
         "cv_analysis.semantic_alignment.responsibility_semantic_weight": responsibility_semantic_weight,
         "cv_analysis.semantic_alignment.domain_lexical_weight": domain_lexical_weight,
@@ -2843,6 +3014,7 @@ def test_run_detail_enriched_shows_pipeline_outcome_for_ranked_fit_skip_job():
                 "decision_chain": {
                     "shortlist": {"status": "returned_by_vector_search", "advanced_to_scoring": True},
                     "primary_fit": {"source": "reranker", "label": "skip"},
+                    "cv_analysis": {"status": "skipped_fit_gate", "completed": True},
                     "cv_generation": {"status": "skipped_fit_gate", "attempted": False},
                     "validation": {"status": "not_run"},
                 },
@@ -2869,9 +3041,53 @@ def test_run_detail_enriched_shows_pipeline_outcome_for_ranked_fit_skip_job():
         resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
     assert resp.status_code == 200
     assert "Pipeline Outcome" in resp.text
-    assert "Ranked, skipped by fit gate" in resp.text
+    assert "Skipped after CV analysis" in resp.text
     assert "Primary fit: skip" in resp.text
-    assert "CV: skipped by fit gate" in resp.text
+    assert "CV analysis: skipped after CV analysis" in resp.text
+
+
+def test_run_detail_enriched_shows_pipeline_outcome_for_reranker_blocked_job():
+    import json as _json
+
+    export_payload = _json.dumps({
+        "results": [
+            {
+                "job_url": "https://jobs.example.com/1",
+                "job_title": "Blocked Before Analysis",
+                "pipeline_status": "ranked_blocked_by_reranker_fit",
+                "decision_chain": {
+                    "shortlist": {"status": "returned_by_vector_search", "advanced_to_scoring": True},
+                    "primary_fit": {"source": "reranker", "label": "skip"},
+                    "cv_analysis": {"status": "blocked_by_reranker_fit", "completed": False},
+                    "cv_generation": {"status": "not_attempted", "attempted": False},
+                    "validation": {"status": "not_run"},
+                },
+                "reject_reasons": [],
+            }
+        ]
+    })
+    enriched = [{
+        "job_url": "https://jobs.example.com/1",
+        "title": "Blocked Before Analysis",
+        "domain": "banking",
+        "job_family": "analytics",
+        "required_skills": [],
+        "location_type": "hybrid",
+        "seniority": "mid",
+    }]
+    filter_results = [{"job_url": "https://jobs.example.com/1", "passed": True, "reasons": []}]
+    patches = _run_detail_patches(
+        enriched_jobs=enriched,
+        filter_results=filter_results,
+        results_export_json=export_payload,
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
+    assert resp.status_code == 200
+    assert "Pipeline Outcome" in resp.text
+    assert "Ranked, blocked by reranker fit" in resp.text
+    assert "Primary fit: skip" in resp.text
+    assert "CV analysis: blocked by reranker fit" in resp.text
 
 
 def test_run_detail_cv_versions_show_job_title():

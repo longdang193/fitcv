@@ -1,0 +1,24 @@
+{
+  "run_id": "12455bcf-eb96-48e0-8cc1-c65ea3d0dd2a",
+  "status": "succeeded",
+  "run_mode": "manual_staged",
+  "run_mode_label": "Stage by Stage",
+  "created_at": "2026-04-08T14:03:14.790405+00:00",
+  "finished_at": "2026-04-08T14:16:34.986352+00:00",
+  "bundle_schema_version": "run_artifact_bundle_v2",
+  "included_files": [
+    "results.json",
+    "cv-debug.json",
+    "settings-used.json",
+    "mapping-suggestions.json",
+    "stage-artifacts.json",
+    "normalize.json",
+    "enrich.json",
+    "rule_filter.json",
+    "shortlist.json",
+    "ranking.json",
+    "cv_analysis.json",
+    "cv_generation.json"
+  ],
+  "missing_files": []
+}

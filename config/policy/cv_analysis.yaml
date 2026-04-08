@@ -2,6 +2,10 @@ cv_analysis:
   semantic_alignment:
     enabled: false
     model: text-embedding-005
+    required_skill_lexical_weight: 0.70
+    required_skill_semantic_weight: 0.30
+    role_lexical_weight: 0.60
+    role_semantic_weight: 0.40
     responsibility_lexical_weight: 0.25
     responsibility_semantic_weight: 0.75
     domain_lexical_weight: 0.40

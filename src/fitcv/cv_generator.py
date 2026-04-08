@@ -67,6 +67,10 @@ _DEFAULT_VARIANT = "standard"
 DEFAULT_CV_LOCALE = "en"
 DEFAULT_SUPPORTING_EVIDENCE_PER_ROLE = 1
 LEGACY_MARKDOWN_PROMPT_ID = "cv_generation.write.v1"
+_CANDIDATE_NAME_PLACEHOLDER_VALUES = {
+    "candidate name",
+    "your name",
+}
 
 
 # ── template variant selector ─────────────────────────────────────────────────
@@ -91,6 +95,28 @@ def _get_enabled_section_names(config: dict[str, Any] | None) -> list[str]:
         if isinstance(section_cfg, dict) and section_cfg.get("enabled", True):
             enabled_sections.append(CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title()))
     return enabled_sections
+
+
+def _normalize_candidate_name_token(value: str) -> str:
+    normalized = str(value or "")
+    normalized = normalized.replace("[", " ").replace("]", " ")
+    normalized = " ".join(normalized.split()).strip().lower()
+    return normalized
+
+
+def _is_candidate_name_placeholder(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    return _normalize_candidate_name_token(value) in _CANDIDATE_NAME_PLACEHOLDER_VALUES
+
+
+def _resolved_candidate_profile_name(profile: dict[str, Any] | None) -> str:
+    if not isinstance(profile, dict):
+        return ""
+    candidate_name = str(profile.get("name") or "").strip()
+    if not candidate_name or _is_candidate_name_placeholder(candidate_name):
+        return ""
+    return candidate_name
 
 
 def _filter_template_by_enabled_sections(template: str, enabled_sections: list[str]) -> str:
@@ -435,6 +461,7 @@ def _build_generation_prompt_context(
 ) -> dict[str, str]:
     title = str(jd.get("title") or "")
     required_skills = list(jd.get("required_skills") or [])
+    candidate_name = _resolved_candidate_profile_name(profile)
 
     enabled_section_names = _get_enabled_section_names(config)
     evidence_lines = _build_selected_evidence_lines(
@@ -458,6 +485,13 @@ def _build_generation_prompt_context(
             f"The candidate does have: {', '.join(matched_skills)}"
         )
     if profile:
+        if candidate_name:
+            constraint_lines.append(
+                f"Use this exact candidate name in the header: {candidate_name}"
+            )
+            constraint_lines.append(
+                "Do not output placeholder names such as Candidate Name, [Candidate Name], Your Name, or [Your Name]."
+            )
         approved_skills = flatten_skills(profile)
         known_employers = [
             str(exp.get("company") or "")
