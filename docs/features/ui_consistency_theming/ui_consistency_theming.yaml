@@ -21,11 +21,11 @@ ui_consistency_theming:
   refs:
     docs: []
     spec:
-      - docs/superpowers/specs/2026-03-26-admin-ui-consistency-and-theme-toggle-design.md
-      - docs/superpowers/specs/2026-03-27-settings-and-run-detail-composition-consistency-design.md
+      - docs/superpowers/archive/specs/2026-03-26-admin-ui-consistency-and-theme-toggle-design.md
+      - docs/superpowers/archive/specs/2026-03-27-settings-and-run-detail-composition-consistency-design.md
     plan:
-      - docs/superpowers/plans/2026-03-26-admin-ui-consistency-and-theme-toggle-implementation.md
-      - docs/superpowers/plans/2026-03-27-settings-and-run-detail-composition-consistency-implementation.md
+      - docs/superpowers/archive/plans/2026-03-26-admin-ui-consistency-and-theme-toggle-implementation.md
+      - docs/superpowers/archive/plans/2026-03-27-settings-and-run-detail-composition-consistency-implementation.md
     history:
       - docs/features/ui_consistency_theming/history.md
   keywords:
@@ -34,3 +34,4 @@ ui_consistency_theming:
     - design system
     - css tokens
     - consistency
+

@@ -79,8 +79,8 @@ The web server and worker share state through BigQuery (append-only events + per
 | `docs/FitCV-pipeline.md` | High-level pipeline design (data engineering perspective) |
 | `docs/features/<feature_id>/` | Per-feature contract, explanation, and history |
 | `docs/stages/*.yaml` | Stage contract layer for adopted pipeline stages |
-| `docs/superpowers/specs/` | Feature specs and design docs |
-| `docs/superpowers/plans/` | Implementation plans |
+| `docs/superpowers/archive/specs/` | Feature specs and design docs |
+| `docs/superpowers/archive/plans/` | Implementation plans |
 | `.cursor/rules/operating-system/` | Project methodology: doc lifecycle, feature lifecycle, planning dispatch |
 
 ### Source layout
@@ -117,3 +117,4 @@ src/fitcv/             # Core pipeline (unchanged by control plane)
 - **Settings are snapshotted at trigger time.** `effective_settings_json` captures the merged YAML + BQ + per-run-overrides config. The worker reads this snapshot, not live settings.
 - **Snapshots are immutable.** `jobs_input_json` and `candidate_profile_json` on the run record are the canonical resolved inputs — never re-read from repo files at inspection time.
 - **Enriched jobs are run-scoped.** `run_structured_jobs` preserves per-run enrichment data for debugging. The latest-state `structured_jobs` table is not used for run-detail inspection.
+

@@ -15,10 +15,11 @@
 ### 0.1.0 — planned
 
 - Feature concept: upload multiple JSON job files per trigger request
-- Spec/plan: `docs/superpowers/specs/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-design.md`
+- Spec/plan: `docs/superpowers/archive/specs/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-design.md`
 
 ## Post-Execution Review
 
 - All capabilities from the planned contract are implemented
 - Backward compatibility maintained via legacy `jobs_file` single-file fallback
 - Empty-array-after-merge edge case handled with explicit 400 error
+
