@@ -105,9 +105,9 @@ Important: run Docker commands from the repo checkout or git worktree whose file
 Examples:
 
 - main checkout: `C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT`
-- ranking worktree: `C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\ranking-six-feature-reactivation`
+- feature worktree: `C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\<feature-branch>`
 
-Docker uses the current build context directory. If you run `docker compose up -d --build redis web worker` from the ranking worktree, the containers are built from that worktree's files, not from another branch or worktree.
+Docker uses the current build context directory. If you run `docker compose up -d --build redis web worker` from a feature worktree, the containers are built from that worktree's files, not from another branch or checkout.
 
 If your service-account key is outside the repo, point Docker at it first:
 
@@ -118,7 +118,7 @@ $env:GCP_SA_KEY_PATH="C:\secure\your-service-account.json"
 Then change into the checkout or worktree you want to run and start everything:
 
 ```powershell
-cd "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\ranking-six-feature-reactivation"
+cd "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\<feature-branch>"
 docker compose up -d --build redis web worker
 ```
 

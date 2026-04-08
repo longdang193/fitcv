@@ -8,9 +8,9 @@ FitCV is built for a person or team that wants to turn a large set of raw job po
 
 Typical users are:
 
-- an internal operator running and reviewing application batches
+- an operator running and reviewing application batches
 - an engineer building or maintaining the pipeline
-- a candidate-support workflow that needs inspection, traceability, and repeatable CV generation
+- a workflow owner who needs inspection, traceability, and repeatable CV generation
 
 ## Problem
 
@@ -135,8 +135,6 @@ Operational invariants:
   Current-state pipeline architecture, execution flow, and major engineering safeguards.
 - [fitcv-control-plane-setup.md](/c:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/fitcv-control-plane-setup.md)
   Local setup, Docker usage, credentials, and troubleshooting.
-- [feature_overview.md](/c:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/feature_overview.md)
-  Summary of active features.
 - [stage_overview.md](/c:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/stage_overview.md)
   Summary of active pipeline stage contracts.
 
@@ -170,4 +168,3 @@ The admin UI is available at:
 ```text
 http://localhost:8000/admin/runs
 ```
-
