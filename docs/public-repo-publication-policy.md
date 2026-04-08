@@ -21,7 +21,6 @@ Day-to-day development happens in the private repo only.
 - `data/`
 - `templates/`
 - `tests/`
-- `sample/`
 - `README.md`
 - `docs/FitCV-pipeline.md`
 - `docs/fitcv-control-plane-setup.md`
@@ -43,6 +42,7 @@ Day-to-day development happens in the private repo only.
 - `.cursor/`
 - `docs/superpowers/`
 - `logs/`
+- `sample/`
 - `.worktrees/`
 - debug-only temp folders
 - local caches and virtual environments
@@ -52,7 +52,7 @@ Day-to-day development happens in the private repo only.
 
 - generated docs beyond the main discovery surfaces
 - config examples that might reveal internal-only operational detail
-- sample artifacts and benchmark outputs
+- sample artifacts, benchmark outputs, and demo-only bundles
 - new scripts that may be more internal than product-facing
 - cross-cutting docs that mention internal process rather than product behavior
 
@@ -77,4 +77,3 @@ Use an allowlist-first publication workflow:
 3. verify required public docs exist
 4. inspect the result
 5. then publish to the public repo
-

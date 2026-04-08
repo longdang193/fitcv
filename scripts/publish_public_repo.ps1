@@ -114,6 +114,33 @@ function Assert-NoPrivateReferences {
     }
 }
 
+function Remove-UnlistedGeneratedDocs {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationRoot,
+        [Parameter(Mandatory = $true)]
+        [string[]]$AllowedGeneratedPaths
+    )
+
+    $generatedRoot = Join-Path $DestinationRoot 'docs/generated'
+    if (-not (Test-Path -LiteralPath $generatedRoot)) {
+        return
+    }
+
+    $allowed = @{}
+    foreach ($path in $AllowedGeneratedPaths) {
+        $allowed[$path.Replace('\', '/').ToLowerInvariant()] = $true
+    }
+
+    $generatedFiles = Get-ChildItem -LiteralPath $generatedRoot -Recurse -File
+    foreach ($file in $generatedFiles) {
+        $relative = [System.IO.Path]::GetRelativePath($DestinationRoot, $file.FullName).Replace('\', '/').ToLowerInvariant()
+        if (-not $allowed.ContainsKey($relative)) {
+            Remove-Item -LiteralPath $file.FullName -Force
+        }
+    }
+}
+
 function Remove-PrivateReferenceLines {
     param(
         [Parameter(Mandatory = $true)]
@@ -166,7 +193,6 @@ $publicPaths = @(
     "docker-compose.yml",
     "docs/features",
     "docs/generated/features_index.yaml",
-    "docs/generated/feature_overview.md",
     "docs/generated/stages_index.yaml",
     "docs/generated/stage_overview.md",
     "docs/FitCV-pipeline.md",
@@ -174,7 +200,6 @@ $publicPaths = @(
     "docs/stages",
     "pyproject.toml",
     "requirements.txt",
-    "sample",
     "scripts/bootstrap_bigquery.py",
     "scripts/download_cvs.py",
     "src",
@@ -191,6 +216,7 @@ $forbiddenPaths = @(
     ".cursor",
     "docs/superpowers",
     "logs",
+    "sample",
     ".worktrees"
 )
 
@@ -211,14 +237,27 @@ Ensure-CleanDirectory -Path $ExportRoot
 
 if ($Push) {
     Remove-Item -LiteralPath $ExportRoot -Recurse -Force
-    git clone --branch $PublicBranch --single-branch $remoteUrl $ExportRoot | Out-Null
+    $remoteHeads = git ls-remote --heads $PublicRemote
 
-    Get-ChildItem -LiteralPath $ExportRoot -Force | Where-Object { $_.Name -ne ".git" } | Remove-Item -Recurse -Force
+    if ($remoteHeads) {
+        git clone --branch $PublicBranch --single-branch $remoteUrl $ExportRoot | Out-Null
+        Get-ChildItem -LiteralPath $ExportRoot -Force | Where-Object { $_.Name -ne ".git" } | Remove-Item -Recurse -Force
+    } else {
+        New-Item -ItemType Directory -Force -Path $ExportRoot | Out-Null
+        git -C $ExportRoot init -b $PublicBranch | Out-Null
+        git -C $ExportRoot remote add origin $remoteUrl
+    }
 }
 
 foreach ($relativePath in $publicPaths) {
     Copy-PublicPath -SourceRoot $repoRoot -DestinationRoot $ExportRoot -RelativePath $relativePath
 }
+
+Remove-UnlistedGeneratedDocs -DestinationRoot $ExportRoot -AllowedGeneratedPaths @(
+    'docs/generated/features_index.yaml',
+    'docs/generated/stages_index.yaml',
+    'docs/generated/stage_overview.md'
+)
 
 Remove-PrivateReferenceLines -DestinationRoot $ExportRoot -RelativePath 'docs/features'
 Remove-PrivateReferenceLines -DestinationRoot $ExportRoot -RelativePath 'docs/stages'
