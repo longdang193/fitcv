@@ -19,7 +19,7 @@ Docs explain code. They do not replace it.
 ```text
 code/                        -> real truth
 docs/stages/*.yaml           -> stage contracts when stage-aware docs are in scope
-docs/features/*.yaml         -> structured current-state truth
+docs/features/*/*.yaml       -> structured current-state truth
 docs/features/<feature_id>/  -> feature explanation and history
 docs/*.md                    -> cross-cutting product docs
 docs/operating_system/*.md   -> repo rules and workflows
@@ -38,7 +38,7 @@ Use code for:
 - validation logic
 - data and schema logic
 
-### `docs/features/*.yaml`
+### `docs/features/*/*.yaml`
 
 Use feature YAML for:
 

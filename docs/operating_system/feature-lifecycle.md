@@ -4,7 +4,7 @@ This document defines how managed features are classified and tracked.
 
 ## Core Principle
 
-A real managed feature should have a current-state contract in `docs/features/*.yaml`.
+A real managed feature should have a current-state contract at `docs/features/<feature_id>/<feature_id>.yaml`.
 
 Stages help with architecture and planning, but features remain the primary lifecycle units.
 

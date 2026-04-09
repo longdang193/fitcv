@@ -28,23 +28,24 @@ cv_generation:
   refs:
     docs: []
     spec:
-      - docs/superpowers/specs/2026-03-31-stage-contract-docs-adoption-design.md
-      - docs/superpowers/specs/2026-03-31-stage-transition-artifacts-design.md
-      - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
-      - docs/superpowers/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
-      - docs/superpowers/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
-      - docs/superpowers/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
-      - docs/superpowers/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+      - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+      - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+      - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+      - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+      - docs/superpowers/archive/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
+      - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+      - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
     plan:
-      - docs/superpowers/plans/2026-03-31-stage-transition-artifacts-implementation.md
-      - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
-      - docs/superpowers/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
-      - docs/superpowers/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
-      - docs/superpowers/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
-      - docs/superpowers/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+      - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+      - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+      - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+      - docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
+      - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+      - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
     history: []
   keywords:
     - cv generation
     - validation
     - repair
     - structured cv
+
