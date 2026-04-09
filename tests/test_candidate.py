@@ -200,6 +200,13 @@ def test_infer_effective_preferences_preserves_explicit_preferences() -> None:
     assert result["preference_sources"]["domains"] == "explicit_yaml"
 
 
+def test_infer_role_family_uses_builtin_fallbacks_without_taxonomy_config() -> None:
+    from fitcv.candidate import infer_role_family
+
+    assert infer_role_family("Data Scientist") == "data_science"
+    assert infer_role_family("Business Intelligence Analyst") == "analytics"
+
+
 # ── prepare_profile_rows ──────────────────────────────────────────────────────
 
 def test_prepare_profile_rows_returns_all_tables(sample_profile_path: Path) -> None:

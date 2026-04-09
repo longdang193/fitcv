@@ -1,5 +1,5 @@
 # GENERATED FILE - do not edit directly.
-# Source: `C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\agent-core\adapters\codex\docs-AGENTS.template.md`
+# Source: `agent-core/adapters/codex/docs-AGENTS.template.md`
 # Docs Instructions
 
 This directory contains product docs, generated discovery, and operating-system docs.

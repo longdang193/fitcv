@@ -59,3 +59,5 @@ If publication-boundary or adapter files changed first, run:
 ```
 
 before running the curated publish workflow.
+
+CI also runs the publication export path as a dry check, so curated export preparation is exercised before merge even when nobody runs the publish script manually.
