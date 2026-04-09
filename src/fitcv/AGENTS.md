@@ -1,5 +1,5 @@
 # GENERATED FILE - do not edit directly.
-# Source: `C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\agent-core\adapters\codex\src-fitcv-AGENTS.template.md`
+# Source: `agent-core/adapters/codex/src-fitcv-AGENTS.template.md`
 # FitCV Pipeline Instructions
 
 This directory owns the pipeline runtime.

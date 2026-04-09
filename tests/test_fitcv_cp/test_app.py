@@ -136,7 +136,8 @@ def test_post_runs_with_config_overrides():
     """POST /runs with per-run overrides snapshot effective settings."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run"), \
-         patch("fitcv_cp.app.enqueue_run", return_value="run-123"), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
              "pipeline": {"final_top_n": 10}

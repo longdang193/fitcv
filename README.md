@@ -188,3 +188,7 @@ The admin UI is available at:
 ```text
 http://localhost:8000/admin/runs
 ```
+
+## Repo Hooks
+
+Pushes and pull requests are expected to pass the repo hook workflow, including adapter verification, baseline tests, and the publication-boundary dry check.

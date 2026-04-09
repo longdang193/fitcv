@@ -15,13 +15,14 @@ Normal development happens only in the private repo.
 
 ## Structure Model
 
-The repo uses four distinct internal layers:
+The repo uses five distinct internal layers:
 
 1. `docs/operating_system/`
 - human-readable repo rules and workflows
 - publication policy
 - doc-system and planning rules
 - internal tooling pilots
+- agent memory under `docs/operating_system/agent_memory/`
 
 2. `agent-core/`
 - shared agent-facing source material
@@ -49,12 +50,15 @@ Owns:
 - workflow governance
 - publication workflow
 - tool adoption policy
+- operational agent memory
 
 Does not own:
 
 - product behavior
 - runtime code contracts
 - task playbooks
+
+`docs/operating_system/agent_memory/` stores compact operational memory for agents. It does not replace feature docs, specs, plans, or generated rules.
 
 ### `agent-core/`
 
@@ -121,3 +125,9 @@ run:
 .\scripts\sync_agent_adapters.ps1
 .\scripts\verify_agent_adapters.ps1
 ```
+
+## Hook Workflow
+
+The repo hook workflow is part of normal enforcement.
+
+CI is expected to run adapter verification and baseline checks on push and pull request events so drift and broken changes are caught before merge.
