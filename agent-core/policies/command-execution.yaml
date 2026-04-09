@@ -1,0 +1,18 @@
+policy_id: command_execution
+scope: private_repo
+principles:
+  - "Routine inspection and verification commands should be easy to run."
+  - "Potentially destructive or high-impact commands should require explicit confirmation."
+  - "Publication and remote-update commands should be intentional and reviewable."
+allow_examples:
+  - "git status"
+  - "git diff"
+  - "pytest"
+  - "python -m py_compile"
+prompt_examples:
+  - "git push"
+  - "git push --force-with-lease"
+  - "docker compose up -d --build"
+  - "recursive delete or move"
+forbidden_examples:
+  - "publish public repo by ad hoc copy/paste instead of the curated publish workflow"

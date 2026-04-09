@@ -1,0 +1,19 @@
+# GENERATED FILE - do not edit directly.
+# Source: `C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\agent-core\adapters\codex\rules\publication-boundary.rules`
+# Generated Codex rule intent
+# Source: agent-core/policies/publication-boundary.yaml
+
+forbidden_paths:
+  - ".agents/"
+  - ".cursor/"
+  - "agent-core/"
+  - "codex/rules/"
+  - "docs/operating_system/"
+  - "docs/superpowers/"
+  - "logs/"
+  - "sample/"
+  - ".worktrees/"
+
+prompt:
+  - "Any command that would publish or copy private-only paths into the public repo"
+

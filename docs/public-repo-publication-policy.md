@@ -38,8 +38,12 @@ Day-to-day development happens in the private repo only.
 
 ## Always Exclude
 
+- `AGENTS.md`
 - `.agents/`
 - `.cursor/`
+- `agent-core/`
+- `codex/rules/`
+- `docs/operating_system/`
 - `docs/superpowers/`
 - `logs/`
 - `sample/`
@@ -53,6 +57,7 @@ Day-to-day development happens in the private repo only.
 - generated docs beyond the main discovery surfaces
 - config examples that might reveal internal-only operational detail
 - sample artifacts, benchmark outputs, and demo-only bundles
+- generated agent adapter files beyond intentionally public ones
 - new scripts that may be more internal than product-facing
 - cross-cutting docs that mention internal process rather than product behavior
 

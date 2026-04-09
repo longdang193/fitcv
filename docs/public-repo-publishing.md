@@ -49,6 +49,18 @@ To publish to the public repo after inspection:
 5. checks that required public docs exist
 6. optionally commits and pushes to the `public` remote
 
+The script also keeps private-only repo operating layers out of the public export, including:
+
+- `AGENTS.md`
+- `.agents/`
+- `.cursor/`
+- `agent-core/`
+- `codex/rules/`
+- `docs/operating_system/`
+- `docs/superpowers/`
+- `logs/`
+- `sample/`
+
 ## Before Publishing
 
 Review:
@@ -63,4 +75,4 @@ Review:
 - Keep internal workflow assets private.
 - Refresh public docs only when they help an external reader understand the product.
 - Update the publish allowlist when new product-facing paths become intentionally public.
-
+- Keep agent-core, operating-system docs, and adapter outputs private unless an explicit publication rule is added later.
