@@ -29,7 +29,7 @@ Affected features:
   - <feature_id> | none
 Primary lens: stage | feature | mixed | cross-cutting
 Affected docs:
-  feature_yaml: `docs/features/<feature_id>.yaml` | none
+  feature_yaml: `docs/features/<feature_id>/<feature_id>.yaml` | none
   feature_history: `docs/features/<feature_id>/history.md` | none
   feature_docs:
     - `docs/features/<feature_id>/<doc>.md`

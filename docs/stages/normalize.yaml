@@ -21,15 +21,16 @@ normalize:
   refs:
     docs: []
     spec:
-      - docs/superpowers/specs/2026-03-31-stage-contract-docs-adoption-design.md
-      - docs/superpowers/specs/2026-03-31-stage-transition-artifacts-design.md
-      - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
+      - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+      - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+      - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
     plan:
-      - docs/superpowers/plans/2026-03-31-stage-transition-artifacts-implementation.md
-      - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
+      - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+      - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
     history: []
   keywords:
     - normalize
     - ingest
     - deduplication
     - normalized jobs
+

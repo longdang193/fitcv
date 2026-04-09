@@ -104,7 +104,10 @@ function Assert-NoPrivateReferences {
         'agent-core/',
         'codex/rules/',
         'docs/operating_system/',
-        'docs/superpowers/'
+        'docs/superpowers/',
+        '/[A-Za-z]:/',
+        '\([A-Za-z]:/',
+        'file://'
     )
 
     $files = Get-ChildItem -LiteralPath $DestinationRoot -Recurse -File -Include *.md,*.yaml,*.yml,*.txt
@@ -113,6 +116,29 @@ function Assert-NoPrivateReferences {
         foreach ($pattern in $patterns) {
             if ($content -match $pattern) {
                 throw "Private-only reference found in public export: $($file.FullName)"
+            }
+        }
+    }
+}
+
+function Assert-NoLocalAbsoluteLinks {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationRoot
+    )
+
+    $patterns = @(
+        '/[A-Za-z]:/',
+        '\([A-Za-z]:/',
+        'file://'
+    )
+
+    $files = Get-ChildItem -LiteralPath $DestinationRoot -Recurse -File -Include *.md,*.yaml,*.yml,*.txt
+    foreach ($file in $files) {
+        $content = Get-Content -Raw -LiteralPath $file.FullName
+        foreach ($pattern in $patterns) {
+            if ($content -match $pattern) {
+                throw "Local absolute link found in public export: $($file.FullName)"
             }
         }
     }
@@ -297,6 +323,7 @@ foreach ($relativePath in $requiredPaths) {
 }
 
 Assert-NoPrivateReferences -DestinationRoot $ExportRoot
+Assert-NoLocalAbsoluteLinks -DestinationRoot $ExportRoot
 
 Write-Host "Public export prepared at: $ExportRoot"
 

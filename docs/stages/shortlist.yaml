@@ -29,22 +29,22 @@ shortlist:
   refs:
     docs: []
     spec:
-      - docs/superpowers/specs/2026-03-31-stage-contract-docs-adoption-design.md
-      - docs/superpowers/specs/2026-03-31-stage-transition-artifacts-design.md
-      - docs/superpowers/specs/2026-04-01-richer-stage-artifacts-design.md
-      - docs/superpowers/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
-      - docs/superpowers/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
-      - docs/superpowers/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
-      - docs/superpowers/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
-      - docs/superpowers/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+      - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+      - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+      - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+      - docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+      - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+      - docs/superpowers/archive/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+      - docs/superpowers/archive/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
+      - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
     plan:
-      - docs/superpowers/plans/2026-03-31-stage-transition-artifacts-implementation.md
-      - docs/superpowers/plans/2026-04-01-richer-stage-artifacts-implementation.md
-      - docs/superpowers/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
-      - docs/superpowers/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
-      - docs/superpowers/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
-      - docs/superpowers/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
-      - docs/superpowers/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+      - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+      - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+      - docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+      - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+      - docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+      - docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+      - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
     history: []
   keywords:
     - shortlist
@@ -53,3 +53,4 @@ shortlist:
     - backfill
     - embeddings
     - reuse
+

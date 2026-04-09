@@ -32,19 +32,19 @@ cv_analysis:
   refs:
     docs: []
     spec:
-      - docs/superpowers/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
-      - docs/superpowers/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
-      - docs/superpowers/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
-      - docs/superpowers/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
-      - docs/superpowers/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
-      - docs/superpowers/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+      - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+      - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+      - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+      - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+      - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+      - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
     plan:
-      - docs/superpowers/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
-      - docs/superpowers/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
-      - docs/superpowers/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
-      - docs/superpowers/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
-      - docs/superpowers/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
-      - docs/superpowers/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+      - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+      - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+      - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+      - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+      - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+      - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
     history: []
   keywords:
     - cv analysis
@@ -53,3 +53,4 @@ cv_analysis:
     - semantic alignment
     - gap analysis
     - fit gate
+

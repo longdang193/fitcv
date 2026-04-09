@@ -42,10 +42,10 @@ pipeline_performance
 
 ## Feature Contracts
 
-Each feature has a contract at `docs/features/<feature_id>.yaml` and optional focused docs under `docs/features/<feature_id>/`:
+Each feature has a contract at `docs/features/<feature_id>/<feature_id>.yaml` and optional focused docs under `docs/features/<feature_id>/`:
 
 ```text
-docs/features/<feature_id>.yaml
+docs/features/<feature_id>/<feature_id>.yaml
 docs/features/<feature_id>/history.md
 ```
 
