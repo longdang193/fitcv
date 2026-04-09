@@ -1,0 +1,16 @@
+# Generated Codex rule intent
+# Source: agent-core/policies/publication-boundary.yaml
+
+forbidden_paths:
+  - ".agents/"
+  - ".cursor/"
+  - "agent-core/"
+  - "codex/rules/"
+  - "docs/operating_system/"
+  - "docs/superpowers/"
+  - "logs/"
+  - "sample/"
+  - ".worktrees/"
+
+prompt:
+  - "Any command that would publish or copy private-only paths into the public repo"

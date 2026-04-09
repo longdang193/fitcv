@@ -98,8 +98,12 @@ function Assert-NoPrivateReferences {
     )
 
     $patterns = @(
+        'AGENTS\.md',
         '\.agents/',
         '\.cursor/',
+        'agent-core/',
+        'codex/rules/',
+        'docs/operating_system/',
         'docs/superpowers/'
     )
 
@@ -141,6 +145,18 @@ function Remove-UnlistedGeneratedDocs {
     }
 }
 
+function Remove-PrivateAdapterFiles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationRoot
+    )
+
+    $agentFiles = Get-ChildItem -LiteralPath $DestinationRoot -Recurse -File -Filter 'AGENTS.md' -ErrorAction SilentlyContinue
+    foreach ($file in $agentFiles) {
+        Remove-Item -LiteralPath $file.FullName -Force
+    }
+}
+
 function Remove-PrivateReferenceLines {
     param(
         [Parameter(Mandatory = $true)]
@@ -150,7 +166,11 @@ function Remove-PrivateReferenceLines {
     )
 
     $patterns = @(
+        'AGENTS\.md',
         'docs/superpowers/',
+        'docs/operating_system/',
+        'agent-core/',
+        'codex/rules/',
         '\.agents/',
         '\.cursor/'
     )
@@ -212,8 +232,12 @@ $publicPaths = @(
 )
 
 $forbiddenPaths = @(
+    "AGENTS.md",
     ".agents",
     ".cursor",
+    "agent-core",
+    "codex",
+    "docs/operating_system",
     "docs/superpowers",
     "logs",
     "sample",
@@ -258,6 +282,8 @@ Remove-UnlistedGeneratedDocs -DestinationRoot $ExportRoot -AllowedGeneratedPaths
     'docs/generated/stages_index.yaml',
     'docs/generated/stage_overview.md'
 )
+
+Remove-PrivateAdapterFiles -DestinationRoot $ExportRoot
 
 Remove-PrivateReferenceLines -DestinationRoot $ExportRoot -RelativePath 'docs/features'
 Remove-PrivateReferenceLines -DestinationRoot $ExportRoot -RelativePath 'docs/stages'

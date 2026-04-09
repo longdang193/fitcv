@@ -1,0 +1,12 @@
+policy_id: instruction_layering
+scope: private_repo
+root_instruction_file: "AGENTS.md"
+nested_instruction_files:
+  - "docs/AGENTS.md"
+  - "src/fitcv/AGENTS.md"
+  - "src/fitcv_cp/AGENTS.md"
+principles:
+  - "Root instructions define repo-wide expectations."
+  - "Nested instructions should override only local behavior."
+  - "Instruction files should stay short and scoped."
+  - "Long-form workflow explanation belongs in docs/operating_system, not in AGENTS files."
