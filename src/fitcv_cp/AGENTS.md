@@ -1,5 +1,5 @@
 # GENERATED FILE - do not edit directly.
-# Source: `C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\agent-core\adapters\codex\src-fitcv_cp-AGENTS.template.md`
+# Source: `agent-core/adapters/codex/src-fitcv_cp-AGENTS.template.md`
 # FitCV Control Plane Instructions
 
 This directory owns the admin control plane and worker-facing orchestration.

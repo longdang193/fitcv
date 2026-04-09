@@ -7,16 +7,27 @@ function Get-RepoRoot {
     (git rev-parse --show-toplevel).Trim()
 }
 
+function Get-RepoRelativePath {
+    param(
+        [string]$RepoRoot,
+        [string]$Path
+    )
+
+    return [System.IO.Path]::GetRelativePath($RepoRoot, $Path).Replace('\', '/')
+}
+
 function Get-ExpectedContent {
     param(
+        [string]$RepoRoot,
         [string]$SourcePath,
         [string]$CommentPrefix = "#"
     )
 
     $sourceContent = Get-Content -Raw -LiteralPath $SourcePath
+    $relativeSourcePath = Get-RepoRelativePath -RepoRoot $RepoRoot -Path $SourcePath
     $header = @(
         "$CommentPrefix GENERATED FILE - do not edit directly."
-        "$CommentPrefix Source: ``$SourcePath``"
+        "$CommentPrefix Source: ``$relativeSourcePath``"
         ""
     ) -join [Environment]::NewLine
 
@@ -72,7 +83,7 @@ foreach ($mapping in $mappings) {
         continue
     }
 
-    $expected = Get-ExpectedContent -SourcePath $mapping.Source -CommentPrefix $mapping.Prefix
+    $expected = Get-ExpectedContent -RepoRoot $repoRoot -SourcePath $mapping.Source -CommentPrefix $mapping.Prefix
     $actual = Get-Content -Raw -LiteralPath $mapping.Destination
     if ((Normalize-Content -Content $expected) -ne (Normalize-Content -Content $actual)) {
         Write-Error "Generated adapter drift detected: $($mapping.Destination)"
