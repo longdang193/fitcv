@@ -7,6 +7,7 @@ def test_run_status_values():
     assert set(RunStatus) == {
         RunStatus.QUEUED,
         RunStatus.RUNNING,
+        RunStatus.AWAITING_CONTINUE,
         RunStatus.CANCELLING,
         RunStatus.CANCELLED,
         RunStatus.SUCCEEDED,
