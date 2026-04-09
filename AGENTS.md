@@ -1,5 +1,5 @@
 # GENERATED FILE - do not edit directly.
-# Source: `C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\agent-core\adapters\codex\root-AGENTS.template.md`
+# Source: `agent-core/adapters/codex/root-AGENTS.template.md`
 # FitCV Agent Instructions
 
 This file is the repo-wide instruction layer for Codex.
@@ -13,12 +13,16 @@ Use this file for repo-wide behavior only. More specific directory instructions 
 - The private repo is the development source of truth.
 - The public repo is updated only through the curated publish workflow.
 - Repo governance lives in `docs/operating_system/`.
+- Agent memory lives in `docs/operating_system/agent_memory/`.
 - Skills live in `.agents/skills/`, which remains canonical in phase 2.
 - Skills should follow the Codex Skills model: one focused workflow per skill, with `SKILL.md` as the primary entrypoint.
 
 ## Working Expectations
 
 - Keep changes aligned with the owning code and doc layer.
+- Consult relevant agent memory before planning when the task touches reusable repo workflows or known invariants.
+- Consult `docs/operating_system/agent_memory/failure-ledger.md` during debugging, retries, or after important mistakes.
+- Update the agent-memory layer when a significant reusable lesson emerges.
 - Update tests and docs when behavior or contracts change.
 - Do not expose private operating-system or agent-core material through the public mirror.
 - If you change `agent-core/adapters/*`, `agent-core/policies/*`, generated `AGENTS.md`, or `codex/rules/*.rules`, run the sync and verify scripts before considering the change complete.
