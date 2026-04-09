@@ -6,6 +6,7 @@ This document defines what should move from the private development repo into th
 
 - Private repo:
   - full engineering source of truth
+  - repo-scoped agent assets such as `.agents/` are tracked here
   - internal plans, specs, workflow assets, and experiments are allowed
 - Public repo:
   - curated product-facing mirror
@@ -51,6 +52,11 @@ Day-to-day development happens in the private repo only.
 - debug-only temp folders
 - local caches and virtual environments
 - scratch notes and local-only helper artifacts
+
+Note:
+
+- `.agents/` is private-repo content, not local-only content
+- `.agents/` should stay tracked in the private repo and excluded only from the public mirror
 
 ## Review Before Publish
 

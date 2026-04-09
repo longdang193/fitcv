@@ -61,11 +61,13 @@ The script also keeps private-only repo operating layers out of the public expor
 - `logs/`
 - `sample/`
 
+These exclusions are public-mirror exclusions, not private-repo exclusions. For example, `.agents/` remains tracked in the private repo and is filtered only during public publication.
+
 ## Before Publishing
 
 Review:
 
-- [public-repo-publication-policy.md](/c:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/public-repo-publication-policy.md)
+- [public-repo-publication-policy.md](public-repo-publication-policy.md)
 - the generated export contents
 - the public README and docs from an external-reader perspective
 
