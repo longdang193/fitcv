@@ -33,7 +33,8 @@ BEFORE claiming any status or expressing satisfaction:
    - If NO: State actual status with evidence
    - If YES: State claim WITH evidence
 5. DOC SYNC CHECK: If behavior changed, name the exact feature/doc targets updated or intentionally unchanged
-6. ONLY THEN: Make the claim
+6. MEMORY DISPOSITION CHECK: If the work involved meaningful failures, retries, or debugging, update `docs/operating_system/agent_memory/failure-ledger.md` or explicitly state why no memory update was needed
+7. ONLY THEN: Make the claim
 
 Skip any step = lying, not verifying
 ```
@@ -51,6 +52,16 @@ Minimum check:
 - identify whether `docs/generated/*` was regenerated
 
 If behavior changed and no feature YAML/doc target is named, the task is not complete.
+
+## Memory Disposition Gate
+
+If the task involved meaningful failures, repeated retries, or notable debugging:
+
+- check whether the lesson belongs in `docs/operating_system/agent_memory/failure-ledger.md`
+- if yes, update it before claiming completion
+- if no, say explicitly why the failure was too task-local, one-off, or already captured elsewhere
+
+Do not let important failures disappear just because the final verification now passes.
 
 ## Common Failures
 
@@ -71,6 +82,7 @@ If behavior changed and no feature YAML/doc target is named, the task is not com
 - Expressing satisfaction before verification ("Great!", "Perfect!", "Done!", etc.)
 - About to commit/push/PR without verification
 - About to claim completion without naming doc targets after behavior changes
+- About to claim completion after meaningful debugging without addressing memory disposition
 - Trusting agent success reports
 - Relying on partial verification
 - Thinking "just this once"
@@ -123,6 +135,12 @@ If behavior changed and no feature YAML/doc target is named, the task is not com
 ❌ "No doc changes needed" without checking targets
 ```
 
+**Memory disposition:**
+```
+✅ "Failure ledger updated" / "No memory update needed because <reason>"
+❌ Silence about important retries or debugging
+```
+
 **Agent delegation:**
 ```
 ✅ Agent reports success → Check VCS diff → Verify changes → Report actual state
@@ -148,6 +166,7 @@ From 24 failure memories:
 - Moving to next task
 - Delegating to agents
 - Declaring behavior changes complete without doc sync evidence
+- Declaring completion after meaningful retries/debugging without a memory disposition
 
 **Rule applies to:**
 - Exact phrases

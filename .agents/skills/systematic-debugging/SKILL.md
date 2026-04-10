@@ -57,19 +57,24 @@ You MUST complete each phase before proceeding to the next.
    - Read stack traces completely
    - Note line numbers, file paths, error codes
 
-2. **Reproduce Consistently**
+2. **Check the failure ledger if the issue may be repeating**
+   - Read `docs/operating_system/agent_memory/failure-ledger.md` when the failure resembles a known repo-method problem
+   - Use it to avoid re-learning known mistakes
+   - Do NOT treat it as a replacement for root-cause investigation
+
+3. **Reproduce Consistently**
    - Can you trigger it reliably?
    - What are the exact steps?
    - Does it happen every time?
    - If not reproducible → gather more data, don't guess
 
-3. **Check Recent Changes**
+4. **Check Recent Changes**
    - What changed that could cause this?
    - Git diff, recent commits
    - New dependencies, config changes
    - Environmental differences
 
-4. **Gather Evidence in Multi-Component Systems**
+5. **Gather Evidence in Multi-Component Systems**
 
    **WHEN system has multiple components (CI → build → signing, API → service → database):**
 
@@ -107,7 +112,7 @@ You MUST complete each phase before proceeding to the next.
 
    **This reveals:** Which layer fails (secrets → workflow ✓, workflow → build ✗)
 
-5. **Trace Data Flow**
+6. **Trace Data Flow**
 
    **WHEN error is deep in call stack:**
 
@@ -286,6 +291,9 @@ These techniques are part of systematic debugging and available in this director
 **Related skills:**
 - **superpowers:test-driven-development** - For creating failing test case (Phase 4, Step 1)
 - **superpowers:verification-before-completion** - Verify fix worked before claiming success
+
+**Related memory layer:**
+- `docs/operating_system/agent_memory/failure-ledger.md` - Check for repeated repo-method failures before inventing new fixes
 
 ## Real-World Impact
 
