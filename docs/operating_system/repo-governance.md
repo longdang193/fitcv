@@ -131,3 +131,11 @@ run:
 The repo hook workflow is part of normal enforcement.
 
 CI is expected to run adapter verification and baseline checks on push and pull request events so drift and broken changes are caught before merge.
+
+When CI or repo hooks expose a repeated or important failure mode, convert that lesson into one or more of:
+
+- an entry in `docs/operating_system/agent_memory/`
+- a stronger repo rule
+- a script check
+- a test
+- an explicit follow-up plan if immediate hardening is not appropriate

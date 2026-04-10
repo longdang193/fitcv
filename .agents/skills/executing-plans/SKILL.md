@@ -59,6 +59,13 @@ For each task:
 - `docs/features/<feature_id>/history.md` or other focused docs if feature-specific explanation/history changed
 - `docs/*.md` if cross-cutting explanation changed
 - `README.md` if navigation changed
+- before marking the task fully complete, decide whether execution revealed a reusable memory update:
+  - invariant → `docs/operating_system/agent_memory/invariants.md`
+  - pattern → `docs/operating_system/agent_memory/patterns.md`
+  - repeated or important failure → `docs/operating_system/agent_memory/failure-ledger.md`
+  - reusable unresolved question → `docs/operating_system/agent_memory/open-questions.md`
+
+If yes, update the relevant memory file as part of task closeout. If no, complete the task without forcing a memory edit.
 
 1. Mark task `completed`
 
@@ -102,6 +109,7 @@ Minimum required checks:
 - if feature-specific explanation/history changed → update `docs/features/<feature_id>/`
 - if cross-cutting explanation changed → update `docs/*.md`
 - if navigation changed → update `README.md`
+- if execution revealed a reusable memory lesson → update `docs/operating_system/agent_memory/*`
 - after source changes → regenerate `docs/generated/*`
 
 Do not finish execution with stale feature YAML or stale generated discovery.
@@ -113,6 +121,7 @@ Before completion, list the exact files updated or intentionally left unchanged 
 - `docs/features/<feature_id>/history.md`
 - any other focused docs under `docs/features/<feature_id>/`
 - any cross-feature docs under `docs/*.md`
+- any memory files under `docs/operating_system/agent_memory/` that changed or were intentionally left unchanged
 - `README.md`
 - regenerated `docs/generated/*`
 
@@ -123,6 +132,7 @@ Use this completion checklist:
 - feature history updated?
 - other feature-specific docs updated?
 - cross-cutting docs updated?
+- agent memory updated or explicitly not needed?
 - README updated?
 - generated docs refreshed?
 
