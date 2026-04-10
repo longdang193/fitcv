@@ -59,6 +59,7 @@ Rules:
 - check if feature already exists
 - recent commits
 - other docs
+- when the task touches repo-operating behavior, known repeated issues, or unsettled harness areas, consult `docs/operating_system/agent_memory/*`
 
 2. **Ask clarifying questions (one at a time)**
 

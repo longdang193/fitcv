@@ -145,7 +145,8 @@ Multiple independent workstreams
 2. Use `Affected features: none` if this is truly cross-cutting
 3. Name affected stages if the work is stage-aware by design
 4. Keep docs under cross-cutting paths rather than inventing a fake feature
-5. Dispatch as needed
+5. Note whether the work is likely to produce a reusable memory update during closeout
+6. Dispatch as needed
 
 ### Bug Fix
 
