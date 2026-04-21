@@ -71,6 +71,10 @@ Managed Mode B target state:
 
 - edit `docs/features/<feature_id>/feature.source.yaml` for human semantic changes
 - edit `docs/stages/<stage_id>.source.yaml` for human stage-boundary changes
+- keep repo-local feature IDs in lowercase underscore format unless a later
+  naming migration is explicitly approved
+- keep managed feature capabilities as structured entries with
+  `<feature_id>.<kebab-suffix>` IDs
 - treat generated feature contracts, generated stage contracts, and
   `lineage.generated.yaml` as outputs rather than source-of-truth files
 - keep starter-owned shared repo-control surfaces reviewed against the adopted
@@ -188,6 +192,13 @@ with:
 - optional `divergences`
 
 Intentional drift is allowed, but it should be explicit and reviewable.
+
+Current accepted local drift:
+
+- managed feature IDs remain underscore-based instead of starter kebab-case
+  naming
+- capability metadata is normalized around repo-local structured entries rather
+  than requiring a second ID migration immediately after the Mode B rollout
 
 ## Adapter Workflow
 

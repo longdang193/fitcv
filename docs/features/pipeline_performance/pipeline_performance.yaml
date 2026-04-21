@@ -9,25 +9,44 @@ pipeline_performance:
   - api_optimization
   depends_on: []
   capabilities:
-  - Pre-enrichment global job filters (applications_count_max, max_age_days)
-  - Explicit rejection reasons in rule_filter_results
-  - Gemini structured output with response_schema and Pydantic
-  - Fallback path for unparseable responses
-  - Enrich extraction prompt text now comes from a centralized prompt registry with config-selected prompt IDs
-  - Enrich-stage raw-plus-canonical semantic companions for repeated downstream fields
-  - Canonical skill companion lists and entity payloads for required/preferred skills
-  - Enrich-stage mapping suggestion capture for review/debug surfaces
-  - Fingerprint-based enrich-result reuse happens before LLM enrichment using normalized raw-job inputs
-  - Enrich-contract fingerprinting invalidates reuse automatically when prompt/model/schema behavior changes
-  - Shared `structured_jobs` reuse lookup avoids redundant enrich calls while only fresh rows are upserted back into the shared table
-  - Shortlist now builds a stable structured embedding-input signature before generating `job_summary` vectors
-  - Shortlist reuses the latest stored embedding row for a `job_url` only when both the structured signature and embedding contract fingerprint still match
-  - Fresh shortlist embeddings persist signature metadata so later runs can skip repeated embedding work safely
-  - Operator-facing enriched-job exports now keep canonical semantic fields and fingerprint/reuse provenance while omitting retired raw duplicate classification baggage
-  - Large runs avoid some row-scaled Layer 4 event noise by relying more on aggregate stage summaries plus stage-owned artifacts
-  - '`results.json` now keeps only compact job-ledger fields instead of repeating full job snapshots, heavy score-explanation internals, and full CV bodies already represented elsewhere'
-  - '`cv_analysis` now uses bounded semantic lift for required-skill and role channels instead of reserving semantic work only for domain and responsibility alignment'
-  - Ranked jobs with authoritative reranker `fit_label = skip` now stop before evidence retrieval, gap computation, and semantic alignment inside `cv_analysis`
+  - capability_id: pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
+    name: Pre-enrichment global job filters (applications_count_max, max_age_days)
+  - capability_id: pipeline_performance.explicit-rejection-reasons-in-rule-filter-results
+    name: Explicit rejection reasons in rule_filter_results
+  - capability_id: pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
+    name: Gemini structured output with response_schema and Pydantic
+  - capability_id: pipeline_performance.fallback-path-for-unparseable-responses
+    name: Fallback path for unparseable responses
+  - capability_id: pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
+    name: Enrich extraction prompt text now comes from a centralized prompt registry with config-selected prompt IDs
+  - capability_id: pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
+    name: Enrich-stage raw-plus-canonical semantic companions for repeated downstream fields
+  - capability_id: pipeline_performance.canonical-skill-companion-lists-and-entity-payloads-for-required-preferred-skills
+    name: Canonical skill companion lists and entity payloads for required/preferred skills
+  - capability_id: pipeline_performance.enrich-stage-mapping-suggestion-capture-for-review-debug-surfaces
+    name: Enrich-stage mapping suggestion capture for review/debug surfaces
+  - capability_id: pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
+    name: Fingerprint-based enrich-result reuse happens before LLM enrichment using normalized raw-job inputs
+  - capability_id: pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes
+    name: Enrich-contract fingerprinting invalidates reuse automatically when prompt/model/schema behavior changes
+  - capability_id: pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
+    name: Shared `structured_jobs` reuse lookup avoids redundant enrich calls while only fresh rows are upserted back into the shared table
+  - capability_id: pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors
+    name: Shortlist now builds a stable structured embedding-input signature before generating `job_summary` vectors
+  - capability_id: pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
+    name: Shortlist reuses the latest stored embedding row for a `job_url` only when both the structured signature and embedding contract fingerprint still match
+  - capability_id: pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
+    name: Fresh shortlist embeddings persist signature metadata so later runs can skip repeated embedding work safely
+  - capability_id: pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
+    name: Operator-facing enriched-job exports now keep canonical semantic fields and fingerprint/reuse provenance while omitting retired raw duplicate classification baggage
+  - capability_id: pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
+    name: Large runs avoid some row-scaled Layer 4 event noise by relying more on aggregate stage summaries plus stage-owned artifacts
+  - capability_id: pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere
+    name: '`results.json` now keeps only compact job-ledger fields instead of repeating full job snapshots, heavy score-explanation internals, and full CV bodies already represented elsewhere'
+  - capability_id: pipeline_performance.cv-analysis-now-uses-bounded-semantic-lift-for-required-skill-and-role-channels-instead-of-reserving-semantic-work-only-for-domain-and-responsibility-alignment
+    name: '`cv_analysis` now uses bounded semantic lift for required-skill and role channels instead of reserving semantic work only for domain and responsibility alignment'
+  - capability_id: pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis
+    name: Ranked jobs with authoritative reranker `fit_label = skip` now stop before evidence retrieval, gap computation, and semantic alignment inside `cv_analysis`
   refs:
     docs:
     - docs/FitCV-pipeline.md

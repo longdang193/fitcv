@@ -37,8 +37,13 @@ starter_sync:
       class: validation_and_sync_scripts
       status: customized
       rationale: JOB-PROJECT now uses a repo-local Mode B validator aligned to the starter guidance and this repo's current source/generated contract.
+    - path: docs/features/*/feature.source.yaml
+      class: operating_system_docs
+      status: customized
+      rationale: Managed feature IDs remain lowercase underscore identifiers for this repo, and capability metadata uses repo-local structured entries with `<feature_id>.<kebab-suffix>` IDs.
 notes: >
   JOB-PROJECT is aligning toward the project-OS-starter managed architecture
   metadata model. Managed features and stages now use source-owned lifecycle
-  files plus generated contracts and discovery, while ID normalization and
-  deeper lineage enrichment remain intentionally deferred.
+  files plus generated contracts and discovery, uses explicit underscore
+  feature-ID policy plus structured capability IDs, and now expects richer
+  lineage plus CI-backed architecture validation.

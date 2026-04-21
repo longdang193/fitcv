@@ -102,7 +102,16 @@ def build_minimal_repo(tmp_path: Path) -> Path:
             "owner": "fitcv_cp",
             "domains": ["admin_ui"],
             "depends_on": [],
-            "capabilities": ["FastAPI web server", "Jinja2 admin pages"],
+            "capabilities": [
+                {
+                    "capability_id": "admin_control_plane_core.fastapi-web-server",
+                    "name": "FastAPI web server",
+                },
+                {
+                    "capability_id": "admin_control_plane_core.jinja2-admin-pages",
+                    "name": "Jinja2 admin pages",
+                },
+            ],
             "refs": {
                 "history": ["docs/features/admin_control_plane_core/history.md"],
             },
@@ -140,15 +149,18 @@ def test_sync_script_writes_feature_and_stage_outputs(tmp_path: Path) -> None:
     admin_contract = read_yaml(
         repo_root / "docs" / "features" / "admin_control_plane_core" / "admin_control_plane_core.yaml"
     )
-    assert admin_contract["admin_control_plane_core"]["capabilities"] == [
-        "FastAPI web server",
-        "Jinja2 admin pages",
-    ]
+    assert admin_contract["admin_control_plane_core"]["capabilities"][0]["capability_id"] == (
+        "admin_control_plane_core.fastapi-web-server"
+    )
 
     lineage = read_yaml(repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml")
     assert lineage["feature_id"] == "cv_system"
     assert lineage["source"] == "docs/features/cv_system/feature.source.yaml"
     assert lineage["generated_contract"] == "docs/features/cv_system/cv_system.yaml"
+    assert lineage["naming_policy"]["feature_id_format"] == "underscore"
+    assert lineage["capability_shape"] == "structured"
+    assert lineage["capabilities"][0]["capability_id"] == "cv_system.structured-cv-generation"
+    assert lineage["refs_by_type"]["docs"] == ["docs/FitCV-pipeline.md"]
 
     stage_contract = read_yaml(repo_root / "docs" / "stages" / "cv_analysis.yaml")
     assert stage_contract["cv_analysis"]["primary_features"] == ["cv_system"]
@@ -171,7 +183,8 @@ def test_sync_script_refreshes_full_discovery_suite(tmp_path: Path) -> None:
 
     capability_index = read_yaml(repo_root / "docs" / "generated" / "feature_capabilities_index.yaml")
     capability_names = [entry.get("capability_name", entry.get("capability")) for entry in capability_index["capabilities"]]
-    assert "FastAPI web server" in capability_names
+    capability_ids = [entry["capability_id"] for entry in capability_index["capabilities"]]
+    assert "admin_control_plane_core.fastapi-web-server" in capability_ids
     assert "Structured CV Generation" in capability_names
 
     features_by_status = read_yaml(repo_root / "docs" / "generated" / "features_by_status.yaml")
