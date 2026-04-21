@@ -63,7 +63,9 @@ Typical contents:
 
 ## Content Classification
 
-Classify paths into three buckets before designing a publish workflow.
+Classify paths into content buckets before designing a publish workflow, then
+decide whether each candidate artifact should be kept as-is, kept and
+sanitized, or omitted entirely.
 
 ### `always_private`
 
@@ -72,6 +74,7 @@ Examples:
 - `.agents/`
 - `.cursor/`
 - `docs/superpowers/`
+- starter adoption/bootstrap docs such as `docs/adoption_guide.md`
 - logs/debug artifacts
 - internal prompts/workflow docs
 - abandoned experiments
@@ -120,6 +123,27 @@ Choose between:
 - **scripted export workflow**
   Use when publication is recurring and boundary mistakes would be costly.
 
+For each candidate file that survives the allowlist, choose one treatment:
+
+- **keep as-is**
+  Use when the file is already public-safe.
+- **keep and sanitize**
+  Use when the file's presence, schema, headings, or metadata keys help
+  preserve reproducibility or navigation, but some values are private.
+- **omit entirely**
+  Use when the file itself is private-sensitive, or when even its existence
+  would reveal internal-only operating detail.
+
+Prefer sanitization when:
+
+- the file contributes to public reproducibility
+- the structure is safe to reveal
+- sensitive values can be removed without misrepresenting the project
+
+Short rule:
+
+- redact payload, not evidence
+
 ## Boundary Validation
 
 Before publishing, run a public-release boundary validation pass.
@@ -136,11 +160,15 @@ At minimum, check:
 
 If any of those fail, stop and fix the export boundary before pushing public changes.
 
+Also check that you did not over-trim files whose visible structure helps the
+public mirror remain credible and reproducible.
+
 ## Public Repo Smell Checks
 
 Treat these as warning signs:
 
 - the public repo mentions internal planning systems
+- the public repo teaches how to customize the private starter repo
 - public docs depend on archived internal specs/plans to be understandable
 - the public repo contains agent/rule folders
 - the public repo looks like a workbench instead of a product repo
@@ -171,6 +199,35 @@ Fix:
 
 - use an allowlist-oriented export policy
 
+### Treating any private field as proof the whole file must disappear
+
+Problem:
+
+- public mirrors lose navigational shape
+- reproducibility weakens because schemas, headings, or artifact slots vanish
+- downstream readers cannot tell what kinds of artifacts exist upstream
+
+Fix:
+
+- classify sensitivity at the file, section, and field level
+- preserve structure when it is safe to reveal
+- sanitize private payloads instead of deleting the whole artifact when a thin,
+  truthful public-safe version is possible
+
+### Publishing starter-adoption docs as product docs
+
+Problem:
+
+- private bootstrap guidance leaks into the public mirror
+- contributors confuse internal starter onboarding with public setup/usage docs
+
+Fix:
+
+- keep starter adoption/bootstrap docs private by default
+- rewrite setup/usage docs intentionally for the public product-facing repo
+- do not publish "how to customize the private starter repo" guidance unless it
+  has been deliberately recast as public-facing documentation
+
 ### Mixing runtime validation with publish validation
 
 Problem:
@@ -187,4 +244,3 @@ Fix:
   [references/publish-policy-template.md](references/publish-policy-template.md)
 - Public release checklist:
   [references/public-release-checklist.md](references/public-release-checklist.md)
-

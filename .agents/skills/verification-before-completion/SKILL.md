@@ -32,9 +32,10 @@ BEFORE claiming any status or expressing satisfaction:
 4. VERIFY: Does output confirm the claim?
    - If NO: State actual status with evidence
    - If YES: State claim WITH evidence
-5. DOC SYNC CHECK: If behavior changed, name the exact feature/doc targets updated or intentionally unchanged
-6. MEMORY DISPOSITION CHECK: If the work involved meaningful failures, retries, or debugging, update `docs/operating_system/agent_memory/failure-ledger.md` or explicitly state why no memory update was needed
-7. ONLY THEN: Make the claim
+5. CLOUD-PROOF CHECK: If the claim depends on cloud-owned behavior, verify the live cloud artifacts rather than extrapolating from local tests
+6. DOC SYNC CHECK: If behavior changed, name the exact feature/doc targets updated or intentionally unchanged
+7. MEMORY DISPOSITION CHECK: If the work involved meaningful failures, retries, or debugging, update `docs/operating_system/agent_memory/failure-ledger.md` or explicitly state why no memory update was needed
+8. ONLY THEN: Make the claim
 
 Skip any step = lying, not verifying
 ```
@@ -45,7 +46,14 @@ If the task changed behavior, contract, architecture, or navigation, completion 
 
 Minimum check:
 
-- identify the affected `docs/features/<feature_id>/<feature_id>.yaml`, or explicitly justify why no contract change was needed
+- identify the affected `docs/features/<feature_id>/feature.source.yaml`, or
+  explicitly justify why no feature-source change was needed
+- identify the affected `docs/features/<feature_id>/<feature_id>.yaml` as the
+  generated contract surface when one exists
+- identify the affected `docs/features/<feature_id>/lineage.generated.yaml` if
+  evidence or generated history inputs changed
+- identify the affected `docs/stages/<stage_id>.source.yaml` and
+  `docs/stages/<stage_id>.yaml` when stage-aware work is in scope
 - identify `docs/features/<feature_id>/history.md` and any other focused docs under `docs/features/<feature_id>/` that changed or were reviewed
 - identify any cross-feature docs under `docs/*.md` that changed or were reviewed
 - identify whether `README.md` changed
@@ -72,6 +80,7 @@ Do not let important failures disappear just because the final verification now 
 | Build succeeds | Build command: exit 0 | Linter passing, logs look good |
 | Bug fixed | Test original symptom: passes | Code changed, assumed fixed |
 | Regression test works | Red-green cycle verified | Test passes once |
+| Cloud workflow proven | Live run artifacts reconciled | Local dry-run or unit tests only |
 | Agent completed | VCS diff shows changes | Agent reports "success" |
 | Requirements met | Line-by-line checklist | Tests passing |
 | Docs updated | Exact file list and regeneration evidence | "Docs updated as needed" |
@@ -123,6 +132,12 @@ Do not let important failures disappear just because the final verification now 
 ❌ "Linter passed" (linter doesn't check compilation)
 ```
 
+**Cloud proof:**
+```
+✅ Submit or inspect live run → wait for completion → download artifacts → reconcile parent/child truth → state proof strength
+❌ "Local tests passed so cloud path is fine"
+```
+
 **Requirements:**
 ```
 ✅ Re-read plan → Create checklist → Verify each → Report gaps or completion
@@ -131,7 +146,7 @@ Do not let important failures disappear just because the final verification now 
 
 **Doc sync:**
 ```
-✅ Name exact `docs/features/<feature_id>/<feature_id>.yaml` / `docs/features/<feature_id>/history.md` / `docs/*.md` / `docs/generated/*` evidence
+✅ Name exact `docs/features/<feature_id>/feature.source.yaml` / generated `docs/features/<feature_id>/<feature_id>.yaml` / `docs/features/<feature_id>/history.md` / `docs/stages/<stage_id>.source.yaml` when relevant / `docs/*.md` / `docs/generated/*` evidence
 ❌ "No doc changes needed" without checking targets
 ```
 

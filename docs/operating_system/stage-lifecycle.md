@@ -51,17 +51,35 @@ Stage-heavy triage should name:
 
 ## Stage Contracts
 
-When stage-aware docs are in scope, stage contracts live in:
+When stage-aware docs are in scope, the human-owned stage source lives in:
+
+```text
+docs/stages/*.source.yaml
+```
+
+Generated stage contracts then live in:
 
 ```text
 docs/stages/*.yaml
 ```
 
-They describe:
+Stage sources describe:
 
 - stage identity
 - purpose
 - inputs and outputs
 - stage-to-feature relationships
 
-They do not replace feature YAML.
+Generated stage contracts are outputs and do not replace feature contracts.
+
+Refresh stage contracts from source with:
+
+```powershell
+python scripts/sync_architecture_docs.py
+```
+
+Validate repo-wide adoption shape with:
+
+```powershell
+python scripts/validate_adoption_shape.py
+```

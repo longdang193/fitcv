@@ -1,0 +1,17 @@
+feature_id: ui_consistency_theming
+source: docs/features/ui_consistency_theming/feature.source.yaml
+generated_contract: docs/features/ui_consistency_theming/ui_consistency_theming.yaml
+depends_on:
+- admin_control_plane_core
+capability_ids: []
+stage_participation: []
+refs:
+  docs: []
+  spec:
+  - docs/superpowers/archive/specs/2026-03-26-admin-ui-consistency-and-theme-toggle-design.md
+  - docs/superpowers/archive/specs/2026-03-27-settings-and-run-detail-composition-consistency-design.md
+  plan:
+  - docs/superpowers/archive/plans/2026-03-26-admin-ui-consistency-and-theme-toggle-implementation.md
+  - docs/superpowers/archive/plans/2026-03-27-settings-and-run-detail-composition-consistency-implementation.md
+  history:
+  - docs/features/ui_consistency_theming/history.md

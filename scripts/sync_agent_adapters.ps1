@@ -7,6 +7,22 @@ function Get-RepoRoot {
     (git rev-parse --show-toplevel).Trim()
 }
 
+function Load-AdapterMappings {
+    param([string]$RepoRoot)
+
+    $configPath = Join-Path $RepoRoot 'repo_config/agent-adapter-mappings.json'
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        throw "Missing adapter mapping config: $configPath"
+    }
+
+    $payload = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json
+    if (-not $payload) {
+        throw "Adapter mapping config is empty: $configPath"
+    }
+
+    return @($payload)
+}
+
 function Ensure-ParentDirectory {
     param([string]$Path)
 
@@ -47,42 +63,18 @@ function Write-GeneratedFile {
 }
 
 $repoRoot = Get-RepoRoot
-
-$mappings = @(
-    @{
-        Source = Join-Path $repoRoot 'agent-core/adapters/codex/root-AGENTS.template.md'
-        Destination = Join-Path $repoRoot 'AGENTS.md'
-        Prefix = '#'
-    }
-    @{
-        Source = Join-Path $repoRoot 'agent-core/adapters/codex/docs-AGENTS.template.md'
-        Destination = Join-Path $repoRoot 'docs/AGENTS.md'
-        Prefix = '#'
-    }
-    @{
-        Source = Join-Path $repoRoot 'agent-core/adapters/codex/src-fitcv-AGENTS.template.md'
-        Destination = Join-Path $repoRoot 'src/fitcv/AGENTS.md'
-        Prefix = '#'
-    }
-    @{
-        Source = Join-Path $repoRoot 'agent-core/adapters/codex/src-fitcv_cp-AGENTS.template.md'
-        Destination = Join-Path $repoRoot 'src/fitcv_cp/AGENTS.md'
-        Prefix = '#'
-    }
-    @{
-        Source = Join-Path $repoRoot 'agent-core/adapters/codex/rules/command-execution.rules'
-        Destination = Join-Path $repoRoot 'codex/rules/command-execution.rules'
-        Prefix = '#'
-    }
-    @{
-        Source = Join-Path $repoRoot 'agent-core/adapters/codex/rules/publication-boundary.rules'
-        Destination = Join-Path $repoRoot 'codex/rules/publication-boundary.rules'
-        Prefix = '#'
-    }
-)
+$mappings = Load-AdapterMappings -RepoRoot $repoRoot
 
 foreach ($mapping in $mappings) {
-    Write-GeneratedFile -RepoRoot $repoRoot -SourcePath $mapping.Source -DestinationPath $mapping.Destination -CommentPrefix $mapping.Prefix
+    if (-not $mapping.source -or -not $mapping.destination) {
+        throw "Each adapter mapping must define source and destination."
+    }
+
+    $prefix = if ($mapping.prefix) { $mapping.prefix } else { '#' }
+    $sourcePath = Join-Path $repoRoot $mapping.source
+    $destinationPath = Join-Path $repoRoot $mapping.destination
+
+    Write-GeneratedFile -RepoRoot $repoRoot -SourcePath $sourcePath -DestinationPath $destinationPath -CommentPrefix $prefix
 }
 
 Write-Host "Agent adapters synchronized."

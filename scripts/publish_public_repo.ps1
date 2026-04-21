@@ -18,6 +18,25 @@ function Get-RepoRoot {
     return $root.Trim()
 }
 
+function Load-PublicationConfig {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot
+    )
+
+    $configPath = Join-Path $RepoRoot 'repo_config/publication-config.json'
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        throw "Missing publication config: $configPath"
+    }
+
+    $payload = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json
+    if (-not $payload) {
+        throw "Publication config is empty: $configPath"
+    }
+
+    return $payload
+}
+
 function Ensure-CleanDirectory {
     param(
         [Parameter(Mandatory = $true)]
@@ -228,55 +247,12 @@ function Remove-PrivateReferenceLines {
 }
 
 $repoRoot = Get-RepoRoot
-$publicPaths = @(
-    ".dockerignore",
-    ".gitignore",
-    "Dockerfile",
-    "README.md",
-    "assets",
-    "config",
-    "data",
-    "docker-compose.yml",
-    "docs/features",
-    "docs/generated/features_index.yaml",
-    "docs/generated/stages_index.yaml",
-    "docs/generated/stage_overview.md",
-    "docs/FitCV-pipeline.md",
-    "docs/fitcv-control-plane-setup.md",
-    "docs/stages",
-    "pyproject.toml",
-    "requirements.txt",
-    "scripts/bootstrap_bigquery.py",
-    "scripts/download_cvs.py",
-    "src",
-    "start_web.ps1",
-    "start_worker.ps1",
-    "stop_fitcv.ps1",
-    "templates",
-    "tests",
-    "uv.lock"
-)
-
-$forbiddenPaths = @(
-    "AGENTS.md",
-    ".agents",
-    ".cursor",
-    "agent-core",
-    "codex",
-    "docs/operating_system",
-    "docs/superpowers",
-    "logs",
-    "sample",
-    ".worktrees"
-)
-
-$requiredPaths = @(
-    "README.md",
-    "docs/FitCV-pipeline.md",
-    "docs/fitcv-control-plane-setup.md",
-    "docs/features",
-    "src"
-)
+$publicationConfig = Load-PublicationConfig -RepoRoot $repoRoot
+$publicPaths = @($publicationConfig.publicPaths)
+$forbiddenPaths = @($publicationConfig.forbiddenPaths)
+$requiredPaths = @($publicationConfig.requiredPaths)
+$allowedGeneratedPaths = @($publicationConfig.allowedGeneratedPaths)
+$scrubPrivateReferencePaths = @($publicationConfig.scrubPrivateReferencePaths)
 
 $remoteUrl = $null
 if ($Push) {
@@ -307,15 +283,14 @@ foreach ($relativePath in $publicPaths) {
 }
 
 Remove-UnlistedGeneratedDocs -DestinationRoot $ExportRoot -AllowedGeneratedPaths @(
-    'docs/generated/features_index.yaml',
-    'docs/generated/stages_index.yaml',
-    'docs/generated/stage_overview.md'
+    $allowedGeneratedPaths
 )
 
 Remove-PrivateAdapterFiles -DestinationRoot $ExportRoot
 
-Remove-PrivateReferenceLines -DestinationRoot $ExportRoot -RelativePath 'docs/features'
-Remove-PrivateReferenceLines -DestinationRoot $ExportRoot -RelativePath 'docs/stages'
+foreach ($relativePath in $scrubPrivateReferencePaths) {
+    Remove-PrivateReferenceLines -DestinationRoot $ExportRoot -RelativePath $relativePath
+}
 
 foreach ($relativePath in $forbiddenPaths) {
     Assert-ForbiddenPathAbsent -DestinationRoot $ExportRoot -RelativePath $relativePath

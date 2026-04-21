@@ -1,0 +1,15 @@
+feature_id: bounded_parallel_enrichment
+source: docs/features/bounded_parallel_enrichment/feature.source.yaml
+generated_contract: docs/features/bounded_parallel_enrichment/bounded_parallel_enrichment.yaml
+depends_on:
+- pipeline_performance
+capability_ids: []
+stage_participation: []
+refs:
+  docs: []
+  spec:
+  - docs/superpowers/archive/specs/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-design.md
+  plan:
+  - docs/superpowers/archive/plans/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-implementation.md
+  history:
+  - docs/features/bounded_parallel_enrichment/history.md

@@ -58,6 +58,5 @@ orphans:
   - settings_system
   - ui_consistency_theming
 _meta:
-  generated_by: generate_features.py
-  note: depends_on / used_by are canonical edges. Inverse (used_by) are derived from
-    depends_on.
+  generated_by: scripts/sync_architecture_docs.py
+  note: depends_on / used_by are canonical edges. used_by is derived from depends_on.

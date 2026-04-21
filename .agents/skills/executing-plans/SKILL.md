@@ -20,13 +20,18 @@ Load the plan, review it critically, execute task by task, update source-of-trut
 During execution, keep these layers in sync:
 
 ```text
-code/                       → real truth
-docs/stages/*.yaml          → stage contracts when stage-aware docs are in scope
-docs/features/*/*.yaml        → structured truth
-docs/features/<feature_id>/ → feature-specific explanation + history
-docs/*.md                   → cross-cutting explanation
-README.md                   → overview
-docs/generated/             → generated discovery
+code/                                 → real truth
+docs/intent/*.md                     → project purpose and outcome sources
+docs/operating_system/*.md           → repo method and governance sources
+docs/stages/*.source.yaml            → human-owned stage source
+docs/stages/*.yaml                   → generated stage contract
+docs/features/*/feature.source.yaml  → human-owned feature source
+docs/features/*/<feature_id>.yaml    → generated feature contract
+docs/features/*/lineage.generated.yaml → generated feature evidence
+docs/features/<feature_id>/          → feature-specific explanation + partial-generated history
+docs/*.md                            → cross-cutting product explanation
+README.md                            → overview
+docs/generated/                      → generated discovery
 ```
 
 Do not treat the plan as the source of truth.
@@ -39,7 +44,15 @@ The plan guides execution; the source layers must be updated as changes are comp
 ### Step 1: Load and Review Plan
 
 1. Read the plan file
-2. Read the linked spec and affected `docs/features/<feature_id>/<feature_id>.yaml`
+2. Read the linked spec and the minimum truthful set for any affected feature folder:
+   - `docs/intent/*.md` when the plan layer is `intent`
+   - `docs/operating_system/*.md` when the plan layer is `operating_system`
+   - `feature.source.yaml` first
+   - generated `docs/features/<feature_id>/<feature_id>.yaml` when the assembled contract is needed
+   - `lineage.generated.yaml` for evidence, ownership, or drift work
+   - `history.md` only when narrative context matters
+   - if stage-aware work is in scope, read `docs/stages/<stage_id>.source.yaml`
+     before the generated stage contract
 3. Review critically for gaps, ambiguity, or missing prerequisites
 4. If concerns exist, raise them before starting
 5. If clear, create TodoWrite and proceed
@@ -54,10 +67,13 @@ For each task:
 4. Update affected source layers as part of the task:
 
 - code
-- `docs/stages/*.yaml` when stage-aware contracts are in scope
-- `docs/features/*/*.yaml` if current feature state changed
-- `docs/features/<feature_id>/history.md` or other focused docs if feature-specific explanation/history changed
-- `docs/*.md` if cross-cutting explanation changed
+- `docs/intent/*.md` when project-purpose sources change
+- `docs/operating_system/*.md` when repo method or governance changes
+- `docs/stages/*.source.yaml` when stage meaning changes
+- `docs/features/*/feature.source.yaml` if current feature state changed
+- `docs/features/<feature_id>/history.md` only when human explanation/history notes changed
+- other focused docs under `docs/features/<feature_id>/` if feature-specific explanation changed
+- `docs/*.md` if cross-cutting product explanation changed
 - `README.md` if navigation changed
 - before marking the task fully complete, decide whether execution revealed a reusable memory update:
   - invariant → `docs/operating_system/agent_memory/invariants.md`
@@ -70,6 +86,9 @@ If yes, update the relevant memory file as part of task closeout. If no, complet
 1. Mark task `completed`
 
 Do not postpone all doc updates until the end if the task changes current feature state.
+Do not hand-edit generated feature contracts, generated stage contracts,
+`lineage.generated.yaml`, or generated history blocks; update the owning source
+and rerun the canonical sync/check workflow instead.
 
 ### Step 3: Final Sync and Verification
 
@@ -79,11 +98,13 @@ After all tasks are complete:
 2. Confirm source layers are in sync:
 
 - code matches shipped behavior
-- stage contracts reflect the current architectural boundary model when they are in scope
-- feature YAML reflects current state
+- intent docs reflect current purpose when they were in scope
+- operating-system docs reflect current repo method when they were in scope
+- stage sources reflect the intended architectural boundary model when they are in scope
+- feature sources reflect current state
 - docs reflect final explanation/history where needed
 
-1. Regenerate `docs/generated/*`
+1. Run `scripts/sync_architecture_docs.py` when architecture metadata surfaces changed
 2. Verify generated files were not edited manually
 3. Review diffs for completeness
 
@@ -104,20 +125,27 @@ Before execution is considered complete, the agent must update docs as needed.
 Minimum required checks:
 
 - if behavior changed → update code
-- if stage-aware boundary docs changed → update `docs/stages/*.yaml` when in scope
-- if current feature state changed → update `docs/features/*/*.yaml`
+- if project-purpose sources changed → update `docs/intent/*.md`
+- if repo method or governance changed → update `docs/operating_system/*.md`
+- if stage-aware boundary docs changed → update `docs/stages/*.source.yaml` when in scope
+- if current feature state changed → update `docs/features/*/feature.source.yaml`
 - if feature-specific explanation/history changed → update `docs/features/<feature_id>/`
-- if cross-cutting explanation changed → update `docs/*.md`
+- if cross-cutting product explanation changed → update `docs/*.md`
 - if navigation changed → update `README.md`
 - if execution revealed a reusable memory lesson → update `docs/operating_system/agent_memory/*`
-- after source changes → regenerate `docs/generated/*`
+- after architecture source changes → rerun the canonical architecture sync/check workflow
 
 Do not finish execution with stale feature YAML or stale generated discovery.
 
 Before completion, list the exact files updated or intentionally left unchanged for:
 
+- `docs/intent/*.md` when in scope
+- `docs/operating_system/*.md` when in scope
+- `docs/stages/<stage_id>.source.yaml` when in scope
 - `docs/stages/<stage_id>.yaml` when in scope
+- `docs/features/<feature_id>/feature.source.yaml`
 - `docs/features/<feature_id>/<feature_id>.yaml`
+- `docs/features/<feature_id>/lineage.generated.yaml`
 - `docs/features/<feature_id>/history.md`
 - any other focused docs under `docs/features/<feature_id>/`
 - any cross-feature docs under `docs/*.md`
@@ -127,8 +155,13 @@ Before completion, list the exact files updated or intentionally left unchanged 
 
 Use this completion checklist:
 
+- intent docs updated?
+- operating-system docs updated?
+- stage sources updated?
 - stage contracts updated?
+- feature sources updated?
 - contract updated?
+- feature lineage updated?
 - feature history updated?
 - other feature-specific docs updated?
 - cross-cutting docs updated?
@@ -169,7 +202,8 @@ Return to review when:
 - execute task by task
 - do not skip verifications
 - keep source-of-truth layers updated during execution
-- regenerate `docs/generated/*` before finishing
+- rerun `scripts/sync_architecture_docs.py` before finishing when architecture metadata changed
+- prefer `scripts/sync_architecture_docs.py` as the canonical architecture sync/check workflow when architecture metadata surfaces changed
 - stop when blocked
 - never implement on main/master without explicit user consent
 

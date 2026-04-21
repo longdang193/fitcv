@@ -1,0 +1,58 @@
+feature_id: trigger_run_management
+source: docs/features/trigger_run_management/feature.source.yaml
+generated_contract: docs/features/trigger_run_management/trigger_run_management.yaml
+depends_on:
+- admin_control_plane_core
+capability_ids: []
+stage_participation: []
+refs:
+  docs:
+  - docs/fitcv-control-plane-setup.md
+  spec:
+  - docs/superpowers/archive/specs/2026-03-25-runs-list-enhancements-design.md
+  - docs/superpowers/archive/specs/2026-03-25-admin-ux-improvements-design.md
+  - docs/superpowers/archive/specs/2026-03-25-cv-downloads-design.md
+  - docs/superpowers/archive/specs/2026-03-29-run-results-json-export-design.md
+  - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+  - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+  - docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+  - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+  - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-02-14-35-staged-manual-pipeline-mode-spec.md
+  - docs/superpowers/archive/specs/2026-04-02-21-05-run-scoped-synonym-overlay-upload-spec.md
+  - docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+  - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+  - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+  - docs/superpowers/archive/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-05-23-20-pre-trigger-and-staged-synonym-overlay-spec.md
+  - docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-06-01-15-run-detail-stage-gating-and-pending-health-fix-spec.md
+  - docs/superpowers/archive/specs/2026-04-06-02-35-pipeline-dead-weight-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-13-05-run-artifact-bundle-zip-export-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+  plan:
+  - docs/superpowers/archive/plans/2026-03-25-runs-list-enhancements-implementation.md
+  - docs/superpowers/archive/plans/2026-03-25-admin-ux-improvements-implementation.md
+  - docs/superpowers/archive/plans/2026-03-25-cv-downloads-implementation.md
+  - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
+  - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+  - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+  - docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+  - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+  - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+  - docs/superpowers/archive/plans/2026-04-02-14-50-staged-manual-pipeline-mode-plan.md
+  - docs/superpowers/archive/plans/2026-04-02-21-20-run-scoped-synonym-overlay-upload-plan.md
+  - docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+  - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+  - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+  - docs/superpowers/archive/plans/2026-04-05-22-55-run-detail-information-architecture-cleanup-plan.md
+  - docs/superpowers/archive/plans/2026-04-05-23-35-pre-trigger-and-staged-synonym-overlay-plan.md
+  - docs/superpowers/archive/plans/2026-04-06-00-05-run-detail-artifact-gating-and-diagnostics-cleanup-plan.md
+  - docs/superpowers/archive/plans/2026-04-06-01-25-run-detail-stage-gating-and-pending-health-fix-plan.md
+  - docs/superpowers/archive/plans/2026-04-06-02-50-pipeline-dead-weight-cleanup-plan.md
+  - docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-13-20-run-artifact-bundle-zip-export-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+  history:
+  - docs/features/trigger_run_management/history.md

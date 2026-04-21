@@ -10,6 +10,10 @@ The public repo is a curated publication surface.
 
 Do not develop normally in the public repo.
 
+Publication boundary policy now lives in `repo_config/publication-config.json`.
+The publish script should stay aligned with that config so allowlists and
+forbidden paths are not re-entered ad hoc in multiple places.
+
 ## Publication Steps
 
 1. develop and commit in the private repo
@@ -59,5 +63,16 @@ If publication-boundary or adapter files changed first, run:
 ```
 
 before running the curated publish workflow.
+
+If feature/stage lifecycle sources or generated architecture docs changed
+first, run:
+
+```powershell
+python scripts/sync_architecture_docs.py
+python scripts/validate_adoption_shape.py
+```
+
+before publication review so the curated export is based on current lifecycle
+metadata rather than stale generated discovery.
 
 CI also runs the publication export path as a dry check, so curated export preparation is exercised before merge even when nobody runs the publish script manually.

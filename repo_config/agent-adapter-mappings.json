@@ -1,0 +1,32 @@
+[
+  {
+    "source": "agent-core/adapters/codex/root-AGENTS.template.md",
+    "destination": "AGENTS.md",
+    "prefix": "#"
+  },
+  {
+    "source": "agent-core/adapters/codex/docs-AGENTS.template.md",
+    "destination": "docs/AGENTS.md",
+    "prefix": "#"
+  },
+  {
+    "source": "agent-core/adapters/codex/src-fitcv-AGENTS.template.md",
+    "destination": "src/fitcv/AGENTS.md",
+    "prefix": "#"
+  },
+  {
+    "source": "agent-core/adapters/codex/src-fitcv_cp-AGENTS.template.md",
+    "destination": "src/fitcv_cp/AGENTS.md",
+    "prefix": "#"
+  },
+  {
+    "source": "agent-core/adapters/codex/rules/command-execution.rules",
+    "destination": "codex/rules/command-execution.rules",
+    "prefix": "#"
+  },
+  {
+    "source": "agent-core/adapters/codex/rules/publication-boundary.rules",
+    "destination": "codex/rules/publication-boundary.rules",
+    "prefix": "#"
+  }
+]

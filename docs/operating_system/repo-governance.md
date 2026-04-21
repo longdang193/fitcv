@@ -21,7 +21,7 @@ The repo uses five distinct internal layers:
 - human-readable repo rules and workflows
 - publication policy
 - doc-system and planning rules
-- internal tooling pilots
+- internal tooling governance
 - agent memory under `docs/operating_system/agent_memory/`
 
 2. `agent-core/`
@@ -34,11 +34,50 @@ The repo uses five distinct internal layers:
 - repo-local Codex skill discovery surface
 - focused task playbooks
 
-4. adapter outputs
+4. `repo_config/`
+- repo/system configuration
+- publication boundary configuration
+- adapter generation mappings
+- adoption-mode record, including the Mode B starter shared-surface sync review
+
+5. adapter outputs
 - `AGENTS.md`
 - nested `AGENTS.md`
 - `codex/rules/*.rules`
 - sync and verification scripts under `scripts/`
+
+The repo uses `codex/` as its active Codex generated/config root while
+keeping ownership split by role:
+
+- `AGENTS.md` for repo-wide Codex instructions
+- `.agents/skills/` for canonical Codex skills
+- `docs/operating_system/` for human governance
+- `codex/` for generated Codex rules output
+
+The repo also splits configuration ownership by purpose:
+
+- `repo_config/`
+  - repo/system configuration such as publication boundaries, adoption mode,
+    and adapter generation mappings
+- `config/`
+  - runtime and workflow configuration used by the product and pipeline
+- `docs/features/*/feature.source.yaml` and `docs/stages/*.source.yaml`
+  - human-owned lifecycle sources for managed architecture metadata
+- `docs/features/*/*.yaml`, `docs/features/*/lineage.generated.yaml`, and
+  `docs/stages/*.yaml`
+  - generated lifecycle outputs assembled from the source layer plus metadata
+
+Managed Mode B target state:
+
+- edit `docs/features/<feature_id>/feature.source.yaml` for human semantic changes
+- edit `docs/stages/<stage_id>.source.yaml` for human stage-boundary changes
+- treat generated feature contracts, generated stage contracts, and
+  `lineage.generated.yaml` as outputs rather than source-of-truth files
+- keep starter-owned shared repo-control surfaces reviewed against the adopted
+  starter baseline and record that review in `repo_config/adoption-mode.yaml`
+- run `python scripts/sync_architecture_docs.py` to refresh generated lifecycle
+  outputs and `python scripts/validate_adoption_shape.py` to check repo-wide
+  Mode B shape before calling the migration work complete
 
 ## Ownership Rules
 
@@ -86,6 +125,21 @@ Does not own:
 
 Formal shape is governed by `docs/operating_system/skills-governance.md`.
 
+### `repo_config/`
+
+Owns:
+
+- repo/system configuration
+- publication boundary configuration
+- adapter generation mappings
+- adoption-mode state and starter shared-surface review records
+
+Does not own:
+
+- runtime workflow defaults
+- feature or stage contracts
+- generated outputs
+
 ## Private / Public Boundary
 
 The following are private-only by default:
@@ -109,6 +163,31 @@ Phase 2 keeps `.agents/skills/` as the canonical skill source.
 This avoids breaking current Codex skill discovery while the new `agent-core/` and adapter sync layer stabilizes.
 
 Longer term, `agent-core/skills/` may become canonical, with `.agents/skills/` generated or synchronized from it.
+
+## Mode B Shared-Surface Sync
+
+When the repo is in `managed_architecture_metadata` mode and adopts newer
+starter updates, review the starter-owned shared repo-control surfaces rather
+than updating only product metadata.
+
+That review should cover at least:
+
+- `repo_config/*`
+- `docs/operating_system/*`
+- `.agents/skills/*`
+- `agent-core/adapters/**/*`
+- generated `AGENTS.md` and `codex/rules/*` after sync
+- validation and sync scripts
+
+Record the review in `repo_config/adoption-mode.yaml` under `starter_sync`
+with:
+
+- `starter_baseline_ref`
+- `last_shared_surface_review_at`
+- `reviewed_surface_classes`
+- optional `divergences`
+
+Intentional drift is allowed, but it should be explicit and reviewable.
 
 ## Adapter Workflow
 
