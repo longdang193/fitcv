@@ -1,0 +1,101 @@
+feature_id: cv_system
+name: CV System
+status: active
+type: add
+summary: >
+  Own the grounded CV-writing path from post-ranking evidence preparation through
+  `cv_analysis` and `cv_generation`, including evidence selection, fit-gate
+  resolution, structured CV generation, validation against selected evidence,
+  and the stage-owned artifacts that explain final CV outcomes.
+owner: fitcv
+domains:
+  - pipeline
+  - cv_generation
+depends_on:
+  - admin_control_plane_core
+capabilities:
+  - capability_id: cv_system.analysis-evidence-selection
+    name: Analysis Evidence Selection
+    summary: >
+      Retrieve, score, and select one bounded evidence bundle for grounded
+      downstream CV writing.
+  - capability_id: cv_system.fit-gate-resolution
+    name: Fit Gate Resolution
+    summary: >
+      Resolve whether a ranked job is eligible to continue from analysis into CV
+      generation.
+  - capability_id: cv_system.structured-cv-generation
+    name: Structured CV Generation
+    summary: >
+      Generate the structured CV artifact and rendered markdown output from the
+      selected evidence bundle.
+  - capability_id: cv_system.analysis-grounded-validation
+    name: Analysis-Grounded Validation
+    summary: >
+      Validate hard facts and softer role or domain claims against selected
+      analysis evidence before accepting a CV artifact.
+  - capability_id: cv_system.header-placeholder-repair
+    name: Header Placeholder Repair
+    summary: >
+      Reject unresolved candidate-name placeholders and allow one deterministic
+      header-only repair when a real name is available.
+  - capability_id: cv_system.stage-artifact-diagnostics
+    name: Stage Artifact Diagnostics
+    summary: >
+      Emit stage-owned diagnostics, quality metrics, and transition artifacts
+      for `cv_analysis` and `cv_generation`.
+  - capability_id: cv_system.exact-match-late-stage-reuse
+    name: Exact-Match Late-Stage Reuse
+    summary: >
+      Reuse exact-match ranking AI-score rows and cv-analysis outputs when
+      stage-owned inputs and contracts still match.
+  - capability_id: cv_system.config-owned-generation-contract
+    name: Config-Owned Generation Contract
+    summary: >
+      Keep prompt and runtime ownership for active CV generation under the
+      structured-write contract and central config layers.
+stage_participation:
+  - stage_id: enrich
+    role: supporting
+    capability_ids:
+      - cv_system.analysis-evidence-selection
+  - stage_id: ranking
+    role: supporting
+    capability_ids:
+      - cv_system.fit-gate-resolution
+      - cv_system.exact-match-late-stage-reuse
+  - stage_id: cv_analysis
+    role: primary
+    capability_ids:
+      - cv_system.analysis-evidence-selection
+      - cv_system.fit-gate-resolution
+      - cv_system.exact-match-late-stage-reuse
+      - cv_system.stage-artifact-diagnostics
+  - stage_id: cv_generation
+    role: primary
+    capability_ids:
+      - cv_system.structured-cv-generation
+      - cv_system.analysis-grounded-validation
+      - cv_system.header-placeholder-repair
+      - cv_system.stage-artifact-diagnostics
+      - cv_system.config-owned-generation-contract
+refs:
+  docs:
+    - docs/FitCV-pipeline.md
+  spec:
+    - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+  plan:
+    - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+  history:
+    - docs/features/cv_system/history.md
+keywords:
+  - cv
+  - resume
+  - cv_analysis
+  - cv_generation
+  - evidence
+  - validation

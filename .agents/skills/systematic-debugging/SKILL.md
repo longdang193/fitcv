@@ -57,16 +57,16 @@ You MUST complete each phase before proceeding to the next.
    - Read stack traces completely
    - Note line numbers, file paths, error codes
 
-2. **Check the failure ledger if the issue may be repeating**
-   - Read `docs/operating_system/agent_memory/failure-ledger.md` when the failure resembles a known repo-method problem
-   - Use it to avoid re-learning known mistakes
-   - Do NOT treat it as a replacement for root-cause investigation
-
-3. **Reproduce Consistently**
+2. **Reproduce Consistently**
    - Can you trigger it reliably?
    - What are the exact steps?
    - Does it happen every time?
    - If not reproducible → gather more data, don't guess
+
+3. **Check Failure Memory When The Issue Looks Familiar**
+   - If the failure appears repeated, method-related, or suspiciously similar to a previous repo-operating issue, read `docs/operating_system/agent_memory/failure-ledger.md`
+   - Use it to recognize known failure modes earlier
+   - Do not skip direct investigation just because something looks familiar
 
 4. **Check Recent Changes**
    - What changed that could cause this?
@@ -291,9 +291,6 @@ These techniques are part of systematic debugging and available in this director
 **Related skills:**
 - **superpowers:test-driven-development** - For creating failing test case (Phase 4, Step 1)
 - **superpowers:verification-before-completion** - Verify fix worked before claiming success
-
-**Related memory layer:**
-- `docs/operating_system/agent_memory/failure-ledger.md` - Check for repeated repo-method failures before inventing new fixes
 
 ## Real-World Impact
 

@@ -1,0 +1,15 @@
+feature_id: run_lifecycle_controls
+source: docs/features/run_lifecycle_controls/feature.source.yaml
+generated_contract: docs/features/run_lifecycle_controls/run_lifecycle_controls.yaml
+depends_on:
+- admin_control_plane_core
+capability_ids: []
+stage_participation: []
+refs:
+  docs: []
+  spec:
+  - docs/superpowers/archive/specs/2026-03-26-run-lifecycle-controls-design.md
+  plan:
+  - docs/superpowers/archive/plans/2026-03-26-run-lifecycle-controls-implementation.md
+  history:
+  - docs/features/run_lifecycle_controls/history.md

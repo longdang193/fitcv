@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation. Before writing the spec doc, invokes doc-system-lifecycle for the 5-layer doc system and planning-dispatch for the triage block."
+description: "Use when exploring or defining new behavior, features, components, or non-trivial changes before implementation."
 ---
 
 # Brainstorming Ideas Into Designs
@@ -17,108 +17,130 @@ Do NOT write code or implement anything before:
 
 ## Core Principle
 
-> Design → validate → then plan.  
-> Do not skip classification or doc placement.
+> Design -> validate -> then plan.
+> Do not skip layer classification, source ownership, or doc placement.
 
-This skill produces **design only**.  
+This skill produces design only.
 It does NOT produce implementation.
 
 ---
 
 ## Doc-System Alignment
 
-Before writing any spec or doc, align with the 5-layer system:
+Before writing any spec or doc, align with the current source-of-truth model:
 
 ```text
-code/                       → real truth
-docs/stages/*.yaml          → stage contracts (when stage-aware docs are in scope)
-docs/features/*/*.yaml        → feature contract (current state)
-docs/features/<feature_id>/ → feature-specific explanation + history
-docs/*.md                   → cross-cutting explanation
-docs/generated/             → discovery (auto)
-README.md                   → overview
+code/                                 -> real truth
+docs/intent/*.md                     -> project purpose and outcome sources
+docs/operating_system/*.md           -> repo method and governance sources
+docs/stages/*.source.yaml            -> human-owned stage source when stage-aware docs are in scope
+docs/stages/*.yaml                   -> generated stage contracts when stage-aware docs are in scope
+docs/features/*/feature.source.yaml  -> human-owned feature source
+docs/features/*/<feature_id>.yaml    -> generated feature contract (current state)
+docs/features/*/lineage.generated.yaml -> generated feature-local evidence
+docs/features/<feature_id>/          -> feature-specific explanation + partial-generated history
+docs/*.md                            -> cross-cutting product explanation
+docs/superpowers/specs/*.md          -> design artifacts
+docs/superpowers/plans/*.md          -> execution artifacts
+docs/generated/                      -> discovery (auto)
+README.md                            -> overview
 ```
 
 Rules:
 
-- Specs live under `docs/superpowers/archive/specs/`
-- Feature YAML must exist before spec when a managed feature is changing; cross-cutting operating-system work may use `feature_yaml: none`
-- The spec must link back to the affected `docs/features/<feature_id>/<feature_id>.yaml` when one exists
-- Use stage classification when the work is pipeline-heavy, architecture-heavy, or boundary-heavy
-- Feature-specific explanation/history belongs under `docs/features/<feature_id>/`
-- Cross-cutting explanation belongs under `docs/*.md`
+- `docs/intent/` governs project what-and-why
+- `docs/operating_system/` governs repo method and workflow rules
+- specs live under `docs/superpowers/specs/`
+- plans live under `docs/superpowers/plans/`
+- `feature.source.yaml` must exist before spec when a managed feature is changing; cross-cutting operating-system work may use `feature_source: none`
+- the spec must link back to the affected `docs/features/<feature_id>/feature.source.yaml` and generated `docs/features/<feature_id>/<feature_id>.yaml` when they exist
+- `<feature_id>` is placeholder notation; use the concrete feature-id filename in real docs, for example `docs/features/model-training-pipeline/model-training-pipeline.yaml`
+- use stage classification when the work is pipeline-heavy, architecture-heavy, or boundary-heavy
+- feature-specific explanation/history belongs under `docs/features/<feature_id>/`
+- cross-cutting product explanation belongs under `docs/*.md`
+- cross-cutting repo-method explanation belongs under `docs/operating_system/*.md`
+- stage-aware work should name both `docs/stages/<stage_id>.source.yaml` and `docs/stages/<stage_id>.yaml`
+- when one feature folder is in scope, read minimally:
+  - `feature.source.yaml` first
+  - generated `<feature_id>.yaml` only when the assembled contract view is needed
+  - `lineage.generated.yaml` only for ownership, evidence, or drift work
+  - `history.md` only for narrative context
+  - do not load the entire feature folder by default
 
 ---
 
 ## Checklist (Execution Order)
 
 ```text
-1. **Explore context**
+1. Explore context
+   - classify the owning layer first: intent | operating_system | workstream | change
+   - read the owning source first:
+     - docs/intent/*.md for intent work
+     - docs/operating_system/*.md for operating-system work
+     - docs/features/*/feature.source.yaml for feature-owned work
+   - read code and generated contracts only as needed
+   - when stage-aware work is central, read docs/stages/<stage_id>.source.yaml and the generated stage contract
+   - when one feature folder is in scope, prefer the smallest truthful reading set
+   - check if feature already exists
+   - check recent commits and other relevant docs
+   - when the task touches repo-operating behavior, repeated issues, or unsettled harness areas, consult docs/operating_system/agent_memory/*
 
-- read code + `docs/features/*/*.yaml`
-- check if feature already exists
-- recent commits
-- other docs
-- when the task touches repo-operating behavior, known repeated issues, or unsettled harness areas, consult `docs/operating_system/agent_memory/*`
+2. Ask clarifying questions (one at a time)
 
-2. **Ask clarifying questions (one at a time)**
+3. Propose 2-3 approaches
+   - include tradeoffs
+   - give recommendation
 
-3. **Propose 2–3 approaches**
+4. Present design incrementally
+   - architecture
+   - components
+   - data flow
+   - constraints / invariants
 
-- include tradeoffs
-- give recommendation
+5. Align layer, feature, and stage ownership
+   - classify the work as intent | operating_system | workstream | change
+   - identify feature_id when one exists
+   - identify affected stages when relevant
+   - decide the primary lens: stage | feature | mixed | cross-cutting
+   - classify: add | modify | replace
+   - name doc targets:
+     - feature source -> docs/features/<feature_id>/feature.source.yaml
+     - feature contract -> docs/features/<feature_id>/<feature_id>.yaml
+     - feature lineage -> docs/features/<feature_id>/lineage.generated.yaml or none
+     - feature history -> docs/features/<feature_id>/history.md or none
+     - stage source -> docs/stages/<stage_id>.source.yaml or none
+     - stage contract -> docs/stages/<stage_id>.yaml or none
+     - feature-specific docs -> docs/features/<feature_id>/<doc>.md or none
+     - cross-cutting product docs -> docs/<doc>.md or none
+     - cross-cutting operating-system docs -> docs/operating_system/<doc>.md or none
+     - README -> README.md or none
+     - generated discovery -> docs/generated/<file> or none
+   - confirm:
+     - new feature -> create feature.source.yaml
+     - existing feature -> update feature.source.yaml
+     - cross-cutting operating-system or method change -> feature_source: none is allowed
 
-4. **Present design (incremental)**
+6. Invoke planning-dispatch
+   - produce triage block
+   - confirm routing -> writing-plans
 
-- architecture
-- components
-- data flow
-- constraints / invariants
-- confirm with user
+7. Write spec
+   - save to docs/superpowers/specs/YYYY-MM-DD-HH-MM-<topic>-spec.md
+   - follow metadata rules
+   - link the spec to the affected source docs and generated contracts
 
-5. **Feature and Stage Alignment**
+8. Spec review loop
+   - review -> fix -> repeat (max 3)
 
-- identify `feature_id`
-- identify affected stages when relevant
-- decide the primary lens: stage | feature | mixed
-- classify: add / modify / replace
-- name doc targets:
-- feature contract → `docs/features/<feature_id>/<feature_id>.yaml`
-- feature history → `docs/features/<feature_id>/history.md` or `none`
-- feature-specific docs → `docs/features/<feature_id>/<doc>.md` or `none`
-- cross-cutting docs → `docs/<doc>.md` or `none`
-- README → `README.md` or `none`
-- generated discovery → `docs/generated/<file>` or `none`
-- confirm:
-- new feature → create YAML
-- existing → update YAML
-- cross-cutting operating-system or method change → `feature_yaml: none` is allowed
+9. User approval
 
-6. **Invoke planning-dispatch**
-
-- produce triage block
-- confirm routing → writing-plans
-
-7. **Write spec**
-
-- save to `docs/superpowers/archive/specs/YYYY-MM-DD-HH-MM-<topic>-spec.md`
-- follow frontmatter rules
-- link the spec to the affected `docs/features/<feature_id>/<feature_id>.yaml`
-
-8. **Spec review loop**
-
-- review → fix → repeat (max 3)
-
-9. **User approval**
-
-10. **Handoff**
-
-- invoke writing-plans
+10. Handoff
+   - invoke writing-plans
 ```
 
 ---
 
-## Process Flow (Updated)
+## Process Flow
 
 ```text
 Explore context
@@ -129,9 +151,9 @@ Propose approaches
   ↓
 Present design
   ↓
-User approval
+Align layer, feature, and stage ownership
   ↓
-Feature and stage alignment
+User approval on direction
   ↓
 planning-dispatch (triage)
   ↓
@@ -151,7 +173,7 @@ writing-plans
 - prefer small, well-bounded components
 - avoid over-engineering (YAGNI)
 - follow existing patterns in repo
-- improve locally if needed (not global refactor)
+- improve locally if needed, not via a surprise global refactor
 
 Each unit must answer:
 
@@ -163,40 +185,48 @@ Each unit must answer:
 
 ## Spec Writing Rules
 
-- spec belongs in `docs/superpowers/archive/specs/`
-- YAML = current state
+- spec belongs in `docs/superpowers/specs/`
+- `feature.source.yaml` = human-owned meaning; generated feature YAML = current state
 - spec = explanation + design
-- spec must name the affected `docs/features/<feature_id>/<feature_id>.yaml` when one exists
-- stage-heavy specs should also name affected stages and the primary lens
-- spec should name any feature-specific docs or cross-cutting docs it expects to be updated
+- spec must name the affected `docs/features/<feature_id>/feature.source.yaml` and generated `docs/features/<feature_id>/<feature_id>.yaml` when one exists
+- stage-heavy specs should also name affected stages, the primary lens, and the `stage_source` / `stage_contract` targets
+- specs for intent work should point back to `docs/intent/*.md`
+- specs for operating-system work should point back to `docs/operating_system/*.md`
+- spec should name any feature-specific docs, cross-cutting docs, or operating-system docs it expects to be updated
 
-### Required frontmatter
+### Required metadata
 
 ```yaml
 ---
-feature_type: add | modify | replace
-feature_name: <feature_id>
-status: draft | building
-summary: "<1-line goal>"
+layer: intent | operating_system | workstream | change
+artifact_type: spec
+status: proposed | active | completed | superseded
+parent_workstream: <id> | none
+targets:
+  - <path>
+related_features:
+  - <feature_id>
+related_stages:
+  - <stage_id>
 ---
 ```
 
-Optional:
+Rules:
 
-```yaml
-invariants:
-  - constraint
-```
+- `layer`, `artifact_type`, and `status` are required
+- `targets` is required when the artifact is cross-cutting or otherwise ambiguous in scope
+- `targets` may be omitted only when the artifact is narrow and obviously local
+- `related_features` and `related_stages` are optional navigation aids, not a second ownership system
 
 ---
 
 ## Anti-Patterns
 
-- writing spec before feature classification
-- writing spec without classifying affected stages when the work is clearly boundary-heavy
-- writing spec without linking the affected feature YAML when one exists
+- writing a spec before layer classification
+- writing a spec before feature classification when a managed feature exists
+- writing a spec without classifying affected stages when the work is clearly boundary-heavy
+- writing a spec without linking the affected feature source when one exists
+- treating `docs/operating_system/` as the default home for project-purpose docs
 - assuming `FEATURES.md`
-- mixing design + implementation
-- skipping YAML alignment
-- generating global design docs
-
+- mixing design and implementation
+- generating broad global design docs when the change is local

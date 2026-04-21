@@ -1,8 +1,7 @@
 ---
 name: doc-system-lifecycle
-description: Use for designing, updating, or auditing project docs. Defines the 5-layer doc system, naming, frontmatter, sync rules, and generated discovery. Applies to NEW documents; existing docs are grandfathered
+description: Use when designing, updating, or auditing project docs that may affect source-of-truth placement, metadata, sync rules, or generated discovery.
 ---
-
 
 # Doc System Lifecycle
 
@@ -18,96 +17,142 @@ Apply when:
 
 ## Core Principle
 
-> Documentation is the project’s navigation, discovery, and explanation system.  
+> Documentation is the project's navigation, discovery, and explanation system.
 > It should let a human or agent answer: what exists, what is current, what changed, why it changed, and where the real source of truth lives.
 
 Docs should explain code, not mirror it.
 
-## 5-Layer Doc System with Stage-Aware Extension
+Canonical truth should flow downward from upstream owning layers. Lower layers
+should derive or reference that truth rather than restating the same semantic
+fact manually.
+
+## Source-Of-Truth Layers
 
 ```text
-code/                       → real truth
-docs/stages/*.yaml          → stage contracts (when stage-aware docs are in scope)
-docs/features/*/*.yaml        → structured truth
-docs/features/<feature_id>/ → feature-specific explanation + history
-docs/*.md                   → cross-cutting explanation
-README.md                   → overview
-docs/generated/             → generated discovery
-````
+code/                                 -> real truth
+docs/intent/*.md                     -> project purpose and outcome sources
+docs/operating_system/*.md           -> repo method and governance sources
+docs/stages/*.source.yaml            -> human-owned stage source when stage-aware docs are in scope
+docs/stages/*.yaml                   -> generated stage contracts when stage-aware docs are in scope
+docs/features/*/feature.source.yaml  -> human-owned feature source
+docs/features/*/<feature_id>.yaml    -> generated current feature contract
+docs/features/*/lineage.generated.yaml -> generated feature-local evidence
+docs/features/<feature_id>/          -> feature-specific explanation + partial-generated history
+docs/*.md                            -> cross-cutting product explanation
+docs/superpowers/specs/*.md          -> design artifacts
+docs/superpowers/plans/*.md          -> execution artifacts
+README.md                            -> overview
+docs/generated/*                     -> generated discovery
+```
 
-| Layer                   | Form                           | Purpose                            | Rule                                |
-| ----------------------- | ------------------------------ | ---------------------------------- | ----------------------------------- |
-| Stage Contracts         | `docs/stages/*.yaml`           | Stage boundaries and ownership hints | Optional; architectural only      |
-| Real Truth              | code                           | Actual behavior                    | Deepest truth                       |
-| Structured Truth        | `docs/features/*/*.yaml`         | Current feature contracts          | One small file per feature          |
-| Feature Explanation     | `docs/features/<feature_id>/*` | Design, flow, ops notes, history   | Feature-specific only               |
-| Cross-Cutting Docs      | `docs/*.md`                    | Architecture, pipelines, shared ops| Cross-feature only                  |
-| Overview                | `README.md`                    | Purpose and navigation             | Entry point only                    |
-| Generated Discovery     | `docs/generated/*`             | Fast lookup                        | Generated only; never edit manually |
+| Layer | Form | Purpose | Rule |
+| --- | --- | --- | --- |
+| Real Truth | code | Actual behavior | Deepest truth |
+| Intent Source | `docs/intent/*.md` | Project purpose and outcomes | Stable, source-like, human-authored |
+| Operating-System Source | `docs/operating_system/*.md` | Repo method and governance | Stable, method-focused, human-authored |
+| Stage Source | `docs/stages/*.source.yaml` | Human-owned stage intent | Edit directly when stage meaning changes |
+| Stage Contract | `docs/stages/*.yaml` | Generated stage boundary view | Generated only |
+| Feature Source | `docs/features/*/feature.source.yaml` | Human-owned feature meaning | Edit directly when feature meaning changes |
+| Feature Contract | `docs/features/*/<feature_id>.yaml` | Generated current feature contract | Generated only |
+| Feature Local Evidence | `docs/features/*/lineage.generated.yaml` | Generated ownership and lineage facts | Generated only |
+| Feature Explanation/History | `docs/features/<feature_id>/*` | Design, flow, ops notes, history | Feature-specific only |
+| Cross-Cutting Product Docs | `docs/*.md` | Architecture, pipelines, shared product explanation | Cross-feature only |
+| Execution Artifacts | `docs/superpowers/specs/*.md`, `docs/superpowers/plans/*.md` | Design and execution artifacts | Metadata-guided, not governing layers |
+| Overview | `README.md` | Purpose and navigation | Entry point only |
+| Generated Discovery | `docs/generated/*` | Fast lookup | Generated only; never edit manually |
 
-### Layer 1 — Code
+## Governing Layers
 
-Authoritative for behavior, routes/APIs, and schema/data logic.
+Use `docs/intent/` for:
 
-### Layer 2 — Feature YAML
-
-Authoritative for current feature state.
+- the original project problem
+- stakeholders and audiences
+- success outcomes
+- major promises the project should preserve
+- constraints and non-goals
 
 Rules:
 
-- one file per real feature
-- current state only
-- small and stable
-- keep `depends_on`
-- generate inverse links like `used_by`
+- keep intent docs stable and source-like
+- do not turn intent docs into execution logs or changelogs
+- do not move repo-method rules into intent just because they are cross-cutting
 
-### Stage Contracts When In Scope
+Use `docs/operating_system/` for:
 
-Stage-aware projects may add:
+- repo governance
+- planning rules
+- tooling policy
+- workflow and routing guidance
+- instruction layering
 
-```text
-docs/stages/*.yaml
-```
+Rules:
 
-Use this layer only for:
+- keep operating-system docs method-focused
+- if the document is really about what the project is for, it belongs in `docs/intent/`
+
+## Stage Source And Stage Contracts
+
+Use stage source files for:
 
 - stage identity
 - purpose
 - inputs / outputs
 - architectural boundaries
 - stage-to-feature relationships
+- short human notes
 
 Rules:
 
-- stages are above features for navigation, not replacement lifecycle units
-- stage contracts must not duplicate full feature truth
-- do not create placeholder stage files before a project-specific rollout is ready
+- humans edit `docs/stages/*.source.yaml`
+- generated stage contracts must not duplicate full feature truth
+- stage source owns stage role semantics such as `primary_features` and `supporting_features`
+- feature source owns stage capability participation through `stage_participation.stage_id` and `capability_ids`
+- generated stage contracts derive assembled refs and linkage views from those sources
 
-Recommended shape:
+## Feature Source, Generated Contract, And Evidence
+
+Use `docs/features/*/feature.source.yaml` as the human-owned semantic source.
+Use the generated `<feature_id>.yaml` only as the assembled current-state
+contract.
+
+Rules:
+
+- one real feature folder per managed feature
+- edit `feature.source.yaml`, not generated feature YAML
+- do not keep manual feature `version`
+- freshness fields such as `revision`, `latest_change_id`, and `last_updated_at` are generated from completed plans
+- do not use `manual_refs`; refs come from metadata on the owning code, tests, docs, specs, plans, configs, and AML components
+- use `lineage.generated.yaml` for detailed evidence, ownership, and timeline facts
+
+Recommended feature-source shape:
 
 ```yaml
 feature_id:
 name:
-version:
 status:
 type:
-owner:
 summary:
 invariants: []
 domains: []
 depends_on: []
 capabilities: []
-refs:
-  docs: []
-  spec: []
-  plan: []
-  history:
-keywords: []
+stage_participation: []
+lineage_exceptions: []
 ```
 
-### Layer 3 — Explanation + History
+Selective reading rule for opted-in feature folders:
 
-Use `docs/features/<feature_id>/` for focused docs such as design, flow, ops notes, and history for one feature. Use `docs/*.md` only for cross-feature architecture docs. Specs and plans continue to live under `docs/superpowers/`.
+- read `feature.source.yaml` first
+- read the generated `<feature_id>.yaml` only when the current assembled contract view is needed
+- read `lineage.generated.yaml` for ownership, evidence, drift, or traceability work
+- read `history.md` or other feature prose only when explanation or chronology is needed
+- do not load the entire feature folder by default
+
+## Feature Explanation + History
+
+Use `docs/features/<feature_id>/` for focused docs such as design, flow, ops
+notes, and history for one feature. Use `docs/*.md` only for cross-feature
+product docs.
 
 Rules:
 
@@ -115,30 +160,41 @@ Rules:
 - current-state docs describe current behavior
 - rationale belongs here, not in YAML
 - prefer small focused docs over one large doc
+- `history.md` is partially generated when the feature is opted into the architecture system:
+  - the block between `<!-- GENERATED HISTORY START -->` and `<!-- GENERATED HISTORY END -->` is generator-owned
+  - `## Human Notes` stays human-authored
 
-### Placement Table
+## Placement Table
 
 Use this default placement:
 
 | Information kind | Default location |
-| ---------------- | ---------------- |
-| Stage boundary contract (when adopted) | `docs/stages/<stage_id>.yaml` |
+| --- | --- |
+| Project purpose / outcomes | `docs/intent/*.md` |
+| Repo method / governance | `docs/operating_system/*.md` |
+| Stage boundary source | `docs/stages/<stage_id>.source.yaml` |
+| Generated stage boundary contract | `docs/stages/<stage_id>.yaml` |
+| Feature source | `docs/features/<feature_id>/feature.source.yaml` |
 | Current feature contract | `docs/features/<feature_id>/<feature_id>.yaml` |
+| Generated feature evidence | `docs/features/<feature_id>/lineage.generated.yaml` |
 | Feature-specific history / post-execution review | `docs/features/<feature_id>/history.md` |
 | Other feature-specific explanation | `docs/features/<feature_id>/*.md` |
-| Cross-cutting architecture / pipeline / shared ops | `docs/*.md` |
+| Cross-cutting product architecture / pipeline / shared ops | `docs/*.md` |
 | Project overview / navigation | `README.md` |
+| Design artifacts | `docs/superpowers/specs/*.md` |
+| Execution artifacts | `docs/superpowers/plans/*.md` |
 | Generated lookup surfaces | `docs/generated/*` |
 
-Do not treat `docs/*.md` as the default home for feature-specific history.
+Do not treat `docs/*.md` as the default home for feature-specific history or
+`docs/operating_system/*.md` as the default home for project intent.
 
-### Layer 4 — README
+## README
 
 Must answer:
 
-- Why
-- What
-- Where
+- why
+- what
+- where
 
 Must not become:
 
@@ -146,82 +202,69 @@ Must not become:
 - a design dump
 - a changelog
 
-### Layer 5 — Generated Discovery
+README remains a synthesized orientation layer. It should summarize the source
+layers rather than becoming a parallel source of truth.
 
-Required for fast lookup.
+## Generated Discovery
 
-Minimum outputs:
+Use `docs/generated/*` for:
 
-```text
-docs/generated/features_index.yaml
-docs/generated/feature_overview.md
-```
-
-Add more only when needed, such as:
-
-- `feature_dependency_graph.yaml`
-- `feature_file_map.yaml`
-- `routes_index.yaml`
-- `settings_index.yaml`
+- aggregate indexes
+- summaries
+- lookup surfaces
 
 Rules:
 
-- generate from code/YAML/docs
+- generate from code, YAML, docs, specs, and plans
 - never edit manually
 - not a source of truth
 - always point back to the source
 
-## Artifact Conventions
+## Metadata for Specs and Plans
 
-| Situation                                         | Update                                  |
-| ------------------------------------------------- | --------------------------------------- |
-| Behavior changes                                  | code                                    |
-| Feature added/changed                             | `docs/features/*/*.yaml`                  |
-| Feature-specific explanation changes              | `docs/features/<feature_id>/*.md`       |
-| Architecture or cross-feature explanation changes | `docs/*.md`                             |
-| Purpose/navigation changes                        | `README.md`                             |
-| Feature history changes                           | `docs/features/<feature_id>/history.md` |
-| Lookup surfaces stale                             | regenerate `docs/generated/*`           |
-
-## Naming
-
-- feature contract: `docs/features/<feature_id>/<feature_id>.yaml`
-- stage contract when adopted: `docs/stages/<stage_id>.yaml`
-- feature docs/history: `docs/features/<feature_id>/`
-- spec: `docs/superpowers/archive/specs/YYYY-MM-DD-HH-MM-<feature>-spec.md`
-- plan: `docs/superpowers/archive/plans/YYYY-MM-DD-HH-MM-<feature>-plan.md`
-- generated files: descriptive names under `docs/generated/`
-
-## Frontmatter for Specs and Plans
+For new or touched specs/plans under `docs/superpowers/`, use:
 
 ```yaml
 ---
-feature_type: modify   # add | modify | replace
-feature_name: run-input-snapshot-consistency
-status: building
-summary: "<1-sentence goal>"
+layer: intent | operating_system | workstream | change
+artifact_type: spec | plan
+status: proposed | active | completed | superseded
+parent_workstream: <id> | none
+targets:
+  - <path>
+related_features:
+  - <feature_id>
+related_stages:
+  - <stage_id>
 ---
 ```
 
-Optional:
+Rules:
 
-```yaml
-invariants:
-  - non-negotiable constraints
-```
+- `layer`, `artifact_type`, and `status` are required
+- `parent_workstream`, `related_features`, and `related_stages` are optional
+- `targets` is required when the artifact is cross-cutting or otherwise ambiguous in scope
+- `targets` may be omitted only when the scope is already obvious and narrowly local
 
 ## Sync Principle
 
 - update code when behavior changes
-- update feature YAML before or with feature changes
-- update docs before or with design/reasoning changes
+- update intent docs when project-purpose sources change
+- update stage source before or with stage-meaning changes
+- update feature source before or with feature-meaning changes
+- update docs before or with design or reasoning changes
 - update README when navigation changes
-- regenerate `docs/generated/` whenever sources change
+- rerun `scripts/sync_architecture_docs.py` whenever architecture metadata sources change
 
 Before marking work complete, name the exact docs touched:
 
-- affected `docs/features/<feature_id>/<feature_id>.yaml`
+- affected `docs/intent/*.md` when project-purpose sources changed
+- affected `docs/operating_system/*.md` when repo method changed
+- affected `docs/stages/<stage_id>.source.yaml` when stage-aware docs are in scope
 - affected `docs/stages/<stage_id>.yaml` when stage-aware docs are in scope
+- affected `docs/features/<feature_id>/feature.source.yaml`
+- affected `docs/features/<feature_id>/<feature_id>.yaml`
+- affected `docs/features/<feature_id>/lineage.generated.yaml` when evidence changed
 - `docs/features/<feature_id>/history.md` or other focused docs under `docs/features/<feature_id>/`
 - any cross-feature docs under `docs/*.md`
 - `README.md` if navigation changed
@@ -246,11 +289,12 @@ If a fact is generated, update the source and regenerate.
 - manually maintaining generated relationships
 - editing generated files manually
 - treating docs as more authoritative than code
-- changing code without updating feature YAML
+- changing code without updating the owning feature or stage source
+- restating an upstream semantic fact manually in a downstream layer when it should be derived instead
 
 ## Migration Policy
 
 Applies to NEW documents only.
 
-Existing docs are grandfathered. They do not need to be rewritten. When a feature YAML exists, it becomes the current structured truth for that feature.
-
+Existing docs are grandfathered. They do not need to be rewritten. When a
+feature YAML exists, it becomes the current structured truth for that feature.

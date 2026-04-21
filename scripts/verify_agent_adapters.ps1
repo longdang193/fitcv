@@ -7,6 +7,22 @@ function Get-RepoRoot {
     (git rev-parse --show-toplevel).Trim()
 }
 
+function Load-AdapterMappings {
+    param([string]$RepoRoot)
+
+    $configPath = Join-Path $RepoRoot 'repo_config/agent-adapter-mappings.json'
+    if (-not (Test-Path -LiteralPath $configPath)) {
+        throw "Missing adapter mapping config: $configPath"
+    }
+
+    $payload = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json
+    if (-not $payload) {
+        throw "Adapter mapping config is empty: $configPath"
+    }
+
+    return @($payload)
+}
+
 function Get-RepoRelativePath {
     param(
         [string]$RepoRoot,
@@ -41,52 +57,30 @@ function Normalize-Content {
 }
 
 $repoRoot = Get-RepoRoot
-
-$mappings = @(
-    @{
-        Source = Join-Path $repoRoot 'agent-core/adapters/codex/root-AGENTS.template.md'
-        Destination = Join-Path $repoRoot 'AGENTS.md'
-        Prefix = '#'
-    }
-    @{
-        Source = Join-Path $repoRoot 'agent-core/adapters/codex/docs-AGENTS.template.md'
-        Destination = Join-Path $repoRoot 'docs/AGENTS.md'
-        Prefix = '#'
-    }
-    @{
-        Source = Join-Path $repoRoot 'agent-core/adapters/codex/src-fitcv-AGENTS.template.md'
-        Destination = Join-Path $repoRoot 'src/fitcv/AGENTS.md'
-        Prefix = '#'
-    }
-    @{
-        Source = Join-Path $repoRoot 'agent-core/adapters/codex/src-fitcv_cp-AGENTS.template.md'
-        Destination = Join-Path $repoRoot 'src/fitcv_cp/AGENTS.md'
-        Prefix = '#'
-    }
-    @{
-        Source = Join-Path $repoRoot 'agent-core/adapters/codex/rules/command-execution.rules'
-        Destination = Join-Path $repoRoot 'codex/rules/command-execution.rules'
-        Prefix = '#'
-    }
-    @{
-        Source = Join-Path $repoRoot 'agent-core/adapters/codex/rules/publication-boundary.rules'
-        Destination = Join-Path $repoRoot 'codex/rules/publication-boundary.rules'
-        Prefix = '#'
-    }
-)
+$mappings = Load-AdapterMappings -RepoRoot $repoRoot
 
 $driftFound = $false
 foreach ($mapping in $mappings) {
-    if (-not (Test-Path -LiteralPath $mapping.Destination)) {
-        Write-Error "Missing generated adapter: $($mapping.Destination)"
+    if (-not $mapping.source -or -not $mapping.destination) {
+        Write-Error "Each adapter mapping must define source and destination."
         $driftFound = $true
         continue
     }
 
-    $expected = Get-ExpectedContent -RepoRoot $repoRoot -SourcePath $mapping.Source -CommentPrefix $mapping.Prefix
-    $actual = Get-Content -Raw -LiteralPath $mapping.Destination
+    $prefix = if ($mapping.prefix) { $mapping.prefix } else { '#' }
+    $sourcePath = Join-Path $repoRoot $mapping.source
+    $destinationPath = Join-Path $repoRoot $mapping.destination
+
+    if (-not (Test-Path -LiteralPath $destinationPath)) {
+        Write-Error "Missing generated adapter: $destinationPath"
+        $driftFound = $true
+        continue
+    }
+
+    $expected = Get-ExpectedContent -RepoRoot $repoRoot -SourcePath $sourcePath -CommentPrefix $prefix
+    $actual = Get-Content -Raw -LiteralPath $destinationPath
     if ((Normalize-Content -Content $expected) -ne (Normalize-Content -Content $actual)) {
-        Write-Error "Generated adapter drift detected: $($mapping.Destination)"
+        Write-Error "Generated adapter drift detected: $destinationPath"
         $driftFound = $true
     }
 }

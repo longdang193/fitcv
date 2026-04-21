@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Use when you have a confirmed spec with triage block for a multi-step task, before touching code. Enforces the triage gate: do not proceed without a completed triage block from planning-dispatch. Consolidates project_plan_generation duties.
+description: Use when a confirmed design needs a multi-step implementation plan before code changes begin.
 ---
 
 # Writing Plans
@@ -13,33 +13,49 @@ Assume the engineer is capable but unfamiliar with the codebase and domain.
 
 **Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
 
-**Default save path:** `docs/superpowers/archive/plans/YYYY-MM-DD-HH-MM-<topic>-plan.md`  
+**Default save path:** `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<topic>-plan.md`
 (User preference overrides this.)
 
 ---
 
 ## Doc-System Alignment
 
-Use the project doc system:
+Use the current source-of-truth model:
 
 ```text
-code/                       → real truth
-docs/stages/*.yaml          → stage contracts when stage-aware docs are in scope
-docs/features/*/*.yaml        → structured truth
-docs/features/<feature_id>/ → feature-specific explanation + history
-docs/*.md                   → cross-cutting explanation
-README.md                   → overview
-docs/generated/             → generated discovery
+code/                                 → real truth
+docs/intent/*.md                     → project purpose and outcome sources
+docs/operating_system/*.md           → repo method and governance sources
+docs/stages/*.source.yaml            → human-owned stage source when stage-aware docs are in scope
+docs/stages/*.yaml                   → generated stage contracts when stage-aware docs are in scope
+docs/features/*/feature.source.yaml  → human-owned feature source
+docs/features/*/<feature_id>.yaml    → generated current feature contract
+docs/features/*/lineage.generated.yaml → generated feature-local evidence
+docs/features/<feature_id>/          → feature-specific explanation + partial-generated history
+docs/*.md                            → cross-cutting product explanation
+docs/superpowers/specs/*.md          → design artifacts
+docs/superpowers/plans/*.md          → execution artifacts
+README.md                            → overview
+docs/generated/                      → generated discovery
 ```
 
 Rules:
 
-- The affected `docs/features/<feature_id>/<feature_id>.yaml` file is the current-state anchor when a managed feature exists
+- intent work should point back to `docs/intent/*.md`
+- operating-system work should point back to `docs/operating_system/*.md`
+- The affected `docs/features/<feature_id>/feature.source.yaml` file is the
+  human-owned anchor when a managed feature exists
+- The generated `docs/features/<feature_id>/<feature_id>.yaml` file is the
+  assembled current-state view
 - Cross-cutting operating-system work may use `Feature: none`
 - Stage-heavy plans should name affected stages and the primary lens
+- Stage-heavy plans should also name `docs/stages/<stage_id>.source.yaml` and
+  `docs/stages/<stage_id>.yaml`
 - Feature-specific history belongs under `docs/features/<feature_id>/`
-- Cross-cutting architecture belongs under `docs/*.md`
-- The plan must link back to the feature contract when one exists, and to the spec
+- Cross-cutting product architecture belongs under `docs/*.md`
+- Cross-cutting repo-method docs belong under `docs/operating_system/*.md`
+- The plan must link back to the feature source, generated contract, and spec
+  when they exist
 - Generated discovery is refreshed after source updates; do not edit it manually
 
 ---
@@ -50,12 +66,21 @@ Do not write the plan until these are true:
 
 1. `planning-dispatch` triage exists
 2. the affected feature is identified, or the plan explicitly records that this is cross-cutting work with `Feature: none`
-3. the relevant `docs/features/<feature_id>/<feature_id>.yaml` exists when a managed feature is changing, or the plan explicitly says it must be created before implementation starts
+3. the relevant `docs/features/<feature_id>/feature.source.yaml` exists when a
+   managed feature is changing, or the plan explicitly says it must be created
+   before implementation starts
 4. the spec exists if the design is non-trivial
+
+Important:
+
+- an explicit user request for an implementation plan does not automatically require a new spec
+- if triage shows the change is already bounded and design-clear, proceed directly to the plan
+- require a spec first only when the design is still meaningfully ambiguous, cross-cutting in an unsettled way, or missing key decisions
 
 Minimum triage:
 
 ```text
+Layer: intent | operating_system | workstream | change
 Feature type: ADD | MODIFY | REPLACE
 Summary: <1 sentence>
 Reasoning: <why this classification>
@@ -67,18 +92,27 @@ Affected stages:
   - <stage_id> | none
 Affected features:
   - <feature_id> | none
-Primary lens: stage | feature | mixed
+Primary lens: stage | feature | mixed | cross-cutting
 Affected docs:
+  feature_source: `docs/features/<feature_id>/feature.source.yaml` | none
   feature_yaml: `docs/features/<feature_id>/<feature_id>.yaml` | none
+  feature_lineage: `docs/features/<feature_id>/lineage.generated.yaml` | none
   feature_history: `docs/features/<feature_id>/history.md` | none
+  stage_source: `docs/stages/<stage_id>.source.yaml` | none
+  stage_contract: `docs/stages/<stage_id>.yaml` | none
   feature_docs:
     - `docs/features/<feature_id>/<doc>.md`
   cross_cutting_docs:
     - `docs/<doc>.md`
+    - `docs/operating_system/<doc>.md`
   readme: `README.md` | none
   generated:
-    - `docs/generated/<file>`
+    - `docs/generated/<file>` | none
 Generated refresh required: yes | no
+Capability IDs:
+  - <capability_id> | none
+Invariant IDs:
+  - <invariant_id> | none
 Spec needed: yes | no
 Plan needed: yes | no
 ```
@@ -99,6 +133,8 @@ If triage is missing, stop and invoke `planning-dispatch`.
 ## Scope Check
 
 If the spec covers multiple independent subsystems, suggest splitting into separate plans. Each plan should produce a coherent, testable increment.
+
+If there is no spec because the user explicitly requested a clear bounded plan, state that the plan is proceeding from triage plus existing source-of-truth docs rather than inventing a placeholder spec.
 
 ---
 
@@ -137,12 +173,27 @@ Avoid bundling multiple actions into one step.
 Every plan should start like this:
 
 ```md
+---
+layer: intent | operating_system | workstream | change
+artifact_type: plan
+status: proposed | active | completed | superseded
+parent_workstream: <id> | none
+targets:
+  - <path>
+related_features:
+  - <feature_id>
+related_stages:
+  - <stage_id>
+---
+
 # [Feature Name] Implementation Plan
 
-**Feature:** `docs/features/<feature_id>/<feature_id>.yaml`  
-**Spec:** `docs/superpowers/archive/specs/YYYY-MM-DD-HH-MM-<topic>-spec.md`  
+**Feature Source:** `docs/features/<feature_id>/feature.source.yaml` | `none`
+**Feature Contract:** `docs/features/<feature_id>/<feature_id>.yaml` | `none`
+**Spec:** `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<topic>-spec.md` | `none`
 **Type:** add | modify | replace  
-**Status:** planned | building  
+**Plan Layer:** intent | operating_system | workstream | change
+**Plan Status:** proposed | active | completed | superseded
 
 > **For agentic workers:** Use `executing-plans` or `subagent-driven-development` to implement task-by-task.
 
@@ -161,16 +212,29 @@ Every plan should start like this:
 ---
 ```
 
+Rules:
+
+- `layer`, `artifact_type`, and `status` are required frontmatter
+- `targets` is required when the plan is cross-cutting or otherwise ambiguous in scope
+- `targets` may be omitted only when the plan is narrow and obviously local
+- `related_features` and `related_stages` are optional navigation aids
+- keep plan metadata aligned with the triage block rather than inventing a second classification
+- when the plan is the requested primary artifact, the first created artifact should be the plan file under `docs/superpowers/plans/`, not an owning source doc
+
 Every plan must also include this section near the top:
 
 ```md
 ## Doc Update Matrix
 
+- Feature source: `docs/features/<feature_id>/feature.source.yaml` | none
 - Feature contract: `docs/features/<feature_id>/<feature_id>.yaml`
+- Feature lineage: `docs/features/<feature_id>/lineage.generated.yaml` | none
+- Stage source: `docs/stages/<stage_id>.source.yaml` | none
 - Stage contracts: `docs/stages/<stage_id>.yaml` | none
 - Feature history: `docs/features/<feature_id>/history.md` | none
 - Feature-specific docs: `docs/features/<feature_id>/<doc>.md` | none
 - Cross-cutting docs: `docs/<doc>.md` | none
+- Operating-system docs: `docs/operating_system/<doc>.md` | none
 - README: `README.md` | none
 - Generated discovery: `docs/generated/<file>` | none
 ```
@@ -210,8 +274,11 @@ A complete plan should specify:
 - exact file paths
 - test files and commands
 - doc targets split by contract / feature history / feature-specific docs / cross-cutting docs / README / generated discovery
-- which `docs/features/*/*.yaml` files change, or whether this is validly `Feature: none`
-- which `docs/stages/*.yaml` files change when stage-aware docs are in scope
+- which `docs/features/*/feature.source.yaml` files change, or whether this is
+  validly `Feature: none`
+- which generated feature contracts and lineage files refresh as outputs
+- which `docs/stages/*.source.yaml` files change and which generated stage
+  contracts refresh when stage-aware docs are in scope
 - whether `docs/generated/` must be regenerated
 - commit points
 
@@ -232,7 +299,8 @@ Provide the reviewer only:
 
 - plan path
 - spec path
-- feature YAML path
+- feature source path
+- generated contract path when one exists
 
 ---
 
@@ -240,7 +308,7 @@ Provide the reviewer only:
 
 After saving the plan, offer:
 
-**"Plan complete and saved to `docs/superpowers/archive/plans/YYYY-MM-DD-HH-MM-<topic>-plan.md`. Two execution options:**
+**"Plan complete and saved to `docs/superpowers/plans/YYYY-MM-DD-HH-MM-<topic>-plan.md`. Two execution options:**
 
 1. **Subagent-Driven (recommended)** — fresh subagent per task
 2. **Inline Execution** — execute in this session with `executing-plans`

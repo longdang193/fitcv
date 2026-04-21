@@ -6,6 +6,11 @@ description: Use when generating or modifying any Python file to enforce style, 
 
 You are required to follow these strict principles when writing or modifying Python code.
 
+The hard invariants from this workflow are also enforced by the generated
+`python-contracts` rule surface. Use this skill for the richer implementation
+judgment, typing loop, and code-quality workflow that the rule does not try to
+fully encode.
+
 ## 1. Type Safety (Mypy)
 
 - **Prefer precise types**: Avoid `Any` unless absolutely necessary.

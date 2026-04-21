@@ -1,0 +1,58 @@
+{
+  "publicPaths": [
+    ".dockerignore",
+    ".gitignore",
+    "Dockerfile",
+    "README.md",
+    "assets",
+    "config",
+    "data",
+    "docker-compose.yml",
+    "docs/features",
+    "docs/generated/features_index.yaml",
+    "docs/generated/stages_index.yaml",
+    "docs/generated/stage_overview.md",
+    "docs/FitCV-pipeline.md",
+    "docs/fitcv-control-plane-setup.md",
+    "docs/stages",
+    "pyproject.toml",
+    "requirements.txt",
+    "scripts/bootstrap_bigquery.py",
+    "scripts/download_cvs.py",
+    "src",
+    "start_web.ps1",
+    "start_worker.ps1",
+    "stop_fitcv.ps1",
+    "templates",
+    "tests",
+    "uv.lock"
+  ],
+  "forbiddenPaths": [
+    "AGENTS.md",
+    ".agents",
+    ".cursor",
+    "agent-core",
+    "codex",
+    "docs/operating_system",
+    "docs/superpowers",
+    "logs",
+    "sample",
+    ".worktrees"
+  ],
+  "requiredPaths": [
+    "README.md",
+    "docs/FitCV-pipeline.md",
+    "docs/fitcv-control-plane-setup.md",
+    "docs/features",
+    "src"
+  ],
+  "allowedGeneratedPaths": [
+    "docs/generated/features_index.yaml",
+    "docs/generated/stages_index.yaml",
+    "docs/generated/stage_overview.md"
+  ],
+  "scrubPrivateReferencePaths": [
+    "docs/features",
+    "docs/stages"
+  ]
+}

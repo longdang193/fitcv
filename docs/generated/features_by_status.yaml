@@ -14,5 +14,5 @@ planned: []
 deprecated: []
 retired: []
 _meta:
-  generated_by: generate_features.py
+  generated_by: scripts/sync_architecture_docs.py
   note: 'status_order: [''active'', ''building'', ''planned'', ''deprecated'', ''retired'']'

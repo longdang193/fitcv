@@ -4,7 +4,9 @@ This document defines how managed features are classified and tracked.
 
 ## Core Principle
 
-A real managed feature should have a current-state contract at `docs/features/<feature_id>/<feature_id>.yaml`.
+A real managed feature should have a human-owned source at
+`docs/features/<feature_id>/feature.source.yaml` and a generated current-state
+contract at `docs/features/<feature_id>/<feature_id>.yaml`.
 
 Stages help with architecture and planning, but features remain the primary lifecycle units.
 
@@ -27,15 +29,22 @@ If a change is only a defect correction with no meaningful contract change, upda
 planned -> draft -> building -> rollout -> active -> deprecated
 ```
 
-Use the feature YAML to track the current state.
+Use `feature.source.yaml` to track human-owned feature meaning and the
+generated feature contract to inspect the assembled current state.
 
 ## Required Feature Contract Shape
 
-Each managed feature should define:
+Each managed feature should use this folder shape:
+
+- `docs/features/<feature_id>/feature.source.yaml`
+- `docs/features/<feature_id>/<feature_id>.yaml`
+- `docs/features/<feature_id>/lineage.generated.yaml`
+- `docs/features/<feature_id>/history.md`
+
+The source layer should define:
 
 - `feature_id`
 - `name`
-- `version`
 - `status`
 - `type`
 - `summary`
@@ -43,7 +52,21 @@ Each managed feature should define:
 - `domains`
 - `depends_on`
 - `capabilities`
-- `refs`
+- optional `stage_participation`
+
+The generated contract and lineage files are outputs, not hand-edited sources.
+
+Refresh source-owned feature outputs with:
+
+```powershell
+python scripts/sync_architecture_docs.py
+```
+
+Validate repo-wide adoption shape with:
+
+```powershell
+python scripts/validate_adoption_shape.py
+```
 
 ## Planning Gate
 
@@ -60,6 +83,6 @@ Cross-cutting operating-system changes may use `Affected features: none`.
 A managed feature is not truly complete until:
 
 - code is updated
-- the feature contract is updated
+- the owning feature source is updated
 - supporting docs are updated as needed
 - generated discovery is refreshed when source layers changed

@@ -155,6 +155,10 @@ Operational invariants:
   Current-state pipeline architecture, execution flow, and major engineering safeguards.
 - [fitcv-control-plane-setup.md](docs/fitcv-control-plane-setup.md)
   Local setup, Docker usage, credentials, and troubleshooting.
+- [architecture.md](docs/architecture.md)
+  Runtime architecture plus the source/generated Mode B doc shape.
+- [usage.md](docs/usage.md)
+  Operator and engineering workflow entry points.
 - [stage_overview.md](docs/generated/stage_overview.md)
   Summary of active pipeline stage contracts.
 
@@ -163,9 +167,10 @@ Operational invariants:
 ```text
 src/fitcv_cp/     admin control plane
 src/fitcv/        core pipeline
-docs/features/    feature contracts and history
-docs/stages/      stage contracts
+docs/features/    feature sources, generated contracts, and history
+docs/stages/      stage sources and generated contracts
 docs/generated/   generated discovery docs
+docs/intent/      stable project-purpose docs
 tests/            automated coverage
 config/           runtime and policy configuration
 assets/           SQL and supporting assets

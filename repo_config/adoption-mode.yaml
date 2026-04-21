@@ -1,0 +1,44 @@
+adoption_mode: managed_architecture_metadata
+managed_architecture_metadata: true
+legacy_feature_contracts: false
+architecture_generator: scripts/sync_architecture_docs.py
+starter_sync:
+  starter_baseline_ref: 814e1a063541e79e6ca6e09268bfc5b81df057f2
+  last_shared_surface_review_at: 2026-04-22
+  reviewed_surface_classes:
+    - repo_config
+    - operating_system_docs
+    - skills
+    - adapters
+    - generated_instruction_surfaces
+    - validation_and_sync_scripts
+  divergences:
+    - path: repo_config/agent-adapter-mappings.json
+      class: repo_config
+      status: customized
+      rationale: This repo publishes generated rules under `codex/` and includes repo-local `src/fitcv*` adapter outputs.
+    - path: repo_config/publication-config.json
+      class: repo_config
+      status: customized
+      rationale: Public export paths remain FitCV-specific and use the current repo's `config/` and docs layout.
+    - path: docs/operating_system/repo-governance.md
+      class: operating_system_docs
+      status: customized
+      rationale: Governance wording is tailored to the current `codex/` root and the repo's in-progress Mode B migration state.
+    - path: docs/operating_system/publication-workflow.md
+      class: operating_system_docs
+      status: customized
+      rationale: Publication workflow keeps project-specific public mirror guidance while aligning with repo_config ownership.
+    - path: .agents/skills/plan-document-reviewer/SKILL.md
+      class: skills
+      status: customized
+      rationale: JOB-PROJECT keeps an additional repo-local review skill not present in the starter.
+    - path: scripts/validate_adoption_shape.py
+      class: validation_and_sync_scripts
+      status: customized
+      rationale: JOB-PROJECT now uses a repo-local Mode B validator aligned to the starter guidance and this repo's current source/generated contract.
+notes: >
+  JOB-PROJECT is aligning toward the project-OS-starter managed architecture
+  metadata model. Managed features and stages now use source-owned lifecycle
+  files plus generated contracts and discovery, while ID normalization and
+  deeper lineage enrichment remain intentionally deferred.

@@ -1,10 +1,12 @@
 # Stage Overview
 
-> Generated — do not edit manually. Source: `docs/stages/*.yaml`
+> Generated — do not edit manually. Source: `docs/stages/*.source.yaml`
+
 
 | Stage | Depends On | Primary Features | Summary |
 |---|---|---|---|
-| `cv_analysis` | `ranking` | `cv_system` | Prepare ranked jobs for writing by merging enriched job context, retrieving candidate evidence from the normalized profile through separate required-skill, role, domain, and responsibility channels, scoring domain and responsibility with hybrid lexical-plus-semantic alignment, selecting one bounded coverage-aware evidence bundle, computing grounded gap summaries, reusing exact-match analysis records when the stage-owned fingerprint and contract still match, resolving the final fit gate that decides whether CV generation should run and what evidence bundle downstream validation is allowed to rely on, and emitting stage-owned quality and reuse metrics. |
+| `cv_analysis` | `ranking` | `cv_system` | Prepare ranked jobs for writing by merging enriched context, retrieving and scoring candidate evidence across required-skill, role, domain, and responsibility channels, selecting one bounded final evidence bundle, computing grounded gap summaries, and resolving the fit gate that determines whether `cv_generation` should run.
+ |
 | `cv_generation` | `cv_analysis` | `cv_system` | Convert generation-ready CV-analysis records into accepted or rejected CV artifacts through structured prompt-driven writing, hybrid analysis-grounded validation, repair, and persistence without recomputing analysis or reselecting evidence by default, while emitting stage-owned accepted and validation-failure quality metrics for bottleneck diagnosis. |
 | `enrich` | `normalize` | `cv_system` | Filter normalized jobs through pre-enrichment global checks, then enrich surviving jobs into a shared downstream contract where required/preferred skills keep raw phrases, canonical skill entities, and reuse provenance when unchanged jobs can safely skip a fresh LLM call. |
 | `normalize` | — | `trigger_run_management` | Normalize raw run inputs into a stable job list, apply deduplication, and hand the surviving normalized rows to downstream filtering and enrichment. |
@@ -14,9 +16,10 @@
 
 ## Stage Contracts
 
-Each stage has a contract at `docs/stages/<stage_id>.yaml`:
+Each managed stage uses the following shape:
 
 ```text
+docs/stages/<stage_id>.source.yaml
 docs/stages/<stage_id>.yaml
 ```
 

@@ -1,0 +1,95 @@
+feature_id: inspection_debugging
+source: docs/features/inspection_debugging/feature.source.yaml
+generated_contract: docs/features/inspection_debugging/inspection_debugging.yaml
+depends_on:
+- admin_control_plane_core
+capability_ids: []
+stage_participation: []
+refs:
+  docs: []
+  spec:
+  - docs/superpowers/archive/specs/2026-03-25-run-scoped-enrichment-inspection-design.md
+  - docs/superpowers/archive/specs/2026-03-26-run-detail-inspection-tabs-design.md
+  - docs/superpowers/archive/specs/2026-03-26-admin-run-inspection-and-json-inputs-design.md
+  - docs/superpowers/archive/specs/2026-03-27-run-input-snapshot-consistency-design.md
+  - docs/superpowers/archive/specs/2026-03-27-run-detail-results-and-large-table-usability-design.md
+  - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+  - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+  - docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+  - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+  - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+  - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-02-14-35-staged-manual-pipeline-mode-spec.md
+  - docs/superpowers/archive/specs/2026-04-02-19-10-central-prompt-registry-spec.md
+  - docs/superpowers/archive/specs/2026-04-02-21-05-run-scoped-synonym-overlay-upload-spec.md
+  - docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+  - docs/superpowers/archive/specs/2026-04-02-23-55-enrich-reuse-via-raw-job-fingerprint-spec.md
+  - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+  - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+  - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+  - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+  - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+  - docs/superpowers/archive/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+  - docs/superpowers/archive/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
+  - docs/superpowers/archive/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
+  - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+  - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+  - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+  - docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
+  - docs/superpowers/archive/specs/2026-04-06-01-15-run-detail-stage-gating-and-pending-health-fix-spec.md
+  - docs/superpowers/archive/specs/2026-04-06-02-35-pipeline-dead-weight-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-13-05-run-artifact-bundle-zip-export-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-14-05-cv-analysis-embedding-counter-contract-fix-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-15-50-results-ledger-and-stage-diagnostics-boundary-tightening-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-18-05-skipped-fit-gate-results-contract-fix-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+  plan:
+  - docs/superpowers/archive/plans/2026-03-25-run-scoped-enrichment-inspection-implementation.md
+  - docs/superpowers/archive/plans/2026-03-26-run-detail-inspection-tabs-implementation.md
+  - docs/superpowers/archive/plans/2026-03-26-admin-run-inspection-and-json-inputs-implementation.md
+  - docs/superpowers/archive/plans/2026-03-27-run-input-snapshot-consistency-implementation.md
+  - docs/superpowers/archive/plans/2026-03-27-run-detail-results-and-large-table-usability-implementation.md
+  - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+  - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+  - docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+  - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+  - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+  - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+  - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+  - docs/superpowers/archive/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+  - docs/superpowers/archive/plans/2026-04-02-14-50-staged-manual-pipeline-mode-plan.md
+  - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
+  - docs/superpowers/archive/plans/2026-04-02-21-20-run-scoped-synonym-overlay-upload-plan.md
+  - docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+  - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
+  - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+  - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+  - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+  - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+  - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+  - docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+  - docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+  - docs/superpowers/archive/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+  - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+  - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+  - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+  - docs/superpowers/archive/plans/2026-04-06-00-05-run-detail-artifact-gating-and-diagnostics-cleanup-plan.md
+  - docs/superpowers/archive/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
+  - docs/superpowers/archive/plans/2026-04-06-01-25-run-detail-stage-gating-and-pending-health-fix-plan.md
+  - docs/superpowers/archive/plans/2026-04-06-02-50-pipeline-dead-weight-cleanup-plan.md
+  - docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-13-20-run-artifact-bundle-zip-export-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-14-20-cv-analysis-embedding-counter-contract-fix-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-16-05-results-ledger-and-stage-diagnostics-boundary-tightening-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-18-20-skipped-fit-gate-results-contract-fix-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+  history:
+  - docs/features/inspection_debugging/history.md
