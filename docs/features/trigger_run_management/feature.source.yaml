@@ -19,50 +19,94 @@ stages:
 - cv_analysis
 - cv_generation
 capabilities:
-- Runs list page with status badges, timestamps, visible-row bulk selection, truncated secondary fields, and selection-first bulk lifecycle actions
-- Run detail remains the single-run action surface for continue, stop, archive, unarchive, and repair controls
-- Run detail now groups run-scoped downloads into a compact export surface instead of a wide button row
-- Run detail now merges stage quality and late-stage reuse into a compact `Run Health` diagnostics surface
-- Run detail now keeps stage-slice download links on aggregate stage rows instead of repeating them on per-job subevents
-- 'Archive filter: Active / All / Archived'
-- 'Three job-input modes: path, upload, paste'
-- 'Three candidate-profile modes: default_config, upload, paste'
-- 'Two execution modes: `Run All` and `Stage by Stage`'
-- Run setup now includes a run-scoped `Synonym Overlay` input with `Default Config` and `Upload YAML` options
-- Rule Filter settings can choose which deterministic post-enrichment checks block versus only mark jobs
-- Server-side mode resolution
-- Canonical snapshot capture for pasted and uploaded inputs
-- Shared stage progress metadata now persists `last_completed_stage`, `completed_stages`, and reached stage artifacts for both execution modes
-- Persisted manual checkpoint metadata including next stage, last completed stage, completed stages, and serialized checkpoint payloads remains exclusive to `Stage by Stage`
-- Manual staged runs pause after normalize, enrich, rule_filter, shortlist, ranking, and cv_analysis
-- Manual staged runs can continue from the next pending stage without restarting the whole pipeline
-- '`Run All` now persists stage-boundary progress snapshots during execution instead of waiting until final success to expose reached-stage diagnostics'
-- '`Run All` and `Stage by Stage` runs can both snapshot a run-scoped synonym-overlay YAML at trigger time'
-- Manual staged runs paused after `enrich` can replace the run-scoped synonym-overlay YAML before continuing into `rule_filter`
-- Run detail exposes synonym-overlay state in a dedicated card instead of a crowded top-row action upload
-- Run detail synonym-overlay inspection now shows the active/default YAML snapshot when available
-- Manual staged runs now hand off from `ranking -> cv_analysis -> cv_generation` with persisted checkpoint payloads instead of treating all Layer 4 work as one stage
-- CV results banner on run detail
-- CV downloads
-- Run results JSON export
-- Settings-used JSON export from run detail for succeeded runs when available
-- Stage-transition artifacts JSON export from run detail for succeeded runs and paused manual runs when available
-- Run detail can bundle currently available run-owned artifacts into one zip download without changing stage ownership of the underlying files
-- Mapping-suggestions exports now stay unavailable until `enrich` has truly been reached and a real enrich-owned snapshot exists
-- Paused-after-normalize runs can now reach `Download Normalize JSON` through the aggregate normalize timeline row even when normalization removed zero duplicates
-- Timeline-linked stage-slice JSON downloads for recognized stage-boundary events
-- Stage-slice downloads now expose richer per-stage input, output, and changed-state samples instead of summary-only handoff blocks
-- '`cv_analysis` stage downloads can now expose channel-level evidence retrieval counts plus final selected-evidence rationale before `cv_generation`'
-- CV-generation debug JSON export from run detail for succeeded runs when available
-- Run-results export includes structured CV data and CV generation metadata when available
-- Run-results export distinguishes non-ranked passed jobs as `not_shortlisted`, `shortlisted_not_scored`, or `scored_not_ranked`
-- Run-results export and run detail distinguish ranked jobs skipped by the Layer 4 fit gate as `ranked_skipped_fit_gate`
-- Run-results export now stays job-centric and leaves shortlist retrieval debugging to shortlist-stage diagnostics instead of per-row shortlist debug baggage
-- Top-level shortlist debug distinguishes raw vector-search hits from the later scoring shortlist after any backfill
-- Shortlist debug now reports raw unique-job counts separately from raw row counts and carries explicit raw-hit flags for passed jobs in run-results export
-- Run-results export exposes an explicit decision chain per job covering shortlist path, primary fit authority, CV attempt/skip, and validation outcome
-- Ranked jobs now use reranker fit as the sole post-filter authority for ranking and CV eligibility
-- Run detail enriched-jobs table shows a compact pipeline outcome label plus decision-chain detail in addition to filter pass/reject state
+- capability_id: trigger_run_management.runs-list-page-with-status-badges-timestamps-visible-row-bulk-selection-truncated-secondary-fields-and-selection-first-bulk-lifecycle-actions
+  name: Runs list page with status badges, timestamps, visible-row bulk selection, truncated secondary fields, and selection-first bulk lifecycle actions
+- capability_id: trigger_run_management.run-detail-remains-the-single-run-action-surface-for-continue-stop-archive-unarchive-and-repair-controls
+  name: Run detail remains the single-run action surface for continue, stop, archive, unarchive, and repair controls
+- capability_id: trigger_run_management.run-detail-now-groups-run-scoped-downloads-into-a-compact-export-surface-instead-of-a-wide-button-row
+  name: Run detail now groups run-scoped downloads into a compact export surface instead of a wide button row
+- capability_id: trigger_run_management.run-detail-now-merges-stage-quality-and-late-stage-reuse-into-a-compact-run-health-diagnostics-surface
+  name: Run detail now merges stage quality and late-stage reuse into a compact `Run Health` diagnostics surface
+- capability_id: trigger_run_management.run-detail-now-keeps-stage-slice-download-links-on-aggregate-stage-rows-instead-of-repeating-them-on-per-job-subevents
+  name: Run detail now keeps stage-slice download links on aggregate stage rows instead of repeating them on per-job subevents
+- capability_id: trigger_run_management.archive-filter-active-all-archived
+  name: 'Archive filter: Active / All / Archived'
+- capability_id: trigger_run_management.three-job-input-modes-path-upload-paste
+  name: 'Three job-input modes: path, upload, paste'
+- capability_id: trigger_run_management.three-candidate-profile-modes-default-config-upload-paste
+  name: 'Three candidate-profile modes: default_config, upload, paste'
+- capability_id: trigger_run_management.two-execution-modes-run-all-and-stage-by-stage
+  name: 'Two execution modes: `Run All` and `Stage by Stage`'
+- capability_id: trigger_run_management.run-setup-now-includes-a-run-scoped-synonym-overlay-input-with-default-config-and-upload-yaml-options
+  name: Run setup now includes a run-scoped `Synonym Overlay` input with `Default Config` and `Upload YAML` options
+- capability_id: trigger_run_management.rule-filter-settings-can-choose-which-deterministic-post-enrichment-checks-block-versus-only-mark-jobs
+  name: Rule Filter settings can choose which deterministic post-enrichment checks block versus only mark jobs
+- capability_id: trigger_run_management.server-side-mode-resolution
+  name: Server-side mode resolution
+- capability_id: trigger_run_management.canonical-snapshot-capture-for-pasted-and-uploaded-inputs
+  name: Canonical snapshot capture for pasted and uploaded inputs
+- capability_id: trigger_run_management.shared-stage-progress-metadata-now-persists-last-completed-stage-completed-stages-and-reached-stage-artifacts-for-both-execution-modes
+  name: Shared stage progress metadata now persists `last_completed_stage`, `completed_stages`, and reached stage artifacts for both execution modes
+- capability_id: trigger_run_management.persisted-manual-checkpoint-metadata-including-next-stage-last-completed-stage-completed-stages-and-serialized-checkpoint-payloads-remains-exclusive-to-stage-by-stage
+  name: Persisted manual checkpoint metadata including next stage, last completed stage, completed stages, and serialized checkpoint payloads remains exclusive to `Stage by Stage`
+- capability_id: trigger_run_management.manual-staged-runs-pause-after-normalize-enrich-rule-filter-shortlist-ranking-and-cv-analysis
+  name: Manual staged runs pause after normalize, enrich, rule_filter, shortlist, ranking, and cv_analysis
+- capability_id: trigger_run_management.manual-staged-runs-can-continue-from-the-next-pending-stage-without-restarting-the-whole-pipeline
+  name: Manual staged runs can continue from the next pending stage without restarting the whole pipeline
+- capability_id: trigger_run_management.run-all-now-persists-stage-boundary-progress-snapshots-during-execution-instead-of-waiting-until-final-success-to-expose-reached-stage-diagnostics
+  name: '`Run All` now persists stage-boundary progress snapshots during execution instead of waiting until final success to expose reached-stage diagnostics'
+- capability_id: trigger_run_management.run-all-and-stage-by-stage-runs-can-both-snapshot-a-run-scoped-synonym-overlay-yaml-at-trigger-time
+  name: '`Run All` and `Stage by Stage` runs can both snapshot a run-scoped synonym-overlay YAML at trigger time'
+- capability_id: trigger_run_management.manual-staged-runs-paused-after-enrich-can-replace-the-run-scoped-synonym-overlay-yaml-before-continuing-into-rule-filter
+  name: Manual staged runs paused after `enrich` can replace the run-scoped synonym-overlay YAML before continuing into `rule_filter`
+- capability_id: trigger_run_management.run-detail-exposes-synonym-overlay-state-in-a-dedicated-card-instead-of-a-crowded-top-row-action-upload
+  name: Run detail exposes synonym-overlay state in a dedicated card instead of a crowded top-row action upload
+- capability_id: trigger_run_management.run-detail-synonym-overlay-inspection-now-shows-the-active-default-yaml-snapshot-when-available
+  name: Run detail synonym-overlay inspection now shows the active/default YAML snapshot when available
+- capability_id: trigger_run_management.manual-staged-runs-now-hand-off-from-ranking-cv-analysis-cv-generation-with-persisted-checkpoint-payloads-instead-of-treating-all-layer-4-work-as-one-stage
+  name: Manual staged runs now hand off from `ranking -> cv_analysis -> cv_generation` with persisted checkpoint payloads instead of treating all Layer 4 work as one stage
+- capability_id: trigger_run_management.cv-results-banner-on-run-detail
+  name: CV results banner on run detail
+- capability_id: trigger_run_management.cv-downloads
+  name: CV downloads
+- capability_id: trigger_run_management.run-results-json-export
+  name: Run results JSON export
+- capability_id: trigger_run_management.settings-used-json-export-from-run-detail-for-succeeded-runs-when-available
+  name: Settings-used JSON export from run detail for succeeded runs when available
+- capability_id: trigger_run_management.stage-transition-artifacts-json-export-from-run-detail-for-succeeded-runs-and-paused-manual-runs-when-available
+  name: Stage-transition artifacts JSON export from run detail for succeeded runs and paused manual runs when available
+- capability_id: trigger_run_management.run-detail-can-bundle-currently-available-run-owned-artifacts-into-one-zip-download-without-changing-stage-ownership-of-the-underlying-files
+  name: Run detail can bundle currently available run-owned artifacts into one zip download without changing stage ownership of the underlying files
+- capability_id: trigger_run_management.mapping-suggestions-exports-now-stay-unavailable-until-enrich-has-truly-been-reached-and-a-real-enrich-owned-snapshot-exists
+  name: Mapping-suggestions exports now stay unavailable until `enrich` has truly been reached and a real enrich-owned snapshot exists
+- capability_id: trigger_run_management.paused-after-normalize-runs-can-now-reach-download-normalize-json-through-the-aggregate-normalize-timeline-row-even-when-normalization-removed-zero-duplicates
+  name: Paused-after-normalize runs can now reach `Download Normalize JSON` through the aggregate normalize timeline row even when normalization removed zero duplicates
+- capability_id: trigger_run_management.timeline-linked-stage-slice-json-downloads-for-recognized-stage-boundary-events
+  name: Timeline-linked stage-slice JSON downloads for recognized stage-boundary events
+- capability_id: trigger_run_management.stage-slice-downloads-now-expose-richer-per-stage-input-output-and-changed-state-samples-instead-of-summary-only-handoff-blocks
+  name: Stage-slice downloads now expose richer per-stage input, output, and changed-state samples instead of summary-only handoff blocks
+- capability_id: trigger_run_management.cv-analysis-stage-downloads-can-now-expose-channel-level-evidence-retrieval-counts-plus-final-selected-evidence-rationale-before-cv-generation
+  name: '`cv_analysis` stage downloads can now expose channel-level evidence retrieval counts plus final selected-evidence rationale before `cv_generation`'
+- capability_id: trigger_run_management.cv-generation-debug-json-export-from-run-detail-for-succeeded-runs-when-available
+  name: CV-generation debug JSON export from run detail for succeeded runs when available
+- capability_id: trigger_run_management.run-results-export-includes-structured-cv-data-and-cv-generation-metadata-when-available
+  name: Run-results export includes structured CV data and CV generation metadata when available
+- capability_id: trigger_run_management.run-results-export-distinguishes-non-ranked-passed-jobs-as-not-shortlisted-shortlisted-not-scored-or-scored-not-ranked
+  name: Run-results export distinguishes non-ranked passed jobs as `not_shortlisted`, `shortlisted_not_scored`, or `scored_not_ranked`
+- capability_id: trigger_run_management.run-results-export-and-run-detail-distinguish-ranked-jobs-skipped-by-the-layer-4-fit-gate-as-ranked-skipped-fit-gate
+  name: Run-results export and run detail distinguish ranked jobs skipped by the Layer 4 fit gate as `ranked_skipped_fit_gate`
+- capability_id: trigger_run_management.run-results-export-now-stays-job-centric-and-leaves-shortlist-retrieval-debugging-to-shortlist-stage-diagnostics-instead-of-per-row-shortlist-debug-baggage
+  name: Run-results export now stays job-centric and leaves shortlist retrieval debugging to shortlist-stage diagnostics instead of per-row shortlist debug baggage
+- capability_id: trigger_run_management.top-level-shortlist-debug-distinguishes-raw-vector-search-hits-from-the-later-scoring-shortlist-after-any-backfill
+  name: Top-level shortlist debug distinguishes raw vector-search hits from the later scoring shortlist after any backfill
+- capability_id: trigger_run_management.shortlist-debug-now-reports-raw-unique-job-counts-separately-from-raw-row-counts-and-carries-explicit-raw-hit-flags-for-passed-jobs-in-run-results-export
+  name: Shortlist debug now reports raw unique-job counts separately from raw row counts and carries explicit raw-hit flags for passed jobs in run-results export
+- capability_id: trigger_run_management.run-results-export-exposes-an-explicit-decision-chain-per-job-covering-shortlist-path-primary-fit-authority-cv-attempt-skip-and-validation-outcome
+  name: Run-results export exposes an explicit decision chain per job covering shortlist path, primary fit authority, CV attempt/skip, and validation outcome
+- capability_id: trigger_run_management.ranked-jobs-now-use-reranker-fit-as-the-sole-post-filter-authority-for-ranking-and-cv-eligibility
+  name: Ranked jobs now use reranker fit as the sole post-filter authority for ranking and CV eligibility
+- capability_id: trigger_run_management.run-detail-enriched-jobs-table-shows-a-compact-pipeline-outcome-label-plus-decision-chain-detail-in-addition-to-filter-pass-reject-state
+  name: Run detail enriched-jobs table shows a compact pipeline outcome label plus decision-chain detail in addition to filter pass/reject state
 refs:
   docs:
   - docs/fitcv-control-plane-setup.md

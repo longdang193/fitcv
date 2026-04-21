@@ -9,14 +9,22 @@ ui_consistency_theming:
   depends_on:
   - admin_control_plane_core
   capabilities:
-  - CSS custom properties design tokens
-  - Shared component classes
-  - Dark/light theme toggle with localStorage persistence
-  - Flash-free theme application
-  - Consistent action hierarchy (primary, secondary, section)
-  - Human-readable section headings
-  - Attached-tab inspection card pattern
-  - Responsive wrapping
+  - capability_id: ui_consistency_theming.css-custom-properties-design-tokens
+    name: CSS custom properties design tokens
+  - capability_id: ui_consistency_theming.shared-component-classes
+    name: Shared component classes
+  - capability_id: ui_consistency_theming.dark-light-theme-toggle-with-localstorage-persistence
+    name: Dark/light theme toggle with localStorage persistence
+  - capability_id: ui_consistency_theming.flash-free-theme-application
+    name: Flash-free theme application
+  - capability_id: ui_consistency_theming.consistent-action-hierarchy-primary-secondary-section
+    name: Consistent action hierarchy (primary, secondary, section)
+  - capability_id: ui_consistency_theming.human-readable-section-headings
+    name: Human-readable section headings
+  - capability_id: ui_consistency_theming.attached-tab-inspection-card-pattern
+    name: Attached-tab inspection card pattern
+  - capability_id: ui_consistency_theming.responsive-wrapping
+    name: Responsive wrapping
   refs:
     docs: []
     spec:

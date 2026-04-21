@@ -62,6 +62,13 @@ def build_repo(tmp_path: Path) -> Path:
                     "summary": "Generate CV artifacts.",
                 }
             ],
+            "stage_participation": [
+                {
+                    "stage_id": "cv_analysis",
+                    "role": "primary",
+                    "capability_ids": ["cv_system.structured-cv-generation"],
+                }
+            ],
             "refs": {"history": ["docs/features/cv_system/history.md"]},
             "keywords": ["cv"],
         },
@@ -164,6 +171,70 @@ def test_validator_fails_when_required_docs_are_missing(tmp_path: Path) -> None:
     assert process.returncode == 1
     assert "missing required file" in process.stdout.lower()
     assert "docs/architecture.md" in process.stdout
+
+
+def test_validator_fails_for_string_only_capabilities(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    feature_source_path = repo_root / "docs" / "features" / "cv_system" / "feature.source.yaml"
+    payload = yaml.safe_load(feature_source_path.read_text(encoding="utf-8"))
+    payload["capabilities"] = ["Structured CV Generation"]
+    feature_source_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "must use structured capability entries" in process.stdout.lower()
+
+
+def test_validator_fails_for_non_underscore_feature_ids(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    feature_dir = repo_root / "docs" / "features" / "cv-system"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    write_yaml(
+        feature_dir / "feature.source.yaml",
+        {
+            "feature_id": "cv-system",
+            "name": "Bad Feature Id",
+            "status": "active",
+            "type": "add",
+            "summary": "Invalid naming policy fixture.",
+            "owner": "fitcv",
+            "domains": ["pipeline"],
+            "depends_on": [],
+            "capabilities": [
+                {
+                    "capability_id": "cv-system.bad-capability",
+                    "name": "Bad Capability",
+                }
+            ],
+            "refs": {"history": ["docs/features/cv-system/history.md"]},
+            "keywords": ["bad"],
+        },
+    )
+    (feature_dir / "history.md").write_text("# Bad Feature Id History\n", encoding="utf-8")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "invalid feature_id naming policy" in process.stdout.lower()
 
 
 def test_validator_fails_when_generated_outputs_are_stale(tmp_path: Path) -> None:

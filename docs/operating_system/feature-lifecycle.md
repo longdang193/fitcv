@@ -54,6 +54,14 @@ The source layer should define:
 - `capabilities`
 - optional `stage_participation`
 
+Naming and shape policy for this repo:
+
+- `feature_id` uses lowercase underscore format such as `cv_system`
+- `capability_id` uses `<feature_id>.<kebab-suffix>`
+- managed features should use structured capability entries with at least:
+  - `capability_id`
+  - `name`
+
 The generated contract and lineage files are outputs, not hand-edited sources.
 
 Refresh source-owned feature outputs with:

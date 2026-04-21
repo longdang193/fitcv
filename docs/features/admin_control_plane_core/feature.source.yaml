@@ -9,13 +9,20 @@ domains:
 - run_orchestration
 depends_on: []
 capabilities:
-- FastAPI web server
-- RQ background worker integration
-- Jinja2 admin pages
-- PipelineReporter integration
-- pipeline_runs BigQuery table
-- pipeline_run_events BigQuery table
-- insert-before-enqueue invariant
+- capability_id: admin_control_plane_core.fastapi-web-server
+  name: FastAPI web server
+- capability_id: admin_control_plane_core.rq-background-worker-integration
+  name: RQ background worker integration
+- capability_id: admin_control_plane_core.jinja2-admin-pages
+  name: Jinja2 admin pages
+- capability_id: admin_control_plane_core.pipelinereporter-integration
+  name: PipelineReporter integration
+- capability_id: admin_control_plane_core.pipeline-runs-bigquery-table
+  name: pipeline_runs BigQuery table
+- capability_id: admin_control_plane_core.pipeline-run-events-bigquery-table
+  name: pipeline_run_events BigQuery table
+- capability_id: admin_control_plane_core.insert-before-enqueue-invariant
+  name: insert-before-enqueue invariant
 refs:
   docs:
   - docs/fitcv-control-plane-setup.md

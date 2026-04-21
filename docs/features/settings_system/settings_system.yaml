@@ -10,35 +10,64 @@ settings_system:
   depends_on:
   - admin_control_plane_core
   capabilities:
-  - BigQuery-backed pipeline settings store
-  - Settings schema registry
-  - Retrieval settings
-  - Timing and throttling settings
-  - Run lifecycle timeout settings
-  - Global job filters
-  - Ranking settings with six-feature sum-to-one validation
-  - Explicit zero-weight semantics for supported ranking features
-  - Ranking settings copy aligned to semantic role-alignment and weighted preference-alignment runtime semantics
-  - Preference-fit subweights for domain, role-family, and location-type calibration
-  - Fit-label threshold descriptions aligned to AI-reranker label calibration semantics
-  - '`cv_analysis` semantic-alignment enable/model controls'
-  - '`cv_analysis` lexical-vs-semantic weight controls for responsibility and domain alignment'
-  - Validation that each `cv_analysis` lexical/semantic weight pair sums to `1.0`
-  - CV generation settings
-  - CV composition visibility settings
-  - Warning-only CV max-pages validation setting
-  - Task-first admin settings UI sections for Selection, Ranking, CV Output, Run Safety, and Advanced tuning
-  - Basic-versus-advanced disclosure for expert-only tuning knobs
-  - Metadata-only rendering for single-option pseudo-choice controls such as the fixed CV preset and semantic-alignment model
-  - Clearer current-versus-draft and unsaved-change visibility in the settings UI
-  - Denser CV section-visibility matrix instead of repeated long-form cards
-  - Metadata-only CV prompt/template fields retired from the active admin settings surface
-  - Grouped form validation
-  - Per-run overrides
-  - Trigger-time effective settings snapshot
-  - Admin settings defaults now hydrate from the loaded baseline config for supported paths instead of acting as a competing default store
-  - Admin settings default hydration now follows the reorganized config-room layout while preserving flat-path compatibility during the migration window
-  - Operator-facing settings-used exports now keep canonical nested settings as the primary contract and move compatibility-era flat keys into an explicit compatibility block when needed
+  - capability_id: settings_system.bigquery-backed-pipeline-settings-store
+    name: BigQuery-backed pipeline settings store
+  - capability_id: settings_system.settings-schema-registry
+    name: Settings schema registry
+  - capability_id: settings_system.retrieval-settings
+    name: Retrieval settings
+  - capability_id: settings_system.timing-and-throttling-settings
+    name: Timing and throttling settings
+  - capability_id: settings_system.run-lifecycle-timeout-settings
+    name: Run lifecycle timeout settings
+  - capability_id: settings_system.global-job-filters
+    name: Global job filters
+  - capability_id: settings_system.ranking-settings-with-six-feature-sum-to-one-validation
+    name: Ranking settings with six-feature sum-to-one validation
+  - capability_id: settings_system.explicit-zero-weight-semantics-for-supported-ranking-features
+    name: Explicit zero-weight semantics for supported ranking features
+  - capability_id: settings_system.ranking-settings-copy-aligned-to-semantic-role-alignment-and-weighted-preference-alignment-runtime-semantics
+    name: Ranking settings copy aligned to semantic role-alignment and weighted preference-alignment runtime semantics
+  - capability_id: settings_system.preference-fit-subweights-for-domain-role-family-and-location-type-calibration
+    name: Preference-fit subweights for domain, role-family, and location-type calibration
+  - capability_id: settings_system.fit-label-threshold-descriptions-aligned-to-ai-reranker-label-calibration-semantics
+    name: Fit-label threshold descriptions aligned to AI-reranker label calibration semantics
+  - capability_id: settings_system.cv-analysis-semantic-alignment-enable-model-controls
+    name: '`cv_analysis` semantic-alignment enable/model controls'
+  - capability_id: settings_system.cv-analysis-lexical-vs-semantic-weight-controls-for-responsibility-and-domain-alignment
+    name: '`cv_analysis` lexical-vs-semantic weight controls for responsibility and domain alignment'
+  - capability_id: settings_system.validation-that-each-cv-analysis-lexical-semantic-weight-pair-sums-to-1-0
+    name: Validation that each `cv_analysis` lexical/semantic weight pair sums to `1.0`
+  - capability_id: settings_system.cv-generation-settings
+    name: CV generation settings
+  - capability_id: settings_system.cv-composition-visibility-settings
+    name: CV composition visibility settings
+  - capability_id: settings_system.warning-only-cv-max-pages-validation-setting
+    name: Warning-only CV max-pages validation setting
+  - capability_id: settings_system.task-first-admin-settings-ui-sections-for-selection-ranking-cv-output-run-safety-and-advanced-tuning
+    name: Task-first admin settings UI sections for Selection, Ranking, CV Output, Run Safety, and Advanced tuning
+  - capability_id: settings_system.basic-versus-advanced-disclosure-for-expert-only-tuning-knobs
+    name: Basic-versus-advanced disclosure for expert-only tuning knobs
+  - capability_id: settings_system.metadata-only-rendering-for-single-option-pseudo-choice-controls-such-as-the-fixed-cv-preset-and-semantic-alignment-model
+    name: Metadata-only rendering for single-option pseudo-choice controls such as the fixed CV preset and semantic-alignment model
+  - capability_id: settings_system.clearer-current-versus-draft-and-unsaved-change-visibility-in-the-settings-ui
+    name: Clearer current-versus-draft and unsaved-change visibility in the settings UI
+  - capability_id: settings_system.denser-cv-section-visibility-matrix-instead-of-repeated-long-form-cards
+    name: Denser CV section-visibility matrix instead of repeated long-form cards
+  - capability_id: settings_system.metadata-only-cv-prompt-template-fields-retired-from-the-active-admin-settings-surface
+    name: Metadata-only CV prompt/template fields retired from the active admin settings surface
+  - capability_id: settings_system.grouped-form-validation
+    name: Grouped form validation
+  - capability_id: settings_system.per-run-overrides
+    name: Per-run overrides
+  - capability_id: settings_system.trigger-time-effective-settings-snapshot
+    name: Trigger-time effective settings snapshot
+  - capability_id: settings_system.admin-settings-defaults-now-hydrate-from-the-loaded-baseline-config-for-supported-paths-instead-of-acting-as-a-competing-default-store
+    name: Admin settings defaults now hydrate from the loaded baseline config for supported paths instead of acting as a competing default store
+  - capability_id: settings_system.admin-settings-default-hydration-now-follows-the-reorganized-config-room-layout-while-preserving-flat-path-compatibility-during-the-migration-window
+    name: Admin settings default hydration now follows the reorganized config-room layout while preserving flat-path compatibility during the migration window
+  - capability_id: settings_system.operator-facing-settings-used-exports-now-keep-canonical-nested-settings-as-the-primary-contract-and-move-compatibility-era-flat-keys-into-an-explicit-compatibility-block-when-needed
+    name: Operator-facing settings-used exports now keep canonical nested settings as the primary contract and move compatibility-era flat keys into an explicit compatibility block when needed
   refs:
     docs:
     - docs/fitcv-control-plane-setup.md

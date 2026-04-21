@@ -10,11 +10,16 @@ domains:
 depends_on:
 - trigger_run_management
 capabilities:
-- Multiple file inputs in trigger form
-- Per-file server-side validation
-- Canonical merge preserving order
-- One immutable snapshot stored per run
-- All-or-nothing rejection on validation failure
+- capability_id: multi_file_job_input.multiple-file-inputs-in-trigger-form
+  name: Multiple file inputs in trigger form
+- capability_id: multi_file_job_input.per-file-server-side-validation
+  name: Per-file server-side validation
+- capability_id: multi_file_job_input.canonical-merge-preserving-order
+  name: Canonical merge preserving order
+- capability_id: multi_file_job_input.one-immutable-snapshot-stored-per-run
+  name: One immutable snapshot stored per run
+- capability_id: multi_file_job_input.all-or-nothing-rejection-on-validation-failure
+  name: All-or-nothing rejection on validation failure
 refs:
   docs: []
   spec:

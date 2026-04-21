@@ -10,15 +10,24 @@ domains:
 depends_on:
 - admin_control_plane_core
 capabilities:
-- Cancel queued runs directly from the queue via RQ
-- Cooperative cancellation at safe checkpoints for running jobs
-- Direct cancellation of paused manual runs in `awaiting_continue`
-- Stale cancellation repair endpoint
-- State-aware max-runtime timeout handling for queued, running, cancelling, and paused manual runs
-- Timeout copy now distinguishes queue wait, active runtime, and Stage by Stage manual-wait time
-- Archive and unarchive terminal runs
-- Batch cancel, archive, and unarchive endpoints with explicit processed/skipped summaries
-- Full audit trail in pipeline_run_events
+- capability_id: run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq
+  name: Cancel queued runs directly from the queue via RQ
+- capability_id: run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+  name: Cooperative cancellation at safe checkpoints for running jobs
+- capability_id: run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  name: Direct cancellation of paused manual runs in `awaiting_continue`
+- capability_id: run_lifecycle_controls.stale-cancellation-repair-endpoint
+  name: Stale cancellation repair endpoint
+- capability_id: run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+  name: State-aware max-runtime timeout handling for queued, running, cancelling, and paused manual runs
+- capability_id: run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
+  name: Timeout copy now distinguishes queue wait, active runtime, and Stage by Stage manual-wait time
+- capability_id: run_lifecycle_controls.archive-and-unarchive-terminal-runs
+  name: Archive and unarchive terminal runs
+- capability_id: run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries
+  name: Batch cancel, archive, and unarchive endpoints with explicit processed/skipped summaries
+- capability_id: run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+  name: Full audit trail in pipeline_run_events
 refs:
   docs: []
   spec:

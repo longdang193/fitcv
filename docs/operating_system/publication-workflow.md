@@ -75,4 +75,13 @@ python scripts/validate_adoption_shape.py
 before publication review so the curated export is based on current lifecycle
 metadata rather than stale generated discovery.
 
-CI also runs the publication export path as a dry check, so curated export preparation is exercised before merge even when nobody runs the publish script manually.
+CI also runs:
+
+- adapter sync and verification
+- baseline pytest
+- architecture-doc freshness and adoption-shape validation
+- the publication export path as a dry check
+
+That keeps private repo governance, generated lifecycle surfaces, and curated
+publication boundaries aligned before merge even when nobody runs every command
+manually.

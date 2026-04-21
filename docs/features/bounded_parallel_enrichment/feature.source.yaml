@@ -10,12 +10,18 @@ domains:
 depends_on:
 - pipeline_performance
 capabilities:
-- enrichment_batch_size setting
-- enrichment_concurrency setting
-- Pre-enrichment global filters run first
-- Conservative defaults (batch_size=10, concurrency=1)
-- Deterministic output order
-- Per-job failure isolation
+- capability_id: bounded_parallel_enrichment.enrichment-batch-size-setting
+  name: enrichment_batch_size setting
+- capability_id: bounded_parallel_enrichment.enrichment-concurrency-setting
+  name: enrichment_concurrency setting
+- capability_id: bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
+  name: Pre-enrichment global filters run first
+- capability_id: bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1
+  name: Conservative defaults (batch_size=10, concurrency=1)
+- capability_id: bounded_parallel_enrichment.deterministic-output-order
+  name: Deterministic output order
+- capability_id: bounded_parallel_enrichment.per-job-failure-isolation
+  name: Per-job failure isolation
 refs:
   docs: []
   spec:

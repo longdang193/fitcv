@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 from pathlib import Path
+import re
 from typing import Any, cast
 
 import yaml
@@ -46,6 +47,8 @@ REQUIRED_DOC_PATHS = [
     "docs/intent/success-outcomes.md",
     "docs/intent/constraints-and-non-goals.md",
 ]
+FEATURE_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
+CAPABILITY_SUFFIX_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -103,6 +106,72 @@ def validate_features(repo_root: Path) -> list[str]:
             errors.append(f"Missing feature lineage: {relpath(lineage_path, repo_root)}")
         if not history_path.exists():
             errors.append(f"Missing feature history: {relpath(history_path, repo_root)}")
+        if source_path.exists():
+            payload = cast(dict[str, Any], read_yaml(source_path))
+            declared_feature_id = cast(str, payload.get("feature_id", ""))
+            if declared_feature_id != feature_id:
+                errors.append(
+                    f"Feature directory and feature_id must match: {relpath(source_path, repo_root)}"
+                )
+            if not FEATURE_ID_PATTERN.fullmatch(declared_feature_id):
+                errors.append(
+                    f"Invalid feature_id naming policy in {relpath(source_path, repo_root)}: "
+                    f"{declared_feature_id}"
+                )
+
+            capabilities = payload.get("capabilities", [])
+            if not isinstance(capabilities, list):
+                errors.append(
+                    f"Capabilities must be a list in {relpath(source_path, repo_root)}."
+                )
+            else:
+                for index, capability in enumerate(capabilities):
+                    if not isinstance(capability, dict):
+                        errors.append(
+                            f"Managed features must use structured capability entries in "
+                            f"{relpath(source_path, repo_root)}."
+                        )
+                        continue
+                    capability_id = capability.get("capability_id")
+                    capability_name = capability.get("name")
+                    if not isinstance(capability_id, str) or not capability_id:
+                        errors.append(
+                            f"Capability entry {index + 1} in {relpath(source_path, repo_root)} "
+                            "must include capability_id."
+                        )
+                    if not isinstance(capability_name, str) or not capability_name:
+                        errors.append(
+                            f"Capability entry {index + 1} in {relpath(source_path, repo_root)} "
+                            "must include name."
+                        )
+                    if isinstance(capability_id, str):
+                        prefix = f"{declared_feature_id}."
+                        if not capability_id.startswith(prefix):
+                            errors.append(
+                                f"Capability ID must start with {prefix} in "
+                                f"{relpath(source_path, repo_root)}."
+                            )
+                        suffix = capability_id[len(prefix) :] if capability_id.startswith(prefix) else ""
+                        if not CAPABILITY_SUFFIX_PATTERN.fullmatch(suffix):
+                            errors.append(
+                                f"Capability ID must use kebab-case suffixes in "
+                                f"{relpath(source_path, repo_root)}: {capability_id}"
+                            )
+            if lineage_path.exists():
+                lineage = cast(dict[str, Any], read_yaml(lineage_path))
+                required_lineage_keys = {
+                    "naming_policy",
+                    "capability_shape",
+                    "capabilities",
+                    "stage_summary",
+                    "refs_by_type",
+                }
+                missing_keys = sorted(key for key in required_lineage_keys if key not in lineage)
+                if missing_keys:
+                    errors.append(
+                        f"Feature lineage is missing required keys in "
+                        f"{relpath(lineage_path, repo_root)}: {', '.join(missing_keys)}"
+                    )
     return errors
 
 

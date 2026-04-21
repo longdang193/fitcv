@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 from pathlib import Path
+import re
 from typing import Any, NamedTuple, cast
 
 import yaml
@@ -98,6 +99,19 @@ def relpath(path: Path, root: Path) -> str:
 
 def normalize_text(content: str) -> str:
     return content.replace("\r\n", "\n").rstrip() + "\n"
+
+
+def slugify_capability_name(value: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return normalized or "capability"
+
+
+def naming_policy() -> dict[str, object]:
+    return {
+        "feature_id_format": "underscore",
+        "capability_id_format": "<feature_id>.<kebab-suffix>",
+        "string_capabilities_allowed": False,
+    }
 
 
 def feature_source_paths(repo_root: Path) -> list[Path]:
@@ -199,36 +213,85 @@ def normalize_capability_entry(
     feature_id: str, capability: object, position: int
 ) -> dict[str, object]:
     if isinstance(capability, str):
-        return {"feature_id": feature_id, "capability": capability}
+        capability_name = capability
+        capability_id = f"{feature_id}.{slugify_capability_name(capability_name)}"
+        return {
+            "feature_id": feature_id,
+            "capability_id": capability_id,
+            "capability_name": capability_name,
+            "summary": capability_name,
+            "source_shape": "string",
+        }
 
     payload = cast(dict[str, object], capability)
+    capability_name = cast(str, payload.get("name", f"{feature_id} capability {position + 1}"))
+    capability_id = cast(
+        str,
+        payload.get("capability_id", f"{feature_id}.{slugify_capability_name(capability_name)}"),
+    )
     entry: dict[str, object] = {
         "feature_id": feature_id,
-        "capability_name": cast(str, payload.get("name", f"{feature_id} capability {position + 1}")),
+        "capability_id": capability_id,
+        "capability_name": capability_name,
+        "source_shape": "structured",
     }
-    capability_id = payload.get("capability_id")
-    if capability_id is not None:
-        entry["capability_id"] = capability_id
     summary = payload.get("summary")
     if summary is not None:
         entry["summary"] = summary
     return entry
 
 
+def capability_shape(capabilities: list[object]) -> str:
+    has_strings = any(isinstance(capability, str) for capability in capabilities)
+    has_structured = any(isinstance(capability, dict) for capability in capabilities)
+    if has_strings and has_structured:
+        return "mixed"
+    if has_structured:
+        return "structured"
+    if has_strings:
+        return "string"
+    return "empty"
+
+
+def normalize_refs(refs: object) -> dict[str, list[str]]:
+    if not isinstance(refs, dict):
+        return {}
+    normalized: dict[str, list[str]] = {}
+    for key, value in refs.items():
+        if isinstance(value, list):
+            normalized[str(key)] = [str(item) for item in value]
+    return normalized
+
+
 def render_feature_outputs(repo_root: Path, source_path: Path) -> list[RenderedFile]:
     feature_id, feature_body = load_feature_body_from_source(source_path)
+    raw_capabilities = cast(list[object], feature_body.get("capabilities", []))
+    normalized_capabilities = [
+        normalize_capability_entry(feature_id, capability, index)
+        for index, capability in enumerate(raw_capabilities)
+    ]
+    normalized_refs = normalize_refs(feature_body.get("refs", {}))
     lineage_payload = {
         "feature_id": feature_id,
         "source": relpath(source_path, repo_root),
         "generated_contract": relpath(generated_feature_contract_path(source_path), repo_root),
+        "naming_policy": naming_policy(),
         "depends_on": feature_body.get("depends_on", []),
-        "capability_ids": [
-            capability["capability_id"]
-            for capability in cast(list[dict[str, object]], feature_body.get("capabilities", []))
-            if isinstance(capability, dict) and "capability_id" in capability
-        ],
+        "capability_shape": capability_shape(raw_capabilities),
+        "capability_ids": [entry["capability_id"] for entry in normalized_capabilities],
+        "capabilities": normalized_capabilities,
         "stage_participation": feature_body.get("stage_participation", []),
-        "refs": feature_body.get("refs", {}),
+        "stage_summary": [
+            {
+                "stage_id": cast(dict[str, object], entry).get("stage_id"),
+                "role": cast(dict[str, object], entry).get("role", "unknown"),
+                "capability_ids": cast(dict[str, object], entry).get("capability_ids", []),
+            }
+            for entry in cast(list[object], feature_body.get("stage_participation", []))
+            if isinstance(entry, dict)
+        ],
+        "refs": normalized_refs,
+        "refs_by_type": normalized_refs,
     }
     return [
         RenderedFile(
@@ -320,7 +383,7 @@ def build_feature_capabilities_index(repo_root: Path) -> RenderedFile:
     entries.sort(
         key=lambda entry: (
             cast(str, entry["feature_id"]),
-            cast(str, entry.get("capability_name", entry.get("capability", ""))),
+            cast(str, entry["capability_id"]),
         )
     )
     return RenderedFile(

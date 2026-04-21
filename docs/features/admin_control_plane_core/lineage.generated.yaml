@@ -1,10 +1,52 @@
 feature_id: admin_control_plane_core
 source: docs/features/admin_control_plane_core/feature.source.yaml
 generated_contract: docs/features/admin_control_plane_core/admin_control_plane_core.yaml
+naming_policy:
+  feature_id_format: underscore
+  capability_id_format: <feature_id>.<kebab-suffix>
+  string_capabilities_allowed: false
 depends_on: []
-capability_ids: []
+capability_shape: structured
+capability_ids:
+- admin_control_plane_core.fastapi-web-server
+- admin_control_plane_core.rq-background-worker-integration
+- admin_control_plane_core.jinja2-admin-pages
+- admin_control_plane_core.pipelinereporter-integration
+- admin_control_plane_core.pipeline-runs-bigquery-table
+- admin_control_plane_core.pipeline-run-events-bigquery-table
+- admin_control_plane_core.insert-before-enqueue-invariant
+capabilities:
+- feature_id: admin_control_plane_core
+  capability_id: admin_control_plane_core.fastapi-web-server
+  capability_name: FastAPI web server
+  source_shape: structured
+- feature_id: admin_control_plane_core
+  capability_id: admin_control_plane_core.rq-background-worker-integration
+  capability_name: RQ background worker integration
+  source_shape: structured
+- feature_id: admin_control_plane_core
+  capability_id: admin_control_plane_core.jinja2-admin-pages
+  capability_name: Jinja2 admin pages
+  source_shape: structured
+- feature_id: admin_control_plane_core
+  capability_id: admin_control_plane_core.pipelinereporter-integration
+  capability_name: PipelineReporter integration
+  source_shape: structured
+- feature_id: admin_control_plane_core
+  capability_id: admin_control_plane_core.pipeline-runs-bigquery-table
+  capability_name: pipeline_runs BigQuery table
+  source_shape: structured
+- feature_id: admin_control_plane_core
+  capability_id: admin_control_plane_core.pipeline-run-events-bigquery-table
+  capability_name: pipeline_run_events BigQuery table
+  source_shape: structured
+- feature_id: admin_control_plane_core
+  capability_id: admin_control_plane_core.insert-before-enqueue-invariant
+  capability_name: insert-before-enqueue invariant
+  source_shape: structured
 stage_participation: []
-refs:
+stage_summary: []
+refs: &id001
   docs:
   - docs/fitcv-control-plane-setup.md
   - docs/FitCV-pipeline.md
@@ -14,3 +56,4 @@ refs:
   - docs/superpowers/archive/plans/2026-03-25-fitcv-admin-control-plane-implementation.md
   history:
   - docs/features/admin_control_plane_core/history.md
+refs_by_type: *id001

@@ -1,11 +1,58 @@
 feature_id: ui_consistency_theming
 source: docs/features/ui_consistency_theming/feature.source.yaml
 generated_contract: docs/features/ui_consistency_theming/ui_consistency_theming.yaml
+naming_policy:
+  feature_id_format: underscore
+  capability_id_format: <feature_id>.<kebab-suffix>
+  string_capabilities_allowed: false
 depends_on:
 - admin_control_plane_core
-capability_ids: []
+capability_shape: structured
+capability_ids:
+- ui_consistency_theming.css-custom-properties-design-tokens
+- ui_consistency_theming.shared-component-classes
+- ui_consistency_theming.dark-light-theme-toggle-with-localstorage-persistence
+- ui_consistency_theming.flash-free-theme-application
+- ui_consistency_theming.consistent-action-hierarchy-primary-secondary-section
+- ui_consistency_theming.human-readable-section-headings
+- ui_consistency_theming.attached-tab-inspection-card-pattern
+- ui_consistency_theming.responsive-wrapping
+capabilities:
+- feature_id: ui_consistency_theming
+  capability_id: ui_consistency_theming.css-custom-properties-design-tokens
+  capability_name: CSS custom properties design tokens
+  source_shape: structured
+- feature_id: ui_consistency_theming
+  capability_id: ui_consistency_theming.shared-component-classes
+  capability_name: Shared component classes
+  source_shape: structured
+- feature_id: ui_consistency_theming
+  capability_id: ui_consistency_theming.dark-light-theme-toggle-with-localstorage-persistence
+  capability_name: Dark/light theme toggle with localStorage persistence
+  source_shape: structured
+- feature_id: ui_consistency_theming
+  capability_id: ui_consistency_theming.flash-free-theme-application
+  capability_name: Flash-free theme application
+  source_shape: structured
+- feature_id: ui_consistency_theming
+  capability_id: ui_consistency_theming.consistent-action-hierarchy-primary-secondary-section
+  capability_name: Consistent action hierarchy (primary, secondary, section)
+  source_shape: structured
+- feature_id: ui_consistency_theming
+  capability_id: ui_consistency_theming.human-readable-section-headings
+  capability_name: Human-readable section headings
+  source_shape: structured
+- feature_id: ui_consistency_theming
+  capability_id: ui_consistency_theming.attached-tab-inspection-card-pattern
+  capability_name: Attached-tab inspection card pattern
+  source_shape: structured
+- feature_id: ui_consistency_theming
+  capability_id: ui_consistency_theming.responsive-wrapping
+  capability_name: Responsive wrapping
+  source_shape: structured
 stage_participation: []
-refs:
+stage_summary: []
+refs: &id001
   docs: []
   spec:
   - docs/superpowers/archive/specs/2026-03-26-admin-ui-consistency-and-theme-toggle-design.md
@@ -15,3 +62,4 @@ refs:
   - docs/superpowers/archive/plans/2026-03-27-settings-and-run-detail-composition-consistency-implementation.md
   history:
   - docs/features/ui_consistency_theming/history.md
+refs_by_type: *id001

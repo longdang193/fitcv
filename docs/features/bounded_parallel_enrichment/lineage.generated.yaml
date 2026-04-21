@@ -1,11 +1,48 @@
 feature_id: bounded_parallel_enrichment
 source: docs/features/bounded_parallel_enrichment/feature.source.yaml
 generated_contract: docs/features/bounded_parallel_enrichment/bounded_parallel_enrichment.yaml
+naming_policy:
+  feature_id_format: underscore
+  capability_id_format: <feature_id>.<kebab-suffix>
+  string_capabilities_allowed: false
 depends_on:
 - pipeline_performance
-capability_ids: []
+capability_shape: structured
+capability_ids:
+- bounded_parallel_enrichment.enrichment-batch-size-setting
+- bounded_parallel_enrichment.enrichment-concurrency-setting
+- bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
+- bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1
+- bounded_parallel_enrichment.deterministic-output-order
+- bounded_parallel_enrichment.per-job-failure-isolation
+capabilities:
+- feature_id: bounded_parallel_enrichment
+  capability_id: bounded_parallel_enrichment.enrichment-batch-size-setting
+  capability_name: enrichment_batch_size setting
+  source_shape: structured
+- feature_id: bounded_parallel_enrichment
+  capability_id: bounded_parallel_enrichment.enrichment-concurrency-setting
+  capability_name: enrichment_concurrency setting
+  source_shape: structured
+- feature_id: bounded_parallel_enrichment
+  capability_id: bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
+  capability_name: Pre-enrichment global filters run first
+  source_shape: structured
+- feature_id: bounded_parallel_enrichment
+  capability_id: bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1
+  capability_name: Conservative defaults (batch_size=10, concurrency=1)
+  source_shape: structured
+- feature_id: bounded_parallel_enrichment
+  capability_id: bounded_parallel_enrichment.deterministic-output-order
+  capability_name: Deterministic output order
+  source_shape: structured
+- feature_id: bounded_parallel_enrichment
+  capability_id: bounded_parallel_enrichment.per-job-failure-isolation
+  capability_name: Per-job failure isolation
+  source_shape: structured
 stage_participation: []
-refs:
+stage_summary: []
+refs: &id001
   docs: []
   spec:
   - docs/superpowers/archive/specs/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-design.md
@@ -13,3 +50,4 @@ refs:
   - docs/superpowers/archive/plans/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-implementation.md
   history:
   - docs/features/bounded_parallel_enrichment/history.md
+refs_by_type: *id001
