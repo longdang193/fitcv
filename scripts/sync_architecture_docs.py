@@ -59,6 +59,8 @@ STAGE_OVERVIEW_HEADER = """# Stage Overview
 """
 STATUS_ORDER = ["active", "building", "planned", "deprecated", "retired"]
 PYTHON_META_PATTERN = re.compile(r"^[ \t]*(?:[rubf]+)?([\"']{3})(.*?)(?:\1)", re.DOTALL | re.IGNORECASE)
+TEMPLATE_ARCHITECTURE_PATTERN = re.compile(r"\{#\s*@architecture(?P<body>.*?)#\}", re.DOTALL)
+HTML_ARCHITECTURE_PATTERN = re.compile(r"<!--\s*@architecture(?P<body>.*?)-->", re.DOTALL)
 FEATURE_PATH_PATTERN = re.compile(r"docs/features/([a-z][a-z0-9_]*)/")
 PROVES_PATTERN = re.compile(r"@proves\s+([a-z][a-z0-9_]*\.[a-z0-9]+(?:-[a-z0-9]+)*)")
 
@@ -151,6 +153,13 @@ def python_source_paths(repo_root: Path) -> list[Path]:
     return paths
 
 
+def template_source_paths(repo_root: Path) -> list[Path]:
+    root = repo_root / "src"
+    if not root.exists():
+        return []
+    return sorted(root.rglob("*.html"))
+
+
 def generated_feature_contract_path(source_path: Path) -> Path:
     return source_path.parent / f"{source_path.parent.name}.yaml"
 
@@ -223,6 +232,23 @@ def parse_markdown_frontmatter(path: Path) -> dict[str, object]:
     return cast(dict[str, object], payload) if isinstance(payload, dict) else {}
 
 
+def parse_template_architecture(path: Path) -> dict[str, object]:
+    content = read_text(path)
+    for pattern in (TEMPLATE_ARCHITECTURE_PATTERN, HTML_ARCHITECTURE_PATTERN):
+        match = pattern.search(content)
+        if not match:
+            continue
+        yaml_body = match.group("body").strip()
+        if not yaml_body:
+            return {}
+        try:
+            payload = yaml.safe_load(yaml_body)
+        except yaml.YAMLError:
+            return {}
+        return cast(dict[str, object], payload) if isinstance(payload, dict) else {}
+    return {}
+
+
 def metadata_capability_ids(meta: dict[str, object]) -> list[str]:
     capabilities = meta.get("capabilities", [])
     if not isinstance(capabilities, list):
@@ -279,6 +305,13 @@ def build_evidence_index(repo_root: Path) -> EvidenceIndex:
         if bucket == "tests":
             for capability_id in PROVES_PATTERN.findall(read_text(path)):
                 tests_by_capability.setdefault(capability_id, []).append(relative)
+
+    for path in template_source_paths(repo_root):
+        relative = relpath(path, repo_root)
+        meta = parse_template_architecture(path)
+        capability_ids = metadata_capability_ids(meta)
+        for capability_id in capability_ids:
+            code_by_capability.setdefault(capability_id, []).append(relative)
 
     for path in markdown_source_paths(repo_root):
         relative = relpath(path, repo_root)

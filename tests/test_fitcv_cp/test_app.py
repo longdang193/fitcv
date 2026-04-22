@@ -3486,7 +3486,10 @@ def test_settings_ranking_group_forms_have_save_buttons_with_correct_form_target
 
 
 def test_run_detail_inspection_area_wrapped_in_inspection_card():
-    """The inspection area must be wrapped in .inspection-card, with tab bar inside."""
+    """@proves ui_consistency_theming.attached-tab-inspection-card-pattern
+
+    The inspection area must be wrapped in .inspection-card, with tab bar inside.
+    """
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
     run = PipelineRun(
@@ -3515,7 +3518,10 @@ def test_run_detail_inspection_area_wrapped_in_inspection_card():
 
 
 def test_run_detail_tab_bar_uses_attached_modifier():
-    """The tab bar must use .tab-bar--attached (not the old .tab-bar)."""
+    """@proves ui_consistency_theming.attached-tab-inspection-card-pattern
+
+    The tab bar must use .tab-bar--attached (not the old .tab-bar).
+    """
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
     run = PipelineRun(
@@ -3586,6 +3592,55 @@ def test_run_detail_no_page_local_tab_style_inside_inspection_area():
         "Page-local <style> tag found inside .inspection-card region — "
         "tab styling should use shared CSS from base.html"
     )
+
+
+def test_base_template_bootstraps_saved_theme_before_styles():
+    """@proves ui_consistency_theming.dark-light-theme-toggle-with-localstorage-persistence
+    @proves ui_consistency_theming.flash-free-theme-application
+    """
+    from pathlib import Path
+
+    html = Path("src/fitcv_cp/templates/base.html").read_text(encoding="utf-8")
+
+    script_pos = html.index("<script>")
+    style_pos = html.index("<style>")
+
+    assert script_pos < style_pos
+    assert "localStorage.getItem('fitcv-theme') || 'dark'" in html
+    assert "document.documentElement.setAttribute('data-theme', t);" in html
+
+
+def test_base_template_defines_theme_tokens_and_shared_classes():
+    """@proves ui_consistency_theming.css-custom-properties-design-tokens
+    @proves ui_consistency_theming.shared-component-classes
+    """
+    from pathlib import Path
+
+    html = Path("src/fitcv_cp/templates/base.html").read_text(encoding="utf-8")
+
+    assert ':root[data-theme="dark"]' in html
+    assert ':root[data-theme="light"]' in html
+    for token in ("--bg:", "--surface-1:", "--accent:", "--divider:"):
+        assert token in html
+    for shared_class in (".card, .section-card", ".sub-card", ".inspection-card", ".pane-container"):
+        assert shared_class in html
+
+
+def test_base_template_uses_wrapping_rules_for_shared_layout_surfaces():
+    """@proves ui_consistency_theming.responsive-wrapping"""
+    from pathlib import Path
+
+    html = Path("src/fitcv_cp/templates/base.html").read_text(encoding="utf-8")
+
+    page_header_start = html.index(".page-header {")
+    page_header_end = html.index("}", page_header_start)
+    page_header_block = html[page_header_start:page_header_end]
+    assert "flex-wrap: wrap;" in page_header_block
+
+    section_actions_start = html.index(".section-actions {")
+    section_actions_end = html.index("}", section_actions_start)
+    section_actions_block = html[section_actions_start:section_actions_end]
+    assert "flex-wrap: wrap;" in section_actions_block
 
 
 # ── Task 1: path-mode snapshot capture ──────────────────────────────────────

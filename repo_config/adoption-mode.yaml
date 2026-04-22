@@ -335,6 +335,24 @@ phase_7_direct_evidence_pilot:
     ui_consistency_theming.human-readable-section-headings:
       require_code: true
       require_tests: true
+    ui_consistency_theming.css-custom-properties-design-tokens:
+      require_code: true
+      require_tests: true
+    ui_consistency_theming.shared-component-classes:
+      require_code: true
+      require_tests: true
+    ui_consistency_theming.dark-light-theme-toggle-with-localstorage-persistence:
+      require_code: true
+      require_tests: true
+    ui_consistency_theming.flash-free-theme-application:
+      require_code: true
+      require_tests: true
+    ui_consistency_theming.attached-tab-inspection-card-pattern:
+      require_code: true
+      require_tests: true
+    ui_consistency_theming.responsive-wrapping:
+      require_code: true
+      require_tests: true
 notes: >
   JOB-PROJECT is aligning toward the project-OS-starter managed architecture
   metadata model. Managed features and stages now use source-owned lifecycle
@@ -356,4 +374,7 @@ notes: >
   to control-plane lifecycle and admin-core capabilities; Phase 12 extends the
   pilot to direct upload/snapshot capabilities plus the currently well-proven
   UI structure capabilities, while leaving broader theme-token and bootstrap
-  surfaces deferred until they have explicit proof coverage.
+  surfaces deferred until they have explicit proof coverage; Phase 13 adds
+  repo-local template ownership metadata plus direct proof coverage so the
+  remaining `ui_consistency_theming` capabilities can participate truthfully in
+  the evidence-oriented lineage model.
