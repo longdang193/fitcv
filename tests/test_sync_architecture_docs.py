@@ -24,6 +24,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "sync_architecture_docs.py"
+GENERATOR_PATH = REPO_ROOT / "tools" / "docs" / "generate_architecture_metadata.py"
 
 
 def load_sync_module():
@@ -118,11 +119,82 @@ def build_minimal_repo(tmp_path: Path) -> Path:
         "# History\n\n## Human Notes\nLegacy admin note.\n", encoding="utf-8"
     )
     (repo_root / "docs" / "generated").mkdir(parents=True, exist_ok=True)
+    (repo_root / "docs" / "operating_system").mkdir(parents=True, exist_ok=True)
+    (repo_root / "docs" / "superpowers" / "specs").mkdir(parents=True, exist_ok=True)
+    (repo_root / "docs" / "superpowers" / "plans").mkdir(parents=True, exist_ok=True)
     (repo_root / "scripts").mkdir(parents=True, exist_ok=True)
     (repo_root / "tests").mkdir(parents=True, exist_ok=True)
+    (repo_root / "tools" / "docs").mkdir(parents=True, exist_ok=True)
     (repo_root / "config" / "runtime").mkdir(parents=True, exist_ok=True)
     (repo_root / "docs" / "superpowers" / "archive" / "specs").mkdir(parents=True, exist_ok=True)
     (repo_root / "docs" / "superpowers" / "archive" / "plans").mkdir(parents=True, exist_ok=True)
+    for relative_path, content in {
+        "docs/setup.md": (
+            "# Setup\n\n"
+            "Install the required dependencies, confirm tool versions, provision prerequisites, and bootstrap in order.\n"
+        ),
+        "docs/configuration.md": (
+            "# Configuration\n\n"
+            "Each environment variable and config file has profile defaults, override rules, ownership, and repo_config guidance.\n"
+        ),
+        "docs/usage.md": (
+            "# Usage\n\n"
+            "Use the command entrypoint for the operator workflow, developer flow, and run loop.\n"
+        ),
+        "docs/pipeline.md": (
+            "# Pipeline\n\n"
+            "The stage workflow documents the processing flow, sequence, handoff, and step order.\n"
+        ),
+        "docs/architecture.md": (
+            "# Architecture\n\n"
+            "The architecture captures each component boundary, integration point, information flow, and control flow.\n"
+        ),
+        "docs/intent/README.md": "# Intent\n",
+        "docs/intent/project-charter.md": "# Project Charter\n",
+        "docs/intent/stakeholders.md": "# Stakeholders\n",
+        "docs/intent/success-outcomes.md": "# Success Outcomes\n",
+        "docs/intent/constraints-and-non-goals.md": "# Constraints And Non-Goals\n",
+    }.items():
+        target = repo_root / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8")
+    write_yaml(
+        repo_root / "repo_config" / "adoption-mode.yaml",
+        {
+            "adoption_mode": "managed_architecture_metadata",
+            "managed_architecture_metadata": True,
+            "legacy_feature_contracts": False,
+            "architecture_generator": "scripts/sync_architecture_docs.py",
+            "starter_sync": {
+                "starter_baseline_ref": "a5d2d85b3174cde84f90df26642385b429e3c194",
+                "last_shared_surface_review_at": "2026-04-22",
+                "reviewed_surface_classes": [
+                    "repo_config",
+                    "operating_system_docs",
+                    "skills",
+                    "adapters",
+                    "generated_instruction_surfaces",
+                    "validation_and_sync_scripts",
+                ],
+                "divergences": [
+                    {
+                        "path": "docs/features/*/history.md",
+                        "class": "operating_system_docs",
+                        "status": "customized",
+                        "rationale": "Feature histories have not yet been migrated to the starter partial-generated history pattern.",
+                    }
+                ],
+            },
+        },
+    )
+    (repo_root / "scripts" / "validate_adoption_shape.py").write_text(
+        (REPO_ROOT / "scripts" / "validate_adoption_shape.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (repo_root / "tools" / "docs" / "generate_architecture_metadata.py").write_text(
+        GENERATOR_PATH.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     (repo_root / "scripts" / "cv_writer.py").write_text(
         '"""\n'
         "@meta\n"
@@ -190,8 +262,6 @@ def build_minimal_repo(tmp_path: Path) -> Path:
         "#   - cv_analysis\n"
         "# capabilities:\n"
         "#   - cv_system.structured-cv-generation\n"
-        "# components:\n"
-        "#   - config.runtime.prompts\n"
         "# role: config\n"
         "# canonical: true\n\n"
         "prompts:\n"
@@ -261,14 +331,8 @@ def test_sync_script_writes_feature_and_stage_outputs(tmp_path: Path) -> None:
     ]
     assert capability_lineage["docs"] == ["docs/features/cv_system/history.md"]
     assert capability_lineage["configs"] == ["config/runtime/prompts.yaml"]
-    assert capability_lineage["components"] == ["config.runtime.prompts"]
-    assert capability_lineage["component_evidence"] == [
-        {
-            "path": "config/runtime/prompts.yaml",
-            "kind": "component_ref",
-            "component": "config.runtime.prompts",
-        }
-    ]
+    assert capability_lineage["components"] == []
+    assert capability_lineage["component_evidence"] == []
     assert capability_lineage["specs"] == ["docs/superpowers/archive/specs/2026-04-22-cv-system-spec.md"]
     assert capability_lineage["plans"] == ["docs/superpowers/archive/plans/2026-04-22-cv-system-plan.md"]
     assert capability_lineage["completeness_status"] == "complete"
@@ -320,7 +384,7 @@ def test_sync_script_refreshes_generated_discovery_outputs(tmp_path: Path) -> No
         }
     ]
     assert capability["configs"] == ["config/runtime/prompts.yaml"]
-    assert capability["components"] == ["config.runtime.prompts"]
+    assert capability["components"] == []
 
 
 def test_sync_script_check_mode_reports_legacy_generated_outputs_as_stale(tmp_path: Path) -> None:
@@ -362,19 +426,21 @@ def test_sync_script_check_mode_detects_stale_outputs(tmp_path: Path) -> None:
 
 def test_sync_script_rejects_legacy_string_capabilities(tmp_path: Path) -> None:
     repo_root = build_minimal_repo(tmp_path)
-    sync_module = load_sync_module()
 
     feature_source_path = repo_root / "docs" / "features" / "cv_system" / "feature.source.yaml"
     payload = yaml.safe_load(feature_source_path.read_text(encoding="utf-8"))
     payload["capabilities"] = ["Structured CV Generation"]
     feature_source_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
-    try:
-        sync_module.main(["--repo-root", str(repo_root)])
-    except ValueError as exc:
-        assert "must be a mapping" in str(exc)
-    else:
-        raise AssertionError("Expected sync script to reject string-only capability entries.")
+    process = subprocess.run(
+        [sys.executable, str(SCRIPT_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "must be a mapping" in (process.stderr + process.stdout)
 
 
 def test_sync_script_normalizes_generated_summary_and_statement_text(tmp_path: Path) -> None:

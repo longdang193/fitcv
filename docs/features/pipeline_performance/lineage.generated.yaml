@@ -33,7 +33,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -103,7 +105,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -167,7 +171,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -237,7 +243,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -311,7 +319,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -381,7 +391,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -445,7 +457,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -515,7 +529,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -579,7 +595,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -643,7 +661,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -707,7 +727,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -777,7 +799,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -841,7 +865,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -905,7 +931,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -973,7 +1001,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -1041,7 +1071,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -1105,7 +1137,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -1179,7 +1213,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -1243,7 +1279,9 @@ capabilities:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
     - path: docs/features/pipeline_performance/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []

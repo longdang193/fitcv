@@ -8,8 +8,6 @@
 #   - cv_analysis
 # capabilities:
 #   - cv_system.analysis-evidence-selection
-# components:
-#   - config.runtime.pipeline
 # role: config
 # canonical: true
 

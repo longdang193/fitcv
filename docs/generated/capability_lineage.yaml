@@ -25,7 +25,9 @@ features:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
         - path: docs/features/admin_control_plane_core/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -83,7 +85,9 @@ features:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
         - path: docs/features/admin_control_plane_core/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -159,7 +163,9 @@ features:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
         - path: docs/features/admin_control_plane_core/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -221,7 +227,9 @@ features:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
         - path: docs/features/admin_control_plane_core/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -319,7 +327,9 @@ features:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
         - path: docs/features/admin_control_plane_core/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -375,7 +385,9 @@ features:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
         - path: docs/features/admin_control_plane_core/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -421,7 +433,9 @@ features:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
         - path: docs/features/admin_control_plane_core/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -484,7 +498,9 @@ features:
         - docs/features/bounded_parallel_enrichment/history.md
         docs_evidence:
         - path: docs/features/bounded_parallel_enrichment/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -539,7 +555,9 @@ features:
         - docs/features/bounded_parallel_enrichment/history.md
         docs_evidence:
         - path: docs/features/bounded_parallel_enrichment/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -584,7 +602,9 @@ features:
         - docs/features/bounded_parallel_enrichment/history.md
         docs_evidence:
         - path: docs/features/bounded_parallel_enrichment/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -627,7 +647,9 @@ features:
         - docs/features/bounded_parallel_enrichment/history.md
         docs_evidence:
         - path: docs/features/bounded_parallel_enrichment/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -672,7 +694,9 @@ features:
         - docs/features/bounded_parallel_enrichment/history.md
         docs_evidence:
         - path: docs/features/bounded_parallel_enrichment/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -717,7 +741,9 @@ features:
         - docs/features/bounded_parallel_enrichment/history.md
         docs_evidence:
         - path: docs/features/bounded_parallel_enrichment/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -765,25 +791,23 @@ features:
         - docs/features/cv_system/history.md
         docs_evidence:
         - path: docs/features/cv_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs:
         - config/policy/cv_analysis.yaml
         - config/runtime/pipeline.yaml
         config_evidence:
         - path: config/policy/cv_analysis.yaml
-          kind: config_ref
+          confidence: high
+          source:
+          - yaml_architecture
         - path: config/runtime/pipeline.yaml
-          kind: config_ref
-        components:
-        - config.policy.cv-analysis
-        - config.runtime.pipeline
-        component_evidence:
-        - path: config/policy/cv_analysis.yaml
-          kind: component_ref
-          component: config.policy.cv-analysis
-        - path: config/runtime/pipeline.yaml
-          kind: component_ref
-          component: config.runtime.pipeline
+          confidence: high
+          source:
+          - yaml_architecture
+        components: []
+        component_evidence: []
         specs:
         - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
         - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
@@ -918,25 +942,23 @@ features:
         - docs/features/cv_system/history.md
         docs_evidence:
         - path: docs/features/cv_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs:
         - config/policy/cv_analysis.yaml
         - config/policy/ranking.yaml
         config_evidence:
         - path: config/policy/cv_analysis.yaml
-          kind: config_ref
+          confidence: high
+          source:
+          - yaml_architecture
         - path: config/policy/ranking.yaml
-          kind: config_ref
-        components:
-        - config.policy.cv-analysis
-        - config.policy.ranking
-        component_evidence:
-        - path: config/policy/cv_analysis.yaml
-          kind: component_ref
-          component: config.policy.cv-analysis
-        - path: config/policy/ranking.yaml
-          kind: component_ref
-          component: config.policy.ranking
+          confidence: high
+          source:
+          - yaml_architecture
+        components: []
+        component_evidence: []
         specs:
         - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
         - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
@@ -1077,7 +1099,9 @@ features:
         - docs/features/cv_system/history.md
         docs_evidence:
         - path: docs/features/cv_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -1214,25 +1238,23 @@ features:
         - docs/features/cv_system/history.md
         docs_evidence:
         - path: docs/features/cv_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs:
         - config/taxonomy/skill_synonyms.yaml
         - config/taxonomy/taxonomy.yaml
         config_evidence:
         - path: config/taxonomy/skill_synonyms.yaml
-          kind: config_ref
+          confidence: high
+          source:
+          - yaml_architecture
         - path: config/taxonomy/taxonomy.yaml
-          kind: config_ref
-        components:
-        - config.taxonomy.role-and-domain
-        - config.taxonomy.skill-synonyms
-        component_evidence:
-        - path: config/taxonomy/taxonomy.yaml
-          kind: component_ref
-          component: config.taxonomy.role-and-domain
-        - path: config/taxonomy/skill_synonyms.yaml
-          kind: component_ref
-          component: config.taxonomy.skill-synonyms
+          confidence: high
+          source:
+          - yaml_architecture
+        components: []
+        component_evidence: []
         specs:
         - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
         - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
@@ -1367,7 +1389,9 @@ features:
         - docs/features/cv_system/history.md
         docs_evidence:
         - path: docs/features/cv_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -1506,7 +1530,9 @@ features:
         - docs/features/cv_system/history.md
         docs_evidence:
         - path: docs/features/cv_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -1651,7 +1677,9 @@ features:
         - docs/features/cv_system/history.md
         docs_evidence:
         - path: docs/features/cv_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -1794,25 +1822,23 @@ features:
         - docs/features/cv_system/history.md
         docs_evidence:
         - path: docs/features/cv_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs:
         - config/policy/cv.yaml
         - config/runtime/prompts.yaml
         config_evidence:
         - path: config/policy/cv.yaml
-          kind: config_ref
+          confidence: high
+          source:
+          - yaml_architecture
         - path: config/runtime/prompts.yaml
-          kind: config_ref
-        components:
-        - config.policy.cv-generation
-        - config.runtime.prompts
-        component_evidence:
-        - path: config/policy/cv.yaml
-          kind: component_ref
-          component: config.policy.cv-generation
-        - path: config/runtime/prompts.yaml
-          kind: component_ref
-          component: config.runtime.prompts
+          confidence: high
+          source:
+          - yaml_architecture
+        components: []
+        component_evidence: []
         specs:
         - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
         - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
@@ -1951,7 +1977,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -2089,7 +2117,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -2221,7 +2251,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -2359,7 +2391,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -2491,7 +2525,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -2649,7 +2685,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -2813,7 +2851,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -2965,7 +3005,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -3101,18 +3143,18 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs:
         - config/runtime/prompts.yaml
         config_evidence:
         - path: config/runtime/prompts.yaml
-          kind: config_ref
-        components:
-        - config.runtime.prompts
-        component_evidence:
-        - path: config/runtime/prompts.yaml
-          kind: component_ref
-          component: config.runtime.prompts
+          confidence: high
+          source:
+          - yaml_architecture
+        components: []
+        component_evidence: []
         specs:
         - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
         - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
@@ -3240,7 +3282,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -3372,7 +3416,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -3510,7 +3556,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -3648,7 +3696,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -3796,7 +3846,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -3938,7 +3990,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -4080,7 +4134,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -4218,7 +4274,9 @@ features:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -4361,7 +4419,9 @@ features:
         - docs/features/multi_file_job_input/history.md
         docs_evidence:
         - path: docs/features/multi_file_job_input/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -4416,7 +4476,9 @@ features:
         - docs/features/multi_file_job_input/history.md
         docs_evidence:
         - path: docs/features/multi_file_job_input/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -4465,7 +4527,9 @@ features:
         - docs/features/multi_file_job_input/history.md
         docs_evidence:
         - path: docs/features/multi_file_job_input/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -4552,7 +4616,9 @@ features:
         - docs/features/multi_file_job_input/history.md
         docs_evidence:
         - path: docs/features/multi_file_job_input/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -4607,7 +4673,9 @@ features:
         - docs/features/multi_file_job_input/history.md
         docs_evidence:
         - path: docs/features/multi_file_job_input/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -4665,7 +4733,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -4735,7 +4805,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -4799,7 +4871,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -4869,7 +4943,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -4943,7 +5019,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5013,7 +5091,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5077,7 +5157,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5147,7 +5229,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5211,7 +5295,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5275,7 +5361,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5339,7 +5427,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5409,7 +5499,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5473,7 +5565,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5537,7 +5631,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5605,7 +5701,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5673,7 +5771,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5737,7 +5837,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5811,7 +5913,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5875,7 +5979,9 @@ features:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
         - path: docs/features/pipeline_performance/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -5960,7 +6066,9 @@ features:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
         - path: docs/features/run_lifecycle_controls/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6039,7 +6147,9 @@ features:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
         - path: docs/features/run_lifecycle_controls/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6100,7 +6210,9 @@ features:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
         - path: docs/features/run_lifecycle_controls/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6179,7 +6291,9 @@ features:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
         - path: docs/features/run_lifecycle_controls/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6240,7 +6354,9 @@ features:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
         - path: docs/features/run_lifecycle_controls/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6301,7 +6417,9 @@ features:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
         - path: docs/features/run_lifecycle_controls/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6378,7 +6496,9 @@ features:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
         - path: docs/features/run_lifecycle_controls/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6463,7 +6583,9 @@ features:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
         - path: docs/features/run_lifecycle_controls/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6538,7 +6660,9 @@ features:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
         - path: docs/features/run_lifecycle_controls/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6604,7 +6728,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6673,7 +6799,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6742,7 +6870,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6815,7 +6945,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6888,7 +7020,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -6957,7 +7091,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -7026,7 +7162,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -7099,7 +7237,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -7184,7 +7324,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -7267,7 +7409,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -7350,7 +7494,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -7419,7 +7565,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -7488,7 +7636,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -7557,7 +7707,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -7632,7 +7784,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -7711,7 +7865,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -7786,7 +7942,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -7855,7 +8013,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -7930,7 +8090,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -8005,7 +8167,9 @@ features:
         - docs/features/settings_system/history.md
         docs_evidence:
         - path: docs/features/settings_system/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -8105,7 +8269,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -8225,7 +8391,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -8325,7 +8493,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -8431,7 +8601,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -8531,7 +8703,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -8631,7 +8805,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -8747,7 +8923,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -8869,7 +9047,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -8969,7 +9149,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -9069,7 +9251,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -9189,7 +9373,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -9289,7 +9475,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -9389,7 +9577,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -9515,7 +9705,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -9615,7 +9807,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -9715,7 +9909,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -9825,7 +10021,9 @@ features:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
         - path: docs/features/trigger_run_management/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -9930,7 +10128,9 @@ features:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
         - path: docs/features/ui_consistency_theming/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -9975,7 +10175,9 @@ features:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
         - path: docs/features/ui_consistency_theming/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -10020,7 +10222,9 @@ features:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
         - path: docs/features/ui_consistency_theming/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -10065,7 +10269,9 @@ features:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
         - path: docs/features/ui_consistency_theming/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -10116,7 +10322,9 @@ features:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
         - path: docs/features/ui_consistency_theming/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -10173,7 +10381,9 @@ features:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
         - path: docs/features/ui_consistency_theming/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -10224,7 +10434,9 @@ features:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
         - path: docs/features/ui_consistency_theming/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []
@@ -10269,7 +10481,9 @@ features:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
         - path: docs/features/ui_consistency_theming/history.md
-          kind: doc_ref
+          confidence: high
+          source:
+          - docs_frontmatter
         configs: []
         config_evidence: []
         components: []

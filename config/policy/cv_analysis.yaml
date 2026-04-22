@@ -7,8 +7,6 @@
 # capabilities:
 #   - cv_system.analysis-evidence-selection
 #   - cv_system.fit-gate-resolution
-# components:
-#   - config.policy.cv-analysis
 # role: config
 # canonical: true
 

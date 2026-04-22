@@ -4,21 +4,21 @@ name: validate_adoption_shape
 type: script
 domain: docs
 responsibility:
-  - Validate required Mode B repo surfaces for managed architecture metadata.
-  - Enforce the Phase 5 managed feature source, generated contract, and lineage shape.
-  - Fail when generated architecture docs are stale.
+  - Validate the explicit starter adoption mode and architecture-doc shape.
+  - Catch mixed legacy/managed feature metadata states and method-layer pseudo-features.
 inputs:
   - repo_config/adoption-mode.yaml
   - docs/features/
   - docs/stages/
   - docs/generated/
-  - docs/intent/
-  - scripts/sync_architecture_docs.py
+  - docs/superpowers/specs/*.md
+  - docs/superpowers/plans/*.md
 outputs:
-  - stdout validation report
+  - Exit status and human-readable adoption-shape validation results.
 tags:
   - docs
-  - architecture
+  - validation
+  - adoption
   - ci-safe
 lifecycle:
   status: active
@@ -27,44 +27,106 @@ lifecycle:
 from __future__ import annotations
 
 import argparse
-import ast
-import importlib.util
+from dataclasses import dataclass
+from datetime import date, datetime
 from pathlib import Path
 import re
-from typing import Any, cast
+from typing import Any
 
 import yaml
 
 
-REQUIRED_DOC_PATHS = [
+ALLOWED_MODES = {
+    "starter_method_only",
+    "managed_architecture_metadata",
+    "legacy_compatibility",
+}
+METHOD_FEATURE_IDS = {"repo-operating-system"}
+METHOD_FEATURE_PREFIXES = (
+    "repo-",
+    "agent-",
+    "adapter-",
+    "publication-",
+    "docs-governance",
+)
+GENERATED_INDEX_NAMES = {
+    "architecture_dag.yaml",
+    "capability_lineage.yaml",
+    "feature_capabilities_index.yaml",
+    "feature_dependency_graph.yaml",
+    "feature_overview.md",
+    "features_by_status.yaml",
+    "features_index.yaml",
+}
+METADATA_SCAN_SUFFIXES = {".py", ".yaml", ".yml", ".sql", ".md"}
+METADATA_SCAN_SKIP_DIRS = {
+    ".git",
+    ".tmp-tests",
+    ".venv",
+    ".agents",
+    "venv",
+    "node_modules",
+    "docs",
+    "agent-core",
+    "repo_config",
+    "scripts",
+    "tests",
+    "tools",
+}
+FEATURE_METADATA_PATTERNS = (
+    "@capability",
+    "@proves",
+    "explains.features",
+    "capability_id:",
+    "capability_ids:",
+)
+REQUIRED_ROOT_PROJECT_DOCS = (
     "docs/setup.md",
     "docs/configuration.md",
     "docs/usage.md",
     "docs/pipeline.md",
     "docs/architecture.md",
-    "docs/intent/README.md",
-    "docs/intent/project-charter.md",
-    "docs/intent/stakeholders.md",
-    "docs/intent/success-outcomes.md",
-    "docs/intent/constraints-and-non-goals.md",
-]
-FEATURE_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
-CAPABILITY_SUFFIX_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-PROVES_PATTERN = re.compile(r"@proves\s+([a-z][a-z0-9_]*\.[a-z0-9]+(?:-[a-z0-9]+)*)")
-SOURCE_ALLOWED_KEYS = {
-    "feature_id",
-    "name",
-    "status",
-    "type",
-    "summary",
-    "invariants",
-    "domains",
-    "depends_on",
-    "capabilities",
-    "stage_participation",
-    "lineage_exceptions",
+)
+REQUIRED_DOC_KEYWORDS = {
+    "docs/setup.md": ("depend", "tool version", "install", "provision", "prerequisite", "bootstrap"),
+    "docs/configuration.md": (
+        "environment variable",
+        "config file",
+        "profile",
+        "default",
+        "override",
+        "ownership",
+        "repo_config",
+        "configs",
+    ),
+    "docs/usage.md": ("command", "entrypoint", "run flow", "workflow", "operator", "developer flow", "run loop"),
+    "docs/pipeline.md": ("stage", "workflow", "step", "handoff", "processing flow", "sequence"),
+    "docs/architecture.md": ("component", "boundar", "integration", "information flow", "control flow"),
 }
-FORBIDDEN_LINEAGE_KEYS = {
+PLACEHOLDER_PATTERNS = ("todo", "tbd", "placeholder", "fill this in later")
+REQUIRED_PROJECT_FOLDERS = (
+    "docs/intent",
+    "docs/operating_system",
+    "docs/superpowers/specs",
+    "docs/superpowers/plans",
+    "repo_config",
+    "scripts",
+    "tests",
+)
+MANAGED_FEATURE_TEMPLATE_PATH = "docs/architecture_templates/feature.source.yaml"
+YAML_ARCHITECTURE_TEMPLATE_PATH = "docs/architecture_templates/yaml-architecture.yaml"
+MARKDOWN_FRONTMATTER_TEMPLATE_PATH = "docs/architecture_templates/markdown-frontmatter.md"
+REQUIRED_STARTER_SYNC_SURFACE_CLASSES = {
+    "repo_config",
+    "operating_system_docs",
+    "skills",
+    "adapters",
+    "generated_instruction_surfaces",
+    "validation_and_sync_scripts",
+}
+ALLOWED_STARTER_SYNC_STATUSES = {"aligned", "customized", "deferred", "not_applicable"}
+REQUIRED_LINEAGE_TOP_LEVEL_KEYS = {"feature_id", "source", "invariants", "capabilities", "timeline"}
+LEGACY_LINEAGE_TOP_LEVEL_KEYS = {
     "generated_contract",
     "naming_policy",
     "capability_shape",
@@ -72,11 +134,27 @@ FORBIDDEN_LINEAGE_KEYS = {
     "refs",
     "refs_by_type",
 }
-LINEAGE_ALIAS_PATTERN = re.compile(r"(^|\s)[&*]id\d+\b", re.MULTILINE)
-LINEAGE_EVIDENCE_FIELDS = ("code", "tests", "docs", "specs", "plans", "configs")
-CAPABILITY_PATTERN = re.compile(r"@capability\s+(\S+)")
-VALID_CAPABILITY_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*\.[a-z0-9]+(?:-[a-z0-9]+)*$")
-RICH_TIMELINE_KEYS = {
+LINEAGE_REQUIRED_CAPABILITY_KEYS = {
+    "state",
+    "statement",
+    "satisfies",
+    "code",
+    "tests",
+    "docs",
+    "docs_evidence",
+    "configs",
+    "config_evidence",
+    "components",
+    "component_evidence",
+    "specs",
+    "plans",
+    "evidence_gaps",
+    "allowed_evidence_gaps",
+    "lineage_exception_reason",
+    "unresolved_evidence_gaps",
+    "completeness_status",
+}
+LINEAGE_RICH_TIMELINE_KEYS = {
     "completed_at",
     "source_plan",
     "change_id",
@@ -85,745 +163,1432 @@ RICH_TIMELINE_KEYS = {
     "verification",
     "outcome",
 }
-REQUIRED_GENERATED_DISCOVERY_FILES = (
-    "docs/generated/architecture_dag.yaml",
-    "docs/generated/capability_lineage.yaml",
-)
-LEGACY_GENERATED_DISCOVERY_FILES = (
-    "docs/generated/features_index.yaml",
-    "docs/generated/feature_dependency_graph.yaml",
-    "docs/generated/feature_capabilities_index.yaml",
-    "docs/generated/feature_overview.md",
-    "docs/generated/features_by_status.yaml",
-    "docs/generated/stages_index.yaml",
-    "docs/generated/stage_overview.md",
-)
-YAML_METADATA_REQUIRED_FIELDS = ("owner", "features", "capabilities", "role", "canonical")
+LINEAGE_COMPLETENESS_STATUSES = {"complete", "excepted", "incomplete"}
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate Mode B adoption shape.")
+@dataclass(frozen=True)
+class Finding:
+    level: str
+    path: str
+    message: str
+    fix: str
+
+
+@dataclass(frozen=True)
+class AdoptionConfig:
+    mode: str
+    managed_architecture_metadata: bool
+    legacy_feature_contracts: bool
+    architecture_generator: str
+    payload: dict[str, Any]
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Validate starter adoption mode and architecture-doc shape."
+    )
     parser.add_argument(
         "--repo-root",
         type=Path,
         default=Path(__file__).resolve().parents[1],
-        help="Repository root. Defaults to this script's repo.",
+        help="Repository root to validate. Defaults to this script's repository.",
     )
-    return parser.parse_args(argv)
-
-
-def read_yaml(path: Path) -> object:
-    return yaml.safe_load(path.read_text(encoding="utf-8"))
+    parser.add_argument(
+        "--adoption-mode",
+        default="repo_config/adoption-mode.yaml",
+        help="Path to adoption-mode.yaml relative to repo root.",
+    )
+    return parser
 
 
 def relpath(path: Path, root: Path) -> str:
-    return path.relative_to(root).as_posix()
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return path.as_posix()
 
 
-def requires_python_metadata(path: Path, repo_root: Path) -> bool:
-    relative = relpath(path, repo_root)
-    if "__pycache__" in path.parts:
+def load_yaml(path: Path) -> Any:
+    with path.open("r", encoding="utf-8") as handle:
+        return yaml.safe_load(handle)
+
+
+def add_error(findings: list[Finding], path: str, message: str, fix: str) -> None:
+    findings.append(Finding("ERROR", path, message, fix))
+
+
+def add_warning(findings: list[Finding], path: str, message: str, fix: str) -> None:
+    findings.append(Finding("WARN", path, message, fix))
+
+
+def parse_adoption_config(path: Path, findings: list[Finding], root: Path) -> AdoptionConfig | None:
+    if not path.exists():
+        add_error(
+            findings,
+            relpath(path, root),
+            "Missing adoption mode source file.",
+            "Create repo_config/adoption-mode.yaml and choose an adoption_mode.",
+        )
+        return None
+
+    try:
+        payload = load_yaml(path)
+    except yaml.YAMLError as exc:
+        add_error(
+            findings,
+            relpath(path, root),
+            f"Could not parse adoption mode YAML: {exc}",
+            "Fix YAML syntax.",
+        )
+        return None
+
+    if not isinstance(payload, dict):
+        add_error(
+            findings,
+            relpath(path, root),
+            "Adoption mode file must be a top-level mapping.",
+            "Use keys such as adoption_mode, managed_architecture_metadata, and legacy_feature_contracts.",
+        )
+        return None
+
+    mode = payload.get("adoption_mode")
+    managed = payload.get("managed_architecture_metadata")
+    legacy = payload.get("legacy_feature_contracts")
+    generator = payload.get("architecture_generator", "none")
+
+    if mode not in ALLOWED_MODES:
+        add_error(
+            findings,
+            relpath(path, root),
+            f"Invalid adoption_mode: {mode!r}.",
+            "Use one of: " + ", ".join(sorted(ALLOWED_MODES)) + ".",
+        )
+        return None
+
+    if not isinstance(managed, bool):
+        add_error(
+            findings,
+            relpath(path, root),
+            "managed_architecture_metadata must be a boolean.",
+            "Set managed_architecture_metadata to true or false.",
+        )
+        return None
+
+    if not isinstance(legacy, bool):
+        add_error(
+            findings,
+            relpath(path, root),
+            "legacy_feature_contracts must be a boolean.",
+            "Set legacy_feature_contracts to true or false.",
+        )
+        return None
+
+    if not isinstance(generator, str):
+        add_error(
+            findings,
+            relpath(path, root),
+            "architecture_generator must be a string path or `none`.",
+            "Set architecture_generator to none or a generator script path.",
+        )
+        return None
+
+    config = AdoptionConfig(mode, managed, legacy, generator, payload)
+    validate_mode_consistency(config, relpath(path, root), findings)
+    validate_starter_sync_record(config, relpath(path, root), findings)
+    return config
+
+
+def validate_mode_consistency(config: AdoptionConfig, path: str, findings: list[Finding]) -> None:
+    expected = {
+        "starter_method_only": (False, False),
+        "managed_architecture_metadata": (True, False),
+        "legacy_compatibility": (False, True),
+    }[config.mode]
+    if (config.managed_architecture_metadata, config.legacy_feature_contracts) != expected:
+        add_error(
+            findings,
+            path,
+            "Adoption mode booleans do not match adoption_mode.",
+            (
+                f"For {config.mode}, set managed_architecture_metadata={str(expected[0]).lower()} "
+                f"and legacy_feature_contracts={str(expected[1]).lower()}."
+            ),
+        )
+
+
+def is_iso_like_date(value: Any) -> bool:
+    if isinstance(value, (date, datetime)):
+        return True
+    if not isinstance(value, str):
         return False
-    if path.name == "__init__.py":
-        return False
-    return relative.startswith("scripts/") or relative.startswith("tests/")
+    for parser in (date.fromisoformat, datetime.fromisoformat):
+        try:
+            parser(value)
+            return True
+        except ValueError:
+            continue
+    return False
 
 
-def has_meta_docstring(path: Path) -> bool:
-    content = path.read_text(encoding="utf-8")
-    if content.startswith("#!"):
-        _shebang, _newline, content = content.partition("\n")
-    stripped = content.lstrip()
-    return (
-        stripped.startswith('"""\n@meta')
-        or stripped.startswith("'''\n@meta")
-        or stripped.startswith('"""')
-        or stripped.startswith("'''")
+def validate_starter_sync_record(config: AdoptionConfig, path: str, findings: list[Finding]) -> None:
+    if config.mode != "managed_architecture_metadata":
+        return
+
+    starter_sync = config.payload.get("starter_sync")
+    if not isinstance(starter_sync, dict):
+        add_error(
+            findings,
+            path,
+            "managed_architecture_metadata mode requires a starter_sync record.",
+            (
+                "Add starter_sync with starter_baseline_ref, last_shared_surface_review_at, "
+                "and reviewed_surface_classes to repo_config/adoption-mode.yaml."
+            ),
+        )
+        return
+
+    baseline = starter_sync.get("starter_baseline_ref")
+    if not isinstance(baseline, str) or not baseline.strip():
+        add_error(
+            findings,
+            path,
+            "starter_sync.starter_baseline_ref must be a non-empty string.",
+            "Record the reviewed starter commit, tag, or comparable baseline reference.",
+        )
+
+    reviewed_at = starter_sync.get("last_shared_surface_review_at")
+    if not is_iso_like_date(reviewed_at):
+        add_error(
+            findings,
+            path,
+            "starter_sync.last_shared_surface_review_at must be an ISO-8601 date or timestamp.",
+            "Use a value such as 2026-04-21 or 2026-04-21T10:30:00.",
+        )
+
+    reviewed_surface_classes = starter_sync.get("reviewed_surface_classes")
+    if not isinstance(reviewed_surface_classes, list) or not reviewed_surface_classes:
+        add_error(
+            findings,
+            path,
+            "starter_sync.reviewed_surface_classes must be a non-empty list.",
+            "List the starter-owned surface classes reviewed for this Mode B sync.",
+        )
+    else:
+        invalid_classes = [value for value in reviewed_surface_classes if not isinstance(value, str) or not value]
+        if invalid_classes:
+            add_error(
+                findings,
+                path,
+                "starter_sync.reviewed_surface_classes entries must be non-empty strings.",
+                "Use stable surface-class names such as repo_config or operating_system_docs.",
+            )
+        missing_classes = REQUIRED_STARTER_SYNC_SURFACE_CLASSES.difference(
+            value for value in reviewed_surface_classes if isinstance(value, str)
+        )
+        if missing_classes:
+            add_error(
+                findings,
+                path,
+                "starter_sync.reviewed_surface_classes is missing required Mode B surface classes.",
+                "Include: " + ", ".join(sorted(REQUIRED_STARTER_SYNC_SURFACE_CLASSES)) + ".",
+            )
+
+    divergences = starter_sync.get("divergences", [])
+    if divergences is None:
+        return
+    if not isinstance(divergences, list):
+        add_error(
+            findings,
+            path,
+            "starter_sync.divergences must be a list when present.",
+            "Use a list of divergence mappings or omit the field.",
+        )
+        return
+
+    for index, divergence in enumerate(divergences):
+        if not isinstance(divergence, dict):
+            add_error(
+                findings,
+                path,
+                f"starter_sync.divergences[{index}] must be a mapping.",
+                "Use path/class/status/rationale fields for each declared divergence.",
+            )
+            continue
+
+        divergence_path = divergence.get("path")
+        divergence_class = divergence.get("class")
+        status = divergence.get("status")
+        rationale = divergence.get("rationale")
+
+        if not isinstance(divergence_path, str) or not divergence_path.strip():
+            add_error(
+                findings,
+                path,
+                f"starter_sync.divergences[{index}].path must be a non-empty string.",
+                "Record the customized shared-surface path.",
+            )
+        if not isinstance(divergence_class, str) or divergence_class not in REQUIRED_STARTER_SYNC_SURFACE_CLASSES:
+            add_error(
+                findings,
+                path,
+                f"starter_sync.divergences[{index}].class must be one of the reviewed surface classes.",
+                "Use one of: " + ", ".join(sorted(REQUIRED_STARTER_SYNC_SURFACE_CLASSES)) + ".",
+            )
+        if not isinstance(status, str) or status not in ALLOWED_STARTER_SYNC_STATUSES:
+            add_error(
+                findings,
+                path,
+                f"starter_sync.divergences[{index}].status must be one of {sorted(ALLOWED_STARTER_SYNC_STATUSES)}.",
+                "Use aligned, customized, deferred, or not_applicable.",
+            )
+        if not isinstance(rationale, str) or not rationale.strip():
+            add_error(
+                findings,
+                path,
+                f"starter_sync.divergences[{index}].rationale must be a non-empty string.",
+                "Explain why the divergence is intentional.",
+            )
+
+
+def feature_roots(root: Path) -> list[Path]:
+    features_root = root / "docs" / "features"
+    if not features_root.exists():
+        return []
+    return sorted(path for path in features_root.iterdir() if path.is_dir())
+
+
+def flat_feature_files(root: Path) -> list[Path]:
+    features_root = root / "docs" / "features"
+    if not features_root.exists():
+        return []
+    return sorted(path for path in features_root.glob("*.yaml") if path.is_file())
+
+
+def managed_feature_contracts(root: Path) -> list[Path]:
+    contracts: list[Path] = []
+    for folder in feature_roots(root):
+        contract = folder / f"{folder.name}.yaml"
+        if contract.exists():
+            contracts.append(contract)
+    return sorted(contracts)
+
+
+def feature_source_files(root: Path) -> list[Path]:
+    return sorted((root / "docs" / "features").glob("*/feature.source.yaml"))
+
+
+def generated_architecture_files(root: Path) -> list[Path]:
+    generated_root = root / "docs" / "generated"
+    if not generated_root.exists():
+        return []
+    return sorted(
+        path for path in generated_root.iterdir() if path.is_file() and path.name in GENERATED_INDEX_NAMES
     )
 
 
-def function_capability_markers(path: Path) -> list[tuple[int, str | None]]:
+def is_empty_generated_scaffold(path: Path) -> bool:
     try:
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    except SyntaxError:
-        return []
+        payload = load_yaml(path)
+    except yaml.YAMLError:
+        return False
+    if path.name == "architecture_dag.yaml" and payload == {"nodes": [], "edges": []}:
+        return True
+    if path.name == "capability_lineage.yaml" and payload == {"features": {}}:
+        return True
+    return False
 
-    markers: list[tuple[int, str | None]] = []
-    for node in ast.walk(tree):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+
+def is_empty_generated_scaffold(path: Path) -> bool:
+    try:
+        payload = load_yaml(path)
+    except yaml.YAMLError:
+        return False
+    if path.name == "architecture_dag.yaml" and payload == {"nodes": [], "edges": []}:
+        return True
+    if path.name == "capability_lineage.yaml" and payload == {"features": {}}:
+        return True
+    return False
+
+
+def feature_ids_from_shape(root: Path) -> set[str]:
+    ids = {path.stem for path in flat_feature_files(root)}
+    ids.update(path.name for path in feature_roots(root))
+    return ids
+
+
+def validate_method_feature_ids(root: Path, findings: list[Finding]) -> None:
+    for feature_id in sorted(feature_ids_from_shape(root)):
+        is_method_id = feature_id in METHOD_FEATURE_IDS or feature_id.startswith(METHOD_FEATURE_PREFIXES)
+        if not is_method_id:
             continue
-        docstring = ast.get_docstring(node, clean=False)
-        if not docstring or "@capability" not in docstring:
+        candidate_paths = [root / "docs" / "features" / f"{feature_id}.yaml", root / "docs" / "features" / feature_id]
+        existing_path = next((path for path in candidate_paths if path.exists()), candidate_paths[0])
+        add_error(
+            findings,
+            relpath(existing_path, root),
+            f"Method-layer pseudo-feature `{feature_id}` is not allowed.",
+            "Move repo-method content to docs/operating_system/ or operating-system specs/plans with targets.",
+        )
+
+
+def validate_feature_dependencies(root: Path, findings: list[Finding]) -> None:
+    feature_ids = feature_ids_from_shape(root)
+    for path in flat_feature_files(root) + managed_feature_contracts(root) + feature_source_files(root):
+        try:
+            payload = load_yaml(path)
+        except yaml.YAMLError as exc:
+            add_error(findings, relpath(path, root), f"Could not parse feature YAML: {exc}", "Fix YAML syntax.")
             continue
-        matches = CAPABILITY_PATTERN.findall(docstring)
-        if matches:
-            for capability_id in matches:
-                markers.append((node.lineno, capability_id))
+        if not isinstance(payload, dict):
+            continue
+        body = payload
+        if len(payload) == 1:
+            only_value = next(iter(payload.values()))
+            if isinstance(only_value, dict):
+                body = only_value
+        depends_on = body.get("depends_on", [])
+        if depends_on is None:
+            continue
+        if not isinstance(depends_on, list):
+            add_error(
+                findings,
+                relpath(path, root),
+                "depends_on must be a list of feature IDs.",
+                "Change depends_on to a list or remove it.",
+            )
+            continue
+        for dependency in depends_on:
+            if not isinstance(dependency, str):
+                add_error(
+                    findings,
+                    relpath(path, root),
+                    "depends_on entries must be strings.",
+                    "Use product feature IDs only.",
+                )
+                continue
+            if dependency not in feature_ids:
+                add_error(
+                    findings,
+                    relpath(path, root),
+                    f"depends_on references unknown feature `{dependency}`.",
+                    "Use an existing product feature ID or move method-layer relationships into spec/plan targets.",
+                )
+
+
+def is_id_like(value: str) -> bool:
+    return bool(re.fullmatch(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*", value))
+
+
+def validate_capability_ids(root: Path, findings: list[Finding]) -> None:
+    paths = flat_feature_files(root) + managed_feature_contracts(root) + feature_source_files(root)
+    for path in paths:
+        try:
+            payload = load_yaml(path)
+        except yaml.YAMLError:
+            continue
+        if not isinstance(payload, dict):
+            continue
+        body = payload
+        if len(payload) == 1:
+            only_value = next(iter(payload.values()))
+            if isinstance(only_value, dict):
+                body = only_value
+        capability_ids = body.get("capability_ids", [])
+        if capability_ids is None:
+            continue
+        if not isinstance(capability_ids, list):
+            add_error(
+                findings,
+                relpath(path, root),
+                "capability_ids must be a list.",
+                "Use stable kebab-case capability IDs.",
+            )
+            continue
+        for capability_id in capability_ids:
+            if not isinstance(capability_id, str) or not is_id_like(capability_id):
+                add_error(
+                    findings,
+                    relpath(path, root),
+                    f"Invalid capability ID: {capability_id!r}.",
+                    "Use stable kebab-case IDs, not prose sentences.",
+                )
+
+
+def validate_required_root_docs(root: Path, findings: list[Finding]) -> None:
+    for relative_path in REQUIRED_ROOT_PROJECT_DOCS:
+        path = root / Path(relative_path)
+        if path.exists():
+            continue
+        add_error(
+            findings,
+            relative_path,
+            "Missing required root project doc.",
+            (
+                "Add the required project doc at this path so setup, configuration, "
+                "usage, pipeline, and architecture guidance remain present at the repo root."
+            ),
+        )
+        continue
+
+    for relative_path in REQUIRED_ROOT_PROJECT_DOCS:
+        path = root / Path(relative_path)
+        if not path.exists():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+
+        if not re.search(r"(?m)^#\s+\S", text):
+            add_error(
+                findings,
+                relative_path,
+                "Required doc must include a top-level Markdown heading.",
+                "Start the doc with a `#` heading that names the document purpose.",
+            )
+            continue
+
+        body_lines = [
+            line.strip()
+            for line in text.splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        if not body_lines:
+            add_error(
+                findings,
+                relative_path,
+                "Required doc must contain more than a heading.",
+                "Add substantive guidance below the H1 so the doc is not just a stub.",
+            )
+            continue
+
+        body_text = " ".join(body_lines).lower()
+        if sum(body_text.count(pattern) for pattern in PLACEHOLDER_PATTERNS) >= 2:
+            add_error(
+                findings,
+                relative_path,
+                "Required doc is still placeholder-only.",
+                "Replace placeholder text with real project guidance before treating the doc as complete.",
+            )
+            continue
+
+        keywords = REQUIRED_DOC_KEYWORDS.get(relative_path, ())
+        if keywords and not any(keyword in body_text for keyword in keywords):
+            add_error(
+                findings,
+                relative_path,
+                "Required doc is missing expected semantic coverage.",
+                (
+                    "Add file-specific guidance so the doc covers its intended subject "
+                    "instead of only generic prose."
+                ),
+            )
+
+
+def validate_required_project_folders(root: Path, findings: list[Finding]) -> None:
+    for relative_path in REQUIRED_PROJECT_FOLDERS:
+        path = root / Path(relative_path)
+        if path.exists() and path.is_dir():
+            continue
+        add_error(
+            findings,
+            f"{relative_path}/",
+            "Missing required project folder.",
+            (
+                "Create this folder so the repo keeps a stable source-of-truth surface for "
+                "intent, governance, planning artifacts, config, scripts, and tests."
+            ),
+        )
+
+    intent_root = root / "docs" / "intent"
+    if not intent_root.exists() or not intent_root.is_dir():
+        return
+    intent_markdown_files = sorted(intent_root.glob("*.md"))
+    if intent_markdown_files:
+        return
+    add_error(
+        findings,
+        "docs/intent/",
+        "Intent layer must contain at least one Markdown file.",
+        "Add an intent doc such as docs/intent/README.md so project purpose is not implicit only in README.md.",
+    )
+
+
+def validate_managed_metadata_templates(root: Path, findings: list[Finding]) -> None:
+    template_path = root / Path(MANAGED_FEATURE_TEMPLATE_PATH)
+    if template_path.exists():
+        try:
+            payload = load_yaml(template_path)
+        except yaml.YAMLError as exc:
+            add_error(
+                findings,
+                MANAGED_FEATURE_TEMPLATE_PATH,
+                f"Could not parse managed metadata template YAML: {exc}",
+                "Fix the feature source template YAML syntax.",
+            )
         else:
-            markers.append((node.lineno, None))
-    return markers
+            if not isinstance(payload, dict):
+                add_error(
+                    findings,
+                    MANAGED_FEATURE_TEMPLATE_PATH,
+                    "Managed metadata feature template must be a top-level mapping.",
+                    "Keep docs/architecture_templates/feature.source.yaml aligned with the managed feature schema.",
+                )
+            else:
+                feature_id = payload.get("feature_id")
+                if not isinstance(feature_id, str) or not feature_id:
+                    add_error(
+                        findings,
+                        MANAGED_FEATURE_TEMPLATE_PATH,
+                        "Managed metadata feature template is missing feature_id.",
+                        "Set feature_id in the template so downstream capability examples can stay feature-qualified.",
+                    )
+                else:
+                    stage_participation = payload.get("stage_participation", [])
+                    if not isinstance(stage_participation, list):
+                        add_error(
+                            findings,
+                            MANAGED_FEATURE_TEMPLATE_PATH,
+                            "Managed metadata feature template stage_participation must be a list.",
+                            "Use the same list shape as managed feature source files.",
+                        )
+                    else:
+                        expected_prefix = f"{feature_id}."
+                        for index, participation in enumerate(stage_participation):
+                            if not isinstance(participation, dict):
+                                continue
+                            capability_ids = participation.get("capability_ids", [])
+                            if capability_ids is None:
+                                continue
+                            if not isinstance(capability_ids, list):
+                                add_error(
+                                    findings,
+                                    MANAGED_FEATURE_TEMPLATE_PATH,
+                                    "Managed metadata feature template capability_ids must be a list.",
+                                    "Use a list of feature-qualified capability IDs in stage_participation.",
+                                )
+                                continue
+                            for capability_id in capability_ids:
+                                if not isinstance(capability_id, str):
+                                    continue
+                                if capability_id.startswith(expected_prefix):
+                                    continue
+                                add_error(
+                                    findings,
+                                    MANAGED_FEATURE_TEMPLATE_PATH,
+                                    (
+                                        "Template capability_ids must use feature-qualified IDs under "
+                                        f"stage_participation[{index}]."
+                                    ),
+                                    (
+                                        f"Use `{expected_prefix}<capability_slug>` in the template so managed metadata "
+                                        "examples preserve downstream capability qualification."
+                                    ),
+                                )
 
-
-def config_yaml_paths(repo_root: Path) -> list[Path]:
-    root = repo_root / "config"
-    if not root.exists():
-        return []
-    return sorted(root.rglob("*.yaml"))
-
-
-def parse_yaml_architecture_metadata(path: Path) -> dict[str, Any] | None:
-    metadata_lines: list[str] = []
-    metadata_started = False
-    for line in path.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if not stripped:
-            if metadata_started:
+    yaml_template_path = root / Path(YAML_ARCHITECTURE_TEMPLATE_PATH)
+    if yaml_template_path.exists():
+        try:
+            template_text = yaml_template_path.read_text(encoding="utf-8")
+        except OSError:
+            template_text = ""
+        architecture_block_lines: list[str] = []
+        metadata_started = False
+        for line in template_text.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                if metadata_started:
+                    break
+                continue
+            comment_body = extract_template_comment_body(line)
+            if comment_body is None:
                 break
-            continue
-        if not stripped.startswith("#"):
-            break
-        comment_body = stripped[1:]
-        if comment_body.startswith(" "):
-            comment_body = comment_body[1:]
-        if comment_body == "@architecture":
-            metadata_started = True
-            continue
-        if metadata_started:
-            metadata_lines.append(comment_body)
-    if not metadata_started:
+            if comment_body == "@architecture":
+                metadata_started = True
+                continue
+            if metadata_started:
+                architecture_block_lines.append(comment_body)
+
+        if architecture_block_lines:
+            try:
+                yaml_template_payload = yaml.safe_load("\n".join(architecture_block_lines))
+            except yaml.YAMLError as exc:
+                add_error(
+                    findings,
+                    YAML_ARCHITECTURE_TEMPLATE_PATH,
+                    f"Could not parse YAML architecture template metadata: {exc}",
+                    "Fix the fenced # @architecture metadata example syntax.",
+                )
+            else:
+                if isinstance(yaml_template_payload, dict):
+                    owner = yaml_template_payload.get("owner")
+                    capabilities = yaml_template_payload.get("capabilities", [])
+                    if isinstance(owner, str) and owner and isinstance(capabilities, list):
+                        expected_prefix = f"{owner}."
+                        for capability_id in capabilities:
+                            if not isinstance(capability_id, str):
+                                continue
+                            if capability_id.startswith(expected_prefix):
+                                continue
+                            add_error(
+                                findings,
+                                YAML_ARCHITECTURE_TEMPLATE_PATH,
+                                "YAML architecture template capabilities must use feature-qualified IDs.",
+                                (
+                                    f"Use `{expected_prefix}<capability_slug>` in the template so YAML "
+                                    "# @architecture examples preserve downstream capability qualification."
+                                ),
+                            )
+
+    markdown_template_path = root / Path(MARKDOWN_FRONTMATTER_TEMPLATE_PATH)
+    if markdown_template_path.exists():
+        try:
+            markdown_text = markdown_template_path.read_text(encoding="utf-8")
+        except OSError:
+            markdown_text = ""
+        fenced_match = re.search(
+            r"```md\s*(---\n.*?\n---)\s*```",
+            markdown_text,
+            flags=re.DOTALL,
+        )
+        if fenced_match:
+            frontmatter_block = fenced_match.group(1)
+            try:
+                _, yaml_block, _ = frontmatter_block.split("---", 2)
+                frontmatter_payload = yaml.safe_load(yaml_block)
+            except (ValueError, yaml.YAMLError) as exc:
+                add_error(
+                    findings,
+                    MARKDOWN_FRONTMATTER_TEMPLATE_PATH,
+                    f"Could not parse markdown frontmatter template: {exc}",
+                    "Fix the fenced Markdown frontmatter example syntax.",
+                )
+            else:
+                if isinstance(frontmatter_payload, dict):
+                    explains = frontmatter_payload.get("explains", {})
+                    if isinstance(explains, dict):
+                        features = explains.get("features", [])
+                        capabilities = explains.get("capabilities", [])
+                        feature_id = features[0] if isinstance(features, list) and features else None
+                        if isinstance(feature_id, str) and feature_id and isinstance(capabilities, list):
+                            expected_prefix = f"{feature_id}."
+                            for capability_id in capabilities:
+                                if not isinstance(capability_id, str):
+                                    continue
+                                if capability_id.startswith(expected_prefix):
+                                    continue
+                                add_error(
+                                    findings,
+                                    MARKDOWN_FRONTMATTER_TEMPLATE_PATH,
+                                    "Frontmatter template capabilities must use feature-qualified IDs.",
+                                    (
+                                        f"Use `{expected_prefix}<capability_slug>` in the fenced frontmatter "
+                                        "example so doc metadata preserves downstream capability qualification."
+                                    ),
+                                )
+
+
+def extract_template_comment_body(line: str) -> str | None:
+    stripped = line.strip()
+    if not stripped.startswith("#"):
         return None
+    comment_body = stripped[1:]
+    if comment_body.startswith(" "):
+        comment_body = comment_body[1:]
+    return comment_body
+
+
+def has_generated_header(path: Path) -> bool:
     try:
-        payload = yaml.safe_load("\n".join(metadata_lines))
-    except yaml.YAMLError as exc:
-        return {"__parse_error__": str(exc)}
-    return cast(dict[str, Any], payload) if isinstance(payload, dict) else {}
+        head = path.read_text(encoding="utf-8", errors="ignore")[:300]
+    except OSError:
+        return False
+    return "GENERATED FILE" in head or "Generated file" in head
 
 
-def collect_capability_ids(repo_root: Path) -> set[str]:
-    capability_ids: set[str] = set()
-    for source_path in sorted((repo_root / "docs" / "features").glob("*/feature.source.yaml")):
-        payload = cast(dict[str, Any], read_yaml(source_path))
-        for capability in cast(list[Any], payload.get("capabilities", [])):
-            if not isinstance(capability, dict):
-                continue
-            capability_id = capability.get("capability_id")
-            if isinstance(capability_id, str) and capability_id:
-                capability_ids.add(capability_id)
-    return capability_ids
-
-
-def collect_phase_7_pilot_requirements(repo_root: Path) -> dict[str, dict[str, bool]]:
-    adoption_path = repo_root / "repo_config" / "adoption-mode.yaml"
-    if not adoption_path.exists():
-        return {}
-    payload = cast(dict[str, Any], read_yaml(adoption_path))
-    pilot_payload = payload.get("phase_7_direct_evidence_pilot", {})
-    if not isinstance(pilot_payload, dict):
-        return {}
-    capabilities_payload = pilot_payload.get("capabilities", {})
-    if not isinstance(capabilities_payload, dict):
-        return {}
-
-    requirements: dict[str, dict[str, bool]] = {}
-    for capability_id, rule_payload in capabilities_payload.items():
-        if not isinstance(capability_id, str) or not isinstance(rule_payload, dict):
-            continue
-        requirements[capability_id] = {
-            "require_code": bool(rule_payload.get("require_code", False)),
-            "require_tests": bool(rule_payload.get("require_tests", False)),
-        }
-    return requirements
-
-
-def load_sync_module(sync_script_path: Path):
-    spec = importlib.util.spec_from_file_location("sync_architecture_docs", sync_script_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Unable to load sync script from {sync_script_path}.")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def validate_required_files(repo_root: Path) -> list[str]:
-    errors: list[str] = []
-    for relative_path in REQUIRED_DOC_PATHS:
-        target = repo_root / relative_path
-        if not target.exists():
-            errors.append(f"Missing required file: {relative_path}")
-    return errors
-
-
-def validate_python_file_metadata(repo_root: Path) -> list[str]:
-    errors: list[str] = []
-    known_capability_ids = collect_capability_ids(repo_root)
-    for path in sorted(repo_root.rglob("*.py")):
-        if not requires_python_metadata(path, repo_root):
-            continue
-        if not has_meta_docstring(path):
-            errors.append(f"Missing required @meta docstring: {relpath(path, repo_root)}")
-            continue
-        content = path.read_text(encoding="utf-8")
-        for capability_id in PROVES_PATTERN.findall(content):
-            if capability_id not in known_capability_ids:
-                errors.append(
-                    f"Unknown @proves capability ID in {relpath(path, repo_root)}: {capability_id}"
-                )
-        for line_number, capability_id in function_capability_markers(path):
-            if capability_id is None:
-                errors.append(
-                    f"Malformed @capability marker in {relpath(path, repo_root)}:{line_number}"
-                )
-                continue
-            if not VALID_CAPABILITY_ID_PATTERN.fullmatch(capability_id):
-                errors.append(
-                    f"Malformed @capability ID in {relpath(path, repo_root)}:{line_number}: {capability_id}"
-                )
-                continue
-            if capability_id not in known_capability_ids:
-                errors.append(
-                    f"Unknown @capability ID in {relpath(path, repo_root)}:{line_number}: {capability_id}"
-                )
-    return errors
-
-
-def validate_config_yaml_metadata(repo_root: Path) -> list[str]:
-    errors: list[str] = []
-    known_capability_ids = collect_capability_ids(repo_root)
-    for path in config_yaml_paths(repo_root):
-        relative = relpath(path, repo_root)
-        metadata = parse_yaml_architecture_metadata(path)
-        if metadata is None:
-            errors.append(f"Missing required # @architecture metadata: {relative}")
-            continue
-        if "__parse_error__" in metadata:
-            errors.append(
-                f"Invalid # @architecture metadata in {relative}: {metadata['__parse_error__']}"
-            )
-            continue
-        missing_fields = [field for field in YAML_METADATA_REQUIRED_FIELDS if field not in metadata]
-        if missing_fields:
-            errors.append(
-                f"Config metadata is missing required fields in {relative}: {', '.join(missing_fields)}"
-            )
-        for field in ("features", "capabilities", "components", "satisfies"):
-            if field not in metadata:
-                continue
-            value = metadata[field]
-            if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
-                errors.append(
-                    f"Config metadata field {field} must be a list of non-empty strings in {relative}"
-                )
-        owner = metadata.get("owner")
-        if not isinstance(owner, str) or not owner:
-            errors.append(f"Config metadata owner must be a non-empty string in {relative}")
-        role = metadata.get("role")
-        if not isinstance(role, str) or not role:
-            errors.append(f"Config metadata role must be a non-empty string in {relative}")
-        canonical = metadata.get("canonical")
-        if not isinstance(canonical, bool):
-            errors.append(f"Config metadata canonical must be a boolean in {relative}")
-        for capability_id in metadata.get("capabilities", []):
-            if capability_id not in known_capability_ids:
-                errors.append(f"Unknown config metadata capability ID in {relative}: {capability_id}")
-    return errors
-
-
-def validate_feature_capability(feature_id: str, capability: dict[str, Any], owner: str, index: int) -> list[str]:
-    errors: list[str] = []
-    capability_id = capability.get("capability_id")
-    statement = capability.get("statement")
-    state = capability.get("state")
-    if not isinstance(capability_id, str) or not capability_id:
-        errors.append(f"Capability entry {index + 1} in {owner} must include capability_id.")
-        return errors
-    if not capability_id.startswith(f"{feature_id}."):
-        errors.append(f"Capability ID must start with {feature_id}. in {owner}.")
-    suffix = capability_id[len(feature_id) + 1 :] if capability_id.startswith(f"{feature_id}.") else ""
-    if not CAPABILITY_SUFFIX_PATTERN.fullmatch(suffix):
-        errors.append(f"Capability ID must use kebab-case suffixes in {owner}: {capability_id}")
-    if not isinstance(statement, str) or not statement:
-        errors.append(f"Capability entry {index + 1} in {owner} must include statement.")
-    if not isinstance(state, str) or not state:
-        errors.append(f"Capability entry {index + 1} in {owner} must include state.")
-    return errors
-
-
-def validate_lineage_evidence_nodes(
-    repo_root: Path,
-    lineage_relative_path: str,
+def _validate_string_list(
+    findings: list[Finding],
+    *,
+    root: Path,
+    lineage_path: str,
     capability_id: str,
     field_name: str,
-    nodes: object,
-) -> list[str]:
-    errors: list[str] = []
-    if not isinstance(nodes, list):
-        errors.append(
-            f"Lineage field {field_name} must be a list for {capability_id} in {lineage_relative_path}."
+    value: object,
+    check_paths: bool = False,
+) -> None:
+    if not isinstance(value, list):
+        add_error(
+            findings,
+            lineage_path,
+            f"{field_name} must be a list for lineage capability `{capability_id}`.",
+            f"Regenerate the lineage file so `{field_name}` is emitted as a list.",
         )
-        return errors
-    for index, entry in enumerate(nodes):
-        if not isinstance(entry, dict):
-            errors.append(
-                f"Lineage field {field_name}[{index}] must be a mapping for {capability_id} in {lineage_relative_path}."
+        return
+    for index, item in enumerate(value):
+        if not isinstance(item, str) or not item.strip():
+            add_error(
+                findings,
+                lineage_path,
+                f"{field_name}[{index}] must be a non-empty string for lineage capability `{capability_id}`.",
+                f"Regenerate the lineage file so `{field_name}` contains stable string values only.",
             )
             continue
-        path_value = entry.get("path")
-        confidence_value = entry.get("confidence")
-        source_value = entry.get("source")
-        if not isinstance(path_value, str):
-            errors.append(
-                f"Lineage field {field_name}[{index}] must include a string path for {capability_id} in {lineage_relative_path}."
+        if check_paths and not (root / item).exists():
+            add_error(
+                findings,
+                lineage_path,
+                f"{field_name}[{index}] points to a missing path for lineage capability `{capability_id}`: {item}",
+                "Refresh generated lineage so all referenced paths exist in the repo.",
             )
-        elif not (repo_root / path_value).exists():
-            errors.append(
-                f"Lineage path does not exist for {capability_id} in {lineage_relative_path}: {path_value}"
+
+
+def _validate_evidence_nodes(
+    findings: list[Finding],
+    *,
+    root: Path,
+    lineage_path: str,
+    capability_id: str,
+    field_name: str,
+    value: object,
+) -> None:
+    if not isinstance(value, list):
+        add_error(
+            findings,
+            lineage_path,
+            f"{field_name} must be a list for lineage capability `{capability_id}`.",
+            f"Regenerate the lineage file so `{field_name}` is emitted as an evidence-node list.",
+        )
+        return
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            add_error(
+                findings,
+                lineage_path,
+                f"{field_name}[{index}] must be a mapping for lineage capability `{capability_id}`.",
+                f"Regenerate the lineage file so `{field_name}` entries use the canonical evidence-node shape.",
             )
-        if not isinstance(confidence_value, str) or not confidence_value:
-            errors.append(
-                f"Lineage field {field_name}[{index}] must include a non-empty confidence for {capability_id} in {lineage_relative_path}."
+            continue
+        path_value = item.get("path")
+        confidence = item.get("confidence")
+        source = item.get("source")
+        if not isinstance(path_value, str) or not path_value.strip():
+            add_error(
+                findings,
+                lineage_path,
+                f"{field_name}[{index}] must include a non-empty `path` for lineage capability `{capability_id}`.",
+                "Regenerate the lineage file so every evidence node records its source path.",
             )
-        if not isinstance(source_value, list) or not all(
-            isinstance(item, str) and item for item in source_value
+        elif not (root / path_value).exists():
+            add_error(
+                findings,
+                lineage_path,
+                f"{field_name}[{index}] references a missing path for lineage capability `{capability_id}`: {path_value}",
+                "Refresh generated lineage so all evidence node paths exist in the repo.",
+            )
+        if not isinstance(confidence, str) or not confidence.strip():
+            add_error(
+                findings,
+                lineage_path,
+                f"{field_name}[{index}] must include a non-empty `confidence` string for lineage capability `{capability_id}`.",
+                "Regenerate the lineage file so every evidence node records confidence.",
+            )
+        if not isinstance(source, list) or not source or not all(
+            isinstance(entry, str) and entry.strip() for entry in source
         ):
-            errors.append(
-                f"Lineage field {field_name}[{index}] must include a non-empty source list for {capability_id} in {lineage_relative_path}."
+            add_error(
+                findings,
+                lineage_path,
+                f"{field_name}[{index}] must include a non-empty string `source` list for lineage capability `{capability_id}`.",
+                "Regenerate the lineage file so every evidence node records metadata sources.",
             )
-        symbols = entry.get("symbols")
+        symbols = item.get("symbols")
         if symbols is not None and (
-            not isinstance(symbols, list) or not all(isinstance(item, str) and item for item in symbols)
+            not isinstance(symbols, list)
+            or not all(isinstance(symbol, str) and symbol.strip() for symbol in symbols)
         ):
-            errors.append(
-                f"Lineage field {field_name}[{index}] symbols must be a list of non-empty strings for {capability_id} in {lineage_relative_path}."
+            add_error(
+                findings,
+                lineage_path,
+                f"{field_name}[{index}] has invalid `symbols` for lineage capability `{capability_id}`.",
+                "Emit `symbols` only as a list of non-empty strings when symbol-level evidence exists.",
             )
-    return errors
 
 
-def validate_feature_source(repo_root: Path, source_path: Path, lineage_path: Path) -> list[str]:
-    errors: list[str] = []
-    payload = cast(dict[str, Any], read_yaml(source_path))
-    owner = relpath(source_path, repo_root)
-    feature_id = cast(str, payload.get("feature_id", ""))
-    stage_ids = {
-        path.name.replace(".source.yaml", "")
-        for path in sorted((repo_root / "docs" / "stages").glob("*.source.yaml"))
-    }
-    if feature_id != source_path.parent.name:
-        errors.append(f"Feature directory and feature_id must match: {owner}")
-    if not FEATURE_ID_PATTERN.fullmatch(feature_id):
-        errors.append(f"Invalid feature_id naming policy in {owner}: {feature_id}")
+def _validate_lineage_capability_entry(
+    findings: list[Finding],
+    *,
+    root: Path,
+    lineage_path: str,
+    capability_id: str,
+    value: object,
+) -> None:
+    if not isinstance(value, dict):
+        add_error(
+            findings,
+            lineage_path,
+            f"lineage capability `{capability_id}` must be a mapping.",
+            "Regenerate the lineage file so each capability entry uses the canonical mapping shape.",
+        )
+        return
 
-    unknown_keys = sorted(set(payload) - SOURCE_ALLOWED_KEYS)
-    if unknown_keys:
-        errors.append(f"Feature source has unsupported keys in {owner}: {', '.join(unknown_keys)}")
+    missing_keys = LINEAGE_REQUIRED_CAPABILITY_KEYS.difference(value)
+    if missing_keys:
+        add_error(
+            findings,
+            lineage_path,
+            f"lineage capability `{capability_id}` is missing required keys.",
+            "Include: " + ", ".join(sorted(LINEAGE_REQUIRED_CAPABILITY_KEYS)) + ".",
+        )
 
-    capabilities = payload.get("capabilities", [])
-    feature_capability_ids: set[str] = set()
-    if not isinstance(capabilities, list):
-        errors.append(f"Capabilities must be a list in {owner}.")
-    else:
-        for index, capability in enumerate(capabilities):
-            if not isinstance(capability, dict):
-                errors.append(f"Managed features must use structured capability entries in {owner}.")
-                continue
-            errors.extend(validate_feature_capability(feature_id, capability, owner, index))
-            capability_id = capability.get("capability_id")
-            if isinstance(capability_id, str):
-                feature_capability_ids.add(capability_id)
+    state = value.get("state")
+    if not isinstance(state, str) or not state.strip():
+        add_error(
+            findings,
+            lineage_path,
+            f"lineage capability `{capability_id}` must include a non-empty `state`.",
+            "Regenerate the lineage file so each capability records its current lifecycle state.",
+        )
+    statement = value.get("statement")
+    if not isinstance(statement, str) or not statement.strip():
+        add_error(
+            findings,
+            lineage_path,
+            f"lineage capability `{capability_id}` must include a non-empty `statement`.",
+            "Regenerate the lineage file so each capability records its canonical statement.",
+        )
 
-    if "stage_participation" not in payload:
-        errors.append(f"Feature source must declare stage_participation in {owner}.")
-    else:
-        stage_participation = payload.get("stage_participation")
-        if not isinstance(stage_participation, list):
-            errors.append(f"stage_participation must be a list in {owner}.")
-        else:
-            for index, entry in enumerate(stage_participation):
-                if not isinstance(entry, dict):
-                    errors.append(f"stage_participation entry {index + 1} must be a mapping in {owner}.")
-                    continue
-                stage_id = entry.get("stage_id")
-                if not isinstance(stage_id, str) or not stage_id:
-                    errors.append(f"stage_participation entry {index + 1} must include stage_id in {owner}.")
-                elif stage_id not in stage_ids:
-                    errors.append(
-                        f"stage_participation entry {index + 1} references unknown stage_id in {owner}: {stage_id}"
-                    )
-                capability_ids = entry.get("capability_ids", [])
-                if not isinstance(capability_ids, list):
-                    errors.append(
-                        f"stage_participation entry {index + 1} capability_ids must be a list in {owner}."
-                    )
-                else:
-                    for capability_id in capability_ids:
-                        if capability_id not in feature_capability_ids:
-                            errors.append(
-                                f"stage_participation entry {index + 1} references unknown feature capability in {owner}: {capability_id}"
-                            )
+    _validate_string_list(
+        findings,
+        root=root,
+        lineage_path=lineage_path,
+        capability_id=capability_id,
+        field_name="satisfies",
+        value=value.get("satisfies", []),
+    )
+    _validate_evidence_nodes(
+        findings,
+        root=root,
+        lineage_path=lineage_path,
+        capability_id=capability_id,
+        field_name="code",
+        value=value.get("code", []),
+    )
+    _validate_evidence_nodes(
+        findings,
+        root=root,
+        lineage_path=lineage_path,
+        capability_id=capability_id,
+        field_name="tests",
+        value=value.get("tests", []),
+    )
+    _validate_string_list(
+        findings,
+        root=root,
+        lineage_path=lineage_path,
+        capability_id=capability_id,
+        field_name="docs",
+        value=value.get("docs", []),
+        check_paths=True,
+    )
+    _validate_evidence_nodes(
+        findings,
+        root=root,
+        lineage_path=lineage_path,
+        capability_id=capability_id,
+        field_name="docs_evidence",
+        value=value.get("docs_evidence", []),
+    )
+    _validate_string_list(
+        findings,
+        root=root,
+        lineage_path=lineage_path,
+        capability_id=capability_id,
+        field_name="configs",
+        value=value.get("configs", []),
+        check_paths=True,
+    )
+    _validate_evidence_nodes(
+        findings,
+        root=root,
+        lineage_path=lineage_path,
+        capability_id=capability_id,
+        field_name="config_evidence",
+        value=value.get("config_evidence", []),
+    )
+    _validate_string_list(
+        findings,
+        root=root,
+        lineage_path=lineage_path,
+        capability_id=capability_id,
+        field_name="components",
+        value=value.get("components", []),
+        check_paths=True,
+    )
+    _validate_evidence_nodes(
+        findings,
+        root=root,
+        lineage_path=lineage_path,
+        capability_id=capability_id,
+        field_name="component_evidence",
+        value=value.get("component_evidence", []),
+    )
+    for field_name in (
+        "specs",
+        "plans",
+        "evidence_gaps",
+        "allowed_evidence_gaps",
+        "unresolved_evidence_gaps",
+    ):
+        _validate_string_list(
+            findings,
+            root=root,
+            lineage_path=lineage_path,
+            capability_id=capability_id,
+            field_name=field_name,
+            value=value.get(field_name, []),
+            check_paths=field_name in {"specs", "plans"},
+        )
 
-    if lineage_path.exists():
-        raw_lineage = lineage_path.read_text(encoding="utf-8")
-        if LINEAGE_ALIAS_PATTERN.search(raw_lineage):
-            errors.append(
-                f"YAML aliases are not allowed in {relpath(lineage_path, repo_root)}."
+    lineage_exception_reason = value.get("lineage_exception_reason")
+    if lineage_exception_reason is not None and (
+        not isinstance(lineage_exception_reason, str) or not lineage_exception_reason.strip()
+    ):
+        add_error(
+            findings,
+            lineage_path,
+            f"lineage capability `{capability_id}` has invalid `lineage_exception_reason`.",
+            "Use null or a non-empty string reason for excepted lineage gaps.",
+        )
+
+    completeness_status = value.get("completeness_status")
+    if completeness_status not in LINEAGE_COMPLETENESS_STATUSES:
+        add_error(
+            findings,
+            lineage_path,
+            f"lineage capability `{capability_id}` has invalid `completeness_status`.",
+            "Use one of: " + ", ".join(sorted(LINEAGE_COMPLETENESS_STATUSES)) + ".",
+        )
+
+
+def _validate_lineage_timeline(
+    findings: list[Finding],
+    *,
+    root: Path,
+    lineage_path: str,
+    value: object,
+) -> None:
+    if not isinstance(value, list):
+        add_error(
+            findings,
+            lineage_path,
+            "lineage.generated.yaml timeline must be a list.",
+            "Regenerate the file so the timeline stays a list of completed-change records.",
+        )
+        return
+    for index, item in enumerate(value):
+        if not isinstance(item, dict):
+            add_error(
+                findings,
+                lineage_path,
+                f"timeline[{index}] must be a mapping.",
+                "Use the canonical rich completed-change record shape for timeline entries.",
             )
-            return errors
-        try:
-            lineage = cast(dict[str, Any], yaml.safe_load(raw_lineage))
-        except yaml.YAMLError:
-            errors.append(f"Invalid YAML in {relpath(lineage_path, repo_root)}.")
-            return errors
-        required_keys = {"feature_id", "source", "invariants", "capabilities", "timeline"}
-        missing_keys = sorted(key for key in required_keys if key not in lineage)
+            continue
+        missing_keys = LINEAGE_RICH_TIMELINE_KEYS.difference(item)
         if missing_keys:
-            errors.append(
-                f"Feature lineage is missing required keys in {relpath(lineage_path, repo_root)}: {', '.join(missing_keys)}"
+            add_error(
+                findings,
+                lineage_path,
+                f"timeline[{index}] is missing required keys.",
+                "Include: " + ", ".join(sorted(LINEAGE_RICH_TIMELINE_KEYS)) + ".",
             )
-        present_forbidden_keys = sorted(key for key in FORBIDDEN_LINEAGE_KEYS if key in lineage)
-        if present_forbidden_keys:
-            errors.append(
-                f"Legacy lineage keys are not allowed in {relpath(lineage_path, repo_root)}: {', '.join(present_forbidden_keys)}"
+        completed_at = item.get("completed_at")
+        if not isinstance(completed_at, str) or not completed_at.strip():
+            add_error(
+                findings,
+                lineage_path,
+                f"timeline[{index}] must include a non-empty `completed_at` string.",
+                "Emit completed timeline entries from completed plans with stable timestamps.",
             )
-        if "capabilities" in lineage and not isinstance(lineage["capabilities"], dict):
-            errors.append(
-                f"Feature lineage capabilities must be a mapping in {relpath(lineage_path, repo_root)}."
+        source_plan = item.get("source_plan")
+        if not isinstance(source_plan, str) or not source_plan.strip():
+            add_error(
+                findings,
+                lineage_path,
+                f"timeline[{index}] must include a non-empty `source_plan` string.",
+                "Emit the originating completed plan path for each timeline entry.",
             )
-        if "timeline" in lineage:
-            timeline = lineage["timeline"]
-            if not isinstance(timeline, list):
-                errors.append(
-                    f"Feature lineage timeline must be a list in {relpath(lineage_path, repo_root)}."
+        elif not (root / source_plan).exists():
+            add_error(
+                findings,
+                lineage_path,
+                f"timeline[{index}] references a missing source_plan: {source_plan}",
+                "Refresh generated lineage so timeline entries point at existing plan files.",
+            )
+        for field_name in ("change_id", "summary", "outcome"):
+            field_value = item.get(field_name)
+            if not isinstance(field_value, str) or not field_value.strip():
+                add_error(
+                    findings,
+                    lineage_path,
+                    f"timeline[{index}] must include a non-empty `{field_name}` string.",
+                    "Emit canonical completed-plan metadata for each timeline entry.",
                 )
-            else:
-                for index, entry in enumerate(timeline):
-                    if not isinstance(entry, dict):
-                        errors.append(
-                            f"Feature lineage timeline entry {index + 1} must be a mapping in {relpath(lineage_path, repo_root)}."
-                        )
-                        continue
-                    missing_timeline_keys = sorted(
-                        key for key in RICH_TIMELINE_KEYS if key not in entry
-                    )
-                    if missing_timeline_keys:
-                        errors.append(
-                            "Feature lineage timeline entry "
-                            f"{index + 1} is missing required keys in {relpath(lineage_path, repo_root)}: "
-                            + ", ".join(missing_timeline_keys)
-                        )
-                        continue
-                    if not isinstance(entry.get("capabilities"), list):
-                        errors.append(
-                            f"Feature lineage timeline entry {index + 1} capabilities must be a list in {relpath(lineage_path, repo_root)}."
-                        )
-                    if not isinstance(entry.get("verification"), list):
-                        errors.append(
-                            f"Feature lineage timeline entry {index + 1} verification must be a list in {relpath(lineage_path, repo_root)}."
-                        )
-        capabilities_lineage = lineage.get("capabilities", {})
-        if isinstance(capabilities_lineage, dict):
-            for capability_id, capability_lineage in capabilities_lineage.items():
-                if not isinstance(capability_lineage, dict):
-                    errors.append(
-                        f"Feature lineage entry must be a mapping for {capability_id} in {relpath(lineage_path, repo_root)}."
-                    )
-                    continue
-                lineage_relative_path = relpath(lineage_path, repo_root)
-                errors.extend(
-                    validate_lineage_evidence_nodes(
-                        repo_root,
-                        lineage_relative_path,
-                        capability_id,
-                        "code",
-                        capability_lineage.get("code", []),
-                    )
-                )
-                errors.extend(
-                    validate_lineage_evidence_nodes(
-                        repo_root,
-                        lineage_relative_path,
-                        capability_id,
-                        "tests",
-                        capability_lineage.get("tests", []),
-                    )
-                )
-                for field in ("docs", "specs", "plans", "configs"):
-                    evidence_paths = capability_lineage.get(field, [])
-                    if not isinstance(evidence_paths, list):
-                        errors.append(
-                            f"Lineage field {field} must be a list for {capability_id} in {lineage_relative_path}."
-                        )
-                        continue
-                    for evidence_path in evidence_paths:
-                        if not isinstance(evidence_path, str):
-                            errors.append(
-                                f"Lineage field {field} must contain string paths for {capability_id} in {lineage_relative_path}."
-                            )
-                            continue
-                        if not (repo_root / evidence_path).exists():
-                            errors.append(
-                                f"Lineage path does not exist for {capability_id} in {lineage_relative_path}: {evidence_path}"
-                            )
-                components = capability_lineage.get("components", [])
-                if not isinstance(components, list) or not all(
-                    isinstance(item, str) and item for item in components
-                ):
-                    errors.append(
-                        f"Lineage field components must be a list of non-empty strings for {capability_id} in {lineage_relative_path}."
-                    )
-                satisfies = capability_lineage.get("satisfies", [])
-                if not isinstance(satisfies, list) or not all(
-                    isinstance(item, str) and item for item in satisfies
-                ):
-                    errors.append(
-                        f"Lineage field satisfies must be a list of non-empty strings for {capability_id} in {lineage_relative_path}."
-                    )
-                config_evidence = capability_lineage.get("config_evidence", [])
-                if not isinstance(config_evidence, list):
-                    errors.append(
-                        f"Lineage field config_evidence must be a list for {capability_id} in {relpath(lineage_path, repo_root)}."
-                    )
-                else:
-                    for entry in config_evidence:
-                        if not isinstance(entry, dict):
-                            errors.append(
-                                f"Lineage field config_evidence must contain mappings for {capability_id} in {relpath(lineage_path, repo_root)}."
-                            )
-                            continue
-                        path_value = entry.get("path")
-                        kind_value = entry.get("kind")
-                        if not isinstance(path_value, str) or not isinstance(kind_value, str):
-                            errors.append(
-                                f"Lineage field config_evidence entries must include string path/kind for {capability_id} in {relpath(lineage_path, repo_root)}."
-                            )
-                            continue
-                        if not (repo_root / path_value).exists():
-                            errors.append(
-                                f"Lineage config_evidence path does not exist for {capability_id} in {relpath(lineage_path, repo_root)}: {path_value}"
-                            )
-                component_evidence = capability_lineage.get("component_evidence", [])
-                if not isinstance(component_evidence, list):
-                    errors.append(
-                        f"Lineage field component_evidence must be a list for {capability_id} in {relpath(lineage_path, repo_root)}."
-                    )
-                else:
-                    for entry in component_evidence:
-                        if not isinstance(entry, dict):
-                            errors.append(
-                                f"Lineage field component_evidence must contain mappings for {capability_id} in {relpath(lineage_path, repo_root)}."
-                            )
-                            continue
-                        component_value = entry.get("component")
-                        path_value = entry.get("path")
-                        kind_value = entry.get("kind")
-                        if (
-                            not isinstance(component_value, str)
-                            or not isinstance(path_value, str)
-                            or not isinstance(kind_value, str)
-                        ):
-                            errors.append(
-                                f"Lineage field component_evidence entries must include string component/path/kind for {capability_id} in {relpath(lineage_path, repo_root)}."
-                            )
-                            continue
-                        if not (repo_root / path_value).exists():
-                            errors.append(
-                                f"Lineage component_evidence path does not exist for {capability_id} in {relpath(lineage_path, repo_root)}: {path_value}"
-                            )
-                if capability_lineage.get("completeness_status") == "complete":
-                    code_paths = capability_lineage.get("code", [])
-                    test_paths = capability_lineage.get("tests", [])
-                    if not code_paths and not test_paths:
-                        errors.append(
-                            f"Complete lineage claims require direct code or test evidence in {relpath(lineage_path, repo_root)} for {capability_id}."
-                        )
-    return errors
+        capabilities = item.get("capabilities")
+        if not isinstance(capabilities, list) or not all(
+            isinstance(entry, str) and entry.strip() for entry in capabilities
+        ):
+            add_error(
+                findings,
+                lineage_path,
+                f"timeline[{index}] must include a string `capabilities` list.",
+                "Emit capability-qualified IDs for every completed change record.",
+            )
+        verification = item.get("verification")
+        if not isinstance(verification, list) or not all(
+            isinstance(entry, str) and entry.strip() for entry in verification
+        ):
+            add_error(
+                findings,
+                lineage_path,
+                f"timeline[{index}] must include a string `verification` list.",
+                "Emit verification commands as a list of non-empty strings.",
+            )
 
 
-def validate_features(repo_root: Path) -> list[str]:
-    errors: list[str] = []
-    for feature_dir in sorted((repo_root / "docs" / "features").iterdir()):
-        if not feature_dir.is_dir():
-            continue
-        feature_id = feature_dir.name
-        source_path = feature_dir / "feature.source.yaml"
-        contract_path = feature_dir / f"{feature_id}.yaml"
-        lineage_path = feature_dir / "lineage.generated.yaml"
-        history_path = feature_dir / "history.md"
-        if not source_path.exists():
-            errors.append(f"Missing feature source: {relpath(source_path, repo_root)}")
-        if not contract_path.exists():
-            errors.append(f"Missing feature contract: {relpath(contract_path, repo_root)}")
+def validate_generated_headers(root: Path, findings: list[Finding]) -> None:
+    for path in feature_source_files(root):
+        if has_generated_header(path):
+            add_error(
+                findings,
+                relpath(path, root),
+                "Human-owned feature.source.yaml appears to have a generated-file header.",
+                "Regenerate into the feature contract path and keep feature.source.yaml human-owned.",
+            )
+
+
+def validate_lineage_generated_schema(root: Path, findings: list[Finding]) -> None:
+    for folder in feature_roots(root):
+        lineage_path = folder / "lineage.generated.yaml"
         if not lineage_path.exists():
-            errors.append(f"Missing feature lineage: {relpath(lineage_path, repo_root)}")
-        if not history_path.exists():
-            errors.append(f"Missing feature history: {relpath(history_path, repo_root)}")
-        if source_path.exists():
-            errors.extend(validate_feature_source(repo_root, source_path, lineage_path))
-    return errors
-
-
-def validate_stages(repo_root: Path) -> list[str]:
-    errors: list[str] = []
-    stage_dir = repo_root / "docs" / "stages"
-    stage_ids: set[str] = set()
-    for contract_path in sorted(stage_dir.glob("*.yaml")):
-        if contract_path.name.endswith(".source.yaml"):
             continue
-        stage_ids.add(contract_path.stem)
-    for source_path in sorted(stage_dir.glob("*.source.yaml")):
-        stage_ids.add(source_path.name.replace(".source.yaml", ""))
-    for stage_id in sorted(stage_ids):
-        source_path = stage_dir / f"{stage_id}.source.yaml"
-        contract_path = stage_dir / f"{stage_id}.yaml"
-        if not source_path.exists():
-            errors.append(f"Missing stage source: {relpath(source_path, repo_root)}")
-        if not contract_path.exists():
-            errors.append(f"Missing stage contract: {relpath(contract_path, repo_root)}")
-    return errors
 
-
-def validate_adoption_mode(repo_root: Path) -> list[str]:
-    adoption_path = repo_root / "repo_config" / "adoption-mode.yaml"
-    errors: list[str] = []
-    if not adoption_path.exists():
-        return ["Missing required file: repo_config/adoption-mode.yaml"]
-
-    payload = cast(dict[str, Any], read_yaml(adoption_path))
-    if payload.get("adoption_mode") != "managed_architecture_metadata":
-        errors.append("adoption_mode must be `managed_architecture_metadata`.")
-    if payload.get("managed_architecture_metadata") is not True:
-        errors.append("managed_architecture_metadata must be true.")
-    if payload.get("architecture_generator") != "scripts/sync_architecture_docs.py":
-        errors.append("architecture_generator must be `scripts/sync_architecture_docs.py`.")
-
-    starter_sync = cast(dict[str, Any], payload.get("starter_sync", {}))
-    if not starter_sync.get("starter_baseline_ref"):
-        errors.append("starter_sync.starter_baseline_ref is required.")
-    if not starter_sync.get("last_shared_surface_review_at"):
-        errors.append("starter_sync.last_shared_surface_review_at is required.")
-    known_capability_ids = collect_capability_ids(repo_root)
-    pilot_payload = payload.get("phase_7_direct_evidence_pilot")
-    if pilot_payload is not None:
-        if not isinstance(pilot_payload, dict):
-            errors.append("phase_7_direct_evidence_pilot must be a mapping when present.")
-        else:
-            capabilities_payload = pilot_payload.get("capabilities", {})
-            if not isinstance(capabilities_payload, dict):
-                errors.append("phase_7_direct_evidence_pilot.capabilities must be a mapping.")
-            else:
-                for capability_id, rule_payload in capabilities_payload.items():
-                    if not isinstance(capability_id, str):
-                        errors.append("phase_7_direct_evidence_pilot capability IDs must be strings.")
-                        continue
-                    if capability_id not in known_capability_ids:
-                        errors.append(
-                            f"phase_7_direct_evidence_pilot references unknown capability: {capability_id}"
-                        )
-                    if not isinstance(rule_payload, dict):
-                        errors.append(
-                            f"phase_7_direct_evidence_pilot rules must be a mapping for {capability_id}."
-                        )
-                        continue
-                    for field in ("require_code", "require_tests"):
-                        if field in rule_payload and not isinstance(rule_payload[field], bool):
-                            errors.append(
-                                f"phase_7_direct_evidence_pilot.{capability_id}.{field} must be a boolean."
-                            )
-    return errors
-
-
-def validate_phase_7_direct_evidence_pilot(repo_root: Path) -> list[str]:
-    errors: list[str] = []
-    requirements = collect_phase_7_pilot_requirements(repo_root)
-    if not requirements:
-        return errors
-
-    for capability_id, requirement in sorted(requirements.items()):
-        feature_id, _separator, _suffix = capability_id.partition(".")
-        lineage_path = repo_root / "docs" / "features" / feature_id / "lineage.generated.yaml"
-        if not lineage_path.exists():
-            errors.append(
-                f"Missing feature lineage for phase_7_direct_evidence_pilot capability: {capability_id}"
+        relative_lineage_path = relpath(lineage_path, root)
+        if not has_generated_header(lineage_path):
+            add_error(
+                findings,
+                relative_lineage_path,
+                "lineage.generated.yaml must include the generated-file header.",
+                "Regenerate the lineage file with the canonical architecture metadata generator.",
             )
-            continue
-        raw_lineage = lineage_path.read_text(encoding="utf-8")
-        if LINEAGE_ALIAS_PATTERN.search(raw_lineage):
-            errors.append(f"YAML aliases are not allowed in {relpath(lineage_path, repo_root)}.")
-            continue
+
         try:
-            lineage_payload = cast(dict[str, Any], yaml.safe_load(raw_lineage))
-        except yaml.YAMLError:
-            errors.append(f"Invalid YAML in {relpath(lineage_path, repo_root)}.")
-            continue
-        capabilities = lineage_payload.get("capabilities", {})
-        if not isinstance(capabilities, dict):
-            errors.append(
-                f"Feature lineage capabilities must be a mapping for phase_7_direct_evidence_pilot capability: {capability_id}"
+            payload = load_yaml(lineage_path)
+        except yaml.YAMLError as exc:
+            add_error(
+                findings,
+                relative_lineage_path,
+                f"Could not parse lineage.generated.yaml: {exc}",
+                "Fix YAML syntax or regenerate the file with the canonical generator.",
             )
             continue
-        capability_lineage = capabilities.get(capability_id)
-        if not isinstance(capability_lineage, dict):
-            errors.append(
-                f"Missing capability lineage for phase_7_direct_evidence_pilot capability: {capability_id}"
+
+        if not isinstance(payload, dict):
+            add_error(
+                findings,
+                relative_lineage_path,
+                "lineage.generated.yaml must be a top-level mapping.",
+                "Regenerate the file so the lineage artifact uses the canonical mapping shape.",
             )
             continue
-        code_paths = capability_lineage.get("code", [])
-        test_paths = capability_lineage.get("tests", [])
-        if requirement.get("require_code") and not code_paths:
-            errors.append(
-                f"phase_7_direct_evidence_pilot requires code evidence for {capability_id}."
+
+        missing_keys = REQUIRED_LINEAGE_TOP_LEVEL_KEYS.difference(payload)
+        if missing_keys:
+            add_error(
+                findings,
+                relative_lineage_path,
+                "lineage.generated.yaml is missing required top-level keys.",
+                "Include: " + ", ".join(sorted(REQUIRED_LINEAGE_TOP_LEVEL_KEYS)) + ".",
             )
-        if requirement.get("require_tests") and not test_paths:
-            errors.append(
-                f"phase_7_direct_evidence_pilot requires test evidence for {capability_id}."
+
+        legacy_keys = LEGACY_LINEAGE_TOP_LEVEL_KEYS.intersection(payload)
+        if legacy_keys:
+            add_error(
+                findings,
+                relative_lineage_path,
+                "lineage.generated.yaml uses legacy summary-style top-level keys.",
+                "Remove legacy keys and regenerate the file with the canonical evidence-oriented lineage schema.",
             )
-    return errors
+
+        capabilities = payload.get("capabilities")
+        if capabilities is not None and not isinstance(capabilities, dict):
+            add_error(
+                findings,
+                relative_lineage_path,
+                "lineage.generated.yaml capabilities must be a mapping keyed by capability ID.",
+                "Regenerate the file so feature-local lineage remains capability-keyed rather than list-shaped.",
+            )
+        elif isinstance(capabilities, dict):
+            for capability_id, capability_payload in sorted(capabilities.items()):
+                _validate_lineage_capability_entry(
+                    findings,
+                    root=root,
+                    lineage_path=relative_lineage_path,
+                    capability_id=capability_id,
+                    value=capability_payload,
+                )
+
+        _validate_lineage_timeline(
+            findings,
+            root=root,
+            lineage_path=relative_lineage_path,
+            value=payload.get("timeline"),
+        )
 
 
-def validate_generated_discovery(repo_root: Path) -> list[str]:
-    errors: list[str] = []
-    for relative_path in REQUIRED_GENERATED_DISCOVERY_FILES:
-        if not (repo_root / relative_path).exists():
-            errors.append(f"Missing required file: {relative_path}")
-    for relative_path in LEGACY_GENERATED_DISCOVERY_FILES:
-        if (repo_root / relative_path).exists():
-            errors.append(f"Legacy generated discovery output must be removed: {relative_path}")
-    return errors
+def contains_feature_metadata_markers(path: Path) -> bool:
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return False
+    return any(pattern in text for pattern in FEATURE_METADATA_PATTERNS)
 
 
-def validate_sync_freshness(repo_root: Path) -> list[str]:
-    sync_script_path = repo_root / "scripts" / "sync_architecture_docs.py"
-    if not sync_script_path.exists():
-        return ["Missing required file: scripts/sync_architecture_docs.py"]
+def metadata_marker_files(root: Path) -> list[Path]:
+    matches: list[Path] = []
+    for path in root.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in METADATA_SCAN_SUFFIXES:
+            continue
+        relative_parts = path.relative_to(root).parts
+        if relative_parts and relative_parts[0] in METADATA_SCAN_SKIP_DIRS:
+            continue
+        if contains_feature_metadata_markers(path):
+            matches.append(path)
+    return sorted(matches)
 
-    sync_module = load_sync_module(sync_script_path)
-    exit_code = sync_module.main(["--repo-root", str(repo_root), "--check"])
-    if exit_code != 0:
-        return ["Generated architecture docs are stale. Run scripts/sync_architecture_docs.py."]
-    return []
+
+def validate_starter_method_only(root: Path, findings: list[Finding]) -> None:
+    for path in feature_source_files(root):
+        add_error(
+            findings,
+            relpath(path, root),
+            "feature.source.yaml exists in starter_method_only mode.",
+            "Switch to managed_architecture_metadata or remove feature metadata until adoption is chosen.",
+        )
+    for path in managed_feature_contracts(root):
+        add_error(
+            findings,
+            relpath(path, root),
+            "Managed feature contract exists in starter_method_only mode.",
+            "Switch adoption mode or remove managed feature contracts.",
+        )
+    for path in generated_architecture_files(root):
+        if is_empty_generated_scaffold(path):
+            continue
+        add_error(
+            findings,
+            relpath(path, root),
+            "Non-empty generated architecture discovery exists in starter_method_only mode.",
+            "Switch adoption mode or remove generated architecture indexes.",
+        )
+    for path in metadata_marker_files(root):
+        add_error(
+            findings,
+            relpath(path, root),
+            "Feature/capability metadata marker exists in starter_method_only mode.",
+            "Switch adoption mode before adding feature/capability source metadata.",
+        )
+
+    features_root = root / "docs" / "features"
+    if features_root.exists():
+        for path in sorted(features_root.iterdir()):
+            if path.name != "README.md":
+                add_warning(
+                    findings,
+                    relpath(path, root),
+                    "Non-README entry exists under docs/features in starter_method_only mode.",
+                    "Confirm this is intentional prose, or switch adoption mode before adding feature metadata.",
+                )
+    stages_root = root / "docs" / "stages"
+    if stages_root.exists():
+        for path in sorted(stages_root.iterdir()):
+            if path.name != "README.md":
+                add_warning(
+                    findings,
+                    relpath(path, root),
+                    "Non-README entry exists under docs/stages in starter_method_only mode.",
+                    "Confirm this is intentional prose, or switch adoption mode before adding stage metadata.",
+                )
 
 
-def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
-    repo_root = args.repo_root.resolve()
+def validate_managed_mode(config: AdoptionConfig, root: Path, findings: list[Finding]) -> None:
+    for path in flat_feature_files(root):
+        add_error(
+            findings,
+            relpath(path, root),
+            "Flat authoritative feature YAML is not allowed in managed_architecture_metadata mode.",
+            "Move semantic source into docs/features/<feature_id>/feature.source.yaml and regenerate the contract.",
+        )
+    for folder in feature_roots(root):
+        source = folder / "feature.source.yaml"
+        contract = folder / f"{folder.name}.yaml"
+        lineage = folder / "lineage.generated.yaml"
+        history = folder / "history.md"
+        if not source.exists():
+            add_error(
+                findings,
+                relpath(folder, root),
+                "Managed feature folder is missing feature.source.yaml.",
+                "Create the human-owned feature.source.yaml source file.",
+            )
+        if config.architecture_generator != "none" and not contract.exists():
+            add_error(
+                findings,
+                relpath(folder, root),
+                f"Managed feature folder is missing {folder.name}.yaml.",
+                "Run the architecture generator to regenerate the concrete managed feature contract.",
+            )
+        if config.architecture_generator != "none" and not lineage.exists():
+            add_error(
+                findings,
+                relpath(folder, root),
+                "Managed feature folder is missing lineage.generated.yaml.",
+                "Run the architecture generator to regenerate the feature-local lineage artifact.",
+            )
+        if not history.exists():
+            add_error(
+                findings,
+                relpath(folder, root),
+                "Managed feature folder is missing history.md.",
+                "Add history.md using the managed history pattern with generated markers plus human notes.",
+            )
+    if generated_architecture_files(root) and not feature_roots(root):
+        add_error(
+            findings,
+            "docs/generated",
+            "Generated architecture discovery exists but no managed feature folders were found.",
+            "Create managed feature folders or remove stale generated discovery.",
+        )
+    if config.architecture_generator == "none":
+        add_error(
+            findings,
+            "repo_config/adoption-mode.yaml",
+            "managed_architecture_metadata mode requires an architecture_generator.",
+            "Set architecture_generator to the sync/check script path.",
+        )
+    if not metadata_marker_files(root):
+        add_warning(
+            findings,
+            ".",
+            "No source metadata markers were found outside docs/config roots.",
+            "Confirm source metadata is intentionally deferred, or add canonical feature/capability markers.",
+        )
 
-    errors: list[str] = []
-    errors.extend(validate_required_files(repo_root))
-    errors.extend(validate_python_file_metadata(repo_root))
-    errors.extend(validate_config_yaml_metadata(repo_root))
-    errors.extend(validate_features(repo_root))
-    errors.extend(validate_stages(repo_root))
-    errors.extend(validate_adoption_mode(repo_root))
-    errors.extend(validate_phase_7_direct_evidence_pilot(repo_root))
-    errors.extend(validate_generated_discovery(repo_root))
-    if not errors:
-        errors.extend(validate_sync_freshness(repo_root))
 
-    if errors:
-        for error in errors:
-            print(error)
-        return 1
+def validate_legacy_mode(config: AdoptionConfig, root: Path, findings: list[Finding]) -> None:
+    for path in feature_source_files(root):
+        add_error(
+            findings,
+            relpath(path, root),
+            "feature.source.yaml exists in legacy_compatibility mode.",
+            "Switch to managed_architecture_metadata or remove managed source files.",
+        )
+    flat_ids = {path.stem for path in flat_feature_files(root)}
+    for contract in managed_feature_contracts(root):
+        if contract.stem in flat_ids:
+            add_error(
+                findings,
+                relpath(contract, root),
+                "Managed feature-folder contract exists beside a flat authoritative contract.",
+                "Choose legacy compatibility or managed mode; do not keep both authoritative shapes.",
+            )
+    follow_up = config.payload.get("migration_follow_up")
+    if not isinstance(follow_up, dict) or not follow_up.get("required"):
+        add_warning(
+            findings,
+            "repo_config/adoption-mode.yaml",
+            "legacy_compatibility mode has no required migration_follow_up.",
+            "Record the follow-up migration plan or document why legacy mode is long-lived.",
+        )
+    if generated_architecture_files(root) and config.architecture_generator == "none":
+        add_warning(
+            findings,
+            "docs/generated",
+            "Generated architecture discovery exists without a documented legacy generator.",
+            "Document the legacy generator or remove stale generated discovery.",
+        )
 
-    print("Mode B adoption shape is valid.")
-    return 0
+
+def validate_specs_and_plans(root: Path, findings: list[Finding]) -> None:
+    for folder_name in ("specs", "plans"):
+        folder = root / "docs" / "superpowers" / folder_name
+        if not folder.exists():
+            continue
+        for path in sorted(folder.glob("*.md")):
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            if "candidate_type: operating_system" in text and "targets:" not in text:
+                add_error(
+                    findings,
+                    relpath(path, root),
+                    "Operating-system spec/plan candidate is missing targets.",
+                    "Add targets for affected operating-system files/folders.",
+                )
+            if "candidate_type: operating_system" in text and "related_features: []" not in text:
+                add_warning(
+                    findings,
+                    relpath(path, root),
+                    "Operating-system spec/plan does not explicitly clear related_features.",
+                    "Use related_features: [] unless product-feature impact is intentionally documented.",
+                )
+
+
+def run_validation(root: Path, adoption_mode_path: Path) -> list[Finding]:
+    findings: list[Finding] = []
+    config = parse_adoption_config(adoption_mode_path, findings, root)
+
+    validate_required_root_docs(root, findings)
+    validate_required_project_folders(root, findings)
+    validate_managed_metadata_templates(root, findings)
+    validate_method_feature_ids(root, findings)
+    validate_feature_dependencies(root, findings)
+    validate_capability_ids(root, findings)
+    validate_generated_headers(root, findings)
+    validate_lineage_generated_schema(root, findings)
+    validate_specs_and_plans(root, findings)
+
+    if config is None:
+        return findings
+
+    if config.mode == "starter_method_only":
+        validate_starter_method_only(root, findings)
+    elif config.mode == "managed_architecture_metadata":
+        validate_managed_mode(config, root, findings)
+    elif config.mode == "legacy_compatibility":
+        validate_legacy_mode(config, root, findings)
+
+    return findings
+
+
+def print_findings(findings: list[Finding]) -> None:
+    if not findings:
+        print("Adoption shape validation passed.")
+        return
+
+    for finding in findings:
+        print(f"{finding.level}: {finding.path}: {finding.message}")
+        print(f"  fix: {finding.fix}")
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    root = args.repo_root.resolve()
+    adoption_mode_path = (root / args.adoption_mode).resolve()
+    findings = run_validation(root, adoption_mode_path)
+    print_findings(findings)
+    return 1 if any(finding.level == "ERROR" for finding in findings) else 0
 
 
 if __name__ == "__main__":

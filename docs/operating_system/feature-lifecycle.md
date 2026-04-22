@@ -4,11 +4,23 @@ This document defines how managed features are classified and tracked.
 
 ## Core Principle
 
+Feature lifecycle sits below the repo's intent and operating-system layers:
+
+- `docs/intent/` owns the project what-and-why
+- `docs/operating_system/` owns build method and governance
+- `docs/features/` owns managed feature meaning and lifecycle state
+
+Features remain the primary lifecycle units for product behavior, but they do
+not replace project intent or repo method.
+
 A real managed feature should have a human-owned source at
 `docs/features/<feature_id>/feature.source.yaml` and a generated current-state
 contract at `docs/features/<feature_id>/<feature_id>.yaml`.
 
 Stages help with architecture and planning, but features remain the primary lifecycle units.
+
+Feature YAML is a contract layer, not a general runtime configuration store.
+Workflow defaults and environment-tuned settings still belong under `config/`.
 
 ## Classification
 
@@ -206,10 +218,13 @@ Retired generated discovery targets that should not be recreated:
 - `docs/generated/stages_index.yaml`
 - `docs/generated/stage_overview.md`
 
-Refresh source-owned feature outputs with:
+Canonical generation workflow:
 
 ```powershell
+python tools/docs/generate_architecture_metadata.py
+python tools/docs/generate_architecture_metadata.py --check
 python scripts/sync_architecture_docs.py
+python scripts/sync_architecture_docs.py --check
 ```
 
 Canonical repo-contract validation workflow:
@@ -219,8 +234,10 @@ Canonical repo-contract validation workflow:
 .\.venv\Scripts\python.exe scripts/validate_repo_contracts.py
 ```
 
-`--fast` still includes the architecture sync check path. It skips only the
-extra validator-specific pytest pass.
+Use `tools/docs/generate_architecture_metadata.py` as the owning generator and
+`scripts/sync_architecture_docs.py` as the stable wrapper entrypoint. `--fast`
+still includes the architecture sync check path. It skips only the extra
+validator-specific pytest pass.
 
 ## Planning Gate
 

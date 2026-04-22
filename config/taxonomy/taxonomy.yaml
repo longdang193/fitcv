@@ -7,8 +7,6 @@
 #   - cv_generation
 # capabilities:
 #   - cv_system.analysis-grounded-validation
-# components:
-#   - config.taxonomy.role-and-domain
 # role: config
 # canonical: true
 

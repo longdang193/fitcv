@@ -22,11 +22,15 @@ fact manually.
 
 ```text
 code/                        -> real truth
-docs/stages/*.yaml           -> stage contracts when stage-aware docs are in scope
+docs/intent/*.md             -> project purpose and outcome sources
+docs/operating_system/*.md   -> repo method and governance sources
+repo_config/adoption-mode.yaml -> adoption mode and architecture metadata state source
+docs/stages/*.source.yaml    -> human-owned stage source when stage-aware docs are in scope
+docs/stages/*.yaml           -> generated stage contracts when stage-aware docs are in scope
+docs/features/*/feature.source.yaml -> human-authored feature metadata source when adopted
 docs/features/*/*.yaml       -> structured current-state truth
 docs/features/<feature_id>/  -> feature explanation and history
 docs/*.md                    -> cross-cutting product docs
-docs/operating_system/*.md   -> repo rules and workflows
 README.md                    -> overview
 docs/generated/*             -> generated discovery
 ```
@@ -48,6 +52,10 @@ Use feature YAML for:
 
 - current feature contracts
 - identity, status, dependencies, capabilities, refs
+
+For generated architecture metadata, `feature.source.yaml` remains the human
+source while generated contracts and lineage are rebuilt by
+`tools/docs/generate_architecture_metadata.py`.
 
 ### `docs/features/<feature_id>/`
 
@@ -95,6 +103,13 @@ When behavior or structure changes:
 - update operating-system docs when repo rules or workflows change
 - refresh generated discovery from its source layers
 
+Canonical generation/check workflow:
+
+```powershell
+python tools/docs/generate_architecture_metadata.py
+python tools/docs/generate_architecture_metadata.py --check
+```
+
 Canonical architecture sync/check workflow:
 
 ```powershell
@@ -110,8 +125,8 @@ Canonical repo-contract validation workflow:
 ```
 
 Use `sync_architecture_docs.py` to refresh generated architecture surfaces after
-source changes. Use `validate_repo_contracts.py` as the broader gate before
-commit, push, or CI completion.
+source changes through the wrapper. Use `validate_repo_contracts.py` as the
+broader gate before commit, push, or CI completion.
 
 Here `--fast` means the hook-facing subset, not a lightweight bypass. It still
 runs the architecture sync check path and skips only the extra

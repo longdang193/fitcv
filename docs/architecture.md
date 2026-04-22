@@ -9,6 +9,8 @@ FitCV combines an operator-facing control plane with a staged job-processing pip
 - Redis and RQ provide background execution for pipeline runs.
 - BigQuery persists run state, events, structured jobs, and generated artifacts.
 
+The main runtime boundary is between the operator-facing control-plane component and the background pipeline component. Their integration happens through Redis, RQ, persisted run state, and shared artifact storage. Information flow moves from trigger input through staged processing into stored results, while control flow moves through queue dispatch, worker execution, checkpoints, and run-lifecycle actions.
+
 ## Documentation Architecture
 
 - `docs/features/<feature_id>/feature.source.yaml` is the human-owned feature source.

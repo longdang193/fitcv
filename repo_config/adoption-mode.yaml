@@ -29,18 +29,30 @@ starter_sync:
       class: operating_system_docs
       status: customized
       rationale: Publication workflow keeps project-specific public mirror guidance while aligning with repo_config ownership.
+    - path: docs/operating_system/feature-lifecycle.md
+      class: operating_system_docs
+      status: customized
+      rationale: JOB-PROJECT now follows the starter wrapper-plus-generator model but still documents repo-local truths such as `config/`, underscore feature IDs, and the current evidence-oriented rollout phases.
+    - path: docs/operating_system/doc-system-lifecycle.md
+      class: operating_system_docs
+      status: customized
+      rationale: The doc-system guidance is starter-aligned in structure but remains adapted to this repo's adopted `config/` layout and current managed metadata migration state.
     - path: .agents/skills/plan-document-reviewer/SKILL.md
       class: skills
       status: customized
       rationale: JOB-PROJECT keeps an additional repo-local review skill not present in the starter.
-    - path: scripts/validate_adoption_shape.py
-      class: validation_and_sync_scripts
+    - path: AGENTS.md
+      class: generated_instruction_surfaces
       status: customized
-      rationale: JOB-PROJECT keeps a repo-local Mode B validator aligned to the latest starter lineage validation contract while preserving repo-specific underscore feature IDs, config metadata checks, and direct-evidence pilot enforcement.
+      rationale: The generated repo instruction surface stays aligned to starter structure but retains repo-local path truths such as `config/` and `codex/rules/`.
     - path: scripts/validate_repo_contracts.py
       class: validation_and_sync_scripts
       status: customized
       rationale: JOB-PROJECT adopts the starter repo-contract validator shape but routes the broader gate through the local adoption-shape validator and keeps feature-history boundary enforcement deferred until partial-generated history is migrated.
+    - path: scripts/sync_architecture_docs.py
+      class: validation_and_sync_scripts
+      status: customized
+      rationale: JOB-PROJECT now uses the starter wrapper pattern, but the local wrapper still substitutes the current repo-local generator and omits starter helper scripts that do not yet exist here.
     - path: docs/features/*/feature.source.yaml
       class: operating_system_docs
       status: customized
