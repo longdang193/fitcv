@@ -1,3 +1,4 @@
+# GENERATED FILE - do not edit directly.
 shortlist:
   name: Shortlist
   summary: Turn passed jobs into a retrieval-aware scoring shortlist by building a richer bounded candidate query from the full profile evidence surface, reusing the single shortlist candidate-query embedding and unchanged job-summary embeddings when safe, searching only the latest active embedding row per canonical job URL with the deterministic candidate query vector actually used for retrieval, then capturing raw hits, shortlist transitions, any backfill needed before scoring, and the stage-owned shortlist backfill-rate quality metric.

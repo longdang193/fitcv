@@ -22,9 +22,16 @@ import sys
 import yaml
 
 
+class IndentedSafeDumper(yaml.SafeDumper):
+    def increase_indent(self, flow: bool = False, indentless: bool = False) -> object:
+        return super().increase_indent(flow, False)
+
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR_PATH = REPO_ROOT / "scripts" / "validate_repo_contracts.py"
 GENERATOR_PATH = REPO_ROOT / "tools" / "docs" / "generate_architecture_metadata.py"
+FORMATTER_PATH = REPO_ROOT / "scripts" / "format_contract_yaml.py"
+AUDIT_PATH = REPO_ROOT / "scripts" / "audit_architecture_linkage.py"
 
 
 def load_module(path: Path, name: str):
@@ -39,7 +46,17 @@ def load_module(path: Path, name: str):
 
 def write_yaml(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    path.write_text(
+        yaml.dump(
+            payload,
+            Dumper=IndentedSafeDumper,
+            sort_keys=False,
+            default_flow_style=False,
+            allow_unicode=False,
+            width=10_000,
+        ),
+        encoding="utf-8",
+    )
 
 
 def build_repo(tmp_path: Path) -> Path:
@@ -177,6 +194,14 @@ def build_repo(tmp_path: Path) -> Path:
         (REPO_ROOT / "scripts" / "validate_adoption_shape.py").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
+    (scripts_dir / "format_contract_yaml.py").write_text(
+        FORMATTER_PATH.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (scripts_dir / "audit_architecture_linkage.py").write_text(
+        AUDIT_PATH.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     (scripts_dir / "validate_repo_contracts.py").write_text(
         VALIDATOR_PATH.read_text(encoding="utf-8"),
         encoding="utf-8",
@@ -207,6 +232,17 @@ def build_repo(tmp_path: Path) -> Path:
         "def test_placeholder():\n    assert True\n",
         encoding="utf-8",
     )
+    for test_name in (
+        "test_architecture_metadata_generation.py",
+        "test_architecture_linkage_audit.py",
+        "test_format_contract_yaml.py",
+        "test_setup_hooks.py",
+    ):
+        (tests_dir / test_name).write_text(
+            '"""\n@meta\ntype: test\nscope: unit\ndomain: docs\n"""\n\n'
+            "def test_placeholder():\n    assert True\n",
+            encoding="utf-8",
+        )
     return repo_root
 
 

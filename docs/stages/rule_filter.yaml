@@ -1,3 +1,4 @@
+# GENERATED FILE - do not edit directly.
 rule_filter:
   name: Rule Filter
   summary: Apply deterministic eligibility checks to enriched jobs and split them into passed and rejected sets before retrieval and ranking begin.

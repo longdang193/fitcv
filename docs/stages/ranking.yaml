@@ -1,3 +1,4 @@
+# GENERATED FILE - do not edit directly.
 ranking:
   name: Ranking
   summary: Score shortlist candidates with the six-feature ranking contract, stricter reranker rubric, semantic role alignment, weighted preference alignment, and deterministic fallback candidate-intent inference; reuse exact-match AI-score rows when the stage-owned fingerprint and contract still match; assign the authoritative post-filter ranking fit; and select the ranked jobs eligible to proceed toward CV generation with versioned stage-transition artifacts plus stage-owned quality and reuse metrics.

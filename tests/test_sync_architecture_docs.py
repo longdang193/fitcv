@@ -25,6 +25,14 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "sync_architecture_docs.py"
 GENERATOR_PATH = REPO_ROOT / "tools" / "docs" / "generate_architecture_metadata.py"
+VALIDATOR_PATH = REPO_ROOT / "scripts" / "validate_adoption_shape.py"
+FORMATTER_PATH = REPO_ROOT / "scripts" / "format_contract_yaml.py"
+AUDIT_PATH = REPO_ROOT / "scripts" / "audit_architecture_linkage.py"
+
+
+class IndentedSafeDumper(yaml.SafeDumper):
+    def increase_indent(self, flow: bool = False, indentless: bool = False) -> object:
+        return super().increase_indent(flow, False)
 
 
 def load_sync_module():
@@ -38,7 +46,17 @@ def load_sync_module():
 
 def write_yaml(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    path.write_text(
+        yaml.dump(
+            payload,
+            Dumper=IndentedSafeDumper,
+            sort_keys=False,
+            default_flow_style=False,
+            allow_unicode=False,
+            width=10_000,
+        ),
+        encoding="utf-8",
+    )
 
 
 def read_yaml(path: Path) -> object:
@@ -188,13 +206,34 @@ def build_minimal_repo(tmp_path: Path) -> Path:
         },
     )
     (repo_root / "scripts" / "validate_adoption_shape.py").write_text(
-        (REPO_ROOT / "scripts" / "validate_adoption_shape.py").read_text(encoding="utf-8"),
+        VALIDATOR_PATH.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (repo_root / "scripts" / "format_contract_yaml.py").write_text(
+        FORMATTER_PATH.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (repo_root / "scripts" / "audit_architecture_linkage.py").write_text(
+        AUDIT_PATH.read_text(encoding="utf-8"),
         encoding="utf-8",
     )
     (repo_root / "tools" / "docs" / "generate_architecture_metadata.py").write_text(
         GENERATOR_PATH.read_text(encoding="utf-8"),
         encoding="utf-8",
     )
+    for test_name in (
+        "test_architecture_metadata_generation.py",
+        "test_architecture_linkage_audit.py",
+        "test_format_contract_yaml.py",
+        "test_validate_adoption_shape.py",
+        "test_setup_hooks.py",
+    ):
+        (repo_root / "tests" / test_name).write_text(
+            '"""\n@meta\ntype: test\nscope: unit\ndomain: docs\n"""\n\n'
+            "def test_placeholder() -> None:\n"
+            "    assert True\n",
+            encoding="utf-8",
+        )
     (repo_root / "scripts" / "cv_writer.py").write_text(
         '"""\n'
         "@meta\n"
@@ -451,7 +490,7 @@ def test_sync_script_normalizes_generated_summary_and_statement_text(tmp_path: P
     payload = yaml.safe_load(source_path.read_text(encoding="utf-8"))
     payload["summary"] = "Normalized summary with trailing space.   \n\n"
     payload["capabilities"][0]["statement"] = "Statement with trailing space.   \n\n"
-    source_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+    write_yaml(source_path, payload)
 
     assert sync_module.main(["--repo-root", str(repo_root)]) == 0
 

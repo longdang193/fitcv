@@ -2,56 +2,56 @@ stage_id: ranking
 name: Ranking
 summary: Score shortlist candidates with the six-feature ranking contract, stricter reranker rubric, semantic role alignment, weighted preference alignment, and deterministic fallback candidate-intent inference; reuse exact-match AI-score rows when the stage-owned fingerprint and contract still match; assign the authoritative post-filter ranking fit; and select the ranked jobs eligible to proceed toward CV generation with versioned stage-transition artifacts plus stage-owned quality and reuse metrics.
 boundaries:
-- shortlist candidates enter and ranked jobs leave
-- authoritative post-filter ranking fit ownership belongs to this stage
-- canonical enrich outputs should be the default semantic input contract for ranking features when available
-- explicit candidate preferences remain authoritative, but sparse YAML may be supplemented by deterministic fallback intent inferred from recent profile evidence
-- final ranking inputs and ranked-job selection should be explainable here
+  - shortlist candidates enter and ranked jobs leave
+  - authoritative post-filter ranking fit ownership belongs to this stage
+  - canonical enrich outputs should be the default semantic input contract for ranking features when available
+  - explicit candidate preferences remain authoritative, but sparse YAML may be supplemented by deterministic fallback intent inferred from recent profile evidence
+  - final ranking inputs and ranked-job selection should be explainable here
 inputs:
-- scoring shortlist
-- reranker outputs
-- six-feature runtime ranking inputs
+  - scoring shortlist
+  - reranker outputs
+  - six-feature runtime ranking inputs
 outputs:
-- scored ranking inputs
-- authoritative ranking fit labels
-- final ranked jobs
-- optional manual checkpoint payloads that can resume `cv_analysis` from ranked jobs without recomputing earlier stages
-- bounded `stage_transition_artifacts_v5.ranking` runtime block with six-feature weights, preference-fit weights, fit-label thresholds, effective-preference provenance, contribution visibility, reuse metrics, input samples, output samples, and scored-not-ranked samples
-- '`stage_transition_artifacts.ranking.decision_summary.quality_metrics` with strong/stretch/skip counts and rates over scored inputs'
-- '`stage_transition_artifacts.ranking.decision_summary.reuse_metrics` with exact-match AI-score reuse counts and fresh counts over scored inputs'
-- row-level `ai_score_reuse_status` and `ai_score_input_fingerprint` in ranking outputs and exports
+  - scored ranking inputs
+  - authoritative ranking fit labels
+  - final ranked jobs
+  - optional manual checkpoint payloads that can resume `cv_analysis` from ranked jobs without recomputing earlier stages
+  - bounded `stage_transition_artifacts_v5.ranking` runtime block with six-feature weights, preference-fit weights, fit-label thresholds, effective-preference provenance, contribution visibility, reuse metrics, input samples, output samples, and scored-not-ranked samples
+  - '`stage_transition_artifacts.ranking.decision_summary.quality_metrics` with strong/stretch/skip counts and rates over scored inputs'
+  - '`stage_transition_artifacts.ranking.decision_summary.reuse_metrics` with exact-match AI-score reuse counts and fresh counts over scored inputs'
+  - row-level `ai_score_reuse_status` and `ai_score_input_fingerprint` in ranking outputs and exports
 depends_on:
-- shortlist
+  - shortlist
 primary_features:
-- cv_system
+  - cv_system
 related_features:
-- inspection_debugging
+  - inspection_debugging
 refs:
   docs: []
   spec:
-  - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
-  - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
-  - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
-  - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
-  - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
-  - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
-  - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
-  - docs/superpowers/archive/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
-  - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
-  - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
   plan:
-  - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
-  - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
-  - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
-  - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
-  - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
-  - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
-  - docs/superpowers/archive/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
-  - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
-  - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
   history: []
 keywords:
-- ranking
-- ai score
-- fit label
-- final score
+  - ranking
+  - ai score
+  - fit label
+  - final score

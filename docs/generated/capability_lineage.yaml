@@ -1081,6 +1081,10 @@ features:
           source:
           - python_meta
         tests:
+        - path: tests/test_architecture_metadata_generation.py
+          confidence: high
+          source:
+          - python_proves
         - path: tests/test_cv_generator.py
           confidence: high
           source:
