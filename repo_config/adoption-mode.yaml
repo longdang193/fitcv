@@ -4,7 +4,7 @@ legacy_feature_contracts: false
 architecture_generator: scripts/sync_architecture_docs.py
 starter_sync:
   starter_baseline_ref: a5d2d85b3174cde84f90df26642385b429e3c194
-  last_shared_surface_review_at: 2026-04-22
+  last_shared_surface_review_at: 2026-04-23
   reviewed_surface_classes:
     - repo_config
     - operating_system_docs
@@ -32,11 +32,11 @@ starter_sync:
     - path: docs/operating_system/feature-lifecycle.md
       class: operating_system_docs
       status: customized
-      rationale: JOB-PROJECT now follows the starter wrapper-plus-generator model but still documents repo-local truths such as `config/`, underscore feature IDs, and the current evidence-oriented rollout phases.
+      rationale: JOB-PROJECT now follows the starter helper-complete wrapper model but still documents repo-local truths such as `config/`, underscore feature IDs, and the current evidence-oriented rollout phases.
     - path: docs/operating_system/doc-system-lifecycle.md
       class: operating_system_docs
       status: customized
-      rationale: The doc-system guidance is starter-aligned in structure but remains adapted to this repo's adopted `config/` layout and current managed metadata migration state.
+      rationale: The doc-system guidance is starter-aligned in structure but remains adapted to this repo's adopted `config/` layout and repo-local managed metadata surfaces.
     - path: .agents/skills/plan-document-reviewer/SKILL.md
       class: skills
       status: customized
@@ -52,7 +52,7 @@ starter_sync:
     - path: scripts/sync_architecture_docs.py
       class: validation_and_sync_scripts
       status: customized
-      rationale: JOB-PROJECT now uses the starter wrapper pattern, but the local wrapper still substitutes the current repo-local generator and omits starter helper scripts that do not yet exist here.
+      rationale: JOB-PROJECT now uses the starter helper-complete wrapper pattern, but the local wrapper still targets the repo-local generator and resolves the venv home interpreter so the focused pytest gate runs correctly on this Windows setup.
     - path: docs/features/*/feature.source.yaml
       class: operating_system_docs
       status: customized

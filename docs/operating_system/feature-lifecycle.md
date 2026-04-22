@@ -239,6 +239,14 @@ Use `tools/docs/generate_architecture_metadata.py` as the owning generator and
 still includes the architecture sync check path. It skips only the extra
 validator-specific pytest pass.
 
+The wrapper now includes the starter-aligned helper sequence for this repo:
+
+- adoption-shape validation
+- generator validate-only and check passes
+- architecture linkage awareness audit
+- contract YAML formatting check
+- focused architecture metadata pytest coverage
+
 ## Planning Gate
 
 Before writing a spec or plan, determine:

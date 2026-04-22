@@ -113,8 +113,8 @@ python tools/docs/generate_architecture_metadata.py --check
 Canonical architecture sync/check workflow:
 
 ```powershell
-.\.venv\Scripts\python.exe scripts/sync_architecture_docs.py
-.\.venv\Scripts\python.exe scripts/sync_architecture_docs.py --check
+python scripts/sync_architecture_docs.py
+python scripts/sync_architecture_docs.py --check
 ```
 
 Canonical repo-contract validation workflow:
@@ -127,6 +127,11 @@ Canonical repo-contract validation workflow:
 Use `sync_architecture_docs.py` to refresh generated architecture surfaces after
 source changes through the wrapper. Use `validate_repo_contracts.py` as the
 broader gate before commit, push, or CI completion.
+
+In this repo, the wrapper now mirrors the starter helper flow closely: it runs
+the generator checks, adoption-shape validation, architecture linkage audit,
+contract-YAML formatting check, and the focused architecture metadata pytest
+suite through the repo's managed Python environment.
 
 Here `--fast` means the hook-facing subset, not a lightweight bypass. It still
 runs the architecture sync check path and skips only the extra
