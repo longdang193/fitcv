@@ -7,8 +7,10 @@ capabilities:
     state: active
     statement: Multiple file inputs in trigger form
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
@@ -22,27 +24,27 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-16-02-phase-12-ui-input-evidence-completion-spec.md
     plans:
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   multi_file_job_input.per-file-server-side-validation:
     state: active
     statement: Per-file server-side validation
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
@@ -56,27 +58,27 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-16-02-phase-12-ui-input-evidence-completion-spec.md
     plans:
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   multi_file_job_input.canonical-merge-preserving-order:
     state: active
     statement: Canonical merge preserving order
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
@@ -90,27 +92,31 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-16-02-phase-12-ui-input-evidence-completion-spec.md
     plans:
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   multi_file_job_input.one-immutable-snapshot-stored-per-run:
     state: active
     statement: One immutable snapshot stored per run
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    - src/fitcv_cp/bq_store.py
+    - src/fitcv_cp/models.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
+    - tests/test_fitcv_cp/test_bq_store.py
+    - tests/test_fitcv_cp/test_models.py
     docs:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
@@ -124,27 +130,27 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-16-02-phase-12-ui-input-evidence-completion-spec.md
     plans:
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   multi_file_job_input.all-or-nothing-rejection-on-validation-failure:
     state: active
     statement: All-or-nothing rejection on validation failure
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
@@ -158,21 +164,19 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-16-02-phase-12-ui-input-evidence-completion-spec.md
     plans:
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
 timeline:
 - kind: spec
   path: docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
@@ -180,6 +184,8 @@ timeline:
   path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
 - kind: spec
   path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-16-02-phase-12-ui-input-evidence-completion-spec.md
 - kind: plan
   path: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
 - kind: plan
@@ -190,3 +196,5 @@ timeline:
   path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
 - kind: plan
   path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md

@@ -129,6 +129,10 @@ Phase 7 direct-evidence pilot rules:
   `run_lifecycle_controls` and `admin_control_plane_core` by mapping control
   plane runtime, persistence, queue, reporter, and templated admin surfaces to
   direct code and proof evidence
+- Phase 12 extends the pilot to `multi_file_job_input` plus the currently
+  well-proven `ui_consistency_theming` structural capabilities, while leaving
+  broader theme-token and bootstrap behavior deferred until direct proof tests
+  exist
 - pilot capability-to-file mappings should stay sparse and materially true
 - pilot proof should use truthful `@proves <capability_id>` only in tests that
   actually verify the named behavior

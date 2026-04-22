@@ -561,7 +561,12 @@ def _upload_patches():
 
 
 def test_admin_upload_trigger_merges_multiple_job_files():
-    """Two valid JSON files → 201, merged snapshot contains both jobs."""
+    """@proves multi_file_job_input.multiple-file-inputs-in-trigger-form
+    @proves multi_file_job_input.canonical-merge-preserving-order
+    @proves multi_file_job_input.one-immutable-snapshot-stored-per-run
+
+    Two valid JSON files → 201, merged snapshot contains both jobs.
+    """
     file1 = b'[{"title": "Engineer", "job_url": "http://a.com"}]'
     file2 = b'[{"title": "Analyst", "job_url": "http://b.com"}]'
     captured = {}
@@ -590,7 +595,10 @@ def test_admin_upload_trigger_merges_multiple_job_files():
 
 
 def test_admin_upload_trigger_multi_file_preserves_order():
-    """Merged snapshot preserves file order (file1 rows first, then file2)."""
+    """@proves multi_file_job_input.canonical-merge-preserving-order
+
+    Merged snapshot preserves file order (file1 rows first, then file2).
+    """
     file1 = b'[{"job_url": "http://first.com"}]'
     file2 = b'[{"job_url": "http://second.com"}]'
     captured = {}
@@ -616,7 +624,11 @@ def test_admin_upload_trigger_multi_file_preserves_order():
 
 
 def test_admin_upload_trigger_one_invalid_file_rejects_entire_request():
-    """One file with invalid JSON → 422; run must NOT be created."""
+    """@proves multi_file_job_input.per-file-server-side-validation
+    @proves multi_file_job_input.all-or-nothing-rejection-on-validation-failure
+
+    One file with invalid JSON → 422; run must NOT be created.
+    """
     file1 = b'[{"job_url": "http://good.com"}]'
     file2 = b'THIS IS NOT JSON'
     p = _upload_patches()
@@ -635,7 +647,11 @@ def test_admin_upload_trigger_one_invalid_file_rejects_entire_request():
 
 
 def test_admin_upload_trigger_all_empty_arrays_rejected():
-    """Two files both containing empty arrays → 422 (total merged is empty)."""
+    """@proves multi_file_job_input.per-file-server-side-validation
+    @proves multi_file_job_input.all-or-nothing-rejection-on-validation-failure
+
+    Two files both containing empty arrays → 422 (total merged is empty).
+    """
     file1 = b'[]'
     file2 = b'[]'
     p = _upload_patches()
@@ -652,7 +668,10 @@ def test_admin_upload_trigger_all_empty_arrays_rejected():
 
 
 def test_admin_upload_trigger_upload_mode_no_files_rejected():
-    """Upload mode with neither jobs_file nor jobs_files → 422."""
+    """@proves multi_file_job_input.multiple-file-inputs-in-trigger-form
+
+    Upload mode with neither jobs_file nor jobs_files → 422.
+    """
     p = _upload_patches()
     with p[0], p[1], p[2], p[3], p[4]:
         resp = TestClient(_app()).post(
@@ -663,7 +682,11 @@ def test_admin_upload_trigger_upload_mode_no_files_rejected():
 
 
 def test_admin_upload_trigger_multi_file_non_array_rejected():
-    """A file whose top-level is not a JSON array → 422."""
+    """@proves multi_file_job_input.per-file-server-side-validation
+    @proves multi_file_job_input.all-or-nothing-rejection-on-validation-failure
+
+    A file whose top-level is not a JSON array → 422.
+    """
     file1 = b'{"title": "not an array"}'
     p = _upload_patches()
     with p[0], p[1], p[2], p[3], p[4]:
@@ -2739,7 +2762,9 @@ def test_runs_list_renders_bulk_selection_checkboxes():
 
 
 def test_runs_list_renders_bulk_action_bar_hooks():
-    """@proves admin_control_plane_core.jinja2-admin-pages"""
+    """@proves admin_control_plane_core.jinja2-admin-pages
+    @proves ui_consistency_theming.consistent-action-hierarchy-primary-secondary-section
+    """
     run = _make_full_run_mock(status="queued", run_id="run-bulk-ui-1")
     with patch("fitcv_cp.app.list_runs", return_value=[run]):
         resp = TestClient(_app()).get("/admin/runs")
@@ -3583,7 +3608,10 @@ def _path_mode_patches(profile_path: str = "/tmp/dummy_profile.yaml"):
 
 
 def test_admin_upload_trigger_path_mode_stores_jobs_snapshot(tmp_path):
-    """path mode: trigger must read the file and store its JSON in jobs_input_json."""
+    """@proves multi_file_job_input.one-immutable-snapshot-stored-per-run
+
+    path mode: trigger must read the file and store its JSON in jobs_input_json.
+    """
     jobs_file = tmp_path / "jobs.json"
     jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
     profile_file = tmp_path / "profile.yaml"
@@ -3979,6 +4007,8 @@ def test_get_settings_page_includes_cv_groups():
 
 def test_settings_page_renders_task_first_sections():
     """@proves settings_system.task-first-settings-ui
+    @proves ui_consistency_theming.consistent-action-hierarchy-primary-secondary-section
+    @proves ui_consistency_theming.human-readable-section-headings
 
     Settings page is organized around operator tasks, not only raw schema buckets.
     """
@@ -4081,7 +4111,10 @@ def test_settings_page_cv_max_pages_is_numeric_input():
 # ── Preset-based CV settings page rendering ──────────────────────────────────────
 
 def test_settings_page_renders_cv_preset_section():
-    """CV Output includes the template/model card."""
+    """@proves ui_consistency_theming.human-readable-section-headings
+
+    CV Output includes the template/model card.
+    """
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
@@ -4091,7 +4124,10 @@ def test_settings_page_renders_cv_preset_section():
 
 
 def test_settings_page_renders_cv_composition_section():
-    """CV Output includes the visibility-focused composition block."""
+    """@proves ui_consistency_theming.human-readable-section-headings
+
+    CV Output includes the visibility-focused composition block.
+    """
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200

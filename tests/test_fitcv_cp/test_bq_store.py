@@ -382,7 +382,10 @@ def test_list_run_structured_jobs_preserves_reuse_provenance_fields() -> None:
 # ── Task 1: run-scoped input metadata fields ──────────────────────────────────
 
 def test_insert_run_includes_input_metadata_params() -> None:
-    """insert_run sends all 4 new input metadata fields as query parameters."""
+    """@proves multi_file_job_input.one-immutable-snapshot-stored-per-run
+
+    insert_run sends all 4 new input metadata fields as query parameters.
+    """
     bq = MagicMock()
     run = _make_run()
     run.jobs_input_source = "paste"
@@ -422,7 +425,10 @@ def test_insert_run_includes_manual_checkpoint_params() -> None:
 
 
 def test_insert_run_input_metadata_none_values_are_included() -> None:
-    """insert_run includes None input metadata params (not silently omitted)."""
+    """@proves multi_file_job_input.one-immutable-snapshot-stored-per-run
+
+    insert_run includes None input metadata params (not silently omitted).
+    """
     bq = MagicMock()
     run = _make_run()  # all 4 new fields default to None
     insert_run(run, bq, project="p", dataset="d")
@@ -437,7 +443,10 @@ def test_insert_run_input_metadata_none_values_are_included() -> None:
 
 
 def test_row_to_run_maps_input_metadata_fields() -> None:
-    """_row_to_run correctly maps all 4 new fields from a BQ row."""
+    """@proves multi_file_job_input.one-immutable-snapshot-stored-per-run
+
+    _row_to_run correctly maps all 4 new fields from a BQ row.
+    """
     from fitcv_cp.bq_store import _row_to_run
     import datetime
     row = {
@@ -487,7 +496,10 @@ def test_row_to_run_maps_manual_checkpoint_fields() -> None:
 
 
 def test_row_to_run_handles_missing_input_metadata_fields() -> None:
-    """_row_to_run returns None for new fields absent from old BQ rows."""
+    """@proves multi_file_job_input.one-immutable-snapshot-stored-per-run
+
+    _row_to_run returns None for new fields absent from old BQ rows.
+    """
     from fitcv_cp.bq_store import _row_to_run
     import datetime
     row = {
