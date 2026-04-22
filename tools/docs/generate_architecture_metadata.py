@@ -39,6 +39,9 @@ import yaml
 
 
 GENERATED_HEADER = "# GENERATED FILE - do not edit directly.\n"
+GENERATED_HISTORY_START = "<!-- GENERATED HISTORY START -->"
+GENERATED_HISTORY_END = "<!-- GENERATED HISTORY END -->"
+HUMAN_HISTORY_HEADING = "## Human Notes"
 STATUS_ORDER = ["active", "building", "planned", "deprecated", "retired"]
 PYTHON_META_PATTERN = re.compile(r"^[ \t]*(?:[rubf]+)?([\"']{3})(.*?)(?:\1)", re.DOTALL | re.IGNORECASE)
 TEMPLATE_ARCHITECTURE_PATTERN = re.compile(r"\{#\s*@architecture(?P<body>.*?)#\}", re.DOTALL)
@@ -779,6 +782,111 @@ def timeline_for_feature(repo_root: Path, feature_id: str) -> list[dict[str, obj
     return timeline
 
 
+def extract_history_heading(text: str) -> str | None:
+    stripped = text.lstrip()
+    if not stripped.startswith("# "):
+        return None
+    heading, _, _ = stripped.partition("\n")
+    return heading.strip()
+
+
+def extract_existing_human_history(history_path: Path) -> tuple[str | None, str]:
+    if not history_path.exists():
+        return None, ""
+
+    text = history_path.read_text(encoding="utf-8")
+    heading = extract_history_heading(text)
+    if GENERATED_HISTORY_START in text and GENERATED_HISTORY_END in text:
+        after_end = text.split(GENERATED_HISTORY_END, 1)[1].lstrip("\n")
+        if after_end.startswith(HUMAN_HISTORY_HEADING):
+            body = after_end[len(HUMAN_HISTORY_HEADING) :].lstrip()
+        else:
+            body = after_end.strip()
+        return heading, body.rstrip()
+
+    legacy_body = text
+    if heading is not None:
+        legacy_body = legacy_body.split("\n", 1)[1] if "\n" in legacy_body else ""
+    return heading, legacy_body.strip()
+
+
+def build_generated_history_section(*, timeline: list[dict[str, object]]) -> str:
+    if not timeline:
+        return (
+            f"{GENERATED_HISTORY_START}\n\n"
+            "No completed implementation-plan metadata currently targets this feature.\n\n"
+            f"{GENERATED_HISTORY_END}"
+        )
+
+    lines = [GENERATED_HISTORY_START, ""]
+    current_date: str | None = None
+    for item in timeline:
+        completed_at = str(item.get("completed_at", ""))
+        completed_date = completed_at.split("T", 1)[0] if completed_at else "unknown-date"
+        if completed_date != current_date:
+            if current_date is not None:
+                lines.append("")
+            lines.append(f"## {completed_date}")
+            lines.append("")
+            current_date = completed_date
+
+        lines.append(f"### {str(item.get('summary', 'Completed change'))}")
+        lines.append("")
+        lines.append(f"Source plan: `{str(item.get('source_plan', ''))}`")
+        lines.append("")
+        capabilities = item.get("capabilities", [])
+        lines.append("Affected capabilities:")
+        if isinstance(capabilities, list) and capabilities:
+            lines.extend(f"- `{capability}`" for capability in capabilities)
+        else:
+            lines.append("- none recorded")
+        lines.append("")
+        verification = item.get("verification", [])
+        lines.append("Verification:")
+        if isinstance(verification, list) and verification:
+            lines.extend(f"- `{entry}`" for entry in verification)
+        else:
+            lines.append("- none recorded")
+        lines.append("")
+        outcome = str(item.get("outcome", "")).strip()
+        lines.append("Outcome:")
+        lines.append(outcome if outcome else "No outcome summary recorded.")
+        lines.append("")
+
+    if lines[-1] == "":
+        lines.pop()
+    lines.append("")
+    lines.append(GENERATED_HISTORY_END)
+    return "\n".join(lines)
+
+
+def build_feature_history(
+    *,
+    repo_root: Path,
+    source: dict[str, object],
+    existing_history_path: Path,
+) -> str:
+    feature_id = cast(str, source["feature_id"])
+    default_heading = f"# {source.get('name', feature_id.replace('_', ' ').title())} History"
+    existing_heading, existing_human_body = extract_existing_human_history(existing_history_path)
+    heading = existing_heading or default_heading
+    generated_section = build_generated_history_section(
+        timeline=timeline_for_feature(repo_root, feature_id)
+    )
+    human_body = existing_human_body.strip()
+    if not human_body:
+        human_body = (
+            "Add human narrative here only when operator context, rollout nuance, "
+            "or meaning is needed beyond the generated plan history."
+        )
+    return (
+        f"{heading}\n\n"
+        f"{generated_section}\n\n"
+        f"{HUMAN_HISTORY_HEADING}\n\n"
+        f"{human_body.rstrip()}\n"
+    )
+
+
 def lineage_payload(
     repo_root: Path,
     feature_id: str,
@@ -848,6 +956,14 @@ def render_feature_outputs(repo_root: Path, source_path: Path, evidence_index: E
     source = load_feature_source(source_path)
     feature_id = cast(str, source["feature_id"])
     return [
+        RenderedFile(
+            path=source_path.parent / "history.md",
+            content=build_feature_history(
+                repo_root=repo_root,
+                source=source,
+                existing_history_path=source_path.parent / "history.md",
+            ),
+        ),
         RenderedFile(
             path=generated_feature_contract_path(source_path),
             content=GENERATED_HEADER + dump_yaml(contract_payload(feature_id, source, evidence_index)),

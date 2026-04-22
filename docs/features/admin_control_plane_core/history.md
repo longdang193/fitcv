@@ -1,5 +1,13 @@
 # Admin Control Plane Core — History
 
+<!-- GENERATED HISTORY START -->
+
+No completed implementation-plan metadata currently targets this feature.
+
+<!-- GENERATED HISTORY END -->
+
+## Human Notes
+
 ## Changelog
 
 ### 1.0.0 — active
@@ -11,4 +19,3 @@
 ## Post-Execution Review
 
 > Fill after status transitions to `active`.
-
