@@ -1164,6 +1164,7 @@ def _repair_candidate_name_placeholder(
     profile: dict[str, Any],
     config: dict[str, Any],
 ) -> tuple[dict[str, Any], str]:
+    """@capability cv_system.header-placeholder-repair"""
     repaired_structured_cv = deepcopy(structured_cv)
     sections = repaired_structured_cv.setdefault("sections", {})
     header = sections.setdefault("header", {})
@@ -1817,6 +1818,7 @@ def _build_stage_transition_artifacts(
     config: dict[str, Any],
     candidate_query_debug: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """@capability cv_system.stage-artifact-diagnostics"""
     candidate_query_debug = dict(candidate_query_debug or {})
     cv_analysis_results = list(cv_analysis_results or [])
     shortlist_reached = len(passed_jobs) > 0
@@ -2446,6 +2448,10 @@ def run_pipeline(
     stage_progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
     """Run the full FitCV candidate pipeline end-to-end.
+
+    @capability bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
+    @capability cv_system.fit-gate-resolution
+    @capability cv_system.exact-match-late-stage-reuse
 
     Parameters
     ----------

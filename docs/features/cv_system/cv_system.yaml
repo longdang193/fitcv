@@ -114,6 +114,9 @@ refs:
   - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
   - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
   - docs/superpowers/archive/specs/2026-04-22-19-05-architecture-metadata-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
   plan:
   - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
   - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -166,3 +169,4 @@ refs:
   - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
   - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
   - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+  - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md

@@ -78,8 +78,16 @@ Refresh stage contracts from source with:
 python scripts/sync_architecture_docs.py
 ```
 
-Validate repo-wide adoption shape with:
+For the broader repo gate, use:
 
 ```powershell
-python scripts/validate_adoption_shape.py
+.\.venv\Scripts\python.exe scripts/validate_repo_contracts.py --fast
+.\.venv\Scripts\python.exe scripts/validate_repo_contracts.py
 ```
+
+That validator keeps stage-contract checks in the same pass as adoption-shape
+validation, repo-config validation, metadata coverage enforcement, and
+partial-generated feature-history boundary rules.
+
+Here `--fast` still includes the architecture sync check path. It skips only
+the extra validator-specific pytest pass.

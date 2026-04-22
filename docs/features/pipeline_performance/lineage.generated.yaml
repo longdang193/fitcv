@@ -8,10 +8,27 @@ capabilities:
     statement: Pre-enrichment global job filters (applications_count_max, max_age_days)
     satisfies: []
     code:
-    - src/fitcv/pipeline.py
-    - src/fitcv/rule_filter.py
+    - path: src/fitcv/pipeline.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv/rule_filter.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_rule_filter.py
+    - path: tests/test_rule_filter.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_pre_filter_rejects_high_count_job_using_applications_count_int
+    - path: tests/test_rule_filter.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_pre_filter_rejects_stale_job
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -65,9 +82,23 @@ capabilities:
     statement: Explicit rejection reasons in rule_filter_results
     satisfies: []
     code:
-    - src/fitcv/rule_filter.py
+    - path: src/fitcv/rule_filter.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_rule_filter.py
+    - path: tests/test_rule_filter.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_multiple_rejection_reasons_accumulated
+    - path: tests/test_rule_filter.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_rejected_jobs_include_reasons
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -121,9 +152,17 @@ capabilities:
     statement: Gemini structured output with response_schema and Pydantic
     satisfies: []
     code:
-    - src/fitcv/enrich.py
+    - path: src/fitcv/enrich.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_enrich.py
+    - path: tests/test_enrich.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_parse_extraction_response_valid_json
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -177,9 +216,23 @@ capabilities:
     statement: Fallback path for unparseable responses
     satisfies: []
     code:
-    - src/fitcv/enrich.py
+    - path: src/fitcv/enrich.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_enrich.py
+    - path: tests/test_enrich.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_enrich_job_fallback_when_parsed_is_none
+    - path: tests/test_enrich.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_parse_extraction_response_malformed_json
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -233,11 +286,27 @@ capabilities:
     statement: Enrich extraction prompt text now comes from a centralized prompt registry with config-selected prompt IDs
     satisfies: []
     code:
-    - src/fitcv/config.py
-    - src/fitcv/enrich.py
+    - path: src/fitcv/config.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv/enrich.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_config.py
-    - tests/test_enrich.py
+    - path: tests/test_config.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_config_accessors_resolve_centralized_prompt_ids_and_model_defaults
+    - path: tests/test_enrich.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_enrich_job_renders_prompt_via_prompt_registry
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -291,9 +360,23 @@ capabilities:
     statement: Enrich-stage raw-plus-canonical semantic companions for repeated downstream fields
     satisfies: []
     code:
-    - src/fitcv/enrich.py
+    - path: src/fitcv/enrich.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_enrich.py
+    - path: tests/test_enrich.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_apply_structured_normalization_preserves_raw_scalar_companions
+    - path: tests/test_enrich.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -347,9 +430,17 @@ capabilities:
     statement: Canonical skill companion lists and entity payloads for required/preferred skills
     satisfies: []
     code:
-    - src/fitcv/enrich.py
+    - path: src/fitcv/enrich.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_enrich.py
+    - path: tests/test_enrich.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_apply_structured_normalization_emits_canonical_skill_companions
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -403,10 +494,23 @@ capabilities:
     statement: Enrich-stage mapping suggestion capture for review/debug surfaces
     satisfies: []
     code:
-    - src/fitcv/enrich.py
+    - path: src/fitcv/enrich.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_enrich.py
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_enrich.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_apply_structured_normalization_emits_canonical_skill_companions
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_download_mapping_suggestions_json_endpoint_200
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -460,9 +564,17 @@ capabilities:
     statement: Fingerprint-based enrich-result reuse happens before LLM enrichment using normalized raw-job inputs
     satisfies: []
     code:
-    - src/fitcv/enrich.py
+    - path: src/fitcv/enrich.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_enrich.py
+    - path: tests/test_enrich.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_build_raw_job_fingerprint_is_stable_for_whitespace_and_case_changes
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -516,9 +628,17 @@ capabilities:
     statement: Enrich-contract fingerprinting invalidates reuse automatically when prompt/model/schema behavior changes
     satisfies: []
     code:
-    - src/fitcv/enrich.py
+    - path: src/fitcv/enrich.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_enrich.py
+    - path: tests/test_enrich.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_build_enrich_contract_fingerprint_changes_when_prompt_contract_changes
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -572,9 +692,17 @@ capabilities:
     statement: Shared `structured_jobs` reuse lookup avoids redundant enrich calls while only fresh rows are upserted back into the shared table
     satisfies: []
     code:
-    - src/fitcv/enrich.py
+    - path: src/fitcv/enrich.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_enrich.py
+    - path: tests/test_enrich.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_lookup_reusable_structured_jobs_returns_exact_fingerprint_and_contract_matches
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -628,9 +756,23 @@ capabilities:
     statement: Shortlist now builds a stable structured embedding-input signature before generating `job_summary` vectors
     satisfies: []
     code:
-    - src/fitcv/embeddings.py
+    - path: src/fitcv/embeddings.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_embeddings.py
+    - path: tests/test_embeddings.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_prefers_canonical_skill_lists_and_sorts_them
+    - path: tests/test_embeddings.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_signature_is_stable_when_skill_order_changes
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -684,9 +826,17 @@ capabilities:
     statement: Shortlist reuses the latest stored embedding row for a `job_url` only when both the structured signature and embedding contract fingerprint still match
     satisfies: []
     code:
-    - src/fitcv/embeddings.py
+    - path: src/fitcv/embeddings.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_embeddings.py
+    - path: tests/test_embeddings.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_embed_and_store_jobs_reuses_matching_latest_embeddings_and_only_inserts_misses
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -740,9 +890,17 @@ capabilities:
     statement: Fresh shortlist embeddings persist signature metadata so later runs can skip repeated embedding work safely
     satisfies: []
     code:
-    - src/fitcv/embeddings.py
+    - path: src/fitcv/embeddings.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_embeddings.py
+    - path: tests/test_embeddings.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_embed_and_store_jobs_reuses_matching_latest_embeddings_and_only_inserts_misses
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -796,10 +954,21 @@ capabilities:
     statement: Operator-facing enriched-job exports now keep canonical semantic fields and fingerprint/reuse provenance while omitting retired raw duplicate classification baggage
     satisfies: []
     code:
-    - src/fitcv/pipeline.py
-    - src/fitcv_cp/bq_store.py
+    - path: src/fitcv/pipeline.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/bq_store.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_bq_store.py
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_list_run_structured_jobs_preserves_reuse_provenance_fields
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -853,10 +1022,21 @@ capabilities:
     statement: Large runs avoid some row-scaled Layer 4 event noise by relying more on aggregate stage summaries plus stage-owned artifacts
     satisfies: []
     code:
-    - src/fitcv/pipeline.py
-    - src/fitcv_cp/worker_job.py
+    - path: src/fitcv/pipeline.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/worker_job.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_worker_job.py
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_persists_stage_transition_artifacts_json_on_success
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -910,9 +1090,17 @@ capabilities:
     statement: '`results.json` now keeps only compact job-ledger fields instead of repeating full job snapshots, heavy score-explanation internals, and full CV bodies already represented elsewhere'
     satisfies: []
     code:
-    - src/fitcv_cp/worker_job.py
+    - path: src/fitcv_cp/worker_job.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_worker_job.py
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_persists_results_export_json_on_success
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -966,10 +1154,27 @@ capabilities:
     statement: '`cv_analysis` now uses bounded semantic lift for required-skill and role channels instead of reserving semantic work only for domain and responsibility alignment'
     satisfies: []
     code:
-    - src/fitcv/evidence.py
-    - src/fitcv/pipeline.py
+    - path: src/fitcv/evidence.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv/pipeline.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_evidence.py
+    - path: tests/test_evidence.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_retrieve_evidence_bundle_uses_semantic_alignment_for_required_skill_support
+    - path: tests/test_evidence.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_retrieve_evidence_bundle_uses_semantic_alignment_for_role_alignment
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -1023,9 +1228,17 @@ capabilities:
     statement: Ranked jobs with authoritative reranker `fit_label = skip` now stop before evidence retrieval, gap computation, and semantic alignment inside `cv_analysis`
     satisfies: []
     code:
-    - src/fitcv/pipeline.py
+    - path: src/fitcv/pipeline.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_pipeline.py
+    - path: tests/test_pipeline.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependencies
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -1074,68 +1287,4 @@ capabilities:
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-timeline:
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-02-23-55-enrich-reuse-via-raw-job-fingerprint-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-06-02-35-pipeline-dead-weight-cleanup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-15-05-cv-analysis-semantic-support-for-skill-and-role-channels-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-15-50-results-ledger-and-stage-diagnostics-boundary-tightening-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-06-02-50-pipeline-dead-weight-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-15-20-cv-analysis-semantic-support-for-skill-and-role-channels-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-16-05-results-ledger-and-stage-diagnostics-boundary-tightening-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+timeline: []

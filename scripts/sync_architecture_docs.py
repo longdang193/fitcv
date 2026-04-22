@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+from datetime import date, datetime
 from pathlib import Path
 import re
 from typing import Any, NamedTuple, cast
@@ -65,14 +66,40 @@ class NoAliasDumper(yaml.SafeDumper):
         return True
 
 
+class EvidenceNode(NamedTuple):
+    path: str
+    confidence: str
+    source: tuple[str, ...]
+    symbols: tuple[str, ...] = ()
+
+    def as_dict(self) -> dict[str, object]:
+        payload: dict[str, object] = {
+            "path": self.path,
+            "confidence": self.confidence,
+            "source": list(self.source),
+        }
+        if self.symbols:
+            payload["symbols"] = list(self.symbols)
+        return payload
+
+
 class EvidenceIndex(NamedTuple):
-    code_by_capability: dict[str, list[str]]
-    tests_by_capability: dict[str, list[str]]
+    code_by_capability: dict[str, list[EvidenceNode]]
+    tests_by_capability: dict[str, list[EvidenceNode]]
     configs_by_capability: dict[str, list[str]]
     components_by_capability: dict[str, list[str]]
+    component_evidence_by_capability: dict[str, list[dict[str, str]]]
+    satisfies_by_capability: dict[str, list[str]]
     specs_by_feature: dict[str, list[str]]
     plans_by_feature: dict[str, list[str]]
     docs_by_feature: dict[str, list[str]]
+
+
+class MetadataDocument(NamedTuple):
+    relative_path: str
+    frontmatter: dict[str, object]
+    title: str
+    feature_ids: set[str]
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -161,6 +188,13 @@ def template_source_paths(repo_root: Path) -> list[Path]:
     return sorted(root.rglob("*.html"))
 
 
+def config_source_paths(repo_root: Path) -> list[Path]:
+    root = repo_root / "config"
+    if not root.exists():
+        return []
+    return sorted(root.rglob("*.yaml"))
+
+
 def generated_feature_contract_path(source_path: Path) -> Path:
     return source_path.parent / f"{source_path.parent.name}.yaml"
 
@@ -218,21 +252,40 @@ def parse_python_meta(path: Path) -> dict[str, object]:
     return cast(dict[str, object], payload) if isinstance(payload, dict) else {}
 
 
-def parse_python_function_capabilities(path: Path) -> list[str]:
+def parse_python_function_capabilities(path: Path) -> list[tuple[str, str]]:
     try:
         tree = ast.parse(read_text(path), filename=str(path))
     except SyntaxError:
         return []
 
-    capability_ids: set[str] = set()
+    capability_ids: set[tuple[str, str]] = set()
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
         docstring = ast.get_docstring(node, clean=False)
         if not docstring:
             continue
-        capability_ids.update(CAPABILITY_PATTERN.findall(docstring))
+        for capability_id in CAPABILITY_PATTERN.findall(docstring):
+            capability_ids.add((capability_id, node.name))
     return sorted(capability_ids)
+
+
+def parse_python_function_proves(path: Path) -> list[tuple[str, str]]:
+    try:
+        tree = ast.parse(read_text(path), filename=str(path))
+    except SyntaxError:
+        return []
+
+    proves_ids: set[tuple[str, str]] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        docstring = ast.get_docstring(node, clean=False)
+        if not docstring:
+            continue
+        for capability_id in PROVES_PATTERN.findall(docstring):
+            proves_ids.add((capability_id, node.name))
+    return sorted(proves_ids)
 
 
 def parse_markdown_frontmatter(path: Path) -> dict[str, object]:
@@ -248,6 +301,15 @@ def parse_markdown_frontmatter(path: Path) -> dict[str, object]:
     except yaml.YAMLError:
         return {}
     return cast(dict[str, object], payload) if isinstance(payload, dict) else {}
+
+
+def parse_markdown_title(path: Path) -> str:
+    content = read_text(path)
+    for line in content.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("# "):
+            return stripped[2:].strip()
+    return path.stem.replace("-", " ").replace("_", " ").title()
 
 
 def parse_template_architecture(path: Path) -> dict[str, object]:
@@ -267,6 +329,34 @@ def parse_template_architecture(path: Path) -> dict[str, object]:
     return {}
 
 
+def parse_yaml_architecture(path: Path) -> dict[str, object]:
+    metadata_lines: list[str] = []
+    metadata_started = False
+    for line in read_text(path).splitlines():
+        stripped = line.strip()
+        if not stripped:
+            if metadata_started:
+                break
+            continue
+        if not stripped.startswith("#"):
+            break
+        comment_body = stripped[1:]
+        if comment_body.startswith(" "):
+            comment_body = comment_body[1:]
+        if comment_body == "@architecture":
+            metadata_started = True
+            continue
+        if metadata_started:
+            metadata_lines.append(comment_body)
+    if not metadata_lines:
+        return {}
+    try:
+        payload = yaml.safe_load("\n".join(metadata_lines))
+    except yaml.YAMLError:
+        return {}
+    return cast(dict[str, object], payload) if isinstance(payload, dict) else {}
+
+
 def metadata_capability_ids(meta: dict[str, object]) -> list[str]:
     capabilities = meta.get("capabilities", [])
     if not isinstance(capabilities, list):
@@ -274,10 +364,17 @@ def metadata_capability_ids(meta: dict[str, object]) -> list[str]:
     return sorted({str(item) for item in capabilities if isinstance(item, str)})
 
 
+def metadata_string_list(meta: dict[str, object], key: str) -> list[str]:
+    values = meta.get(key, [])
+    if not isinstance(values, list):
+        return []
+    return sorted({str(item) for item in values if isinstance(item, str) and item})
+
+
 def path_bucket(path: str) -> str:
     if path.startswith("tests/"):
         return "tests"
-    if path.startswith("repo_config/"):
+    if path.startswith("repo_config/") or path.startswith("config/"):
         return "configs"
     return "code"
 
@@ -295,16 +392,52 @@ def feature_ids_from_markdown(path: Path, frontmatter: dict[str, object]) -> set
     return feature_ids
 
 
+def markdown_documents(repo_root: Path) -> list[MetadataDocument]:
+    documents: list[MetadataDocument] = []
+    for path in markdown_source_paths(repo_root):
+        relative = relpath(path, repo_root)
+        frontmatter = parse_markdown_frontmatter(path)
+        documents.append(
+            MetadataDocument(
+                relative_path=relative,
+                frontmatter=frontmatter,
+                title=parse_markdown_title(path),
+                feature_ids=feature_ids_from_markdown(path, frontmatter),
+            )
+        )
+    return documents
+
+
 def sorted_unique(paths: list[str]) -> list[str]:
     return sorted(set(paths))
 
 
+def evidence_node(
+    path: str,
+    *,
+    confidence: str,
+    source: tuple[str, ...],
+    symbols: tuple[str, ...] = (),
+) -> EvidenceNode:
+    return EvidenceNode(path=path, confidence=confidence, source=source, symbols=symbols)
+
+
+def merge_evidence_nodes(*collections: list[EvidenceNode]) -> list[EvidenceNode]:
+    merged: dict[tuple[str, str, tuple[str, ...], tuple[str, ...]], EvidenceNode] = {}
+    for collection in collections:
+        for node in collection:
+            merged[(node.path, node.confidence, node.source, node.symbols)] = node
+    return sorted(merged.values(), key=lambda node: (node.path, node.source, node.symbols))
+
+
 def build_evidence_index(repo_root: Path) -> EvidenceIndex:
-    function_code_by_capability: dict[str, list[str]] = {}
-    file_code_by_capability: dict[str, list[str]] = {}
-    tests_by_capability: dict[str, list[str]] = {}
+    function_code_by_capability: dict[str, list[EvidenceNode]] = {}
+    file_code_by_capability: dict[str, list[EvidenceNode]] = {}
+    tests_by_capability: dict[str, list[EvidenceNode]] = {}
     configs_by_capability: dict[str, list[str]] = {}
     components_by_capability: dict[str, list[str]] = {}
+    component_evidence_by_capability: dict[str, list[dict[str, str]]] = {}
+    satisfies_by_capability: dict[str, list[str]] = {}
     specs_by_feature: dict[str, list[str]] = {}
     plans_by_feature: dict[str, list[str]] = {}
     docs_by_feature: dict[str, list[str]] = {}
@@ -315,36 +448,89 @@ def build_evidence_index(repo_root: Path) -> EvidenceIndex:
         capability_ids = metadata_capability_ids(meta)
         function_capability_ids = parse_python_function_capabilities(path)
         bucket = path_bucket(relative)
-        for capability_id in function_capability_ids:
+        for capability_id, symbol_name in function_capability_ids:
             if bucket == "tests":
-                tests_by_capability.setdefault(capability_id, []).append(relative)
+                tests_by_capability.setdefault(capability_id, []).append(
+                    evidence_node(
+                        relative,
+                        confidence="high",
+                        source=("python_capability",),
+                        symbols=(symbol_name,),
+                    )
+                )
             elif bucket == "configs":
                 configs_by_capability.setdefault(capability_id, []).append(relative)
             else:
-                function_code_by_capability.setdefault(capability_id, []).append(relative)
+                function_code_by_capability.setdefault(capability_id, []).append(
+                    evidence_node(
+                        relative,
+                        confidence="high",
+                        source=("python_capability",),
+                        symbols=(symbol_name,),
+                    )
+                )
         for capability_id in capability_ids:
             if bucket == "tests":
-                tests_by_capability.setdefault(capability_id, []).append(relative)
+                tests_by_capability.setdefault(capability_id, []).append(
+                    evidence_node(relative, confidence="high", source=("python_meta",))
+                )
             elif bucket == "configs":
                 configs_by_capability.setdefault(capability_id, []).append(relative)
             else:
-                file_code_by_capability.setdefault(capability_id, []).append(relative)
+                file_code_by_capability.setdefault(capability_id, []).append(
+                    evidence_node(relative, confidence="high", source=("python_meta",))
+                )
         if bucket == "tests":
-            for capability_id in PROVES_PATTERN.findall(read_text(path)):
-                tests_by_capability.setdefault(capability_id, []).append(relative)
+            proves_markers = parse_python_function_proves(path)
+            if proves_markers:
+                for capability_id, symbol_name in proves_markers:
+                    tests_by_capability.setdefault(capability_id, []).append(
+                        evidence_node(
+                            relative,
+                            confidence="high",
+                            source=("python_proves",),
+                            symbols=(symbol_name,),
+                        )
+                    )
+            else:
+                for capability_id in PROVES_PATTERN.findall(read_text(path)):
+                    tests_by_capability.setdefault(capability_id, []).append(
+                        evidence_node(relative, confidence="high", source=("python_proves",))
+                    )
 
     for path in template_source_paths(repo_root):
         relative = relpath(path, repo_root)
         meta = parse_template_architecture(path)
         capability_ids = metadata_capability_ids(meta)
         for capability_id in capability_ids:
-            file_code_by_capability.setdefault(capability_id, []).append(relative)
+            file_code_by_capability.setdefault(capability_id, []).append(
+                evidence_node(relative, confidence="high", source=("template_architecture",))
+            )
 
-    for path in markdown_source_paths(repo_root):
+    for path in config_source_paths(repo_root):
         relative = relpath(path, repo_root)
-        frontmatter = parse_markdown_frontmatter(path)
-        feature_ids = feature_ids_from_markdown(path, frontmatter)
-        artifact_type = frontmatter.get("artifact_type")
+        meta = parse_yaml_architecture(path)
+        capability_ids = metadata_capability_ids(meta)
+        component_ids = metadata_string_list(meta, "components")
+        satisfies_ids = metadata_string_list(meta, "satisfies")
+        for capability_id in capability_ids:
+            configs_by_capability.setdefault(capability_id, []).append(relative)
+            for component_id in component_ids:
+                components_by_capability.setdefault(capability_id, []).append(component_id)
+                component_evidence_by_capability.setdefault(capability_id, []).append(
+                    {
+                        "path": relative,
+                        "kind": "component_ref",
+                        "component": component_id,
+                    }
+                )
+            for satisfies_id in satisfies_ids:
+                satisfies_by_capability.setdefault(capability_id, []).append(satisfies_id)
+
+    for document in markdown_documents(repo_root):
+        relative = document.relative_path
+        feature_ids = document.feature_ids
+        artifact_type = document.frontmatter.get("artifact_type")
         if artifact_type == "plan" or "/plans/" in relative.replace("\\", "/"):
             target_index = plans_by_feature
         elif artifact_type == "spec" or "/specs/" in relative.replace("\\", "/"):
@@ -360,12 +546,20 @@ def build_evidence_index(repo_root: Path) -> EvidenceIndex:
 
     return EvidenceIndex(
         code_by_capability={
-            key: sorted_unique(function_code_by_capability.get(key, file_code_by_capability.get(key, [])))
+            key: merge_evidence_nodes(
+                file_code_by_capability.get(key, []),
+                function_code_by_capability.get(key, []),
+            )
             for key in sorted(set(function_code_by_capability) | set(file_code_by_capability))
         },
-        tests_by_capability={key: sorted_unique(value) for key, value in tests_by_capability.items()},
+        tests_by_capability={key: merge_evidence_nodes(value) for key, value in tests_by_capability.items()},
         configs_by_capability={key: sorted_unique(value) for key, value in configs_by_capability.items()},
         components_by_capability={key: sorted_unique(value) for key, value in components_by_capability.items()},
+        component_evidence_by_capability={
+            key: sorted(value, key=lambda item: (item["component"], item["path"]))
+            for key, value in component_evidence_by_capability.items()
+        },
+        satisfies_by_capability={key: sorted_unique(value) for key, value in satisfies_by_capability.items()},
         specs_by_feature={key: sorted_unique(value) for key, value in specs_by_feature.items()},
         plans_by_feature={key: sorted_unique(value) for key, value in plans_by_feature.items()},
         docs_by_feature={key: sorted_unique(value) for key, value in docs_by_feature.items()},
@@ -483,8 +677,8 @@ def evidence_nodes(paths: list[str], kind: str) -> list[dict[str, object]]:
 
 
 def completeness_status(
-    code: list[str],
-    tests: list[str],
+    code: list[EvidenceNode],
+    tests: list[EvidenceNode],
     specs: list[str],
     plans: list[str],
     configs: list[str],
@@ -497,7 +691,73 @@ def completeness_status(
     return "missing_evidence"
 
 
-def lineage_payload(feature_id: str, source: dict[str, object], evidence_index: EvidenceIndex) -> dict[str, object]:
+def timeline_entry_for_plan(plan: MetadataDocument, feature_id: str) -> dict[str, object] | None:
+    metadata = plan.frontmatter
+    if metadata.get("status") != "completed":
+        return None
+
+    completed_at = metadata.get("completed_at")
+    change_id = metadata.get("change_id")
+    verification = metadata.get("verification")
+    outcome = metadata.get("outcome")
+    affects = metadata.get("affects")
+
+    if isinstance(completed_at, datetime):
+        completed_at_value = completed_at.isoformat()
+    elif isinstance(completed_at, date):
+        completed_at_value = completed_at.isoformat()
+    elif isinstance(completed_at, str) and completed_at:
+        completed_at_value = completed_at
+    else:
+        return None
+    if not isinstance(change_id, str) or not change_id:
+        return None
+    if not isinstance(verification, list) or not all(isinstance(item, str) for item in verification):
+        return None
+    if not isinstance(outcome, dict):
+        return None
+    outcome_summary = outcome.get("summary")
+    if not isinstance(outcome_summary, str) or not outcome_summary:
+        return None
+
+    capabilities: list[str] = []
+    if isinstance(affects, dict):
+        raw_capabilities = affects.get("capabilities", [])
+        if isinstance(raw_capabilities, list) and all(isinstance(item, str) for item in raw_capabilities):
+            capabilities = [item for item in raw_capabilities if item.startswith(f"{feature_id}.")]
+
+    return {
+        "completed_at": completed_at_value,
+        "source_plan": plan.relative_path,
+        "change_id": change_id,
+        "summary": plan.title,
+        "capabilities": capabilities,
+        "verification": list(verification),
+        "outcome": outcome_summary,
+    }
+
+
+def timeline_for_feature(repo_root: Path, feature_id: str) -> list[dict[str, object]]:
+    timeline: list[dict[str, object]] = []
+    for document in markdown_documents(repo_root):
+        artifact_type = document.frontmatter.get("artifact_type")
+        if not (artifact_type == "plan" or "/plans/" in document.relative_path.replace("\\", "/")):
+            continue
+        if feature_id not in document.feature_ids:
+            continue
+        entry = timeline_entry_for_plan(document, feature_id)
+        if entry is not None:
+            timeline.append(entry)
+    timeline.sort(key=lambda item: cast(str, item["completed_at"]))
+    return timeline
+
+
+def lineage_payload(
+    repo_root: Path,
+    feature_id: str,
+    source: dict[str, object],
+    evidence_index: EvidenceIndex,
+) -> dict[str, object]:
     refs = generated_refs(feature_id, source, evidence_index)
     capabilities: dict[str, dict[str, object]] = {}
     for index, raw_capability in enumerate(cast(list[object], source.get("capabilities", []))):
@@ -507,6 +767,8 @@ def lineage_payload(feature_id: str, source: dict[str, object], evidence_index: 
         tests = list(evidence_index.tests_by_capability.get(capability_id, []))
         configs = list(evidence_index.configs_by_capability.get(capability_id, []))
         components = list(evidence_index.components_by_capability.get(capability_id, []))
+        component_evidence = list(evidence_index.component_evidence_by_capability.get(capability_id, []))
+        satisfies = list(evidence_index.satisfies_by_capability.get(capability_id, []))
         specs = list(refs.get("spec", []))
         plans = list(refs.get("plan", []))
         docs = sorted(set(refs.get("docs", []) + refs.get("history", [])))
@@ -519,15 +781,15 @@ def lineage_payload(feature_id: str, source: dict[str, object], evidence_index: 
         capabilities[capability_id] = {
             "state": capability["state"],
             "statement": capability["statement"],
-            "satisfies": [],
-            "code": code,
-            "tests": tests,
+            "satisfies": satisfies,
+            "code": [node.as_dict() for node in code],
+            "tests": [node.as_dict() for node in tests],
             "docs": docs,
             "docs_evidence": evidence_nodes(docs, "doc_ref"),
             "configs": configs,
             "config_evidence": evidence_nodes(configs, "config_ref"),
             "components": components,
-            "component_evidence": evidence_nodes(components, "component_ref"),
+            "component_evidence": component_evidence,
             "specs": specs,
             "plans": plans,
             "evidence_gaps": list(evidence_gaps),
@@ -546,16 +808,12 @@ def lineage_payload(feature_id: str, source: dict[str, object], evidence_index: 
         for invariant in [normalize_invariant(invariant, index)]
     }
 
-    timeline = [{"kind": "spec", "path": path} for path in refs.get("spec", [])] + [
-        {"kind": "plan", "path": path} for path in refs.get("plan", [])
-    ]
-
     return {
         "feature_id": feature_id,
         "source": f"docs/features/{feature_id}/feature.source.yaml",
         "invariants": invariants,
         "capabilities": capabilities,
-        "timeline": timeline,
+        "timeline": timeline_for_feature(repo_root, feature_id),
     }
 
 
@@ -569,7 +827,7 @@ def render_feature_outputs(repo_root: Path, source_path: Path, evidence_index: E
         ),
         RenderedFile(
             path=generated_lineage_path(source_path),
-            content=GENERATED_HEADER + dump_yaml(lineage_payload(feature_id, source, evidence_index)),
+            content=GENERATED_HEADER + dump_yaml(lineage_payload(repo_root, feature_id, source, evidence_index)),
         ),
     ]
 
@@ -673,7 +931,7 @@ def build_capability_lineage(repo_root: Path) -> RenderedFile:
     for source_path in feature_source_paths(repo_root):
         source = load_feature_source(source_path)
         feature_id = cast(str, source["feature_id"])
-        lineage = lineage_payload(feature_id, source, evidence_index)
+        lineage = lineage_payload(repo_root, feature_id, source, evidence_index)
         features[feature_id] = {
             "summary": normalize_prose(source.get("summary", "")),
             "status": source.get("status", "unknown"),

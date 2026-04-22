@@ -27,6 +27,33 @@ The current repo contract is:
 - `docs/generated/architecture_dag.yaml` is the canonical generated topology/discovery surface
 - `docs/generated/capability_lineage.yaml` is the canonical repo-wide generated capability-evidence summary
 
+Starter-style YAML config metadata is also part of the current local target for
+material runtime and policy configs under `config/`:
+
+- use a top-of-file `# @architecture` block
+- keep capability ownership narrow and truthful
+- treat `components` as stable component ids, not filesystem paths
+- leave `satisfies` empty unless a real requirement or contract id is being
+  declared by source metadata
+
+For `docs/features/<feature_id>/lineage.generated.yaml > timeline`, the current
+local target follows the newer starter direction:
+
+- rich completed-change records sourced from completed plan metadata
+- not the older `{kind, path}` spec/plan ref list
+- `timeline: []` when this repo does not yet have truthful completed-plan
+  metadata for that feature
+
+Current preferred timeline fields are:
+
+- `completed_at`
+- `source_plan`
+- `change_id`
+- `summary`
+- `capabilities`
+- `verification`
+- `outcome`
+
 The older generated discovery family is retired:
 
 - `docs/generated/features_index.yaml`

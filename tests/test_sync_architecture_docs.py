@@ -120,6 +120,7 @@ def build_minimal_repo(tmp_path: Path) -> Path:
     (repo_root / "docs" / "generated").mkdir(parents=True, exist_ok=True)
     (repo_root / "scripts").mkdir(parents=True, exist_ok=True)
     (repo_root / "tests").mkdir(parents=True, exist_ok=True)
+    (repo_root / "config" / "runtime").mkdir(parents=True, exist_ok=True)
     (repo_root / "docs" / "superpowers" / "archive" / "specs").mkdir(parents=True, exist_ok=True)
     (repo_root / "docs" / "superpowers" / "archive" / "plans").mkdir(parents=True, exist_ok=True)
     (repo_root / "scripts" / "cv_writer.py").write_text(
@@ -164,10 +165,39 @@ def build_minimal_repo(tmp_path: Path) -> Path:
     (repo_root / "docs" / "superpowers" / "archive" / "plans" / "2026-04-22-cv-system-plan.md").write_text(
         "---\n"
         "artifact_type: plan\n"
+        "status: completed\n"
+        "completed_at: 2026-04-22T20:45:00+02:00\n"
+        "change_id: 2026-04-22-cv-system-lineage\n"
         "related_features:\n"
         "  - cv_system\n"
+        "affects:\n"
+        "  capabilities:\n"
+        "    - cv_system.structured-cv-generation\n"
+        "verification:\n"
+        "  - pytest tests/test_cv_writer.py\n"
+        "outcome:\n"
+        "  summary: CV generation lineage metadata is now explicit.\n"
         "---\n\n"
         "# CV System Plan\n",
+        encoding="utf-8",
+    )
+    (repo_root / "config" / "runtime" / "prompts.yaml").write_text(
+        "# @architecture\n"
+        "# owner: cv_system\n"
+        "# features:\n"
+        "#   - cv_system\n"
+        "# stages:\n"
+        "#   - cv_analysis\n"
+        "# capabilities:\n"
+        "#   - cv_system.structured-cv-generation\n"
+        "# components:\n"
+        "#   - config.runtime.prompts\n"
+        "# role: config\n"
+        "# canonical: true\n\n"
+        "prompts:\n"
+        "  cv_generation:\n"
+        "    structured_write:\n"
+        "      prompt_id: cv_generation.structured_write.v1\n",
         encoding="utf-8",
     )
     return repo_root
@@ -214,13 +244,45 @@ def test_sync_script_writes_feature_and_stage_outputs(tmp_path: Path) -> None:
     capability_lineage = lineage["capabilities"]["cv_system.structured-cv-generation"]
     assert capability_lineage["state"] == "active"
     assert capability_lineage["statement"] == "Generate structured CV artifacts from grounded evidence."
-    assert capability_lineage["code"] == ["scripts/cv_writer.py"]
-    assert capability_lineage["tests"] == ["tests/test_cv_writer.py"]
+    assert capability_lineage["code"] == [
+        {
+            "path": "scripts/cv_writer.py",
+            "confidence": "high",
+            "source": ["python_capability"],
+            "symbols": ["build_cv"],
+        }
+    ]
+    assert capability_lineage["tests"] == [
+        {
+            "path": "tests/test_cv_writer.py",
+            "confidence": "high",
+            "source": ["python_proves"],
+        }
+    ]
     assert capability_lineage["docs"] == ["docs/features/cv_system/history.md"]
+    assert capability_lineage["configs"] == ["config/runtime/prompts.yaml"]
+    assert capability_lineage["components"] == ["config.runtime.prompts"]
+    assert capability_lineage["component_evidence"] == [
+        {
+            "path": "config/runtime/prompts.yaml",
+            "kind": "component_ref",
+            "component": "config.runtime.prompts",
+        }
+    ]
     assert capability_lineage["specs"] == ["docs/superpowers/archive/specs/2026-04-22-cv-system-spec.md"]
     assert capability_lineage["plans"] == ["docs/superpowers/archive/plans/2026-04-22-cv-system-plan.md"]
     assert capability_lineage["completeness_status"] == "complete"
-    assert [item["kind"] for item in lineage["timeline"]] == ["spec", "plan"]
+    assert lineage["timeline"] == [
+        {
+            "completed_at": "2026-04-22T20:45:00+02:00",
+            "source_plan": "docs/superpowers/archive/plans/2026-04-22-cv-system-plan.md",
+            "change_id": "2026-04-22-cv-system-lineage",
+            "summary": "CV System Plan",
+            "capabilities": ["cv_system.structured-cv-generation"],
+            "verification": ["pytest tests/test_cv_writer.py"],
+            "outcome": "CV generation lineage metadata is now explicit.",
+        }
+    ]
 
     stage_contract = read_yaml(repo_root / "docs" / "stages" / "cv_analysis.yaml")
     assert stage_contract["cv_analysis"]["primary_features"] == ["cv_system"]
@@ -249,7 +311,16 @@ def test_sync_script_refreshes_generated_discovery_outputs(tmp_path: Path) -> No
     assert cv_feature["summary"] == "Pilot source for CV generation lifecycle ownership."
     capability = cv_feature["capabilities"]["cv_system.structured-cv-generation"]
     assert capability["statement"] == "Generate structured CV artifacts from grounded evidence."
-    assert capability["code"] == ["scripts/cv_writer.py"]
+    assert capability["code"] == [
+        {
+            "path": "scripts/cv_writer.py",
+            "confidence": "high",
+            "source": ["python_capability"],
+            "symbols": ["build_cv"],
+        }
+    ]
+    assert capability["configs"] == ["config/runtime/prompts.yaml"]
+    assert capability["components"] == ["config.runtime.prompts"]
 
 
 def test_sync_script_check_mode_reports_legacy_generated_outputs_as_stale(tmp_path: Path) -> None:
@@ -321,3 +392,24 @@ def test_sync_script_normalizes_generated_summary_and_statement_text(tmp_path: P
     contract = read_yaml(repo_root / "docs" / "features" / "cv_system" / "cv_system.yaml")
     assert contract["summary"] == "Normalized summary with trailing space."
     assert contract["capabilities"][0]["statement"] == "Statement with trailing space."
+
+
+def test_sync_script_emits_empty_timeline_when_plan_lacks_completed_metadata(tmp_path: Path) -> None:
+    repo_root = build_minimal_repo(tmp_path)
+    sync_module = load_sync_module()
+
+    plan_path = repo_root / "docs" / "superpowers" / "archive" / "plans" / "2026-04-22-cv-system-plan.md"
+    plan_path.write_text(
+        "---\n"
+        "artifact_type: plan\n"
+        "related_features:\n"
+        "  - cv_system\n"
+        "---\n\n"
+        "# CV System Plan\n",
+        encoding="utf-8",
+    )
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+
+    lineage = read_yaml(repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml")
+    assert lineage["timeline"] == []

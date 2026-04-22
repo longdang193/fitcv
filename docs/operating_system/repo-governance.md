@@ -80,8 +80,8 @@ Managed Mode B target state:
 - keep starter-owned shared repo-control surfaces reviewed against the adopted
   starter baseline and record that review in `repo_config/adoption-mode.yaml`
 - run `python scripts/sync_architecture_docs.py` to refresh generated lifecycle
-  outputs and `python scripts/validate_adoption_shape.py` to check repo-wide
-  Mode B shape before calling the migration work complete
+  outputs and `python scripts/validate_repo_contracts.py` to check the broader
+  repo contract before calling the migration work complete
 
 ## Ownership Rules
 
@@ -219,6 +219,19 @@ run:
 ## Hook Workflow
 
 The repo hook workflow is part of normal enforcement.
+
+Installed local hooks should call the repo-contract validator in its hook-facing
+subset mode:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/validate_repo_contracts.py --fast
+```
+
+Use `scripts/sync_architecture_docs.py` separately when you need to regenerate
+feature, stage, or discovery outputs before rerunning the validator.
+
+The `--fast` flag is not a no-op quick check. It still runs the architecture
+sync check path and skips only the extra validator-specific pytest pass.
 
 CI is expected to run adapter verification and baseline checks on push and pull request events so drift and broken changes are caught before merge.
 

@@ -85,6 +85,8 @@ surface:
   more truthful than broad file-level ownership
 - leading `{# @architecture ... #}` blocks for Jinja/HTML templates when a
   shared template materially owns capability behavior in this repo
+- leading `# @architecture` comment blocks for material YAML config surfaces
+  under `config/`
 - lightweight frontmatter only for docs that materially explain feature,
   capability, stage, config, or component behavior
 
@@ -97,6 +99,13 @@ Rules:
   lineage
 - use test-level `@proves <capability_id>` as proof evidence when a test exists
   to verify a capability
+- for YAML config metadata:
+  - `configs` should remain path-backed evidence
+  - `components` should be stable component ids rather than file paths
+  - `component_evidence` should preserve both the component id and its source
+    config path
+  - `satisfies` should stay optional until a truthful upstream requirement or
+    contract id exists
 - prefer repo-local template metadata only for shared UI ownership that cannot
   be truthfully attached to a Python owner file
 - do not treat tests, helper wrappers, or passive docs as semantic capability
@@ -110,6 +119,22 @@ The current lineage target is the evidence-oriented Phase 5 shape:
 - `invariants`
 - `capabilities`
 - `timeline`
+
+Timeline contract rule:
+
+- the older `{kind, path}` timeline entry shape is retired migration debt and
+  should not be emitted by the generator or accepted by the validator
+- the current target is a richer completed-change record list with fields such
+  as:
+  - `completed_at`
+  - `source_plan`
+  - `change_id`
+  - `summary`
+  - `capabilities`
+  - `verification`
+  - `outcome`
+- when completed-plan metadata is not yet available, `timeline: []` is the
+  truthful migration-safe output
 
 Phase 6 hydration rules:
 
@@ -187,11 +212,15 @@ Refresh source-owned feature outputs with:
 python scripts/sync_architecture_docs.py
 ```
 
-Validate repo-wide adoption shape with:
+Canonical repo-contract validation workflow:
 
 ```powershell
-python scripts/validate_adoption_shape.py
+.\.venv\Scripts\python.exe scripts/validate_repo_contracts.py --fast
+.\.venv\Scripts\python.exe scripts/validate_repo_contracts.py
 ```
+
+`--fast` still includes the architecture sync check path. It skips only the
+extra validator-specific pytest pass.
 
 ## Planning Gate
 

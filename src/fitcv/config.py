@@ -18,6 +18,7 @@ capabilities:
   - settings_system.cv-composition-visibility-settings
   - settings_system.warning-only-cv-max-pages-validation-setting
   - pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
+  - cv_system.config-owned-generation-contract
 tags:
   - config
   - settings

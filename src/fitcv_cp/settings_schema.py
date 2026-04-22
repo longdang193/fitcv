@@ -24,6 +24,9 @@ capabilities:
   - settings_system.cv-composition-visibility-settings
   - settings_system.warning-only-cv-max-pages-validation-setting
   - settings_system.grouped-form-validation
+  - bounded_parallel_enrichment.enrichment-batch-size-setting
+  - bounded_parallel_enrichment.enrichment-concurrency-setting
+  - bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1
 tags:
   - settings
   - admin-ui

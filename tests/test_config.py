@@ -758,6 +758,7 @@ def test_load_config_adds_default_ranking_and_cv_generation_prompt_ids() -> None
 
 
 def test_load_config_builds_prompts_runtime_for_all_major_stages() -> None:
+    """@proves cv_system.config-owned-generation-contract"""
     cfg = load_config()
 
     assert cfg["prompts_runtime"]["enrich"]["extraction"]["prompt_id"] == "enrich.extraction.v1"
@@ -775,6 +776,7 @@ def test_config_accessors_resolve_centralized_prompt_ids_and_model_defaults() ->
 
 
 def test_load_config_exposes_only_active_cv_generation_prompt_contract() -> None:
+    """@proves cv_system.config-owned-generation-contract"""
     cfg = load_config()
 
     assert "write" not in cfg["prompts"]["cv_generation"]

@@ -8,9 +8,17 @@ capabilities:
     statement: FastAPI web server
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_stop_queued_run_returns_json
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -46,9 +54,29 @@ capabilities:
     statement: RQ background worker integration
     satisfies: []
     code:
-    - src/fitcv_cp/queue.py
+    - path: src/fitcv_cp/queue.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_queue.py
+    - path: tests/test_fitcv_cp/test_queue.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_cancel_queued_run_returns_true_when_cancelable
+    - path: tests/test_fitcv_cp/test_queue.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_enqueue_run_returns_uuid
+    - path: tests/test_fitcv_cp/test_queue.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_enqueue_run_with_job_id_returns_tuple
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -84,9 +112,47 @@ capabilities:
     statement: Jinja2 admin pages
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_archived_shows_unarchive_and_badge
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_awaiting_continue_shows_run_next_stage_and_stop_run
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_stale_cancelling_shows_repair_status
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_started_stale_cancelling_shows_repair_status
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_runs_list_renders_bulk_action_bar_hooks
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_runs_list_shows_active_all_archived_filter_tabs
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -122,10 +188,33 @@ capabilities:
     statement: PipelineReporter integration
     satisfies: []
     code:
-    - src/fitcv_cp/reporter.py
-    - src/fitcv_cp/worker_job.py
+    - path: src/fitcv_cp/reporter.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/worker_job.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_reporter.py
+    - path: tests/test_fitcv_cp/test_reporter.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_reporter_emits_event
+    - path: tests/test_fitcv_cp/test_reporter.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_reporter_noop_without_bq
+    - path: tests/test_fitcv_cp/test_reporter.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_reporter_payload_serialized
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -161,11 +250,69 @@ capabilities:
     statement: pipeline_runs BigQuery table
     satisfies: []
     code:
-    - src/fitcv_cp/bq_store.py
-    - src/fitcv_cp/models.py
+    - path: src/fitcv_cp/bq_store.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/models.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_bq_store.py
-    - tests/test_fitcv_cp/test_models.py
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_insert_run_calls_bq
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_list_runs_active_filters_archived
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_list_runs_archived_only
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_list_runs_include_all
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_list_runs_returns_list
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_row_to_run_maps_lifecycle_fields
+    - path: tests/test_fitcv_cp/test_models.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_pipeline_run_lifecycle_fields
+    - path: tests/test_fitcv_cp/test_models.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_pipeline_run_lifecycle_fields_default_none
+    - path: tests/test_fitcv_cp/test_models.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_status_values
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -201,11 +348,27 @@ capabilities:
     statement: pipeline_run_events BigQuery table
     satisfies: []
     code:
-    - src/fitcv_cp/bq_store.py
-    - src/fitcv_cp/models.py
+    - path: src/fitcv_cp/bq_store.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/models.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_bq_store.py
-    - tests/test_fitcv_cp/test_models.py
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_append_event_calls_bq
+    - path: tests/test_fitcv_cp/test_models.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_event_fields
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -241,9 +404,17 @@ capabilities:
     statement: insert-before-enqueue invariant
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_post_runs_inserts_before_enqueue
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -274,32 +445,4 @@ capabilities:
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-timeline:
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+timeline: []

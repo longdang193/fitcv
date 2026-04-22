@@ -8,9 +8,17 @@ capabilities:
     statement: Show the three-tab inspection surface and client-side tab switching for run detail.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_default_tab_is_enriched
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -132,9 +140,23 @@ capabilities:
     statement: Show execution mode, reached stages, checkpoint state, and run-next-stage controls across run modes.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_awaiting_continue_shows_run_next_stage_and_stop_run
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_run_all_shows_shared_progress_without_checkpoint_controls
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -256,9 +278,17 @@ capabilities:
     statement: Surface active and default synonym-overlay state and snapshots during staged inspection flows.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_run_detail_shows_synonym_overlay_card_for_manual_enrich_checkpoint
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -380,9 +410,23 @@ capabilities:
     statement: Provide run-scoped downloads such as CVs, artifact bundles, and CV debug exports when owned outputs exist.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_run_detail_shows_exports_card_with_results_link
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_download_run_artifact_bundle_zip_endpoint_for_partial_run
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -504,9 +548,17 @@ capabilities:
     statement: Expose stage-owned downloads only after the owning stage has been reached and the artifact exists.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_timeline_shows_stage_download_for_mapped_event
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -628,13 +680,43 @@ capabilities:
     statement: Show canonical operator-facing settings-used exports and compatibility projections when needed.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/bq_store.py
-    - src/fitcv_cp/worker_job.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/bq_store.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/worker_job.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
-    - tests/test_fitcv_cp/test_bq_store.py
-    - tests/test_fitcv_cp/test_worker_job.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_run_detail_shows_download_settings_used_json_button
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_download_settings_used_json_endpoint_200
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_update_run_settings_used_updates_only_settings_snapshot_field
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_persists_settings_used_json_on_success
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -756,13 +838,49 @@ capabilities:
     statement: Keep `results.json` job-centric while exposing compact decision chains, skip states, and export-ready outcomes.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/bq_store.py
-    - src/fitcv_cp/worker_job.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/bq_store.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/worker_job.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
-    - tests/test_fitcv_cp/test_bq_store.py
-    - tests/test_fitcv_cp/test_worker_job.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_download_results_json_endpoint_200
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_enriched_shows_pipeline_outcome_for_reranker_blocked_job
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_row_to_run_maps_results_export_json
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_update_run_results_export_uses_parameterized_query
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_persists_results_export_json_on_success
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -884,13 +1002,37 @@ capabilities:
     statement: Provide aggregate timeline rows and bounded per-stage transition artifacts for major stage handoffs.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/bq_store.py
-    - src/fitcv_cp/worker_job.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/bq_store.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/worker_job.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
-    - tests/test_fitcv_cp/test_bq_store.py
-    - tests/test_fitcv_cp/test_worker_job.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_download_stage_transition_artifacts_json_endpoint_200
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_update_run_stage_transition_artifacts_updates_only_stage_artifacts_field
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_persists_stage_transition_artifacts_json_on_success
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -1012,19 +1154,37 @@ capabilities:
     statement: Surface effective enrich, ranking, and CV-generation prompt identifiers, templates, and models in diagnostics.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/worker_job.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/worker_job.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_worker_job.py
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_persists_settings_used_json_on_success
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
     - path: docs/features/inspection_debugging/history.md
       kind: doc_ref
-    configs: []
-    config_evidence: []
-    components: []
-    component_evidence: []
+    configs:
+    - config/runtime/prompts.yaml
+    config_evidence:
+    - path: config/runtime/prompts.yaml
+      kind: config_ref
+    components:
+    - config.runtime.prompts
+    component_evidence:
+    - path: config/runtime/prompts.yaml
+      kind: component_ref
+      component: config.runtime.prompts
     specs:
     - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
     - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
@@ -1137,9 +1297,17 @@ capabilities:
     statement: Expose ranking contract details, weighted contributions, fit thresholds, and reranker reuse state.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_zero_cvs_and_zero_ranked_shows_ranking_threshold_message
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -1261,9 +1429,17 @@ capabilities:
     statement: Show shortlist retrieval facts, raw-hit visibility, candidate-query inputs, and embedding reuse provenance.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -1385,9 +1561,23 @@ capabilities:
     statement: Expose analysis outcomes, selected evidence, hybrid alignment details, and analysis reuse visibility.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_renders_run_health_when_late_stage_reuse_metrics_available
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_run_health_marks_unreached_metrics_as_pending_and_zero_denominator_reached_metrics_as_na
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -1509,9 +1699,23 @@ capabilities:
     statement: Expose CV-writing outcomes, grounding and support validation detail, and authoritative fit context.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_hides_cv_generation_quality_metrics_when_absent
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_renders_cv_generation_quality_metrics
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -1633,11 +1837,33 @@ capabilities:
     statement: Surface late-stage reuse snapshots and exact-match reuse counters across ranking and analysis flows.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/worker_job.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/worker_job.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
-    - tests/test_fitcv_cp/test_worker_job.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_hides_late_stage_reuse_metrics_when_absent
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_renders_run_health_when_late_stage_reuse_metrics_available
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_moves_late_stage_reuse_snapshots_under_diagnostic_support
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -1759,11 +1985,27 @@ capabilities:
     statement: Show compact stage-level quality metrics across shortlist, ranking, analysis, and generation stages.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/worker_job.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/worker_job.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
-    - tests/test_fitcv_cp/test_worker_job.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_renders_run_health_when_quality_metrics_available
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_persists_cv_generation_debug_coverage_for_reranker_blocked_rows
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -1885,11 +2127,27 @@ capabilities:
     statement: Include enriched-job inspection exports with canonical skill companions, mapping suggestions, and enrich provenance.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/bq_store.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/bq_store.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
-    - tests/test_fitcv_cp/test_bq_store.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_run_detail_shows_enriched_jobs_section
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_list_run_structured_jobs_parses_canonical_json_companions
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -2011,10 +2269,23 @@ capabilities:
     statement: Show active blocking filters, mark-code counts, and separate pre-enrichment reject visibility.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
-    - tests/test_fitcv_cp/test_bq_store.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_shows_marks_for_passed_jobs
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_list_filter_results_for_run_parses_marks_json
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -2131,204 +2402,4 @@ capabilities:
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-timeline:
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-03-31-stage-aware-project-operating-system-design.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-02-14-35-staged-manual-pipeline-mode-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-02-23-55-enrich-reuse-via-raw-job-fingerprint-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-11-39-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-17-05-cv-generation-structured-prompt-centralization-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-23-59-pipeline-log-contract-cleanup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-06-01-15-run-detail-stage-gating-and-pending-health-fix-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-06-01-55-large-run-detail-lazy-loading-and-status-polling-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-06-02-35-pipeline-dead-weight-cleanup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-13-05-run-artifact-bundle-zip-export-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-14-05-cv-analysis-embedding-counter-contract-fix-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-15-50-results-ledger-and-stage-diagnostics-boundary-tightening-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-18-05-skipped-fit-gate-results-contract-fix-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-23-35-staged-final-artifact-reranker-truth-alignment-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-12-02-phase-7-direct-evidence-backfill-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-03-31-stage-contract-docs-adoption-implementation.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-02-14-50-staged-manual-pipeline-mode-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-02-21-20-run-scoped-synonym-overlay-upload-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-02-22-05-rule-filter-selectable-screening-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-05-11-21-cv-generation-structured-prompt-centralization-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-05-11-40-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-06-00-05-run-detail-artifact-gating-and-diagnostics-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-06-01-25-run-detail-stage-gating-and-pending-health-fix-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-06-02-10-large-run-detail-lazy-loading-and-status-polling-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-06-02-50-pipeline-dead-weight-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-13-20-run-artifact-bundle-zip-export-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-14-20-cv-analysis-embedding-counter-contract-fix-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-16-05-results-ledger-and-stage-diagnostics-boundary-tightening-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-18-20-skipped-fit-gate-results-contract-fix-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-23-45-staged-final-artifact-reranker-truth-alignment-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
+timeline: []

@@ -14,6 +14,10 @@ Documentation should let a human or agent answer:
 
 Docs explain code. They do not replace it.
 
+Canonical truth should flow downward from upstream owning layers. Lower layers
+should derive or reference that truth rather than restating the same semantic
+fact manually.
+
 ## Source-Of-Truth Layers
 
 ```text
@@ -90,6 +94,28 @@ When behavior or structure changes:
 - update feature docs or cross-cutting docs as needed
 - update operating-system docs when repo rules or workflows change
 - refresh generated discovery from its source layers
+
+Canonical architecture sync/check workflow:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/sync_architecture_docs.py
+.\.venv\Scripts\python.exe scripts/sync_architecture_docs.py --check
+```
+
+Canonical repo-contract validation workflow:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/validate_repo_contracts.py --fast
+.\.venv\Scripts\python.exe scripts/validate_repo_contracts.py
+```
+
+Use `sync_architecture_docs.py` to refresh generated architecture surfaces after
+source changes. Use `validate_repo_contracts.py` as the broader gate before
+commit, push, or CI completion.
+
+Here `--fast` means the hook-facing subset, not a lightweight bypass. It still
+runs the architecture sync check path and skips only the extra
+validator-specific pytest pass.
 
 ## Practical Heuristic
 

@@ -8,11 +8,33 @@ capabilities:
     statement: Cancel queued runs directly from the queue via RQ
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/queue.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/queue.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
-    - tests/test_fitcv_cp/test_queue.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_stop_queued_run_returns_json
+    - path: tests/test_fitcv_cp/test_queue.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_cancel_queued_run_returns_false_when_not_found
+    - path: tests/test_fitcv_cp/test_queue.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_cancel_queued_run_returns_true_when_cancelable
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -57,11 +79,41 @@ capabilities:
     statement: Cooperative cancellation at safe checkpoints for running jobs
     satisfies: []
     code:
-    - src/fitcv_cp/worker_job.py
+    - path: src/fitcv_cp/worker_job.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
-    - tests/test_fitcv_cp/test_bq_store.py
-    - tests/test_fitcv_cp/test_worker_job.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_stop_claimed_run_falls_back_to_cancelling
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_request_run_cancel_sets_cancel_fields
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_cancellation_event_appended_on_early_exit
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_marks_cancelled_when_cancel_already_requested
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_pipeline_cancelled_exception_marks_cancelled
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -106,9 +158,23 @@ capabilities:
     statement: Direct cancellation of paused manual runs in `awaiting_continue`
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_bulk_cancel_awaiting_continue_run_directly_cancels
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_stop_awaiting_continue_run_returns_cancelled
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -153,9 +219,41 @@ capabilities:
     statement: Stale cancellation repair endpoint
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_repair_cancellation_running_run_returns_409
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_repair_cancellation_stale_run_returns_cancelled
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_repair_cancellation_started_stale_run_returns_cancelled
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_stale_cancelling_shows_repair_status
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_started_stale_cancelling_shows_repair_status
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -200,9 +298,23 @@ capabilities:
     statement: State-aware max-runtime timeout handling for queued, running, cancelling, and paused manual runs
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_runs_timeouts_awaiting_continue_runs_to_cancelled
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_runs_timeouts_running_runs_to_failed
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -247,9 +359,23 @@ capabilities:
     statement: Timeout copy now distinguishes queue wait, active runtime, and Stage by Stage manual-wait time
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_runs_timeouts_awaiting_continue_runs_to_cancelled
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_runs_timeouts_running_runs_to_failed
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -294,11 +420,39 @@ capabilities:
     statement: Archive and unarchive terminal runs
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/bq_store.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/bq_store.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
-    - tests/test_fitcv_cp/test_bq_store.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_archive_succeeded_run_returns_json
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_unarchive_archived_run_returns_json
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_archive_run_uses_parameterized_query
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_unarchive_run_uses_parameterized_query
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -343,9 +497,47 @@ capabilities:
     statement: Batch cancel, archive, and unarchive endpoints with explicit processed/skipped summaries
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_bulk_archive_terminal_runs_only
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_bulk_cancel_awaiting_continue_run_directly_cancels
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_bulk_cancel_mixed_eligibility_returns_processed_and_skipped_summary
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_bulk_lifecycle_rejects_empty_run_ids
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_bulk_lifecycle_rejects_unknown_run_ids
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_bulk_unarchive_archived_runs_only
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -390,13 +582,37 @@ capabilities:
     statement: Full audit trail in pipeline_run_events
     satisfies: []
     code:
-    - src/fitcv_cp/bq_store.py
-    - src/fitcv_cp/reporter.py
-    - src/fitcv_cp/worker_job.py
+    - path: src/fitcv_cp/bq_store.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/reporter.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/worker_job.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_bq_store.py
-    - tests/test_fitcv_cp/test_reporter.py
-    - tests/test_fitcv_cp/test_worker_job.py
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_append_event_calls_bq
+    - path: tests/test_fitcv_cp/test_reporter.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_reporter_emits_event
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_cancellation_event_appended_on_early_exit
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -436,50 +652,4 @@ capabilities:
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-timeline:
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-20-45-awaiting-continue-cancel-eligibility-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-21-20-runs-list-table-compaction-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-05-21-35-runs-list-table-compaction-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+timeline: []

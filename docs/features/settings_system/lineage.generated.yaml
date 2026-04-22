@@ -8,9 +8,23 @@ capabilities:
     statement: BigQuery-backed pipeline settings store
     satisfies: []
     code:
-    - src/fitcv_cp/settings_store.py
+    - path: src/fitcv_cp/settings_store.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_settings_store.py
+    - path: tests/test_fitcv_cp/test_settings_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_load_active_settings_returns_latest_per_key
+    - path: tests/test_fitcv_cp/test_settings_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_save_setting_calls_bq
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -69,9 +83,17 @@ capabilities:
     statement: Settings schema registry
     satisfies: []
     code:
-    - src/fitcv_cp/settings_schema.py
+    - path: src/fitcv_cp/settings_schema.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_settings_schema.py
+    - path: tests/test_fitcv_cp/test_settings_schema.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_all_expected_keys_present
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -130,9 +152,17 @@ capabilities:
     statement: Retrieval settings
     satisfies: []
     code:
-    - src/fitcv_cp/settings_schema.py
+    - path: src/fitcv_cp/settings_schema.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_settings_schema.py
+    - path: tests/test_fitcv_cp/test_settings_schema.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_retrieval_defaults_are_hydrated_from_centralized_pipeline_config
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -191,10 +221,21 @@ capabilities:
     statement: Configure timing, throttling, and run-lifecycle timeout controls.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/settings_schema.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/settings_schema.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_settings_page_renders_run_lifecycle_section
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -253,10 +294,21 @@ capabilities:
     statement: Global job filters
     satisfies: []
     code:
-    - src/fitcv/rule_filter.py
-    - src/fitcv_cp/settings_schema.py
+    - path: src/fitcv/rule_filter.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/settings_schema.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_rule_filter.py
+    - path: tests/test_rule_filter.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_setting_reaches_filter_via_apply_settings_to_config
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -315,9 +367,17 @@ capabilities:
     statement: Configure six-feature ranking weights, zero-weight semantics, and runtime-aligned copy.
     satisfies: []
     code:
-    - src/fitcv_cp/settings_schema.py
+    - path: src/fitcv_cp/settings_schema.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_settings_schema.py
+    - path: tests/test_fitcv_cp/test_settings_schema.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_ranking_weights_must_sum_to_one
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -376,9 +436,17 @@ capabilities:
     statement: Configure preference-fit subweights and fit-label threshold guidance for reranker calibration.
     satisfies: []
     code:
-    - src/fitcv_cp/settings_schema.py
+    - path: src/fitcv_cp/settings_schema.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_grouped_save_fit_label_thresholds_valid
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -437,10 +505,21 @@ capabilities:
     statement: Configure semantic-alignment enablement, model selection, and lexical-vs-semantic balance for `cv_analysis`.
     satisfies: []
     code:
-    - src/fitcv/config.py
-    - src/fitcv_cp/settings_schema.py
+    - path: src/fitcv/config.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/settings_schema.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_settings_schema.py
+    - path: tests/test_fitcv_cp/test_settings_schema.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_cv_analysis_semantic_alignment_validate_accepts_balanced_weight_pairs
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -499,11 +578,33 @@ capabilities:
     statement: CV generation settings
     satisfies: []
     code:
-    - src/fitcv/config.py
-    - src/fitcv_cp/settings_schema.py
+    - path: src/fitcv/config.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/settings_schema.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_config.py
-    - tests/test_fitcv_cp/test_settings_schema.py
+    - path: tests/test_config.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_load_config_includes_cv_defaults
+    - path: tests/test_config.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_load_config_nested_cv_generation_has_model_and_prompt_version
+    - path: tests/test_fitcv_cp/test_settings_schema.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_apply_settings_to_config_cv_generation_nested
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -562,12 +663,31 @@ capabilities:
     statement: CV composition visibility settings
     satisfies: []
     code:
-    - src/fitcv/config.py
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/settings_schema.py
+    - path: src/fitcv/config.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/settings_schema.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_config.py
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_config.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_validate_composition_accepts_valid_europass
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_settings_page_renders_cv_visibility_matrix
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -626,12 +746,31 @@ capabilities:
     statement: Warning-only CV max-pages validation setting
     satisfies: []
     code:
-    - src/fitcv/config.py
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/settings_schema.py
+    - path: src/fitcv/config.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/settings_schema.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_config.py
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_config.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_load_config_nested_cv_validation_max_pages_positive
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_settings_page_cv_max_pages_is_numeric_input
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -690,9 +829,17 @@ capabilities:
     statement: Organize the admin settings surface by task with clearer current-vs-draft feedback.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_settings_page_renders_task_first_sections
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -751,9 +898,17 @@ capabilities:
     statement: Separate expert-only tuning controls from the basic settings surface.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_settings_page_uses_advanced_disclosure_for_expert_controls
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -812,9 +967,17 @@ capabilities:
     statement: Render fixed single-option runtime controls and retired prompt fields as metadata rather than editable inputs.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_settings_page_renders_single_option_controls_as_metadata
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -873,9 +1036,23 @@ capabilities:
     statement: Provide denser CV composition and visibility controls for operator workflows.
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_settings_page_renders_cv_sub_cards
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_settings_page_uses_shared_cv_setting_row_class_across_blocks
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -934,10 +1111,27 @@ capabilities:
     statement: Grouped form validation
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/settings_schema.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/settings_schema.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_grouped_save_cv_composition_invalid_does_not_partial_save
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_grouped_save_fit_label_thresholds_invalid_order
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -996,9 +1190,23 @@ capabilities:
     statement: Per-run overrides
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_post_runs_rejects_invalid_config_overrides
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_post_runs_with_config_overrides
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -1057,9 +1265,17 @@ capabilities:
     statement: Trigger-time effective settings snapshot
     satisfies: []
     code:
-    - src/fitcv_cp/bq_store.py
+    - path: src/fitcv_cp/bq_store.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_bq_store.py
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_update_run_effective_settings_updates_only_effective_settings_field
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -1118,9 +1334,23 @@ capabilities:
     statement: Hydrate admin defaults from the baseline config layout while preserving migration-safe compatibility behavior.
     satisfies: []
     code:
-    - src/fitcv/config.py
+    - path: src/fitcv/config.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_config.py
+    - path: tests/test_config.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_load_config_compatibility_flat_keys_work_after_nested_migration
+    - path: tests/test_config.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_files
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -1179,9 +1409,23 @@ capabilities:
     statement: Emit canonical nested settings-used exports and isolate compatibility-era flat keys into an explicit compatibility block.
     satisfies: []
     code:
-    - src/fitcv_cp/worker_job.py
+    - path: src/fitcv_cp/worker_job.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_worker_job.py
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_persists_settings_used_json_on_success
+    - path: tests/test_fitcv_cp/test_worker_job.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_worker_settings_used_export_canonicalizes_legacy_compatibility_keys
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -1235,78 +1479,4 @@ capabilities:
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-timeline:
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+timeline: []
