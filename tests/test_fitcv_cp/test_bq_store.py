@@ -1,3 +1,17 @@
+"""
+@meta
+type: test
+scope: unit
+domain: admin_ui
+covers:
+  - BigQuery-backed control-plane store behavior
+excludes:
+  - live BigQuery access
+tags:
+  - fast
+  - ci-safe
+"""
+
 from unittest.mock import MagicMock
 from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, list_filter_results_for_run, update_run_results_export, update_run_cv_generation_debug, update_run_stage_transition_artifacts, update_run_settings_used, update_run_checkpoint, update_run_mapping_suggestions, update_run_effective_settings
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
@@ -780,3 +794,16 @@ def test_list_runs_include_all():
     list_runs(bq, project="p", dataset="d", include_archived=True)
     sql_arg = bq.query.call_args[0][0]
     assert "archived_at" not in sql_arg
+"""
+@meta
+type: test
+scope: unit
+domain: admin_ui
+covers:
+  - BigQuery-backed control-plane store behavior
+excludes:
+  - live BigQuery access
+tags:
+  - fast
+  - ci-safe
+"""

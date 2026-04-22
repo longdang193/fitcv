@@ -1,3 +1,17 @@
+"""
+@meta
+type: test
+scope: unit
+domain: run_orchestration
+covers:
+  - worker job behavior in the control plane
+excludes:
+  - live queue workers
+tags:
+  - fast
+  - ci-safe
+"""
+
 from unittest.mock import MagicMock, patch
 import datetime
 import json
@@ -1162,3 +1176,16 @@ def test_worker_pipeline_cancelled_exception_marks_cancelled():
     from fitcv_cp.models import RunStatus
     final_status = mock_update.call_args_list[-1].args[1]
     assert final_status == RunStatus.CANCELLED
+"""
+@meta
+type: test
+scope: unit
+domain: run_orchestration
+covers:
+  - worker job behavior in the control plane
+excludes:
+  - live queue workers
+tags:
+  - fast
+  - ci-safe
+"""

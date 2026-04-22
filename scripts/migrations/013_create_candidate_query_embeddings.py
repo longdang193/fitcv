@@ -82,3 +82,20 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+"""
+@meta
+name: create_candidate_query_embeddings
+type: migration
+domain: data
+responsibility:
+  - Create the candidate-query embeddings storage surface for shortlist retrieval.
+inputs:
+  - Existing embedding storage schema
+outputs:
+  - New candidate-query embeddings table or equivalent schema
+tags:
+  - migration
+  - schema
+lifecycle:
+  status: active
+"""

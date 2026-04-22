@@ -1,6 +1,6 @@
 # Stage Overview
 
-> Generated — do not edit manually. Source: `docs/stages/*.source.yaml`
+> Generated - do not edit manually. Source: `docs/stages/*.source.yaml`
 
 
 | Stage | Depends On | Primary Features | Summary |
@@ -13,14 +13,3 @@
 | `ranking` | `shortlist` | `cv_system` | Score shortlist candidates with the six-feature ranking contract, stricter reranker rubric, semantic role alignment, weighted preference alignment, and deterministic fallback candidate-intent inference; reuse exact-match AI-score rows when the stage-owned fingerprint and contract still match; assign the authoritative post-filter ranking fit; and select the ranked jobs eligible to proceed toward CV generation with versioned stage-transition artifacts plus stage-owned quality and reuse metrics. |
 | `rule_filter` | `enrich` | `trigger_run_management` | Apply deterministic eligibility checks to enriched jobs and split them into passed and rejected sets before retrieval and ranking begin. |
 | `shortlist` | `rule_filter` | `inspection_debugging` | Turn passed jobs into a retrieval-aware scoring shortlist by building a richer bounded candidate query from the full profile evidence surface, reusing the single shortlist candidate-query embedding and unchanged job-summary embeddings when safe, searching only the latest active embedding row per canonical job URL with the deterministic candidate query vector actually used for retrieval, then capturing raw hits, shortlist transitions, any backfill needed before scoring, and the stage-owned shortlist backfill-rate quality metric. |
-
-## Stage Contracts
-
-Each managed stage uses the following shape:
-
-```text
-docs/stages/<stage_id>.source.yaml
-docs/stages/<stage_id>.yaml
-```
-
-For the machine-friendly index, see `docs/generated/stages_index.yaml`.

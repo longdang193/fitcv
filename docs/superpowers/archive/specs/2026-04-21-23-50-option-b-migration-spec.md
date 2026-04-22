@@ -1,7 +1,7 @@
 ---
 feature_type: modify
 feature_name: none
-status: draft
+status: completed
 summary: "Define the staged Option B migration for JOB-PROJECT so managed architecture metadata, shared starter-controlled repo surfaces, and generated outputs move to the latest starter-aligned contract together."
 invariants:
   - "the private repo remains the development source of truth"

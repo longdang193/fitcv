@@ -1,3 +1,17 @@
+"""
+@meta
+type: test
+scope: unit
+domain: admin_ui
+covers:
+  - FitCV control-plane app behavior
+excludes:
+  - live HTTP deployment
+tags:
+  - fast
+  - ci-safe
+"""
+
 from unittest.mock import MagicMock, patch
 import io
 import json
@@ -43,6 +57,7 @@ def test_post_runs_rejects_empty_jobs_path():
 
 
 def test_post_runs_persists_manual_staged_mode() -> None:
+    """@proves trigger_run_management.execution-mode-selection"""
     captured = {}
 
     def _capture_insert(run, *args, **kwargs):
@@ -229,6 +244,7 @@ def test_admin_upload_trigger_persists_run_scoped_synonym_overlay() -> None:
 
 
 def test_admin_continue_run_requeues_manual_paused_run() -> None:
+    """@proves trigger_run_management.manual-checkpoints-and-continue"""
     paused_run = MagicMock()
     paused_run.run_id = "run-123"
     paused_run.run_mode = "manual_staged"
@@ -862,6 +878,7 @@ def test_admin_run_detail_hides_mapping_suggestions_export_before_enrich_stage()
 
 
 def test_run_detail_timeline_shows_stage_download_for_mapped_event():
+    """@proves inspection_debugging.stage-artifact-downloads"""
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
 
@@ -1704,7 +1721,7 @@ def _run_detail_base_patches(run_obj):
 
 
 def test_run_detail_default_tab_is_enriched():
-    """Enriched Jobs pane must be active by default on page load."""
+    """@proves inspection_debugging.run-detail-inspection-tabs"""
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -2779,6 +2796,7 @@ def test_run_detail_queued_shows_stop_run():
 
 
 def test_run_detail_awaiting_continue_shows_run_next_stage_and_stop_run():
+    """@proves inspection_debugging.run-progress-and-checkpoints"""
     run = _make_full_run_mock(status="awaiting_continue")
     run.run_mode = "manual_staged"
     run.next_stage = "ranking"
@@ -2794,6 +2812,7 @@ def test_run_detail_awaiting_continue_shows_run_next_stage_and_stop_run():
 
 
 def test_run_detail_run_all_shows_shared_progress_without_checkpoint_controls():
+    """@proves inspection_debugging.run-progress-and-checkpoints"""
     run = _make_full_run_mock(status="running")
     run.run_mode = "run_all"
     run.last_completed_stage = "enrich"
@@ -4347,3 +4366,16 @@ def test_grouped_save_cv_composition_invalid_does_not_partial_save():
         )
     assert resp.status_code == 422
     mock_save.assert_not_called()
+"""
+@meta
+type: test
+scope: unit
+domain: admin_ui
+covers:
+  - FitCV control-plane app behavior
+excludes:
+  - live HTTP deployment
+tags:
+  - fast
+  - ci-safe
+"""

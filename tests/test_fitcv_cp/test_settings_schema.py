@@ -1,3 +1,17 @@
+"""
+@meta
+type: test
+scope: unit
+domain: pipeline_config
+covers:
+  - control-plane settings schema behavior
+excludes:
+  - live persistence
+tags:
+  - fast
+  - ci-safe
+"""
+
 import pytest
 from fitcv_cp.settings_schema import (
     SETTINGS_SCHEMA,
@@ -972,3 +986,16 @@ def test_legacy_cv_required_toggles_are_removed_from_schema() -> None:
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert "cv_education_required" not in schema_by_key
     assert "cv_projects_required" not in schema_by_key
+"""
+@meta
+type: test
+scope: unit
+domain: pipeline_config
+covers:
+  - control-plane settings schema behavior
+excludes:
+  - live persistence
+tags:
+  - fast
+  - ci-safe
+"""

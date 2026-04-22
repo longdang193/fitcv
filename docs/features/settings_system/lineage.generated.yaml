@@ -1,185 +1,1230 @@
+# GENERATED FILE - do not edit directly.
 feature_id: settings_system
 source: docs/features/settings_system/feature.source.yaml
-generated_contract: docs/features/settings_system/settings_system.yaml
-naming_policy:
-  feature_id_format: underscore
-  capability_id_format: <feature_id>.<kebab-suffix>
-  string_capabilities_allowed: false
-depends_on:
-- admin_control_plane_core
-capability_shape: structured
-capability_ids:
-- settings_system.bigquery-backed-pipeline-settings-store
-- settings_system.settings-schema-registry
-- settings_system.retrieval-settings
-- settings_system.timing-and-throttling-settings
-- settings_system.run-lifecycle-timeout-settings
-- settings_system.global-job-filters
-- settings_system.ranking-settings-with-six-feature-sum-to-one-validation
-- settings_system.explicit-zero-weight-semantics-for-supported-ranking-features
-- settings_system.ranking-settings-copy-aligned-to-semantic-role-alignment-and-weighted-preference-alignment-runtime-semantics
-- settings_system.preference-fit-subweights-for-domain-role-family-and-location-type-calibration
-- settings_system.fit-label-threshold-descriptions-aligned-to-ai-reranker-label-calibration-semantics
-- settings_system.cv-analysis-semantic-alignment-enable-model-controls
-- settings_system.cv-analysis-lexical-vs-semantic-weight-controls-for-responsibility-and-domain-alignment
-- settings_system.validation-that-each-cv-analysis-lexical-semantic-weight-pair-sums-to-1-0
-- settings_system.cv-generation-settings
-- settings_system.cv-composition-visibility-settings
-- settings_system.warning-only-cv-max-pages-validation-setting
-- settings_system.task-first-admin-settings-ui-sections-for-selection-ranking-cv-output-run-safety-and-advanced-tuning
-- settings_system.basic-versus-advanced-disclosure-for-expert-only-tuning-knobs
-- settings_system.metadata-only-rendering-for-single-option-pseudo-choice-controls-such-as-the-fixed-cv-preset-and-semantic-alignment-model
-- settings_system.clearer-current-versus-draft-and-unsaved-change-visibility-in-the-settings-ui
-- settings_system.denser-cv-section-visibility-matrix-instead-of-repeated-long-form-cards
-- settings_system.metadata-only-cv-prompt-template-fields-retired-from-the-active-admin-settings-surface
-- settings_system.grouped-form-validation
-- settings_system.per-run-overrides
-- settings_system.trigger-time-effective-settings-snapshot
-- settings_system.admin-settings-defaults-now-hydrate-from-the-loaded-baseline-config-for-supported-paths-instead-of-acting-as-a-competing-default-store
-- settings_system.admin-settings-default-hydration-now-follows-the-reorganized-config-room-layout-while-preserving-flat-path-compatibility-during-the-migration-window
-- settings_system.operator-facing-settings-used-exports-now-keep-canonical-nested-settings-as-the-primary-contract-and-move-compatibility-era-flat-keys-into-an-explicit-compatibility-block-when-needed
+invariants: {}
 capabilities:
-- feature_id: settings_system
-  capability_id: settings_system.bigquery-backed-pipeline-settings-store
-  capability_name: BigQuery-backed pipeline settings store
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.settings-schema-registry
-  capability_name: Settings schema registry
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.retrieval-settings
-  capability_name: Retrieval settings
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.timing-and-throttling-settings
-  capability_name: Timing and throttling settings
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.run-lifecycle-timeout-settings
-  capability_name: Run lifecycle timeout settings
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.global-job-filters
-  capability_name: Global job filters
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.ranking-settings-with-six-feature-sum-to-one-validation
-  capability_name: Ranking settings with six-feature sum-to-one validation
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.explicit-zero-weight-semantics-for-supported-ranking-features
-  capability_name: Explicit zero-weight semantics for supported ranking features
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.ranking-settings-copy-aligned-to-semantic-role-alignment-and-weighted-preference-alignment-runtime-semantics
-  capability_name: Ranking settings copy aligned to semantic role-alignment and weighted preference-alignment runtime semantics
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.preference-fit-subweights-for-domain-role-family-and-location-type-calibration
-  capability_name: Preference-fit subweights for domain, role-family, and location-type calibration
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.fit-label-threshold-descriptions-aligned-to-ai-reranker-label-calibration-semantics
-  capability_name: Fit-label threshold descriptions aligned to AI-reranker label calibration semantics
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.cv-analysis-semantic-alignment-enable-model-controls
-  capability_name: '`cv_analysis` semantic-alignment enable/model controls'
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.cv-analysis-lexical-vs-semantic-weight-controls-for-responsibility-and-domain-alignment
-  capability_name: '`cv_analysis` lexical-vs-semantic weight controls for responsibility and domain alignment'
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.validation-that-each-cv-analysis-lexical-semantic-weight-pair-sums-to-1-0
-  capability_name: Validation that each `cv_analysis` lexical/semantic weight pair sums to `1.0`
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.cv-generation-settings
-  capability_name: CV generation settings
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.cv-composition-visibility-settings
-  capability_name: CV composition visibility settings
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.warning-only-cv-max-pages-validation-setting
-  capability_name: Warning-only CV max-pages validation setting
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.task-first-admin-settings-ui-sections-for-selection-ranking-cv-output-run-safety-and-advanced-tuning
-  capability_name: Task-first admin settings UI sections for Selection, Ranking, CV Output, Run Safety, and Advanced tuning
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.basic-versus-advanced-disclosure-for-expert-only-tuning-knobs
-  capability_name: Basic-versus-advanced disclosure for expert-only tuning knobs
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.metadata-only-rendering-for-single-option-pseudo-choice-controls-such-as-the-fixed-cv-preset-and-semantic-alignment-model
-  capability_name: Metadata-only rendering for single-option pseudo-choice controls such as the fixed CV preset and semantic-alignment model
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.clearer-current-versus-draft-and-unsaved-change-visibility-in-the-settings-ui
-  capability_name: Clearer current-versus-draft and unsaved-change visibility in the settings UI
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.denser-cv-section-visibility-matrix-instead-of-repeated-long-form-cards
-  capability_name: Denser CV section-visibility matrix instead of repeated long-form cards
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.metadata-only-cv-prompt-template-fields-retired-from-the-active-admin-settings-surface
-  capability_name: Metadata-only CV prompt/template fields retired from the active admin settings surface
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.grouped-form-validation
-  capability_name: Grouped form validation
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.per-run-overrides
-  capability_name: Per-run overrides
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.trigger-time-effective-settings-snapshot
-  capability_name: Trigger-time effective settings snapshot
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.admin-settings-defaults-now-hydrate-from-the-loaded-baseline-config-for-supported-paths-instead-of-acting-as-a-competing-default-store
-  capability_name: Admin settings defaults now hydrate from the loaded baseline config for supported paths instead of acting as a competing default store
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.admin-settings-default-hydration-now-follows-the-reorganized-config-room-layout-while-preserving-flat-path-compatibility-during-the-migration-window
-  capability_name: Admin settings default hydration now follows the reorganized config-room layout while preserving flat-path compatibility during the migration window
-  source_shape: structured
-- feature_id: settings_system
-  capability_id: settings_system.operator-facing-settings-used-exports-now-keep-canonical-nested-settings-as-the-primary-contract-and-move-compatibility-era-flat-keys-into-an-explicit-compatibility-block-when-needed
-  capability_name: Operator-facing settings-used exports now keep canonical nested settings as the primary contract and move compatibility-era flat keys into an explicit compatibility block when needed
-  source_shape: structured
-stage_participation: []
-stage_summary: []
-refs: &id001
-  docs:
-  - docs/fitcv-control-plane-setup.md
-  spec:
-  - docs/superpowers/archive/specs/2026-03-25-pipeline-settings-design.md
-  - docs/superpowers/archive/specs/2026-03-27-admin-editable-cv-generation-settings-design.md
-  - docs/superpowers/archive/specs/2026-03-27-preset-based-cv-composition-design.md
-  - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
-  - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
-  - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
-  - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
-  - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
-  plan:
-  - docs/superpowers/archive/plans/2026-03-25-pipeline-settings-implementation.md
-  - docs/superpowers/archive/plans/2026-03-27-centralized-cv-generation-config-implementation.md
-  - docs/superpowers/archive/plans/2026-03-27-preset-based-cv-config-migration-implementation.md
-  - docs/superpowers/archive/plans/2026-03-26-ranking-settings-grouped-forms-implementation.md
-  - docs/superpowers/archive/plans/2026-03-26-global-job-filters-implementation.md
-  - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
-  - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
-  - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
-  - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
-  - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
-  history:
-  - docs/features/settings_system/history.md
-refs_by_type: *id001
+  settings_system.bigquery-backed-pipeline-settings-store:
+    state: active
+    statement: BigQuery-backed pipeline settings store
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.settings-schema-registry:
+    state: active
+    statement: Settings schema registry
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.retrieval-settings:
+    state: active
+    statement: Retrieval settings
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.run-safety-settings:
+    state: active
+    statement: Configure timing, throttling, and run-lifecycle timeout controls.
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.global-job-filters:
+    state: active
+    statement: Global job filters
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.ranking-settings:
+    state: active
+    statement: Configure six-feature ranking weights, zero-weight semantics, and runtime-aligned copy.
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.preference-fit-calibration:
+    state: active
+    statement: Configure preference-fit subweights and fit-label threshold guidance for reranker calibration.
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.cv-analysis-alignment-settings:
+    state: active
+    statement: Configure semantic-alignment enablement, model selection, and lexical-vs-semantic balance for `cv_analysis`.
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.cv-generation-settings:
+    state: active
+    statement: CV generation settings
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.cv-composition-visibility-settings:
+    state: active
+    statement: CV composition visibility settings
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.warning-only-cv-max-pages-validation-setting:
+    state: active
+    statement: Warning-only CV max-pages validation setting
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.task-first-settings-ui:
+    state: active
+    statement: Organize the admin settings surface by task with clearer current-vs-draft feedback.
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.advanced-settings-disclosure:
+    state: active
+    statement: Separate expert-only tuning controls from the basic settings surface.
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.metadata-only-fixed-controls:
+    state: active
+    statement: Render fixed single-option runtime controls and retired prompt fields as metadata rather than editable inputs.
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.compact-cv-visibility-controls:
+    state: active
+    statement: Provide denser CV composition and visibility controls for operator workflows.
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.grouped-form-validation:
+    state: active
+    statement: Grouped form validation
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.per-run-overrides:
+    state: active
+    statement: Per-run overrides
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.trigger-time-effective-settings-snapshot:
+    state: active
+    statement: Trigger-time effective settings snapshot
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.baseline-default-hydration:
+    state: active
+    statement: Hydrate admin defaults from the baseline config layout while preserving migration-safe compatibility behavior.
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  settings_system.settings-used-exports:
+    state: active
+    statement: Emit canonical nested settings-used exports and isolate compatibility-era flat keys into an explicit compatibility block.
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+timeline:
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md

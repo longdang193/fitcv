@@ -60,9 +60,69 @@ Naming and shape policy for this repo:
 - `capability_id` uses `<feature_id>.<kebab-suffix>`
 - managed features should use structured capability entries with at least:
   - `capability_id`
-  - `name`
+  - `statement`
+  - `state`
+- capability IDs should name durable product or domain behavior, not sentence-level change notes
+- long implementation details belong in capability `statement`, linked evidence surfaces, or feature history rather than inside the ID itself
+- string-only capability entries are not accepted in steady-state Mode B
+
+Ownership split:
+
+- `feature.source.yaml` remains the minimal human-owned semantic source
+- `<feature_id>.yaml` is the generated assembled current-state contract
+- `lineage.generated.yaml` is the generated evidence-oriented lineage surface
+- `history.md` remains feature-local history and human context; partial-generated starter history alignment is still a follow-up step for this repo
+
+## File Metadata And Proof
+
+Files with behavioral weight should use top-of-file `@meta` docstrings when they
+live under repo-controlled script and test surfaces such as `scripts/` and
+`tests/`.
+
+Rules:
+
+- file-level `capabilities` metadata is selective, not blanket
+- only add capability references when the file materially participates in
+  lineage
+- use test-level `@proves <capability_id>` as proof evidence when a test exists
+  to verify a capability
+- do not treat tests, helper wrappers, or passive docs as semantic capability
+  owners just because they mention a feature
 
 The generated contract and lineage files are outputs, not hand-edited sources.
+The current lineage target is the evidence-oriented Phase 5 shape:
+
+- `feature_id`
+- `source`
+- `invariants`
+- `capabilities`
+- `timeline`
+
+Phase 6 hydration rules:
+
+- generated lineage should stay human-readable and must not emit YAML alias
+  anchors such as `&id001` or `*id001`
+- direct capability evidence should come from explicit file metadata and
+  `@proves` when available
+- feature-level specs and plans may be included as conservative fallback
+  evidence, but they do not replace direct implementation or proof evidence
+- `completeness_status` should stay conservative:
+  - `complete` requires direct code or test evidence
+  - `partial` means some real evidence exists but not enough for full coverage
+  - `missing_evidence` means only weak or no evidence has been found
+
+Phase 7 direct-evidence pilot rules:
+
+- direct evidence backfill should start with a bounded pilot, not repo-wide
+  blanket tagging
+- pilot capability-to-file mappings should stay sparse and materially true
+- pilot proof should use truthful `@proves <capability_id>` only in tests that
+  actually verify the named behavior
+- repo-level pilot requirements may be declared in
+  `repo_config/adoption-mode.yaml` and enforced by
+  `scripts/validate_adoption_shape.py`
+- if a capability still lacks truthful direct proof, prefer leaving it
+  `partial` over inventing noisy ownership
 
 Refresh source-owned feature outputs with:
 

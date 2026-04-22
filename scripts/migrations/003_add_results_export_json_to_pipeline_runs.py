@@ -25,3 +25,20 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+"""
+@meta
+name: add_results_export_json_to_pipeline_runs
+type: migration
+domain: data
+responsibility:
+  - Add results-export JSON storage to pipeline run records.
+inputs:
+  - Existing pipeline_runs schema
+outputs:
+  - Updated pipeline_runs schema with results export storage
+tags:
+  - migration
+  - schema
+lifecycle:
+  status: active
+"""

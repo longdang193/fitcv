@@ -1,7 +1,7 @@
 ---
 feature_type: modify
 feature_name: none
-status: draft
+status: completed
 summary: "Define the Phase 3 cleanup after the repo-wide Mode B rollout by tightening naming conventions, enriching lineage outputs, and making sync and validation enforcement routine."
 invariants:
   - "the private repo remains the development source of truth"

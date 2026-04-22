@@ -39,3 +39,20 @@ def main():
 
 if __name__ == "__main__":
     main()
+"""
+@meta
+name: add_run_id_to_cvs
+type: migration
+domain: data
+responsibility:
+  - Add the run_id field to persisted CV records.
+inputs:
+  - Existing BigQuery or application CV schema
+outputs:
+  - Updated CV schema with run linkage
+tags:
+  - migration
+  - schema
+lifecycle:
+  status: active
+"""

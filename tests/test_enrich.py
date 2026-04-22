@@ -1561,3 +1561,16 @@ def test_enrich_batch_uses_configured_batch_size_and_concurrency() -> None:
     assert len(result) == 4
     # Each chunk had at most batch_size=2 jobs
     assert all(s <= 2 for s in call_sizes), f"Chunk sizes: {call_sizes}"
+"""
+@meta
+type: test
+scope: unit
+domain: enrich
+covers:
+  - enrich-stage transformation behavior
+excludes:
+  - live LLM calls
+tags:
+  - fast
+  - ci-safe
+"""

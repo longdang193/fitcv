@@ -78,3 +78,20 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+"""
+@meta
+name: add_manual_checkpoint_columns_to_pipeline_runs
+type: migration
+domain: data
+responsibility:
+  - Add manual-checkpoint storage columns to pipeline run records.
+inputs:
+  - Existing pipeline_runs schema
+outputs:
+  - Updated pipeline_runs schema with staged checkpoint storage
+tags:
+  - migration
+  - schema
+lifecycle:
+  status: active
+"""

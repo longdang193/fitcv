@@ -47,3 +47,20 @@ def main() -> None:
 if __name__ == "__main__":
     os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", str(load_config()["service_account_key"]))
     main()
+"""
+@meta
+name: add_marks_json_to_rule_filter_results
+type: migration
+domain: data
+responsibility:
+  - Add marks_json storage to rule-filter result records.
+inputs:
+  - Existing rule_filter_results schema
+outputs:
+  - Updated rule_filter_results schema with marks_json
+tags:
+  - migration
+  - schema
+lifecycle:
+  status: active
+"""

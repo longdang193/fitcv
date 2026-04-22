@@ -52,14 +52,14 @@ def build_repo(tmp_path: Path) -> Path:
             "status": "active",
             "type": "add",
             "summary": "Own the CV-writing lifecycle.",
-            "owner": "fitcv",
+            "invariants": [],
             "domains": ["pipeline"],
             "depends_on": [],
             "capabilities": [
                 {
                     "capability_id": "cv_system.structured-cv-generation",
-                    "name": "Structured CV Generation",
-                    "summary": "Generate CV artifacts.",
+                    "statement": "Generate CV artifacts.",
+                    "state": "active",
                 }
             ],
             "stage_participation": [
@@ -69,12 +69,10 @@ def build_repo(tmp_path: Path) -> Path:
                     "capability_ids": ["cv_system.structured-cv-generation"],
                 }
             ],
-            "refs": {"history": ["docs/features/cv_system/history.md"]},
-            "keywords": ["cv"],
         },
     )
     (repo_root / "docs" / "features" / "cv_system" / "history.md").write_text(
-        "# CV System History\n", encoding="utf-8"
+        "# History\n\n## Human Notes\nLegacy CV note.\n", encoding="utf-8"
     )
 
     write_yaml(
@@ -127,6 +125,14 @@ def build_repo(tmp_path: Path) -> Path:
                 ],
                 "divergences": [],
             },
+            "phase_7_direct_evidence_pilot": {
+                "capabilities": {
+                    "cv_system.structured-cv-generation": {
+                        "require_code": True,
+                        "require_tests": True,
+                    }
+                }
+            },
         },
     )
 
@@ -134,6 +140,53 @@ def build_repo(tmp_path: Path) -> Path:
     scripts_dir.mkdir(parents=True, exist_ok=True)
     (scripts_dir / "sync_architecture_docs.py").write_text(
         SYNC_SCRIPT_PATH.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (scripts_dir / "cv_writer.py").write_text(
+        '"""\n'
+        "@meta\n"
+        "name: cv_writer\n"
+        "type: script\n"
+        "domain: cv_generation\n"
+        "capabilities:\n"
+        "  - cv_system.structured-cv-generation\n"
+        '"""\n\n'
+        "def main() -> None:\n"
+        "    return None\n",
+        encoding="utf-8",
+    )
+    tests_dir = repo_root / "tests"
+    tests_dir.mkdir(parents=True, exist_ok=True)
+    (tests_dir / "test_cv_writer.py").write_text(
+        '"""\n'
+        "@meta\n"
+        "type: test\n"
+        "scope: unit\n"
+        "domain: cv_generation\n"
+        '"""\n\n'
+        "# @proves cv_system.structured-cv-generation\n"
+        "def test_placeholder() -> None:\n"
+        "    assert True\n",
+        encoding="utf-8",
+    )
+    (repo_root / "docs" / "superpowers" / "archive" / "specs").mkdir(parents=True, exist_ok=True)
+    (repo_root / "docs" / "superpowers" / "archive" / "plans").mkdir(parents=True, exist_ok=True)
+    (repo_root / "docs" / "superpowers" / "archive" / "specs" / "2026-04-22-cv-system-spec.md").write_text(
+        "---\n"
+        "artifact_type: spec\n"
+        "related_features:\n"
+        "  - cv_system\n"
+        "---\n\n"
+        "# CV System Spec\n",
+        encoding="utf-8",
+    )
+    (repo_root / "docs" / "superpowers" / "archive" / "plans" / "2026-04-22-cv-system-plan.md").write_text(
+        "---\n"
+        "artifact_type: plan\n"
+        "related_features:\n"
+        "  - cv_system\n"
+        "---\n\n"
+        "# CV System Plan\n",
         encoding="utf-8",
     )
 
@@ -176,13 +229,12 @@ def test_validator_fails_when_required_docs_are_missing(tmp_path: Path) -> None:
 def test_validator_fails_for_string_only_capabilities(tmp_path: Path) -> None:
     repo_root = build_repo(tmp_path)
     sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
 
     feature_source_path = repo_root / "docs" / "features" / "cv_system" / "feature.source.yaml"
     payload = yaml.safe_load(feature_source_path.read_text(encoding="utf-8"))
     payload["capabilities"] = ["Structured CV Generation"]
     feature_source_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
-
-    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
 
     process = subprocess.run(
         [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
@@ -209,20 +261,19 @@ def test_validator_fails_for_non_underscore_feature_ids(tmp_path: Path) -> None:
             "status": "active",
             "type": "add",
             "summary": "Invalid naming policy fixture.",
-            "owner": "fitcv",
+            "invariants": [],
             "domains": ["pipeline"],
             "depends_on": [],
             "capabilities": [
                 {
                     "capability_id": "cv-system.bad-capability",
-                    "name": "Bad Capability",
+                    "statement": "Bad capability statement.",
+                    "state": "active",
                 }
             ],
-            "refs": {"history": ["docs/features/cv-system/history.md"]},
-            "keywords": ["bad"],
         },
     )
-    (feature_dir / "history.md").write_text("# Bad Feature Id History\n", encoding="utf-8")
+    (feature_dir / "history.md").write_text("# History\n\n## Human Notes\nBad history note.\n", encoding="utf-8")
 
     assert sync_module.main(["--repo-root", str(repo_root)]) == 0
 
@@ -235,6 +286,107 @@ def test_validator_fails_for_non_underscore_feature_ids(tmp_path: Path) -> None:
 
     assert process.returncode == 1
     assert "invalid feature_id naming policy" in process.stdout.lower()
+
+
+def test_validator_fails_for_legacy_lineage_schema(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    lineage_path = repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml"
+    lineage_path.write_text(
+        yaml.safe_dump(
+            {
+                "feature_id": "cv_system",
+                "source": "docs/features/cv_system/feature.source.yaml",
+                "generated_contract": "docs/features/cv_system/cv_system.yaml",
+                "capability_ids": ["cv_system.structured-cv-generation"],
+                "capabilities": [],
+                "refs_by_type": {},
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "legacy lineage keys are not allowed" in process.stdout.lower()
+
+
+def test_validator_fails_when_lineage_contains_yaml_aliases(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    lineage_path = repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml"
+    lineage_path.write_text(
+        lineage_path.read_text(encoding="utf-8").replace("evidence_gaps:", "evidence_gaps: &id001", 1).replace(
+            "allowed_evidence_gaps:", "allowed_evidence_gaps: *id001", 1
+        ),
+        encoding="utf-8",
+    )
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "yaml aliases are not allowed" in process.stdout.lower()
+
+
+def test_validator_fails_when_complete_lineage_lacks_direct_evidence(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    lineage_path = repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml"
+    lineage = yaml.safe_load(lineage_path.read_text(encoding="utf-8"))
+    capability_lineage = lineage["capabilities"]["cv_system.structured-cv-generation"]
+    capability_lineage["code"] = []
+    capability_lineage["tests"] = []
+    capability_lineage["completeness_status"] = "complete"
+    lineage_path.write_text(yaml.safe_dump(lineage, sort_keys=False), encoding="utf-8")
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "complete lineage claims require direct code or test evidence" in process.stdout.lower()
+
+
+def test_validator_fails_when_phase_7_pilot_lacks_required_test_evidence(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+
+    lineage_path = repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml"
+    lineage = yaml.safe_load(lineage_path.read_text(encoding="utf-8"))
+    lineage["capabilities"]["cv_system.structured-cv-generation"]["tests"] = []
+    lineage_path.write_text(yaml.safe_dump(lineage, sort_keys=False), encoding="utf-8")
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "phase_7_direct_evidence_pilot requires test evidence" in process.stdout.lower()
 
 
 def test_validator_fails_when_generated_outputs_are_stale(tmp_path: Path) -> None:
@@ -255,3 +407,46 @@ def test_validator_fails_when_generated_outputs_are_stale(tmp_path: Path) -> Non
 
     assert process.returncode == 1
     assert "generated architecture docs are stale" in process.stdout.lower()
+
+
+def test_validator_fails_when_required_script_metadata_is_missing(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    script_path = repo_root / "scripts" / "bootstrap_bigquery.py"
+    script_path.write_text("#!/usr/bin/env python3\nprint('hi')\n", encoding="utf-8")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "missing required @meta docstring" in process.stdout.lower()
+    assert "scripts/bootstrap_bigquery.py" in process.stdout
+
+
+def test_validator_fails_when_required_test_metadata_is_missing(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    test_path = repo_root / "tests" / "test_sample.py"
+    test_path.parent.mkdir(parents=True, exist_ok=True)
+    test_path.write_text("def test_placeholder():\n    assert True\n", encoding="utf-8")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "missing required @meta docstring" in process.stdout.lower()
+    assert "tests/test_sample.py" in process.stdout

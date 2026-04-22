@@ -1,7 +1,7 @@
 ---
 feature_type: modify
 feature_name: none
-status: draft
+status: completed
 summary: "Define the Phase 2 rollout that expands the proven Option B pilot across the remaining managed features and stages, adds repo-wide validation, and fills the missing cross-cutting Mode B doc surfaces."
 invariants:
   - "the private repo remains the development source of truth"

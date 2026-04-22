@@ -127,3 +127,20 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+"""
+@meta
+name: add_enrich_canonical_columns
+type: migration
+domain: data
+responsibility:
+  - Add canonical enrich columns required by the structured enrich contract.
+inputs:
+  - Existing enrich storage schema
+outputs:
+  - Updated enrich schema with canonical columns
+tags:
+  - migration
+  - schema
+lifecycle:
+  status: active
+"""

@@ -38,3 +38,20 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+"""
+@meta
+name: add_stage_transition_artifacts_json_to_pipeline_runs
+type: migration
+domain: data
+responsibility:
+  - Add stage-transition artifact storage to pipeline run records.
+inputs:
+  - Existing pipeline_runs schema
+outputs:
+  - Updated pipeline_runs schema with stage-transition artifacts
+tags:
+  - migration
+  - schema
+lifecycle:
+  status: active
+"""

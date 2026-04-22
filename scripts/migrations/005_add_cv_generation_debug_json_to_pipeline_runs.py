@@ -25,3 +25,20 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+"""
+@meta
+name: add_cv_generation_debug_json_to_pipeline_runs
+type: migration
+domain: data
+responsibility:
+  - Add CV-generation debug snapshot storage to pipeline run records.
+inputs:
+  - Existing pipeline_runs schema
+outputs:
+  - Updated pipeline_runs schema with cv_generation_debug_json
+tags:
+  - migration
+  - schema
+lifecycle:
+  status: active
+"""

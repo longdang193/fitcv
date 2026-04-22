@@ -1,44 +1,66 @@
-run_lifecycle_controls:
-  name: Run Lifecycle Controls
-  status: active
-  type: add
-  summary: Admins can stop queued, running, or paused `awaiting_continue` runs, archive or unarchive completed runs, apply lifecycle actions in bulk from the runs list, and rely on a server-owned max-runtime timeout guard whose diagnostics distinguish active runtime from Stage by Stage manual-wait time.
-  owner: fitcv_cp
-  domains:
-  - admin_ui
-  - run_orchestration
-  depends_on:
-  - admin_control_plane_core
-  capabilities:
-  - capability_id: run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq
-    name: Cancel queued runs directly from the queue via RQ
-  - capability_id: run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
-    name: Cooperative cancellation at safe checkpoints for running jobs
-  - capability_id: run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
-    name: Direct cancellation of paused manual runs in `awaiting_continue`
-  - capability_id: run_lifecycle_controls.stale-cancellation-repair-endpoint
-    name: Stale cancellation repair endpoint
-  - capability_id: run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
-    name: State-aware max-runtime timeout handling for queued, running, cancelling, and paused manual runs
-  - capability_id: run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-    name: Timeout copy now distinguishes queue wait, active runtime, and Stage by Stage manual-wait time
-  - capability_id: run_lifecycle_controls.archive-and-unarchive-terminal-runs
-    name: Archive and unarchive terminal runs
-  - capability_id: run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries
-    name: Batch cancel, archive, and unarchive endpoints with explicit processed/skipped summaries
-  - capability_id: run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
-    name: Full audit trail in pipeline_run_events
-  refs:
-    docs: []
-    spec:
-    - docs/superpowers/archive/specs/2026-03-26-run-lifecycle-controls-design.md
-    plan:
-    - docs/superpowers/archive/plans/2026-03-26-run-lifecycle-controls-implementation.md
-    history:
-    - docs/features/run_lifecycle_controls/history.md
-  keywords:
-  - cancel
-  - stop
-  - archive
-  - lifecycle
-  - cooperative cancellation
+# GENERATED FILE - do not edit directly.
+feature_id: run_lifecycle_controls
+name: Run Lifecycle Controls
+status: active
+type: add
+summary: Admins can stop queued, running, or paused `awaiting_continue` runs, archive or unarchive completed runs, apply lifecycle actions in bulk from the runs list, and rely on a server-owned max-runtime timeout guard whose diagnostics distinguish active runtime from Stage by Stage manual-wait time.
+invariants: []
+domains:
+- admin_ui
+- run_orchestration
+depends_on:
+- admin_control_plane_core
+capabilities:
+- capability_id: run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq
+  statement: Cancel queued runs directly from the queue via RQ
+  state: active
+- capability_id: run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+  statement: Cooperative cancellation at safe checkpoints for running jobs
+  state: active
+- capability_id: run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  statement: Direct cancellation of paused manual runs in `awaiting_continue`
+  state: active
+- capability_id: run_lifecycle_controls.stale-cancellation-repair-endpoint
+  statement: Stale cancellation repair endpoint
+  state: active
+- capability_id: run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+  statement: State-aware max-runtime timeout handling for queued, running, cancelling, and paused manual runs
+  state: active
+- capability_id: run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
+  statement: Timeout copy now distinguishes queue wait, active runtime, and Stage by Stage manual-wait time
+  state: active
+- capability_id: run_lifecycle_controls.archive-and-unarchive-terminal-runs
+  statement: Archive and unarchive terminal runs
+  state: active
+- capability_id: run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries
+  statement: Batch cancel, archive, and unarchive endpoints with explicit processed/skipped summaries
+  state: active
+- capability_id: run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+  statement: Full audit trail in pipeline_run_events
+  state: active
+stage_participation: []
+refs:
+  history:
+  - docs/features/run_lifecycle_controls/history.md
+  spec:
+  - docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
+  - docs/superpowers/archive/specs/2026-04-05-20-45-awaiting-continue-cancel-eligibility-spec.md
+  - docs/superpowers/archive/specs/2026-04-05-21-20-runs-list-table-compaction-spec.md
+  - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+  - docs/superpowers/archive/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+  plan:
+  - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
+  - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
+  - docs/superpowers/archive/plans/2026-04-05-21-35-runs-list-table-compaction-plan.md
+  - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+  - docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+  - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+  - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+  - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+  - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+  - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md

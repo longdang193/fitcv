@@ -1,3 +1,17 @@
+"""
+@meta
+type: test
+scope: unit
+domain: admin_ui
+covers:
+  - control-plane reporting behavior
+excludes:
+  - live BigQuery or queue integrations
+tags:
+  - fast
+  - ci-safe
+"""
+
 from unittest.mock import MagicMock
 from fitcv_cp.reporter import PipelineReporter
 
@@ -21,3 +35,16 @@ def test_reporter_payload_serialized():
     call_args = bq.insert_rows_json.call_args[0][1][0]
     assert call_args["level"] == "error"
     assert "retries" in call_args["payload_json"]
+"""
+@meta
+type: test
+scope: unit
+domain: admin_ui
+covers:
+  - control-plane reporting behavior
+excludes:
+  - live BigQuery or queue integrations
+tags:
+  - fast
+  - ci-safe
+"""

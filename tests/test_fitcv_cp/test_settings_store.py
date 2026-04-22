@@ -1,3 +1,17 @@
+"""
+@meta
+type: test
+scope: unit
+domain: pipeline_config
+covers:
+  - control-plane settings store behavior
+excludes:
+  - live BigQuery access
+tags:
+  - fast
+  - ci-safe
+"""
+
 import datetime
 from unittest.mock import MagicMock
 
@@ -53,3 +67,16 @@ def test_load_active_settings_uses_parameterized_query_or_safe_query():
     bq.query.return_value.result.return_value = iter([])
     load_active_settings(bq=bq, project="p", dataset="d")
     bq.query.assert_called_once()
+"""
+@meta
+type: test
+scope: unit
+domain: pipeline_config
+covers:
+  - control-plane settings store behavior
+excludes:
+  - live BigQuery access
+tags:
+  - fast
+  - ci-safe
+"""
