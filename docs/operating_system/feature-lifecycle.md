@@ -75,9 +75,15 @@ Ownership split:
 
 ## File Metadata And Proof
 
-Files with behavioral weight should use top-of-file `@meta` docstrings when they
-live under repo-controlled script and test surfaces such as `scripts/` and
-`tests/`.
+Files with behavioral weight should use explicit source metadata at the owning
+surface:
+
+- top-of-file `@meta` docstrings for Python files under repo-controlled code,
+  script, and test surfaces
+- leading `{# @architecture ... #}` blocks for Jinja/HTML templates when a
+  shared template materially owns capability behavior in this repo
+- lightweight frontmatter only for docs that materially explain feature,
+  capability, stage, config, or component behavior
 
 Rules:
 
@@ -86,6 +92,8 @@ Rules:
   lineage
 - use test-level `@proves <capability_id>` as proof evidence when a test exists
   to verify a capability
+- prefer repo-local template metadata only for shared UI ownership that cannot
+  be truthfully attached to a Python owner file
 - do not treat tests, helper wrappers, or passive docs as semantic capability
   owners just because they mention a feature
 
@@ -133,6 +141,10 @@ Phase 7 direct-evidence pilot rules:
   well-proven `ui_consistency_theming` structural capabilities, while leaving
   broader theme-token and bootstrap behavior deferred until direct proof tests
   exist
+- Phase 13 closes the remaining `ui_consistency_theming` set by adding
+  repo-local template ownership metadata for `base.html` plus direct tests for
+  theme bootstrap, design tokens, shared classes, attached-tab composition, and
+  responsive wrapping
 - pilot capability-to-file mappings should stay sparse and materially true
 - pilot proof should use truthful `@proves <capability_id>` only in tests that
   actually verify the named behavior
