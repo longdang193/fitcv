@@ -77,6 +77,7 @@ def test_get_run_returns_none_when_not_found():
 
 
 def test_list_runs_returns_list():
+    """@proves trigger_run_management.runs-list-management"""
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     assert isinstance(list_runs(bq, project="p", dataset="d"), list)
@@ -236,6 +237,7 @@ def test_list_run_structured_jobs_queries_correct_table():
 
 
 def test_list_run_structured_jobs_parses_canonical_json_companions():
+    """@proves inspection_debugging.enriched-job-debug-export"""
     bq = MagicMock()
 
     class FakeRow:
@@ -272,6 +274,7 @@ def test_list_run_structured_jobs_parses_canonical_json_companions():
 
 
 def test_list_filter_results_for_run_parses_marks_json() -> None:
+    """@proves inspection_debugging.rule-filter-diagnostics"""
     bq = MagicMock()
 
     class FakeRow:
@@ -562,7 +565,10 @@ def test_update_run_cv_generation_debug_updates_only_debug_snapshot_field() -> N
 
 
 def test_update_run_stage_transition_artifacts_updates_only_stage_artifacts_field() -> None:
-    """Dedicated helper updates stage_transition_artifacts_json without reusing other snapshot fields."""
+    """@proves inspection_debugging.stage-transition-diagnostics
+
+    Dedicated helper updates stage_transition_artifacts_json without reusing other snapshot fields.
+    """
     bq = MagicMock()
     update_run_stage_transition_artifacts(
         "rid",
@@ -583,7 +589,10 @@ def test_update_run_stage_transition_artifacts_updates_only_stage_artifacts_fiel
 
 
 def test_update_run_settings_used_updates_only_settings_snapshot_field() -> None:
-    """Dedicated helper updates settings_used_json without touching other snapshot fields."""
+    """@proves inspection_debugging.settings-used-export
+
+    Dedicated helper updates settings_used_json without touching other snapshot fields.
+    """
     bq = MagicMock()
     update_run_settings_used(
         "rid",
@@ -681,6 +690,9 @@ def test_insert_run_includes_queue_job_id():
 
 
 def test_update_run_results_export_uses_parameterized_query() -> None:
+    """@proves trigger_run_management.run-results-export
+    @proves inspection_debugging.results-ledger-inspection
+    """
     bq = MagicMock()
     update_run_results_export("rid", '{"results":[]}', bq, project="p", dataset="d")
     bq.query.assert_called_once()
@@ -690,6 +702,9 @@ def test_update_run_results_export_uses_parameterized_query() -> None:
 
 
 def test_row_to_run_maps_results_export_json() -> None:
+    """@proves trigger_run_management.run-results-export
+    @proves inspection_debugging.results-ledger-inspection
+    """
     from fitcv_cp.bq_store import _row_to_run
 
     row = {

@@ -13,6 +13,8 @@ outputs:
   - enqueued RQ jobs
   - queue cancellation outcomes
 capabilities:
+  - trigger_run_management.runs-list-management
+  - trigger_run_management.run-detail-actions
   - trigger_run_management.manual-checkpoints-and-continue
 tags:
   - queue

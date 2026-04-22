@@ -12,7 +12,15 @@ inputs:
 outputs:
   - pipeline_runs, run_events, and run-scoped snapshot updates
 capabilities:
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.enriched-job-debug-export
   - settings_system.trigger-time-effective-settings-snapshot
+  - trigger_run_management.runs-list-management
+  - trigger_run_management.run-detail-actions
+  - trigger_run_management.run-owned-artifact-exports
+  - trigger_run_management.run-results-export
 tags:
   - bigquery
   - control-plane

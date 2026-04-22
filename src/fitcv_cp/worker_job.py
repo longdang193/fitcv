@@ -13,8 +13,18 @@ outputs:
   - run lifecycle updates
   - settings-used and results-export snapshots
 capabilities:
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.prompt-provenance-diagnostics
+  - inspection_debugging.reuse-diagnostics
+  - inspection_debugging.quality-metrics-diagnostics
   - settings_system.settings-used-exports
   - pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere
+  - trigger_run_management.shared-stage-progress
+  - trigger_run_management.run-owned-artifact-exports
+  - trigger_run_management.run-results-export
+  - trigger_run_management.reranker-fit-authority
 tags:
   - worker
   - control-plane

@@ -62,10 +62,91 @@ phase_7_direct_evidence_pilot:
     inspection_debugging.stage-artifact-downloads:
       require_code: true
       require_tests: true
+    inspection_debugging.synonym-overlay-inspection:
+      require_code: true
+      require_tests: true
+    inspection_debugging.run-owned-artifact-exports:
+      require_code: true
+      require_tests: true
+    inspection_debugging.settings-used-export:
+      require_code: true
+      require_tests: true
+    inspection_debugging.results-ledger-inspection:
+      require_code: true
+      require_tests: true
+    inspection_debugging.stage-transition-diagnostics:
+      require_code: true
+      require_tests: true
+    inspection_debugging.prompt-provenance-diagnostics:
+      require_code: true
+      require_tests: true
+    inspection_debugging.ranking-diagnostics:
+      require_code: true
+      require_tests: true
+    inspection_debugging.shortlist-diagnostics:
+      require_code: true
+      require_tests: true
+    inspection_debugging.reuse-diagnostics:
+      require_code: true
+      require_tests: true
+    inspection_debugging.quality-metrics-diagnostics:
+      require_code: true
+      require_tests: true
+    inspection_debugging.enriched-job-debug-export:
+      require_code: true
+      require_tests: true
+    inspection_debugging.rule-filter-diagnostics:
+      require_code: true
+      require_tests: true
     trigger_run_management.execution-mode-selection:
       require_code: true
       require_tests: true
     trigger_run_management.manual-checkpoints-and-continue:
+      require_code: true
+      require_tests: true
+    trigger_run_management.runs-list-management:
+      require_code: true
+      require_tests: true
+    trigger_run_management.run-detail-actions:
+      require_code: true
+      require_tests: true
+    trigger_run_management.job-input-modes:
+      require_code: true
+      require_tests: true
+    trigger_run_management.candidate-profile-input-modes:
+      require_code: true
+      require_tests: true
+    trigger_run_management.synonym-overlay-at-trigger:
+      require_code: true
+      require_tests: true
+    trigger_run_management.shared-stage-progress:
+      require_code: true
+      require_tests: true
+    trigger_run_management.synonym-overlay-replacement:
+      require_code: true
+      require_tests: true
+    trigger_run_management.run-health-surface:
+      require_code: true
+      require_tests: true
+    trigger_run_management.run-owned-artifact-exports:
+      require_code: true
+      require_tests: true
+    trigger_run_management.stage-artifact-downloads:
+      require_code: true
+      require_tests: true
+    trigger_run_management.synonym-overlay-inspection:
+      require_code: true
+      require_tests: true
+    trigger_run_management.run-results-export:
+      require_code: true
+      require_tests: true
+    trigger_run_management.shortlist-debug-exports:
+      require_code: true
+      require_tests: true
+    trigger_run_management.decision-chain-outcomes:
+      require_code: true
+      require_tests: true
+    trigger_run_management.reranker-fit-authority:
       require_code: true
       require_tests: true
     settings_system.baseline-default-hydration:
@@ -136,5 +217,6 @@ notes: >
   bounded direct-evidence pilot for selected `cv_system`,
   `inspection_debugging`, and `trigger_run_management` capabilities; Phase 8
   extends the same sparse evidence pilot to selected `settings_system` and
-  `pipeline_performance` capabilities and keeps those mappings enforced through
-  validator-backed minimum code/test evidence.
+  `pipeline_performance` capabilities; Phase 9 extends it again to selected
+  trigger and inspection capabilities while keeping every enforced mapping
+  backed by minimum code/test evidence.

@@ -17,9 +17,36 @@ outputs:
 capabilities:
   - inspection_debugging.run-detail-inspection-tabs
   - inspection_debugging.run-progress-and-checkpoints
+  - inspection_debugging.synonym-overlay-inspection
+  - inspection_debugging.run-owned-artifact-exports
   - inspection_debugging.stage-artifact-downloads
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.prompt-provenance-diagnostics
+  - inspection_debugging.ranking-diagnostics
+  - inspection_debugging.shortlist-diagnostics
+  - inspection_debugging.reuse-diagnostics
+  - inspection_debugging.quality-metrics-diagnostics
+  - inspection_debugging.enriched-job-debug-export
+  - inspection_debugging.rule-filter-diagnostics
+  - trigger_run_management.runs-list-management
+  - trigger_run_management.run-detail-actions
+  - trigger_run_management.job-input-modes
+  - trigger_run_management.candidate-profile-input-modes
   - trigger_run_management.execution-mode-selection
+  - trigger_run_management.synonym-overlay-at-trigger
+  - trigger_run_management.shared-stage-progress
   - trigger_run_management.manual-checkpoints-and-continue
+  - trigger_run_management.synonym-overlay-replacement
+  - trigger_run_management.run-health-surface
+  - trigger_run_management.run-owned-artifact-exports
+  - trigger_run_management.stage-artifact-downloads
+  - trigger_run_management.synonym-overlay-inspection
+  - trigger_run_management.run-results-export
+  - trigger_run_management.shortlist-debug-exports
+  - trigger_run_management.decision-chain-outcomes
+  - trigger_run_management.reranker-fit-authority
 tags:
   - admin-ui
   - run-management
