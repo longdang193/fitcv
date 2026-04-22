@@ -1,53 +1,226 @@
+# GENERATED FILE - do not edit directly.
 feature_id: bounded_parallel_enrichment
 source: docs/features/bounded_parallel_enrichment/feature.source.yaml
-generated_contract: docs/features/bounded_parallel_enrichment/bounded_parallel_enrichment.yaml
-naming_policy:
-  feature_id_format: underscore
-  capability_id_format: <feature_id>.<kebab-suffix>
-  string_capabilities_allowed: false
-depends_on:
-- pipeline_performance
-capability_shape: structured
-capability_ids:
-- bounded_parallel_enrichment.enrichment-batch-size-setting
-- bounded_parallel_enrichment.enrichment-concurrency-setting
-- bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
-- bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1
-- bounded_parallel_enrichment.deterministic-output-order
-- bounded_parallel_enrichment.per-job-failure-isolation
+invariants: {}
 capabilities:
-- feature_id: bounded_parallel_enrichment
-  capability_id: bounded_parallel_enrichment.enrichment-batch-size-setting
-  capability_name: enrichment_batch_size setting
-  source_shape: structured
-- feature_id: bounded_parallel_enrichment
-  capability_id: bounded_parallel_enrichment.enrichment-concurrency-setting
-  capability_name: enrichment_concurrency setting
-  source_shape: structured
-- feature_id: bounded_parallel_enrichment
-  capability_id: bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
-  capability_name: Pre-enrichment global filters run first
-  source_shape: structured
-- feature_id: bounded_parallel_enrichment
-  capability_id: bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1
-  capability_name: Conservative defaults (batch_size=10, concurrency=1)
-  source_shape: structured
-- feature_id: bounded_parallel_enrichment
-  capability_id: bounded_parallel_enrichment.deterministic-output-order
-  capability_name: Deterministic output order
-  source_shape: structured
-- feature_id: bounded_parallel_enrichment
-  capability_id: bounded_parallel_enrichment.per-job-failure-isolation
-  capability_name: Per-job failure isolation
-  source_shape: structured
-stage_participation: []
-stage_summary: []
-refs: &id001
-  docs: []
-  spec:
-  - docs/superpowers/archive/specs/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-design.md
-  plan:
-  - docs/superpowers/archive/plans/2026-03-27-multi-file-job-input-and-bounded-parallel-enrichment-implementation.md
-  history:
-  - docs/features/bounded_parallel_enrichment/history.md
-refs_by_type: *id001
+  bounded_parallel_enrichment.enrichment-batch-size-setting:
+    state: active
+    statement: enrichment_batch_size setting
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/bounded_parallel_enrichment/history.md
+    docs_evidence:
+    - path: docs/features/bounded_parallel_enrichment/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  bounded_parallel_enrichment.enrichment-concurrency-setting:
+    state: active
+    statement: enrichment_concurrency setting
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/bounded_parallel_enrichment/history.md
+    docs_evidence:
+    - path: docs/features/bounded_parallel_enrichment/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  bounded_parallel_enrichment.pre-enrichment-global-filters-run-first:
+    state: active
+    statement: Pre-enrichment global filters run first
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/bounded_parallel_enrichment/history.md
+    docs_evidence:
+    - path: docs/features/bounded_parallel_enrichment/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1:
+    state: active
+    statement: Conservative defaults (batch_size=10, concurrency=1)
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/bounded_parallel_enrichment/history.md
+    docs_evidence:
+    - path: docs/features/bounded_parallel_enrichment/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  bounded_parallel_enrichment.deterministic-output-order:
+    state: active
+    statement: Deterministic output order
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/bounded_parallel_enrichment/history.md
+    docs_evidence:
+    - path: docs/features/bounded_parallel_enrichment/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  bounded_parallel_enrichment.per-job-failure-isolation:
+    state: active
+    statement: Per-job failure isolation
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/bounded_parallel_enrichment/history.md
+    docs_evidence:
+    - path: docs/features/bounded_parallel_enrichment/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+timeline:
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md

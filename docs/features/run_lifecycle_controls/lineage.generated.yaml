@@ -1,68 +1,460 @@
+# GENERATED FILE - do not edit directly.
 feature_id: run_lifecycle_controls
 source: docs/features/run_lifecycle_controls/feature.source.yaml
-generated_contract: docs/features/run_lifecycle_controls/run_lifecycle_controls.yaml
-naming_policy:
-  feature_id_format: underscore
-  capability_id_format: <feature_id>.<kebab-suffix>
-  string_capabilities_allowed: false
-depends_on:
-- admin_control_plane_core
-capability_shape: structured
-capability_ids:
-- run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq
-- run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
-- run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
-- run_lifecycle_controls.stale-cancellation-repair-endpoint
-- run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
-- run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-- run_lifecycle_controls.archive-and-unarchive-terminal-runs
-- run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries
-- run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+invariants: {}
 capabilities:
-- feature_id: run_lifecycle_controls
-  capability_id: run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq
-  capability_name: Cancel queued runs directly from the queue via RQ
-  source_shape: structured
-- feature_id: run_lifecycle_controls
-  capability_id: run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
-  capability_name: Cooperative cancellation at safe checkpoints for running jobs
-  source_shape: structured
-- feature_id: run_lifecycle_controls
-  capability_id: run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
-  capability_name: Direct cancellation of paused manual runs in `awaiting_continue`
-  source_shape: structured
-- feature_id: run_lifecycle_controls
-  capability_id: run_lifecycle_controls.stale-cancellation-repair-endpoint
-  capability_name: Stale cancellation repair endpoint
-  source_shape: structured
-- feature_id: run_lifecycle_controls
-  capability_id: run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
-  capability_name: State-aware max-runtime timeout handling for queued, running, cancelling, and paused manual runs
-  source_shape: structured
-- feature_id: run_lifecycle_controls
-  capability_id: run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  capability_name: Timeout copy now distinguishes queue wait, active runtime, and Stage by Stage manual-wait time
-  source_shape: structured
-- feature_id: run_lifecycle_controls
-  capability_id: run_lifecycle_controls.archive-and-unarchive-terminal-runs
-  capability_name: Archive and unarchive terminal runs
-  source_shape: structured
-- feature_id: run_lifecycle_controls
-  capability_id: run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries
-  capability_name: Batch cancel, archive, and unarchive endpoints with explicit processed/skipped summaries
-  source_shape: structured
-- feature_id: run_lifecycle_controls
-  capability_id: run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
-  capability_name: Full audit trail in pipeline_run_events
-  source_shape: structured
-stage_participation: []
-stage_summary: []
-refs: &id001
-  docs: []
-  spec:
-  - docs/superpowers/archive/specs/2026-03-26-run-lifecycle-controls-design.md
-  plan:
-  - docs/superpowers/archive/plans/2026-03-26-run-lifecycle-controls-implementation.md
-  history:
-  - docs/features/run_lifecycle_controls/history.md
-refs_by_type: *id001
+  run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq:
+    state: active
+    statement: Cancel queued runs directly from the queue via RQ
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/run_lifecycle_controls/history.md
+    docs_evidence:
+    - path: docs/features/run_lifecycle_controls/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-20-45-awaiting-continue-cancel-eligibility-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-20-runs-list-table-compaction-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-21-35-runs-list-table-compaction-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs:
+    state: active
+    statement: Cooperative cancellation at safe checkpoints for running jobs
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/run_lifecycle_controls/history.md
+    docs_evidence:
+    - path: docs/features/run_lifecycle_controls/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-20-45-awaiting-continue-cancel-eligibility-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-20-runs-list-table-compaction-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-21-35-runs-list-table-compaction-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue:
+    state: active
+    statement: Direct cancellation of paused manual runs in `awaiting_continue`
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/run_lifecycle_controls/history.md
+    docs_evidence:
+    - path: docs/features/run_lifecycle_controls/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-20-45-awaiting-continue-cancel-eligibility-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-20-runs-list-table-compaction-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-21-35-runs-list-table-compaction-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  run_lifecycle_controls.stale-cancellation-repair-endpoint:
+    state: active
+    statement: Stale cancellation repair endpoint
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/run_lifecycle_controls/history.md
+    docs_evidence:
+    - path: docs/features/run_lifecycle_controls/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-20-45-awaiting-continue-cancel-eligibility-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-20-runs-list-table-compaction-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-21-35-runs-list-table-compaction-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs:
+    state: active
+    statement: State-aware max-runtime timeout handling for queued, running, cancelling, and paused manual runs
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/run_lifecycle_controls/history.md
+    docs_evidence:
+    - path: docs/features/run_lifecycle_controls/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-20-45-awaiting-continue-cancel-eligibility-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-20-runs-list-table-compaction-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-21-35-runs-list-table-compaction-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time:
+    state: active
+    statement: Timeout copy now distinguishes queue wait, active runtime, and Stage by Stage manual-wait time
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/run_lifecycle_controls/history.md
+    docs_evidence:
+    - path: docs/features/run_lifecycle_controls/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-20-45-awaiting-continue-cancel-eligibility-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-20-runs-list-table-compaction-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-21-35-runs-list-table-compaction-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  run_lifecycle_controls.archive-and-unarchive-terminal-runs:
+    state: active
+    statement: Archive and unarchive terminal runs
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/run_lifecycle_controls/history.md
+    docs_evidence:
+    - path: docs/features/run_lifecycle_controls/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-20-45-awaiting-continue-cancel-eligibility-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-20-runs-list-table-compaction-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-21-35-runs-list-table-compaction-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries:
+    state: active
+    statement: Batch cancel, archive, and unarchive endpoints with explicit processed/skipped summaries
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/run_lifecycle_controls/history.md
+    docs_evidence:
+    - path: docs/features/run_lifecycle_controls/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-20-45-awaiting-continue-cancel-eligibility-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-20-runs-list-table-compaction-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-21-35-runs-list-table-compaction-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  run_lifecycle_controls.full-audit-trail-in-pipeline-run-events:
+    state: active
+    statement: Full audit trail in pipeline_run_events
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/run_lifecycle_controls/history.md
+    docs_evidence:
+    - path: docs/features/run_lifecycle_controls/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-20-45-awaiting-continue-cancel-eligibility-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-20-runs-list-table-compaction-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-21-35-runs-list-table-compaction-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+timeline:
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-20-45-awaiting-continue-cancel-eligibility-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-21-20-runs-list-table-compaction-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-22-40-run-detail-information-architecture-cleanup-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-23-50-run-detail-artifact-gating-and-diagnostics-cleanup-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-06-04-10-run-all-vs-stage-by-stage-contract-alignment-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-21-35-runs-list-table-compaction-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-06-04-25-run-all-vs-stage-by-stage-contract-alignment-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md

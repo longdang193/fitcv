@@ -1,4 +1,32 @@
-"""FastAPI admin control plane app."""
+"""
+@meta
+name: fitcv_cp_app
+type: utility
+domain: admin_ui
+responsibility:
+  - Serve run trigger, run detail, and artifact download routes for the admin control plane.
+  - Own run-detail inspection shells, checkpoint controls, and stage-owned export gating.
+inputs:
+  - persisted pipeline runs and events
+  - queued run actions and checkpoint state
+  - operator trigger payloads and settings snapshots
+outputs:
+  - admin HTML responses
+  - run trigger and continue actions
+  - run-owned and stage-owned artifact responses
+capabilities:
+  - inspection_debugging.run-detail-inspection-tabs
+  - inspection_debugging.run-progress-and-checkpoints
+  - inspection_debugging.stage-artifact-downloads
+  - trigger_run_management.execution-mode-selection
+  - trigger_run_management.manual-checkpoints-and-continue
+tags:
+  - admin-ui
+  - run-management
+  - lineage-owner
+lifecycle:
+  status: active
+"""
 import dataclasses
 import datetime
 import io

@@ -54,14 +54,14 @@ def build_minimal_repo(tmp_path: Path) -> Path:
             "status": "active",
             "type": "add",
             "summary": "Pilot source for CV generation lifecycle ownership.",
-            "owner": "fitcv",
+            "invariants": [],
             "domains": ["pipeline", "cv_generation"],
             "depends_on": ["admin_control_plane_core"],
             "capabilities": [
                 {
                     "capability_id": "cv_system.structured-cv-generation",
-                    "name": "Structured CV Generation",
-                    "summary": "Generate structured CV artifacts from grounded evidence.",
+                    "statement": "Generate structured CV artifacts from grounded evidence.",
+                    "state": "active",
                 }
             ],
             "stage_participation": [
@@ -71,11 +71,6 @@ def build_minimal_repo(tmp_path: Path) -> Path:
                     "role": "primary",
                 }
             ],
-            "refs": {
-                "docs": ["docs/FitCV-pipeline.md"],
-                "history": ["docs/features/cv_system/history.md"],
-            },
-            "keywords": ["cv", "generation"],
         },
     )
     write_yaml(
@@ -99,32 +94,77 @@ def build_minimal_repo(tmp_path: Path) -> Path:
             "status": "active",
             "type": "add",
             "summary": "Own the admin API and web surface for pipeline operations.",
-            "owner": "fitcv_cp",
+            "invariants": [],
             "domains": ["admin_ui"],
             "depends_on": [],
             "capabilities": [
                 {
                     "capability_id": "admin_control_plane_core.fastapi-web-server",
-                    "name": "FastAPI web server",
+                    "statement": "Serve the admin control plane over FastAPI.",
+                    "state": "active",
                 },
                 {
                     "capability_id": "admin_control_plane_core.jinja2-admin-pages",
-                    "name": "Jinja2 admin pages",
+                    "statement": "Render admin pages with Jinja2 templates.",
+                    "state": "active",
                 },
             ],
-            "refs": {
-                "history": ["docs/features/admin_control_plane_core/history.md"],
-            },
-            "keywords": ["admin", "control-plane"],
         },
     )
     (repo_root / "docs" / "features" / "cv_system" / "history.md").write_text(
-        "# CV System History\n", encoding="utf-8"
+        "# History\n\n## Human Notes\nLegacy CV note.\n", encoding="utf-8"
     )
     (repo_root / "docs" / "features" / "admin_control_plane_core" / "history.md").write_text(
-        "# Admin Control Plane Core History\n", encoding="utf-8"
+        "# History\n\n## Human Notes\nLegacy admin note.\n", encoding="utf-8"
     )
     (repo_root / "docs" / "generated").mkdir(parents=True, exist_ok=True)
+    (repo_root / "scripts").mkdir(parents=True, exist_ok=True)
+    (repo_root / "tests").mkdir(parents=True, exist_ok=True)
+    (repo_root / "docs" / "superpowers" / "archive" / "specs").mkdir(parents=True, exist_ok=True)
+    (repo_root / "docs" / "superpowers" / "archive" / "plans").mkdir(parents=True, exist_ok=True)
+    (repo_root / "scripts" / "cv_writer.py").write_text(
+        '"""\n'
+        "@meta\n"
+        "name: cv_writer\n"
+        "type: script\n"
+        "domain: cv_generation\n"
+        "capabilities:\n"
+        "  - cv_system.structured-cv-generation\n"
+        '"""\n\n'
+        "def main() -> None:\n"
+        "    return None\n",
+        encoding="utf-8",
+    )
+    (repo_root / "tests" / "test_cv_writer.py").write_text(
+        '"""\n'
+        "@meta\n"
+        "type: test\n"
+        "scope: unit\n"
+        "domain: cv_generation\n"
+        '"""\n\n'
+        "# @proves cv_system.structured-cv-generation\n"
+        "def test_placeholder() -> None:\n"
+        "    assert True\n",
+        encoding="utf-8",
+    )
+    (repo_root / "docs" / "superpowers" / "archive" / "specs" / "2026-04-22-cv-system-spec.md").write_text(
+        "---\n"
+        "artifact_type: spec\n"
+        "related_features:\n"
+        "  - cv_system\n"
+        "---\n\n"
+        "# CV System Spec\n",
+        encoding="utf-8",
+    )
+    (repo_root / "docs" / "superpowers" / "archive" / "plans" / "2026-04-22-cv-system-plan.md").write_text(
+        "---\n"
+        "artifact_type: plan\n"
+        "related_features:\n"
+        "  - cv_system\n"
+        "---\n\n"
+        "# CV System Plan\n",
+        encoding="utf-8",
+    )
     return repo_root
 
 
@@ -141,26 +181,41 @@ def test_sync_script_writes_feature_and_stage_outputs(tmp_path: Path) -> None:
     assert exit_code == 0
 
     feature_contract = read_yaml(repo_root / "docs" / "features" / "cv_system" / "cv_system.yaml")
-    assert feature_contract["cv_system"]["name"] == "CV System"
-    assert feature_contract["cv_system"]["capabilities"][0]["capability_id"] == (
+    assert feature_contract["feature_id"] == "cv_system"
+    assert feature_contract["name"] == "CV System"
+    assert feature_contract["capabilities"][0]["capability_id"] == (
         "cv_system.structured-cv-generation"
     )
+    assert feature_contract["refs"]["history"] == ["docs/features/cv_system/history.md"]
+    assert feature_contract["refs"]["spec"] == ["docs/superpowers/archive/specs/2026-04-22-cv-system-spec.md"]
+    assert feature_contract["refs"]["plan"] == ["docs/superpowers/archive/plans/2026-04-22-cv-system-plan.md"]
 
     admin_contract = read_yaml(
         repo_root / "docs" / "features" / "admin_control_plane_core" / "admin_control_plane_core.yaml"
     )
-    assert admin_contract["admin_control_plane_core"]["capabilities"][0]["capability_id"] == (
+    assert admin_contract["capabilities"][0]["capability_id"] == (
         "admin_control_plane_core.fastapi-web-server"
     )
 
     lineage = read_yaml(repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml")
+    raw_lineage = (repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml").read_text(
+        encoding="utf-8"
+    )
     assert lineage["feature_id"] == "cv_system"
     assert lineage["source"] == "docs/features/cv_system/feature.source.yaml"
-    assert lineage["generated_contract"] == "docs/features/cv_system/cv_system.yaml"
-    assert lineage["naming_policy"]["feature_id_format"] == "underscore"
-    assert lineage["capability_shape"] == "structured"
-    assert lineage["capabilities"][0]["capability_id"] == "cv_system.structured-cv-generation"
-    assert lineage["refs_by_type"]["docs"] == ["docs/FitCV-pipeline.md"]
+    assert set(lineage) == {"feature_id", "source", "invariants", "capabilities", "timeline"}
+    assert "&id" not in raw_lineage
+    assert "*id" not in raw_lineage
+    capability_lineage = lineage["capabilities"]["cv_system.structured-cv-generation"]
+    assert capability_lineage["state"] == "active"
+    assert capability_lineage["statement"] == "Generate structured CV artifacts from grounded evidence."
+    assert capability_lineage["code"] == ["scripts/cv_writer.py"]
+    assert capability_lineage["tests"] == ["tests/test_cv_writer.py"]
+    assert capability_lineage["docs"] == ["docs/features/cv_system/history.md"]
+    assert capability_lineage["specs"] == ["docs/superpowers/archive/specs/2026-04-22-cv-system-spec.md"]
+    assert capability_lineage["plans"] == ["docs/superpowers/archive/plans/2026-04-22-cv-system-plan.md"]
+    assert capability_lineage["completeness_status"] == "complete"
+    assert [item["kind"] for item in lineage["timeline"]] == ["spec", "plan"]
 
     stage_contract = read_yaml(repo_root / "docs" / "stages" / "cv_analysis.yaml")
     assert stage_contract["cv_analysis"]["primary_features"] == ["cv_system"]
@@ -182,10 +237,10 @@ def test_sync_script_refreshes_full_discovery_suite(tmp_path: Path) -> None:
     assert dependency_graph["graph"]["admin_control_plane_core"]["used_by"] == ["cv_system"]
 
     capability_index = read_yaml(repo_root / "docs" / "generated" / "feature_capabilities_index.yaml")
-    capability_names = [entry.get("capability_name", entry.get("capability")) for entry in capability_index["capabilities"]]
     capability_ids = [entry["capability_id"] for entry in capability_index["capabilities"]]
+    capability_statements = [entry.get("statement") for entry in capability_index["capabilities"]]
     assert "admin_control_plane_core.fastapi-web-server" in capability_ids
-    assert "Structured CV Generation" in capability_names
+    assert "Generate structured CV artifacts from grounded evidence." in capability_statements
 
     features_by_status = read_yaml(repo_root / "docs" / "generated" / "features_by_status.yaml")
     assert features_by_status["active"] == ["admin_control_plane_core", "cv_system"]
@@ -222,3 +277,20 @@ def test_sync_script_check_mode_detects_stale_outputs(tmp_path: Path) -> None:
 
     assert process.returncode == 1
     assert "stale generated file" in process.stdout.lower()
+
+
+def test_sync_script_rejects_legacy_string_capabilities(tmp_path: Path) -> None:
+    repo_root = build_minimal_repo(tmp_path)
+    sync_module = load_sync_module()
+
+    feature_source_path = repo_root / "docs" / "features" / "cv_system" / "feature.source.yaml"
+    payload = yaml.safe_load(feature_source_path.read_text(encoding="utf-8"))
+    payload["capabilities"] = ["Structured CV Generation"]
+    feature_source_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    try:
+        sync_module.main(["--repo-root", str(repo_root)])
+    except ValueError as exc:
+        assert "must be a mapping" in str(exc)
+    else:
+        raise AssertionError("Expected sync script to reject string-only capability entries.")

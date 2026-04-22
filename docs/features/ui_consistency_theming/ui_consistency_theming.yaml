@@ -1,43 +1,50 @@
-ui_consistency_theming:
-  name: UI Consistency & Theming
-  status: active
-  type: add
-  summary: Shared design system and dark/light theme toggle across all admin pages.
-  owner: fitcv_cp
-  domains:
-  - admin_ui
-  depends_on:
-  - admin_control_plane_core
-  capabilities:
-  - capability_id: ui_consistency_theming.css-custom-properties-design-tokens
-    name: CSS custom properties design tokens
-  - capability_id: ui_consistency_theming.shared-component-classes
-    name: Shared component classes
-  - capability_id: ui_consistency_theming.dark-light-theme-toggle-with-localstorage-persistence
-    name: Dark/light theme toggle with localStorage persistence
-  - capability_id: ui_consistency_theming.flash-free-theme-application
-    name: Flash-free theme application
-  - capability_id: ui_consistency_theming.consistent-action-hierarchy-primary-secondary-section
-    name: Consistent action hierarchy (primary, secondary, section)
-  - capability_id: ui_consistency_theming.human-readable-section-headings
-    name: Human-readable section headings
-  - capability_id: ui_consistency_theming.attached-tab-inspection-card-pattern
-    name: Attached-tab inspection card pattern
-  - capability_id: ui_consistency_theming.responsive-wrapping
-    name: Responsive wrapping
-  refs:
-    docs: []
-    spec:
-    - docs/superpowers/archive/specs/2026-03-26-admin-ui-consistency-and-theme-toggle-design.md
-    - docs/superpowers/archive/specs/2026-03-27-settings-and-run-detail-composition-consistency-design.md
-    plan:
-    - docs/superpowers/archive/plans/2026-03-26-admin-ui-consistency-and-theme-toggle-implementation.md
-    - docs/superpowers/archive/plans/2026-03-27-settings-and-run-detail-composition-consistency-implementation.md
-    history:
-    - docs/features/ui_consistency_theming/history.md
-  keywords:
-  - theming
-  - dark mode
-  - design system
-  - css tokens
-  - consistency
+# GENERATED FILE - do not edit directly.
+feature_id: ui_consistency_theming
+name: UI Consistency & Theming
+status: active
+type: add
+summary: Shared design system and dark/light theme toggle across all admin pages.
+invariants: []
+domains:
+- admin_ui
+depends_on:
+- admin_control_plane_core
+capabilities:
+- capability_id: ui_consistency_theming.css-custom-properties-design-tokens
+  statement: CSS custom properties design tokens
+  state: active
+- capability_id: ui_consistency_theming.shared-component-classes
+  statement: Shared component classes
+  state: active
+- capability_id: ui_consistency_theming.dark-light-theme-toggle-with-localstorage-persistence
+  statement: Dark/light theme toggle with localStorage persistence
+  state: active
+- capability_id: ui_consistency_theming.flash-free-theme-application
+  statement: Flash-free theme application
+  state: active
+- capability_id: ui_consistency_theming.consistent-action-hierarchy-primary-secondary-section
+  statement: Consistent action hierarchy (primary, secondary, section)
+  state: active
+- capability_id: ui_consistency_theming.human-readable-section-headings
+  statement: Human-readable section headings
+  state: active
+- capability_id: ui_consistency_theming.attached-tab-inspection-card-pattern
+  statement: Attached-tab inspection card pattern
+  state: active
+- capability_id: ui_consistency_theming.responsive-wrapping
+  statement: Responsive wrapping
+  state: active
+stage_participation: []
+refs:
+  history:
+  - docs/features/ui_consistency_theming/history.md
+  spec:
+  - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+  plan:
+  - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+  - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+  - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+  - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+  - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md

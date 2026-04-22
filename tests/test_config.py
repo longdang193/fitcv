@@ -800,3 +800,16 @@ def test_load_config_rejects_unknown_enrich_prompt_id() -> None:
             load_config(env_yaml)
     finally:
         shutil.rmtree(tmp_path, ignore_errors=True)
+"""
+@meta
+type: test
+scope: unit
+domain: config
+covers:
+  - configuration loading and validation
+excludes:
+  - external service connectivity
+tags:
+  - fast
+  - ci-safe
+"""

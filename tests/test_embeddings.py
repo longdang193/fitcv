@@ -395,3 +395,16 @@ def test_embed_and_store_jobs_integration(config: dict) -> None:
     jobs = [{"job_url": "http://test.url", "title": "DE", "required_skills": ["SQL"], "responsibilities": [], "seniority": "mid", "job_family": "data_engineering"}]
     count = embed_and_store_jobs(jobs, config)
     assert count == 1
+"""
+@meta
+type: test
+scope: unit
+domain: embeddings
+covers:
+  - embedding generation and normalization helpers
+excludes:
+  - live embedding APIs
+tags:
+  - fast
+  - ci-safe
+"""

@@ -109,3 +109,20 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+"""
+@meta
+name: add_enrich_reuse_columns
+type: migration
+domain: data
+responsibility:
+  - Add enrich-reuse provenance columns to the relevant storage surfaces.
+inputs:
+  - Existing enrich storage schema
+outputs:
+  - Updated schema with enrich reuse metadata
+tags:
+  - migration
+  - schema
+lifecycle:
+  status: active
+"""

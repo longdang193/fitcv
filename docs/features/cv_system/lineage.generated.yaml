@@ -1,128 +1,1228 @@
+# GENERATED FILE - do not edit directly.
 feature_id: cv_system
 source: docs/features/cv_system/feature.source.yaml
-generated_contract: docs/features/cv_system/cv_system.yaml
-naming_policy:
-  feature_id_format: underscore
-  capability_id_format: <feature_id>.<kebab-suffix>
-  string_capabilities_allowed: false
-depends_on:
-- admin_control_plane_core
-capability_shape: structured
-capability_ids:
-- cv_system.analysis-evidence-selection
-- cv_system.fit-gate-resolution
-- cv_system.structured-cv-generation
-- cv_system.analysis-grounded-validation
-- cv_system.header-placeholder-repair
-- cv_system.stage-artifact-diagnostics
-- cv_system.exact-match-late-stage-reuse
-- cv_system.config-owned-generation-contract
+invariants: {}
 capabilities:
-- feature_id: cv_system
-  capability_id: cv_system.analysis-evidence-selection
-  capability_name: Analysis Evidence Selection
-  source_shape: structured
-  summary: 'Retrieve, score, and select one bounded evidence bundle for grounded downstream CV writing.
+  cv_system.analysis-evidence-selection:
+    state: active
+    statement: 'Retrieve, score, and select one bounded evidence bundle for grounded downstream CV writing.
 
-    '
-- feature_id: cv_system
-  capability_id: cv_system.fit-gate-resolution
-  capability_name: Fit Gate Resolution
-  source_shape: structured
-  summary: 'Resolve whether a ranked job is eligible to continue from analysis into CV generation.
+      '
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/cv_system/history.md
+    docs_evidence:
+    - path: docs/features/cv_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
+    - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-03-31-adaptive-experience-composition-design.md
+    - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+    - docs/superpowers/archive/specs/2026-03-31-project-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+    - docs/superpowers/archive/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
+    - docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-11-39-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-17-05-cv-generation-structured-prompt-centralization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-14-05-cv-analysis-embedding-counter-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-15-05-cv-analysis-semantic-support-for-skill-and-role-channels-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-18-05-skipped-fit-gate-results-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-23-35-staged-final-artifact-reranker-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-00-20-candidate-name-placeholder-validation-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-12-05-candidate-name-writer-and-repair-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-50-option-b-migration-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-54-option-b-phase-2-rollout-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-02-phase-7-direct-evidence-backfill-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-project-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-contract-docs-adoption-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
+    - docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-21-cv-generation-structured-prompt-centralization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-40-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/archive/plans/2026-04-07-14-20-cv-analysis-embedding-counter-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-15-20-cv-analysis-semantic-support-for-skill-and-role-channels-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-18-20-skipped-fit-gate-results-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-23-45-staged-final-artifact-reranker-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-00-30-candidate-name-placeholder-validation-hardening-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-12-20-candidate-name-writer-and-repair-hardening-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-10-option-b-phase-1-pilot-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  cv_system.fit-gate-resolution:
+    state: active
+    statement: 'Resolve whether a ranked job is eligible to continue from analysis into CV generation.
 
-    '
-- feature_id: cv_system
-  capability_id: cv_system.structured-cv-generation
-  capability_name: Structured CV Generation
-  source_shape: structured
-  summary: 'Generate the structured CV artifact and rendered markdown output from the selected evidence bundle.
+      '
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/cv_system/history.md
+    docs_evidence:
+    - path: docs/features/cv_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
+    - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-03-31-adaptive-experience-composition-design.md
+    - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+    - docs/superpowers/archive/specs/2026-03-31-project-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+    - docs/superpowers/archive/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
+    - docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-11-39-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-17-05-cv-generation-structured-prompt-centralization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-14-05-cv-analysis-embedding-counter-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-15-05-cv-analysis-semantic-support-for-skill-and-role-channels-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-18-05-skipped-fit-gate-results-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-23-35-staged-final-artifact-reranker-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-00-20-candidate-name-placeholder-validation-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-12-05-candidate-name-writer-and-repair-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-50-option-b-migration-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-54-option-b-phase-2-rollout-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-02-phase-7-direct-evidence-backfill-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-project-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-contract-docs-adoption-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
+    - docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-21-cv-generation-structured-prompt-centralization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-40-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/archive/plans/2026-04-07-14-20-cv-analysis-embedding-counter-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-15-20-cv-analysis-semantic-support-for-skill-and-role-channels-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-18-20-skipped-fit-gate-results-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-23-45-staged-final-artifact-reranker-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-00-30-candidate-name-placeholder-validation-hardening-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-12-20-candidate-name-writer-and-repair-hardening-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-10-option-b-phase-1-pilot-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  cv_system.structured-cv-generation:
+    state: active
+    statement: 'Generate the structured CV artifact and rendered markdown output from the selected evidence bundle.
 
-    '
-- feature_id: cv_system
-  capability_id: cv_system.analysis-grounded-validation
-  capability_name: Analysis-Grounded Validation
-  source_shape: structured
-  summary: 'Validate hard facts and softer role or domain claims against selected analysis evidence before accepting a CV artifact.
+      '
+    satisfies: []
+    code:
+    - src/fitcv/cv_generator.py
+    tests:
+    - tests/test_cv_generator.py
+    - tests/test_sync_architecture_docs.py
+    - tests/test_validate_adoption_shape.py
+    docs:
+    - docs/features/cv_system/history.md
+    docs_evidence:
+    - path: docs/features/cv_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
+    - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-03-31-adaptive-experience-composition-design.md
+    - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+    - docs/superpowers/archive/specs/2026-03-31-project-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+    - docs/superpowers/archive/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
+    - docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-11-39-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-17-05-cv-generation-structured-prompt-centralization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-14-05-cv-analysis-embedding-counter-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-15-05-cv-analysis-semantic-support-for-skill-and-role-channels-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-18-05-skipped-fit-gate-results-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-23-35-staged-final-artifact-reranker-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-00-20-candidate-name-placeholder-validation-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-12-05-candidate-name-writer-and-repair-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-50-option-b-migration-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-54-option-b-phase-2-rollout-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-02-phase-7-direct-evidence-backfill-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-project-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-contract-docs-adoption-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
+    - docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-21-cv-generation-structured-prompt-centralization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-40-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/archive/plans/2026-04-07-14-20-cv-analysis-embedding-counter-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-15-20-cv-analysis-semantic-support-for-skill-and-role-channels-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-18-20-skipped-fit-gate-results-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-23-45-staged-final-artifact-reranker-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-00-30-candidate-name-placeholder-validation-hardening-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-12-20-candidate-name-writer-and-repair-hardening-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-10-option-b-phase-1-pilot-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: complete
+  cv_system.analysis-grounded-validation:
+    state: active
+    statement: 'Validate hard facts and softer role or domain claims against selected analysis evidence before accepting a CV artifact.
 
-    '
-- feature_id: cv_system
-  capability_id: cv_system.header-placeholder-repair
-  capability_name: Header Placeholder Repair
-  source_shape: structured
-  summary: 'Reject unresolved candidate-name placeholders and allow one deterministic header-only repair when a real name is available.
+      '
+    satisfies: []
+    code:
+    - src/fitcv/validator.py
+    tests:
+    - tests/test_validator.py
+    docs:
+    - docs/features/cv_system/history.md
+    docs_evidence:
+    - path: docs/features/cv_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
+    - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-03-31-adaptive-experience-composition-design.md
+    - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+    - docs/superpowers/archive/specs/2026-03-31-project-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+    - docs/superpowers/archive/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
+    - docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-11-39-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-17-05-cv-generation-structured-prompt-centralization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-14-05-cv-analysis-embedding-counter-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-15-05-cv-analysis-semantic-support-for-skill-and-role-channels-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-18-05-skipped-fit-gate-results-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-23-35-staged-final-artifact-reranker-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-00-20-candidate-name-placeholder-validation-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-12-05-candidate-name-writer-and-repair-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-50-option-b-migration-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-54-option-b-phase-2-rollout-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-02-phase-7-direct-evidence-backfill-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-project-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-contract-docs-adoption-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
+    - docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-21-cv-generation-structured-prompt-centralization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-40-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/archive/plans/2026-04-07-14-20-cv-analysis-embedding-counter-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-15-20-cv-analysis-semantic-support-for-skill-and-role-channels-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-18-20-skipped-fit-gate-results-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-23-45-staged-final-artifact-reranker-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-00-30-candidate-name-placeholder-validation-hardening-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-12-20-candidate-name-writer-and-repair-hardening-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-10-option-b-phase-1-pilot-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: complete
+  cv_system.header-placeholder-repair:
+    state: active
+    statement: 'Reject unresolved candidate-name placeholders and allow one deterministic header-only repair when a real name is available.
 
-    '
-- feature_id: cv_system
-  capability_id: cv_system.stage-artifact-diagnostics
-  capability_name: Stage Artifact Diagnostics
-  source_shape: structured
-  summary: 'Emit stage-owned diagnostics, quality metrics, and transition artifacts for `cv_analysis` and `cv_generation`.
+      '
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/cv_system/history.md
+    docs_evidence:
+    - path: docs/features/cv_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
+    - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-03-31-adaptive-experience-composition-design.md
+    - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+    - docs/superpowers/archive/specs/2026-03-31-project-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+    - docs/superpowers/archive/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
+    - docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-11-39-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-17-05-cv-generation-structured-prompt-centralization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-14-05-cv-analysis-embedding-counter-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-15-05-cv-analysis-semantic-support-for-skill-and-role-channels-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-18-05-skipped-fit-gate-results-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-23-35-staged-final-artifact-reranker-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-00-20-candidate-name-placeholder-validation-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-12-05-candidate-name-writer-and-repair-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-50-option-b-migration-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-54-option-b-phase-2-rollout-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-02-phase-7-direct-evidence-backfill-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-project-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-contract-docs-adoption-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
+    - docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-21-cv-generation-structured-prompt-centralization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-40-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/archive/plans/2026-04-07-14-20-cv-analysis-embedding-counter-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-15-20-cv-analysis-semantic-support-for-skill-and-role-channels-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-18-20-skipped-fit-gate-results-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-23-45-staged-final-artifact-reranker-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-00-30-candidate-name-placeholder-validation-hardening-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-12-20-candidate-name-writer-and-repair-hardening-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-10-option-b-phase-1-pilot-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  cv_system.stage-artifact-diagnostics:
+    state: active
+    statement: 'Emit stage-owned diagnostics, quality metrics, and transition artifacts for `cv_analysis` and `cv_generation`.
 
-    '
-- feature_id: cv_system
-  capability_id: cv_system.exact-match-late-stage-reuse
-  capability_name: Exact-Match Late-Stage Reuse
-  source_shape: structured
-  summary: 'Reuse exact-match ranking AI-score rows and cv-analysis outputs when stage-owned inputs and contracts still match.
+      '
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/cv_system/history.md
+    docs_evidence:
+    - path: docs/features/cv_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
+    - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-03-31-adaptive-experience-composition-design.md
+    - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+    - docs/superpowers/archive/specs/2026-03-31-project-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+    - docs/superpowers/archive/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
+    - docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-11-39-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-17-05-cv-generation-structured-prompt-centralization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-14-05-cv-analysis-embedding-counter-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-15-05-cv-analysis-semantic-support-for-skill-and-role-channels-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-18-05-skipped-fit-gate-results-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-23-35-staged-final-artifact-reranker-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-00-20-candidate-name-placeholder-validation-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-12-05-candidate-name-writer-and-repair-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-50-option-b-migration-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-54-option-b-phase-2-rollout-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-02-phase-7-direct-evidence-backfill-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-project-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-contract-docs-adoption-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
+    - docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-21-cv-generation-structured-prompt-centralization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-40-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/archive/plans/2026-04-07-14-20-cv-analysis-embedding-counter-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-15-20-cv-analysis-semantic-support-for-skill-and-role-channels-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-18-20-skipped-fit-gate-results-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-23-45-staged-final-artifact-reranker-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-00-30-candidate-name-placeholder-validation-hardening-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-12-20-candidate-name-writer-and-repair-hardening-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-10-option-b-phase-1-pilot-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  cv_system.exact-match-late-stage-reuse:
+    state: active
+    statement: 'Reuse exact-match ranking AI-score rows and cv-analysis outputs when stage-owned inputs and contracts still match.
 
-    '
-- feature_id: cv_system
-  capability_id: cv_system.config-owned-generation-contract
-  capability_name: Config-Owned Generation Contract
-  source_shape: structured
-  summary: 'Keep prompt and runtime ownership for active CV generation under the structured-write contract and central config layers.
+      '
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/cv_system/history.md
+    docs_evidence:
+    - path: docs/features/cv_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
+    - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-03-31-adaptive-experience-composition-design.md
+    - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+    - docs/superpowers/archive/specs/2026-03-31-project-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+    - docs/superpowers/archive/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
+    - docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-11-39-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-17-05-cv-generation-structured-prompt-centralization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-14-05-cv-analysis-embedding-counter-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-15-05-cv-analysis-semantic-support-for-skill-and-role-channels-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-18-05-skipped-fit-gate-results-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-23-35-staged-final-artifact-reranker-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-00-20-candidate-name-placeholder-validation-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-12-05-candidate-name-writer-and-repair-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-50-option-b-migration-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-54-option-b-phase-2-rollout-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-02-phase-7-direct-evidence-backfill-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-project-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-contract-docs-adoption-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
+    - docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-21-cv-generation-structured-prompt-centralization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-40-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/archive/plans/2026-04-07-14-20-cv-analysis-embedding-counter-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-15-20-cv-analysis-semantic-support-for-skill-and-role-channels-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-18-20-skipped-fit-gate-results-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-23-45-staged-final-artifact-reranker-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-00-30-candidate-name-placeholder-validation-hardening-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-12-20-candidate-name-writer-and-repair-hardening-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-10-option-b-phase-1-pilot-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+  cv_system.config-owned-generation-contract:
+    state: active
+    statement: 'Keep prompt and runtime ownership for active CV generation under the structured-write contract and central config layers.
 
-    '
-stage_participation:
-- stage_id: enrich
-  role: supporting
-  capability_ids: &id001
-  - cv_system.analysis-evidence-selection
-- stage_id: ranking
-  role: supporting
-  capability_ids: &id002
-  - cv_system.fit-gate-resolution
-  - cv_system.exact-match-late-stage-reuse
-- stage_id: cv_analysis
-  role: primary
-  capability_ids: &id003
-  - cv_system.analysis-evidence-selection
-  - cv_system.fit-gate-resolution
-  - cv_system.exact-match-late-stage-reuse
-  - cv_system.stage-artifact-diagnostics
-- stage_id: cv_generation
-  role: primary
-  capability_ids: &id004
-  - cv_system.structured-cv-generation
-  - cv_system.analysis-grounded-validation
-  - cv_system.header-placeholder-repair
-  - cv_system.stage-artifact-diagnostics
-  - cv_system.config-owned-generation-contract
-stage_summary:
-- stage_id: enrich
-  role: supporting
-  capability_ids: *id001
-- stage_id: ranking
-  role: supporting
-  capability_ids: *id002
-- stage_id: cv_analysis
-  role: primary
-  capability_ids: *id003
-- stage_id: cv_generation
-  role: primary
-  capability_ids: *id004
-refs: &id005
-  docs:
-  - docs/FitCV-pipeline.md
-  spec:
-  - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
-  - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
-  - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
-  plan:
-  - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
-  - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
-  - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
-  history:
-  - docs/features/cv_system/history.md
-refs_by_type: *id005
+      '
+    satisfies: []
+    code: []
+    tests: []
+    docs:
+    - docs/features/cv_system/history.md
+    docs_evidence:
+    - path: docs/features/cv_system/history.md
+      kind: doc_ref
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
+    - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-03-31-adaptive-experience-composition-design.md
+    - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+    - docs/superpowers/archive/specs/2026-03-31-project-evidence-preservation-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+    - docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+    - docs/superpowers/archive/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+    - docs/superpowers/archive/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
+    - docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-11-39-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-17-05-cv-generation-structured-prompt-centralization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-14-05-cv-analysis-embedding-counter-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-15-05-cv-analysis-semantic-support-for-skill-and-role-channels-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-18-05-skipped-fit-gate-results-contract-fix-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-23-35-staged-final-artifact-reranker-truth-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-00-20-candidate-name-placeholder-validation-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-08-12-05-candidate-name-writer-and-repair-hardening-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-50-option-b-migration-spec.md
+    - docs/superpowers/archive/specs/2026-04-21-23-54-option-b-phase-2-rollout-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-02-phase-7-direct-evidence-backfill-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-project-evidence-preservation-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-contract-docs-adoption-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+    - docs/superpowers/archive/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+    - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
+    - docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-21-cv-generation-structured-prompt-centralization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-11-40-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/archive/plans/2026-04-07-14-20-cv-analysis-embedding-counter-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-15-20-cv-analysis-semantic-support-for-skill-and-role-channels-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-18-20-skipped-fit-gate-results-contract-fix-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-23-45-staged-final-artifact-reranker-truth-alignment-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-00-30-candidate-name-placeholder-validation-hardening-plan.md
+    - docs/superpowers/archive/plans/2026-04-08-12-20-candidate-name-writer-and-repair-hardening-plan.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-10-option-b-phase-1-pilot-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: partial
+timeline:
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-03-31-adaptive-experience-composition-design.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-03-31-project-evidence-preservation-design.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-03-31-stage-contract-docs-adoption-design.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-03-31-stage-transition-artifacts-design.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-03-31-timeline-linked-stage-artifact-downloads-design.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-01-11-30-shortlist-contract-cleanup-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-01-richer-stage-artifacts-design.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-02-21-20-rule-filter-selectable-screening-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-02-23-10-shortlist-latest-only-persistent-embeddings-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-03-14-40-cv-analysis-and-generation-split-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-03-17-30-cv-analysis-evidence-selection-upgrade-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-03-18-20-cv-generation-analysis-aware-evidence-consumption-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-03-19-10-cv-generation-hybrid-analysis-grounding-validation-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-03-19-10-shortlist-query-construction-upgrade-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-03-19-45-ranking-candidate-intent-inference-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-04-00-10-shortlist-query-embedding-reuse-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-04-09-15-remove-candidate-chunk-embeddings-from-active-pipeline-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-04-14-10-stage-level-quality-metrics-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-04-15-05-cross-stage-late-stage-reuse-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-11-39-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-17-05-cv-generation-structured-prompt-centralization-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-06-00-40-results-json-job-ledger-separation-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-07-14-05-cv-analysis-embedding-counter-contract-fix-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-07-15-05-cv-analysis-semantic-support-for-skill-and-role-channels-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-07-18-05-skipped-fit-gate-results-contract-fix-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-07-23-35-staged-final-artifact-reranker-truth-alignment-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-08-00-20-candidate-name-placeholder-validation-hardening-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-08-12-05-candidate-name-writer-and-repair-hardening-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-21-23-50-option-b-migration-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-21-23-54-option-b-phase-2-rollout-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-12-02-phase-7-direct-evidence-backfill-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-03-31-project-evidence-preservation-implementation.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-03-31-stage-contract-docs-adoption-implementation.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-03-31-stage-transition-artifacts-implementation.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-03-31-timeline-linked-stage-artifact-downloads-implementation.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-01-11-45-shortlist-contract-cleanup-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-01-richer-stage-artifacts-implementation.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-02-23-25-shortlist-latest-only-persistent-embeddings-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-03-14-55-cv-analysis-and-generation-split-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-03-17-45-cv-analysis-evidence-selection-upgrade-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-03-18-35-cv-generation-analysis-aware-evidence-consumption-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-03-19-25-cv-generation-hybrid-analysis-grounding-validation-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-03-19-25-shortlist-query-construction-upgrade-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-03-20-00-ranking-candidate-intent-inference-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-04-00-25-shortlist-query-embedding-reuse-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-04-09-30-remove-candidate-chunk-embeddings-from-active-pipeline-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-04-14-25-stage-level-quality-metrics-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-04-15-20-cross-stage-late-stage-reuse-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-11-21-cv-generation-structured-prompt-centralization-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-11-40-remove-unused-cv-generation-markdown-prompt-from-pipeline-contract-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-06-00-55-results-json-job-ledger-separation-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-07-14-20-cv-analysis-embedding-counter-contract-fix-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-07-15-20-cv-analysis-semantic-support-for-skill-and-role-channels-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-07-18-20-skipped-fit-gate-results-contract-fix-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-07-23-45-staged-final-artifact-reranker-truth-alignment-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-08-00-30-candidate-name-placeholder-validation-hardening-plan.md
+- kind: plan
+  path: docs/superpowers/archive/plans/2026-04-08-12-20-candidate-name-writer-and-repair-hardening-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-00-10-option-b-phase-1-pilot-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md

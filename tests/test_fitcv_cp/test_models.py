@@ -1,3 +1,17 @@
+"""
+@meta
+type: test
+scope: unit
+domain: admin_ui
+covers:
+  - control-plane model behavior
+excludes:
+  - persistence integration
+tags:
+  - fast
+  - ci-safe
+"""
+
 import dataclasses
 
 from fitcv_cp.models import RunStatus, EventLevel, PipelineRun, RunEvent
@@ -67,3 +81,16 @@ def test_pipeline_run_lifecycle_fields_default_none():
 def test_run_event_fields():
     fields = {f.name for f in dataclasses.fields(RunEvent)}
     assert {"run_id", "event_id", "stage", "level", "message", "created_at"} <= fields
+"""
+@meta
+type: test
+scope: unit
+domain: admin_ui
+covers:
+  - control-plane model behavior
+excludes:
+  - persistence integration
+tags:
+  - fast
+  - ci-safe
+"""

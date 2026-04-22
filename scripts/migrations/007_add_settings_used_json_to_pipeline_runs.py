@@ -38,3 +38,20 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+"""
+@meta
+name: add_settings_used_json_to_pipeline_runs
+type: migration
+domain: data
+responsibility:
+  - Add settings-used snapshot storage to pipeline run records.
+inputs:
+  - Existing pipeline_runs schema
+outputs:
+  - Updated pipeline_runs schema with settings_used_json
+tags:
+  - migration
+  - schema
+lifecycle:
+  status: active
+"""

@@ -668,3 +668,16 @@ def test_apply_rule_filters_ignores_prefs_max_age_days():
     stale_job = _job(job_url="http://stale2", published_at=old)
     result = apply_rule_filters([stale_job], prefs={"max_age_days": 1})
     assert "http://stale2" in result["passed"]
+"""
+@meta
+type: test
+scope: unit
+domain: rule_filter
+covers:
+  - rule-filter behavior
+excludes:
+  - end-to-end pipeline execution
+tags:
+  - fast
+  - ci-safe
+"""

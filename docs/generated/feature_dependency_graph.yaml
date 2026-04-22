@@ -45,18 +45,3 @@ graph:
     depends_on:
     - admin_control_plane_core
     used_by: []
-orphans:
-  no_dependencies:
-  - admin_control_plane_core
-  - pipeline_performance
-  no_dependents:
-  - bounded_parallel_enrichment
-  - cv_system
-  - inspection_debugging
-  - multi_file_job_input
-  - run_lifecycle_controls
-  - settings_system
-  - ui_consistency_theming
-_meta:
-  generated_by: scripts/sync_architecture_docs.py
-  note: depends_on / used_by are canonical edges. used_by is derived from depends_on.

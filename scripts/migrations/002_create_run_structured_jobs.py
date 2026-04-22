@@ -55,3 +55,20 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+"""
+@meta
+name: create_run_structured_jobs
+type: migration
+domain: data
+responsibility:
+  - Create the run_structured_jobs storage surface for per-run structured job state.
+inputs:
+  - Existing pipeline storage schema
+outputs:
+  - New run_structured_jobs table or equivalent schema
+tags:
+  - migration
+  - schema
+lifecycle:
+  status: active
+"""

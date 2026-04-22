@@ -1,3 +1,17 @@
+"""
+@meta
+type: test
+scope: unit
+domain: admin_ui
+covers:
+  - local dev script behavior for the control plane
+excludes:
+  - shell execution outside test doubles
+tags:
+  - fast
+  - ci-safe
+"""
+
 from pathlib import Path
 
 
@@ -32,3 +46,16 @@ def test_publish_public_repo_only_resolves_public_remote_when_push_is_requested(
     assert '$remoteUrl = $null' in publish_script
     assert 'if ($Push) {' in publish_script
     assert 'git remote get-url $PublicRemote' in publish_script
+"""
+@meta
+type: test
+scope: unit
+domain: admin_ui
+covers:
+  - local dev script behavior for the control plane
+excludes:
+  - shell execution outside test doubles
+tags:
+  - fast
+  - ci-safe
+"""

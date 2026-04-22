@@ -1,3 +1,17 @@
+"""
+@meta
+type: test
+scope: unit
+domain: ranking
+covers:
+  - ranking behavior
+excludes:
+  - live reranker APIs
+tags:
+  - fast
+  - ci-safe
+"""
+
 import pytest
 
 from fitcv.ranking import (
@@ -384,3 +398,16 @@ def test_rank_jobs_assigns_final_rank():
     ranked = rank_jobs(jobs, top_n=2)
     assert ranked[0]["final_rank"] == 1
     assert ranked[1]["final_rank"] == 2
+"""
+@meta
+type: test
+scope: unit
+domain: ranking
+covers:
+  - ranking behavior
+excludes:
+  - live reranker APIs
+tags:
+  - fast
+  - ci-safe
+"""

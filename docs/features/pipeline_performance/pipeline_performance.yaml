@@ -1,89 +1,102 @@
-pipeline_performance:
-  name: Pipeline Performance
-  status: active
-  type: modify
-  summary: Reduced API costs by filtering jobs before enrichment, using reliable structured output parsing, centralizing enrich prompt management, reusing unchanged enrich results via fingerprints, reusing unchanged shortlist embeddings via a structured signature plus embedding contract, extending bounded semantic lift to the most important `cv_analysis` fit channels, short-circuiting reranker `skip` jobs before expensive `cv_analysis` work, and trimming dead-weight operator-facing payloads, especially by tightening the `results.json` ledger boundary and row-scaled timeline noise.
-  owner: fitcv
-  domains:
-  - pipeline
-  - api_optimization
-  depends_on: []
-  capabilities:
-  - capability_id: pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
-    name: Pre-enrichment global job filters (applications_count_max, max_age_days)
-  - capability_id: pipeline_performance.explicit-rejection-reasons-in-rule-filter-results
-    name: Explicit rejection reasons in rule_filter_results
-  - capability_id: pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
-    name: Gemini structured output with response_schema and Pydantic
-  - capability_id: pipeline_performance.fallback-path-for-unparseable-responses
-    name: Fallback path for unparseable responses
-  - capability_id: pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
-    name: Enrich extraction prompt text now comes from a centralized prompt registry with config-selected prompt IDs
-  - capability_id: pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
-    name: Enrich-stage raw-plus-canonical semantic companions for repeated downstream fields
-  - capability_id: pipeline_performance.canonical-skill-companion-lists-and-entity-payloads-for-required-preferred-skills
-    name: Canonical skill companion lists and entity payloads for required/preferred skills
-  - capability_id: pipeline_performance.enrich-stage-mapping-suggestion-capture-for-review-debug-surfaces
-    name: Enrich-stage mapping suggestion capture for review/debug surfaces
-  - capability_id: pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
-    name: Fingerprint-based enrich-result reuse happens before LLM enrichment using normalized raw-job inputs
-  - capability_id: pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes
-    name: Enrich-contract fingerprinting invalidates reuse automatically when prompt/model/schema behavior changes
-  - capability_id: pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
-    name: Shared `structured_jobs` reuse lookup avoids redundant enrich calls while only fresh rows are upserted back into the shared table
-  - capability_id: pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors
-    name: Shortlist now builds a stable structured embedding-input signature before generating `job_summary` vectors
-  - capability_id: pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
-    name: Shortlist reuses the latest stored embedding row for a `job_url` only when both the structured signature and embedding contract fingerprint still match
-  - capability_id: pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
-    name: Fresh shortlist embeddings persist signature metadata so later runs can skip repeated embedding work safely
-  - capability_id: pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
-    name: Operator-facing enriched-job exports now keep canonical semantic fields and fingerprint/reuse provenance while omitting retired raw duplicate classification baggage
-  - capability_id: pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
-    name: Large runs avoid some row-scaled Layer 4 event noise by relying more on aggregate stage summaries plus stage-owned artifacts
-  - capability_id: pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere
-    name: '`results.json` now keeps only compact job-ledger fields instead of repeating full job snapshots, heavy score-explanation internals, and full CV bodies already represented elsewhere'
-  - capability_id: pipeline_performance.cv-analysis-now-uses-bounded-semantic-lift-for-required-skill-and-role-channels-instead-of-reserving-semantic-work-only-for-domain-and-responsibility-alignment
-    name: '`cv_analysis` now uses bounded semantic lift for required-skill and role channels instead of reserving semantic work only for domain and responsibility alignment'
-  - capability_id: pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis
-    name: Ranked jobs with authoritative reranker `fit_label = skip` now stop before evidence retrieval, gap computation, and semantic alignment inside `cv_analysis`
-  refs:
-    docs:
-    - docs/FitCV-pipeline.md
-    spec:
-    - docs/superpowers/archive/specs/2026-03-26-cheap-first-pipeline-narrowing-design.md
-    - docs/superpowers/archive/specs/2026-03-26-gemini-structured-output-enrichment-design.md
-    - docs/superpowers/archive/specs/2026-04-02-19-10-central-prompt-registry-spec.md
-    - docs/superpowers/archive/specs/2026-04-02-23-55-enrich-reuse-via-raw-job-fingerprint-spec.md
-    - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
-    - docs/superpowers/archive/specs/2026-04-06-02-35-pipeline-dead-weight-cleanup-spec.md
-    - docs/superpowers/archive/specs/2026-04-07-15-05-cv-analysis-semantic-support-for-skill-and-role-channels-spec.md
-    - docs/superpowers/archive/specs/2026-04-07-15-50-results-ledger-and-stage-diagnostics-boundary-tightening-spec.md
-    - docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
-    - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
-    plan:
-    - docs/superpowers/archive/plans/2026-03-26-global-job-filters-implementation.md
-    - docs/superpowers/archive/plans/2026-03-26-cheap-first-pipeline-narrowing-implementation.md
-    - docs/superpowers/archive/plans/2026-03-26-gemini-structured-output-enrichment-implementation.md
-    - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
-    - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
-    - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
-    - docs/superpowers/archive/plans/2026-04-06-02-50-pipeline-dead-weight-cleanup-plan.md
-    - docs/superpowers/archive/plans/2026-04-07-15-20-cv-analysis-semantic-support-for-skill-and-role-channels-plan.md
-    - docs/superpowers/archive/plans/2026-04-07-16-05-results-ledger-and-stage-diagnostics-boundary-tightening-plan.md
-    - docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
-    - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
-    history:
-    - docs/features/pipeline_performance/history.md
-  keywords:
-  - performance
-  - enrichment
-  - structured output
-  - global filters
-  - api cost
-  - parallel enrichment
-  - reuse
-  - fingerprint
-  - shortlist
-  - embeddings
-  - signature
+# GENERATED FILE - do not edit directly.
+feature_id: pipeline_performance
+name: Pipeline Performance
+status: active
+type: modify
+summary: Reduced API costs by filtering jobs before enrichment, using reliable structured output parsing, centralizing enrich prompt management, reusing unchanged enrich results via fingerprints, reusing unchanged shortlist embeddings via a structured signature plus embedding contract, extending bounded semantic lift to the most important `cv_analysis` fit channels, short-circuiting reranker `skip` jobs before expensive `cv_analysis` work, and trimming dead-weight operator-facing payloads, especially by tightening the `results.json` ledger boundary and row-scaled timeline noise.
+invariants: []
+domains:
+- pipeline
+- api_optimization
+depends_on: []
+capabilities:
+- capability_id: pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
+  statement: Pre-enrichment global job filters (applications_count_max, max_age_days)
+  state: active
+- capability_id: pipeline_performance.explicit-rejection-reasons-in-rule-filter-results
+  statement: Explicit rejection reasons in rule_filter_results
+  state: active
+- capability_id: pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
+  statement: Gemini structured output with response_schema and Pydantic
+  state: active
+- capability_id: pipeline_performance.fallback-path-for-unparseable-responses
+  statement: Fallback path for unparseable responses
+  state: active
+- capability_id: pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
+  statement: Enrich extraction prompt text now comes from a centralized prompt registry with config-selected prompt IDs
+  state: active
+- capability_id: pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
+  statement: Enrich-stage raw-plus-canonical semantic companions for repeated downstream fields
+  state: active
+- capability_id: pipeline_performance.canonical-skill-companion-lists-and-entity-payloads-for-required-preferred-skills
+  statement: Canonical skill companion lists and entity payloads for required/preferred skills
+  state: active
+- capability_id: pipeline_performance.enrich-stage-mapping-suggestion-capture-for-review-debug-surfaces
+  statement: Enrich-stage mapping suggestion capture for review/debug surfaces
+  state: active
+- capability_id: pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
+  statement: Fingerprint-based enrich-result reuse happens before LLM enrichment using normalized raw-job inputs
+  state: active
+- capability_id: pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes
+  statement: Enrich-contract fingerprinting invalidates reuse automatically when prompt/model/schema behavior changes
+  state: active
+- capability_id: pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
+  statement: Shared `structured_jobs` reuse lookup avoids redundant enrich calls while only fresh rows are upserted back into the shared table
+  state: active
+- capability_id: pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors
+  statement: Shortlist now builds a stable structured embedding-input signature before generating `job_summary` vectors
+  state: active
+- capability_id: pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
+  statement: Shortlist reuses the latest stored embedding row for a `job_url` only when both the structured signature and embedding contract fingerprint still match
+  state: active
+- capability_id: pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
+  statement: Fresh shortlist embeddings persist signature metadata so later runs can skip repeated embedding work safely
+  state: active
+- capability_id: pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
+  statement: Operator-facing enriched-job exports now keep canonical semantic fields and fingerprint/reuse provenance while omitting retired raw duplicate classification baggage
+  state: active
+- capability_id: pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
+  statement: Large runs avoid some row-scaled Layer 4 event noise by relying more on aggregate stage summaries plus stage-owned artifacts
+  state: active
+- capability_id: pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere
+  statement: '`results.json` now keeps only compact job-ledger fields instead of repeating full job snapshots, heavy score-explanation internals, and full CV bodies already represented elsewhere'
+  state: active
+- capability_id: pipeline_performance.cv-analysis-now-uses-bounded-semantic-lift-for-required-skill-and-role-channels-instead-of-reserving-semantic-work-only-for-domain-and-responsibility-alignment
+  statement: '`cv_analysis` now uses bounded semantic lift for required-skill and role channels instead of reserving semantic work only for domain and responsibility alignment'
+  state: active
+- capability_id: pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis
+  statement: Ranked jobs with authoritative reranker `fit_label = skip` now stop before evidence retrieval, gap computation, and semantic alignment inside `cv_analysis`
+  state: active
+stage_participation: []
+refs:
+  history:
+  - docs/features/pipeline_performance/history.md
+  spec:
+  - docs/superpowers/archive/specs/2026-04-02-23-55-enrich-reuse-via-raw-job-fingerprint-spec.md
+  - docs/superpowers/archive/specs/2026-04-03-00-40-shortlist-embedding-reuse-via-structured-signature-spec.md
+  - docs/superpowers/archive/specs/2026-04-06-02-35-pipeline-dead-weight-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-15-05-cv-analysis-semantic-support-for-skill-and-role-channels-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-15-50-results-ledger-and-stage-diagnostics-boundary-tightening-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-19-05-reranker-skip-pre-cv-analysis-short-circuit-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-20-50-reranker-blocked-artifact-truth-alignment-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+  plan:
+  - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
+  - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
+  - docs/superpowers/archive/plans/2026-04-03-00-55-shortlist-embedding-reuse-via-structured-signature-plan.md
+  - docs/superpowers/archive/plans/2026-04-06-02-50-pipeline-dead-weight-cleanup-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+  - docs/superpowers/archive/plans/2026-04-07-15-20-cv-analysis-semantic-support-for-skill-and-role-channels-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-16-05-results-ledger-and-stage-diagnostics-boundary-tightening-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-19-20-reranker-skip-pre-cv-analysis-short-circuit-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-20-52-reranker-blocked-artifact-truth-alignment-plan.md
+  - docs/superpowers/archive/plans/2026-04-07-21-32-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-plan.md
+  - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+  - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+  - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+  - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+  - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md

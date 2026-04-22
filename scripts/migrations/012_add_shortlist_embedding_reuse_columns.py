@@ -96,3 +96,20 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+"""
+@meta
+name: add_shortlist_embedding_reuse_columns
+type: migration
+domain: data
+responsibility:
+  - Add shortlist embedding reuse metadata columns to persisted storage.
+inputs:
+  - Existing shortlist or embedding schema
+outputs:
+  - Updated schema with shortlist embedding reuse fields
+tags:
+  - migration
+  - schema
+lifecycle:
+  status: active
+"""

@@ -36,15 +36,49 @@ starter_sync:
     - path: scripts/validate_adoption_shape.py
       class: validation_and_sync_scripts
       status: customized
-      rationale: JOB-PROJECT now uses a repo-local Mode B validator aligned to the starter guidance and this repo's current source/generated contract.
+      rationale: JOB-PROJECT now uses a repo-local Mode B validator aligned to the starter evidence-oriented lineage target and this repo's required metadata surfaces.
     - path: docs/features/*/feature.source.yaml
       class: operating_system_docs
       status: customized
-      rationale: Managed feature IDs remain lowercase underscore identifiers for this repo, and capability metadata uses repo-local structured entries with `<feature_id>.<kebab-suffix>` IDs.
+      rationale: Managed feature IDs remain lowercase underscore identifiers for this repo even while feature sources otherwise follow the starter semantic shape.
+    - path: docs/features/*/history.md
+      class: operating_system_docs
+      status: customized
+      rationale: Feature histories have not yet been migrated to the starter partial-generated history pattern and still use the older manual changelog structure.
+phase_7_direct_evidence_pilot:
+  capabilities:
+    cv_system.structured-cv-generation:
+      require_code: true
+      require_tests: true
+    cv_system.analysis-grounded-validation:
+      require_code: true
+      require_tests: true
+    inspection_debugging.run-detail-inspection-tabs:
+      require_code: true
+      require_tests: true
+    inspection_debugging.run-progress-and-checkpoints:
+      require_code: true
+      require_tests: true
+    inspection_debugging.stage-artifact-downloads:
+      require_code: true
+      require_tests: true
+    trigger_run_management.execution-mode-selection:
+      require_code: true
+      require_tests: true
+    trigger_run_management.manual-checkpoints-and-continue:
+      require_code: true
+      require_tests: true
 notes: >
   JOB-PROJECT is aligning toward the project-OS-starter managed architecture
   metadata model. Managed features and stages now use source-owned lifecycle
   files plus generated contracts and discovery, uses explicit underscore
-  feature-ID policy plus curated structured capability IDs, and now expects
-  selective file-level metadata, richer lineage, and CI-backed architecture
-  validation.
+  feature-ID policy plus starter-aligned `statement`/`state` capabilities, and
+  now expects selective file-level metadata, evidence-oriented lineage,
+  alias-free generated YAML, generated current-state feature contracts, and
+  CI-backed architecture validation. Remaining intentional drift is the
+  underscore feature-ID policy and deferred partial-generated history
+  alignment; Phase 6 additionally hydrates lineage from explicit repo metadata
+  and conservative feature-level spec/plan fallback evidence. Phase 7 adds a
+  bounded direct-evidence pilot for selected `cv_system`,
+  `inspection_debugging`, and `trigger_run_management` capabilities and keeps
+  that pilot enforced through validator-backed minimum code/test evidence.

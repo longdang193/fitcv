@@ -39,3 +39,20 @@ def main() -> None:
 if __name__ == "__main__":
     os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", str(load_config()["service_account_key"]))
     main()
+"""
+@meta
+name: add_mapping_suggestions_json_to_pipeline_runs
+type: migration
+domain: data
+responsibility:
+  - Add mapping-suggestions export storage to pipeline run records.
+inputs:
+  - Existing pipeline_runs schema
+outputs:
+  - Updated pipeline_runs schema with mapping_suggestions_json
+tags:
+  - migration
+  - schema
+lifecycle:
+  status: active
+"""

@@ -340,3 +340,16 @@ def test_load_profile_json_text_normalizes_additive_alignment_metadata() -> None
     assert result["projects"][0]["domain_tags"] == ["banking"]
     assert result["projects"][0]["responsibility_themes"] == ["reporting_automation"]
     assert result["achievements"][0]["domain_tags"] == ["banking"]
+"""
+@meta
+type: test
+scope: unit
+domain: candidate
+covers:
+  - candidate model behavior
+excludes:
+  - external persistence
+tags:
+  - fast
+  - ci-safe
+"""

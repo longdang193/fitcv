@@ -1,42 +1,50 @@
-admin_control_plane_core:
-  name: Admin Control Plane Core
-  status: active
-  type: add
-  summary: Internal admin UI and REST API to manage FitCV pipeline runs without terminal access.
-  owner: fitcv_cp
-  domains:
-  - admin_ui
-  - run_orchestration
-  depends_on: []
-  capabilities:
-  - capability_id: admin_control_plane_core.fastapi-web-server
-    name: FastAPI web server
-  - capability_id: admin_control_plane_core.rq-background-worker-integration
-    name: RQ background worker integration
-  - capability_id: admin_control_plane_core.jinja2-admin-pages
-    name: Jinja2 admin pages
-  - capability_id: admin_control_plane_core.pipelinereporter-integration
-    name: PipelineReporter integration
-  - capability_id: admin_control_plane_core.pipeline-runs-bigquery-table
-    name: pipeline_runs BigQuery table
-  - capability_id: admin_control_plane_core.pipeline-run-events-bigquery-table
-    name: pipeline_run_events BigQuery table
-  - capability_id: admin_control_plane_core.insert-before-enqueue-invariant
-    name: insert-before-enqueue invariant
-  refs:
-    docs:
-    - docs/fitcv-control-plane-setup.md
-    - docs/FitCV-pipeline.md
-    spec:
-    - docs/superpowers/archive/specs/2026-03-25-fitcv-admin-control-plane-design.md
-    plan:
-    - docs/superpowers/archive/plans/2026-03-25-fitcv-admin-control-plane-implementation.md
-    history:
-    - docs/features/admin_control_plane_core/history.md
-  keywords:
-  - control plane
-  - admin ui
-  - run management
-  - pipeline runs
-  - worker
-  - reporter
+# GENERATED FILE - do not edit directly.
+feature_id: admin_control_plane_core
+name: Admin Control Plane Core
+status: active
+type: add
+summary: Internal admin UI and REST API to manage FitCV pipeline runs without terminal access.
+invariants: []
+domains:
+- admin_ui
+- run_orchestration
+depends_on: []
+capabilities:
+- capability_id: admin_control_plane_core.fastapi-web-server
+  statement: FastAPI web server
+  state: active
+- capability_id: admin_control_plane_core.rq-background-worker-integration
+  statement: RQ background worker integration
+  state: active
+- capability_id: admin_control_plane_core.jinja2-admin-pages
+  statement: Jinja2 admin pages
+  state: active
+- capability_id: admin_control_plane_core.pipelinereporter-integration
+  statement: PipelineReporter integration
+  state: active
+- capability_id: admin_control_plane_core.pipeline-runs-bigquery-table
+  statement: pipeline_runs BigQuery table
+  state: active
+- capability_id: admin_control_plane_core.pipeline-run-events-bigquery-table
+  statement: pipeline_run_events BigQuery table
+  state: active
+- capability_id: admin_control_plane_core.insert-before-enqueue-invariant
+  statement: insert-before-enqueue invariant
+  state: active
+stage_participation: []
+refs:
+  history:
+  - docs/features/admin_control_plane_core/history.md
+  spec:
+  - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+  - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+  plan:
+  - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+  - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+  - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+  - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+  - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+  - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
