@@ -1,5 +1,13 @@
 # Multi-File Job Input — History
 
+<!-- GENERATED HISTORY START -->
+
+No completed implementation-plan metadata currently targets this feature.
+
+<!-- GENERATED HISTORY END -->
+
+## Human Notes
+
 ## Changelog
 
 ### 1.0.0 — active
@@ -22,4 +30,3 @@
 - All capabilities from the planned contract are implemented
 - Backward compatibility maintained via legacy `jobs_file` single-file fallback
 - Empty-array-after-merge edge case handled with explicit 400 error
-

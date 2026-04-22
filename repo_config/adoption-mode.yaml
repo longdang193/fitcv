@@ -48,7 +48,7 @@ starter_sync:
     - path: scripts/validate_repo_contracts.py
       class: validation_and_sync_scripts
       status: customized
-      rationale: JOB-PROJECT adopts the starter repo-contract validator shape but routes the broader gate through the local adoption-shape validator and keeps feature-history boundary enforcement deferred until partial-generated history is migrated.
+      rationale: JOB-PROJECT adopts the starter repo-contract validator shape but still routes the broader gate through the local adoption-shape validator.
     - path: scripts/sync_architecture_docs.py
       class: validation_and_sync_scripts
       status: customized
@@ -57,10 +57,6 @@ starter_sync:
       class: operating_system_docs
       status: customized
       rationale: Managed feature IDs remain lowercase underscore identifiers for this repo even while feature sources otherwise follow the starter semantic shape.
-    - path: docs/features/*/history.md
-      class: operating_system_docs
-      status: customized
-      rationale: Feature histories have not yet been migrated to the starter partial-generated history pattern and still use the older manual changelog structure.
 phase_7_direct_evidence_pilot:
   capabilities:
     bounded_parallel_enrichment.enrichment-batch-size-setting:
@@ -419,8 +415,7 @@ notes: >
   now expects selective file-level metadata, evidence-oriented lineage,
   alias-free generated YAML, generated current-state feature contracts, and
   CI-backed architecture validation. Remaining intentional drift is the
-  underscore feature-ID policy and deferred partial-generated history
-  alignment; Phase 6 additionally hydrates lineage from explicit repo metadata
+  underscore feature-ID policy; Phase 6 additionally hydrates lineage from explicit repo metadata
   and conservative feature-level spec/plan fallback evidence. Phase 7 adds a
   bounded direct-evidence pilot for selected `cv_system`,
   `inspection_debugging`, and `trigger_run_management` capabilities; Phase 8

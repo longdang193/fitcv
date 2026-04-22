@@ -1,5 +1,13 @@
 # Inspection & Debugging — History
 
+<!-- GENERATED HISTORY START -->
+
+No completed implementation-plan metadata currently targets this feature.
+
+<!-- GENERATED HISTORY END -->
+
+## Human Notes
+
 ## Changelog
 
 ### 2.28.0 — active

@@ -140,6 +140,12 @@ def test_generator_writes_outputs_and_check_passes(tmp_path: Path) -> None:
     generator = load_generator_module()
 
     assert generator.main(["--repo-root", str(repo_root)]) == 0
+    history_text = (repo_root / "docs" / "features" / "cv_system" / "history.md").read_text(
+        encoding="utf-8"
+    )
+    assert "<!-- GENERATED HISTORY START -->" in history_text
+    assert "## Human Notes" in history_text
+    assert "Legacy CV note." in history_text
     assert (repo_root / "docs" / "features" / "cv_system" / "cv_system.yaml").exists()
     assert (repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml").exists()
     assert generator.main(["--repo-root", str(repo_root), "--check"]) == 0
@@ -150,3 +156,51 @@ def test_generator_validate_only_accepts_renderable_inputs(tmp_path: Path) -> No
     generator = load_generator_module()
 
     assert generator.main(["--repo-root", str(repo_root), "--validate-only"]) == 0
+
+
+def test_generator_builds_history_from_completed_plan_metadata(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    generator = load_generator_module()
+    plan_path = (
+        repo_root
+        / "docs"
+        / "superpowers"
+        / "plans"
+        / "2026-04-22-cv-system-history-rollup.md"
+    )
+    plan_path.parent.mkdir(parents=True, exist_ok=True)
+    plan_path.write_text(
+        "---\n"
+        "artifact_type: plan\n"
+        "status: completed\n"
+        "related_features:\n"
+        "  - cv_system\n"
+        "completed_at: 2026-04-22T10:15:00+00:00\n"
+        "change_id: phase-history-rollup\n"
+        "verification:\n"
+        "  - python scripts/sync_architecture_docs.py --check\n"
+        "outcome:\n"
+        "  summary: Regenerated the CV history surface.\n"
+        "affects:\n"
+        "  capabilities:\n"
+        "    - cv_system.structured-cv-generation\n"
+        "---\n\n"
+        "# CV history rollup\n",
+        encoding="utf-8",
+    )
+
+    assert generator.main(["--repo-root", str(repo_root)]) == 0
+
+    history_text = (repo_root / "docs" / "features" / "cv_system" / "history.md").read_text(
+        encoding="utf-8"
+    )
+    assert "## 2026-04-22" in history_text
+    assert "### 2026-04-22-Cv-System-History-Rollup" not in history_text
+    assert "### CV history rollup" in history_text
+    assert (
+        "Source plan: `docs/superpowers/plans/2026-04-22-cv-system-history-rollup.md`"
+        in history_text
+    )
+    assert "- `cv_system.structured-cv-generation`" in history_text
+    assert "- `python scripts/sync_architecture_docs.py --check`" in history_text
+    assert "Regenerated the CV history surface." in history_text

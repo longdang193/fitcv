@@ -6,7 +6,7 @@ domain: docs
 responsibility:
   - Validate the repo contract graph across generated outputs, metadata-bearing sources, and repo-wide validation entrypoints.
   - Orchestrate architecture sync checks and adoption-shape validation through one canonical command.
-  - Enforce required metadata coverage for config and setup surfaces while respecting the repo's deferred history-generation divergence.
+  - Enforce required metadata coverage for config and setup surfaces plus mixed-ownership feature-history boundaries.
 inputs:
   - docs/features/*/feature.source.yaml
   - docs/features/*/history.md
@@ -42,7 +42,6 @@ import yaml
 GENERATED_HISTORY_START = "<!-- GENERATED HISTORY START -->"
 GENERATED_HISTORY_END = "<!-- GENERATED HISTORY END -->"
 HUMAN_HISTORY_HEADING = "## Human Notes"
-HISTORY_DIVERGENCE_PATH = "docs/features/*/history.md"
 
 
 @dataclass(frozen=True)
@@ -91,6 +90,29 @@ def pytest_basetemp(default_relative: str) -> str:
     return default_relative
 
 
+def venv_site_packages(root: Path) -> Path | None:
+    site_packages = root / ".venv" / "Lib" / "site-packages"
+    if site_packages.exists():
+        return site_packages
+    return None
+
+
+def resolve_python_executable(root: Path) -> str:
+    pyvenv_cfg = root / ".venv" / "pyvenv.cfg"
+    if pyvenv_cfg.exists():
+        for line in pyvenv_cfg.read_text(encoding="utf-8").splitlines():
+            if not line.startswith("home = "):
+                continue
+            home = line.split("=", 1)[1].strip()
+            candidate = Path(home) / "python.exe"
+            try:
+                if candidate.exists():
+                    return str(candidate)
+            except PermissionError:
+                continue
+    return sys.executable
+
+
 def read_adoption_mode(root: Path) -> dict[str, Any]:
     adoption_mode_path = root / "repo_config" / "adoption-mode.yaml"
     if not adoption_mode_path.exists():
@@ -104,29 +126,19 @@ def managed_architecture_metadata_enabled(root: Path) -> bool:
     return bool(payload.get("managed_architecture_metadata", False))
 
 
-def feature_history_generation_deferred(root: Path) -> bool:
-    payload = read_adoption_mode(root)
-    starter_sync = payload.get("starter_sync", {})
-    if not isinstance(starter_sync, dict):
-        return False
-    divergences = starter_sync.get("divergences", [])
-    if not isinstance(divergences, list):
-        return False
-    for divergence in divergences:
-        if not isinstance(divergence, dict):
-            continue
-        if divergence.get("path") != HISTORY_DIVERGENCE_PATH:
-            continue
-        rationale = divergence.get("rationale", "")
-        if isinstance(rationale, str) and "not yet been migrated" in rationale:
-            return True
-    return False
-
-
 def run_step(command: list[str], *, cwd: Path) -> int:
     rendered = " ".join(command)
     print(f"> {rendered}")
-    completed = subprocess.run(command, cwd=cwd, check=False)
+    env = os.environ.copy()
+    site_packages = venv_site_packages(cwd)
+    if site_packages is not None and command and command[0].lower().endswith("python.exe"):
+        existing = env.get("PYTHONPATH")
+        env["PYTHONPATH"] = (
+            str(site_packages)
+            if not existing
+            else os.pathsep.join([str(site_packages), existing])
+        )
+    completed = subprocess.run(command, cwd=cwd, check=False, env=env)
     return completed.returncode
 
 
@@ -157,8 +169,6 @@ def build_subprocess_steps(*, root: Path, python_executable: str, fast: bool) ->
 
 def validate_history_boundaries(root: Path) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
-    if feature_history_generation_deferred(root):
-        return issues
 
     for source_path in sorted((root / "docs" / "features").glob("*/feature.source.yaml")):
         history_path = source_path.parent / "history.md"
@@ -317,7 +327,7 @@ def main(argv: list[str] | None = None) -> int:
 
     for step in build_subprocess_steps(
         root=root,
-        python_executable=sys.executable,
+        python_executable=resolve_python_executable(root),
         fast=args.fast,
     ):
         status = run_step(step, cwd=root)

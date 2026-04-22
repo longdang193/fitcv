@@ -1,5 +1,13 @@
 # Bounded Parallel Enrichment — History
 
+<!-- GENERATED HISTORY START -->
+
+No completed implementation-plan metadata currently targets this feature.
+
+<!-- GENERATED HISTORY END -->
+
+## Human Notes
+
 ## Changelog
 
 ### 1.0.0 — active
@@ -23,4 +31,3 @@
 - All capabilities from the planned contract are implemented and tested
 - Global rate limiter was added beyond the original spec to handle `RESOURCE_EXHAUSTED` errors
 - Default concurrency set to 1 (sequential) for safety — admin can increase via settings UI
-

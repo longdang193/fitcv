@@ -1,5 +1,13 @@
 # Run Lifecycle Controls — History
 
+<!-- GENERATED HISTORY START -->
+
+No completed implementation-plan metadata currently targets this feature.
+
+<!-- GENERATED HISTORY END -->
+
+## Human Notes
+
 ## Changelog
 
 ### 1.4.0 — active
@@ -45,4 +53,3 @@
 - All capabilities from the contract are implemented and tested
 - Cooperative cancellation pattern checks BigQuery for `cancel_requested_at` at each checkpoint
 - Three-tier stop logic: queue cancel → pre-claim cancel → cooperative cancelling
-
