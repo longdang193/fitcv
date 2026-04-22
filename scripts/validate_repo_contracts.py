@@ -5,7 +5,7 @@ type: script
 domain: docs
 responsibility:
   - Validate the repo contract graph across generated outputs, metadata-bearing sources, and repo-wide validation entrypoints.
-  - Orchestrate architecture sync checks and adoption-shape validation through one canonical command.
+  - Orchestrate architecture sync checks, repo-config validation, and adoption-shape validation through one canonical command.
   - Enforce required metadata coverage for config and setup surfaces plus mixed-ownership feature-history boundaries.
 inputs:
   - docs/features/*/feature.source.yaml
@@ -144,9 +144,11 @@ def run_step(command: list[str], *, cwd: Path) -> int:
 
 def build_subprocess_steps(*, root: Path, python_executable: str, fast: bool) -> list[list[str]]:
     sync_script = str(root / "scripts" / "sync_architecture_docs.py")
+    repo_config_script = str(root / "scripts" / "validate_repo_config.py")
     adoption_shape_script = str(root / "scripts" / "validate_adoption_shape.py")
     steps: list[list[str]] = [
         [python_executable, sync_script, "--check"],
+        [python_executable, repo_config_script],
         [python_executable, adoption_shape_script],
     ]
     if not fast:
@@ -159,6 +161,7 @@ def build_subprocess_steps(*, root: Path, python_executable: str, fast: bool) ->
                 "pytest",
                 "--basetemp",
                 str(basetemp),
+                "tests/test_validate_repo_config.py",
                 "tests/test_validate_adoption_shape.py",
                 "tests/test_validate_repo_contracts.py",
                 "-q",

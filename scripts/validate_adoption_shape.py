@@ -58,6 +58,72 @@ GENERATED_INDEX_NAMES = {
     "features_by_status.yaml",
     "features_index.yaml",
 }
+FEATURE_CONTRACT_REQUIRED_KEYS = {
+    "feature_id",
+    "name",
+    "status",
+    "type",
+    "summary",
+    "invariants",
+    "domains",
+    "depends_on",
+    "capabilities",
+    "refs",
+}
+FEATURE_CONTRACT_REF_KEYS = {
+    "code",
+    "tests",
+    "specs",
+    "plans",
+    "docs",
+    "configs",
+    "components",
+}
+FEATURE_CONTRACT_FRESHNESS_KEYS = {
+    "revision",
+    "latest_change_id",
+    "last_updated_at",
+}
+FEATURE_CONTRACT_STRING_FIELDS = {
+    "feature_id",
+    "name",
+    "status",
+    "type",
+    "summary",
+}
+FEATURE_CONTRACT_INVARIANT_REQUIRED_KEYS = {
+    "invariant_id",
+    "statement",
+    "state",
+}
+FEATURE_CONTRACT_CAPABILITY_REQUIRED_KEYS = {
+    "capability_id",
+    "statement",
+    "state",
+}
+STAGE_CONTRACT_REQUIRED_KEYS = {
+    "stage_id",
+    "name",
+    "status",
+    "purpose",
+    "feature_refs",
+    "capability_refs",
+    "code_refs",
+    "test_refs",
+    "doc_refs",
+    "config_refs",
+    "component_refs",
+}
+STAGE_CONTRACT_STRING_LIST_OPTIONAL_KEYS = {
+    "depends_on",
+    "hands_off_to",
+    "inputs",
+    "outputs",
+    "invariants",
+    "human_notes",
+}
+CAPABILITY_LINEAGE_REQUIRED_KEYS = {"features"}
+ARCHITECTURE_DAG_REQUIRED_KEYS = {"nodes", "edges"}
 METADATA_SCAN_SUFFIXES = {".py", ".yaml", ".yml", ".sql", ".md"}
 METADATA_SCAN_SKIP_DIRS = {
     ".git",
@@ -473,6 +539,17 @@ def managed_feature_contracts(root: Path) -> list[Path]:
     return sorted(contracts)
 
 
+def stage_contract_files(root: Path) -> list[Path]:
+    stages_root = root / "docs" / "stages"
+    if not stages_root.exists():
+        return []
+    return sorted(
+        path
+        for path in stages_root.glob("*.yaml")
+        if path.is_file() and not path.name.endswith(".source.yaml")
+    )
+
+
 def feature_source_files(root: Path) -> list[Path]:
     return sorted((root / "docs" / "features").glob("*/feature.source.yaml"))
 
@@ -484,18 +561,6 @@ def generated_architecture_files(root: Path) -> list[Path]:
     return sorted(
         path for path in generated_root.iterdir() if path.is_file() and path.name in GENERATED_INDEX_NAMES
     )
-
-
-def is_empty_generated_scaffold(path: Path) -> bool:
-    try:
-        payload = load_yaml(path)
-    except yaml.YAMLError:
-        return False
-    if path.name == "architecture_dag.yaml" and payload == {"nodes": [], "edges": []}:
-        return True
-    if path.name == "capability_lineage.yaml" and payload == {"features": {}}:
-        return True
-    return False
 
 
 def is_empty_generated_scaffold(path: Path) -> bool:
@@ -1256,6 +1321,492 @@ def _validate_lineage_timeline(
             )
 
 
+def validate_generated_feature_contract_schema(root: Path, findings: list[Finding]) -> None:
+    for contract_path in managed_feature_contracts(root):
+        relative_contract_path = relpath(contract_path, root)
+        if not has_generated_header(contract_path):
+            add_error(
+                findings,
+                relative_contract_path,
+                "Generated feature contract must include the generated-file header.",
+                "Regenerate the feature contract with the canonical architecture metadata generator.",
+            )
+
+        try:
+            payload = load_yaml(contract_path)
+        except yaml.YAMLError as exc:
+            add_error(
+                findings,
+                relative_contract_path,
+                f"Could not parse generated feature contract: {exc}",
+                "Fix YAML syntax or regenerate the file with the canonical generator.",
+            )
+            continue
+
+        if not isinstance(payload, dict):
+            add_error(
+                findings,
+                relative_contract_path,
+                "Generated feature contract must be a top-level mapping.",
+                "Regenerate the file so the feature contract uses the canonical mapping shape.",
+            )
+            continue
+
+        missing_keys = FEATURE_CONTRACT_REQUIRED_KEYS.difference(payload)
+        if missing_keys:
+            add_error(
+                findings,
+                relative_contract_path,
+                "Generated feature contract is missing required keys.",
+                "Include: " + ", ".join(sorted(FEATURE_CONTRACT_REQUIRED_KEYS)) + ".",
+            )
+
+        for field_name in FEATURE_CONTRACT_STRING_FIELDS:
+            value = payload.get(field_name)
+            if not isinstance(value, str) or not value.strip():
+                add_error(
+                    findings,
+                    relative_contract_path,
+                    f"Generated feature contract {field_name} must be a non-empty string.",
+                    "Regenerate the feature contract so canonical top-level feature fields stay explicit.",
+                )
+
+        refs = payload.get("refs")
+        if not isinstance(refs, dict):
+            add_error(
+                findings,
+                relative_contract_path,
+                "Generated feature contract refs must be a mapping.",
+                "Regenerate the feature contract so refs stay grouped by canonical ref family.",
+            )
+        else:
+            missing_ref_keys = FEATURE_CONTRACT_REF_KEYS.difference(refs)
+            if missing_ref_keys:
+                add_error(
+                    findings,
+                    relative_contract_path,
+                    "Generated feature contract refs are missing required keys.",
+                    "Include: " + ", ".join(sorted(FEATURE_CONTRACT_REF_KEYS)) + ".",
+                )
+            for key in FEATURE_CONTRACT_REF_KEYS.intersection(refs):
+                _validate_string_list(
+                    findings,
+                    root=root,
+                    lineage_path=relative_contract_path,
+                    capability_id=payload.get("feature_id", contract_path.stem),
+                    field_name=f"refs.{key}",
+                    value=refs.get(key, []),
+                    check_paths=key in {"code", "tests", "specs", "plans", "docs", "configs", "components"},
+                )
+
+        for field_name in ("domains", "depends_on"):
+            _validate_string_list(
+                findings,
+                root=root,
+                lineage_path=relative_contract_path,
+                capability_id=payload.get("feature_id", contract_path.stem),
+                field_name=field_name,
+                value=payload.get(field_name, []),
+            )
+        for field_name in ("invariants", "capabilities"):
+            value = payload.get(field_name, [])
+            if not isinstance(value, list):
+                add_error(
+                    findings,
+                    relative_contract_path,
+                    f"Generated feature contract {field_name} must be a list.",
+                    "Regenerate the feature contract so structured feature items stay list-shaped.",
+                )
+                continue
+            required_keys = (
+                FEATURE_CONTRACT_INVARIANT_REQUIRED_KEYS
+                if field_name == "invariants"
+                else FEATURE_CONTRACT_CAPABILITY_REQUIRED_KEYS
+            )
+            id_field = "invariant_id" if field_name == "invariants" else "capability_id"
+            for index, item in enumerate(value):
+                if not isinstance(item, dict):
+                    add_error(
+                        findings,
+                        relative_contract_path,
+                        f"Generated feature contract {field_name}[{index}] must be a mapping.",
+                        "Regenerate the feature contract so structured items keep the canonical object shape.",
+                    )
+                    continue
+                missing_item_keys = required_keys.difference(item)
+                if missing_item_keys:
+                    add_error(
+                        findings,
+                        relative_contract_path,
+                        f"Generated feature contract {field_name}[{index}] is missing required keys.",
+                        "Include: " + ", ".join(sorted(required_keys)) + ".",
+                    )
+                for required_field in required_keys:
+                    field_value = item.get(required_field)
+                    if not isinstance(field_value, str) or not field_value.strip():
+                        add_error(
+                            findings,
+                            relative_contract_path,
+                            (
+                                f"Generated feature contract {field_name}[{index}].{required_field} "
+                                "must be a non-empty string."
+                            ),
+                            (
+                                "Regenerate the feature contract so "
+                                f"{field_name} entries keep canonical structured fields."
+                            ),
+                        )
+                if field_name == "capabilities":
+                    satisfies = item.get("satisfies", [])
+                    _validate_string_list(
+                        findings,
+                        root=root,
+                        lineage_path=relative_contract_path,
+                        capability_id=str(item.get(id_field, payload.get("feature_id", contract_path.stem))),
+                        field_name=f"{field_name}[{index}].satisfies",
+                        value=satisfies,
+                    )
+
+        if any(key in payload for key in FEATURE_CONTRACT_FRESHNESS_KEYS):
+            revision = payload.get("revision")
+            if revision is not None and not isinstance(revision, int):
+                add_error(
+                    findings,
+                    relative_contract_path,
+                    "Generated feature contract revision must be an integer.",
+                    "Regenerate the contract so revision is emitted as an integer freshness field.",
+                )
+            for field_name in ("latest_change_id", "last_updated_at"):
+                value = payload.get(field_name)
+                if value is not None and (not isinstance(value, str) or not value.strip()):
+                    add_error(
+                        findings,
+                        relative_contract_path,
+                        f"Generated feature contract {field_name} must be a non-empty string.",
+                        "Regenerate the contract so freshness metadata uses canonical string values.",
+                    )
+
+        lineage_path = contract_path.parent / "lineage.generated.yaml"
+        if lineage_path.exists():
+            try:
+                lineage_payload = load_yaml(lineage_path)
+            except yaml.YAMLError:
+                lineage_payload = None
+            if isinstance(lineage_payload, dict):
+                timeline = lineage_payload.get("timeline")
+                if isinstance(timeline, list) and timeline:
+                    missing_freshness = [
+                        key for key in FEATURE_CONTRACT_FRESHNESS_KEYS if key not in payload
+                    ]
+                    if missing_freshness:
+                        add_error(
+                            findings,
+                            relative_contract_path,
+                            "Generated feature contract is missing freshness metadata despite completed lineage history.",
+                            "Include: " + ", ".join(sorted(FEATURE_CONTRACT_FRESHNESS_KEYS)) + ".",
+                        )
+
+
+def validate_generated_stage_contract_schema(root: Path, findings: list[Finding]) -> None:
+    for stage_path in stage_contract_files(root):
+        relative_stage_path = relpath(stage_path, root)
+        if not has_generated_header(stage_path):
+            add_error(
+                findings,
+                relative_stage_path,
+                "Generated stage contract must include the generated-file header.",
+                "Regenerate the stage contract with the canonical architecture metadata generator.",
+            )
+
+        try:
+            payload = load_yaml(stage_path)
+        except yaml.YAMLError as exc:
+            add_error(
+                findings,
+                relative_stage_path,
+                f"Could not parse generated stage contract: {exc}",
+                "Fix YAML syntax or regenerate the file with the canonical generator.",
+            )
+            continue
+
+        if not isinstance(payload, dict):
+            add_error(
+                findings,
+                relative_stage_path,
+                "Generated stage contract must be a top-level mapping.",
+                "Regenerate the file so the stage contract uses the canonical flat mapping shape.",
+            )
+            continue
+
+        if len(payload) == 1:
+            only_key, only_value = next(iter(payload.items()))
+            if isinstance(only_value, dict) and only_key not in STAGE_CONTRACT_REQUIRED_KEYS:
+                add_error(
+                    findings,
+                    relative_stage_path,
+                    "Generated stage contract uses a legacy nested stage_id wrapper.",
+                    "Regenerate the file so stage_id and generated refs live at the top level.",
+                )
+
+        missing_keys = STAGE_CONTRACT_REQUIRED_KEYS.difference(payload)
+        if missing_keys:
+            add_error(
+                findings,
+                relative_stage_path,
+                "Generated stage contract is missing required keys.",
+                "Include: " + ", ".join(sorted(STAGE_CONTRACT_REQUIRED_KEYS)) + ".",
+            )
+
+        stage_id = payload.get("stage_id")
+        if not isinstance(stage_id, str) or not stage_id.strip():
+            add_error(
+                findings,
+                relative_stage_path,
+                "Generated stage contract must include a non-empty stage_id.",
+                "Regenerate the file so the stage contract records its canonical stage_id.",
+            )
+
+        for field_name in ("name", "status", "purpose"):
+            value = payload.get(field_name)
+            if not isinstance(value, str) or not value.strip():
+                add_error(
+                    findings,
+                    relative_stage_path,
+                    f"Generated stage contract must include a non-empty {field_name}.",
+                    "Regenerate the file so the stage contract keeps canonical top-level fields.",
+                )
+
+        if "workflow_position" in payload:
+            workflow_position = payload.get("workflow_position")
+            if not isinstance(workflow_position, str) or not workflow_position.strip():
+                add_error(
+                    findings,
+                    relative_stage_path,
+                    "Generated stage contract workflow_position must be a non-empty string when present.",
+                    "Regenerate the file so optional workflow_position stays in canonical string form.",
+                )
+
+        for field_name in (
+            "feature_refs",
+            "capability_refs",
+            "code_refs",
+            "test_refs",
+            "doc_refs",
+            "config_refs",
+            "component_refs",
+        ):
+            _validate_string_list(
+                findings,
+                root=root,
+                lineage_path=relative_stage_path,
+                capability_id=str(stage_id or stage_path.stem),
+                field_name=field_name,
+                value=payload.get(field_name, []),
+                check_paths=field_name in {"code_refs", "test_refs", "doc_refs", "config_refs", "component_refs"},
+            )
+
+        for field_name in STAGE_CONTRACT_STRING_LIST_OPTIONAL_KEYS:
+            if field_name in payload:
+                _validate_string_list(
+                    findings,
+                    root=root,
+                    lineage_path=relative_stage_path,
+                    capability_id=str(stage_id or stage_path.stem),
+                    field_name=field_name,
+                    value=payload.get(field_name, []),
+                )
+
+
+def validate_managed_feature_history_structure(root: Path, findings: list[Finding]) -> None:
+    for folder in feature_roots(root):
+        history_path = folder / "history.md"
+        if not history_path.exists():
+            continue
+        relative_history_path = relpath(history_path, root)
+        try:
+            text = history_path.read_text(encoding="utf-8", errors="ignore")
+        except OSError as exc:
+            add_error(
+                findings,
+                relative_history_path,
+                f"Could not read history.md: {exc}",
+                "Restore the file and keep the managed history structure intact.",
+            )
+            continue
+
+        if "<!-- GENERATED HISTORY START -->" not in text:
+            add_error(
+                findings,
+                relative_history_path,
+                "history.md is missing the generated history start marker.",
+                "Add the canonical generated history boundary markers and regenerate the history block if needed.",
+            )
+        if "<!-- GENERATED HISTORY END -->" not in text:
+            add_error(
+                findings,
+                relative_history_path,
+                "history.md is missing the generated history end marker.",
+                "Add the canonical generated history boundary markers and regenerate the history block if needed.",
+            )
+        if "## Human Notes" not in text:
+            add_error(
+                findings,
+                relative_history_path,
+                "history.md is missing the human notes heading.",
+                "Keep a human-owned ## Human Notes section below the generated history block.",
+            )
+
+
+def validate_generated_discovery_schema(root: Path, findings: list[Finding]) -> None:
+    for path in generated_architecture_files(root):
+        relative_path = relpath(path, root)
+        if not has_generated_header(path):
+            add_error(
+                findings,
+                relative_path,
+                f"{path.name} must include the generated-file header.",
+                "Regenerate the file with the canonical architecture metadata generator.",
+            )
+
+        try:
+            payload = load_yaml(path)
+        except yaml.YAMLError as exc:
+            add_error(
+                findings,
+                relative_path,
+                f"Could not parse {path.name}: {exc}",
+                "Fix YAML syntax or regenerate the file with the canonical generator.",
+            )
+            continue
+
+        if not isinstance(payload, dict):
+            add_error(
+                findings,
+                relative_path,
+                f"{path.name} must be a top-level mapping.",
+                "Regenerate the generated discovery file so it uses the canonical mapping shape.",
+            )
+            continue
+
+        if path.name == "capability_lineage.yaml":
+            missing_keys = CAPABILITY_LINEAGE_REQUIRED_KEYS.difference(payload)
+            if missing_keys:
+                add_error(
+                    findings,
+                    relative_path,
+                    "capability_lineage.yaml is missing required top-level keys.",
+                    "Include: " + ", ".join(sorted(CAPABILITY_LINEAGE_REQUIRED_KEYS)) + ".",
+                )
+                continue
+            features = payload.get("features")
+            if not isinstance(features, dict):
+                add_error(
+                    findings,
+                    relative_path,
+                    "capability_lineage.yaml features must be a mapping.",
+                    "Regenerate the file so per-feature lineage summaries stay keyed by feature ID.",
+                )
+                continue
+            for feature_id, feature_payload in sorted(features.items()):
+                if not isinstance(feature_payload, dict):
+                    add_error(
+                        findings,
+                        relative_path,
+                        f"capability_lineage.yaml features.{feature_id} must be a mapping.",
+                        "Regenerate aggregate lineage so each feature summary uses the canonical mapping shape.",
+                    )
+                    continue
+                for field_name in ("lineage_file",):
+                    value = feature_payload.get(field_name)
+                    if not isinstance(value, str) or not value.strip():
+                        add_error(
+                            findings,
+                            relative_path,
+                            f"capability_lineage.yaml features.{feature_id}.{field_name} must be a non-empty string.",
+                            "Regenerate aggregate lineage so each feature summary records its lineage file path.",
+                        )
+                capability_count = feature_payload.get("capability_count")
+                if not isinstance(capability_count, int):
+                    add_error(
+                        findings,
+                        relative_path,
+                        f"capability_lineage.yaml features.{feature_id}.capability_count must be an integer.",
+                        "Regenerate aggregate lineage so feature summary counts stay numeric.",
+                    )
+                capabilities = feature_payload.get("capabilities")
+                if not isinstance(capabilities, list):
+                    add_error(
+                        findings,
+                        relative_path,
+                        f"capability_lineage.yaml features.{feature_id}.capabilities must be a list.",
+                        "Regenerate aggregate lineage so each feature exposes a capability summary list.",
+                    )
+        elif path.name == "architecture_dag.yaml":
+            missing_keys = ARCHITECTURE_DAG_REQUIRED_KEYS.difference(payload)
+            if missing_keys:
+                add_error(
+                    findings,
+                    relative_path,
+                    "architecture_dag.yaml is missing required top-level keys.",
+                    "Include: " + ", ".join(sorted(ARCHITECTURE_DAG_REQUIRED_KEYS)) + ".",
+                )
+                continue
+            nodes = payload.get("nodes")
+            edges = payload.get("edges")
+            if not isinstance(nodes, list):
+                add_error(
+                    findings,
+                    relative_path,
+                    "architecture_dag.yaml nodes must be a list.",
+                    "Regenerate the file so graph nodes stay a list of structured entries.",
+                )
+            else:
+                for index, node in enumerate(nodes):
+                    if not isinstance(node, dict):
+                        add_error(
+                            findings,
+                            relative_path,
+                            f"architecture_dag.yaml nodes[{index}] must be a mapping.",
+                            "Regenerate the graph so each node uses the canonical mapping shape.",
+                        )
+                        continue
+                    for field_name in ("id", "type"):
+                        value = node.get(field_name)
+                        if not isinstance(value, str) or not value.strip():
+                            add_error(
+                                findings,
+                                relative_path,
+                                f"architecture_dag.yaml nodes[{index}].{field_name} must be a non-empty string.",
+                                "Regenerate the graph so node identifiers and types are explicit.",
+                            )
+            if not isinstance(edges, list):
+                add_error(
+                    findings,
+                    relative_path,
+                    "architecture_dag.yaml edges must be a list.",
+                    "Regenerate the file so graph edges stay a list of structured entries.",
+                )
+            else:
+                for index, edge in enumerate(edges):
+                    if not isinstance(edge, dict):
+                        add_error(
+                            findings,
+                            relative_path,
+                            f"architecture_dag.yaml edges[{index}] must be a mapping.",
+                            "Regenerate the graph so each edge uses the canonical mapping shape.",
+                        )
+                        continue
+                    for field_name in ("from", "to", "type"):
+                        value = edge.get(field_name)
+                        if not isinstance(value, str) or not value.strip():
+                            add_error(
+                                findings,
+                                relative_path,
+                                f"architecture_dag.yaml edges[{index}].{field_name} must be a non-empty string.",
+                                "Regenerate the graph so edge endpoints and type are explicit.",
+                            )
+
+
 def validate_generated_headers(root: Path, findings: list[Finding]) -> None:
     for path in feature_source_files(root):
         if has_generated_header(path):
@@ -1556,6 +2107,10 @@ def run_validation(root: Path, adoption_mode_path: Path) -> list[Finding]:
     validate_feature_dependencies(root, findings)
     validate_capability_ids(root, findings)
     validate_generated_headers(root, findings)
+    validate_generated_feature_contract_schema(root, findings)
+    validate_generated_stage_contract_schema(root, findings)
+    validate_managed_feature_history_structure(root, findings)
+    validate_generated_discovery_schema(root, findings)
     validate_lineage_generated_schema(root, findings)
     validate_specs_and_plans(root, findings)
 

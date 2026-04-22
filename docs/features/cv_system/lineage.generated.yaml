@@ -94,6 +94,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
+    - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -245,6 +246,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
+    - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -396,6 +398,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
+    - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -545,6 +548,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
+    - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -686,6 +690,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
+    - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -827,6 +832,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
+    - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -974,6 +980,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
+    - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1129,6 +1136,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
+    - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md

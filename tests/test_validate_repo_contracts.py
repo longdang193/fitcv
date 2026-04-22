@@ -29,6 +29,7 @@ class IndentedSafeDumper(yaml.SafeDumper):
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR_PATH = REPO_ROOT / "scripts" / "validate_repo_contracts.py"
+REPO_CONFIG_VALIDATOR_PATH = REPO_ROOT / "scripts" / "validate_repo_config.py"
 GENERATOR_PATH = REPO_ROOT / "tools" / "docs" / "generate_architecture_metadata.py"
 FORMATTER_PATH = REPO_ROOT / "scripts" / "format_contract_yaml.py"
 AUDIT_PATH = REPO_ROOT / "scripts" / "audit_architecture_linkage.py"
@@ -153,14 +154,7 @@ def build_repo(tmp_path: Path) -> Path:
                     "generated_instruction_surfaces",
                     "validation_and_sync_scripts",
                 ],
-                "divergences": [
-                    {
-                        "path": "docs/features/*/history.md",
-                        "class": "operating_system_docs",
-                        "status": "customized",
-                        "rationale": "Feature histories have not yet been migrated to the starter partial-generated history pattern.",
-                    }
-                ],
+                "divergences": [],
             },
         },
     )
@@ -183,6 +177,31 @@ def build_repo(tmp_path: Path) -> Path:
         "prompts:\n  cv_generation:\n    structured_write:\n      prompt_id: cv_generation.structured_write.v1\n",
         encoding="utf-8",
     )
+    (repo_root / "repo_config" / "publication-config.json").write_text(
+        '{\n'
+        '  "publicPaths": ["README.md"],\n'
+        '  "forbiddenPaths": [".agents"],\n'
+        '  "requiredPaths": ["README.md"],\n'
+        '  "allowedGeneratedPaths": [],\n'
+        '  "scrubPrivateReferencePaths": ["docs/features"]\n'
+        '}\n',
+        encoding="utf-8",
+    )
+    (repo_root / "repo_config" / "agent-adapter-mappings.json").write_text(
+        '[\n'
+        '  {\n'
+        '    "source": "agent-core/adapters/codex/root-AGENTS.template.md",\n'
+        '    "destination": "AGENTS.md",\n'
+        '    "prefix": "#"\n'
+        '  }\n'
+        ']\n',
+        encoding="utf-8",
+    )
+    adapter_template = (
+        repo_root / "agent-core" / "adapters" / "codex" / "root-AGENTS.template.md"
+    )
+    adapter_template.parent.mkdir(parents=True, exist_ok=True)
+    adapter_template.write_text("# template\n", encoding="utf-8")
     scripts_dir = repo_root / "scripts"
     scripts_dir.mkdir(parents=True, exist_ok=True)
     (repo_root / "tools" / "docs").mkdir(parents=True, exist_ok=True)
@@ -192,6 +211,10 @@ def build_repo(tmp_path: Path) -> Path:
     )
     (scripts_dir / "validate_adoption_shape.py").write_text(
         (REPO_ROOT / "scripts" / "validate_adoption_shape.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (scripts_dir / "validate_repo_config.py").write_text(
+        REPO_CONFIG_VALIDATOR_PATH.read_text(encoding="utf-8"),
         encoding="utf-8",
     )
     (scripts_dir / "format_contract_yaml.py").write_text(
@@ -218,6 +241,16 @@ def build_repo(tmp_path: Path) -> Path:
         "type: test\n"
         "scope: unit\n"
         "domain: docs\n"
+        '"""\n\n'
+        "def test_placeholder():\n    assert True\n",
+        encoding="utf-8",
+    )
+    (tests_dir / "test_validate_repo_config.py").write_text(
+        '"""\n'
+        "@meta\n"
+        "type: test\n"
+        "scope: unit\n"
+        "domain: config\n"
         '"""\n\n'
         "def test_placeholder():\n    assert True\n",
         encoding="utf-8",
@@ -250,7 +283,7 @@ def test_validator_script_exists() -> None:
     assert VALIDATOR_PATH.exists()
 
 
-def test_repo_contract_validator_fast_passes_with_deferred_history_divergence(tmp_path: Path) -> None:
+def test_repo_contract_validator_fast_passes_for_current_managed_history_shape(tmp_path: Path) -> None:
     repo_root = build_repo(tmp_path)
     sync_process = subprocess.run(
         [sys.executable, str(REPO_ROOT / "scripts" / "sync_architecture_docs.py"), "--repo-root", str(repo_root)],
