@@ -29,6 +29,7 @@ def _make_run() -> PipelineRun:
 
 
 def test_insert_run_calls_bq():
+    """@proves admin_control_plane_core.pipeline-runs-bigquery-table"""
     bq = MagicMock()
     insert_run(_make_run(), bq, project="p", dataset="d")
     bq.query.assert_called_once()
@@ -63,6 +64,9 @@ def test_update_run_status_retries_on_pipeline_runs_concurrent_update(monkeypatc
 
 
 def test_append_event_calls_bq():
+    """@proves admin_control_plane_core.pipeline-run-events-bigquery-table
+    @proves run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+    """
     bq = MagicMock()
     ev = RunEvent(run_id="rid", event_id=str(uuid.uuid4()), stage="ingest",
                   level="info", message="done", created_at=datetime.datetime.now(datetime.timezone.utc))
@@ -77,7 +81,9 @@ def test_get_run_returns_none_when_not_found():
 
 
 def test_list_runs_returns_list():
-    """@proves trigger_run_management.runs-list-management"""
+    """@proves trigger_run_management.runs-list-management
+    @proves admin_control_plane_core.pipeline-runs-bigquery-table
+    """
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     assert isinstance(list_runs(bq, project="p", dataset="d"), list)
@@ -658,6 +664,7 @@ def test_update_run_effective_settings_updates_only_effective_settings_field() -
 # ── Lifecycle fields ────────────────────────────────────────────────────────
 
 def test_row_to_run_maps_lifecycle_fields():
+    """@proves admin_control_plane_core.pipeline-runs-bigquery-table"""
     from fitcv_cp.bq_store import _row_to_run
     row = {
         "run_id": "r1",
@@ -761,6 +768,7 @@ def test_update_run_checkpoint_uses_parameterized_query() -> None:
 
 
 def test_request_run_cancel_sets_cancel_fields():
+    """@proves run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs"""
     from fitcv_cp.bq_store import request_run_cancel
     bq = MagicMock()
     request_run_cancel("rid", "admin", "cancelling", bq, project="p", dataset="d")
@@ -770,6 +778,7 @@ def test_request_run_cancel_sets_cancel_fields():
 
 
 def test_archive_run_uses_parameterized_query():
+    """@proves run_lifecycle_controls.archive-and-unarchive-terminal-runs"""
     from fitcv_cp.bq_store import archive_run
     bq = MagicMock()
     archive_run("rid", "admin", bq, project="p", dataset="d")
@@ -779,6 +788,7 @@ def test_archive_run_uses_parameterized_query():
 
 
 def test_unarchive_run_uses_parameterized_query():
+    """@proves run_lifecycle_controls.archive-and-unarchive-terminal-runs"""
     from fitcv_cp.bq_store import unarchive_run
     bq = MagicMock()
     unarchive_run("rid", bq, project="p", dataset="d")
@@ -790,6 +800,7 @@ def test_unarchive_run_uses_parameterized_query():
 # ──  list_runs archive filter ───────────────────────────────────────────────
 
 def test_list_runs_active_filters_archived():
+    """@proves admin_control_plane_core.pipeline-runs-bigquery-table"""
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     list_runs(bq, project="p", dataset="d", include_archived=False)
@@ -798,6 +809,7 @@ def test_list_runs_active_filters_archived():
 
 
 def test_list_runs_archived_only():
+    """@proves admin_control_plane_core.pipeline-runs-bigquery-table"""
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     list_runs(bq, project="p", dataset="d", archived_only=True)
@@ -806,6 +818,7 @@ def test_list_runs_archived_only():
 
 
 def test_list_runs_include_all():
+    """@proves admin_control_plane_core.pipeline-runs-bigquery-table"""
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     list_runs(bq, project="p", dataset="d", include_archived=True)

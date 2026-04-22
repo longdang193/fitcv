@@ -1117,7 +1117,10 @@ def test_worker_manual_resume_uses_uploaded_run_scoped_synonym_overlay() -> None
 # ── cooperative cancellation ─────────────────────────────────────────────────
 
 def test_worker_marks_cancelled_when_cancel_already_requested():
-    """Worker should check cancel_requested_at after RUNNING update and exit early."""
+    """@proves run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+
+    Worker should check cancel_requested_at after RUNNING update and exit early.
+    """
     import datetime
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
@@ -1152,7 +1155,11 @@ def test_worker_marks_cancelled_when_cancel_already_requested():
 
 
 def test_worker_cancellation_event_appended_on_early_exit():
-    """Worker must append a run_cancelled event when exiting early due to cancel."""
+    """@proves run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+    @proves run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+
+    Worker must append a run_cancelled event when exiting early due to cancel.
+    """
     import datetime
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
@@ -1175,7 +1182,10 @@ def test_worker_cancellation_event_appended_on_early_exit():
 
 
 def test_worker_pipeline_cancelled_exception_marks_cancelled():
-    """PipelineCancelled raised during execution should produce cancelled status."""
+    """@proves run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+
+    PipelineCancelled raised during execution should produce cancelled status.
+    """
     from fitcv.pipeline import PipelineCancelled
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])

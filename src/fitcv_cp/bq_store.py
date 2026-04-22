@@ -12,6 +12,10 @@ inputs:
 outputs:
   - pipeline_runs, run_events, and run-scoped snapshot updates
 capabilities:
+  - admin_control_plane_core.pipeline-runs-bigquery-table
+  - admin_control_plane_core.pipeline-run-events-bigquery-table
+  - run_lifecycle_controls.archive-and-unarchive-terminal-runs
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - inspection_debugging.settings-used-export
   - inspection_debugging.results-ledger-inspection
   - inspection_debugging.stage-transition-diagnostics

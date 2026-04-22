@@ -7,8 +7,12 @@ capabilities:
     state: active
     statement: Cancel queued runs directly from the queue via RQ
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    - src/fitcv_cp/queue.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
+    - tests/test_fitcv_cp/test_queue.py
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -29,6 +33,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -40,21 +45,22 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs:
     state: active
     statement: Cooperative cancellation at safe checkpoints for running jobs
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/worker_job.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
+    - tests/test_fitcv_cp/test_bq_store.py
+    - tests/test_fitcv_cp/test_worker_job.py
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -75,6 +81,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -86,21 +93,20 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue:
     state: active
     statement: Direct cancellation of paused manual runs in `awaiting_continue`
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -121,6 +127,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -132,21 +139,20 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   run_lifecycle_controls.stale-cancellation-repair-endpoint:
     state: active
     statement: Stale cancellation repair endpoint
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -167,6 +173,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -178,21 +185,20 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs:
     state: active
     statement: State-aware max-runtime timeout handling for queued, running, cancelling, and paused manual runs
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -213,6 +219,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -224,21 +231,20 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time:
     state: active
     statement: Timeout copy now distinguishes queue wait, active runtime, and Stage by Stage manual-wait time
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -259,6 +265,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -270,21 +277,22 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   run_lifecycle_controls.archive-and-unarchive-terminal-runs:
     state: active
     statement: Archive and unarchive terminal runs
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    - src/fitcv_cp/bq_store.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
+    - tests/test_fitcv_cp/test_bq_store.py
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -305,6 +313,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -316,21 +325,20 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries:
     state: active
     statement: Batch cancel, archive, and unarchive endpoints with explicit processed/skipped summaries
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -351,6 +359,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -362,21 +371,24 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   run_lifecycle_controls.full-audit-trail-in-pipeline-run-events:
     state: active
     statement: Full audit trail in pipeline_run_events
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/bq_store.py
+    - src/fitcv_cp/reporter.py
+    - src/fitcv_cp/worker_job.py
+    tests:
+    - tests/test_fitcv_cp/test_bq_store.py
+    - tests/test_fitcv_cp/test_reporter.py
+    - tests/test_fitcv_cp/test_worker_job.py
     docs:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
@@ -397,6 +409,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
     - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
@@ -408,15 +421,12 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
 timeline:
 - kind: spec
   path: docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
@@ -438,6 +448,8 @@ timeline:
   path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
 - kind: spec
   path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
 - kind: plan
   path: docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
 - kind: plan
@@ -458,3 +470,5 @@ timeline:
   path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
 - kind: plan
   path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md

@@ -125,6 +125,10 @@ Phase 7 direct-evidence pilot rules:
 - Phase 10 closes the residual `settings_system` and `pipeline_performance`
   pilot set by mapping UI/schema/config/runtime settings controls and stage
   performance behavior to direct code and proof evidence
+- Phase 11 extends the same direct-evidence pilot to
+  `run_lifecycle_controls` and `admin_control_plane_core` by mapping control
+  plane runtime, persistence, queue, reporter, and templated admin surfaces to
+  direct code and proof evidence
 - pilot capability-to-file mappings should stay sparse and materially true
 - pilot proof should use truthful `@proves <capability_id>` only in tests that
   actually verify the named behavior
