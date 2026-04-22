@@ -527,7 +527,10 @@ def test_load_config_compatibility_projection_required_cv_sections() -> None:
 
 
 def test_load_config_nested_cv_validation_max_pages_positive(tmp_path: Path) -> None:
-    """max_pages in the nested validation block must be a positive integer."""
+    """@proves settings_system.warning-only-cv-max-pages-validation-setting
+
+    max_pages in the nested validation block must be a positive integer.
+    """
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
@@ -622,6 +625,7 @@ def test_validate_composition_rejects_unknown_section() -> None:
 
 
 def test_validate_composition_accepts_valid_europass() -> None:
+    """@proves settings_system.cv-composition-visibility-settings"""
     from fitcv import cv_presets
     valid_composition = {
         "summary": {"enabled": True, "style": "concise"},
@@ -762,6 +766,7 @@ def test_load_config_builds_prompts_runtime_for_all_major_stages() -> None:
 
 
 def test_config_accessors_resolve_centralized_prompt_ids_and_model_defaults() -> None:
+    """@proves pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids"""
     cfg = load_config()
 
     assert get_gemini_model(cfg) == "gemini-2.5-flash"

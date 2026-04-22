@@ -15,6 +15,9 @@ capabilities:
   - settings_system.baseline-default-hydration
   - settings_system.cv-analysis-alignment-settings
   - settings_system.cv-generation-settings
+  - settings_system.cv-composition-visibility-settings
+  - settings_system.warning-only-cv-max-pages-validation-setting
+  - pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
 tags:
   - config
   - settings

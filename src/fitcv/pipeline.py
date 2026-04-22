@@ -1,3 +1,30 @@
+"""
+@meta
+name: fitcv_pipeline
+type: utility
+domain: pipeline
+responsibility:
+  - Orchestrate FitCV stages from ingestion through ranking, CV analysis, and CV generation.
+  - Build run-owned stage artifacts, compact exports, and reranker skip short-circuit records.
+inputs:
+  - jobs JSON
+  - candidate profile
+  - effective runtime config
+outputs:
+  - ranked jobs, generated CVs, results ledger, diagnostics, and stage artifacts
+capabilities:
+  - pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
+  - pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
+  - pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
+  - pipeline_performance.cv-analysis-now-uses-bounded-semantic-lift-for-required-skill-and-role-channels-instead-of-reserving-semantic-work-only-for-domain-and-responsibility-alignment
+  - pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis
+tags:
+  - pipeline
+  - orchestration
+lifecycle:
+  status: active
+"""
+
 """Full pipeline orchestrator — wires all FitCV pipeline stages end-to-end.
 
 Stage order

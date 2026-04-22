@@ -436,6 +436,7 @@ def test_merge_scraped_and_enriched_uses_config_model() -> None:
 
 
 def test_enrich_job_renders_prompt_via_prompt_registry(monkeypatch: pytest.MonkeyPatch) -> None:
+    """@proves pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids"""
     captured: dict[str, object] = {}
 
     class FakeResponse:
@@ -485,6 +486,7 @@ def test_enrich_job_renders_prompt_via_prompt_registry(monkeypatch: pytest.Monke
 
 
 def test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields() -> None:
+    """@proves pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields"""
     scraped = {"job_url": "url1", "title": "DE"}
     enriched = {
         "required_skills": ["Python programming for data science"],
@@ -1166,6 +1168,9 @@ def test_apply_structured_normalization_strips_whitespace() -> None:
 
 
 def test_apply_structured_normalization_emits_canonical_skill_companions() -> None:
+    """@proves pipeline_performance.canonical-skill-companion-lists-and-entity-payloads-for-required-preferred-skills
+    @proves pipeline_performance.enrich-stage-mapping-suggestion-capture-for-review-debug-surfaces
+    """
     output = EnrichmentOutput(
         required_skills=["GCP", "Python programming for data science"],
         preferred_skills=["PowerBI"],
@@ -1335,6 +1340,7 @@ def test_apply_structured_normalization_uses_conservative_alias_fallback_when_en
 
 
 def test_apply_structured_normalization_preserves_raw_scalar_companions() -> None:
+    """@proves pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields"""
     output = EnrichmentOutput(
         location_type="Remote",
         seniority="Senior",

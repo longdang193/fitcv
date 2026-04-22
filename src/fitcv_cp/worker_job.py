@@ -20,6 +20,7 @@ capabilities:
   - inspection_debugging.reuse-diagnostics
   - inspection_debugging.quality-metrics-diagnostics
   - settings_system.settings-used-exports
+  - pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
   - pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere
   - trigger_run_management.shared-stage-progress
   - trigger_run_management.run-owned-artifact-exports

@@ -13,11 +13,17 @@ outputs:
   - SETTINGS_SCHEMA and grouped settings registries
   - validated config updates
 capabilities:
+  - settings_system.run-safety-settings
+  - settings_system.global-job-filters
   - settings_system.settings-schema-registry
   - settings_system.retrieval-settings
   - settings_system.ranking-settings
+  - settings_system.preference-fit-calibration
   - settings_system.cv-analysis-alignment-settings
   - settings_system.cv-generation-settings
+  - settings_system.cv-composition-visibility-settings
+  - settings_system.warning-only-cv-max-pages-validation-setting
+  - settings_system.grouped-form-validation
 tags:
   - settings
   - admin-ui

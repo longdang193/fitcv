@@ -16,6 +16,7 @@ capabilities:
   - inspection_debugging.results-ledger-inspection
   - inspection_debugging.stage-transition-diagnostics
   - inspection_debugging.enriched-job-debug-export
+  - pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
   - settings_system.trigger-time-effective-settings-snapshot
   - trigger_run_management.runs-list-management
   - trigger_run_management.run-detail-actions

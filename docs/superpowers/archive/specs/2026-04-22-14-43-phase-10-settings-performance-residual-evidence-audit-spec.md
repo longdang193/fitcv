@@ -1,7 +1,7 @@
 ---
 layer: operating_system
 artifact_type: spec
-status: proposed
+status: completed
 parent_workstream: none
 targets:
   - docs/features/settings_system/feature.source.yaml
@@ -10,7 +10,7 @@ targets:
   - docs/features/pipeline_performance/feature.source.yaml
   - docs/features/pipeline_performance/pipeline_performance.yaml
   - docs/features/pipeline_performance/lineage.generated.yaml
-  - src/fitcv/settings.py
+  - src/fitcv_cp/settings_schema.py
   - src/fitcv/config.py
   - src/fitcv/enrich.py
   - src/fitcv/embeddings.py
@@ -335,7 +335,28 @@ If Phase 10 over-attributes evidence or validation becomes too strict:
 
 ## Execution Notes
 
-Status: `not_started`
+Status: `completed`
 
-To execute, turn this spec into an implementation plan first. The plan should
-confirm exact mappings and explicitly list deferred capabilities before editing.
+Implemented by:
+`docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md`
+
+Outcome:
+
+- `settings_system` residual gaps moved from `22/22` missing code/test evidence
+  to `0/0`.
+- `pipeline_performance` residual gaps moved from `20/20` missing code/test
+  evidence to `0/0`.
+- Repo-wide missing direct evidence moved from `128/128` to `86/86`.
+- No Phase 10 selected capabilities were deferred.
+- The spec's likely `src/fitcv/settings.py` surface was corrected during
+  planning to the actual settings schema owner,
+  `src/fitcv_cp/settings_schema.py`.
+
+Verification:
+
+- `.\.venv\Scripts\python.exe -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_bq_store.py tests/test_fitcv_cp/test_worker_job.py tests/test_config.py tests/test_enrich.py tests/test_evidence.py tests/test_pipeline.py tests/test_rule_filter.py tests/test_validate_adoption_shape.py`
+  passed with `568 passed, 1 skipped`.
+- `.\.venv\Scripts\python.exe scripts/sync_architecture_docs.py --check`
+  passed.
+- `.\.venv\Scripts\python.exe scripts/validate_adoption_shape.py` passed.
+- `git diff --check` passed with line-ending warnings only.

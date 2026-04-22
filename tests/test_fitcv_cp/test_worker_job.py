@@ -459,6 +459,7 @@ def test_worker_persists_cv_generation_debug_coverage_for_reranker_blocked_rows(
 def test_worker_persists_stage_transition_artifacts_json_on_success():
     """@proves trigger_run_management.shared-stage-progress
     @proves inspection_debugging.stage-transition-diagnostics
+    @proves pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
     """
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])

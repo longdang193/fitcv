@@ -351,6 +351,7 @@ def test_list_filter_results_for_run_falls_back_when_marks_json_missing() -> Non
 
 
 def test_list_run_structured_jobs_preserves_reuse_provenance_fields() -> None:
+    """@proves pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage"""
     bq = MagicMock()
 
     class FakeRow:
