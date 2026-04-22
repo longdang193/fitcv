@@ -7,8 +7,10 @@ capabilities:
     state: active
     statement: BigQuery-backed pipeline settings store
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/settings_store.py
+    tests:
+    - tests/test_fitcv_cp/test_settings_store.py
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -32,6 +34,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -51,22 +54,21 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   settings_system.settings-schema-registry:
     state: active
     statement: Settings schema registry
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/settings_schema.py
+    tests:
+    - tests/test_fitcv_cp/test_settings_schema.py
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -90,6 +92,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -109,22 +112,21 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   settings_system.retrieval-settings:
     state: active
     statement: Retrieval settings
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/settings_schema.py
+    tests:
+    - tests/test_fitcv_cp/test_settings_schema.py
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -148,6 +150,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -167,16 +170,13 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   settings_system.run-safety-settings:
     state: active
     statement: Configure timing, throttling, and run-lifecycle timeout controls.
@@ -206,6 +206,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -225,6 +226,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -264,6 +266,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -283,6 +286,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -297,8 +301,10 @@ capabilities:
     state: active
     statement: Configure six-feature ranking weights, zero-weight semantics, and runtime-aligned copy.
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/settings_schema.py
+    tests:
+    - tests/test_fitcv_cp/test_settings_schema.py
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -322,6 +328,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -341,16 +348,13 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   settings_system.preference-fit-calibration:
     state: active
     statement: Configure preference-fit subweights and fit-label threshold guidance for reranker calibration.
@@ -380,6 +384,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -399,6 +404,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -413,8 +419,11 @@ capabilities:
     state: active
     statement: Configure semantic-alignment enablement, model selection, and lexical-vs-semantic balance for `cv_analysis`.
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv/config.py
+    - src/fitcv_cp/settings_schema.py
+    tests:
+    - tests/test_fitcv_cp/test_settings_schema.py
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -438,6 +447,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -457,22 +467,23 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   settings_system.cv-generation-settings:
     state: active
     statement: CV generation settings
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv/config.py
+    - src/fitcv_cp/settings_schema.py
+    tests:
+    - tests/test_config.py
+    - tests/test_fitcv_cp/test_settings_schema.py
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -496,6 +507,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -515,16 +527,13 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   settings_system.cv-composition-visibility-settings:
     state: active
     statement: CV composition visibility settings
@@ -554,6 +563,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -573,6 +583,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -612,6 +623,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -631,6 +643,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -670,6 +683,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -689,6 +703,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -728,6 +743,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -747,6 +763,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -786,6 +803,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -805,6 +823,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -844,6 +863,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -863,6 +883,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -902,6 +923,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -921,6 +943,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -960,6 +983,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -979,6 +1003,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -993,8 +1018,10 @@ capabilities:
     state: active
     statement: Trigger-time effective settings snapshot
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/bq_store.py
+    tests:
+    - tests/test_fitcv_cp/test_bq_store.py
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -1018,6 +1045,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -1037,22 +1065,21 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   settings_system.baseline-default-hydration:
     state: active
     statement: Hydrate admin defaults from the baseline config layout while preserving migration-safe compatibility behavior.
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv/config.py
+    tests:
+    - tests/test_config.py
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -1076,6 +1103,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -1095,22 +1123,21 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   settings_system.settings-used-exports:
     state: active
     statement: Emit canonical nested settings-used exports and isolate compatibility-era flat keys into an explicit compatibility block.
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/worker_job.py
+    tests:
+    - tests/test_fitcv_cp/test_worker_job.py
     docs:
     - docs/features/settings_system/history.md
     docs_evidence:
@@ -1134,6 +1161,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -1153,16 +1181,13 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
 timeline:
 - kind: spec
   path: docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
@@ -1190,6 +1215,8 @@ timeline:
   path: docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
 - kind: spec
   path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
 - kind: spec
   path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
 - kind: plan
@@ -1226,5 +1253,7 @@ timeline:
   path: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
 - kind: plan
   path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
 - kind: plan
   path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md

@@ -1,4 +1,16 @@
-"""Tests for config loading."""
+"""
+@meta
+type: test
+scope: unit
+domain: config
+covers:
+  - configuration loading and validation
+excludes:
+  - external service connectivity
+tags:
+  - fast
+  - ci-safe
+"""
 import shutil
 import uuid
 import os
@@ -118,6 +130,7 @@ def test_load_config_accepts_legacy_config_env_path_with_warning() -> None:
 
 
 def test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_files(tmp_path: Path) -> None:
+    """@proves settings_system.baseline-default-hydration"""
     env_yaml = tmp_path / ".env.yaml"
     env_yaml.write_text(
         "gcp_project: test\n"
@@ -185,7 +198,7 @@ def test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_file
 
 
 def test_load_config_includes_cv_defaults() -> None:
-    """cv defaults are present after loading the full config."""
+    """@proves settings_system.cv-generation-settings"""
     cfg = load_config()
     assert cfg["cv_generation_model"] == "gemini-2.5-flash"
     assert cfg["cv"]["generation"]["model"] == "gemini-2.5-flash"
@@ -465,6 +478,7 @@ def test_load_config_nested_cv_has_preset() -> None:
 
 
 def test_load_config_nested_cv_generation_has_model_and_prompt_version() -> None:
+    """@proves settings_system.cv-generation-settings"""
     cfg = load_config()
     assert "generation" in cfg["cv"]
     assert "model" in cfg["cv"]["generation"]
@@ -637,7 +651,7 @@ def test_validate_composition_rejects_unknown_preset() -> None:
 # ── Task 6: compatibility shim guard ───────────────────────────────────────────
 
 def test_load_config_compatibility_flat_keys_work_after_nested_migration() -> None:
-    """After migration to nested cv, flat keys are still projected for control-plane compatibility."""
+    """@proves settings_system.baseline-default-hydration"""
     cfg = load_config()
     # These are the keys the control plane (settings_schema) still reads
     assert cfg["cv_generation_model"] == cfg["cv"]["generation"]["model"]
@@ -800,16 +814,3 @@ def test_load_config_rejects_unknown_enrich_prompt_id() -> None:
             load_config(env_yaml)
     finally:
         shutil.rmtree(tmp_path, ignore_errors=True)
-"""
-@meta
-type: test
-scope: unit
-domain: config
-covers:
-  - configuration loading and validation
-excludes:
-  - external service connectivity
-tags:
-  - fast
-  - ci-safe
-"""

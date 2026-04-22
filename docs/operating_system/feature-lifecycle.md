@@ -115,6 +115,9 @@ Phase 7 direct-evidence pilot rules:
 
 - direct evidence backfill should start with a bounded pilot, not repo-wide
   blanket tagging
+- Phase 8 extends the same pilot model to selected `settings_system` and
+  `pipeline_performance` capabilities, but it is still not a requirement that
+  every managed capability be complete
 - pilot capability-to-file mappings should stay sparse and materially true
 - pilot proof should use truthful `@proves <capability_id>` only in tests that
   actually verify the named behavior

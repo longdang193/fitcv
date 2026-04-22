@@ -68,6 +68,60 @@ phase_7_direct_evidence_pilot:
     trigger_run_management.manual-checkpoints-and-continue:
       require_code: true
       require_tests: true
+    settings_system.baseline-default-hydration:
+      require_code: true
+      require_tests: true
+    settings_system.cv-analysis-alignment-settings:
+      require_code: true
+      require_tests: true
+    settings_system.cv-generation-settings:
+      require_code: true
+      require_tests: true
+    settings_system.settings-schema-registry:
+      require_code: true
+      require_tests: true
+    settings_system.retrieval-settings:
+      require_code: true
+      require_tests: true
+    settings_system.ranking-settings:
+      require_code: true
+      require_tests: true
+    settings_system.bigquery-backed-pipeline-settings-store:
+      require_code: true
+      require_tests: true
+    settings_system.trigger-time-effective-settings-snapshot:
+      require_code: true
+      require_tests: true
+    settings_system.settings-used-exports:
+      require_code: true
+      require_tests: true
+    pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic:
+      require_code: true
+      require_tests: true
+    pipeline_performance.fallback-path-for-unparseable-responses:
+      require_code: true
+      require_tests: true
+    pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs:
+      require_code: true
+      require_tests: true
+    pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes:
+      require_code: true
+      require_tests: true
+    pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table:
+      require_code: true
+      require_tests: true
+    pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors:
+      require_code: true
+      require_tests: true
+    pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match:
+      require_code: true
+      require_tests: true
+    pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely:
+      require_code: true
+      require_tests: true
+    pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere:
+      require_code: true
+      require_tests: true
 notes: >
   JOB-PROJECT is aligning toward the project-OS-starter managed architecture
   metadata model. Managed features and stages now use source-owned lifecycle
@@ -80,5 +134,7 @@ notes: >
   alignment; Phase 6 additionally hydrates lineage from explicit repo metadata
   and conservative feature-level spec/plan fallback evidence. Phase 7 adds a
   bounded direct-evidence pilot for selected `cv_system`,
-  `inspection_debugging`, and `trigger_run_management` capabilities and keeps
-  that pilot enforced through validator-backed minimum code/test evidence.
+  `inspection_debugging`, and `trigger_run_management` capabilities; Phase 8
+  extends the same sparse evidence pilot to selected `settings_system` and
+  `pipeline_performance` capabilities and keeps those mappings enforced through
+  validator-backed minimum code/test evidence.

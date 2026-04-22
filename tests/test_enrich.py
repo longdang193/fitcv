@@ -1,4 +1,16 @@
-"""Tests for fitcv.enrich — all pure unit tests (no LLM calls)."""
+"""
+@meta
+type: test
+scope: unit
+domain: enrich
+covers:
+  - enrich-stage transformation behavior
+excludes:
+  - live LLM calls
+tags:
+  - fast
+  - ci-safe
+"""
 
 from datetime import datetime, timezone
 import sys
@@ -69,6 +81,7 @@ def test_build_extraction_prompt_uses_effective_prompt_id_from_config() -> None:
 
 
 def test_build_raw_job_fingerprint_is_stable_for_whitespace_and_case_changes() -> None:
+    """@proves pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs"""
     job_a = {
         "job_url": "https://example.com/jobs/1",
         "title": "Data Analyst",
@@ -102,6 +115,7 @@ def test_build_raw_job_fingerprint_is_stable_for_whitespace_and_case_changes() -
 def test_build_enrich_contract_fingerprint_changes_when_prompt_contract_changes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """@proves pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes"""
     config = {
         "gemini_model": "gemini-2.5-flash",
         "prompts": {"enrich": {"extraction": {"prompt_id": "enrich.extraction.v1"}}},
@@ -127,6 +141,7 @@ def test_build_enrich_contract_fingerprint_changes_when_prompt_contract_changes(
 def test_lookup_reusable_structured_jobs_returns_exact_fingerprint_and_contract_matches(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """@proves pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table"""
     captured: dict[str, object] = {}
 
     class FakeRow:
@@ -277,6 +292,7 @@ def test_lookup_reusable_structured_jobs_normalises_datetime_enriched_at(
 # ── parse_extraction_response — valid JSON ────────────────────────────────────
 
 def test_parse_extraction_response_valid_json() -> None:
+    """@proves pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic"""
     raw = '{"required_skills": ["SQL", "Python"], "location_type": "hybrid", "job_family": "data_analytics"}'
     result = parse_extraction_response(raw)
     assert result["errors"] == []
@@ -286,6 +302,7 @@ def test_parse_extraction_response_valid_json() -> None:
 
 
 def test_parse_extraction_response_malformed_json() -> None:
+    """@proves pipeline_performance.fallback-path-for-unparseable-responses"""
     result = parse_extraction_response("not json at all")
     assert len(result["errors"]) > 0
     assert result["parsed"] == {}     # empty fallback, not a crash
@@ -1386,7 +1403,7 @@ def test_enrich_job_uses_response_parsed() -> None:
 
 
 def test_enrich_job_fallback_when_parsed_is_none(caplog: pytest.LogCaptureFixture) -> None:
-    """Falls back to parse_extraction_response + json_repair when response.parsed is None."""
+    """@proves pipeline_performance.fallback-path-for-unparseable-responses"""
     import logging
     from unittest.mock import MagicMock, patch
 
@@ -1561,16 +1578,3 @@ def test_enrich_batch_uses_configured_batch_size_and_concurrency() -> None:
     assert len(result) == 4
     # Each chunk had at most batch_size=2 jobs
     assert all(s <= 2 for s in call_sizes), f"Chunk sizes: {call_sizes}"
-"""
-@meta
-type: test
-scope: unit
-domain: enrich
-covers:
-  - enrich-stage transformation behavior
-excludes:
-  - live LLM calls
-tags:
-  - fast
-  - ci-safe
-"""
