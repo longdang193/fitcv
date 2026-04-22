@@ -83,6 +83,7 @@ def test_post_runs_persists_manual_staged_mode() -> None:
 
 
 def test_get_runs_returns_list():
+    """@proves trigger_run_management.runs-list-management"""
     with patch("fitcv_cp.app.list_runs", return_value=[]):
         resp = TestClient(_app()).get("/runs")
     assert resp.status_code == 200
@@ -174,7 +175,7 @@ def test_post_runs_rejects_invalid_config_overrides():
 
 
 def test_admin_upload_trigger_success(tmp_path):
-    """Test POST /admin/upload-trigger saves file and calls trigger logic."""
+    """@proves trigger_run_management.job-input-modes"""
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run"), \
          patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
@@ -200,6 +201,7 @@ def test_admin_upload_trigger_success(tmp_path):
 
 
 def test_admin_upload_trigger_persists_run_scoped_synonym_overlay() -> None:
+    """@proves trigger_run_management.synonym-overlay-at-trigger"""
     captured = {}
 
     def _capture_insert(run, *args, **kwargs):
@@ -271,6 +273,9 @@ def test_admin_continue_run_requeues_manual_paused_run() -> None:
 
 
 def test_admin_run_detail_shows_synonym_overlay_card_for_manual_enrich_checkpoint() -> None:
+    """@proves inspection_debugging.synonym-overlay-inspection
+    @proves trigger_run_management.synonym-overlay-inspection
+    """
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -437,6 +442,7 @@ def test_admin_run_detail_shows_default_synonym_yaml_snapshot(tmp_path) -> None:
 
 
 def test_admin_upload_synonym_overlay_updates_run_effective_settings() -> None:
+    """@proves trigger_run_management.synonym-overlay-replacement"""
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -725,6 +731,9 @@ def test_admin_run_detail_success_banner():
 
 
 def test_admin_run_detail_shows_exports_card_with_results_link():
+    """@proves trigger_run_management.run-owned-artifact-exports
+    @proves inspection_debugging.run-owned-artifact-exports
+    """
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -808,6 +817,7 @@ def test_admin_run_detail_shows_bundle_zip_export_link():
 
 
 def test_admin_run_detail_shows_download_settings_used_json_button():
+    """@proves inspection_debugging.settings-used-export"""
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -878,7 +888,9 @@ def test_admin_run_detail_hides_mapping_suggestions_export_before_enrich_stage()
 
 
 def test_run_detail_timeline_shows_stage_download_for_mapped_event():
-    """@proves inspection_debugging.stage-artifact-downloads"""
+    """@proves inspection_debugging.stage-artifact-downloads
+    @proves trigger_run_management.stage-artifact-downloads
+    """
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
 
@@ -1126,6 +1138,9 @@ def test_download_cv_endpoint_404():
 
 
 def test_download_results_json_endpoint_200():
+    """@proves trigger_run_management.run-results-export
+    @proves inspection_debugging.results-ledger-inspection
+    """
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -1186,6 +1201,7 @@ def test_download_results_json_endpoint_404_if_snapshot_missing():
 
 
 def test_download_stage_transition_artifacts_json_endpoint_200():
+    """@proves inspection_debugging.stage-transition-diagnostics"""
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -1329,6 +1345,7 @@ def test_download_aggregate_mapping_suggestions_json_endpoint_200() -> None:
 
 
 def test_download_settings_used_json_endpoint_200():
+    """@proves inspection_debugging.settings-used-export"""
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -1473,6 +1490,9 @@ def test_download_cv_debug_json_endpoint_404_if_snapshot_missing():
 
 
 def test_download_run_artifact_bundle_zip_endpoint_for_partial_run() -> None:
+    """@proves trigger_run_management.run-owned-artifact-exports
+    @proves inspection_debugging.run-owned-artifact-exports
+    """
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -1526,6 +1546,9 @@ def test_download_run_artifact_bundle_zip_endpoint_for_partial_run() -> None:
 
 
 def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
+    """@proves trigger_run_management.shortlist-debug-exports
+    @proves inspection_debugging.shortlist-diagnostics
+    """
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -1614,7 +1637,7 @@ def test_download_run_artifact_bundle_zip_endpoint_404_if_no_artifacts_available
 # ── enriched jobs on run detail ──────────────────────────────────────────────
 
 def test_admin_run_detail_shows_enriched_jobs_section():
-    """Run detail page renders Enriched Jobs section when rows are returned."""
+    """@proves inspection_debugging.enriched-job-debug-export"""
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -1845,6 +1868,9 @@ def test_run_detail_event_timeline_appears_after_tab_panes():
 
 
 def test_run_detail_renders_run_health_when_quality_metrics_available():
+    """@proves trigger_run_management.run-health-surface
+    @proves inspection_debugging.quality-metrics-diagnostics
+    """
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -2039,6 +2065,7 @@ def test_run_detail_run_health_marks_unreached_metrics_as_pending_and_zero_denom
 
 
 def test_run_detail_hides_late_stage_reuse_metrics_when_absent():
+    """@proves inspection_debugging.reuse-diagnostics"""
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -2490,6 +2517,7 @@ def test_admin_unarchive_non_archived_run_returns_409():
 
 
 def test_admin_bulk_cancel_mixed_eligibility_returns_processed_and_skipped_summary():
+    """@proves trigger_run_management.runs-list-management"""
     run1 = _make_full_run_mock(status="queued", run_id="run-bulk-1")
     run2 = _make_full_run_mock(status="succeeded", run_id="run-bulk-2")
 
@@ -2783,6 +2811,7 @@ def test_admin_runs_timeouts_awaiting_continue_runs_to_cancelled() -> None:
 
 
 def test_run_detail_queued_shows_stop_run():
+    """@proves trigger_run_management.run-detail-actions"""
     import datetime
     run = _make_full_run_mock(status="queued")
     with patch("fitcv_cp.app.get_run", return_value=run), \
@@ -2812,7 +2841,9 @@ def test_run_detail_awaiting_continue_shows_run_next_stage_and_stop_run():
 
 
 def test_run_detail_run_all_shows_shared_progress_without_checkpoint_controls():
-    """@proves inspection_debugging.run-progress-and-checkpoints"""
+    """@proves inspection_debugging.run-progress-and-checkpoints
+    @proves trigger_run_management.shared-stage-progress
+    """
     run = _make_full_run_mock(status="running")
     run.run_mode = "run_all"
     run.last_completed_stage = "enrich"
@@ -2840,6 +2871,7 @@ def test_run_detail_run_all_shows_shared_progress_without_checkpoint_controls():
 
 
 def test_run_detail_succeeded_shows_archive_run():
+    """@proves trigger_run_management.run-detail-actions"""
     run = _make_full_run_mock(status="succeeded")
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.get_events", return_value=[]), \
@@ -2954,6 +2986,7 @@ def test_run_detail_shows_deduplicated_before_enrichment_section():
 
 
 def test_run_detail_shows_marks_for_passed_jobs() -> None:
+    """@proves inspection_debugging.rule-filter-diagnostics"""
     patches = _run_detail_patches(
         enriched_jobs=[
             {
@@ -3067,6 +3100,10 @@ def test_run_detail_enriched_shows_pipeline_outcome_for_ranked_fit_skip_job():
 
 
 def test_run_detail_enriched_shows_pipeline_outcome_for_reranker_blocked_job():
+    """@proves trigger_run_management.decision-chain-outcomes
+    @proves trigger_run_management.reranker-fit-authority
+    @proves inspection_debugging.results-ledger-inspection
+    """
     import json as _json
 
     export_payload = _json.dumps({
@@ -3181,6 +3218,7 @@ def test_run_detail_cv_versions_fallback_when_no_title():
 
 
 def test_run_detail_zero_cvs_and_zero_ranked_shows_ranking_threshold_message():
+    """@proves inspection_debugging.ranking-diagnostics"""
     import datetime as _dt
     from fitcv_cp.models import PipelineRun, RunStatus
 
@@ -3610,7 +3648,10 @@ preferences:
 
 
 def test_admin_upload_trigger_default_config_stores_profile_snapshot(tmp_path):
-    """default_config mode: trigger must load the configured profile and store snapshot."""
+    """@proves trigger_run_management.candidate-profile-input-modes
+
+    default_config mode: trigger must load the configured profile and store snapshot.
+    """
     profile_path = tmp_path / "profile.yaml"
     profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
@@ -3734,7 +3775,10 @@ def test_run_detail_tab2_legacy_fallback_does_not_mention_path_mode_limitation()
 
 
 def test_run_detail_tab3_shows_snapshot_for_default_config_source():
-    """Tab 3 shows snapshot content when candidate_profile_json is present for default_config."""
+    """@proves trigger_run_management.candidate-profile-input-modes
+
+    Tab 3 shows snapshot content when candidate_profile_json is present for default_config.
+    """
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 

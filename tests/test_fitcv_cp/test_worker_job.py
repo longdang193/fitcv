@@ -34,7 +34,10 @@ def test_worker_marks_succeeded_on_success():
 
 
 def test_worker_persists_results_export_json_on_success():
-    """@proves pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere"""
+    """@proves pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere
+    @proves trigger_run_management.run-results-export
+    @proves inspection_debugging.results-ledger-inspection
+    """
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
@@ -75,6 +78,7 @@ def test_worker_persists_results_export_json_on_success():
 
 
 def test_worker_persists_compact_cv_fields_in_results_export_json():
+    """@proves trigger_run_management.run-owned-artifact-exports"""
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
@@ -166,6 +170,7 @@ def test_worker_excludes_stage_quality_metrics_from_results_export_json():
 
 
 def test_worker_moves_late_stage_reuse_snapshots_under_diagnostic_support():
+    """@proves inspection_debugging.reuse-diagnostics"""
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
@@ -384,6 +389,9 @@ def test_worker_persists_cv_generation_debug_coverage_accounting():
 
 
 def test_worker_persists_cv_generation_debug_coverage_for_reranker_blocked_rows():
+    """@proves trigger_run_management.reranker-fit-authority
+    @proves inspection_debugging.quality-metrics-diagnostics
+    """
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
@@ -449,6 +457,9 @@ def test_worker_persists_cv_generation_debug_coverage_for_reranker_blocked_rows(
 
 
 def test_worker_persists_stage_transition_artifacts_json_on_success():
+    """@proves trigger_run_management.shared-stage-progress
+    @proves inspection_debugging.stage-transition-diagnostics
+    """
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
@@ -505,7 +516,10 @@ def test_worker_persists_stage_transition_artifacts_json_on_success():
 
 
 def test_worker_persists_settings_used_json_on_success():
-    """@proves settings_system.settings-used-exports"""
+    """@proves settings_system.settings-used-exports
+    @proves inspection_debugging.settings-used-export
+    @proves inspection_debugging.prompt-provenance-diagnostics
+    """
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
@@ -939,6 +953,7 @@ def test_worker_manual_staged_normalize_checkpoint_does_not_persist_mapping_sugg
 
 
 def test_worker_run_all_persists_stage_progress_without_checkpoint_state() -> None:
+    """@proves trigger_run_management.shared-stage-progress"""
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()

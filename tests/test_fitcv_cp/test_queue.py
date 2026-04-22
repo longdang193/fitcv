@@ -17,7 +17,9 @@ from fitcv_cp.queue import enqueue_run
 
 
 def test_enqueue_run_returns_uuid():
-    """@proves trigger_run_management.manual-checkpoints-and-continue"""
+    """@proves trigger_run_management.manual-checkpoints-and-continue
+    @proves trigger_run_management.runs-list-management
+    """
     mock_q = MagicMock()
     with patch("fitcv_cp.queue.get_queue", return_value=mock_q):
         run_id = enqueue_run(
@@ -69,7 +71,9 @@ def test_enqueue_run_still_returns_str():
 # ── cancel_queued_run ────────────────────────────────────────────────────────
 
 def test_cancel_queued_run_returns_true_when_cancelable():
-    """@proves trigger_run_management.manual-checkpoints-and-continue"""
+    """@proves trigger_run_management.manual-checkpoints-and-continue
+    @proves trigger_run_management.run-detail-actions
+    """
     from fitcv_cp.queue import cancel_queued_run
     mock_job = MagicMock()
     with patch("fitcv_cp.queue.Job.fetch", return_value=mock_job):

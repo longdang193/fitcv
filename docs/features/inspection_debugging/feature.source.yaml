@@ -98,7 +98,7 @@ capabilities:
 stage_participation:
 - stage_id: cv_generation
   role: primary
-  capability_ids: &id001
+  capability_ids:
   - inspection_debugging.run-detail-inspection-tabs
   - inspection_debugging.run-progress-and-checkpoints
   - inspection_debugging.synonym-overlay-inspection
@@ -118,16 +118,101 @@ stage_participation:
   - inspection_debugging.rule-filter-diagnostics
 - stage_id: enrich
   role: supporting
-  capability_ids: *id001
+  capability_ids:
+  - inspection_debugging.run-detail-inspection-tabs
+  - inspection_debugging.run-progress-and-checkpoints
+  - inspection_debugging.synonym-overlay-inspection
+  - inspection_debugging.run-owned-artifact-exports
+  - inspection_debugging.stage-artifact-downloads
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.prompt-provenance-diagnostics
+  - inspection_debugging.ranking-diagnostics
+  - inspection_debugging.shortlist-diagnostics
+  - inspection_debugging.cv-analysis-diagnostics
+  - inspection_debugging.cv-generation-diagnostics
+  - inspection_debugging.reuse-diagnostics
+  - inspection_debugging.quality-metrics-diagnostics
+  - inspection_debugging.enriched-job-debug-export
+  - inspection_debugging.rule-filter-diagnostics
 - stage_id: rule_filter
   role: supporting
-  capability_ids: *id001
+  capability_ids:
+  - inspection_debugging.run-detail-inspection-tabs
+  - inspection_debugging.run-progress-and-checkpoints
+  - inspection_debugging.synonym-overlay-inspection
+  - inspection_debugging.run-owned-artifact-exports
+  - inspection_debugging.stage-artifact-downloads
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.prompt-provenance-diagnostics
+  - inspection_debugging.ranking-diagnostics
+  - inspection_debugging.shortlist-diagnostics
+  - inspection_debugging.cv-analysis-diagnostics
+  - inspection_debugging.cv-generation-diagnostics
+  - inspection_debugging.reuse-diagnostics
+  - inspection_debugging.quality-metrics-diagnostics
+  - inspection_debugging.enriched-job-debug-export
+  - inspection_debugging.rule-filter-diagnostics
 - stage_id: shortlist
   role: supporting
-  capability_ids: *id001
+  capability_ids:
+  - inspection_debugging.run-detail-inspection-tabs
+  - inspection_debugging.run-progress-and-checkpoints
+  - inspection_debugging.synonym-overlay-inspection
+  - inspection_debugging.run-owned-artifact-exports
+  - inspection_debugging.stage-artifact-downloads
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.prompt-provenance-diagnostics
+  - inspection_debugging.ranking-diagnostics
+  - inspection_debugging.shortlist-diagnostics
+  - inspection_debugging.cv-analysis-diagnostics
+  - inspection_debugging.cv-generation-diagnostics
+  - inspection_debugging.reuse-diagnostics
+  - inspection_debugging.quality-metrics-diagnostics
+  - inspection_debugging.enriched-job-debug-export
+  - inspection_debugging.rule-filter-diagnostics
 - stage_id: ranking
   role: supporting
-  capability_ids: *id001
+  capability_ids:
+  - inspection_debugging.run-detail-inspection-tabs
+  - inspection_debugging.run-progress-and-checkpoints
+  - inspection_debugging.synonym-overlay-inspection
+  - inspection_debugging.run-owned-artifact-exports
+  - inspection_debugging.stage-artifact-downloads
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.prompt-provenance-diagnostics
+  - inspection_debugging.ranking-diagnostics
+  - inspection_debugging.shortlist-diagnostics
+  - inspection_debugging.cv-analysis-diagnostics
+  - inspection_debugging.cv-generation-diagnostics
+  - inspection_debugging.reuse-diagnostics
+  - inspection_debugging.quality-metrics-diagnostics
+  - inspection_debugging.enriched-job-debug-export
+  - inspection_debugging.rule-filter-diagnostics
 - stage_id: cv_analysis
   role: supporting
-  capability_ids: *id001
+  capability_ids:
+  - inspection_debugging.run-detail-inspection-tabs
+  - inspection_debugging.run-progress-and-checkpoints
+  - inspection_debugging.synonym-overlay-inspection
+  - inspection_debugging.run-owned-artifact-exports
+  - inspection_debugging.stage-artifact-downloads
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.prompt-provenance-diagnostics
+  - inspection_debugging.ranking-diagnostics
+  - inspection_debugging.shortlist-diagnostics
+  - inspection_debugging.cv-analysis-diagnostics
+  - inspection_debugging.cv-generation-diagnostics
+  - inspection_debugging.reuse-diagnostics
+  - inspection_debugging.quality-metrics-diagnostics
+  - inspection_debugging.enriched-job-debug-export
+  - inspection_debugging.rule-filter-diagnostics
