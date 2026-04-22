@@ -31,9 +31,11 @@ lifecycle:
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 
 
 def repo_root(default_root: Path | None = None) -> Path:
@@ -42,16 +44,69 @@ def repo_root(default_root: Path | None = None) -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+def pytest_basetemp(default_relative: str) -> str:
+    override = os.environ.get("REPO_VALIDATOR_PYTEST_BASETEMP")
+    if override:
+        return override
+    normalized = default_relative.replace("/", "-").replace("\\", "-").strip(".-")
+    return str(Path(tempfile.gettempdir()) / f"codex-{normalized}-{os.getpid()}")
+
+
+def venv_site_packages(root: Path) -> Path | None:
+    site_packages = root / ".venv" / "Lib" / "site-packages"
+    if site_packages.exists():
+        return site_packages
+    return None
+
+
+def resolve_python_executable(root: Path) -> str:
+    pyvenv_cfg = root / ".venv" / "pyvenv.cfg"
+    if pyvenv_cfg.exists():
+        for line in pyvenv_cfg.read_text(encoding="utf-8").splitlines():
+            if not line.startswith("home = "):
+                continue
+            home = line.split("=", 1)[1].strip()
+            candidate = Path(home) / "python.exe"
+            if candidate.exists():
+                return str(candidate)
+    return sys.executable
+
+
 def build_steps(*, root: Path, check_only: bool, python_executable: str) -> list[list[str]]:
     generator = str(root / "tools" / "docs" / "generate_architecture_metadata.py")
-    validator = str(root / "scripts" / "validate_adoption_shape.py")
+    awareness_audit = str(root / "scripts" / "audit_architecture_linkage.py")
+    formatter = str(root / "scripts" / "format_contract_yaml.py")
+    adoption_validator = str(root / "scripts" / "validate_adoption_shape.py")
     steps: list[list[str]] = []
     if not check_only:
         steps.append([python_executable, generator, "--repo-root", str(root)])
     steps.extend(
         [
-            [python_executable, validator, "--repo-root", str(root)],
+            [python_executable, adoption_validator, "--repo-root", str(root)],
+            [python_executable, generator, "--repo-root", str(root), "--validate-only"],
             [python_executable, generator, "--repo-root", str(root), "--check"],
+            [
+                python_executable,
+                awareness_audit,
+                "--repo-root",
+                str(root),
+                "--strict-awareness",
+                "--report-awareness",
+            ],
+            [python_executable, formatter, "--check"],
+            [
+                python_executable,
+                "-m",
+                "pytest",
+                "--basetemp",
+                pytest_basetemp(".tmp-tests/architecture-pytest"),
+                "tests/test_architecture_metadata_generation.py",
+                "tests/test_architecture_linkage_audit.py",
+                "tests/test_format_contract_yaml.py",
+                "tests/test_validate_adoption_shape.py",
+                "tests/test_setup_hooks.py",
+                "-q",
+            ],
         ]
     )
     return steps
@@ -60,7 +115,16 @@ def build_steps(*, root: Path, check_only: bool, python_executable: str) -> list
 def run_step(command: list[str], *, cwd: Path) -> int:
     rendered = " ".join(command)
     print(f"> {rendered}")
-    completed = subprocess.run(command, cwd=cwd, check=False)
+    env = os.environ.copy()
+    site_packages = venv_site_packages(cwd)
+    if site_packages is not None and command and command[0].lower().endswith("python.exe"):
+        existing = env.get("PYTHONPATH")
+        env["PYTHONPATH"] = (
+            str(site_packages)
+            if not existing
+            else os.pathsep.join([str(site_packages), existing])
+        )
+    completed = subprocess.run(command, cwd=cwd, check=False, env=env)
     return completed.returncode
 
 
@@ -85,7 +149,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     root = repo_root(args.repo_root).resolve()
-    for step in build_steps(root=root, check_only=args.check, python_executable=sys.executable):
+    python_executable = resolve_python_executable(root)
+    for step in build_steps(root=root, check_only=args.check, python_executable=python_executable):
         status = run_step(step, cwd=root)
         if status != 0:
             return status

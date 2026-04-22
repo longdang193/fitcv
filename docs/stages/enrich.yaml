@@ -1,3 +1,4 @@
+# GENERATED FILE - do not edit directly.
 enrich:
   name: Enrich
   summary: Filter normalized jobs through pre-enrichment global checks, then enrich surviving jobs into a shared downstream contract where required/preferred skills keep raw phrases, canonical skill entities, and reuse provenance when unchanged jobs can safely skip a fresh LLM call.

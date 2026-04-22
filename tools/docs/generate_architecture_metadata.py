@@ -116,6 +116,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Report stale generated files instead of writing them.",
     )
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate source inputs and renderability without writing or checking generated outputs.",
+    )
     return parser.parse_args(argv)
 
 
@@ -859,7 +864,7 @@ def render_stage_outputs(source_path: Path) -> list[RenderedFile]:
     return [
         RenderedFile(
             path=generated_stage_contract_path(source_path),
-            content=dump_yaml({stage_id: stage_body}),
+            content=GENERATED_HEADER + dump_yaml({stage_id: stage_body}),
         )
     ]
 
@@ -1015,6 +1020,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     repo_root = args.repo_root.resolve()
     rendered_files = collect_rendered_files(repo_root)
+    if args.validate_only:
+        print("Architecture metadata inputs validated.")
+        return 0
     if args.check:
         stale = stale_outputs(rendered_files)
         if stale:

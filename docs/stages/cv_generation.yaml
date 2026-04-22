@@ -1,3 +1,4 @@
+# GENERATED FILE - do not edit directly.
 cv_generation:
   name: CV Generation
   summary: Convert generation-ready CV-analysis records into accepted or rejected CV artifacts through structured prompt-driven writing, hybrid analysis-grounded validation, repair, and persistence without recomputing analysis or reselecting evidence by default, while emitting stage-owned accepted and validation-failure quality metrics for bottleneck diagnosis.

@@ -1,3 +1,4 @@
+# GENERATED FILE - do not edit directly.
 cv_analysis:
   name: CV Analysis
   summary: 'Prepare ranked jobs for writing by merging enriched context, retrieving and scoring candidate evidence across required-skill, role, domain, and responsibility channels, selecting one bounded final evidence bundle, computing grounded gap summaries, and resolving the fit gate that determines whether `cv_generation` should run.
