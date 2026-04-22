@@ -16,6 +16,10 @@ outputs:
 capabilities:
   - pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
   - pipeline_performance.fallback-path-for-unparseable-responses
+  - pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
+  - pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
+  - pipeline_performance.canonical-skill-companion-lists-and-entity-payloads-for-required-preferred-skills
+  - pipeline_performance.enrich-stage-mapping-suggestion-capture-for-review-debug-surfaces
   - pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
   - pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes
   - pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table

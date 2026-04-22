@@ -30,6 +30,15 @@ capabilities:
   - inspection_debugging.quality-metrics-diagnostics
   - inspection_debugging.enriched-job-debug-export
   - inspection_debugging.rule-filter-diagnostics
+  - settings_system.run-safety-settings
+  - settings_system.task-first-settings-ui
+  - settings_system.advanced-settings-disclosure
+  - settings_system.metadata-only-fixed-controls
+  - settings_system.compact-cv-visibility-controls
+  - settings_system.cv-composition-visibility-settings
+  - settings_system.warning-only-cv-max-pages-validation-setting
+  - settings_system.grouped-form-validation
+  - settings_system.per-run-overrides
   - trigger_run_management.runs-list-management
   - trigger_run_management.run-detail-actions
   - trigger_run_management.job-input-modes

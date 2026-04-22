@@ -122,6 +122,9 @@ Phase 7 direct-evidence pilot rules:
   `inspection_debugging` capabilities and also treats noisy source-level YAML
   anchors in human-owned feature sources as readability drift to clean up during
   targeted evidence batches
+- Phase 10 closes the residual `settings_system` and `pipeline_performance`
+  pilot set by mapping UI/schema/config/runtime settings controls and stage
+  performance behavior to direct code and proof evidence
 - pilot capability-to-file mappings should stay sparse and materially true
 - pilot proof should use truthful `@proves <capability_id>` only in tests that
   actually verify the named behavior

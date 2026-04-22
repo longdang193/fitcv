@@ -5068,6 +5068,7 @@ def test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependenci
     mock_retrieve_evidence: MagicMock,
     mock_gap: MagicMock,
 ) -> None:
+    """@proves pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis"""
     from fitcv.pipeline import run_pipeline
 
     job = {

@@ -149,7 +149,10 @@ def test_post_settings_key_rejects_unknown_key():
 
 
 def test_post_runs_with_config_overrides():
-    """POST /runs with per-run overrides snapshot effective settings."""
+    """@proves settings_system.per-run-overrides
+
+    POST /runs with per-run overrides snapshot effective settings.
+    """
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run"), \
          patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
@@ -167,6 +170,7 @@ def test_post_runs_with_config_overrides():
 
 
 def test_post_runs_rejects_invalid_config_overrides():
+    """@proves settings_system.per-run-overrides"""
     resp = TestClient(_app()).post("/runs", json={
         "jobs_path": "data/sample_jobs.json",
         "config_overrides": {"pipeline.final_top_n": 0},  # violates >= 1
@@ -1262,6 +1266,7 @@ def test_download_stage_transition_artifacts_json_endpoint_404_if_snapshot_missi
 
 
 def test_download_mapping_suggestions_json_endpoint_200() -> None:
+    """@proves pipeline_performance.enrich-stage-mapping-suggestion-capture-for-review-debug-surfaces"""
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -2143,7 +2148,10 @@ def test_grouped_save_weights_error_preserved_in_response():
 
 
 def test_grouped_save_fit_label_thresholds_valid():
-    """strong > stretch → 303 redirect; 2 keys saved."""
+    """@proves settings_system.preference-fit-calibration
+
+    strong > stretch -> 303 redirect; 2 keys saved.
+    """
     with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app(), follow_redirects=False).post(
@@ -2158,7 +2166,10 @@ def test_grouped_save_fit_label_thresholds_valid():
 
 
 def test_grouped_save_fit_label_thresholds_invalid_order():
-    """stretch > strong → 422; no write."""
+    """@proves settings_system.grouped-form-validation
+
+    stretch > strong -> 422; no write.
+    """
     with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).post(
@@ -2758,6 +2769,7 @@ def test_runs_list_jobs_path_is_truncated_with_full_title():
 
 
 def test_settings_page_renders_run_lifecycle_section() -> None:
+    """@proves settings_system.run-safety-settings"""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
@@ -3927,7 +3939,10 @@ def test_get_settings_page_includes_cv_groups():
 # ── CV settings page rendering ────────────────────────────────────────────────
 
 def test_settings_page_renders_task_first_sections():
-    """Settings page is organized around operator tasks, not only raw schema buckets."""
+    """@proves settings_system.task-first-settings-ui
+
+    Settings page is organized around operator tasks, not only raw schema buckets.
+    """
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
@@ -3940,7 +3955,10 @@ def test_settings_page_renders_task_first_sections():
 
 
 def test_settings_page_renders_cv_sub_cards():
-    """CV Output keeps the meaningful output-focused sub-surfaces."""
+    """@proves settings_system.compact-cv-visibility-controls
+
+    CV Output keeps the meaningful output-focused sub-surfaces.
+    """
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
@@ -3952,7 +3970,10 @@ def test_settings_page_renders_cv_sub_cards():
 
 
 def test_settings_page_renders_single_option_controls_as_metadata():
-    """Single-option pseudo-choice controls are shown as metadata, not editable inputs."""
+    """@proves settings_system.metadata-only-fixed-controls
+
+    Single-option pseudo-choice controls are shown as metadata, not editable inputs.
+    """
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
@@ -3967,6 +3988,7 @@ def test_settings_page_renders_single_option_controls_as_metadata():
 
 
 def test_settings_page_uses_advanced_disclosure_for_expert_controls() -> None:
+    """@proves settings_system.advanced-settings-disclosure"""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
@@ -4006,7 +4028,10 @@ def test_settings_page_cv_sections_no_raw_yaml():
 
 
 def test_settings_page_cv_max_pages_is_numeric_input():
-    """cv_max_pages renders as a numeric input."""
+    """@proves settings_system.warning-only-cv-max-pages-validation-setting
+
+    cv_max_pages renders as a numeric input.
+    """
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
@@ -4036,7 +4061,10 @@ def test_settings_page_renders_cv_composition_section():
 
 
 def test_settings_page_renders_cv_visibility_matrix() -> None:
-    """Composition settings render in a denser visibility matrix."""
+    """@proves settings_system.cv-composition-visibility-settings
+
+    Composition settings render in a denser visibility matrix.
+    """
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
@@ -4079,6 +4107,7 @@ def test_settings_page_renders_cv_model_as_select_with_supported_options() -> No
 
 
 def test_settings_page_uses_shared_cv_setting_row_class_across_blocks() -> None:
+    """@proves settings_system.compact-cv-visibility-controls"""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
@@ -4392,7 +4421,10 @@ def test_grouped_save_cv_preset_invalid_does_not_partial_save():
 
 
 def test_grouped_save_cv_composition_invalid_does_not_partial_save():
-    """Invalid cv_composition → 422; no partial write of any field."""
+    """@proves settings_system.grouped-form-validation
+
+    Invalid cv_composition -> 422; no partial write of any field.
+    """
     with patch("fitcv_cp.app.save_settings_group") as mock_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).post(
