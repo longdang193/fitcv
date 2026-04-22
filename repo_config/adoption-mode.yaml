@@ -3,7 +3,7 @@ managed_architecture_metadata: true
 legacy_feature_contracts: false
 architecture_generator: scripts/sync_architecture_docs.py
 starter_sync:
-  starter_baseline_ref: 814e1a063541e79e6ca6e09268bfc5b81df057f2
+  starter_baseline_ref: f03977b279e714d00e04cef8a686b8ae67d8208a
   last_shared_surface_review_at: 2026-04-22
   reviewed_surface_classes:
     - repo_config
@@ -45,5 +45,6 @@ notes: >
   JOB-PROJECT is aligning toward the project-OS-starter managed architecture
   metadata model. Managed features and stages now use source-owned lifecycle
   files plus generated contracts and discovery, uses explicit underscore
-  feature-ID policy plus structured capability IDs, and now expects richer
-  lineage plus CI-backed architecture validation.
+  feature-ID policy plus curated structured capability IDs, and now expects
+  selective file-level metadata, richer lineage, and CI-backed architecture
+  validation.

@@ -28,5 +28,15 @@
     "source": "agent-core/adapters/codex/rules/publication-boundary.rules",
     "destination": "codex/rules/publication-boundary.rules",
     "prefix": "#"
+  },
+  {
+    "source": "agent-core/adapters/codex/rules/python-contracts.rules",
+    "destination": "codex/rules/python-contracts.rules",
+    "prefix": "#"
+  },
+  {
+    "source": "agent-core/adapters/codex/rules/doc-contracts.rules",
+    "destination": "codex/rules/doc-contracts.rules",
+    "prefix": "#"
   }
 ]
