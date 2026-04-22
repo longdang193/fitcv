@@ -15,13 +15,8 @@ outputs:
   - docs/features/*/<feature_id>.yaml
   - docs/features/*/lineage.generated.yaml
   - docs/stages/<stage_id>.yaml
-  - docs/generated/features_index.yaml
-  - docs/generated/feature_dependency_graph.yaml
-  - docs/generated/feature_capabilities_index.yaml
-  - docs/generated/feature_overview.md
-  - docs/generated/features_by_status.yaml
-  - docs/generated/stages_index.yaml
-  - docs/generated/stage_overview.md
+  - docs/generated/architecture_dag.yaml
+  - docs/generated/capability_lineage.yaml
 tags:
   - docs
   - architecture
@@ -33,6 +28,7 @@ lifecycle:
 from __future__ import annotations
 
 import argparse
+import ast
 from pathlib import Path
 import re
 from typing import Any, NamedTuple, cast
@@ -41,28 +37,22 @@ import yaml
 
 
 GENERATED_HEADER = "# GENERATED FILE - do not edit directly.\n"
-FEATURES_INDEX_HEADER = GENERATED_HEADER + (
-    "# Source: docs/features/*/feature.source.yaml and docs/features/*/<feature_id>.yaml\n"
-    "# Regenerate with scripts/sync_architecture_docs.py\n"
-)
-STAGES_INDEX_HEADER = GENERATED_HEADER + (
-    "# Source: docs/stages/*.source.yaml and docs/stages/*.yaml\n"
-    "# Regenerate with scripts/sync_architecture_docs.py\n"
-)
-FEATURE_OVERVIEW_HEADER = """# Feature Overview
-
-> Generated - do not edit manually. Source: `docs/features/*/feature.source.yaml`
-"""
-STAGE_OVERVIEW_HEADER = """# Stage Overview
-
-> Generated - do not edit manually. Source: `docs/stages/*.source.yaml`
-"""
 STATUS_ORDER = ["active", "building", "planned", "deprecated", "retired"]
 PYTHON_META_PATTERN = re.compile(r"^[ \t]*(?:[rubf]+)?([\"']{3})(.*?)(?:\1)", re.DOTALL | re.IGNORECASE)
 TEMPLATE_ARCHITECTURE_PATTERN = re.compile(r"\{#\s*@architecture(?P<body>.*?)#\}", re.DOTALL)
 HTML_ARCHITECTURE_PATTERN = re.compile(r"<!--\s*@architecture(?P<body>.*?)-->", re.DOTALL)
 FEATURE_PATH_PATTERN = re.compile(r"docs/features/([a-z][a-z0-9_]*)/")
 PROVES_PATTERN = re.compile(r"@proves\s+([a-z][a-z0-9_]*\.[a-z0-9]+(?:-[a-z0-9]+)*)")
+CAPABILITY_PATTERN = re.compile(r"@capability\s+([a-z][a-z0-9_]*\.[a-z0-9]+(?:-[a-z0-9]+)*)")
+LEGACY_GENERATED_DISCOVERY_FILES = (
+    "docs/generated/features_index.yaml",
+    "docs/generated/feature_dependency_graph.yaml",
+    "docs/generated/feature_capabilities_index.yaml",
+    "docs/generated/feature_overview.md",
+    "docs/generated/features_by_status.yaml",
+    "docs/generated/stages_index.yaml",
+    "docs/generated/stage_overview.md",
+)
 
 
 class RenderedFile(NamedTuple):
@@ -121,6 +111,17 @@ def relpath(path: Path, root: Path) -> str:
 
 def normalize_text(content: str) -> str:
     return content.replace("\r\n", "\n").rstrip() + "\n"
+
+
+def normalize_prose(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    lines = [line.rstrip() for line in value.replace("\r\n", "\n").split("\n")]
+    while lines and not lines[0]:
+        lines.pop(0)
+    while lines and not lines[-1]:
+        lines.pop()
+    return "\n".join(lines)
 
 
 def read_text(path: Path) -> str:
@@ -217,6 +218,23 @@ def parse_python_meta(path: Path) -> dict[str, object]:
     return cast(dict[str, object], payload) if isinstance(payload, dict) else {}
 
 
+def parse_python_function_capabilities(path: Path) -> list[str]:
+    try:
+        tree = ast.parse(read_text(path), filename=str(path))
+    except SyntaxError:
+        return []
+
+    capability_ids: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        docstring = ast.get_docstring(node, clean=False)
+        if not docstring:
+            continue
+        capability_ids.update(CAPABILITY_PATTERN.findall(docstring))
+    return sorted(capability_ids)
+
+
 def parse_markdown_frontmatter(path: Path) -> dict[str, object]:
     content = read_text(path)
     if not content.startswith("---\n"):
@@ -282,7 +300,8 @@ def sorted_unique(paths: list[str]) -> list[str]:
 
 
 def build_evidence_index(repo_root: Path) -> EvidenceIndex:
-    code_by_capability: dict[str, list[str]] = {}
+    function_code_by_capability: dict[str, list[str]] = {}
+    file_code_by_capability: dict[str, list[str]] = {}
     tests_by_capability: dict[str, list[str]] = {}
     configs_by_capability: dict[str, list[str]] = {}
     components_by_capability: dict[str, list[str]] = {}
@@ -294,14 +313,22 @@ def build_evidence_index(repo_root: Path) -> EvidenceIndex:
         relative = relpath(path, repo_root)
         meta = parse_python_meta(path)
         capability_ids = metadata_capability_ids(meta)
+        function_capability_ids = parse_python_function_capabilities(path)
         bucket = path_bucket(relative)
+        for capability_id in function_capability_ids:
+            if bucket == "tests":
+                tests_by_capability.setdefault(capability_id, []).append(relative)
+            elif bucket == "configs":
+                configs_by_capability.setdefault(capability_id, []).append(relative)
+            else:
+                function_code_by_capability.setdefault(capability_id, []).append(relative)
         for capability_id in capability_ids:
             if bucket == "tests":
                 tests_by_capability.setdefault(capability_id, []).append(relative)
             elif bucket == "configs":
                 configs_by_capability.setdefault(capability_id, []).append(relative)
             else:
-                code_by_capability.setdefault(capability_id, []).append(relative)
+                file_code_by_capability.setdefault(capability_id, []).append(relative)
         if bucket == "tests":
             for capability_id in PROVES_PATTERN.findall(read_text(path)):
                 tests_by_capability.setdefault(capability_id, []).append(relative)
@@ -311,7 +338,7 @@ def build_evidence_index(repo_root: Path) -> EvidenceIndex:
         meta = parse_template_architecture(path)
         capability_ids = metadata_capability_ids(meta)
         for capability_id in capability_ids:
-            code_by_capability.setdefault(capability_id, []).append(relative)
+            file_code_by_capability.setdefault(capability_id, []).append(relative)
 
     for path in markdown_source_paths(repo_root):
         relative = relpath(path, repo_root)
@@ -332,7 +359,10 @@ def build_evidence_index(repo_root: Path) -> EvidenceIndex:
         docs_by_feature.setdefault(feature_id, []).append(relpath(history_path, repo_root))
 
     return EvidenceIndex(
-        code_by_capability={key: sorted_unique(value) for key, value in code_by_capability.items()},
+        code_by_capability={
+            key: sorted_unique(function_code_by_capability.get(key, file_code_by_capability.get(key, [])))
+            for key in sorted(set(function_code_by_capability) | set(file_code_by_capability))
+        },
         tests_by_capability={key: sorted_unique(value) for key, value in tests_by_capability.items()},
         configs_by_capability={key: sorted_unique(value) for key, value in configs_by_capability.items()},
         components_by_capability={key: sorted_unique(value) for key, value in components_by_capability.items()},
@@ -365,7 +395,7 @@ def normalize_capability(
         raise ValueError(f"{feature_id} capability entry {position + 1} is missing state.")
     return {
         "capability_id": capability_id,
-        "statement": statement,
+        "statement": normalize_prose(statement),
         "state": state,
     }
 
@@ -380,7 +410,7 @@ def normalize_invariant(invariant: object, position: int) -> dict[str, object]:
     payload = cast(dict[str, object], invariant)
     return {
         "invariant_id": cast(str, payload.get("invariant_id", f"invariant-{position + 1}")),
-        "statement": cast(str, payload.get("statement", payload.get("summary", ""))),
+        "statement": normalize_prose(payload.get("statement", payload.get("summary", ""))),
         "state": cast(str, payload.get("state", "active")),
     }
 
@@ -435,7 +465,7 @@ def contract_payload(feature_id: str, source: dict[str, object], evidence_index:
         "name": source.get("name", feature_id.replace("_", " ").title()),
         "status": source.get("status", "unknown"),
         "type": source.get("type", "unknown"),
-        "summary": source.get("summary", ""),
+        "summary": normalize_prose(source.get("summary", "")),
         "invariants": [
             normalize_invariant(invariant, index)
             for index, invariant in enumerate(cast(list[object], source.get("invariants", [])))
@@ -570,135 +600,90 @@ def stage_records(repo_root: Path) -> list[tuple[str, dict[str, object]]]:
     return sorted(records, key=lambda item: item[0])
 
 
-def build_features_index(repo_root: Path) -> RenderedFile:
-    entries = []
+def build_architecture_dag(repo_root: Path) -> RenderedFile:
+    nodes: list[dict[str, object]] = []
+    edges: list[dict[str, object]] = []
+
     for feature_id, source in feature_records(repo_root):
-        entries.append(
+        nodes.append(
             {
-                "feature_id": feature_id,
+                "id": feature_id,
+                "kind": "feature",
+                "name": source.get("name", feature_id.replace("_", " ").title()),
+                "path": f"docs/features/{feature_id}/{feature_id}.yaml",
                 "status": source.get("status", "unknown"),
-                "type": source.get("type", "unknown"),
-                "domains": source.get("domains", []),
-                "contract": f"docs/features/{feature_id}/{feature_id}.yaml",
-                "history": f"docs/features/{feature_id}/history.md",
             }
         )
-    return RenderedFile(
-        repo_root / "docs" / "generated" / "features_index.yaml",
-        FEATURES_INDEX_HEADER + "\n\n" + dump_yaml({"features": entries}),
-    )
-
-
-def build_feature_dependency_graph(repo_root: Path) -> RenderedFile:
-    graph: dict[str, dict[str, list[str]]] = {}
-    for feature_id, source in feature_records(repo_root):
-        graph[feature_id] = {
-            "depends_on": sorted(cast(list[str], source.get("depends_on", []))),
-            "used_by": [],
-        }
-    for feature_id, payload in graph.items():
-        for dependency in payload["depends_on"]:
-            if dependency in graph:
-                graph[dependency]["used_by"].append(feature_id)
-    for payload in graph.values():
-        payload["used_by"].sort()
-    return RenderedFile(
-        repo_root / "docs" / "generated" / "feature_dependency_graph.yaml",
-        dump_yaml({"graph": graph}),
-    )
-
-
-def build_feature_capabilities_index(repo_root: Path) -> RenderedFile:
-    entries = []
-    for feature_id, source in feature_records(repo_root):
+        for dependency in sorted(cast(list[str], source.get("depends_on", []))):
+            edges.append({"from": feature_id, "to": dependency, "type": "depends_on"})
         for index, raw_capability in enumerate(cast(list[object], source.get("capabilities", []))):
             capability = normalize_capability(feature_id, raw_capability, index)
-            entries.append(
+            capability_id = cast(str, capability["capability_id"])
+            nodes.append(
                 {
+                    "id": capability_id,
+                    "kind": "capability",
                     "feature_id": feature_id,
-                    "capability_id": capability["capability_id"],
-                    "statement": capability["statement"],
                     "state": capability["state"],
+                    "path": f"docs/features/{feature_id}/lineage.generated.yaml",
                 }
             )
-    entries.sort(key=lambda entry: (cast(str, entry["feature_id"]), cast(str, entry["capability_id"])))
-    return RenderedFile(
-        repo_root / "docs" / "generated" / "feature_capabilities_index.yaml",
-        dump_yaml({"capabilities": entries}),
-    )
-
-
-def build_features_by_status(repo_root: Path) -> RenderedFile:
-    grouped: dict[str, list[str]] = {status: [] for status in STATUS_ORDER}
-    for feature_id, source in feature_records(repo_root):
-        status = cast(str, source.get("status", "unknown"))
-        grouped.setdefault(status, []).append(feature_id)
-    for feature_ids in grouped.values():
-        feature_ids.sort()
-    return RenderedFile(
-        repo_root / "docs" / "generated" / "features_by_status.yaml",
-        dump_yaml(grouped),
-    )
-
-
-def build_feature_overview(repo_root: Path) -> RenderedFile:
-    grouped: dict[str, list[tuple[str, dict[str, object]]]] = {}
-    for feature_id, source in feature_records(repo_root):
-        status = cast(str, source.get("status", "unknown"))
-        grouped.setdefault(status, []).append((feature_id, source))
-
-    lines = [FEATURE_OVERVIEW_HEADER]
-    for status in STATUS_ORDER:
-        records = grouped.get(status, [])
-        if not records:
-            continue
-        lines.extend(
-            [
-                "",
-                f"## {status.title()}",
-                "",
-                "| Feature | Type | Summary |",
-                "|---|---|---|",
-            ]
-        )
-        for feature_id, source in records:
-            lines.append(
-                f"| `{feature_id}` | {source.get('type', 'unknown')} | {source.get('summary', '')} |"
+            edges.append({"from": feature_id, "to": capability_id, "type": "owns_capability"})
+        for entry in normalize_stage_participation(source, []):
+            stage_id = cast(str, entry.get("stage_id", ""))
+            if not stage_id:
+                continue
+            edges.append(
+                {
+                    "from": feature_id,
+                    "to": stage_id,
+                    "type": "participates_in",
+                    "role": entry.get("role", "supporting"),
+                    "capability_ids": entry.get("capability_ids", []),
+                }
             )
-    return RenderedFile(repo_root / "docs" / "generated" / "feature_overview.md", "\n".join(lines) + "\n")
 
-
-def build_stages_index(repo_root: Path) -> RenderedFile:
-    entries = []
     for stage_id, body in stage_records(repo_root):
-        entries.append(
+        nodes.append(
             {
-                "stage_id": stage_id,
+                "id": stage_id,
+                "kind": "stage",
                 "name": body.get("name", stage_id.replace("_", " ").title()),
-                "depends_on": body.get("depends_on", []),
-                "primary_features": body.get("primary_features", []),
-                "related_features": body.get("related_features", []),
-                "contract": f"docs/stages/{stage_id}.yaml",
+                "path": f"docs/stages/{stage_id}.yaml",
             }
         )
+        for dependency in sorted(cast(list[str], body.get("depends_on", []))):
+            edges.append({"from": stage_id, "to": dependency, "type": "depends_on"})
+        for feature_id in sorted(cast(list[str], body.get("primary_features", []))):
+            edges.append({"from": stage_id, "to": feature_id, "type": "primary_feature"})
+        for feature_id in sorted(cast(list[str], body.get("related_features", []))):
+            edges.append({"from": stage_id, "to": feature_id, "type": "related_feature"})
+
+    nodes.sort(key=lambda item: (cast(str, item["kind"]), cast(str, item["id"])))
+    edges.sort(key=lambda item: (cast(str, item["from"]), cast(str, item["type"]), cast(str, item["to"])))
     return RenderedFile(
-        repo_root / "docs" / "generated" / "stages_index.yaml",
-        STAGES_INDEX_HEADER + "\n\n" + dump_yaml({"stages": entries}),
+        repo_root / "docs" / "generated" / "architecture_dag.yaml",
+        GENERATED_HEADER + dump_yaml({"nodes": nodes, "edges": edges}),
     )
 
 
-def build_stage_overview(repo_root: Path) -> RenderedFile:
-    lines = [
-        STAGE_OVERVIEW_HEADER,
-        "",
-        "| Stage | Depends On | Primary Features | Summary |",
-        "|---|---|---|---|",
-    ]
-    for stage_id, body in stage_records(repo_root):
-        depends_display = ", ".join(f"`{value}`" for value in cast(list[str], body.get("depends_on", []))) or "—"
-        feature_display = ", ".join(f"`{value}`" for value in cast(list[str], body.get("primary_features", []))) or "—"
-        lines.append(f"| `{stage_id}` | {depends_display} | {feature_display} | {body.get('summary', '')} |")
-    return RenderedFile(repo_root / "docs" / "generated" / "stage_overview.md", "\n".join(lines) + "\n")
+def build_capability_lineage(repo_root: Path) -> RenderedFile:
+    evidence_index = build_evidence_index(repo_root)
+    features: dict[str, dict[str, object]] = {}
+    for source_path in feature_source_paths(repo_root):
+        source = load_feature_source(source_path)
+        feature_id = cast(str, source["feature_id"])
+        lineage = lineage_payload(feature_id, source, evidence_index)
+        features[feature_id] = {
+            "summary": normalize_prose(source.get("summary", "")),
+            "status": source.get("status", "unknown"),
+            "type": source.get("type", "unknown"),
+            "capabilities": lineage["capabilities"],
+        }
+    return RenderedFile(
+        repo_root / "docs" / "generated" / "capability_lineage.yaml",
+        GENERATED_HEADER + dump_yaml({"features": features}),
+    )
 
 
 def collect_rendered_files(repo_root: Path) -> list[RenderedFile]:
@@ -710,19 +695,19 @@ def collect_rendered_files(repo_root: Path) -> list[RenderedFile]:
         rendered.extend(render_stage_outputs(source_path))
     rendered.extend(
         [
-            build_features_index(repo_root),
-            build_feature_dependency_graph(repo_root),
-            build_feature_capabilities_index(repo_root),
-            build_feature_overview(repo_root),
-            build_features_by_status(repo_root),
-            build_stages_index(repo_root),
-            build_stage_overview(repo_root),
+            build_architecture_dag(repo_root),
+            build_capability_lineage(repo_root),
         ]
     )
     return rendered
 
 
 def write_rendered_files(rendered_files: list[RenderedFile]) -> None:
+    repo_root = rendered_files[0].path.parents[3] if rendered_files else Path.cwd()
+    for relative_path in LEGACY_GENERATED_DISCOVERY_FILES:
+        legacy_path = repo_root / relative_path
+        if legacy_path.exists():
+            legacy_path.unlink()
     for rendered in rendered_files:
         rendered.path.parent.mkdir(parents=True, exist_ok=True)
         rendered.path.write_text(normalize_text(rendered.content), encoding="utf-8")
@@ -730,6 +715,7 @@ def write_rendered_files(rendered_files: list[RenderedFile]) -> None:
 
 def stale_outputs(rendered_files: list[RenderedFile]) -> list[Path]:
     stale: list[Path] = []
+    repo_root = rendered_files[0].path.parents[3] if rendered_files else Path.cwd()
     for rendered in rendered_files:
         expected = normalize_text(rendered.content)
         if not rendered.path.exists():
@@ -738,6 +724,10 @@ def stale_outputs(rendered_files: list[RenderedFile]) -> list[Path]:
         actual = normalize_text(rendered.path.read_text(encoding="utf-8"))
         if actual != expected:
             stale.append(rendered.path)
+    for relative_path in LEGACY_GENERATED_DISCOVERY_FILES:
+        legacy_path = repo_root / relative_path
+        if legacy_path.exists():
+            stale.append(legacy_path)
     return stale
 
 

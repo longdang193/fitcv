@@ -33,3 +33,4 @@ capabilities:
 - capability_id: ui_consistency_theming.responsive-wrapping
   statement: Responsive wrapping
   state: active
+stage_participation: []

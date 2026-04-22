@@ -159,8 +159,10 @@ Operational invariants:
   Runtime architecture plus the source/generated Mode B doc shape.
 - [usage.md](docs/usage.md)
   Operator and engineering workflow entry points.
-- [stage_overview.md](docs/generated/stage_overview.md)
-  Summary of active pipeline stage contracts.
+- [architecture_dag.yaml](docs/generated/architecture_dag.yaml)
+  Canonical generated topology across managed features, stages, and capability ownership.
+- [capability_lineage.yaml](docs/generated/capability_lineage.yaml)
+  Canonical generated summary of repo-wide capability evidence and completeness.
 
 ## Source Layout
 

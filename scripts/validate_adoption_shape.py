@@ -27,6 +27,7 @@ lifecycle:
 from __future__ import annotations
 
 import argparse
+import ast
 import importlib.util
 from pathlib import Path
 import re
@@ -73,6 +74,21 @@ FORBIDDEN_LINEAGE_KEYS = {
 }
 LINEAGE_ALIAS_PATTERN = re.compile(r"(^|\s)[&*]id\d+\b", re.MULTILINE)
 LINEAGE_EVIDENCE_FIELDS = ("code", "tests", "docs", "specs", "plans", "configs", "components")
+CAPABILITY_PATTERN = re.compile(r"@capability\s+(\S+)")
+VALID_CAPABILITY_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*\.[a-z0-9]+(?:-[a-z0-9]+)*$")
+REQUIRED_GENERATED_DISCOVERY_FILES = (
+    "docs/generated/architecture_dag.yaml",
+    "docs/generated/capability_lineage.yaml",
+)
+LEGACY_GENERATED_DISCOVERY_FILES = (
+    "docs/generated/features_index.yaml",
+    "docs/generated/feature_dependency_graph.yaml",
+    "docs/generated/feature_capabilities_index.yaml",
+    "docs/generated/feature_overview.md",
+    "docs/generated/features_by_status.yaml",
+    "docs/generated/stages_index.yaml",
+    "docs/generated/stage_overview.md",
+)
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -114,6 +130,28 @@ def has_meta_docstring(path: Path) -> bool:
         or stripped.startswith('"""')
         or stripped.startswith("'''")
     )
+
+
+def function_capability_markers(path: Path) -> list[tuple[int, str | None]]:
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    except SyntaxError:
+        return []
+
+    markers: list[tuple[int, str | None]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        docstring = ast.get_docstring(node, clean=False)
+        if not docstring or "@capability" not in docstring:
+            continue
+        matches = CAPABILITY_PATTERN.findall(docstring)
+        if matches:
+            for capability_id in matches:
+                markers.append((node.lineno, capability_id))
+        else:
+            markers.append((node.lineno, None))
+    return markers
 
 
 def collect_capability_ids(repo_root: Path) -> set[str]:
@@ -185,6 +223,21 @@ def validate_python_file_metadata(repo_root: Path) -> list[str]:
                 errors.append(
                     f"Unknown @proves capability ID in {relpath(path, repo_root)}: {capability_id}"
                 )
+        for line_number, capability_id in function_capability_markers(path):
+            if capability_id is None:
+                errors.append(
+                    f"Malformed @capability marker in {relpath(path, repo_root)}:{line_number}"
+                )
+                continue
+            if not VALID_CAPABILITY_ID_PATTERN.fullmatch(capability_id):
+                errors.append(
+                    f"Malformed @capability ID in {relpath(path, repo_root)}:{line_number}: {capability_id}"
+                )
+                continue
+            if capability_id not in known_capability_ids:
+                errors.append(
+                    f"Unknown @capability ID in {relpath(path, repo_root)}:{line_number}: {capability_id}"
+                )
     return errors
 
 
@@ -213,6 +266,10 @@ def validate_feature_source(repo_root: Path, source_path: Path, lineage_path: Pa
     payload = cast(dict[str, Any], read_yaml(source_path))
     owner = relpath(source_path, repo_root)
     feature_id = cast(str, payload.get("feature_id", ""))
+    stage_ids = {
+        path.name.replace(".source.yaml", "")
+        for path in sorted((repo_root / "docs" / "stages").glob("*.source.yaml"))
+    }
     if feature_id != source_path.parent.name:
         errors.append(f"Feature directory and feature_id must match: {owner}")
     if not FEATURE_ID_PATTERN.fullmatch(feature_id):
@@ -223,6 +280,7 @@ def validate_feature_source(repo_root: Path, source_path: Path, lineage_path: Pa
         errors.append(f"Feature source has unsupported keys in {owner}: {', '.join(unknown_keys)}")
 
     capabilities = payload.get("capabilities", [])
+    feature_capability_ids: set[str] = set()
     if not isinstance(capabilities, list):
         errors.append(f"Capabilities must be a list in {owner}.")
     else:
@@ -231,6 +289,39 @@ def validate_feature_source(repo_root: Path, source_path: Path, lineage_path: Pa
                 errors.append(f"Managed features must use structured capability entries in {owner}.")
                 continue
             errors.extend(validate_feature_capability(feature_id, capability, owner, index))
+            capability_id = capability.get("capability_id")
+            if isinstance(capability_id, str):
+                feature_capability_ids.add(capability_id)
+
+    if "stage_participation" not in payload:
+        errors.append(f"Feature source must declare stage_participation in {owner}.")
+    else:
+        stage_participation = payload.get("stage_participation")
+        if not isinstance(stage_participation, list):
+            errors.append(f"stage_participation must be a list in {owner}.")
+        else:
+            for index, entry in enumerate(stage_participation):
+                if not isinstance(entry, dict):
+                    errors.append(f"stage_participation entry {index + 1} must be a mapping in {owner}.")
+                    continue
+                stage_id = entry.get("stage_id")
+                if not isinstance(stage_id, str) or not stage_id:
+                    errors.append(f"stage_participation entry {index + 1} must include stage_id in {owner}.")
+                elif stage_id not in stage_ids:
+                    errors.append(
+                        f"stage_participation entry {index + 1} references unknown stage_id in {owner}: {stage_id}"
+                    )
+                capability_ids = entry.get("capability_ids", [])
+                if not isinstance(capability_ids, list):
+                    errors.append(
+                        f"stage_participation entry {index + 1} capability_ids must be a list in {owner}."
+                    )
+                else:
+                    for capability_id in capability_ids:
+                        if capability_id not in feature_capability_ids:
+                            errors.append(
+                                f"stage_participation entry {index + 1} references unknown feature capability in {owner}: {capability_id}"
+                            )
 
     if lineage_path.exists():
         raw_lineage = lineage_path.read_text(encoding="utf-8")
@@ -439,6 +530,17 @@ def validate_phase_7_direct_evidence_pilot(repo_root: Path) -> list[str]:
     return errors
 
 
+def validate_generated_discovery(repo_root: Path) -> list[str]:
+    errors: list[str] = []
+    for relative_path in REQUIRED_GENERATED_DISCOVERY_FILES:
+        if not (repo_root / relative_path).exists():
+            errors.append(f"Missing required file: {relative_path}")
+    for relative_path in LEGACY_GENERATED_DISCOVERY_FILES:
+        if (repo_root / relative_path).exists():
+            errors.append(f"Legacy generated discovery output must be removed: {relative_path}")
+    return errors
+
+
 def validate_sync_freshness(repo_root: Path) -> list[str]:
     sync_script_path = repo_root / "scripts" / "sync_architecture_docs.py"
     if not sync_script_path.exists():
@@ -462,6 +564,7 @@ def main(argv: list[str] | None = None) -> int:
     errors.extend(validate_stages(repo_root))
     errors.extend(validate_adoption_mode(repo_root))
     errors.extend(validate_phase_7_direct_evidence_pilot(repo_root))
+    errors.extend(validate_generated_discovery(repo_root))
     if not errors:
         errors.extend(validate_sync_freshness(repo_root))
 

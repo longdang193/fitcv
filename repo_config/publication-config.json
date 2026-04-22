@@ -9,9 +9,8 @@
     "data",
     "docker-compose.yml",
     "docs/features",
-    "docs/generated/features_index.yaml",
-    "docs/generated/stages_index.yaml",
-    "docs/generated/stage_overview.md",
+    "docs/generated/architecture_dag.yaml",
+    "docs/generated/capability_lineage.yaml",
     "docs/FitCV-pipeline.md",
     "docs/fitcv-control-plane-setup.md",
     "docs/stages",
@@ -47,9 +46,8 @@
     "src"
   ],
   "allowedGeneratedPaths": [
-    "docs/generated/features_index.yaml",
-    "docs/generated/stages_index.yaml",
-    "docs/generated/stage_overview.md"
+    "docs/generated/architecture_dag.yaml",
+    "docs/generated/capability_lineage.yaml"
   ],
   "scrubPrivateReferencePaths": [
     "docs/features",

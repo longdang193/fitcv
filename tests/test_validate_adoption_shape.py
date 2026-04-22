@@ -148,10 +148,15 @@ def build_repo(tmp_path: Path) -> Path:
         "name: cv_writer\n"
         "type: script\n"
         "domain: cv_generation\n"
-        "capabilities:\n"
-        "  - cv_system.structured-cv-generation\n"
+        "capabilities: []\n"
         '"""\n\n'
+        "def build_cv() -> None:\n"
+        '    """\n'
+        "    @capability cv_system.structured-cv-generation\n"
+        '    """\n'
+        "    return None\n\n"
         "def main() -> None:\n"
+        "    build_cv()\n"
         "    return None\n",
         encoding="utf-8",
     )
@@ -245,6 +250,48 @@ def test_validator_fails_for_string_only_capabilities(tmp_path: Path) -> None:
 
     assert process.returncode == 1
     assert "must use structured capability entries" in process.stdout.lower()
+
+
+def test_validator_fails_when_stage_participation_is_missing(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+
+    source_path = repo_root / "docs" / "features" / "cv_system" / "feature.source.yaml"
+    payload = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+    payload.pop("stage_participation", None)
+    source_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "must declare stage_participation" in process.stdout.lower()
+
+
+def test_validator_fails_for_invalid_stage_participation_capability(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+
+    source_path = repo_root / "docs" / "features" / "cv_system" / "feature.source.yaml"
+    payload = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+    payload["stage_participation"][0]["capability_ids"] = ["cv_system.unknown-capability"]
+    source_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "references unknown feature capability" in process.stdout.lower()
 
 
 def test_validator_fails_for_non_underscore_feature_ids(tmp_path: Path) -> None:
@@ -407,6 +454,52 @@ def test_validator_fails_when_generated_outputs_are_stale(tmp_path: Path) -> Non
 
     assert process.returncode == 1
     assert "generated architecture docs are stale" in process.stdout.lower()
+
+
+def test_validator_fails_for_unknown_function_level_capability(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    script_path = repo_root / "scripts" / "cv_writer.py"
+    script_path.write_text(
+        script_path.read_text(encoding="utf-8").replace(
+            "@capability cv_system.structured-cv-generation",
+            "@capability cv_system.unknown-capability",
+        ),
+        encoding="utf-8",
+    )
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "unknown @capability id" in process.stdout.lower()
+
+
+def test_validator_fails_when_legacy_generated_discovery_remains(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    (repo_root / "docs" / "generated" / "features_index.yaml").write_text(
+        "legacy: true\n", encoding="utf-8"
+    )
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "legacy generated discovery output must be removed" in process.stdout.lower()
 
 
 def test_validator_fails_when_required_script_metadata_is_missing(tmp_path: Path) -> None:

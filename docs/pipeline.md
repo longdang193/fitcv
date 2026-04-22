@@ -17,5 +17,5 @@ The pipeline narrows noisy raw job inputs into a smaller set of grounded, review
 ## Recommended References
 
 - [FitCV-pipeline.md](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/FitCV-pipeline.md) for the detailed narrative
-- [docs/generated/stage_overview.md](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/stage_overview.md) for the generated current-state summary
-- [docs/generated/stages_index.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/stages_index.yaml) for the machine-friendly stage lookup
+- [docs/generated/architecture_dag.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/architecture_dag.yaml) for the generated stage, feature, and dependency topology
+- [docs/generated/capability_lineage.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/capability_lineage.yaml) for the generated capability-level evidence summary

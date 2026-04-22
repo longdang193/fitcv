@@ -52,7 +52,7 @@ The source layer should define:
 - `domains`
 - `depends_on`
 - `capabilities`
-- optional `stage_participation`
+- `stage_participation`
 
 Naming and shape policy for this repo:
 
@@ -80,6 +80,9 @@ surface:
 
 - top-of-file `@meta` docstrings for Python files under repo-controlled code,
   script, and test surfaces
+- bounded function-level `@capability <feature_id.capability-slug>` markers in
+  Python function or method docstrings when a smaller canonical owner node is
+  more truthful than broad file-level ownership
 - leading `{# @architecture ... #}` blocks for Jinja/HTML templates when a
   shared template materially owns capability behavior in this repo
 - lightweight frontmatter only for docs that materially explain feature,
@@ -88,6 +91,8 @@ surface:
 Rules:
 
 - file-level `capabilities` metadata is selective, not blanket
+- function-level `@capability` is additive and selective, not mandatory on
+  every owner file
 - only add capability references when the file materially participates in
   lineage
 - use test-level `@proves <capability_id>` as proof evidence when a test exists
@@ -153,6 +158,28 @@ Phase 7 direct-evidence pilot rules:
   `scripts/validate_adoption_shape.py`
 - if a capability still lacks truthful direct proof, prefer leaving it
   `partial` over inventing noisy ownership
+- every managed feature source must now declare `stage_participation`
+  explicitly:
+  - use a real list for stage-aware features
+  - use `[]` only for intentionally stage-agnostic features
+- `stage_participation.stage_id` must resolve to a real
+  `docs/stages/*.source.yaml` file
+- `stage_participation.capability_ids` must stay within the owning feature
+
+Current generated discovery targets:
+
+- `docs/generated/architecture_dag.yaml`
+- `docs/generated/capability_lineage.yaml`
+
+Retired generated discovery targets that should not be recreated:
+
+- `docs/generated/features_index.yaml`
+- `docs/generated/feature_dependency_graph.yaml`
+- `docs/generated/feature_capabilities_index.yaml`
+- `docs/generated/feature_overview.md`
+- `docs/generated/features_by_status.yaml`
+- `docs/generated/stages_index.yaml`
+- `docs/generated/stage_overview.md`
 
 Refresh source-owned feature outputs with:
 

@@ -32,6 +32,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -66,6 +67,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -100,6 +102,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -138,6 +141,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -172,6 +176,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -198,3 +203,5 @@ timeline:
   path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
 - kind: plan
   path: docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md

@@ -16,7 +16,8 @@ FitCV combines an operator-facing control plane with a staged job-processing pip
 - `docs/features/<feature_id>/lineage.generated.yaml` is generated feature evidence.
 - `docs/stages/<stage_id>.source.yaml` is the human-owned stage source.
 - `docs/stages/<stage_id>.yaml` is the generated stage contract.
-- `docs/generated/*` is generated discovery, not a source-of-truth layer.
+- `docs/generated/architecture_dag.yaml` is the generated topology/discovery surface.
+- `docs/generated/capability_lineage.yaml` is the generated capability evidence summary.
 
 ## Sync And Validation
 

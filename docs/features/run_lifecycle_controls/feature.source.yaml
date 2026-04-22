@@ -43,3 +43,4 @@ capabilities:
 - capability_id: run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   statement: Full audit trail in pipeline_run_events
   state: active
+stage_participation: []

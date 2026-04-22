@@ -28,6 +28,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -62,6 +63,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -96,6 +98,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -130,6 +133,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -164,6 +168,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -198,6 +203,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     evidence_gaps:
     - missing_code_evidence
     - missing_test_evidence
@@ -224,3 +230,5 @@ timeline:
   path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
 - kind: plan
   path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
