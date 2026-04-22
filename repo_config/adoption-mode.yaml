@@ -353,6 +353,12 @@ phase_7_direct_evidence_pilot:
     ui_consistency_theming.responsive-wrapping:
       require_code: true
       require_tests: true
+    inspection_debugging.cv-analysis-diagnostics:
+      require_code: true
+      require_tests: true
+    inspection_debugging.cv-generation-diagnostics:
+      require_code: true
+      require_tests: true
 notes: >
   JOB-PROJECT is aligning toward the project-OS-starter managed architecture
   metadata model. Managed features and stages now use source-owned lifecycle
@@ -377,4 +383,6 @@ notes: >
   surfaces deferred until they have explicit proof coverage; Phase 13 adds
   repo-local template ownership metadata plus direct proof coverage so the
   remaining `ui_consistency_theming` capabilities can participate truthfully in
-  the evidence-oriented lineage model.
+  the evidence-oriented lineage model; Phase 14 closes the last two
+  `inspection_debugging` evidence gaps by mapping CV-analysis and
+  CV-generation run-health diagnostics to direct app ownership and proof tests.

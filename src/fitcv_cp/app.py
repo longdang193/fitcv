@@ -41,6 +41,8 @@ capabilities:
   - inspection_debugging.prompt-provenance-diagnostics
   - inspection_debugging.ranking-diagnostics
   - inspection_debugging.shortlist-diagnostics
+  - inspection_debugging.cv-analysis-diagnostics
+  - inspection_debugging.cv-generation-diagnostics
   - inspection_debugging.reuse-diagnostics
   - inspection_debugging.quality-metrics-diagnostics
   - inspection_debugging.enriched-job-debug-export

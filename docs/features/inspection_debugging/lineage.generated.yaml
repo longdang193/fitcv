@@ -65,6 +65,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -120,6 +121,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -187,6 +189,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -242,6 +245,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -309,6 +313,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -364,6 +369,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -431,6 +437,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -486,6 +493,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -553,6 +561,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -608,6 +617,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -679,6 +689,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -734,6 +745,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -805,6 +817,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -860,6 +873,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -931,6 +945,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -986,6 +1001,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1054,6 +1070,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1109,6 +1126,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1176,6 +1194,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1231,6 +1250,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1298,6 +1318,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1353,6 +1374,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1362,8 +1384,10 @@ capabilities:
     state: active
     statement: Expose analysis outcomes, selected evidence, hybrid alignment details, and analysis reuse visibility.
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -1418,6 +1442,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1473,21 +1498,20 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   inspection_debugging.cv-generation-diagnostics:
     state: active
     statement: Expose CV-writing outcomes, grounding and support validation detail, and authoritative fit context.
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/inspection_debugging/history.md
     docs_evidence:
@@ -1542,6 +1566,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1597,15 +1622,12 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   inspection_debugging.reuse-diagnostics:
     state: active
     statement: Surface late-stage reuse snapshots and exact-match reuse counters across ranking and analysis flows.
@@ -1670,6 +1692,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1725,6 +1748,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1794,6 +1818,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1849,6 +1874,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1918,6 +1944,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1973,6 +2000,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2041,6 +2069,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2096,6 +2125,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2190,6 +2220,8 @@ timeline:
   path: docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
 - kind: spec
   path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
 - kind: plan
   path: docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
 - kind: plan
@@ -2298,3 +2330,5 @@ timeline:
   path: docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
 - kind: plan
   path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
