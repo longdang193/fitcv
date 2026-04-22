@@ -1987,6 +1987,9 @@ def test_run_detail_hides_run_health_when_quality_metrics_absent():
 
 
 def test_run_detail_renders_run_health_when_late_stage_reuse_metrics_available():
+    """@proves inspection_debugging.cv-analysis-diagnostics
+    @proves inspection_debugging.reuse-diagnostics
+    """
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -2042,6 +2045,7 @@ def test_run_detail_renders_run_health_when_late_stage_reuse_metrics_available()
 
 
 def test_run_detail_run_health_marks_unreached_metrics_as_pending_and_zero_denominator_reached_metrics_as_na():
+    """@proves inspection_debugging.cv-analysis-diagnostics"""
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -2117,6 +2121,102 @@ def test_run_detail_hides_late_stage_reuse_metrics_when_absent():
     assert resp.status_code == 200
     assert "Ranking AI-Score Reuse Rate" not in resp.text
     assert "CV Analysis Reuse Rate" not in resp.text
+
+
+def test_run_detail_renders_cv_generation_quality_metrics():
+    """@proves inspection_debugging.cv-generation-diagnostics"""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="cv-generation-metrics-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "cv_generation": {
+                            "decision_summary": {
+                                "quality_metrics": {
+                                    "accepted_rate": 0.5,
+                                    "accepted": 2,
+                                    "validation_fail_rate": 0.25,
+                                    "validation_failed": 1,
+                                    "generation_failed_rate": 0.25,
+                                    "generation_failed": 1,
+                                    "persistence_failed_rate": 0.0,
+                                    "persistence_failed": 0,
+                                    "total_attempted": 4,
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        ),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/cv-generation-metrics-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "CV Generation Accepted Rate" in html
+    assert "CV Generation Validation-Fail Rate" in html
+    assert "CV Generation Failure Rate" in html
+    assert "CV Generation Persistence-Fail Rate" in html
+    assert "50%" in html
+    assert "25%" in html
+    assert "2 / 4" in html
+    assert "0 / 4" in html
+
+
+def test_run_detail_hides_cv_generation_quality_metrics_when_absent():
+    """@proves inspection_debugging.cv-generation-diagnostics"""
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="cv-generation-metrics-2",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "cv_analysis": {
+                            "decision_summary": {
+                                "quality_metrics": {
+                                    "skip_rate": 0.5,
+                                    "skipped_fit_gate": 1,
+                                    "total_processed": 2,
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        ),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/cv-generation-metrics-2")
+
+    assert resp.status_code == 200
+    assert "CV Analysis Skip Rate" in resp.text
+    assert "CV Generation Accepted Rate" not in resp.text
+    assert "CV Generation Validation-Fail Rate" not in resp.text
+    assert "CV Generation Failure Rate" not in resp.text
+    assert "CV Generation Persistence-Fail Rate" not in resp.text
 
 
 # ── grouped settings endpoint ─────────────────────────────────────────────────

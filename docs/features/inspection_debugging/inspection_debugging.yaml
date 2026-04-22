@@ -232,6 +232,7 @@ refs:
   - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
   - docs/superpowers/archive/specs/2026-04-22-13-05-phase-9-trigger-inspection-evidence-completion-spec.md
   - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
   plan:
   - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
   - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -287,3 +288,4 @@ refs:
   - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
   - docs/superpowers/plans/2026-04-22-13-18-phase-9-trigger-inspection-evidence-completion-plan.md
   - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+  - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
