@@ -48,7 +48,7 @@ starter_sync:
     - path: scripts/validate_repo_contracts.py
       class: validation_and_sync_scripts
       status: customized
-      rationale: JOB-PROJECT adopts the starter repo-contract validator shape but still routes the broader gate through the local adoption-shape validator.
+      rationale: JOB-PROJECT now includes a starter-style repo-config validator layer, but the contract gate still keeps the additional local adoption-shape validator on top of that narrower starter check.
     - path: scripts/sync_architecture_docs.py
       class: validation_and_sync_scripts
       status: customized

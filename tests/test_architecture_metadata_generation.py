@@ -146,8 +146,88 @@ def test_generator_writes_outputs_and_check_passes(tmp_path: Path) -> None:
     assert "<!-- GENERATED HISTORY START -->" in history_text
     assert "## Human Notes" in history_text
     assert "Legacy CV note." in history_text
-    assert (repo_root / "docs" / "features" / "cv_system" / "cv_system.yaml").exists()
+    contract_path = repo_root / "docs" / "features" / "cv_system" / "cv_system.yaml"
+    assert contract_path.exists()
     assert (repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml").exists()
+    contract_text = contract_path.read_text(encoding="utf-8")
+    contract_payload = yaml.safe_load(
+        contract_text.removeprefix("# GENERATED FILE - do not edit directly.\n")
+    )
+    assert contract_payload["refs"] == {
+        "code": ["scripts/cv_writer.py"],
+        "tests": ["tests/test_cv_writer.py"],
+        "specs": [],
+        "plans": [],
+        "docs": ["docs/features/cv_system/history.md"],
+        "configs": ["config/runtime/prompts.yaml"],
+        "components": [],
+    }
+    assert "revision" not in contract_payload
+    assert "latest_change_id" not in contract_payload
+    assert "last_updated_at" not in contract_payload
+    stage_contract_path = repo_root / "docs" / "stages" / "cv_analysis.yaml"
+    stage_contract_text = stage_contract_path.read_text(encoding="utf-8")
+    stage_contract_payload = yaml.safe_load(
+        stage_contract_text.removeprefix("# GENERATED FILE - do not edit directly.\n")
+    )
+    assert stage_contract_payload["stage_id"] == "cv_analysis"
+    assert stage_contract_payload["name"] == "CV Analysis"
+    assert stage_contract_payload["status"] == "active"
+    assert stage_contract_payload["purpose"] == "Prepare ranked jobs for writing."
+    assert stage_contract_payload["feature_refs"] == ["cv_system"]
+    assert stage_contract_payload["capability_refs"] == ["cv_system.structured-cv-generation"]
+    assert stage_contract_payload["code_refs"] == []
+    assert stage_contract_payload["test_refs"] == []
+    assert stage_contract_payload["doc_refs"] == []
+    assert stage_contract_payload["config_refs"] == []
+    assert stage_contract_payload["component_refs"] == []
+    assert stage_contract_payload["inputs"] == ["ranked jobs"]
+    assert stage_contract_payload["outputs"] == ["generation-ready jobs"]
+    architecture_dag_text = (repo_root / "docs" / "generated" / "architecture_dag.yaml").read_text(
+        encoding="utf-8"
+    )
+    architecture_dag_payload = yaml.safe_load(
+        architecture_dag_text.removeprefix("# GENERATED FILE - do not edit directly.\n")
+    )
+    assert architecture_dag_payload["nodes"] == [
+        {
+            "id": "cv_system.structured-cv-generation",
+            "type": "capability",
+            "kind": "capability",
+            "feature_id": "cv_system",
+            "state": "active",
+            "path": "docs/features/cv_system/lineage.generated.yaml",
+        },
+        {
+            "id": "cv_system",
+            "type": "feature",
+            "kind": "feature",
+            "name": "CV System",
+            "path": "docs/features/cv_system/cv_system.yaml",
+            "status": "active",
+        },
+        {
+            "id": "cv_analysis",
+            "type": "stage",
+            "kind": "stage",
+            "name": "CV Analysis",
+            "path": "docs/stages/cv_analysis.yaml",
+        },
+    ]
+    capability_lineage_text = (
+        repo_root / "docs" / "generated" / "capability_lineage.yaml"
+    ).read_text(encoding="utf-8")
+    capability_lineage_payload = yaml.safe_load(
+        capability_lineage_text.removeprefix("# GENERATED FILE - do not edit directly.\n")
+    )
+    assert capability_lineage_payload["features"]["cv_system"] == {
+        "summary": "Own the CV-writing lifecycle.",
+        "status": "active",
+        "type": "add",
+        "lineage_file": "docs/features/cv_system/lineage.generated.yaml",
+        "capability_count": 1,
+        "capabilities": ["cv_system.structured-cv-generation"],
+    }
     assert generator.main(["--repo-root", str(repo_root), "--check"]) == 0
 
 
@@ -204,3 +284,12 @@ def test_generator_builds_history_from_completed_plan_metadata(tmp_path: Path) -
     assert "- `cv_system.structured-cv-generation`" in history_text
     assert "- `python scripts/sync_architecture_docs.py --check`" in history_text
     assert "Regenerated the CV history surface." in history_text
+    contract_text = (repo_root / "docs" / "features" / "cv_system" / "cv_system.yaml").read_text(
+        encoding="utf-8"
+    )
+    contract_payload = yaml.safe_load(
+        contract_text.removeprefix("# GENERATED FILE - do not edit directly.\n")
+    )
+    assert contract_payload["revision"] == 1
+    assert contract_payload["latest_change_id"] == "phase-history-rollup"
+    assert contract_payload["last_updated_at"] == "2026-04-22T10:15:00+00:00"

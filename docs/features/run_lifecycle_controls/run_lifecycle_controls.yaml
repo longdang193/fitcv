@@ -40,9 +40,19 @@ capabilities:
   state: active
 stage_participation: []
 refs:
-  history:
-  - docs/features/run_lifecycle_controls/history.md
-  spec:
+  code:
+  - src/fitcv_cp/app.py
+  - src/fitcv_cp/bq_store.py
+  - src/fitcv_cp/queue.py
+  - src/fitcv_cp/reporter.py
+  - src/fitcv_cp/worker_job.py
+  tests:
+  - tests/test_fitcv_cp/test_app.py
+  - tests/test_fitcv_cp/test_bq_store.py
+  - tests/test_fitcv_cp/test_queue.py
+  - tests/test_fitcv_cp/test_reporter.py
+  - tests/test_fitcv_cp/test_worker_job.py
+  specs:
   - docs/superpowers/archive/specs/2026-04-05-20-05-bulk-run-actions-spec.md
   - docs/superpowers/archive/specs/2026-04-05-20-45-awaiting-continue-cancel-eligibility-spec.md
   - docs/superpowers/archive/specs/2026-04-05-21-20-runs-list-table-compaction-spec.md
@@ -54,7 +64,8 @@ refs:
   - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
   - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
   - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
-  plan:
+  - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+  plans:
   - docs/superpowers/archive/plans/2026-04-05-20-25-bulk-run-actions-plan.md
   - docs/superpowers/archive/plans/2026-04-05-20-55-awaiting-continue-cancel-eligibility-plan.md
   - docs/superpowers/archive/plans/2026-04-05-21-35-runs-list-table-compaction-plan.md
@@ -67,3 +78,7 @@ refs:
   - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
   - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
   - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+  docs:
+  - docs/features/run_lifecycle_controls/history.md
+  configs: []
+  components: []

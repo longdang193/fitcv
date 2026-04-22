@@ -239,6 +239,16 @@ def load_stage_source(source_path: Path) -> tuple[str, dict[str, object]]:
     return stage_id, body
 
 
+def stage_capability_refs(repo_root: Path, stage_id: str) -> list[str]:
+    capability_ids: list[str] = []
+    for feature_id, source in feature_records(repo_root):
+        for entry in normalize_stage_participation(source, []):
+            if cast(str, entry.get("stage_id", "")) != stage_id:
+                continue
+            capability_ids.extend(cast(list[str], entry.get("capability_ids", [])))
+    return sorted_unique(capability_ids)
+
+
 def strip_shebang(content: str) -> str:
     if content.startswith("#!"):
         _first_line, _newline, rest = content.partition("\n")
@@ -426,6 +436,43 @@ def markdown_documents(repo_root: Path) -> list[MetadataDocument]:
 
 def sorted_unique(paths: list[str]) -> list[str]:
     return sorted(set(paths))
+
+
+def capability_ref_paths(
+    evidence_index: EvidenceIndex,
+    capability_ids: list[str],
+    *,
+    family: str,
+) -> list[str]:
+    if family == "code":
+        values = [
+            node.path
+            for capability_id in capability_ids
+            for node in evidence_index.code_by_capability.get(capability_id, [])
+        ]
+        return sorted_unique(values)
+    if family == "tests":
+        values = [
+            node.path
+            for capability_id in capability_ids
+            for node in evidence_index.tests_by_capability.get(capability_id, [])
+        ]
+        return sorted_unique(values)
+    if family == "configs":
+        values = [
+            path
+            for capability_id in capability_ids
+            for path in evidence_index.configs_by_capability.get(capability_id, [])
+        ]
+        return sorted_unique(values)
+    if family == "components":
+        values = [
+            path
+            for capability_id in capability_ids
+            for path in evidence_index.components_by_capability.get(capability_id, [])
+        ]
+        return sorted_unique(values)
+    raise ValueError(f"Unsupported ref family: {family}")
 
 
 def evidence_node(
@@ -654,17 +701,37 @@ def normalize_stage_participation(
 
 
 def generated_refs(feature_id: str, source: dict[str, object], evidence_index: EvidenceIndex) -> dict[str, list[str]]:
-    normalized: dict[str, list[str]] = {}
-    normalized["history"] = evidence_index.docs_by_feature.get(
-        feature_id,
-        [f"docs/features/{feature_id}/history.md"],
-    )
-    normalized["spec"] = evidence_index.specs_by_feature.get(feature_id, [])
-    normalized["plan"] = evidence_index.plans_by_feature.get(feature_id, [])
-    return normalized
+    capability_ids = [
+        cast(str, normalize_capability(feature_id, raw_capability, index)["capability_id"])
+        for index, raw_capability in enumerate(cast(list[object], source.get("capabilities", [])))
+    ]
+    docs = evidence_index.docs_by_feature.get(feature_id, [f"docs/features/{feature_id}/history.md"])
+    return {
+        "code": capability_ref_paths(evidence_index, capability_ids, family="code"),
+        "tests": capability_ref_paths(evidence_index, capability_ids, family="tests"),
+        "specs": evidence_index.specs_by_feature.get(feature_id, []),
+        "plans": evidence_index.plans_by_feature.get(feature_id, []),
+        "docs": sorted_unique(docs),
+        "configs": capability_ref_paths(evidence_index, capability_ids, family="configs"),
+        "components": capability_ref_paths(evidence_index, capability_ids, family="components"),
+    }
 
 
-def contract_payload(feature_id: str, source: dict[str, object], evidence_index: EvidenceIndex) -> dict[str, object]:
+def feature_freshness(repo_root: Path, feature_id: str) -> dict[str, str]:
+    timeline = timeline_for_feature(repo_root, feature_id)
+    if not timeline:
+        return {}
+    latest_entry = timeline[-1]
+    return {
+        "revision": len(timeline),
+        "latest_change_id": str(latest_entry.get("change_id", "")),
+        "last_updated_at": str(latest_entry.get("completed_at", "")),
+    }
+
+
+def contract_payload(
+    repo_root: Path, feature_id: str, source: dict[str, object], evidence_index: EvidenceIndex
+) -> dict[str, object]:
     capabilities = [
         {
             "capability_id": capability["capability_id"],
@@ -677,7 +744,7 @@ def contract_payload(feature_id: str, source: dict[str, object], evidence_index:
         ]
     ]
     capability_ids = [capability["capability_id"] for capability in capabilities]
-    return {
+    payload: dict[str, object] = {
         "feature_id": feature_id,
         "name": source.get("name", feature_id.replace("_", " ").title()),
         "status": source.get("status", "unknown"),
@@ -693,6 +760,8 @@ def contract_payload(feature_id: str, source: dict[str, object], evidence_index:
         "stage_participation": normalize_stage_participation(source, capability_ids),
         "refs": generated_refs(feature_id, source, evidence_index),
     }
+    payload.update(feature_freshness(repo_root, feature_id))
+    return payload
 
 
 def evidence_nodes(paths: list[str], source: str) -> list[dict[str, object]]:
@@ -904,9 +973,9 @@ def lineage_payload(
         components = list(evidence_index.components_by_capability.get(capability_id, []))
         component_evidence = list(evidence_index.component_evidence_by_capability.get(capability_id, []))
         satisfies = list(evidence_index.satisfies_by_capability.get(capability_id, []))
-        specs = list(refs.get("spec", []))
-        plans = list(refs.get("plan", []))
-        docs = sorted(set(refs.get("docs", []) + refs.get("history", [])))
+        specs = list(refs.get("specs", []))
+        plans = list(refs.get("plans", []))
+        docs = list(refs.get("docs", []))
         evidence_gaps: list[str] = []
         if not code:
             evidence_gaps.append("missing_code_evidence")
@@ -966,7 +1035,8 @@ def render_feature_outputs(repo_root: Path, source_path: Path, evidence_index: E
         ),
         RenderedFile(
             path=generated_feature_contract_path(source_path),
-            content=GENERATED_HEADER + dump_yaml(contract_payload(feature_id, source, evidence_index)),
+            content=GENERATED_HEADER
+            + dump_yaml(contract_payload(repo_root, feature_id, source, evidence_index)),
         ),
         RenderedFile(
             path=generated_lineage_path(source_path),
@@ -975,12 +1045,39 @@ def render_feature_outputs(repo_root: Path, source_path: Path, evidence_index: E
     ]
 
 
-def render_stage_outputs(source_path: Path) -> list[RenderedFile]:
+def stage_contract_payload(repo_root: Path, stage_id: str, stage_body: dict[str, object]) -> dict[str, object]:
+    refs = cast(dict[str, object], stage_body.get("refs", {}))
+    spec_refs = cast(list[str], refs.get("spec", [])) if isinstance(refs, dict) else []
+    plan_refs = cast(list[str], refs.get("plan", [])) if isinstance(refs, dict) else []
+    primary_features = cast(list[str], stage_body.get("primary_features", []))
+    related_features = cast(list[str], stage_body.get("related_features", []))
+    feature_refs = sorted_unique(primary_features + related_features)
+    return {
+        "stage_id": stage_id,
+        "name": stage_body.get("name", stage_id.replace("_", " ").title()),
+        "status": cast(object, stage_body.get("status", "active")),
+        "purpose": normalize_prose(stage_body.get("summary", "")),
+        "feature_refs": feature_refs,
+        "capability_refs": stage_capability_refs(repo_root, stage_id),
+        "code_refs": [],
+        "test_refs": [],
+        "doc_refs": sorted_unique(spec_refs + plan_refs),
+        "config_refs": [],
+        "component_refs": [],
+        "depends_on": cast(list[str], stage_body.get("depends_on", [])),
+        "inputs": cast(list[str], stage_body.get("inputs", [])),
+        "outputs": cast(list[str], stage_body.get("outputs", [])),
+        "invariants": cast(list[str], stage_body.get("boundaries", [])),
+        "human_notes": cast(list[str], stage_body.get("keywords", [])),
+    }
+
+
+def render_stage_outputs(repo_root: Path, source_path: Path) -> list[RenderedFile]:
     stage_id, stage_body = load_stage_source(source_path)
     return [
         RenderedFile(
             path=generated_stage_contract_path(source_path),
-            content=GENERATED_HEADER + dump_yaml({stage_id: stage_body}),
+            content=GENERATED_HEADER + dump_yaml(stage_contract_payload(repo_root, stage_id, stage_body)),
         )
     ]
 
@@ -1009,6 +1106,7 @@ def build_architecture_dag(repo_root: Path) -> RenderedFile:
         nodes.append(
             {
                 "id": feature_id,
+                "type": "feature",
                 "kind": "feature",
                 "name": source.get("name", feature_id.replace("_", " ").title()),
                 "path": f"docs/features/{feature_id}/{feature_id}.yaml",
@@ -1023,6 +1121,7 @@ def build_architecture_dag(repo_root: Path) -> RenderedFile:
             nodes.append(
                 {
                     "id": capability_id,
+                    "type": "capability",
                     "kind": "capability",
                     "feature_id": feature_id,
                     "state": capability["state"],
@@ -1048,6 +1147,7 @@ def build_architecture_dag(repo_root: Path) -> RenderedFile:
         nodes.append(
             {
                 "id": stage_id,
+                "type": "stage",
                 "kind": "stage",
                 "name": body.get("name", stage_id.replace("_", " ").title()),
                 "path": f"docs/stages/{stage_id}.yaml",
@@ -1075,11 +1175,14 @@ def build_capability_lineage(repo_root: Path) -> RenderedFile:
         source = load_feature_source(source_path)
         feature_id = cast(str, source["feature_id"])
         lineage = lineage_payload(repo_root, feature_id, source, evidence_index)
+        capability_ids = sorted(cast(dict[str, object], lineage["capabilities"]).keys())
         features[feature_id] = {
             "summary": normalize_prose(source.get("summary", "")),
             "status": source.get("status", "unknown"),
             "type": source.get("type", "unknown"),
-            "capabilities": lineage["capabilities"],
+            "lineage_file": f"docs/features/{feature_id}/lineage.generated.yaml",
+            "capability_count": len(capability_ids),
+            "capabilities": capability_ids,
         }
     return RenderedFile(
         repo_root / "docs" / "generated" / "capability_lineage.yaml",
@@ -1093,7 +1196,7 @@ def collect_rendered_files(repo_root: Path) -> list[RenderedFile]:
     for source_path in feature_source_paths(repo_root):
         rendered.extend(render_feature_outputs(repo_root, source_path, evidence_index))
     for source_path in stage_source_paths(repo_root):
-        rendered.extend(render_stage_outputs(source_path))
+        rendered.extend(render_stage_outputs(repo_root, source_path))
     rendered.extend(
         [
             build_architecture_dag(repo_root),

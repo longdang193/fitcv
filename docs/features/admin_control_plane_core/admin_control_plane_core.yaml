@@ -33,16 +33,28 @@ capabilities:
   state: active
 stage_participation: []
 refs:
-  history:
-  - docs/features/admin_control_plane_core/history.md
-  spec:
+  code:
+  - src/fitcv_cp/app.py
+  - src/fitcv_cp/bq_store.py
+  - src/fitcv_cp/models.py
+  - src/fitcv_cp/queue.py
+  - src/fitcv_cp/reporter.py
+  - src/fitcv_cp/worker_job.py
+  tests:
+  - tests/test_fitcv_cp/test_app.py
+  - tests/test_fitcv_cp/test_bq_store.py
+  - tests/test_fitcv_cp/test_models.py
+  - tests/test_fitcv_cp/test_queue.py
+  - tests/test_fitcv_cp/test_reporter.py
+  specs:
   - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
   - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
   - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
   - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
   - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
   - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
-  plan:
+  - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+  plans:
   - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
   - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
   - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
@@ -51,3 +63,7 @@ refs:
   - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
   - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
   - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+  docs:
+  - docs/features/admin_control_plane_core/history.md
+  configs: []
+  components: []
