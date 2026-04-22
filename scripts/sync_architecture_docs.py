@@ -67,8 +67,11 @@ def resolve_python_executable(root: Path) -> str:
                 continue
             home = line.split("=", 1)[1].strip()
             candidate = Path(home) / "python.exe"
-            if candidate.exists():
-                return str(candidate)
+            try:
+                if candidate.exists():
+                    return str(candidate)
+            except PermissionError:
+                continue
     return sys.executable
 
 
