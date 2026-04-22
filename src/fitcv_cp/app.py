@@ -15,6 +15,16 @@ outputs:
   - run trigger and continue actions
   - run-owned and stage-owned artifact responses
 capabilities:
+  - admin_control_plane_core.fastapi-web-server
+  - admin_control_plane_core.jinja2-admin-pages
+  - admin_control_plane_core.insert-before-enqueue-invariant
+  - run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq
+  - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.stale-cancellation-repair-endpoint
+  - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+  - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
+  - run_lifecycle_controls.archive-and-unarchive-terminal-runs
+  - run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries
   - inspection_debugging.run-detail-inspection-tabs
   - inspection_debugging.run-progress-and-checkpoints
   - inspection_debugging.synonym-overlay-inspection

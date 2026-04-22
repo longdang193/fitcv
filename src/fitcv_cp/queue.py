@@ -13,6 +13,8 @@ outputs:
   - enqueued RQ jobs
   - queue cancellation outcomes
 capabilities:
+  - admin_control_plane_core.rq-background-worker-integration
+  - run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq
   - trigger_run_management.runs-list-management
   - trigger_run_management.run-detail-actions
   - trigger_run_management.manual-checkpoints-and-continue

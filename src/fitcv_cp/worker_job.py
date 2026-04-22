@@ -13,6 +13,9 @@ outputs:
   - run lifecycle updates
   - settings-used and results-export snapshots
 capabilities:
+  - admin_control_plane_core.pipelinereporter-integration
+  - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - inspection_debugging.settings-used-export
   - inspection_debugging.results-ledger-inspection
   - inspection_debugging.stage-transition-diagnostics

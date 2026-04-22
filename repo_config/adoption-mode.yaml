@@ -266,6 +266,54 @@ phase_7_direct_evidence_pilot:
     pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis:
       require_code: true
       require_tests: true
+    run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq:
+      require_code: true
+      require_tests: true
+    run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs:
+      require_code: true
+      require_tests: true
+    run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue:
+      require_code: true
+      require_tests: true
+    run_lifecycle_controls.stale-cancellation-repair-endpoint:
+      require_code: true
+      require_tests: true
+    run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs:
+      require_code: true
+      require_tests: true
+    run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time:
+      require_code: true
+      require_tests: true
+    run_lifecycle_controls.archive-and-unarchive-terminal-runs:
+      require_code: true
+      require_tests: true
+    run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries:
+      require_code: true
+      require_tests: true
+    run_lifecycle_controls.full-audit-trail-in-pipeline-run-events:
+      require_code: true
+      require_tests: true
+    admin_control_plane_core.fastapi-web-server:
+      require_code: true
+      require_tests: true
+    admin_control_plane_core.rq-background-worker-integration:
+      require_code: true
+      require_tests: true
+    admin_control_plane_core.jinja2-admin-pages:
+      require_code: true
+      require_tests: true
+    admin_control_plane_core.pipelinereporter-integration:
+      require_code: true
+      require_tests: true
+    admin_control_plane_core.pipeline-runs-bigquery-table:
+      require_code: true
+      require_tests: true
+    admin_control_plane_core.pipeline-run-events-bigquery-table:
+      require_code: true
+      require_tests: true
+    admin_control_plane_core.insert-before-enqueue-invariant:
+      require_code: true
+      require_tests: true
 notes: >
   JOB-PROJECT is aligning toward the project-OS-starter managed architecture
   metadata model. Managed features and stages now use source-owned lifecycle
@@ -283,4 +331,5 @@ notes: >
   `pipeline_performance` capabilities; Phase 9 extends it again to selected
   trigger and inspection capabilities; Phase 10 closes the residual
   settings/performance pilot set while keeping every enforced mapping backed by
-  minimum code/test evidence.
+  minimum code/test evidence; Phase 11 extends the same direct-evidence pilot
+  to control-plane lifecycle and admin-core capabilities.

@@ -7,8 +7,10 @@ capabilities:
     state: active
     statement: FastAPI web server
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -24,6 +26,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -31,21 +34,20 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   admin_control_plane_core.rq-background-worker-integration:
     state: active
     statement: RQ background worker integration
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/queue.py
+    tests:
+    - tests/test_fitcv_cp/test_queue.py
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -61,6 +63,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -68,21 +71,20 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   admin_control_plane_core.jinja2-admin-pages:
     state: active
     statement: Jinja2 admin pages
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -98,6 +100,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -105,21 +108,21 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   admin_control_plane_core.pipelinereporter-integration:
     state: active
     statement: PipelineReporter integration
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/reporter.py
+    - src/fitcv_cp/worker_job.py
+    tests:
+    - tests/test_fitcv_cp/test_reporter.py
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -135,6 +138,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -142,21 +146,22 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   admin_control_plane_core.pipeline-runs-bigquery-table:
     state: active
     statement: pipeline_runs BigQuery table
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/bq_store.py
+    - src/fitcv_cp/models.py
+    tests:
+    - tests/test_fitcv_cp/test_bq_store.py
+    - tests/test_fitcv_cp/test_models.py
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -172,6 +177,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -179,21 +185,22 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   admin_control_plane_core.pipeline-run-events-bigquery-table:
     state: active
     statement: pipeline_run_events BigQuery table
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/bq_store.py
+    - src/fitcv_cp/models.py
+    tests:
+    - tests/test_fitcv_cp/test_bq_store.py
+    - tests/test_fitcv_cp/test_models.py
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -209,6 +216,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -216,21 +224,20 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   admin_control_plane_core.insert-before-enqueue-invariant:
     state: active
     statement: insert-before-enqueue invariant
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/app.py
+    tests:
+    - tests/test_fitcv_cp/test_app.py
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
@@ -246,6 +253,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
     - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
@@ -253,15 +261,12 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
 timeline:
 - kind: spec
   path: docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
@@ -273,6 +278,8 @@ timeline:
   path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
 - kind: spec
   path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+- kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-15-20-phase-11-control-plane-evidence-completion-spec.md
 - kind: plan
   path: docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
 - kind: plan
@@ -285,3 +292,5 @@ timeline:
   path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
 - kind: plan
   path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md

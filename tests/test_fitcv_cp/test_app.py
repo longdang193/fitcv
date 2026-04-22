@@ -27,7 +27,10 @@ def _app():
 
 
 def test_post_runs_inserts_before_enqueue():
-    """BQ insert must happen before enqueue to ensure DB is source of truth."""
+    """@proves admin_control_plane_core.insert-before-enqueue-invariant
+
+    BQ insert must happen before enqueue to ensure DB is source of truth.
+    """
     call_order = []
 
     def fake_insert(*args, **kwargs):
@@ -2394,6 +2397,9 @@ def _make_run_mock(status="queued", archived_at=None, queue_job_id="rq-job-1"):
 
 
 def test_admin_stop_queued_run_returns_json():
+    """@proves admin_control_plane_core.fastapi-web-server
+    @proves run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq
+    """
     run = _make_run_mock(status="queued")
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.cancel_queued_run", return_value=True), \
@@ -2418,6 +2424,7 @@ def test_admin_stop_queued_run_without_worker_claim_marks_cancelled() -> None:
 
 
 def test_admin_stop_claimed_run_falls_back_to_cancelling() -> None:
+    """@proves run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs"""
     import datetime
 
     run = _make_run_mock(status="queued")
@@ -2440,6 +2447,7 @@ def test_admin_stop_succeeded_run_returns_409():
 
 
 def test_admin_stop_awaiting_continue_run_returns_cancelled() -> None:
+    """@proves run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue"""
     run = _make_run_mock(status="awaiting_continue")
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.update_run_status") as mock_update_status, \
@@ -2458,6 +2466,7 @@ def test_admin_stop_unknown_run_returns_404():
 
 
 def test_admin_repair_cancellation_stale_run_returns_cancelled() -> None:
+    """@proves run_lifecycle_controls.stale-cancellation-repair-endpoint"""
     run = _make_run_mock(status="cancelling")
     run.started_at = None
     run.finished_at = None
@@ -2471,6 +2480,7 @@ def test_admin_repair_cancellation_stale_run_returns_cancelled() -> None:
 
 
 def test_admin_repair_cancellation_started_stale_run_returns_cancelled() -> None:
+    """@proves run_lifecycle_controls.stale-cancellation-repair-endpoint"""
     import datetime
 
     run = _make_run_mock(status="cancelling")
@@ -2488,6 +2498,7 @@ def test_admin_repair_cancellation_started_stale_run_returns_cancelled() -> None
 
 
 def test_admin_repair_cancellation_running_run_returns_409() -> None:
+    """@proves run_lifecycle_controls.stale-cancellation-repair-endpoint"""
     run = _make_run_mock(status="running")
     with patch("fitcv_cp.app.get_run", return_value=run):
         resp = TestClient(_app()).post("/admin/runs/run-lifecycle-1/repair-cancellation")
@@ -2495,6 +2506,7 @@ def test_admin_repair_cancellation_running_run_returns_409() -> None:
 
 
 def test_admin_archive_succeeded_run_returns_json():
+    """@proves run_lifecycle_controls.archive-and-unarchive-terminal-runs"""
     run = _make_run_mock(status="succeeded")
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.archive_run"), \
@@ -2511,6 +2523,7 @@ def test_admin_archive_running_run_returns_409():
 
 
 def test_admin_unarchive_archived_run_returns_json():
+    """@proves run_lifecycle_controls.archive-and-unarchive-terminal-runs"""
     import datetime
     run = _make_run_mock(status="succeeded", archived_at=datetime.datetime.now(datetime.timezone.utc))
     with patch("fitcv_cp.app.get_run", return_value=run), \
@@ -2528,7 +2541,9 @@ def test_admin_unarchive_non_archived_run_returns_409():
 
 
 def test_admin_bulk_cancel_mixed_eligibility_returns_processed_and_skipped_summary():
-    """@proves trigger_run_management.runs-list-management"""
+    """@proves trigger_run_management.runs-list-management
+    @proves run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries
+    """
     run1 = _make_full_run_mock(status="queued", run_id="run-bulk-1")
     run2 = _make_full_run_mock(status="succeeded", run_id="run-bulk-2")
 
@@ -2556,6 +2571,9 @@ def test_admin_bulk_cancel_mixed_eligibility_returns_processed_and_skipped_summa
 
 
 def test_admin_bulk_cancel_awaiting_continue_run_directly_cancels():
+    """@proves run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+    @proves run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries
+    """
     run = _make_full_run_mock(status="awaiting_continue", run_id="run-bulk-awaiting")
 
     with patch("fitcv_cp.app.get_run", return_value=run), \
@@ -2577,6 +2595,7 @@ def test_admin_bulk_cancel_awaiting_continue_run_directly_cancels():
 
 
 def test_admin_bulk_archive_terminal_runs_only():
+    """@proves run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries"""
     run1 = _make_full_run_mock(status="succeeded", run_id="run-archive-1")
     run2 = _make_full_run_mock(status="running", run_id="run-archive-2")
 
@@ -2601,6 +2620,7 @@ def test_admin_bulk_archive_terminal_runs_only():
 
 
 def test_admin_bulk_unarchive_archived_runs_only():
+    """@proves run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries"""
     import datetime
 
     run1 = _make_full_run_mock(
@@ -2631,11 +2651,13 @@ def test_admin_bulk_unarchive_archived_runs_only():
 
 
 def test_admin_bulk_lifecycle_rejects_empty_run_ids():
+    """@proves run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries"""
     resp = TestClient(_app()).post("/admin/runs/bulk/cancel", json={"run_ids": []})
     assert resp.status_code == 422
 
 
 def test_admin_bulk_lifecycle_rejects_unknown_run_ids():
+    """@proves run_lifecycle_controls.batch-cancel-archive-and-unarchive-endpoints-with-explicit-processed-skipped-summaries"""
     with patch("fitcv_cp.app.get_run", return_value=None):
         resp = TestClient(_app()).post(
             "/admin/runs/bulk/archive",
@@ -2684,6 +2706,7 @@ def _make_full_run_mock(status="queued", archived_at=None, run_id="run-ui-1"):
 
 
 def test_runs_list_shows_active_all_archived_filter_tabs():
+    """@proves admin_control_plane_core.jinja2-admin-pages"""
     with patch("fitcv_cp.app.list_runs", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs")
     assert resp.status_code == 200
@@ -2716,6 +2739,7 @@ def test_runs_list_renders_bulk_selection_checkboxes():
 
 
 def test_runs_list_renders_bulk_action_bar_hooks():
+    """@proves admin_control_plane_core.jinja2-admin-pages"""
     run = _make_full_run_mock(status="queued", run_id="run-bulk-ui-1")
     with patch("fitcv_cp.app.list_runs", return_value=[run]):
         resp = TestClient(_app()).get("/admin/runs")
@@ -2779,6 +2803,9 @@ def test_settings_page_renders_run_lifecycle_section() -> None:
 
 
 def test_admin_runs_timeouts_running_runs_to_failed() -> None:
+    """@proves run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+    @proves run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
+    """
     import datetime
 
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -2800,6 +2827,9 @@ def test_admin_runs_timeouts_running_runs_to_failed() -> None:
 
 
 def test_admin_runs_timeouts_awaiting_continue_runs_to_cancelled() -> None:
+    """@proves run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+    @proves run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
+    """
     import datetime
 
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -2837,7 +2867,9 @@ def test_run_detail_queued_shows_stop_run():
 
 
 def test_run_detail_awaiting_continue_shows_run_next_stage_and_stop_run():
-    """@proves inspection_debugging.run-progress-and-checkpoints"""
+    """@proves inspection_debugging.run-progress-and-checkpoints
+    @proves admin_control_plane_core.jinja2-admin-pages
+    """
     run = _make_full_run_mock(status="awaiting_continue")
     run.run_mode = "manual_staged"
     run.next_stage = "ranking"
@@ -2896,6 +2928,7 @@ def test_run_detail_succeeded_shows_archive_run():
 
 
 def test_run_detail_archived_shows_unarchive_and_badge():
+    """@proves admin_control_plane_core.jinja2-admin-pages"""
     import datetime
     run = _make_full_run_mock(status="succeeded", archived_at=datetime.datetime(2026, 3, 26, 13, 0, 0, tzinfo=datetime.timezone.utc))
     with patch("fitcv_cp.app.get_run", return_value=run), \
@@ -2910,6 +2943,9 @@ def test_run_detail_archived_shows_unarchive_and_badge():
 
 
 def test_run_detail_stale_cancelling_shows_repair_status() -> None:
+    """@proves run_lifecycle_controls.stale-cancellation-repair-endpoint
+    @proves admin_control_plane_core.jinja2-admin-pages
+    """
     run = _make_full_run_mock(status="cancelling")
     run.started_at = None
     run.finished_at = None
@@ -2924,6 +2960,9 @@ def test_run_detail_stale_cancelling_shows_repair_status() -> None:
 
 
 def test_run_detail_started_stale_cancelling_shows_repair_status() -> None:
+    """@proves run_lifecycle_controls.stale-cancellation-repair-endpoint
+    @proves admin_control_plane_core.jinja2-admin-pages
+    """
     import datetime
 
     run = _make_full_run_mock(status="cancelling")
