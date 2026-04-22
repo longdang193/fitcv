@@ -24,6 +24,7 @@ from fitcv_cp.settings_schema import (
 # ── schema registry ───────────────────────────────────────────────────────────
 
 def test_all_expected_keys_present():
+    """@proves settings_system.settings-schema-registry"""
     keys = {s["key"] for s in SETTINGS_SCHEMA}
     assert "pipeline.final_top_n" in keys
     assert "cv_analysis.semantic_alignment.enabled" in keys
@@ -105,6 +106,7 @@ def test_fit_label_strong_must_exceed_stretch():
 
 
 def test_ranking_weights_must_sum_to_one():
+    """@proves settings_system.ranking-settings"""
     with pytest.raises(ValidationError, match="ranking_weights"):
         validate_settings({
             "ranking_weights.ai_score": 0.90,
@@ -228,6 +230,7 @@ def test_rule_filter_selected_filters_default_matches_spec() -> None:
 
 
 def test_retrieval_defaults_are_hydrated_from_centralized_pipeline_config() -> None:
+    """@proves settings_system.retrieval-settings"""
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert schema_by_key["pipeline.vector_search_top_n"]["default"] == 50
     assert schema_by_key["pipeline.ai_score_top_n"]["default"] == 50
@@ -275,6 +278,7 @@ def test_apply_settings_to_config_rule_filter_selected_filters_nested() -> None:
 
 
 def test_cv_analysis_semantic_alignment_validate_accepts_balanced_weight_pairs() -> None:
+    """@proves settings_system.cv-analysis-alignment-settings"""
     validate_settings({
         "cv_analysis.semantic_alignment.required_skill_lexical_weight": 0.70,
         "cv_analysis.semantic_alignment.required_skill_semantic_weight": 0.30,
@@ -839,6 +843,7 @@ def test_apply_settings_to_config_cv_validation_nested():
 
 
 def test_apply_settings_to_config_cv_generation_nested():
+    """@proves settings_system.cv-generation-settings"""
     config: dict = {}
     apply_settings_to_config(config, {
         "cv_generation_model": "gemini-2.5-flash",
@@ -986,16 +991,3 @@ def test_legacy_cv_required_toggles_are_removed_from_schema() -> None:
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert "cv_education_required" not in schema_by_key
     assert "cv_projects_required" not in schema_by_key
-"""
-@meta
-type: test
-scope: unit
-domain: pipeline_config
-covers:
-  - control-plane settings schema behavior
-excludes:
-  - live persistence
-tags:
-  - fast
-  - ci-safe
-"""

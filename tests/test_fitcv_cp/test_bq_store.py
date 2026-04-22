@@ -625,6 +625,7 @@ def test_update_run_mapping_suggestions_updates_only_mapping_snapshot_field() ->
 
 
 def test_update_run_effective_settings_updates_only_effective_settings_field() -> None:
+    """@proves settings_system.trigger-time-effective-settings-snapshot"""
     bq = MagicMock()
     update_run_effective_settings(
         "run-123",
@@ -794,16 +795,3 @@ def test_list_runs_include_all():
     list_runs(bq, project="p", dataset="d", include_archived=True)
     sql_arg = bq.query.call_args[0][0]
     assert "archived_at" not in sql_arg
-"""
-@meta
-type: test
-scope: unit
-domain: admin_ui
-covers:
-  - BigQuery-backed control-plane store behavior
-excludes:
-  - live BigQuery access
-tags:
-  - fast
-  - ci-safe
-"""

@@ -89,6 +89,7 @@ refs:
   - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
   - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
   - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
   - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
   plan:
   - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
@@ -108,4 +109,5 @@ refs:
   - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
   - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
   - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+  - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
   - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md

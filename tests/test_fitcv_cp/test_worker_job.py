@@ -34,6 +34,7 @@ def test_worker_marks_succeeded_on_success():
 
 
 def test_worker_persists_results_export_json_on_success():
+    """@proves pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere"""
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock(effective_settings_json=None)
@@ -504,6 +505,7 @@ def test_worker_persists_stage_transition_artifacts_json_on_success():
 
 
 def test_worker_persists_settings_used_json_on_success():
+    """@proves settings_system.settings-used-exports"""
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
@@ -549,6 +551,7 @@ def test_worker_persists_settings_used_json_on_success():
 
 
 def test_worker_settings_used_export_canonicalizes_legacy_compatibility_keys():
+    """@proves settings_system.settings-used-exports"""
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
     mock_run = MagicMock()
@@ -1176,16 +1179,3 @@ def test_worker_pipeline_cancelled_exception_marks_cancelled():
     from fitcv_cp.models import RunStatus
     final_status = mock_update.call_args_list[-1].args[1]
     assert final_status == RunStatus.CANCELLED
-"""
-@meta
-type: test
-scope: unit
-domain: run_orchestration
-covers:
-  - worker job behavior in the control plane
-excludes:
-  - live queue workers
-tags:
-  - fast
-  - ci-safe
-"""

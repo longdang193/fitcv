@@ -30,6 +30,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -46,6 +47,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -83,6 +85,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -99,6 +102,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -113,8 +117,10 @@ capabilities:
     state: active
     statement: Gemini structured output with response_schema and Pydantic
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv/enrich.py
+    tests:
+    - tests/test_enrich.py
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -136,6 +142,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -152,22 +159,21 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   pipeline_performance.fallback-path-for-unparseable-responses:
     state: active
     statement: Fallback path for unparseable responses
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv/enrich.py
+    tests:
+    - tests/test_enrich.py
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -189,6 +195,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -205,16 +212,13 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   ? pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
   : state: active
     statement: Enrich extraction prompt text now comes from a centralized prompt registry with config-selected prompt IDs
@@ -242,6 +246,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -258,6 +263,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -295,6 +301,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -311,6 +318,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -348,6 +356,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -364,6 +373,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -401,6 +411,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -417,6 +428,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -431,8 +443,10 @@ capabilities:
     state: active
     statement: Fingerprint-based enrich-result reuse happens before LLM enrichment using normalized raw-job inputs
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv/enrich.py
+    tests:
+    - tests/test_enrich.py
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -454,6 +468,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -470,22 +485,21 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   ? pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes
   : state: active
     statement: Enrich-contract fingerprinting invalidates reuse automatically when prompt/model/schema behavior changes
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv/enrich.py
+    tests:
+    - tests/test_enrich.py
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -507,6 +521,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -523,22 +538,21 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   ? pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
   : state: active
     statement: Shared `structured_jobs` reuse lookup avoids redundant enrich calls while only fresh rows are upserted back into the shared table
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv/enrich.py
+    tests:
+    - tests/test_enrich.py
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -560,6 +574,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -576,22 +591,21 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   ? pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors
   : state: active
     statement: Shortlist now builds a stable structured embedding-input signature before generating `job_summary` vectors
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv/embeddings.py
+    tests:
+    - tests/test_embeddings.py
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -613,6 +627,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -629,22 +644,21 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   ? pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
   : state: active
     statement: Shortlist reuses the latest stored embedding row for a `job_url` only when both the structured signature and embedding contract fingerprint still match
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv/embeddings.py
+    tests:
+    - tests/test_embeddings.py
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -666,6 +680,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -682,22 +697,21 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   ? pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
   : state: active
     statement: Fresh shortlist embeddings persist signature metadata so later runs can skip repeated embedding work safely
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv/embeddings.py
+    tests:
+    - tests/test_embeddings.py
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -719,6 +733,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -735,16 +750,13 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   ? pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
   : state: active
     statement: Operator-facing enriched-job exports now keep canonical semantic fields and fingerprint/reuse provenance while omitting retired raw duplicate classification baggage
@@ -772,6 +784,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -788,6 +801,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -825,6 +839,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -841,6 +856,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -855,8 +871,10 @@ capabilities:
   : state: active
     statement: '`results.json` now keeps only compact job-ledger fields instead of repeating full job snapshots, heavy score-explanation internals, and full CV bodies already represented elsewhere'
     satisfies: []
-    code: []
-    tests: []
+    code:
+    - src/fitcv_cp/worker_job.py
+    tests:
+    - tests/test_fitcv_cp/test_worker_job.py
     docs:
     - docs/features/pipeline_performance/history.md
     docs_evidence:
@@ -878,6 +896,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -894,16 +913,13 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-    evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
-    allowed_evidence_gaps:
-    - missing_code_evidence
-    - missing_test_evidence
+    evidence_gaps: []
+    allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: partial
+    completeness_status: complete
   ? pipeline_performance.cv-analysis-now-uses-bounded-semantic-lift-for-required-skill-and-role-channels-instead-of-reserving-semantic-work-only-for-domain-and-responsibility-alignment
   : state: active
     statement: '`cv_analysis` now uses bounded semantic lift for required-skill and role channels instead of reserving semantic work only for domain and responsibility alignment'
@@ -931,6 +947,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -947,6 +964,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -984,6 +1002,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-07-21-30-artifact-versioning-run-mode-and-cv-analysis-reuse-contract-spec.md
     - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
     - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -1000,6 +1019,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
     - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     evidence_gaps:
     - missing_code_evidence
@@ -1034,6 +1054,8 @@ timeline:
 - kind: spec
   path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
 - kind: spec
+  path: docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
+- kind: spec
   path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
 - kind: plan
   path: docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
@@ -1063,5 +1085,7 @@ timeline:
   path: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
 - kind: plan
   path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+- kind: plan
+  path: docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
 - kind: plan
   path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md

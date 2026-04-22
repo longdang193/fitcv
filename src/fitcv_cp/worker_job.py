@@ -1,13 +1,25 @@
-"""RQ job: execute one pipeline run and persist lifecycle state.
-
-Worker lifecycle order:
-1. update run status → running
-2. read current run row (check cancel_requested_at)
-3. if already cancelled: mark cancelled, append run_cancelled, exit early
-4. otherwise: run pipeline with cancellation_check callback
-5. on PipelineCancelled: mark cancelled, append run_cancelled
-6. on success: mark succeeded
-7. on unexpected exception: mark failed, append pipeline_failed event
+"""
+@meta
+name: control_plane_worker_job
+type: script
+domain: run_orchestration
+responsibility:
+  - Execute one queued pipeline run and persist lifecycle state.
+  - Persist run-scoped settings-used and compact results snapshots.
+inputs:
+  - queued run id and pipeline paths
+  - control-plane BigQuery run state
+outputs:
+  - run lifecycle updates
+  - settings-used and results-export snapshots
+capabilities:
+  - settings_system.settings-used-exports
+  - pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere
+tags:
+  - worker
+  - control-plane
+lifecycle:
+  status: active
 """
 import datetime
 import json

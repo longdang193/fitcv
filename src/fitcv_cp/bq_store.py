@@ -1,6 +1,23 @@
-"""BigQuery persistence helpers for control-plane tables.
-
-All mutating queries use query parameters — never string interpolation.
+"""
+@meta
+name: control_plane_bq_store
+type: utility
+domain: admin_ui
+responsibility:
+  - Persist and read control-plane run, event, snapshot, and artifact records.
+  - Keep mutating BigQuery operations parameterized.
+inputs:
+  - control-plane model objects
+  - BigQuery table rows and query results
+outputs:
+  - pipeline_runs, run_events, and run-scoped snapshot updates
+capabilities:
+  - settings_system.trigger-time-effective-settings-snapshot
+tags:
+  - bigquery
+  - control-plane
+lifecycle:
+  status: active
 """
 import datetime
 import json
