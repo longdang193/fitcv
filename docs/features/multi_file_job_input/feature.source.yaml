@@ -25,3 +25,12 @@ capabilities:
 - capability_id: multi_file_job_input.all-or-nothing-rejection-on-validation-failure
   statement: All-or-nothing rejection on validation failure
   state: active
+stage_participation:
+- stage_id: normalize
+  role: primary
+  capability_ids:
+  - multi_file_job_input.multiple-file-inputs-in-trigger-form
+  - multi_file_job_input.per-file-server-side-validation
+  - multi_file_job_input.canonical-merge-preserving-order
+  - multi_file_job_input.one-immutable-snapshot-stored-per-run
+  - multi_file_job_input.all-or-nothing-rejection-on-validation-failure

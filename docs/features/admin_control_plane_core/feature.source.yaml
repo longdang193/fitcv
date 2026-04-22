@@ -31,3 +31,4 @@ capabilities:
 - capability_id: admin_control_plane_core.insert-before-enqueue-invariant
   statement: insert-before-enqueue invariant
   state: active
+stage_participation: []

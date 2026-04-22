@@ -3,7 +3,7 @@ managed_architecture_metadata: true
 legacy_feature_contracts: false
 architecture_generator: scripts/sync_architecture_docs.py
 starter_sync:
-  starter_baseline_ref: f03977b279e714d00e04cef8a686b8ae67d8208a
+  starter_baseline_ref: 96dbd97d854f35be41a3dcca60c04b33d0143d4f
   last_shared_surface_review_at: 2026-04-22
   reviewed_surface_classes:
     - repo_config
@@ -36,7 +36,7 @@ starter_sync:
     - path: scripts/validate_adoption_shape.py
       class: validation_and_sync_scripts
       status: customized
-      rationale: JOB-PROJECT now uses a repo-local Mode B validator aligned to the starter evidence-oriented lineage target and this repo's required metadata surfaces.
+      rationale: JOB-PROJECT keeps a repo-local Mode B validator aligned to the newer evidence-oriented lineage and generated-discovery target while preserving repo-specific underscore feature IDs and direct-evidence pilot enforcement.
     - path: docs/features/*/feature.source.yaml
       class: operating_system_docs
       status: customized

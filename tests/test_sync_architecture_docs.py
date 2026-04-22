@@ -128,10 +128,15 @@ def build_minimal_repo(tmp_path: Path) -> Path:
         "name: cv_writer\n"
         "type: script\n"
         "domain: cv_generation\n"
-        "capabilities:\n"
-        "  - cv_system.structured-cv-generation\n"
+        "capabilities: []\n"
         '"""\n\n'
+        "def build_cv() -> None:\n"
+        '    """\n'
+        "    @capability cv_system.structured-cv-generation\n"
+        '    """\n'
+        "    return None\n\n"
         "def main() -> None:\n"
+        "    build_cv()\n"
         "    return None\n",
         encoding="utf-8",
     )
@@ -221,7 +226,7 @@ def test_sync_script_writes_feature_and_stage_outputs(tmp_path: Path) -> None:
     assert stage_contract["cv_analysis"]["primary_features"] == ["cv_system"]
 
 
-def test_sync_script_refreshes_full_discovery_suite(tmp_path: Path) -> None:
+def test_sync_script_refreshes_generated_discovery_outputs(tmp_path: Path) -> None:
     repo_root = build_minimal_repo(tmp_path)
     sync_module = load_sync_module()
 
@@ -229,35 +234,40 @@ def test_sync_script_refreshes_full_discovery_suite(tmp_path: Path) -> None:
 
     assert exit_code == 0
 
-    features_index = read_yaml(repo_root / "docs" / "generated" / "features_index.yaml")
-    feature_ids = [entry["feature_id"] for entry in features_index["features"]]
-    assert feature_ids == ["admin_control_plane_core", "cv_system"]
+    architecture_dag = read_yaml(repo_root / "docs" / "generated" / "architecture_dag.yaml")
+    node_ids = {entry["id"] for entry in architecture_dag["nodes"]}
+    assert "admin_control_plane_core" in node_ids
+    assert "cv_analysis" in node_ids
+    assert "cv_system.structured-cv-generation" in node_ids
 
-    dependency_graph = read_yaml(repo_root / "docs" / "generated" / "feature_dependency_graph.yaml")
-    assert dependency_graph["graph"]["admin_control_plane_core"]["used_by"] == ["cv_system"]
+    edges = architecture_dag["edges"]
+    assert {"from": "cv_system", "to": "admin_control_plane_core", "type": "depends_on"} in edges
+    assert {"from": "cv_system", "to": "cv_analysis", "type": "participates_in", "role": "primary", "capability_ids": ["cv_system.structured-cv-generation"]} in edges
 
-    capability_index = read_yaml(repo_root / "docs" / "generated" / "feature_capabilities_index.yaml")
-    capability_ids = [entry["capability_id"] for entry in capability_index["capabilities"]]
-    capability_statements = [entry.get("statement") for entry in capability_index["capabilities"]]
-    assert "admin_control_plane_core.fastapi-web-server" in capability_ids
-    assert "Generate structured CV artifacts from grounded evidence." in capability_statements
+    capability_lineage = read_yaml(repo_root / "docs" / "generated" / "capability_lineage.yaml")
+    cv_feature = capability_lineage["features"]["cv_system"]
+    assert cv_feature["summary"] == "Pilot source for CV generation lifecycle ownership."
+    capability = cv_feature["capabilities"]["cv_system.structured-cv-generation"]
+    assert capability["statement"] == "Generate structured CV artifacts from grounded evidence."
+    assert capability["code"] == ["scripts/cv_writer.py"]
 
-    features_by_status = read_yaml(repo_root / "docs" / "generated" / "features_by_status.yaml")
-    assert features_by_status["active"] == ["admin_control_plane_core", "cv_system"]
 
-    feature_overview = (repo_root / "docs" / "generated" / "feature_overview.md").read_text(
-        encoding="utf-8"
+def test_sync_script_check_mode_reports_legacy_generated_outputs_as_stale(tmp_path: Path) -> None:
+    repo_root = build_minimal_repo(tmp_path)
+    sync_module = load_sync_module()
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    (repo_root / "docs" / "generated" / "features_index.yaml").write_text("legacy: true\n", encoding="utf-8")
+
+    process = subprocess.run(
+        [sys.executable, str(SCRIPT_PATH), "--repo-root", str(repo_root), "--check"],
+        capture_output=True,
+        text=True,
+        check=False,
     )
-    assert "`admin_control_plane_core`" in feature_overview
-    assert "Own the admin API and web surface for pipeline operations." in feature_overview
 
-    stages_index = read_yaml(repo_root / "docs" / "generated" / "stages_index.yaml")
-    stage_ids = [entry["stage_id"] for entry in stages_index["stages"]]
-    assert stage_ids == ["cv_analysis"]
-
-    stage_overview = (repo_root / "docs" / "generated" / "stage_overview.md").read_text(encoding="utf-8")
-    assert "`cv_analysis`" in stage_overview
-    assert "Pilot source for the pre-generation evidence stage." in stage_overview
+    assert process.returncode == 1
+    assert "docs/generated/features_index.yaml" in process.stdout
 
 
 def test_sync_script_check_mode_detects_stale_outputs(tmp_path: Path) -> None:
@@ -294,3 +304,20 @@ def test_sync_script_rejects_legacy_string_capabilities(tmp_path: Path) -> None:
         assert "must be a mapping" in str(exc)
     else:
         raise AssertionError("Expected sync script to reject string-only capability entries.")
+
+
+def test_sync_script_normalizes_generated_summary_and_statement_text(tmp_path: Path) -> None:
+    repo_root = build_minimal_repo(tmp_path)
+    sync_module = load_sync_module()
+
+    source_path = repo_root / "docs" / "features" / "cv_system" / "feature.source.yaml"
+    payload = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+    payload["summary"] = "Normalized summary with trailing space.   \n\n"
+    payload["capabilities"][0]["statement"] = "Statement with trailing space.   \n\n"
+    source_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+
+    contract = read_yaml(repo_root / "docs" / "features" / "cv_system" / "cv_system.yaml")
+    assert contract["summary"] == "Normalized summary with trailing space."
+    assert contract["capabilities"][0]["statement"] == "Statement with trailing space."

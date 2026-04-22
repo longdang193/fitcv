@@ -82,3 +82,39 @@ capabilities:
   statement: Emit canonical nested settings-used exports and isolate compatibility-era
     flat keys into an explicit compatibility block.
   state: active
+stage_participation:
+- stage_id: normalize
+  role: supporting
+  capability_ids:
+  - settings_system.run-safety-settings
+  - settings_system.trigger-time-effective-settings-snapshot
+  - settings_system.baseline-default-hydration
+- stage_id: enrich
+  role: supporting
+  capability_ids:
+  - settings_system.retrieval-settings
+  - settings_system.global-job-filters
+- stage_id: rule_filter
+  role: supporting
+  capability_ids:
+  - settings_system.global-job-filters
+- stage_id: shortlist
+  role: supporting
+  capability_ids:
+  - settings_system.retrieval-settings
+- stage_id: ranking
+  role: supporting
+  capability_ids:
+  - settings_system.ranking-settings
+  - settings_system.preference-fit-calibration
+- stage_id: cv_analysis
+  role: supporting
+  capability_ids:
+  - settings_system.cv-analysis-alignment-settings
+- stage_id: cv_generation
+  role: supporting
+  capability_ids:
+  - settings_system.cv-generation-settings
+  - settings_system.cv-composition-visibility-settings
+  - settings_system.warning-only-cv-max-pages-validation-setting
+  - settings_system.settings-used-exports

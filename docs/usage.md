@@ -21,4 +21,5 @@ FitCV supports two main usage modes: operator workflows and engineering workflow
 
 - [pipeline.md](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/pipeline.md)
 - [FitCV-pipeline.md](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/FitCV-pipeline.md)
-- [docs/generated/stage_overview.md](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/stage_overview.md)
+- [docs/generated/architecture_dag.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/architecture_dag.yaml)
+- [docs/generated/capability_lineage.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/capability_lineage.yaml)

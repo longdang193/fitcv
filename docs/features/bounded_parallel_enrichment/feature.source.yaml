@@ -29,3 +29,13 @@ capabilities:
 - capability_id: bounded_parallel_enrichment.per-job-failure-isolation
   statement: Per-job failure isolation
   state: active
+stage_participation:
+- stage_id: enrich
+  role: primary
+  capability_ids:
+  - bounded_parallel_enrichment.enrichment-batch-size-setting
+  - bounded_parallel_enrichment.enrichment-concurrency-setting
+  - bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
+  - bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1
+  - bounded_parallel_enrichment.deterministic-output-order
+  - bounded_parallel_enrichment.per-job-failure-isolation
