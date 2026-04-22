@@ -7,8 +7,6 @@
 #   - cv_analysis
 # capabilities:
 #   - cv_system.fit-gate-resolution
-# components:
-#   - config.policy.ranking
 # role: config
 # canonical: true
 

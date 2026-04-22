@@ -39,7 +39,9 @@ capabilities:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
     - path: docs/features/run_lifecycle_controls/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -118,7 +120,9 @@ capabilities:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
     - path: docs/features/run_lifecycle_controls/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -179,7 +183,9 @@ capabilities:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
     - path: docs/features/run_lifecycle_controls/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -258,7 +264,9 @@ capabilities:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
     - path: docs/features/run_lifecycle_controls/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -319,7 +327,9 @@ capabilities:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
     - path: docs/features/run_lifecycle_controls/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -380,7 +390,9 @@ capabilities:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
     - path: docs/features/run_lifecycle_controls/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -457,7 +469,9 @@ capabilities:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
     - path: docs/features/run_lifecycle_controls/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -542,7 +556,9 @@ capabilities:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
     - path: docs/features/run_lifecycle_controls/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -617,7 +633,9 @@ capabilities:
     - docs/features/run_lifecycle_controls/history.md
     docs_evidence:
     - path: docs/features/run_lifecycle_controls/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []

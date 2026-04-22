@@ -24,6 +24,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR_PATH = REPO_ROOT / "scripts" / "validate_repo_contracts.py"
+GENERATOR_PATH = REPO_ROOT / "tools" / "docs" / "generate_architecture_metadata.py"
 
 
 def load_module(path: Path, name: str):
@@ -87,11 +88,26 @@ def build_repo(tmp_path: Path) -> Path:
         },
     )
     for relative_path, content in {
-        "docs/setup.md": "# Setup\n\nInstall tools.\n",
-        "docs/configuration.md": "# Configuration\n\nConfig file defaults and ownership.\n",
-        "docs/usage.md": "# Usage\n\nRun flow commands.\n",
-        "docs/pipeline.md": "# Pipeline\n\nStage workflow sequence.\n",
-        "docs/architecture.md": "# Architecture\n\nComponent boundaries and integrations.\n",
+        "docs/setup.md": (
+            "# Setup\n\n"
+            "Install dependencies, confirm tool versions, provision prerequisites, and run bootstrap in order.\n"
+        ),
+        "docs/configuration.md": (
+            "# Configuration\n\n"
+            "Each environment variable and config file has profile defaults, override rules, ownership, and repo_config guidance.\n"
+        ),
+        "docs/usage.md": (
+            "# Usage\n\n"
+            "The command entrypoint supports the operator workflow, developer flow, and run loop.\n"
+        ),
+        "docs/pipeline.md": (
+            "# Pipeline\n\n"
+            "Each stage in the workflow documents its step sequence, handoff, and processing flow.\n"
+        ),
+        "docs/architecture.md": (
+            "# Architecture\n\n"
+            "The architecture captures each component boundary, integration point, information flow, and control flow.\n"
+        ),
         "docs/intent/README.md": "# Intent\n",
         "docs/intent/project-charter.md": "# Project Charter\n",
         "docs/intent/stakeholders.md": "# Stakeholders\n",
@@ -131,6 +147,9 @@ def build_repo(tmp_path: Path) -> Path:
             },
         },
     )
+    (repo_root / "docs" / "operating_system").mkdir(parents=True, exist_ok=True)
+    (repo_root / "docs" / "superpowers" / "specs").mkdir(parents=True, exist_ok=True)
+    (repo_root / "docs" / "superpowers" / "plans").mkdir(parents=True, exist_ok=True)
     (repo_root / "config").mkdir(parents=True, exist_ok=True)
     (repo_root / "config" / "runtime").mkdir(parents=True, exist_ok=True)
     (repo_root / "config" / "runtime" / "prompts.yaml").write_text(
@@ -142,8 +161,6 @@ def build_repo(tmp_path: Path) -> Path:
         "#   - cv_analysis\n"
         "# capabilities:\n"
         "#   - cv_system.structured-cv-generation\n"
-        "# components:\n"
-        "#   - config.runtime.prompts\n"
         "# role: config\n"
         "# canonical: true\n\n"
         "prompts:\n  cv_generation:\n    structured_write:\n      prompt_id: cv_generation.structured_write.v1\n",
@@ -151,6 +168,7 @@ def build_repo(tmp_path: Path) -> Path:
     )
     scripts_dir = repo_root / "scripts"
     scripts_dir.mkdir(parents=True, exist_ok=True)
+    (repo_root / "tools" / "docs").mkdir(parents=True, exist_ok=True)
     (scripts_dir / "sync_architecture_docs.py").write_text(
         (REPO_ROOT / "scripts" / "sync_architecture_docs.py").read_text(encoding="utf-8"),
         encoding="utf-8",
@@ -161,6 +179,10 @@ def build_repo(tmp_path: Path) -> Path:
     )
     (scripts_dir / "validate_repo_contracts.py").write_text(
         VALIDATOR_PATH.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (repo_root / "tools" / "docs" / "generate_architecture_metadata.py").write_text(
+        GENERATOR_PATH.read_text(encoding="utf-8"),
         encoding="utf-8",
     )
     tests_dir = repo_root / "tests"

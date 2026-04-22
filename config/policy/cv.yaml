@@ -6,8 +6,6 @@
 #   - cv_generation
 # capabilities:
 #   - cv_system.config-owned-generation-contract
-# components:
-#   - config.policy.cv-generation
 # role: config
 # canonical: true
 

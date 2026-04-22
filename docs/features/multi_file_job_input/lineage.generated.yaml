@@ -29,7 +29,9 @@ capabilities:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
     - path: docs/features/multi_file_job_input/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -84,7 +86,9 @@ capabilities:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
     - path: docs/features/multi_file_job_input/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -133,7 +137,9 @@ capabilities:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
     - path: docs/features/multi_file_job_input/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -220,7 +226,9 @@ capabilities:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
     - path: docs/features/multi_file_job_input/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []
@@ -275,7 +283,9 @@ capabilities:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
     - path: docs/features/multi_file_job_input/history.md
-      kind: doc_ref
+      confidence: high
+      source:
+      - docs_frontmatter
     configs: []
     config_evidence: []
     components: []

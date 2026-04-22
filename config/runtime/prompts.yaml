@@ -8,8 +8,6 @@
 # capabilities:
 #   - cv_system.config-owned-generation-contract
 #   - inspection_debugging.prompt-provenance-diagnostics
-# components:
-#   - config.runtime.prompts
 # role: config
 # canonical: true
 
