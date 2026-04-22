@@ -15,6 +15,7 @@ outputs:
   - channel counts, subscores, and semantic alignment diagnostics
 capabilities:
   - pipeline_performance.cv-analysis-now-uses-bounded-semantic-lift-for-required-skill-and-role-channels-instead-of-reserving-semantic-work-only-for-domain-and-responsibility-alignment
+  - cv_system.analysis-evidence-selection
 tags:
   - evidence
   - cv-analysis

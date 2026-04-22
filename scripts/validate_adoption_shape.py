@@ -73,9 +73,18 @@ FORBIDDEN_LINEAGE_KEYS = {
     "refs_by_type",
 }
 LINEAGE_ALIAS_PATTERN = re.compile(r"(^|\s)[&*]id\d+\b", re.MULTILINE)
-LINEAGE_EVIDENCE_FIELDS = ("code", "tests", "docs", "specs", "plans", "configs", "components")
+LINEAGE_EVIDENCE_FIELDS = ("code", "tests", "docs", "specs", "plans", "configs")
 CAPABILITY_PATTERN = re.compile(r"@capability\s+(\S+)")
 VALID_CAPABILITY_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*\.[a-z0-9]+(?:-[a-z0-9]+)*$")
+RICH_TIMELINE_KEYS = {
+    "completed_at",
+    "source_plan",
+    "change_id",
+    "summary",
+    "capabilities",
+    "verification",
+    "outcome",
+}
 REQUIRED_GENERATED_DISCOVERY_FILES = (
     "docs/generated/architecture_dag.yaml",
     "docs/generated/capability_lineage.yaml",
@@ -89,6 +98,7 @@ LEGACY_GENERATED_DISCOVERY_FILES = (
     "docs/generated/stages_index.yaml",
     "docs/generated/stage_overview.md",
 )
+YAML_METADATA_REQUIRED_FIELDS = ("owner", "features", "capabilities", "role", "canonical")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -152,6 +162,41 @@ def function_capability_markers(path: Path) -> list[tuple[int, str | None]]:
         else:
             markers.append((node.lineno, None))
     return markers
+
+
+def config_yaml_paths(repo_root: Path) -> list[Path]:
+    root = repo_root / "config"
+    if not root.exists():
+        return []
+    return sorted(root.rglob("*.yaml"))
+
+
+def parse_yaml_architecture_metadata(path: Path) -> dict[str, Any] | None:
+    metadata_lines: list[str] = []
+    metadata_started = False
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped:
+            if metadata_started:
+                break
+            continue
+        if not stripped.startswith("#"):
+            break
+        comment_body = stripped[1:]
+        if comment_body.startswith(" "):
+            comment_body = comment_body[1:]
+        if comment_body == "@architecture":
+            metadata_started = True
+            continue
+        if metadata_started:
+            metadata_lines.append(comment_body)
+    if not metadata_started:
+        return None
+    try:
+        payload = yaml.safe_load("\n".join(metadata_lines))
+    except yaml.YAMLError as exc:
+        return {"__parse_error__": str(exc)}
+    return cast(dict[str, Any], payload) if isinstance(payload, dict) else {}
 
 
 def collect_capability_ids(repo_root: Path) -> set[str]:
@@ -241,6 +286,48 @@ def validate_python_file_metadata(repo_root: Path) -> list[str]:
     return errors
 
 
+def validate_config_yaml_metadata(repo_root: Path) -> list[str]:
+    errors: list[str] = []
+    known_capability_ids = collect_capability_ids(repo_root)
+    for path in config_yaml_paths(repo_root):
+        relative = relpath(path, repo_root)
+        metadata = parse_yaml_architecture_metadata(path)
+        if metadata is None:
+            errors.append(f"Missing required # @architecture metadata: {relative}")
+            continue
+        if "__parse_error__" in metadata:
+            errors.append(
+                f"Invalid # @architecture metadata in {relative}: {metadata['__parse_error__']}"
+            )
+            continue
+        missing_fields = [field for field in YAML_METADATA_REQUIRED_FIELDS if field not in metadata]
+        if missing_fields:
+            errors.append(
+                f"Config metadata is missing required fields in {relative}: {', '.join(missing_fields)}"
+            )
+        for field in ("features", "capabilities", "components", "satisfies"):
+            if field not in metadata:
+                continue
+            value = metadata[field]
+            if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
+                errors.append(
+                    f"Config metadata field {field} must be a list of non-empty strings in {relative}"
+                )
+        owner = metadata.get("owner")
+        if not isinstance(owner, str) or not owner:
+            errors.append(f"Config metadata owner must be a non-empty string in {relative}")
+        role = metadata.get("role")
+        if not isinstance(role, str) or not role:
+            errors.append(f"Config metadata role must be a non-empty string in {relative}")
+        canonical = metadata.get("canonical")
+        if not isinstance(canonical, bool):
+            errors.append(f"Config metadata canonical must be a boolean in {relative}")
+        for capability_id in metadata.get("capabilities", []):
+            if capability_id not in known_capability_ids:
+                errors.append(f"Unknown config metadata capability ID in {relative}: {capability_id}")
+    return errors
+
+
 def validate_feature_capability(feature_id: str, capability: dict[str, Any], owner: str, index: int) -> list[str]:
     errors: list[str] = []
     capability_id = capability.get("capability_id")
@@ -258,6 +345,56 @@ def validate_feature_capability(feature_id: str, capability: dict[str, Any], own
         errors.append(f"Capability entry {index + 1} in {owner} must include statement.")
     if not isinstance(state, str) or not state:
         errors.append(f"Capability entry {index + 1} in {owner} must include state.")
+    return errors
+
+
+def validate_lineage_evidence_nodes(
+    repo_root: Path,
+    lineage_relative_path: str,
+    capability_id: str,
+    field_name: str,
+    nodes: object,
+) -> list[str]:
+    errors: list[str] = []
+    if not isinstance(nodes, list):
+        errors.append(
+            f"Lineage field {field_name} must be a list for {capability_id} in {lineage_relative_path}."
+        )
+        return errors
+    for index, entry in enumerate(nodes):
+        if not isinstance(entry, dict):
+            errors.append(
+                f"Lineage field {field_name}[{index}] must be a mapping for {capability_id} in {lineage_relative_path}."
+            )
+            continue
+        path_value = entry.get("path")
+        confidence_value = entry.get("confidence")
+        source_value = entry.get("source")
+        if not isinstance(path_value, str):
+            errors.append(
+                f"Lineage field {field_name}[{index}] must include a string path for {capability_id} in {lineage_relative_path}."
+            )
+        elif not (repo_root / path_value).exists():
+            errors.append(
+                f"Lineage path does not exist for {capability_id} in {lineage_relative_path}: {path_value}"
+            )
+        if not isinstance(confidence_value, str) or not confidence_value:
+            errors.append(
+                f"Lineage field {field_name}[{index}] must include a non-empty confidence for {capability_id} in {lineage_relative_path}."
+            )
+        if not isinstance(source_value, list) or not all(
+            isinstance(item, str) and item for item in source_value
+        ):
+            errors.append(
+                f"Lineage field {field_name}[{index}] must include a non-empty source list for {capability_id} in {lineage_relative_path}."
+            )
+        symbols = entry.get("symbols")
+        if symbols is not None and (
+            not isinstance(symbols, list) or not all(isinstance(item, str) and item for item in symbols)
+        ):
+            errors.append(
+                f"Lineage field {field_name}[{index}] symbols must be a list of non-empty strings for {capability_id} in {lineage_relative_path}."
+            )
     return errors
 
 
@@ -350,10 +487,37 @@ def validate_feature_source(repo_root: Path, source_path: Path, lineage_path: Pa
             errors.append(
                 f"Feature lineage capabilities must be a mapping in {relpath(lineage_path, repo_root)}."
             )
-        if "timeline" in lineage and not isinstance(lineage["timeline"], list):
-            errors.append(
-                f"Feature lineage timeline must be a list in {relpath(lineage_path, repo_root)}."
-            )
+        if "timeline" in lineage:
+            timeline = lineage["timeline"]
+            if not isinstance(timeline, list):
+                errors.append(
+                    f"Feature lineage timeline must be a list in {relpath(lineage_path, repo_root)}."
+                )
+            else:
+                for index, entry in enumerate(timeline):
+                    if not isinstance(entry, dict):
+                        errors.append(
+                            f"Feature lineage timeline entry {index + 1} must be a mapping in {relpath(lineage_path, repo_root)}."
+                        )
+                        continue
+                    missing_timeline_keys = sorted(
+                        key for key in RICH_TIMELINE_KEYS if key not in entry
+                    )
+                    if missing_timeline_keys:
+                        errors.append(
+                            "Feature lineage timeline entry "
+                            f"{index + 1} is missing required keys in {relpath(lineage_path, repo_root)}: "
+                            + ", ".join(missing_timeline_keys)
+                        )
+                        continue
+                    if not isinstance(entry.get("capabilities"), list):
+                        errors.append(
+                            f"Feature lineage timeline entry {index + 1} capabilities must be a list in {relpath(lineage_path, repo_root)}."
+                        )
+                    if not isinstance(entry.get("verification"), list):
+                        errors.append(
+                            f"Feature lineage timeline entry {index + 1} verification must be a list in {relpath(lineage_path, repo_root)}."
+                        )
         capabilities_lineage = lineage.get("capabilities", {})
         if isinstance(capabilities_lineage, dict):
             for capability_id, capability_lineage in capabilities_lineage.items():
@@ -362,22 +526,106 @@ def validate_feature_source(repo_root: Path, source_path: Path, lineage_path: Pa
                         f"Feature lineage entry must be a mapping for {capability_id} in {relpath(lineage_path, repo_root)}."
                     )
                     continue
-                for field in LINEAGE_EVIDENCE_FIELDS:
+                lineage_relative_path = relpath(lineage_path, repo_root)
+                errors.extend(
+                    validate_lineage_evidence_nodes(
+                        repo_root,
+                        lineage_relative_path,
+                        capability_id,
+                        "code",
+                        capability_lineage.get("code", []),
+                    )
+                )
+                errors.extend(
+                    validate_lineage_evidence_nodes(
+                        repo_root,
+                        lineage_relative_path,
+                        capability_id,
+                        "tests",
+                        capability_lineage.get("tests", []),
+                    )
+                )
+                for field in ("docs", "specs", "plans", "configs"):
                     evidence_paths = capability_lineage.get(field, [])
                     if not isinstance(evidence_paths, list):
                         errors.append(
-                            f"Lineage field {field} must be a list for {capability_id} in {relpath(lineage_path, repo_root)}."
+                            f"Lineage field {field} must be a list for {capability_id} in {lineage_relative_path}."
                         )
                         continue
                     for evidence_path in evidence_paths:
                         if not isinstance(evidence_path, str):
                             errors.append(
-                                f"Lineage field {field} must contain string paths for {capability_id} in {relpath(lineage_path, repo_root)}."
+                                f"Lineage field {field} must contain string paths for {capability_id} in {lineage_relative_path}."
                             )
                             continue
                         if not (repo_root / evidence_path).exists():
                             errors.append(
-                                f"Lineage path does not exist for {capability_id} in {relpath(lineage_path, repo_root)}: {evidence_path}"
+                                f"Lineage path does not exist for {capability_id} in {lineage_relative_path}: {evidence_path}"
+                            )
+                components = capability_lineage.get("components", [])
+                if not isinstance(components, list) or not all(
+                    isinstance(item, str) and item for item in components
+                ):
+                    errors.append(
+                        f"Lineage field components must be a list of non-empty strings for {capability_id} in {lineage_relative_path}."
+                    )
+                satisfies = capability_lineage.get("satisfies", [])
+                if not isinstance(satisfies, list) or not all(
+                    isinstance(item, str) and item for item in satisfies
+                ):
+                    errors.append(
+                        f"Lineage field satisfies must be a list of non-empty strings for {capability_id} in {lineage_relative_path}."
+                    )
+                config_evidence = capability_lineage.get("config_evidence", [])
+                if not isinstance(config_evidence, list):
+                    errors.append(
+                        f"Lineage field config_evidence must be a list for {capability_id} in {relpath(lineage_path, repo_root)}."
+                    )
+                else:
+                    for entry in config_evidence:
+                        if not isinstance(entry, dict):
+                            errors.append(
+                                f"Lineage field config_evidence must contain mappings for {capability_id} in {relpath(lineage_path, repo_root)}."
+                            )
+                            continue
+                        path_value = entry.get("path")
+                        kind_value = entry.get("kind")
+                        if not isinstance(path_value, str) or not isinstance(kind_value, str):
+                            errors.append(
+                                f"Lineage field config_evidence entries must include string path/kind for {capability_id} in {relpath(lineage_path, repo_root)}."
+                            )
+                            continue
+                        if not (repo_root / path_value).exists():
+                            errors.append(
+                                f"Lineage config_evidence path does not exist for {capability_id} in {relpath(lineage_path, repo_root)}: {path_value}"
+                            )
+                component_evidence = capability_lineage.get("component_evidence", [])
+                if not isinstance(component_evidence, list):
+                    errors.append(
+                        f"Lineage field component_evidence must be a list for {capability_id} in {relpath(lineage_path, repo_root)}."
+                    )
+                else:
+                    for entry in component_evidence:
+                        if not isinstance(entry, dict):
+                            errors.append(
+                                f"Lineage field component_evidence must contain mappings for {capability_id} in {relpath(lineage_path, repo_root)}."
+                            )
+                            continue
+                        component_value = entry.get("component")
+                        path_value = entry.get("path")
+                        kind_value = entry.get("kind")
+                        if (
+                            not isinstance(component_value, str)
+                            or not isinstance(path_value, str)
+                            or not isinstance(kind_value, str)
+                        ):
+                            errors.append(
+                                f"Lineage field component_evidence entries must include string component/path/kind for {capability_id} in {relpath(lineage_path, repo_root)}."
+                            )
+                            continue
+                        if not (repo_root / path_value).exists():
+                            errors.append(
+                                f"Lineage component_evidence path does not exist for {capability_id} in {relpath(lineage_path, repo_root)}: {path_value}"
                             )
                 if capability_lineage.get("completeness_status") == "complete":
                     code_paths = capability_lineage.get("code", [])
@@ -560,6 +808,7 @@ def main(argv: list[str] | None = None) -> int:
     errors: list[str] = []
     errors.extend(validate_required_files(repo_root))
     errors.extend(validate_python_file_metadata(repo_root))
+    errors.extend(validate_config_yaml_metadata(repo_root))
     errors.extend(validate_features(repo_root))
     errors.extend(validate_stages(repo_root))
     errors.extend(validate_adoption_mode(repo_root))

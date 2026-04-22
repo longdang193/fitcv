@@ -455,12 +455,16 @@ def test_settings_sections_global_job_filters_has_two_keys():
 # ── enrichment parallelism settings ───────────────────────────────────────────
 
 def test_enrichment_parallelism_keys_registered():
+    """@proves bounded_parallel_enrichment.enrichment-batch-size-setting
+    @proves bounded_parallel_enrichment.enrichment-concurrency-setting
+    """
     keys = {s["key"] for s in SETTINGS_SCHEMA}
     assert "enrichment_batch_size" in keys
     assert "enrichment_concurrency" in keys
 
 
 def test_enrichment_parallelism_defaults():
+    """@proves bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1"""
     schema_by_key = {s["key"]: s for s in SETTINGS_SCHEMA}
     assert schema_by_key["enrichment_batch_size"]["default"] == 10
     assert schema_by_key["enrichment_concurrency"]["default"] == 1
@@ -492,12 +496,14 @@ def test_enrichment_concurrency_validate_accepts_one():
 
 
 def test_enrichment_batch_size_apply_writes_correct_path():
+    """@proves bounded_parallel_enrichment.enrichment-batch-size-setting"""
     config: dict = {}
     apply_settings_to_config(config, {"enrichment_batch_size": 5})
     assert config["enrichment_batch_size"] == 5
 
 
 def test_enrichment_concurrency_apply_writes_correct_path():
+    """@proves bounded_parallel_enrichment.enrichment-concurrency-setting"""
     config: dict = {}
     apply_settings_to_config(config, {"enrichment_concurrency": 3})
     assert config["enrichment_concurrency"] == 3

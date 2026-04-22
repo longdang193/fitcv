@@ -1286,6 +1286,7 @@ def test_run_pipeline_repairs_candidate_name_placeholder_without_llm_retry(
     mock_create_version: MagicMock,
     mock_store_ver: MagicMock,
 ) -> None:
+    """@proves cv_system.header-placeholder-repair"""
     from fitcv.pipeline import run_pipeline
 
     job = _minimal_job()
@@ -1530,6 +1531,7 @@ def test_build_cv_analysis_input_fingerprint_changes_when_semantic_alignment_cha
 
 
 def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
+    """@proves cv_system.exact-match-late-stage-reuse"""
     from fitcv.ai_score import build_ai_score_input_fingerprint
     from fitcv.pipeline import run_pipeline
     from fitcv.vector_search import build_candidate_query_text
@@ -1603,6 +1605,7 @@ def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
 
 
 def test_run_pipeline_reuses_exact_match_cv_analysis_records() -> None:
+    """@proves cv_system.exact-match-late-stage-reuse"""
     from fitcv.evidence import build_cv_analysis_input_fingerprint
     from fitcv.pipeline import run_pipeline
 
@@ -3312,6 +3315,7 @@ def test_build_stage_transition_artifacts_reports_six_feature_ranking_contract()
 
 
 def test_build_stage_transition_artifacts_emits_stage_quality_metrics() -> None:
+    """@proves cv_system.stage-artifact-diagnostics"""
     passed_jobs = [
         {"job_url": "https://example.com/1", "title": "Job 1"},
         {"job_url": "https://example.com/2", "title": "Job 2"},
@@ -3999,6 +4003,7 @@ def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
     mock_create_version: MagicMock,
     mock_store_ver: MagicMock,
 ) -> None:
+    """@proves cv_system.fit-gate-resolution"""
     from fitcv.pipeline import run_pipeline
 
     job = {
@@ -5431,6 +5436,7 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
     mock_retrieve_bundle: MagicMock,
     mock_compute_gap: MagicMock,
 ) -> None:
+    """@proves cv_system.analysis-evidence-selection"""
     from fitcv.pipeline import run_pipeline
 
     profile = _minimal_profile()
@@ -5878,7 +5884,9 @@ def test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch(
     mock_validate: MagicMock,
     mock_store_ver: MagicMock,
 ) -> None:
-    """enrich_batch must receive enrichment_batch_size and enrichment_concurrency from config."""
+    """@proves bounded_parallel_enrichment.enrichment-batch-size-setting
+    @proves bounded_parallel_enrichment.enrichment-concurrency-setting
+    """
     from fitcv.pipeline import run_pipeline
 
     job = _minimal_job()
@@ -5909,3 +5917,96 @@ def test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch(
     assert passed_config.get("enrichment_concurrency") == 3, (
         f"enrichment_concurrency not forwarded. config={passed_config}"
     )
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_blocks_pre_filtered_jobs_before_enrichment(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_pre_filter: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    """@proves bounded_parallel_enrichment.pre-enrichment-global-filters-run-first"""
+    from fitcv.pipeline import run_pipeline
+
+    kept_job = _minimal_job()
+    rejected_job = {
+        **_minimal_job(),
+        "job_url": "https://example.com/rejected",
+        "title": "Rejected Before Enrich",
+    }
+    profile = _minimal_profile()
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [kept_job, rejected_job]
+    mock_norm.return_value = [kept_job, rejected_job]
+    mock_pre_filter.return_value = {
+        "passed": [kept_job["job_url"]],
+        "rejected": [
+            {
+                "job_url": rejected_job["job_url"],
+                "title": rejected_job["title"],
+                "pre_filter_marks": [{"code": "global_job_filter", "message": "Too old"}],
+            }
+        ],
+    }
+    mock_enrich.return_value = [kept_job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [kept_job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": kept_job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_ai.return_value = [kept_job]
+    mock_build_feat.return_value = [kept_job]
+    mock_rank.return_value = []
+
+    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="pre-filter-proof")
+
+    args, kwargs = mock_enrich.call_args
+    enriched_input = args[0] if args else kwargs.get("normalized_jobs", [])
+    assert enriched_input == [kept_job]
+    rejected_export = next(
+        row for row in result["export_results"] if row["job_url"] == rejected_job["job_url"]
+    )
+    assert rejected_export["pipeline_status"] == "rejected_before_enrichment"

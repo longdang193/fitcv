@@ -3,7 +3,7 @@ managed_architecture_metadata: true
 legacy_feature_contracts: false
 architecture_generator: scripts/sync_architecture_docs.py
 starter_sync:
-  starter_baseline_ref: 96dbd97d854f35be41a3dcca60c04b33d0143d4f
+  starter_baseline_ref: a5d2d85b3174cde84f90df26642385b429e3c194
   last_shared_surface_review_at: 2026-04-22
   reviewed_surface_classes:
     - repo_config
@@ -36,7 +36,11 @@ starter_sync:
     - path: scripts/validate_adoption_shape.py
       class: validation_and_sync_scripts
       status: customized
-      rationale: JOB-PROJECT keeps a repo-local Mode B validator aligned to the newer evidence-oriented lineage and generated-discovery target while preserving repo-specific underscore feature IDs and direct-evidence pilot enforcement.
+      rationale: JOB-PROJECT keeps a repo-local Mode B validator aligned to the latest starter lineage validation contract while preserving repo-specific underscore feature IDs, config metadata checks, and direct-evidence pilot enforcement.
+    - path: scripts/validate_repo_contracts.py
+      class: validation_and_sync_scripts
+      status: customized
+      rationale: JOB-PROJECT adopts the starter repo-contract validator shape but routes the broader gate through the local adoption-shape validator and keeps feature-history boundary enforcement deferred until partial-generated history is migrated.
     - path: docs/features/*/feature.source.yaml
       class: operating_system_docs
       status: customized
@@ -47,10 +51,46 @@ starter_sync:
       rationale: Feature histories have not yet been migrated to the starter partial-generated history pattern and still use the older manual changelog structure.
 phase_7_direct_evidence_pilot:
   capabilities:
+    bounded_parallel_enrichment.enrichment-batch-size-setting:
+      require_code: true
+      require_tests: true
+    bounded_parallel_enrichment.enrichment-concurrency-setting:
+      require_code: true
+      require_tests: true
+    bounded_parallel_enrichment.pre-enrichment-global-filters-run-first:
+      require_code: true
+      require_tests: true
+    bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1:
+      require_code: true
+      require_tests: true
+    bounded_parallel_enrichment.deterministic-output-order:
+      require_code: true
+      require_tests: true
+    bounded_parallel_enrichment.per-job-failure-isolation:
+      require_code: true
+      require_tests: true
+    cv_system.analysis-evidence-selection:
+      require_code: true
+      require_tests: true
+    cv_system.fit-gate-resolution:
+      require_code: true
+      require_tests: true
     cv_system.structured-cv-generation:
       require_code: true
       require_tests: true
     cv_system.analysis-grounded-validation:
+      require_code: true
+      require_tests: true
+    cv_system.header-placeholder-repair:
+      require_code: true
+      require_tests: true
+    cv_system.stage-artifact-diagnostics:
+      require_code: true
+      require_tests: true
+    cv_system.exact-match-late-stage-reuse:
+      require_code: true
+      require_tests: true
+    cv_system.config-owned-generation-contract:
       require_code: true
       require_tests: true
     inspection_debugging.run-detail-inspection-tabs:

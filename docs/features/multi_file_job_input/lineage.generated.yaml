@@ -8,9 +8,23 @@ capabilities:
     statement: Multiple file inputs in trigger form
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_upload_trigger_merges_multiple_job_files
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_upload_trigger_upload_mode_no_files_rejected
     docs:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
@@ -43,9 +57,29 @@ capabilities:
     statement: Per-file server-side validation
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_upload_trigger_all_empty_arrays_rejected
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_upload_trigger_multi_file_non_array_rejected
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_upload_trigger_one_invalid_file_rejects_entire_request
     docs:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
@@ -78,9 +112,23 @@ capabilities:
     statement: Canonical merge preserving order
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_upload_trigger_merges_multiple_job_files
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_upload_trigger_multi_file_preserves_order
     docs:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
@@ -113,13 +161,61 @@ capabilities:
     statement: One immutable snapshot stored per run
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
-    - src/fitcv_cp/bq_store.py
-    - src/fitcv_cp/models.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/bq_store.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/models.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
-    - tests/test_fitcv_cp/test_bq_store.py
-    - tests/test_fitcv_cp/test_models.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_upload_trigger_merges_multiple_job_files
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_upload_trigger_path_mode_stores_jobs_snapshot
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_insert_run_includes_input_metadata_params
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_insert_run_input_metadata_none_values_are_included
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_row_to_run_handles_missing_input_metadata_fields
+    - path: tests/test_fitcv_cp/test_bq_store.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_row_to_run_maps_input_metadata_fields
+    - path: tests/test_fitcv_cp/test_models.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_pipeline_run_fields
     docs:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
@@ -152,9 +248,29 @@ capabilities:
     statement: All-or-nothing rejection on validation failure
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_upload_trigger_all_empty_arrays_rejected
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_upload_trigger_multi_file_non_array_rejected
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_upload_trigger_one_invalid_file_rejects_entire_request
     docs:
     - docs/features/multi_file_job_input/history.md
     docs_evidence:
@@ -182,26 +298,4 @@ capabilities:
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-timeline:
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-16-02-phase-12-ui-input-evidence-completion-spec.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+timeline: []

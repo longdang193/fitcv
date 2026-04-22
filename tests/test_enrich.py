@@ -629,6 +629,44 @@ def test_enrich_batch_retries_resource_exhausted_once(
     assert sleeps == [1.5, 1.5]  # backoff sleep + success-path global rate-limit sleep
 
 
+def test_enrich_chunk_isolates_single_job_retry_from_following_jobs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """@proves bounded_parallel_enrichment.per-job-failure-isolation"""
+    from fitcv.enrich import enrich_batch
+
+    attempts_by_url = {"url1": 0, "url2": 0}
+
+    class FakeResourceExhausted(Exception):
+        pass
+
+    def fake_enrich_job(job: dict[str, object], config: dict[str, object]) -> dict[str, object]:
+        job_url = str(job["job_url"])
+        attempts_by_url[job_url] += 1
+        if job_url == "url1" and attempts_by_url[job_url] == 1:
+            raise FakeResourceExhausted("quota")
+        return {"job_url": job_url, "enriched": True}
+
+    fake_exceptions = types.SimpleNamespace(ResourceExhausted=FakeResourceExhausted)
+
+    monkeypatch.setattr("fitcv.enrich.enrich_job", fake_enrich_job)
+    monkeypatch.setitem(sys.modules, "google.api_core.exceptions", fake_exceptions)
+    monkeypatch.setattr("time.sleep", lambda secs: None)
+
+    result = enrich_batch(
+        normalized_jobs=[{"job_url": "url1"}, {"job_url": "url2"}],
+        config={
+            "enrichment_batch_size": 2,
+            "enrichment_concurrency": 1,
+            "enrichment_sleep_secs": 0.0,
+            "enrichment_max_retries": 1,
+        },
+    )
+
+    assert [row["job_url"] for row in result] == ["url1", "url2"]
+    assert attempts_by_url == {"url1": 2, "url2": 1}
+
+
 def test_enrich_batch_retries_genai_client_error_429_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1454,7 +1492,7 @@ def _fake_enrich_job(job: dict, config: dict) -> dict:
 
 
 def test_enrich_batch_preserves_input_order_under_parallel_batches() -> None:
-    """Result order must match input order regardless of batch completion order."""
+    """@proves bounded_parallel_enrichment.deterministic-output-order"""
     from unittest.mock import patch
     from fitcv.enrich import enrich_batch
 

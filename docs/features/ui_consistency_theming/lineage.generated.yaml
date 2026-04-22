@@ -8,9 +8,17 @@ capabilities:
     statement: CSS custom properties design tokens
     satisfies: []
     code:
-    - src/fitcv_cp/templates/base.html
+    - path: src/fitcv_cp/templates/base.html
+      confidence: high
+      source:
+      - template_architecture
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_base_template_defines_theme_tokens_and_shared_classes
     docs:
     - docs/features/ui_consistency_theming/history.md
     docs_evidence:
@@ -45,9 +53,17 @@ capabilities:
     statement: Shared component classes
     satisfies: []
     code:
-    - src/fitcv_cp/templates/base.html
+    - path: src/fitcv_cp/templates/base.html
+      confidence: high
+      source:
+      - template_architecture
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_base_template_defines_theme_tokens_and_shared_classes
     docs:
     - docs/features/ui_consistency_theming/history.md
     docs_evidence:
@@ -82,9 +98,17 @@ capabilities:
     statement: Dark/light theme toggle with localStorage persistence
     satisfies: []
     code:
-    - src/fitcv_cp/templates/base.html
+    - path: src/fitcv_cp/templates/base.html
+      confidence: high
+      source:
+      - template_architecture
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_base_template_bootstraps_saved_theme_before_styles
     docs:
     - docs/features/ui_consistency_theming/history.md
     docs_evidence:
@@ -119,9 +143,17 @@ capabilities:
     statement: Flash-free theme application
     satisfies: []
     code:
-    - src/fitcv_cp/templates/base.html
+    - path: src/fitcv_cp/templates/base.html
+      confidence: high
+      source:
+      - template_architecture
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_base_template_bootstraps_saved_theme_before_styles
     docs:
     - docs/features/ui_consistency_theming/history.md
     docs_evidence:
@@ -156,9 +188,23 @@ capabilities:
     statement: Consistent action hierarchy (primary, secondary, section)
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_runs_list_renders_bulk_action_bar_hooks
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_settings_page_renders_task_first_sections
     docs:
     - docs/features/ui_consistency_theming/history.md
     docs_evidence:
@@ -193,9 +239,29 @@ capabilities:
     statement: Human-readable section headings
     satisfies: []
     code:
-    - src/fitcv_cp/app.py
+    - path: src/fitcv_cp/app.py
+      confidence: high
+      source:
+      - python_meta
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_settings_page_renders_cv_composition_section
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_settings_page_renders_cv_preset_section
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_settings_page_renders_task_first_sections
     docs:
     - docs/features/ui_consistency_theming/history.md
     docs_evidence:
@@ -230,9 +296,23 @@ capabilities:
     statement: Attached-tab inspection card pattern
     satisfies: []
     code:
-    - src/fitcv_cp/templates/base.html
+    - path: src/fitcv_cp/templates/base.html
+      confidence: high
+      source:
+      - template_architecture
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_inspection_area_wrapped_in_inspection_card
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_run_detail_tab_bar_uses_attached_modifier
     docs:
     - docs/features/ui_consistency_theming/history.md
     docs_evidence:
@@ -267,9 +347,17 @@ capabilities:
     statement: Responsive wrapping
     satisfies: []
     code:
-    - src/fitcv_cp/templates/base.html
+    - path: src/fitcv_cp/templates/base.html
+      confidence: high
+      source:
+      - template_architecture
     tests:
-    - tests/test_fitcv_cp/test_app.py
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_base_template_uses_wrapping_rules_for_shared_layout_surfaces
     docs:
     - docs/features/ui_consistency_theming/history.md
     docs_evidence:
@@ -299,30 +387,4 @@ capabilities:
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-timeline:
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-16-02-phase-12-ui-input-evidence-completion-spec.md
-- kind: spec
-  path: docs/superpowers/archive/specs/2026-04-22-16-27-phase-13-ui-theming-completion-spec.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-17-05-phase-13-ui-theming-completion-plan.md
-- kind: plan
-  path: docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+timeline: []

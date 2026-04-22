@@ -1092,6 +1092,8 @@ def _enrich_chunk(
 ) -> list[dict[str, Any]]:
     """Enrich one bounded chunk of normalized jobs with global rate limiting and retry.
 
+    @capability bounded_parallel_enrichment.per-job-failure-isolation
+
     Uses the module-level _ENRICH_RATE_LOCK to serialize API calls across all
     concurrent chunks. This makes enrichment_sleep_secs a true global rate limit
     rather than a per-thread-only delay, regardless of enrichment_concurrency.
@@ -1136,6 +1138,8 @@ def enrich_batch(
     config: dict[str, Any],
 ) -> list[dict[str, Any]]:
     """Enrich a batch of normalized jobs with bounded parallel execution.
+
+    @capability bounded_parallel_enrichment.deterministic-output-order
 
     Splits normalized_jobs into chunks of enrichment_batch_size, then submits
     up to enrichment_concurrency chunks in parallel via ThreadPoolExecutor.

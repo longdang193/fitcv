@@ -10,9 +10,17 @@ features:
         statement: FastAPI web server
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_stop_queued_run_returns_json
         docs:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
@@ -48,9 +56,29 @@ features:
         statement: RQ background worker integration
         satisfies: []
         code:
-        - src/fitcv_cp/queue.py
+        - path: src/fitcv_cp/queue.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_queue.py
+        - path: tests/test_fitcv_cp/test_queue.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_cancel_queued_run_returns_true_when_cancelable
+        - path: tests/test_fitcv_cp/test_queue.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_enqueue_run_returns_uuid
+        - path: tests/test_fitcv_cp/test_queue.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_enqueue_run_with_job_id_returns_tuple
         docs:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
@@ -86,9 +114,47 @@ features:
         statement: Jinja2 admin pages
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_archived_shows_unarchive_and_badge
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_awaiting_continue_shows_run_next_stage_and_stop_run
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_stale_cancelling_shows_repair_status
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_started_stale_cancelling_shows_repair_status
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_runs_list_renders_bulk_action_bar_hooks
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_runs_list_shows_active_all_archived_filter_tabs
         docs:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
@@ -124,10 +190,33 @@ features:
         statement: PipelineReporter integration
         satisfies: []
         code:
-        - src/fitcv_cp/reporter.py
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/reporter.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_reporter.py
+        - path: tests/test_fitcv_cp/test_reporter.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_reporter_emits_event
+        - path: tests/test_fitcv_cp/test_reporter.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_reporter_noop_without_bq
+        - path: tests/test_fitcv_cp/test_reporter.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_reporter_payload_serialized
         docs:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
@@ -163,11 +252,69 @@ features:
         statement: pipeline_runs BigQuery table
         satisfies: []
         code:
-        - src/fitcv_cp/bq_store.py
-        - src/fitcv_cp/models.py
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/models.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_bq_store.py
-        - tests/test_fitcv_cp/test_models.py
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_insert_run_calls_bq
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_list_runs_active_filters_archived
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_list_runs_archived_only
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_list_runs_include_all
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_list_runs_returns_list
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_row_to_run_maps_lifecycle_fields
+        - path: tests/test_fitcv_cp/test_models.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_pipeline_run_lifecycle_fields
+        - path: tests/test_fitcv_cp/test_models.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_pipeline_run_lifecycle_fields_default_none
+        - path: tests/test_fitcv_cp/test_models.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_status_values
         docs:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
@@ -203,11 +350,27 @@ features:
         statement: pipeline_run_events BigQuery table
         satisfies: []
         code:
-        - src/fitcv_cp/bq_store.py
-        - src/fitcv_cp/models.py
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/models.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_bq_store.py
-        - tests/test_fitcv_cp/test_models.py
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_append_event_calls_bq
+        - path: tests/test_fitcv_cp/test_models.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_event_fields
         docs:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
@@ -243,9 +406,17 @@ features:
         statement: insert-before-enqueue invariant
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_post_runs_inserts_before_enqueue
         docs:
         - docs/features/admin_control_plane_core/history.md
         docs_evidence:
@@ -285,8 +456,30 @@ features:
         state: active
         statement: enrichment_batch_size setting
         satisfies: []
-        code: []
-        tests: []
+        code:
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
+        tests:
+        - path: tests/test_fitcv_cp/test_settings_schema.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_enrichment_batch_size_apply_writes_correct_path
+        - path: tests/test_fitcv_cp/test_settings_schema.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_enrichment_parallelism_keys_registered
+        - path: tests/test_pipeline.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch
         docs:
         - docs/features/bounded_parallel_enrichment/history.md
         docs_evidence:
@@ -300,6 +493,7 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
         plans:
         - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
         - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
@@ -307,21 +501,40 @@ features:
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
         - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
-        evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
-        allowed_evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+        evidence_gaps: []
+        allowed_evidence_gaps: []
         lineage_exception_reason: null
         unresolved_evidence_gaps: []
-        completeness_status: partial
+        completeness_status: complete
       bounded_parallel_enrichment.enrichment-concurrency-setting:
         state: active
         statement: enrichment_concurrency setting
         satisfies: []
-        code: []
-        tests: []
+        code:
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
+        tests:
+        - path: tests/test_fitcv_cp/test_settings_schema.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_enrichment_concurrency_apply_writes_correct_path
+        - path: tests/test_fitcv_cp/test_settings_schema.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_enrichment_parallelism_keys_registered
+        - path: tests/test_pipeline.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_pipeline_forwards_enrichment_parallelism_config_to_enrich_batch
         docs:
         - docs/features/bounded_parallel_enrichment/history.md
         docs_evidence:
@@ -335,6 +548,7 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
         plans:
         - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
         - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
@@ -342,21 +556,30 @@ features:
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
         - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
-        evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
-        allowed_evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+        evidence_gaps: []
+        allowed_evidence_gaps: []
         lineage_exception_reason: null
         unresolved_evidence_gaps: []
-        completeness_status: partial
+        completeness_status: complete
       bounded_parallel_enrichment.pre-enrichment-global-filters-run-first:
         state: active
         statement: Pre-enrichment global filters run first
         satisfies: []
-        code: []
-        tests: []
+        code:
+        - path: src/fitcv/pipeline.py
+          confidence: high
+          source:
+          - python_capability
+          symbols:
+          - run_pipeline
+        tests:
+        - path: tests/test_pipeline.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_pipeline_blocks_pre_filtered_jobs_before_enrichment
         docs:
         - docs/features/bounded_parallel_enrichment/history.md
         docs_evidence:
@@ -370,6 +593,7 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
         plans:
         - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
         - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
@@ -377,21 +601,28 @@ features:
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
         - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
-        evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
-        allowed_evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+        evidence_gaps: []
+        allowed_evidence_gaps: []
         lineage_exception_reason: null
         unresolved_evidence_gaps: []
-        completeness_status: partial
+        completeness_status: complete
       bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1:
         state: active
         statement: Conservative defaults (batch_size=10, concurrency=1)
         satisfies: []
-        code: []
-        tests: []
+        code:
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
+        tests:
+        - path: tests/test_fitcv_cp/test_settings_schema.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_enrichment_parallelism_defaults
         docs:
         - docs/features/bounded_parallel_enrichment/history.md
         docs_evidence:
@@ -405,6 +636,7 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
         plans:
         - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
         - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
@@ -412,21 +644,30 @@ features:
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
         - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
-        evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
-        allowed_evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+        evidence_gaps: []
+        allowed_evidence_gaps: []
         lineage_exception_reason: null
         unresolved_evidence_gaps: []
-        completeness_status: partial
+        completeness_status: complete
       bounded_parallel_enrichment.deterministic-output-order:
         state: active
         statement: Deterministic output order
         satisfies: []
-        code: []
-        tests: []
+        code:
+        - path: src/fitcv/enrich.py
+          confidence: high
+          source:
+          - python_capability
+          symbols:
+          - enrich_batch
+        tests:
+        - path: tests/test_enrich.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_enrich_batch_preserves_input_order_under_parallel_batches
         docs:
         - docs/features/bounded_parallel_enrichment/history.md
         docs_evidence:
@@ -440,6 +681,7 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
         plans:
         - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
         - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
@@ -447,21 +689,30 @@ features:
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
         - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
-        evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
-        allowed_evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+        evidence_gaps: []
+        allowed_evidence_gaps: []
         lineage_exception_reason: null
         unresolved_evidence_gaps: []
-        completeness_status: partial
+        completeness_status: complete
       bounded_parallel_enrichment.per-job-failure-isolation:
         state: active
         statement: Per-job failure isolation
         satisfies: []
-        code: []
-        tests: []
+        code:
+        - path: src/fitcv/enrich.py
+          confidence: high
+          source:
+          - python_capability
+          symbols:
+          - _enrich_chunk
+        tests:
+        - path: tests/test_enrich.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_enrich_chunk_isolates_single_job_retry_from_following_jobs
         docs:
         - docs/features/bounded_parallel_enrichment/history.md
         docs_evidence:
@@ -475,6 +726,7 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
         plans:
         - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
         - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
@@ -482,15 +734,12 @@ features:
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
         - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
-        evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
-        allowed_evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+        evidence_gaps: []
+        allowed_evidence_gaps: []
         lineage_exception_reason: null
         unresolved_evidence_gaps: []
-        completeness_status: partial
+        completeness_status: complete
   cv_system:
     summary: Own the grounded CV-writing path from post-ranking evidence preparation through `cv_analysis` and `cv_generation`, including evidence selection, fit-gate resolution, structured CV generation, validation against selected evidence, and the stage-owned artifacts that explain final CV outcomes.
     status: active
@@ -500,17 +749,41 @@ features:
         state: active
         statement: Retrieve, score, and select one bounded evidence bundle for grounded downstream CV writing.
         satisfies: []
-        code: []
-        tests: []
+        code:
+        - path: src/fitcv/evidence.py
+          confidence: high
+          source:
+          - python_meta
+        tests:
+        - path: tests/test_pipeline.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_pipeline_cv_analysis_persists_evidence_selection_provenance
         docs:
         - docs/features/cv_system/history.md
         docs_evidence:
         - path: docs/features/cv_system/history.md
           kind: doc_ref
-        configs: []
-        config_evidence: []
-        components: []
-        component_evidence: []
+        configs:
+        - config/policy/cv_analysis.yaml
+        - config/runtime/pipeline.yaml
+        config_evidence:
+        - path: config/policy/cv_analysis.yaml
+          kind: config_ref
+        - path: config/runtime/pipeline.yaml
+          kind: config_ref
+        components:
+        - config.policy.cv-analysis
+        - config.runtime.pipeline
+        component_evidence:
+        - path: config/policy/cv_analysis.yaml
+          kind: component_ref
+          component: config.policy.cv-analysis
+        - path: config/runtime/pipeline.yaml
+          kind: component_ref
+          component: config.runtime.pipeline
         specs:
         - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
         - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
@@ -562,6 +835,9 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
         - docs/superpowers/archive/specs/2026-04-22-19-05-architecture-metadata-cleanup-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
         plans:
         - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
         - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -614,30 +890,53 @@ features:
         - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-        evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
-        allowed_evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+        evidence_gaps: []
+        allowed_evidence_gaps: []
         lineage_exception_reason: null
         unresolved_evidence_gaps: []
-        completeness_status: partial
+        completeness_status: complete
       cv_system.fit-gate-resolution:
         state: active
         statement: Resolve whether a ranked job is eligible to continue from analysis into CV generation.
         satisfies: []
-        code: []
-        tests: []
+        code:
+        - path: src/fitcv/pipeline.py
+          confidence: high
+          source:
+          - python_capability
+          symbols:
+          - run_pipeline
+        tests:
+        - path: tests/test_pipeline.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate
         docs:
         - docs/features/cv_system/history.md
         docs_evidence:
         - path: docs/features/cv_system/history.md
           kind: doc_ref
-        configs: []
-        config_evidence: []
-        components: []
-        component_evidence: []
+        configs:
+        - config/policy/cv_analysis.yaml
+        - config/policy/ranking.yaml
+        config_evidence:
+        - path: config/policy/cv_analysis.yaml
+          kind: config_ref
+        - path: config/policy/ranking.yaml
+          kind: config_ref
+        components:
+        - config.policy.cv-analysis
+        - config.policy.ranking
+        component_evidence:
+        - path: config/policy/cv_analysis.yaml
+          kind: component_ref
+          component: config.policy.cv-analysis
+        - path: config/policy/ranking.yaml
+          kind: component_ref
+          component: config.policy.ranking
         specs:
         - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
         - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
@@ -689,6 +988,9 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
         - docs/superpowers/archive/specs/2026-04-22-19-05-architecture-metadata-cleanup-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
         plans:
         - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
         - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -741,25 +1043,36 @@ features:
         - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-        evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
-        allowed_evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+        evidence_gaps: []
+        allowed_evidence_gaps: []
         lineage_exception_reason: null
         unresolved_evidence_gaps: []
-        completeness_status: partial
+        completeness_status: complete
       cv_system.structured-cv-generation:
         state: active
         statement: Generate the structured CV artifact and rendered markdown output from the selected evidence bundle.
         satisfies: []
         code:
-        - src/fitcv/cv_generator.py
+        - path: src/fitcv/cv_generator.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_cv_generator.py
-        - tests/test_sync_architecture_docs.py
-        - tests/test_validate_adoption_shape.py
+        - path: tests/test_cv_generator.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_render_cv_markdown_consumes_structured_cv
+        - path: tests/test_sync_architecture_docs.py
+          confidence: high
+          source:
+          - python_proves
+        - path: tests/test_validate_adoption_shape.py
+          confidence: high
+          source:
+          - python_proves
         docs:
         - docs/features/cv_system/history.md
         docs_evidence:
@@ -820,6 +1133,9 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
         - docs/superpowers/archive/specs/2026-04-22-19-05-architecture-metadata-cleanup-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
         plans:
         - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
         - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -872,6 +1188,7 @@ features:
         - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
         evidence_gaps: []
         allowed_evidence_gaps: []
         lineage_exception_reason: null
@@ -882,18 +1199,40 @@ features:
         statement: Validate hard facts and softer role or domain claims against selected analysis evidence before accepting a CV artifact.
         satisfies: []
         code:
-        - src/fitcv/validator.py
+        - path: src/fitcv/validator.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_validator.py
+        - path: tests/test_validator.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_check_employer_grounding_catches_invented_employer
         docs:
         - docs/features/cv_system/history.md
         docs_evidence:
         - path: docs/features/cv_system/history.md
           kind: doc_ref
-        configs: []
-        config_evidence: []
-        components: []
-        component_evidence: []
+        configs:
+        - config/taxonomy/skill_synonyms.yaml
+        - config/taxonomy/taxonomy.yaml
+        config_evidence:
+        - path: config/taxonomy/skill_synonyms.yaml
+          kind: config_ref
+        - path: config/taxonomy/taxonomy.yaml
+          kind: config_ref
+        components:
+        - config.taxonomy.role-and-domain
+        - config.taxonomy.skill-synonyms
+        component_evidence:
+        - path: config/taxonomy/taxonomy.yaml
+          kind: component_ref
+          component: config.taxonomy.role-and-domain
+        - path: config/taxonomy/skill_synonyms.yaml
+          kind: component_ref
+          component: config.taxonomy.skill-synonyms
         specs:
         - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
         - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
@@ -945,6 +1284,9 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
         - docs/superpowers/archive/specs/2026-04-22-19-05-architecture-metadata-cleanup-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
         plans:
         - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
         - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -997,6 +1339,7 @@ features:
         - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
         evidence_gaps: []
         allowed_evidence_gaps: []
         lineage_exception_reason: null
@@ -1006,8 +1349,20 @@ features:
         state: active
         statement: Reject unresolved candidate-name placeholders and allow one deterministic header-only repair when a real name is available.
         satisfies: []
-        code: []
-        tests: []
+        code:
+        - path: src/fitcv/pipeline.py
+          confidence: high
+          source:
+          - python_capability
+          symbols:
+          - _repair_candidate_name_placeholder
+        tests:
+        - path: tests/test_pipeline.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_pipeline_repairs_candidate_name_placeholder_without_llm_retry
         docs:
         - docs/features/cv_system/history.md
         docs_evidence:
@@ -1068,6 +1423,9 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
         - docs/superpowers/archive/specs/2026-04-22-19-05-architecture-metadata-cleanup-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
         plans:
         - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
         - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1120,21 +1478,30 @@ features:
         - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-        evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
-        allowed_evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+        evidence_gaps: []
+        allowed_evidence_gaps: []
         lineage_exception_reason: null
         unresolved_evidence_gaps: []
-        completeness_status: partial
+        completeness_status: complete
       cv_system.stage-artifact-diagnostics:
         state: active
         statement: Emit stage-owned diagnostics, quality metrics, and transition artifacts for `cv_analysis` and `cv_generation`.
         satisfies: []
-        code: []
-        tests: []
+        code:
+        - path: src/fitcv/pipeline.py
+          confidence: high
+          source:
+          - python_capability
+          symbols:
+          - _build_stage_transition_artifacts
+        tests:
+        - path: tests/test_pipeline.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_build_stage_transition_artifacts_emits_stage_quality_metrics
         docs:
         - docs/features/cv_system/history.md
         docs_evidence:
@@ -1195,6 +1562,9 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
         - docs/superpowers/archive/specs/2026-04-22-19-05-architecture-metadata-cleanup-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
         plans:
         - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
         - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1247,21 +1617,36 @@ features:
         - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-        evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
-        allowed_evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+        evidence_gaps: []
+        allowed_evidence_gaps: []
         lineage_exception_reason: null
         unresolved_evidence_gaps: []
-        completeness_status: partial
+        completeness_status: complete
       cv_system.exact-match-late-stage-reuse:
         state: active
         statement: Reuse exact-match ranking AI-score rows and cv-analysis outputs when stage-owned inputs and contracts still match.
         satisfies: []
-        code: []
-        tests: []
+        code:
+        - path: src/fitcv/pipeline.py
+          confidence: high
+          source:
+          - python_capability
+          symbols:
+          - run_pipeline
+        tests:
+        - path: tests/test_pipeline.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_pipeline_reuses_exact_match_ai_scores
+        - path: tests/test_pipeline.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_pipeline_reuses_exact_match_cv_analysis_records
         docs:
         - docs/features/cv_system/history.md
         docs_evidence:
@@ -1322,6 +1707,9 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
         - docs/superpowers/archive/specs/2026-04-22-19-05-architecture-metadata-cleanup-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
         plans:
         - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
         - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1374,30 +1762,57 @@ features:
         - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-        evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
-        allowed_evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+        evidence_gaps: []
+        allowed_evidence_gaps: []
         lineage_exception_reason: null
         unresolved_evidence_gaps: []
-        completeness_status: partial
+        completeness_status: complete
       cv_system.config-owned-generation-contract:
         state: active
         statement: Keep prompt and runtime ownership for active CV generation under the structured-write contract and central config layers.
         satisfies: []
-        code: []
-        tests: []
+        code:
+        - path: src/fitcv/config.py
+          confidence: high
+          source:
+          - python_meta
+        tests:
+        - path: tests/test_config.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_load_config_builds_prompts_runtime_for_all_major_stages
+        - path: tests/test_config.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_load_config_exposes_only_active_cv_generation_prompt_contract
         docs:
         - docs/features/cv_system/history.md
         docs_evidence:
         - path: docs/features/cv_system/history.md
           kind: doc_ref
-        configs: []
-        config_evidence: []
-        components: []
-        component_evidence: []
+        configs:
+        - config/policy/cv.yaml
+        - config/runtime/prompts.yaml
+        config_evidence:
+        - path: config/policy/cv.yaml
+          kind: config_ref
+        - path: config/runtime/prompts.yaml
+          kind: config_ref
+        components:
+        - config.policy.cv-generation
+        - config.runtime.prompts
+        component_evidence:
+        - path: config/policy/cv.yaml
+          kind: component_ref
+          component: config.policy.cv-generation
+        - path: config/runtime/prompts.yaml
+          kind: component_ref
+          component: config.runtime.prompts
         specs:
         - docs/superpowers/archive/specs/2026-03-29-structured-cv-representation-design.md
         - docs/superpowers/archive/specs/2026-03-30-experience-evidence-preservation-design.md
@@ -1449,6 +1864,9 @@ features:
         - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
         - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
         - docs/superpowers/archive/specs/2026-04-22-19-05-architecture-metadata-cleanup-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-21-10-lineage-timeline-contract-patch-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
+        - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
         plans:
         - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
         - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1501,15 +1919,12 @@ features:
         - docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
         - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
         - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
-        evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
-        allowed_evidence_gaps:
-        - missing_code_evidence
-        - missing_test_evidence
+        - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+        evidence_gaps: []
+        allowed_evidence_gaps: []
         lineage_exception_reason: null
         unresolved_evidence_gaps: []
-        completeness_status: partial
+        completeness_status: complete
   inspection_debugging:
     summary: Admins can see what the pipeline did for a run, including shared stage progress for both `Run All` and `Stage by Stage`, paused staged checkpoints, enrich reuse provenance, selectable rule-filter marks, shortlist retrieval and embedding-reuse diagnostics, richer shortlist candidate-query components, explicit shortlist candidate-query reuse provenance, ranking contribution visibility and calibration surfaces, late-stage reuse diagnostics for `ranking` and `cv_analysis`, slimmer job-ledger exports, compact per-job `results.json` rows, stage-local artifacts, compact severity-based run health with explicit `Pending` vs `N/A`, stage-gated export availability, a job-ledger `results.json` split from bundled stage diagnostics, outcome-first artifact samples, stable normalize timeline ownership, aggregate-first timeline summaries, explicit separation between reranker-blocked rows and true analyzed-and-skipped `cv_analysis` outcomes, truthful reranker-blocked propagation into compact
       `results.json` decision chains and `cv-debug` omission accounting, multi-channel evidence-selection provenance, lexical-vs-semantic alignment detail, inputs used, generated CVs, explicit decision detail, hybrid validation provenance from deterministic and soft-claim grounding checks, canonicalized settings-used exports, clearer `cv-debug` coverage accounting, and prompt-id-based provenance for both ranking and the active structured-only `cv_generation` path.
@@ -1521,9 +1936,17 @@ features:
         statement: Show the three-tab inspection surface and client-side tab switching for run detail.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_default_tab_is_enriched
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -1645,9 +2068,23 @@ features:
         statement: Show execution mode, reached stages, checkpoint state, and run-next-stage controls across run modes.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_awaiting_continue_shows_run_next_stage_and_stop_run
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_run_all_shows_shared_progress_without_checkpoint_controls
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -1769,9 +2206,17 @@ features:
         statement: Surface active and default synonym-overlay state and snapshots during staged inspection flows.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_run_detail_shows_synonym_overlay_card_for_manual_enrich_checkpoint
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -1893,9 +2338,23 @@ features:
         statement: Provide run-scoped downloads such as CVs, artifact bundles, and CV debug exports when owned outputs exist.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_run_detail_shows_exports_card_with_results_link
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_download_run_artifact_bundle_zip_endpoint_for_partial_run
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -2017,9 +2476,17 @@ features:
         statement: Expose stage-owned downloads only after the owning stage has been reached and the artifact exists.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_timeline_shows_stage_download_for_mapped_event
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -2141,13 +2608,43 @@ features:
         statement: Show canonical operator-facing settings-used exports and compatibility projections when needed.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/bq_store.py
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_bq_store.py
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_run_detail_shows_download_settings_used_json_button
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_download_settings_used_json_endpoint_200
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_update_run_settings_used_updates_only_settings_snapshot_field
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_persists_settings_used_json_on_success
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -2269,13 +2766,49 @@ features:
         statement: Keep `results.json` job-centric while exposing compact decision chains, skip states, and export-ready outcomes.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/bq_store.py
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_bq_store.py
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_download_results_json_endpoint_200
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_enriched_shows_pipeline_outcome_for_reranker_blocked_job
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_row_to_run_maps_results_export_json
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_update_run_results_export_uses_parameterized_query
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_persists_results_export_json_on_success
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -2397,13 +2930,37 @@ features:
         statement: Provide aggregate timeline rows and bounded per-stage transition artifacts for major stage handoffs.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/bq_store.py
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_bq_store.py
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_download_stage_transition_artifacts_json_endpoint_200
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_update_run_stage_transition_artifacts_updates_only_stage_artifacts_field
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_persists_stage_transition_artifacts_json_on_success
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -2525,19 +3082,37 @@ features:
         statement: Surface effective enrich, ranking, and CV-generation prompt identifiers, templates, and models in diagnostics.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_persists_settings_used_json_on_success
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
         - path: docs/features/inspection_debugging/history.md
           kind: doc_ref
-        configs: []
-        config_evidence: []
-        components: []
-        component_evidence: []
+        configs:
+        - config/runtime/prompts.yaml
+        config_evidence:
+        - path: config/runtime/prompts.yaml
+          kind: config_ref
+        components:
+        - config.runtime.prompts
+        component_evidence:
+        - path: config/runtime/prompts.yaml
+          kind: component_ref
+          component: config.runtime.prompts
         specs:
         - docs/superpowers/archive/specs/2026-03-31-19-10-pipeline-decision-consistency-cleanup-spec.md
         - docs/superpowers/archive/specs/2026-03-31-cv-generation-debug-snapshots-design.md
@@ -2650,9 +3225,17 @@ features:
         statement: Expose ranking contract details, weighted contributions, fit thresholds, and reranker reuse state.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_zero_cvs_and_zero_ranked_shows_ranking_threshold_message
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -2774,9 +3357,17 @@ features:
         statement: Show shortlist retrieval facts, raw-hit visibility, candidate-query inputs, and embedding reuse provenance.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -2898,9 +3489,23 @@ features:
         statement: Expose analysis outcomes, selected evidence, hybrid alignment details, and analysis reuse visibility.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_renders_run_health_when_late_stage_reuse_metrics_available
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_run_health_marks_unreached_metrics_as_pending_and_zero_denominator_reached_metrics_as_na
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -3022,9 +3627,23 @@ features:
         statement: Expose CV-writing outcomes, grounding and support validation detail, and authoritative fit context.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_hides_cv_generation_quality_metrics_when_absent
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_renders_cv_generation_quality_metrics
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -3146,11 +3765,33 @@ features:
         statement: Surface late-stage reuse snapshots and exact-match reuse counters across ranking and analysis flows.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_hides_late_stage_reuse_metrics_when_absent
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_renders_run_health_when_late_stage_reuse_metrics_available
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_moves_late_stage_reuse_snapshots_under_diagnostic_support
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -3272,11 +3913,27 @@ features:
         statement: Show compact stage-level quality metrics across shortlist, ranking, analysis, and generation stages.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_renders_run_health_when_quality_metrics_available
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_persists_cv_generation_debug_coverage_for_reranker_blocked_rows
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -3398,11 +4055,27 @@ features:
         statement: Include enriched-job inspection exports with canonical skill companions, mapping suggestions, and enrich provenance.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/bq_store.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_bq_store.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_run_detail_shows_enriched_jobs_section
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_list_run_structured_jobs_parses_canonical_json_companions
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -3524,10 +4197,23 @@ features:
         statement: Show active blocking filters, mark-code counts, and separate pre-enrichment reject visibility.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_bq_store.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_shows_marks_for_passed_jobs
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_list_filter_results_for_run_parses_marks_json
         docs:
         - docs/features/inspection_debugging/history.md
         docs_evidence:
@@ -3654,9 +4340,23 @@ features:
         statement: Multiple file inputs in trigger form
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_merges_multiple_job_files
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_upload_mode_no_files_rejected
         docs:
         - docs/features/multi_file_job_input/history.md
         docs_evidence:
@@ -3689,9 +4389,29 @@ features:
         statement: Per-file server-side validation
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_all_empty_arrays_rejected
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_multi_file_non_array_rejected
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_one_invalid_file_rejects_entire_request
         docs:
         - docs/features/multi_file_job_input/history.md
         docs_evidence:
@@ -3724,9 +4444,23 @@ features:
         statement: Canonical merge preserving order
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_merges_multiple_job_files
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_multi_file_preserves_order
         docs:
         - docs/features/multi_file_job_input/history.md
         docs_evidence:
@@ -3759,13 +4493,61 @@ features:
         statement: One immutable snapshot stored per run
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/bq_store.py
-        - src/fitcv_cp/models.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/models.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_bq_store.py
-        - tests/test_fitcv_cp/test_models.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_merges_multiple_job_files
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_path_mode_stores_jobs_snapshot
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_insert_run_includes_input_metadata_params
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_insert_run_input_metadata_none_values_are_included
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_row_to_run_handles_missing_input_metadata_fields
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_row_to_run_maps_input_metadata_fields
+        - path: tests/test_fitcv_cp/test_models.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_pipeline_run_fields
         docs:
         - docs/features/multi_file_job_input/history.md
         docs_evidence:
@@ -3798,9 +4580,29 @@ features:
         statement: All-or-nothing rejection on validation failure
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_all_empty_arrays_rejected
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_multi_file_non_array_rejected
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_one_invalid_file_rejects_entire_request
         docs:
         - docs/features/multi_file_job_input/history.md
         docs_evidence:
@@ -3838,10 +4640,27 @@ features:
         statement: Pre-enrichment global job filters (applications_count_max, max_age_days)
         satisfies: []
         code:
-        - src/fitcv/pipeline.py
-        - src/fitcv/rule_filter.py
+        - path: src/fitcv/pipeline.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv/rule_filter.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_rule_filter.py
+        - path: tests/test_rule_filter.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_pre_filter_rejects_high_count_job_using_applications_count_int
+        - path: tests/test_rule_filter.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_pre_filter_rejects_stale_job
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -3895,9 +4714,23 @@ features:
         statement: Explicit rejection reasons in rule_filter_results
         satisfies: []
         code:
-        - src/fitcv/rule_filter.py
+        - path: src/fitcv/rule_filter.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_rule_filter.py
+        - path: tests/test_rule_filter.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_multiple_rejection_reasons_accumulated
+        - path: tests/test_rule_filter.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_rejected_jobs_include_reasons
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -3951,9 +4784,17 @@ features:
         statement: Gemini structured output with response_schema and Pydantic
         satisfies: []
         code:
-        - src/fitcv/enrich.py
+        - path: src/fitcv/enrich.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_enrich.py
+        - path: tests/test_enrich.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_parse_extraction_response_valid_json
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4007,9 +4848,23 @@ features:
         statement: Fallback path for unparseable responses
         satisfies: []
         code:
-        - src/fitcv/enrich.py
+        - path: src/fitcv/enrich.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_enrich.py
+        - path: tests/test_enrich.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_enrich_job_fallback_when_parsed_is_none
+        - path: tests/test_enrich.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_parse_extraction_response_malformed_json
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4063,11 +4918,27 @@ features:
         statement: Enrich extraction prompt text now comes from a centralized prompt registry with config-selected prompt IDs
         satisfies: []
         code:
-        - src/fitcv/config.py
-        - src/fitcv/enrich.py
+        - path: src/fitcv/config.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv/enrich.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_config.py
-        - tests/test_enrich.py
+        - path: tests/test_config.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_config_accessors_resolve_centralized_prompt_ids_and_model_defaults
+        - path: tests/test_enrich.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_enrich_job_renders_prompt_via_prompt_registry
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4121,9 +4992,23 @@ features:
         statement: Enrich-stage raw-plus-canonical semantic companions for repeated downstream fields
         satisfies: []
         code:
-        - src/fitcv/enrich.py
+        - path: src/fitcv/enrich.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_enrich.py
+        - path: tests/test_enrich.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_apply_structured_normalization_preserves_raw_scalar_companions
+        - path: tests/test_enrich.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_merge_scraped_and_enriched_preserves_raw_and_canonical_enrich_fields
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4177,9 +5062,17 @@ features:
         statement: Canonical skill companion lists and entity payloads for required/preferred skills
         satisfies: []
         code:
-        - src/fitcv/enrich.py
+        - path: src/fitcv/enrich.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_enrich.py
+        - path: tests/test_enrich.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_apply_structured_normalization_emits_canonical_skill_companions
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4233,10 +5126,23 @@ features:
         statement: Enrich-stage mapping suggestion capture for review/debug surfaces
         satisfies: []
         code:
-        - src/fitcv/enrich.py
+        - path: src/fitcv/enrich.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_enrich.py
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_enrich.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_apply_structured_normalization_emits_canonical_skill_companions
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_download_mapping_suggestions_json_endpoint_200
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4290,9 +5196,17 @@ features:
         statement: Fingerprint-based enrich-result reuse happens before LLM enrichment using normalized raw-job inputs
         satisfies: []
         code:
-        - src/fitcv/enrich.py
+        - path: src/fitcv/enrich.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_enrich.py
+        - path: tests/test_enrich.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_build_raw_job_fingerprint_is_stable_for_whitespace_and_case_changes
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4346,9 +5260,17 @@ features:
         statement: Enrich-contract fingerprinting invalidates reuse automatically when prompt/model/schema behavior changes
         satisfies: []
         code:
-        - src/fitcv/enrich.py
+        - path: src/fitcv/enrich.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_enrich.py
+        - path: tests/test_enrich.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_build_enrich_contract_fingerprint_changes_when_prompt_contract_changes
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4402,9 +5324,17 @@ features:
         statement: Shared `structured_jobs` reuse lookup avoids redundant enrich calls while only fresh rows are upserted back into the shared table
         satisfies: []
         code:
-        - src/fitcv/enrich.py
+        - path: src/fitcv/enrich.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_enrich.py
+        - path: tests/test_enrich.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_lookup_reusable_structured_jobs_returns_exact_fingerprint_and_contract_matches
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4458,9 +5388,23 @@ features:
         statement: Shortlist now builds a stable structured embedding-input signature before generating `job_summary` vectors
         satisfies: []
         code:
-        - src/fitcv/embeddings.py
+        - path: src/fitcv/embeddings.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_embeddings.py
+        - path: tests/test_embeddings.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_prefers_canonical_skill_lists_and_sorts_them
+        - path: tests/test_embeddings.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_signature_is_stable_when_skill_order_changes
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4514,9 +5458,17 @@ features:
         statement: Shortlist reuses the latest stored embedding row for a `job_url` only when both the structured signature and embedding contract fingerprint still match
         satisfies: []
         code:
-        - src/fitcv/embeddings.py
+        - path: src/fitcv/embeddings.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_embeddings.py
+        - path: tests/test_embeddings.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_embed_and_store_jobs_reuses_matching_latest_embeddings_and_only_inserts_misses
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4570,9 +5522,17 @@ features:
         statement: Fresh shortlist embeddings persist signature metadata so later runs can skip repeated embedding work safely
         satisfies: []
         code:
-        - src/fitcv/embeddings.py
+        - path: src/fitcv/embeddings.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_embeddings.py
+        - path: tests/test_embeddings.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_embed_and_store_jobs_reuses_matching_latest_embeddings_and_only_inserts_misses
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4626,10 +5586,21 @@ features:
         statement: Operator-facing enriched-job exports now keep canonical semantic fields and fingerprint/reuse provenance while omitting retired raw duplicate classification baggage
         satisfies: []
         code:
-        - src/fitcv/pipeline.py
-        - src/fitcv_cp/bq_store.py
+        - path: src/fitcv/pipeline.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_bq_store.py
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_list_run_structured_jobs_preserves_reuse_provenance_fields
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4683,10 +5654,21 @@ features:
         statement: Large runs avoid some row-scaled Layer 4 event noise by relying more on aggregate stage summaries plus stage-owned artifacts
         satisfies: []
         code:
-        - src/fitcv/pipeline.py
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv/pipeline.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_persists_stage_transition_artifacts_json_on_success
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4740,9 +5722,17 @@ features:
         statement: '`results.json` now keeps only compact job-ledger fields instead of repeating full job snapshots, heavy score-explanation internals, and full CV bodies already represented elsewhere'
         satisfies: []
         code:
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_persists_results_export_json_on_success
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4796,10 +5786,27 @@ features:
         statement: '`cv_analysis` now uses bounded semantic lift for required-skill and role channels instead of reserving semantic work only for domain and responsibility alignment'
         satisfies: []
         code:
-        - src/fitcv/evidence.py
-        - src/fitcv/pipeline.py
+        - path: src/fitcv/evidence.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv/pipeline.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_evidence.py
+        - path: tests/test_evidence.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_retrieve_evidence_bundle_uses_semantic_alignment_for_required_skill_support
+        - path: tests/test_evidence.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_retrieve_evidence_bundle_uses_semantic_alignment_for_role_alignment
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4853,9 +5860,17 @@ features:
         statement: Ranked jobs with authoritative reranker `fit_label = skip` now stop before evidence retrieval, gap computation, and semantic alignment inside `cv_analysis`
         satisfies: []
         code:
-        - src/fitcv/pipeline.py
+        - path: src/fitcv/pipeline.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_pipeline.py
+        - path: tests/test_pipeline.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependencies
         docs:
         - docs/features/pipeline_performance/history.md
         docs_evidence:
@@ -4914,11 +5929,33 @@ features:
         statement: Cancel queued runs directly from the queue via RQ
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/queue.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/queue.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_queue.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_stop_queued_run_returns_json
+        - path: tests/test_fitcv_cp/test_queue.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_cancel_queued_run_returns_false_when_not_found
+        - path: tests/test_fitcv_cp/test_queue.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_cancel_queued_run_returns_true_when_cancelable
         docs:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
@@ -4963,11 +6000,41 @@ features:
         statement: Cooperative cancellation at safe checkpoints for running jobs
         satisfies: []
         code:
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_bq_store.py
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_stop_claimed_run_falls_back_to_cancelling
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_request_run_cancel_sets_cancel_fields
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_cancellation_event_appended_on_early_exit
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_marks_cancelled_when_cancel_already_requested
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_pipeline_cancelled_exception_marks_cancelled
         docs:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
@@ -5012,9 +6079,23 @@ features:
         statement: Direct cancellation of paused manual runs in `awaiting_continue`
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_bulk_cancel_awaiting_continue_run_directly_cancels
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_stop_awaiting_continue_run_returns_cancelled
         docs:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
@@ -5059,9 +6140,41 @@ features:
         statement: Stale cancellation repair endpoint
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_repair_cancellation_running_run_returns_409
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_repair_cancellation_stale_run_returns_cancelled
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_repair_cancellation_started_stale_run_returns_cancelled
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_stale_cancelling_shows_repair_status
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_started_stale_cancelling_shows_repair_status
         docs:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
@@ -5106,9 +6219,23 @@ features:
         statement: State-aware max-runtime timeout handling for queued, running, cancelling, and paused manual runs
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_runs_timeouts_awaiting_continue_runs_to_cancelled
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_runs_timeouts_running_runs_to_failed
         docs:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
@@ -5153,9 +6280,23 @@ features:
         statement: Timeout copy now distinguishes queue wait, active runtime, and Stage by Stage manual-wait time
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_runs_timeouts_awaiting_continue_runs_to_cancelled
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_runs_timeouts_running_runs_to_failed
         docs:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
@@ -5200,11 +6341,39 @@ features:
         statement: Archive and unarchive terminal runs
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/bq_store.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_bq_store.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_archive_succeeded_run_returns_json
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_unarchive_archived_run_returns_json
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_archive_run_uses_parameterized_query
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_unarchive_run_uses_parameterized_query
         docs:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
@@ -5249,9 +6418,47 @@ features:
         statement: Batch cancel, archive, and unarchive endpoints with explicit processed/skipped summaries
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_bulk_archive_terminal_runs_only
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_bulk_cancel_awaiting_continue_run_directly_cancels
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_bulk_cancel_mixed_eligibility_returns_processed_and_skipped_summary
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_bulk_lifecycle_rejects_empty_run_ids
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_bulk_lifecycle_rejects_unknown_run_ids
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_bulk_unarchive_archived_runs_only
         docs:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
@@ -5296,13 +6503,37 @@ features:
         statement: Full audit trail in pipeline_run_events
         satisfies: []
         code:
-        - src/fitcv_cp/bq_store.py
-        - src/fitcv_cp/reporter.py
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/reporter.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_bq_store.py
-        - tests/test_fitcv_cp/test_reporter.py
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_append_event_calls_bq
+        - path: tests/test_fitcv_cp/test_reporter.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_reporter_emits_event
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_cancellation_event_appended_on_early_exit
         docs:
         - docs/features/run_lifecycle_controls/history.md
         docs_evidence:
@@ -5352,9 +6583,23 @@ features:
         statement: BigQuery-backed pipeline settings store
         satisfies: []
         code:
-        - src/fitcv_cp/settings_store.py
+        - path: src/fitcv_cp/settings_store.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_settings_store.py
+        - path: tests/test_fitcv_cp/test_settings_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_load_active_settings_returns_latest_per_key
+        - path: tests/test_fitcv_cp/test_settings_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_save_setting_calls_bq
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -5413,9 +6658,17 @@ features:
         statement: Settings schema registry
         satisfies: []
         code:
-        - src/fitcv_cp/settings_schema.py
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_settings_schema.py
+        - path: tests/test_fitcv_cp/test_settings_schema.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_all_expected_keys_present
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -5474,9 +6727,17 @@ features:
         statement: Retrieval settings
         satisfies: []
         code:
-        - src/fitcv_cp/settings_schema.py
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_settings_schema.py
+        - path: tests/test_fitcv_cp/test_settings_schema.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_retrieval_defaults_are_hydrated_from_centralized_pipeline_config
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -5535,10 +6796,21 @@ features:
         statement: Configure timing, throttling, and run-lifecycle timeout controls.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/settings_schema.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_settings_page_renders_run_lifecycle_section
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -5597,10 +6869,21 @@ features:
         statement: Global job filters
         satisfies: []
         code:
-        - src/fitcv/rule_filter.py
-        - src/fitcv_cp/settings_schema.py
+        - path: src/fitcv/rule_filter.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_rule_filter.py
+        - path: tests/test_rule_filter.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_setting_reaches_filter_via_apply_settings_to_config
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -5659,9 +6942,17 @@ features:
         statement: Configure six-feature ranking weights, zero-weight semantics, and runtime-aligned copy.
         satisfies: []
         code:
-        - src/fitcv_cp/settings_schema.py
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_settings_schema.py
+        - path: tests/test_fitcv_cp/test_settings_schema.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_ranking_weights_must_sum_to_one
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -5720,9 +7011,17 @@ features:
         statement: Configure preference-fit subweights and fit-label threshold guidance for reranker calibration.
         satisfies: []
         code:
-        - src/fitcv_cp/settings_schema.py
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_grouped_save_fit_label_thresholds_valid
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -5781,10 +7080,21 @@ features:
         statement: Configure semantic-alignment enablement, model selection, and lexical-vs-semantic balance for `cv_analysis`.
         satisfies: []
         code:
-        - src/fitcv/config.py
-        - src/fitcv_cp/settings_schema.py
+        - path: src/fitcv/config.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_settings_schema.py
+        - path: tests/test_fitcv_cp/test_settings_schema.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_cv_analysis_semantic_alignment_validate_accepts_balanced_weight_pairs
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -5843,11 +7153,33 @@ features:
         statement: CV generation settings
         satisfies: []
         code:
-        - src/fitcv/config.py
-        - src/fitcv_cp/settings_schema.py
+        - path: src/fitcv/config.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_config.py
-        - tests/test_fitcv_cp/test_settings_schema.py
+        - path: tests/test_config.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_load_config_includes_cv_defaults
+        - path: tests/test_config.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_load_config_nested_cv_generation_has_model_and_prompt_version
+        - path: tests/test_fitcv_cp/test_settings_schema.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_apply_settings_to_config_cv_generation_nested
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -5906,12 +7238,31 @@ features:
         statement: CV composition visibility settings
         satisfies: []
         code:
-        - src/fitcv/config.py
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/settings_schema.py
+        - path: src/fitcv/config.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_config.py
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_config.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_validate_composition_accepts_valid_europass
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_settings_page_renders_cv_visibility_matrix
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -5970,12 +7321,31 @@ features:
         statement: Warning-only CV max-pages validation setting
         satisfies: []
         code:
-        - src/fitcv/config.py
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/settings_schema.py
+        - path: src/fitcv/config.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_config.py
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_config.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_load_config_nested_cv_validation_max_pages_positive
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_settings_page_cv_max_pages_is_numeric_input
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -6034,9 +7404,17 @@ features:
         statement: Organize the admin settings surface by task with clearer current-vs-draft feedback.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_settings_page_renders_task_first_sections
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -6095,9 +7473,17 @@ features:
         statement: Separate expert-only tuning controls from the basic settings surface.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_settings_page_uses_advanced_disclosure_for_expert_controls
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -6156,9 +7542,17 @@ features:
         statement: Render fixed single-option runtime controls and retired prompt fields as metadata rather than editable inputs.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_settings_page_renders_single_option_controls_as_metadata
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -6217,9 +7611,23 @@ features:
         statement: Provide denser CV composition and visibility controls for operator workflows.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_settings_page_renders_cv_sub_cards
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_settings_page_uses_shared_cv_setting_row_class_across_blocks
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -6278,10 +7686,27 @@ features:
         statement: Grouped form validation
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/settings_schema.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/settings_schema.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_grouped_save_cv_composition_invalid_does_not_partial_save
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_grouped_save_fit_label_thresholds_invalid_order
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -6340,9 +7765,23 @@ features:
         statement: Per-run overrides
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_post_runs_rejects_invalid_config_overrides
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_post_runs_with_config_overrides
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -6401,9 +7840,17 @@ features:
         statement: Trigger-time effective settings snapshot
         satisfies: []
         code:
-        - src/fitcv_cp/bq_store.py
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_bq_store.py
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_update_run_effective_settings_updates_only_effective_settings_field
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -6462,9 +7909,23 @@ features:
         statement: Hydrate admin defaults from the baseline config layout while preserving migration-safe compatibility behavior.
         satisfies: []
         code:
-        - src/fitcv/config.py
+        - path: src/fitcv/config.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_config.py
+        - path: tests/test_config.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_load_config_compatibility_flat_keys_work_after_nested_migration
+        - path: tests/test_config.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_files
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -6523,9 +7984,23 @@ features:
         statement: Emit canonical nested settings-used exports and isolate compatibility-era flat keys into an explicit compatibility block.
         satisfies: []
         code:
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_persists_settings_used_json_on_success
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_settings_used_export_canonicalizes_legacy_compatibility_keys
         docs:
         - docs/features/settings_system/history.md
         docs_evidence:
@@ -6589,13 +8064,43 @@ features:
         statement: Provide the runs list with status visibility, bulk lifecycle actions, and archive filtering.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/bq_store.py
-        - src/fitcv_cp/queue.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/queue.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_bq_store.py
-        - tests/test_fitcv_cp/test_queue.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_bulk_cancel_mixed_eligibility_returns_processed_and_skipped_summary
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_get_runs_returns_list
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_list_runs_returns_list
+        - path: tests/test_fitcv_cp/test_queue.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_enqueue_run_returns_uuid
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -6685,12 +8190,37 @@ features:
         statement: Keep run detail as the single-run control surface for continue, stop, archive, unarchive, and repair actions.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/bq_store.py
-        - src/fitcv_cp/queue.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/queue.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_queue.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_queued_shows_stop_run
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_succeeded_shows_archive_run
+        - path: tests/test_fitcv_cp/test_queue.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_cancel_queued_run_returns_true_when_cancelable
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -6780,9 +8310,17 @@ features:
         statement: Support path, upload, and pasted JSON job inputs with canonical snapshot capture.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_success
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -6872,9 +8410,23 @@ features:
         statement: Support default-config, upload, and pasted candidate-profile inputs at trigger time.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_default_config_stores_profile_snapshot
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_tab3_shows_snapshot_for_default_config_source
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -6964,9 +8516,17 @@ features:
         statement: Support server-owned mode resolution for `Run All` and `Stage by Stage`.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_post_runs_persists_manual_staged_mode
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -7056,9 +8616,17 @@ features:
         statement: Allow both execution modes to snapshot a run-scoped synonym-overlay YAML during setup.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_trigger_persists_run_scoped_synonym_overlay
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -7148,11 +8716,33 @@ features:
         statement: Persist shared reached-stage and completion progress for both execution modes.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_run_all_shows_shared_progress_without_checkpoint_controls
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_persists_stage_transition_artifacts_json_on_success
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_run_all_persists_stage_progress_without_checkpoint_state
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -7242,11 +8832,39 @@ features:
         statement: Persist stage-by-stage checkpoint payloads and allow paused runs to continue from the next pending stage.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/queue.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/queue.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_queue.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_continue_run_requeues_manual_paused_run
+        - path: tests/test_fitcv_cp/test_queue.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_cancel_queued_run_returns_false_when_not_found
+        - path: tests/test_fitcv_cp/test_queue.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_cancel_queued_run_returns_true_when_cancelable
+        - path: tests/test_fitcv_cp/test_queue.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_enqueue_run_returns_uuid
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -7336,9 +8954,17 @@ features:
         statement: Allow paused manual runs to replace the run-scoped synonym overlay after enrich before continuing.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_upload_synonym_overlay_updates_run_effective_settings
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -7428,9 +9054,17 @@ features:
         statement: Show compact run-health diagnostics that combine stage quality and late-stage reuse visibility.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_renders_run_health_when_quality_metrics_available
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -7520,12 +9154,37 @@ features:
         statement: Export run-scoped artifacts such as CV outputs, results, settings-used, CV debug, and artifact bundles.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/bq_store.py
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_run_detail_shows_exports_card_with_results_link
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_download_run_artifact_bundle_zip_endpoint_for_partial_run
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_persists_compact_cv_fields_in_results_export_json
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -7615,9 +9274,17 @@ features:
         statement: Provide aggregate stage-boundary downloads, stage slices, and gated stage-owned exports only when the owning stage has been reached.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_timeline_shows_stage_download_for_mapped_event
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -7707,9 +9374,17 @@ features:
         statement: Show active synonym-overlay state and snapshots from run detail inspection.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_admin_run_detail_shows_synonym_overlay_card_for_manual_enrich_checkpoint
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -7799,13 +9474,43 @@ features:
         statement: Export job-centric results with structured CV metadata and compact outcome detail.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/bq_store.py
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/bq_store.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_bq_store.py
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_download_results_json_endpoint_200
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_row_to_run_maps_results_export_json
+        - path: tests/test_fitcv_cp/test_bq_store.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_update_run_results_export_uses_parameterized_query
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_persists_results_export_json_on_success
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -7895,9 +9600,17 @@ features:
         statement: Show shortlist debug facts such as raw-hit visibility, raw-count separation, and retrieval-stage diagnostics.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -7987,9 +9700,17 @@ features:
         statement: Surface explicit per-job decision chains and compact pipeline-outcome labels in exports and inspection views.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_enriched_shows_pipeline_outcome_for_reranker_blocked_job
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -8079,11 +9800,27 @@ features:
         statement: Treat reranker fit as the authoritative post-filter signal for ranking and CV eligibility outcomes.
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
-        - src/fitcv_cp/worker_job.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
+        - path: src/fitcv_cp/worker_job.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
-        - tests/test_fitcv_cp/test_worker_job.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_enriched_shows_pipeline_outcome_for_reranker_blocked_job
+        - path: tests/test_fitcv_cp/test_worker_job.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_worker_persists_cv_generation_debug_coverage_for_reranker_blocked_rows
         docs:
         - docs/features/trigger_run_management/history.md
         docs_evidence:
@@ -8178,9 +9915,17 @@ features:
         statement: CSS custom properties design tokens
         satisfies: []
         code:
-        - src/fitcv_cp/templates/base.html
+        - path: src/fitcv_cp/templates/base.html
+          confidence: high
+          source:
+          - template_architecture
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_base_template_defines_theme_tokens_and_shared_classes
         docs:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
@@ -8215,9 +9960,17 @@ features:
         statement: Shared component classes
         satisfies: []
         code:
-        - src/fitcv_cp/templates/base.html
+        - path: src/fitcv_cp/templates/base.html
+          confidence: high
+          source:
+          - template_architecture
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_base_template_defines_theme_tokens_and_shared_classes
         docs:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
@@ -8252,9 +10005,17 @@ features:
         statement: Dark/light theme toggle with localStorage persistence
         satisfies: []
         code:
-        - src/fitcv_cp/templates/base.html
+        - path: src/fitcv_cp/templates/base.html
+          confidence: high
+          source:
+          - template_architecture
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_base_template_bootstraps_saved_theme_before_styles
         docs:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
@@ -8289,9 +10050,17 @@ features:
         statement: Flash-free theme application
         satisfies: []
         code:
-        - src/fitcv_cp/templates/base.html
+        - path: src/fitcv_cp/templates/base.html
+          confidence: high
+          source:
+          - template_architecture
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_base_template_bootstraps_saved_theme_before_styles
         docs:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
@@ -8326,9 +10095,23 @@ features:
         statement: Consistent action hierarchy (primary, secondary, section)
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_runs_list_renders_bulk_action_bar_hooks
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_settings_page_renders_task_first_sections
         docs:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
@@ -8363,9 +10146,29 @@ features:
         statement: Human-readable section headings
         satisfies: []
         code:
-        - src/fitcv_cp/app.py
+        - path: src/fitcv_cp/app.py
+          confidence: high
+          source:
+          - python_meta
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_settings_page_renders_cv_composition_section
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_settings_page_renders_cv_preset_section
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_settings_page_renders_task_first_sections
         docs:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
@@ -8400,9 +10203,23 @@ features:
         statement: Attached-tab inspection card pattern
         satisfies: []
         code:
-        - src/fitcv_cp/templates/base.html
+        - path: src/fitcv_cp/templates/base.html
+          confidence: high
+          source:
+          - template_architecture
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_inspection_area_wrapped_in_inspection_card
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_run_detail_tab_bar_uses_attached_modifier
         docs:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:
@@ -8437,9 +10254,17 @@ features:
         statement: Responsive wrapping
         satisfies: []
         code:
-        - src/fitcv_cp/templates/base.html
+        - path: src/fitcv_cp/templates/base.html
+          confidence: high
+          source:
+          - template_architecture
         tests:
-        - tests/test_fitcv_cp/test_app.py
+        - path: tests/test_fitcv_cp/test_app.py
+          confidence: high
+          source:
+          - python_proves
+          symbols:
+          - test_base_template_uses_wrapping_rules_for_shared_layout_surfaces
         docs:
         - docs/features/ui_consistency_theming/history.md
         docs_evidence:

@@ -188,14 +188,44 @@ def build_repo(tmp_path: Path) -> Path:
     (repo_root / "docs" / "superpowers" / "archive" / "plans" / "2026-04-22-cv-system-plan.md").write_text(
         "---\n"
         "artifact_type: plan\n"
+        "status: completed\n"
+        "completed_at: 2026-04-22T20:45:00+02:00\n"
+        "change_id: 2026-04-22-cv-system-lineage\n"
         "related_features:\n"
         "  - cv_system\n"
+        "affects:\n"
+        "  capabilities:\n"
+        "    - cv_system.structured-cv-generation\n"
+        "verification:\n"
+        "  - pytest tests/test_cv_writer.py\n"
+        "outcome:\n"
+        "  summary: CV generation lineage metadata is now explicit.\n"
         "---\n\n"
         "# CV System Plan\n",
         encoding="utf-8",
     )
 
     (repo_root / "docs" / "generated").mkdir(parents=True, exist_ok=True)
+    (repo_root / "config" / "runtime").mkdir(parents=True, exist_ok=True)
+    (repo_root / "config" / "runtime" / "prompts.yaml").write_text(
+        "# @architecture\n"
+        "# owner: cv_system\n"
+        "# features:\n"
+        "#   - cv_system\n"
+        "# stages:\n"
+        "#   - cv_analysis\n"
+        "# capabilities:\n"
+        "#   - cv_system.structured-cv-generation\n"
+        "# components:\n"
+        "#   - config.runtime.prompts\n"
+        "# role: config\n"
+        "# canonical: true\n\n"
+        "prompts:\n"
+        "  cv_generation:\n"
+        "    structured_write:\n"
+        "      prompt_id: cv_generation.structured_write.v1\n",
+        encoding="utf-8",
+    )
     return repo_root
 
 
@@ -391,6 +421,47 @@ def test_validator_fails_when_lineage_contains_yaml_aliases(tmp_path: Path) -> N
     assert "yaml aliases are not allowed" in process.stdout.lower()
 
 
+def test_validator_rejects_legacy_timeline_entry_shape(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    lineage_path = repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml"
+    lineage = yaml.safe_load(lineage_path.read_text(encoding="utf-8"))
+    lineage["timeline"] = [{"kind": "plan", "path": "docs/superpowers/archive/plans/2026-04-22-cv-system-plan.md"}]
+    lineage_path.write_text(yaml.safe_dump(lineage, sort_keys=False), encoding="utf-8")
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "is missing required keys" in process.stdout.lower()
+
+
+def test_validator_accepts_empty_timeline_during_migration(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    plan_path = repo_root / "docs" / "superpowers" / "archive" / "plans" / "2026-04-22-cv-system-plan.md"
+    plan_path.write_text(
+        "---\n"
+        "artifact_type: plan\n"
+        "related_features:\n"
+        "  - cv_system\n"
+        "---\n\n"
+        "# CV System Plan\n",
+        encoding="utf-8",
+    )
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    validator_module = load_module(VALIDATOR_PATH, "validate_adoption_shape")
+    assert validator_module.main(["--repo-root", str(repo_root)]) == 0
+
+
 def test_validator_fails_when_complete_lineage_lacks_direct_evidence(tmp_path: Path) -> None:
     repo_root = build_repo(tmp_path)
     sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
@@ -543,3 +614,115 @@ def test_validator_fails_when_required_test_metadata_is_missing(tmp_path: Path) 
     assert process.returncode == 1
     assert "missing required @meta docstring" in process.stdout.lower()
     assert "tests/test_sample.py" in process.stdout
+
+
+def test_validator_fails_when_config_metadata_is_missing(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    config_path = repo_root / "config" / "runtime" / "prompts.yaml"
+    config_path.write_text(
+        "prompts:\n  cv_generation:\n    structured_write:\n      prompt_id: cv_generation.structured_write.v1\n",
+        encoding="utf-8",
+    )
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "missing required # @architecture metadata" in process.stdout.lower()
+    assert "config/runtime/prompts.yaml" in process.stdout
+
+
+def test_validator_fails_for_unknown_config_capability_id(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    config_path = repo_root / "config" / "runtime" / "prompts.yaml"
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8").replace(
+            "#   - cv_system.structured-cv-generation",
+            "#   - cv_system.unknown-capability",
+        ),
+        encoding="utf-8",
+    )
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "unknown config metadata capability id" in process.stdout.lower()
+    assert "config/runtime/prompts.yaml" in process.stdout
+
+
+def test_validator_accepts_rich_lineage_generated_shape(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 0
+
+
+def test_validator_rejects_string_list_code_and_tests_in_lineage_generated(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    lineage_path = repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml"
+    lineage = yaml.safe_load(lineage_path.read_text(encoding="utf-8"))
+    capability = lineage["capabilities"]["cv_system.structured-cv-generation"]
+    capability["code"] = ["scripts/cv_writer.py"]
+    capability["tests"] = ["tests/test_cv_writer.py"]
+    lineage_path.write_text(yaml.safe_dump(lineage, sort_keys=False), encoding="utf-8")
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "lineage field code[0] must be a mapping" in process.stdout.lower()
+    assert "lineage field tests[0] must be a mapping" in process.stdout.lower()
+
+
+def test_validator_rejects_legacy_kind_path_timeline_entries(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    lineage_path = repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml"
+    lineage = yaml.safe_load(lineage_path.read_text(encoding="utf-8"))
+    lineage["timeline"] = [{"kind": "plan", "path": "docs/superpowers/archive/plans/2026-04-22-cv-system-plan.md"}]
+    lineage_path.write_text(yaml.safe_dump(lineage, sort_keys=False), encoding="utf-8")
+
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert process.returncode == 1
+    assert "feature lineage timeline entry 1 is missing required keys" in process.stdout.lower()
