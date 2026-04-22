@@ -18,6 +18,11 @@ capabilities:
   - admin_control_plane_core.fastapi-web-server
   - admin_control_plane_core.jinja2-admin-pages
   - admin_control_plane_core.insert-before-enqueue-invariant
+  - multi_file_job_input.multiple-file-inputs-in-trigger-form
+  - multi_file_job_input.per-file-server-side-validation
+  - multi_file_job_input.canonical-merge-preserving-order
+  - multi_file_job_input.one-immutable-snapshot-stored-per-run
+  - multi_file_job_input.all-or-nothing-rejection-on-validation-failure
   - run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
@@ -49,6 +54,8 @@ capabilities:
   - settings_system.warning-only-cv-max-pages-validation-setting
   - settings_system.grouped-form-validation
   - settings_system.per-run-overrides
+  - ui_consistency_theming.consistent-action-hierarchy-primary-secondary-section
+  - ui_consistency_theming.human-readable-section-headings
   - trigger_run_management.runs-list-management
   - trigger_run_management.run-detail-actions
   - trigger_run_management.job-input-modes

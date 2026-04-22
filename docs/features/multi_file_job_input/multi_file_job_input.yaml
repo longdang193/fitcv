@@ -34,9 +34,11 @@ refs:
   - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
   - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
   - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+  - docs/superpowers/archive/specs/2026-04-22-16-02-phase-12-ui-input-evidence-completion-spec.md
   plan:
   - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
   - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
   - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
   - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
   - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+  - docs/superpowers/plans/2026-04-22-16-10-phase-12-ui-input-evidence-completion-plan.md

@@ -43,6 +43,7 @@ def test_event_level_values():
 
 
 def test_pipeline_run_fields():
+    """@proves multi_file_job_input.one-immutable-snapshot-stored-per-run"""
     fields = {f.name for f in dataclasses.fields(PipelineRun)}
     assert {
         "run_id", "status", "triggered_by", "trigger_source", "jobs_path",

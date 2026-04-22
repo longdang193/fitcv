@@ -13,6 +13,7 @@ outputs:
 capabilities:
   - admin_control_plane_core.pipeline-runs-bigquery-table
   - admin_control_plane_core.pipeline-run-events-bigquery-table
+  - multi_file_job_input.one-immutable-snapshot-stored-per-run
 tags:
   - models
   - control-plane
