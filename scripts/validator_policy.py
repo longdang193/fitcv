@@ -21,6 +21,8 @@ lifecycle:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 # Adoption and folder surface policy.
 ALLOWED_MODES = {
     "starter_method_only",
@@ -282,6 +284,32 @@ LINEAGE_RICH_TIMELINE_KEYS = {
     "outcome",
 }
 LINEAGE_COMPLETENESS_STATUSES = {"complete", "excepted", "incomplete"}
+
+# Shared repo-contract marker policy.
+GENERATED_HISTORY_START_MARKER = "<!-- GENERATED HISTORY START -->"
+GENERATED_HISTORY_END_MARKER = "<!-- GENERATED HISTORY END -->"
+HUMAN_NOTES_HEADING = "## Human Notes"
+ARCHITECTURE_METADATA_MARKER_LINE = "# @architecture"
+SETUP_META_MARKER = "@meta"
+FORBIDDEN_MANUAL_REFS_FIELD = "manual_refs"
+MANUAL_REFS_REMEDIATION = (
+    "add ownership metadata to code, tests, docs, specs, plans, configs, or "
+    "components instead"
+)
+
+
+def feature_source_has_forbidden_manual_refs(payload: object) -> bool:
+    return isinstance(payload, Mapping) and FORBIDDEN_MANUAL_REFS_FIELD in payload
+
+
+def format_manual_refs_forbidden_message(*, owner: str | None = None) -> str:
+    message = (
+        f"{FORBIDDEN_MANUAL_REFS_FIELD} is no longer supported; "
+        f"{MANUAL_REFS_REMEDIATION}"
+    )
+    if owner is None:
+        return message
+    return f"{owner}: {message}"
 
 # Template and metadata-scan policy.
 MODE_A_TEMPLATE_SPEC_PATH = "docs/superpowers/specs/2026-04-23-mode-a-project-template-pack-spec.md"

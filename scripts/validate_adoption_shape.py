@@ -39,6 +39,8 @@ from validator_policy import (
     ALLOWED_MODES,
     ALLOWED_STARTER_SYNC_STATUSES,
     ARCHITECTURE_DAG_REQUIRED_KEYS,
+    GENERATED_HISTORY_END_MARKER,
+    GENERATED_HISTORY_START_MARKER,
     CAPABILITY_LINEAGE_REQUIRED_KEYS,
     FEATURE_CONTRACT_CAPABILITY_REQUIRED_KEYS,
     FEATURE_CONTRACT_FRESHNESS_KEYS,
@@ -72,6 +74,7 @@ from validator_policy import (
     REQUIRED_STARTER_SYNC_SURFACE_CLASSES,
     STAGE_CONTRACT_REQUIRED_KEYS,
     STAGE_CONTRACT_STRING_LIST_OPTIONAL_KEYS,
+    HUMAN_NOTES_HEADING,
     YAML_ARCHITECTURE_TEMPLATE_PATH,
 )
 
@@ -2152,21 +2155,21 @@ def validate_managed_feature_history_structure(root: Path, findings: list[Findin
             )
             continue
 
-        if "<!-- GENERATED HISTORY START -->" not in text:
+        if GENERATED_HISTORY_START_MARKER not in text:
             add_error(
                 findings,
                 relative_history_path,
                 "history.md is missing the generated history start marker.",
                 "Add the canonical generated history boundary markers and regenerate the history block if needed.",
             )
-        if "<!-- GENERATED HISTORY END -->" not in text:
+        if GENERATED_HISTORY_END_MARKER not in text:
             add_error(
                 findings,
                 relative_history_path,
                 "history.md is missing the generated history end marker.",
                 "Add the canonical generated history boundary markers and regenerate the history block if needed.",
             )
-        if "## Human Notes" not in text:
+        if HUMAN_NOTES_HEADING not in text:
             add_error(
                 findings,
                 relative_history_path,
