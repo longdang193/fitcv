@@ -4,7 +4,6 @@ root_instruction_file: "AGENTS.md"
 nested_instruction_files:
   - "docs/AGENTS.md"
   - "src/fitcv/AGENTS.md"
-  - "src/fitcv_cp/AGENTS.md"
 principles:
   - "Root instructions define repo-wide expectations."
   - "Nested instructions should override only local behavior."

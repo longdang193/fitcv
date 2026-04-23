@@ -15,11 +15,6 @@
     "prefix": "#"
   },
   {
-    "source": "agent-core/adapters/codex/src-fitcv_cp-AGENTS.template.md",
-    "destination": "src/fitcv_cp/AGENTS.md",
-    "prefix": "#"
-  },
-  {
     "source": "agent-core/adapters/codex/rules/command-execution.rules",
     "destination": "codex/rules/command-execution.rules",
     "prefix": "#"
