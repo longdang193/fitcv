@@ -200,6 +200,46 @@ MANAGED_REQUIRED_ROOT_DOC_METADATA = {
         ),
     },
 }
+MANAGED_OPTIONAL_ROOT_DOC_METADATA = {
+    "docs/dataset.md": {
+        "doc_id": "dataset",
+        "required_explain_groups": ("features", "stages", "configs"),
+        "missing_explains_message": "Dataset doc must explain one or more features, stages, or configs.",
+        "missing_explains_fix": (
+            "Add an `explains.features`, `explains.stages`, or `explains.configs` list so "
+            "dataset guidance is linked to the managed architecture surface."
+        ),
+    },
+    "docs/api.md": {
+        "doc_id": "api",
+        "required_explain_groups": ("features", "capabilities", "components"),
+        "missing_explains_message": "API doc must explain one or more features, capabilities, or components.",
+        "missing_explains_fix": (
+            "Add an `explains.features`, `explains.capabilities`, or `explains.components` list "
+            "so API guidance is linked to the managed architecture surface."
+        ),
+    },
+    "docs/observability.md": {
+        "doc_id": "observability",
+        "required_explain_groups": ("features", "stages", "configs", "components"),
+        "missing_explains_message": (
+            "Observability doc must explain one or more features, stages, configs, or components."
+        ),
+        "missing_explains_fix": (
+            "Add an `explains.features`, `explains.stages`, `explains.configs`, or "
+            "`explains.components` list so observability guidance is linked to the managed surface."
+        ),
+    },
+    "docs/testing.md": {
+        "doc_id": "testing",
+        "required_explain_groups": ("features", "capabilities", "stages"),
+        "missing_explains_message": "Testing doc must explain one or more features, capabilities, or stages.",
+        "missing_explains_fix": (
+            "Add an `explains.features`, `explains.capabilities`, or `explains.stages` list so "
+            "testing guidance is linked to the managed verification surface."
+        ),
+    },
+}
 REQUIRED_DOC_KEYWORDS = {
     "docs/setup.md": ("depend", "tool version", "install", "provision", "prerequisite", "bootstrap"),
     "docs/configuration.md": (
@@ -327,7 +367,12 @@ def load_yaml(path: Path) -> Any:
 
 
 def extract_markdown_frontmatter(text: str) -> tuple[dict[str, Any] | None, str | None, str]:
+    if text.startswith("\ufeff"):
+        text = text.removeprefix("\ufeff")
+
     if not text.startswith("---"):
+        if text.lstrip().startswith("---"):
+            return None, "Frontmatter must start at the first byte.", text
         return None, None, text
 
     match = re.match(r"\A---\s*\r?\n(.*?)\r?\n---\s*(?:\r?\n|$)", text, re.DOTALL)
@@ -820,8 +865,13 @@ def validate_required_root_docs(root: Path, findings: list[Finding]) -> None:
             )
 
 
-def validate_managed_required_root_doc_metadata(root: Path, findings: list[Finding]) -> None:
-    for relative_path, rule in MANAGED_REQUIRED_ROOT_DOC_METADATA.items():
+def validate_managed_root_doc_metadata(
+    root: Path,
+    findings: list[Finding],
+    rules: dict[str, dict[str, object]],
+    doc_kind: str,
+) -> None:
+    for relative_path, rule in rules.items():
         path = root / Path(relative_path)
         if not path.exists():
             continue
@@ -835,15 +885,18 @@ def validate_managed_required_root_doc_metadata(root: Path, findings: list[Findi
             add_error(
                 findings,
                 relative_path,
-                "Managed required root doc frontmatter is invalid.",
-                "Fix the YAML frontmatter block so the managed root doc metadata is parseable.",
+                f"Managed {doc_kind} root doc frontmatter is invalid: {error}",
+                (
+                    "Fix the YAML frontmatter block so the managed root doc metadata is parseable "
+                    "and starts at the top of the file."
+                ),
             )
             continue
         if payload is None:
             add_error(
                 findings,
                 relative_path,
-                "Managed required root doc must include frontmatter metadata.",
+                f"Managed {doc_kind} root doc must include frontmatter metadata.",
                 (
                     "Add frontmatter with `doc_id`, `doc_type`, and `explains.*` fields so "
                     "the doc participates in the managed architecture linkage surface."
@@ -857,7 +910,7 @@ def validate_managed_required_root_doc_metadata(root: Path, findings: list[Findi
             add_error(
                 findings,
                 relative_path,
-                "Managed required root doc has the wrong doc_id.",
+                f"Managed {doc_kind} root doc has the wrong doc_id.",
                 f"Set `doc_id: {expected_doc_id}` so the root doc keeps the canonical managed identifier.",
             )
 
@@ -866,7 +919,7 @@ def validate_managed_required_root_doc_metadata(root: Path, findings: list[Findi
             add_error(
                 findings,
                 relative_path,
-                "Managed required root doc must declare doc_type.",
+                f"Managed {doc_kind} root doc must declare doc_type.",
                 "Add a stable `doc_type` such as `setup-guide`, `operator-guide`, or `architecture-guide`.",
             )
 
@@ -875,7 +928,7 @@ def validate_managed_required_root_doc_metadata(root: Path, findings: list[Findi
             add_error(
                 findings,
                 relative_path,
-                "Managed required root doc must declare explains metadata.",
+                f"Managed {doc_kind} root doc must declare explains metadata.",
                 "Add an `explains` mapping with the relevant managed feature, stage, config, or component references.",
             )
             continue
@@ -890,7 +943,7 @@ def validate_managed_required_root_doc_metadata(root: Path, findings: list[Findi
                 add_error(
                     findings,
                     relative_path,
-                    f"Managed required root doc explains.{key} must be a list of non-empty strings.",
+                    f"Managed {doc_kind} root doc explains.{key} must be a list of non-empty strings.",
                     "Use YAML lists of stable feature IDs, stage IDs, config paths, or component paths.",
                 )
                 continue
@@ -904,6 +957,24 @@ def validate_managed_required_root_doc_metadata(root: Path, findings: list[Findi
                 rule["missing_explains_message"],
                 rule["missing_explains_fix"],
             )
+
+
+def validate_managed_required_root_doc_metadata(root: Path, findings: list[Finding]) -> None:
+    validate_managed_root_doc_metadata(
+        root,
+        findings,
+        MANAGED_REQUIRED_ROOT_DOC_METADATA,
+        "required",
+    )
+
+
+def validate_managed_optional_root_doc_metadata(root: Path, findings: list[Finding]) -> None:
+    validate_managed_root_doc_metadata(
+        root,
+        findings,
+        MANAGED_OPTIONAL_ROOT_DOC_METADATA,
+        "optional",
+    )
 
 
 def validate_required_project_folders(root: Path, findings: list[Finding]) -> None:
@@ -2130,6 +2201,7 @@ def validate_starter_method_only(root: Path, findings: list[Finding]) -> None:
 
 def validate_managed_mode(config: AdoptionConfig, root: Path, findings: list[Finding]) -> None:
     validate_managed_required_root_doc_metadata(root, findings)
+    validate_managed_optional_root_doc_metadata(root, findings)
     for path in flat_feature_files(root):
         add_error(
             findings,
