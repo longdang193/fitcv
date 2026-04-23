@@ -5,8 +5,8 @@ explains:
   features:
     - trigger_run_management
   stages:
-    - normalize
     - enrich
+    - normalize
 ---
 
 # Setup

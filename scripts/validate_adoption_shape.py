@@ -35,288 +35,45 @@ from typing import Any
 
 import yaml
 
-
-ALLOWED_MODES = {
-    "starter_method_only",
-    "managed_architecture_metadata",
-    "legacy_compatibility",
-}
-METHOD_FEATURE_IDS = {"repo-operating-system"}
-METHOD_FEATURE_PREFIXES = (
-    "repo-",
-    "agent-",
-    "adapter-",
-    "publication-",
-    "docs-governance",
+from validator_policy import (
+    ALLOWED_MODES,
+    ALLOWED_STARTER_SYNC_STATUSES,
+    ARCHITECTURE_DAG_REQUIRED_KEYS,
+    CAPABILITY_LINEAGE_REQUIRED_KEYS,
+    FEATURE_CONTRACT_CAPABILITY_REQUIRED_KEYS,
+    FEATURE_CONTRACT_FRESHNESS_KEYS,
+    FEATURE_CONTRACT_INVARIANT_REQUIRED_KEYS,
+    FEATURE_CONTRACT_REF_KEYS,
+    FEATURE_CONTRACT_REQUIRED_KEYS,
+    FEATURE_CONTRACT_STRING_FIELDS,
+    FEATURE_METADATA_PATTERNS,
+    GENERATED_INDEX_NAMES,
+    LEGACY_LINEAGE_TOP_LEVEL_KEYS,
+    LINEAGE_COMPLETENESS_STATUSES,
+    LINEAGE_REQUIRED_CAPABILITY_KEYS,
+    LINEAGE_RICH_TIMELINE_KEYS,
+    MANAGED_FEATURE_TEMPLATE_PATH,
+    MANAGED_OPTIONAL_ROOT_DOC_METADATA,
+    MANAGED_REQUIRED_ROOT_DOC_METADATA,
+    MARKDOWN_FRONTMATTER_TEMPLATE_PATH,
+    METHOD_FEATURE_IDS,
+    METHOD_FEATURE_PREFIXES,
+    METADATA_SCAN_SKIP_DIRS,
+    METADATA_SCAN_SUFFIXES,
+    MODE_A_TEMPLATE_MANAGED_MARKERS,
+    MODE_A_TEMPLATE_REQUIRED_FILES,
+    MODE_A_TEMPLATE_ROOT,
+    MODE_A_TEMPLATE_SPEC_PATH,
+    PLACEHOLDER_PATTERNS,
+    REQUIRED_DOC_KEYWORDS,
+    REQUIRED_LINEAGE_TOP_LEVEL_KEYS,
+    REQUIRED_PROJECT_FOLDERS,
+    REQUIRED_ROOT_PROJECT_DOCS,
+    REQUIRED_STARTER_SYNC_SURFACE_CLASSES,
+    STAGE_CONTRACT_REQUIRED_KEYS,
+    STAGE_CONTRACT_STRING_LIST_OPTIONAL_KEYS,
+    YAML_ARCHITECTURE_TEMPLATE_PATH,
 )
-GENERATED_INDEX_NAMES = {
-    "architecture_dag.yaml",
-    "capability_lineage.yaml",
-    "feature_capabilities_index.yaml",
-    "feature_dependency_graph.yaml",
-    "feature_overview.md",
-    "features_by_status.yaml",
-    "features_index.yaml",
-}
-FEATURE_CONTRACT_REQUIRED_KEYS = {
-    "feature_id",
-    "name",
-    "status",
-    "type",
-    "summary",
-    "invariants",
-    "domains",
-    "depends_on",
-    "capabilities",
-    "refs",
-}
-FEATURE_CONTRACT_REF_KEYS = {
-    "code",
-    "tests",
-    "specs",
-    "plans",
-    "docs",
-    "configs",
-    "components",
-}
-FEATURE_CONTRACT_FRESHNESS_KEYS = {
-    "revision",
-    "latest_change_id",
-    "last_updated_at",
-}
-FEATURE_CONTRACT_STRING_FIELDS = {
-    "feature_id",
-    "name",
-    "status",
-    "type",
-    "summary",
-}
-FEATURE_CONTRACT_INVARIANT_REQUIRED_KEYS = {
-    "invariant_id",
-    "statement",
-    "state",
-}
-FEATURE_CONTRACT_CAPABILITY_REQUIRED_KEYS = {
-    "capability_id",
-    "statement",
-    "state",
-}
-STAGE_CONTRACT_REQUIRED_KEYS = {
-    "stage_id",
-    "name",
-    "status",
-    "purpose",
-    "feature_refs",
-    "capability_refs",
-    "code_refs",
-    "test_refs",
-    "doc_refs",
-    "config_refs",
-    "component_refs",
-}
-STAGE_CONTRACT_STRING_LIST_OPTIONAL_KEYS = {
-    "depends_on",
-    "hands_off_to",
-    "inputs",
-    "outputs",
-    "invariants",
-    "human_notes",
-}
-CAPABILITY_LINEAGE_REQUIRED_KEYS = {"features"}
-ARCHITECTURE_DAG_REQUIRED_KEYS = {"nodes", "edges"}
-METADATA_SCAN_SUFFIXES = {".py", ".yaml", ".yml", ".sql", ".md"}
-METADATA_SCAN_SKIP_DIRS = {
-    ".git",
-    ".tmp-tests",
-    ".venv",
-    ".agents",
-    "venv",
-    "node_modules",
-    "docs",
-    "agent-core",
-    "repo_config",
-    "scripts",
-    "tests",
-    "tools",
-}
-FEATURE_METADATA_PATTERNS = (
-    "@capability",
-    "@proves",
-    "explains.features",
-    "capability_id:",
-    "capability_ids:",
-)
-REQUIRED_ROOT_PROJECT_DOCS = (
-    "docs/setup.md",
-    "docs/configuration.md",
-    "docs/usage.md",
-    "docs/pipeline.md",
-    "docs/architecture.md",
-)
-MANAGED_REQUIRED_ROOT_DOC_METADATA = {
-    "docs/setup.md": {
-        "doc_id": "setup",
-        "required_explain_groups": ("features", "stages"),
-        "missing_explains_message": "Setup doc must explain one or more features or stages.",
-        "missing_explains_fix": (
-            "Add an `explains.features` or `explains.stages` list so setup guidance remains "
-            "linked to the managed architecture surface."
-        ),
-    },
-    "docs/configuration.md": {
-        "doc_id": "configuration",
-        "required_explain_groups": ("features", "configs"),
-        "missing_explains_message": "Configuration doc must explain one or more features or configs.",
-        "missing_explains_fix": (
-            "Add an `explains.features` or `explains.configs` list so configuration guidance "
-            "maps back to the managed config surface."
-        ),
-    },
-    "docs/usage.md": {
-        "doc_id": "usage",
-        "required_explain_groups": ("features", "stages"),
-        "missing_explains_message": "Usage doc must explain one or more features or stages.",
-        "missing_explains_fix": (
-            "Add an `explains.features` or `explains.stages` list so operator usage stays "
-            "linked to the managed architecture surface."
-        ),
-    },
-    "docs/pipeline.md": {
-        "doc_id": "pipeline",
-        "required_explain_groups": ("stages",),
-        "missing_explains_message": "Pipeline doc must explain one or more stages.",
-        "missing_explains_fix": (
-            "Add an `explains.stages` list so pipeline guidance stays grounded in the stage "
-            "contracts instead of prose only."
-        ),
-    },
-    "docs/architecture.md": {
-        "doc_id": "architecture",
-        "required_explain_groups": ("features", "stages", "components"),
-        "missing_explains_message": "Architecture doc must explain one or more features, stages, or components.",
-        "missing_explains_fix": (
-            "Add at least one of `explains.features`, `explains.stages`, or `explains.components` "
-            "so architecture guidance is anchored to managed architecture surfaces."
-        ),
-    },
-}
-MANAGED_OPTIONAL_ROOT_DOC_METADATA = {
-    "docs/dataset.md": {
-        "doc_id": "dataset",
-        "required_explain_groups": ("features", "stages", "configs"),
-        "missing_explains_message": "Dataset doc must explain one or more features, stages, or configs.",
-        "missing_explains_fix": (
-            "Add an `explains.features`, `explains.stages`, or `explains.configs` list so "
-            "dataset guidance is linked to the managed architecture surface."
-        ),
-    },
-    "docs/api.md": {
-        "doc_id": "api",
-        "required_explain_groups": ("features", "capabilities", "components"),
-        "missing_explains_message": "API doc must explain one or more features, capabilities, or components.",
-        "missing_explains_fix": (
-            "Add an `explains.features`, `explains.capabilities`, or `explains.components` list "
-            "so API guidance is linked to the managed architecture surface."
-        ),
-    },
-    "docs/observability.md": {
-        "doc_id": "observability",
-        "required_explain_groups": ("features", "stages", "configs", "components"),
-        "missing_explains_message": (
-            "Observability doc must explain one or more features, stages, configs, or components."
-        ),
-        "missing_explains_fix": (
-            "Add an `explains.features`, `explains.stages`, `explains.configs`, or "
-            "`explains.components` list so observability guidance is linked to the managed surface."
-        ),
-    },
-    "docs/testing.md": {
-        "doc_id": "testing",
-        "required_explain_groups": ("features", "capabilities", "stages"),
-        "missing_explains_message": "Testing doc must explain one or more features, capabilities, or stages.",
-        "missing_explains_fix": (
-            "Add an `explains.features`, `explains.capabilities`, or `explains.stages` list so "
-            "testing guidance is linked to the managed verification surface."
-        ),
-    },
-}
-REQUIRED_DOC_KEYWORDS = {
-    "docs/setup.md": ("depend", "tool version", "install", "provision", "prerequisite", "bootstrap"),
-    "docs/configuration.md": (
-        "environment variable",
-        "config file",
-        "profile",
-        "default",
-        "override",
-        "ownership",
-        "repo_config",
-        "configs",
-    ),
-    "docs/usage.md": ("command", "entrypoint", "run flow", "workflow", "operator", "developer flow", "run loop"),
-    "docs/pipeline.md": ("stage", "workflow", "step", "handoff", "processing flow", "sequence"),
-    "docs/architecture.md": ("component", "boundar", "integration", "information flow", "control flow"),
-}
-PLACEHOLDER_PATTERNS = ("todo", "tbd", "placeholder", "fill this in later")
-REQUIRED_PROJECT_FOLDERS = (
-    "docs/intent",
-    "docs/operating_system",
-    "docs/superpowers/specs",
-    "docs/superpowers/plans",
-    "repo_config",
-    "scripts",
-    "tests",
-)
-MANAGED_FEATURE_TEMPLATE_PATH = "docs/architecture_templates/feature.source.yaml"
-YAML_ARCHITECTURE_TEMPLATE_PATH = "docs/architecture_templates/yaml-architecture.yaml"
-MARKDOWN_FRONTMATTER_TEMPLATE_PATH = "docs/architecture_templates/markdown-frontmatter.md"
-REQUIRED_STARTER_SYNC_SURFACE_CLASSES = {
-    "repo_config",
-    "operating_system_docs",
-    "skills",
-    "adapters",
-    "generated_instruction_surfaces",
-    "validation_and_sync_scripts",
-}
-ALLOWED_STARTER_SYNC_STATUSES = {"aligned", "customized", "deferred", "not_applicable"}
-REQUIRED_LINEAGE_TOP_LEVEL_KEYS = {"feature_id", "source", "invariants", "capabilities", "timeline"}
-LEGACY_LINEAGE_TOP_LEVEL_KEYS = {
-    "generated_contract",
-    "naming_policy",
-    "capability_shape",
-    "capability_ids",
-    "refs",
-    "refs_by_type",
-}
-LINEAGE_REQUIRED_CAPABILITY_KEYS = {
-    "state",
-    "statement",
-    "satisfies",
-    "code",
-    "tests",
-    "docs",
-    "docs_evidence",
-    "configs",
-    "config_evidence",
-    "components",
-    "component_evidence",
-    "specs",
-    "plans",
-    "evidence_gaps",
-    "allowed_evidence_gaps",
-    "lineage_exception_reason",
-    "unresolved_evidence_gaps",
-    "completeness_status",
-}
-LINEAGE_RICH_TIMELINE_KEYS = {
-    "completed_at",
-    "source_plan",
-    "change_id",
-    "summary",
-    "capabilities",
-    "verification",
-    "outcome",
-}
-LINEAGE_COMPLETENESS_STATUSES = {"complete", "excepted", "incomplete"}
 
 
 @dataclass(frozen=True)
@@ -510,6 +267,162 @@ def is_iso_like_date(value: Any) -> bool:
     return False
 
 
+def _is_non_empty_string(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _validate_canonical_concise_string(
+    findings: list[Finding],
+    *,
+    path: str,
+    subject: str,
+    field_name: str,
+    value: object,
+    fix: str,
+) -> None:
+    label = f"{subject}.{field_name}" if subject.endswith("]") else f"{subject} {field_name}"
+    if not _is_non_empty_string(value):
+        add_error(
+            findings,
+            path,
+            f"{label} must be a non-empty canonical concise string.",
+            fix,
+        )
+        return
+
+    assert isinstance(value, str)
+    if value != value.strip() or "\r" in value or "\n" in value:
+        add_error(
+            findings,
+            path,
+            f"{label} must be a canonical concise string.",
+            fix,
+        )
+
+
+def _validate_canonical_repo_relative_path(
+    findings: list[Finding],
+    *,
+    root: Path,
+    path: str,
+    subject: str,
+    field_name: str,
+    value: object,
+    require_exists: bool,
+    fix: str,
+) -> None:
+    label = f"{subject}.{field_name}" if subject.endswith("]") else f"{subject} {field_name}"
+    if not _is_non_empty_string(value):
+        add_error(
+            findings,
+            path,
+            f"{label} must be a canonical repo-relative path.",
+            fix,
+        )
+        return
+
+    assert isinstance(value, str)
+    if value != value.strip() or "\\" in value or "\r" in value or "\n" in value:
+        add_error(
+            findings,
+            path,
+            f"{label} must be a canonical repo-relative path.",
+            fix,
+        )
+        return
+
+    if require_exists and not (root / value).exists():
+        add_error(
+            findings,
+            path,
+            f"{label} references a missing path: {value}",
+            fix,
+        )
+
+
+def _validate_canonical_string_list(
+    findings: list[Finding],
+    *,
+    root: Path,
+    path: str,
+    subject: str,
+    field_name: str,
+    value: object,
+    check_paths: bool = False,
+    require_exists: bool = False,
+    item_fix: str,
+    duplicate_fix: str,
+    enforce_sorted: bool = False,
+    order_fix: str | None = None,
+    sort_key: Any = None,
+) -> None:
+    label = f"{subject}.{field_name}" if subject.endswith("]") else f"{subject} {field_name}"
+    if not isinstance(value, list):
+        add_error(
+            findings,
+            path,
+            f"{label} must be a list.",
+            item_fix,
+        )
+        return
+
+    seen: set[str] = set()
+    valid_items: list[str] = []
+    has_invalid_items = False
+    for index, item in enumerate(value):
+        if check_paths:
+            _validate_canonical_repo_relative_path(
+                findings,
+                root=root,
+                path=path,
+                subject=subject,
+                field_name=f"{field_name}[{index}]",
+                value=item,
+                require_exists=require_exists,
+                fix=item_fix,
+            )
+            if not isinstance(item, str) or item != item.strip() or "\\" in item or "\r" in item or "\n" in item:
+                has_invalid_items = True
+                continue
+        else:
+            if not _is_non_empty_string(item) or not isinstance(item, str) or item != item.strip() or "\r" in item or "\n" in item:
+                add_error(
+                    findings,
+                    path,
+                    f"{label}[{index}] must be a non-empty canonical string item.",
+                    item_fix,
+                )
+                has_invalid_items = True
+                continue
+
+        assert isinstance(item, str)
+        if item in seen:
+            add_error(
+                findings,
+                path,
+                f"{label} contains duplicate value `{item}`.",
+                duplicate_fix,
+            )
+            has_invalid_items = True
+            continue
+        seen.add(item)
+        valid_items.append(item)
+
+    if not enforce_sorted or has_invalid_items:
+        return
+
+    key_fn = sort_key or (lambda candidate: candidate)
+    expected_items = sorted(valid_items, key=key_fn)
+    if valid_items != expected_items:
+        expected_preview = ", ".join(expected_items)
+        add_error(
+            findings,
+            path,
+            f"{label} must use canonical lexical order.",
+            order_fix or f"Reorder items as [{expected_preview}].",
+        )
+
+
 def validate_starter_sync_record(config: AdoptionConfig, path: str, findings: list[Finding]) -> None:
     if config.mode != "managed_architecture_metadata":
         return
@@ -664,6 +577,13 @@ def stage_contract_files(root: Path) -> list[Path]:
     )
 
 
+def stage_source_files(root: Path) -> list[Path]:
+    stages_root = root / "docs" / "stages"
+    if not stages_root.exists():
+        return []
+    return sorted(path for path in stages_root.glob("*.source.yaml") if path.is_file())
+
+
 def feature_source_files(root: Path) -> list[Path]:
     return sorted((root / "docs" / "features").glob("*/feature.source.yaml"))
 
@@ -754,6 +674,143 @@ def validate_feature_dependencies(root: Path, findings: list[Finding]) -> None:
                 )
 
 
+def validate_managed_feature_source_schema(root: Path, findings: list[Finding]) -> None:
+    for path in feature_source_files(root):
+        relative_path = relpath(path, root)
+        try:
+            payload = load_yaml(path)
+        except yaml.YAMLError as exc:
+            add_error(
+                findings,
+                relative_path,
+                f"Could not parse feature.source.yaml: {exc}",
+                "Fix YAML syntax so managed feature source files stay parseable.",
+            )
+            continue
+
+        if not isinstance(payload, dict):
+            add_error(
+                findings,
+                relative_path,
+                "feature.source.yaml must be a top-level mapping.",
+                "Use the canonical managed feature source mapping shape.",
+            )
+            continue
+
+        for field_name in ("feature_id", "name", "status", "type", "summary"):
+            _validate_canonical_concise_string(
+                findings,
+                path=relative_path,
+                subject="feature.source.yaml",
+                field_name=field_name,
+                value=payload.get(field_name),
+                fix="Use a single-line string with no leading/trailing whitespace or blank-line padding.",
+            )
+
+        for field_name in ("domains", "depends_on", "lineage_exceptions"):
+            _validate_canonical_string_list(
+                findings,
+                root=root,
+                path=relative_path,
+                subject="feature.source.yaml",
+                field_name=field_name,
+                value=payload.get(field_name, []),
+                item_fix="Use a YAML list of unique canonical string values with no empty items.",
+                duplicate_fix="Keep unordered metadata lists deduplicated so source metadata stays canonical.",
+                enforce_sorted=True,
+                order_fix="Keep unordered metadata lists in canonical lexical order so human-authored source stays stable across repos.",
+            )
+
+        stage_participation = payload.get("stage_participation", [])
+        if stage_participation is not None and not isinstance(stage_participation, list):
+            add_error(
+                findings,
+                relative_path,
+                "feature.source.yaml stage_participation must be a list.",
+                "Use the canonical managed feature source list shape for stage participation.",
+            )
+        elif isinstance(stage_participation, list):
+            for index, item in enumerate(stage_participation):
+                if not isinstance(item, dict):
+                    add_error(
+                        findings,
+                        relative_path,
+                        f"feature.source.yaml stage_participation[{index}] must be a mapping.",
+                        "Use stage participation objects with canonical string fields.",
+                    )
+                    continue
+                for field_name in ("stage_id", "role"):
+                    _validate_canonical_concise_string(
+                        findings,
+                        path=relative_path,
+                        subject=f"feature.source.yaml stage_participation[{index}]",
+                        field_name=field_name,
+                        value=item.get(field_name),
+                        fix="Use single-line stage participation values with no leading/trailing whitespace.",
+                    )
+                _validate_canonical_string_list(
+                    findings,
+                    root=root,
+                    path=relative_path,
+                    subject=f"feature.source.yaml stage_participation[{index}]",
+                    field_name="capability_ids",
+                    value=item.get("capability_ids", []),
+                    item_fix="Use a list of unique feature-qualified capability IDs with no empty items.",
+                    duplicate_fix="Keep stage participation capability_ids deduplicated.",
+                    enforce_sorted=True,
+                    order_fix="Keep stage participation capability_ids in canonical lexical order.",
+                )
+
+
+def validate_managed_stage_source_schema(root: Path, findings: list[Finding]) -> None:
+    for path in stage_source_files(root):
+        relative_path = relpath(path, root)
+        try:
+            payload = load_yaml(path)
+        except yaml.YAMLError as exc:
+            add_error(
+                findings,
+                relative_path,
+                f"Could not parse stage.source.yaml: {exc}",
+                "Fix YAML syntax so managed stage source files stay parseable.",
+            )
+            continue
+
+        if not isinstance(payload, dict):
+            add_error(
+                findings,
+                relative_path,
+                "stage.source.yaml must be a top-level mapping.",
+                "Use the canonical managed stage source mapping shape.",
+            )
+            continue
+
+        for field_name in ("stage_id", "name", "status", "purpose"):
+            _validate_canonical_concise_string(
+                findings,
+                path=relative_path,
+                subject="stage.source.yaml",
+                field_name=field_name,
+                value=payload.get(field_name),
+                fix="Use a single-line string with no leading/trailing whitespace or blank-line padding.",
+            )
+
+        for field_name in ("primary_features", "supporting_features", "inputs", "outputs", "notes"):
+            if field_name in payload:
+                _validate_canonical_string_list(
+                    findings,
+                    root=root,
+                    path=relative_path,
+                    subject="stage.source.yaml",
+                    field_name=field_name,
+                    value=payload.get(field_name, []),
+                    item_fix="Use a YAML list of unique canonical string values with no empty items.",
+                    duplicate_fix="Keep unordered stage metadata lists deduplicated.",
+                    enforce_sorted=field_name in {"primary_features", "supporting_features", "inputs", "outputs"},
+                    order_fix="Keep unordered stage source lists in canonical lexical order so stage boundaries stay stable across repos.",
+                )
+
+
 def is_id_like(value: str) -> bool:
     return bool(re.fullmatch(r"[a-z][a-z0-9]*(?:-[a-z0-9]+)*", value))
 
@@ -819,6 +876,7 @@ def validate_required_root_docs(root: Path, findings: list[Finding]) -> None:
             continue
 
         _, _, body_without_frontmatter = extract_markdown_frontmatter(text)
+
         if not re.search(r"(?m)^#\s+\S", body_without_frontmatter):
             add_error(
                 findings,
@@ -906,6 +964,15 @@ def validate_managed_root_doc_metadata(
 
         expected_doc_id = rule["doc_id"]
         doc_id = payload.get("doc_id")
+        if doc_id is not None:
+            _validate_canonical_concise_string(
+                findings,
+                path=relative_path,
+                subject=f"Managed {doc_kind} root doc",
+                field_name="doc_id",
+                value=doc_id,
+                fix="Use a single-line canonical doc_id with no leading/trailing whitespace.",
+            )
         if doc_id != expected_doc_id:
             add_error(
                 findings,
@@ -915,12 +982,21 @@ def validate_managed_root_doc_metadata(
             )
 
         doc_type = payload.get("doc_type")
-        if not isinstance(doc_type, str) or not doc_type.strip():
+        if doc_type is None:
             add_error(
                 findings,
                 relative_path,
                 f"Managed {doc_kind} root doc must declare doc_type.",
                 "Add a stable `doc_type` such as `setup-guide`, `operator-guide`, or `architecture-guide`.",
+            )
+        else:
+            _validate_canonical_concise_string(
+                findings,
+                path=relative_path,
+                subject=f"Managed {doc_kind} root doc",
+                field_name="doc_type",
+                value=doc_type,
+                fix="Use a single-line canonical doc_type with no leading/trailing whitespace.",
             )
 
         explains = payload.get("explains")
@@ -937,15 +1013,28 @@ def validate_managed_root_doc_metadata(
         for key, values in explains.items():
             if values is None:
                 continue
+            _validate_canonical_string_list(
+                findings,
+                root=root,
+                path=relative_path,
+                subject=f"Managed {doc_kind} root doc",
+                field_name=f"explains.{key}",
+                value=values,
+                check_paths=key in {"configs", "components"},
+                require_exists=False,
+                item_fix="Use YAML lists of stable canonical IDs or repo-relative paths with no empty items.",
+                duplicate_fix="Keep explains lists deduplicated so managed root-doc metadata stays canonical.",
+                enforce_sorted=True,
+                order_fix="Keep explains lists in canonical lexical order so managed root-doc metadata stays stable across repos.",
+            )
             if not isinstance(values, list) or any(
-                not isinstance(value, str) or not value.strip() for value in values
+                not isinstance(value, str)
+                or not value.strip()
+                or value != value.strip()
+                or "\r" in value
+                or "\n" in value
+                for value in values
             ):
-                add_error(
-                    findings,
-                    relative_path,
-                    f"Managed {doc_kind} root doc explains.{key} must be a list of non-empty strings.",
-                    "Use YAML lists of stable feature IDs, stage IDs, config paths, or component paths.",
-                )
                 continue
             if key in rule["required_explain_groups"] and values:
                 has_required_links = True
@@ -1027,6 +1116,29 @@ def validate_managed_metadata_templates(root: Path, findings: list[Finding]) -> 
                     "Keep docs/architecture_templates/feature.source.yaml aligned with the managed feature schema.",
                 )
             else:
+                for field_name in ("feature_id", "name", "status", "type", "summary"):
+                    _validate_canonical_concise_string(
+                        findings,
+                        path=MANAGED_FEATURE_TEMPLATE_PATH,
+                        subject="Managed metadata feature template",
+                        field_name=field_name,
+                        value=payload.get(field_name),
+                        fix="Keep template concise fields single-line and free of leading/trailing whitespace.",
+                    )
+                for field_name in ("domains", "depends_on", "lineage_exceptions"):
+                    if field_name in payload:
+                        _validate_canonical_string_list(
+                            findings,
+                            root=root,
+                            path=MANAGED_FEATURE_TEMPLATE_PATH,
+                            subject="Managed metadata feature template",
+                            field_name=field_name,
+                            value=payload.get(field_name, []),
+                            item_fix="Use YAML lists of unique canonical string values in the template.",
+                            duplicate_fix="Keep template unordered lists deduplicated.",
+                            enforce_sorted=True,
+                            order_fix="Keep template unordered lists in canonical lexical order.",
+                        )
                 feature_id = payload.get("feature_id")
                 if not isinstance(feature_id, str) or not feature_id:
                     add_error(
@@ -1049,6 +1161,15 @@ def validate_managed_metadata_templates(root: Path, findings: list[Finding]) -> 
                         for index, participation in enumerate(stage_participation):
                             if not isinstance(participation, dict):
                                 continue
+                            for field_name in ("stage_id", "role"):
+                                _validate_canonical_concise_string(
+                                    findings,
+                                    path=MANAGED_FEATURE_TEMPLATE_PATH,
+                                    subject=f"Managed metadata feature template stage_participation[{index}]",
+                                    field_name=field_name,
+                                    value=participation.get(field_name),
+                                    fix="Keep template stage-participation fields single-line and canonical.",
+                                )
                             capability_ids = participation.get("capability_ids", [])
                             if capability_ids is None:
                                 continue
@@ -1060,6 +1181,18 @@ def validate_managed_metadata_templates(root: Path, findings: list[Finding]) -> 
                                     "Use a list of feature-qualified capability IDs in stage_participation.",
                                 )
                                 continue
+                            _validate_canonical_string_list(
+                                findings,
+                                root=root,
+                                path=MANAGED_FEATURE_TEMPLATE_PATH,
+                                subject=f"Managed metadata feature template stage_participation[{index}]",
+                                field_name="capability_ids",
+                                value=capability_ids,
+                                item_fix="Use a list of unique feature-qualified capability IDs in the template.",
+                                duplicate_fix="Keep template capability_ids lists deduplicated.",
+                                enforce_sorted=True,
+                                order_fix="Keep template capability_ids in canonical lexical order.",
+                            )
                             for capability_id in capability_ids:
                                 if not isinstance(capability_id, str):
                                     continue
@@ -1077,6 +1210,50 @@ def validate_managed_metadata_templates(root: Path, findings: list[Finding]) -> 
                                         "examples preserve downstream capability qualification."
                                     ),
                                 )
+
+    stage_template_path = root / Path("docs/architecture_templates/stage.source.yaml")
+    if stage_template_path.exists():
+        try:
+            stage_payload = load_yaml(stage_template_path)
+        except yaml.YAMLError as exc:
+            add_error(
+                findings,
+                "docs/architecture_templates/stage.source.yaml",
+                f"Could not parse managed stage template YAML: {exc}",
+                "Fix the stage source template YAML syntax.",
+            )
+        else:
+            if not isinstance(stage_payload, dict):
+                add_error(
+                    findings,
+                    "docs/architecture_templates/stage.source.yaml",
+                    "Managed metadata stage template must be a top-level mapping.",
+                    "Keep docs/architecture_templates/stage.source.yaml aligned with the managed stage schema.",
+                )
+            else:
+                for field_name in ("stage_id", "name", "status", "purpose"):
+                    _validate_canonical_concise_string(
+                        findings,
+                        path="docs/architecture_templates/stage.source.yaml",
+                        subject="Managed metadata stage template",
+                        field_name=field_name,
+                        value=stage_payload.get(field_name),
+                        fix="Keep template concise stage fields single-line and free of leading/trailing whitespace.",
+                    )
+                for field_name in ("primary_features", "supporting_features", "inputs", "outputs", "notes"):
+                    if field_name in stage_payload:
+                        _validate_canonical_string_list(
+                            findings,
+                            root=root,
+                            path="docs/architecture_templates/stage.source.yaml",
+                            subject="Managed metadata stage template",
+                            field_name=field_name,
+                            value=stage_payload.get(field_name, []),
+                            item_fix="Use YAML lists of unique canonical string values in the stage template.",
+                            duplicate_fix="Keep template unordered lists deduplicated.",
+                            enforce_sorted=field_name in {"primary_features", "supporting_features", "inputs", "outputs"},
+                            order_fix="Keep stage template unordered lists in canonical lexical order.",
+                        )
 
     yaml_template_path = root / Path(YAML_ARCHITECTURE_TEMPLATE_PATH)
     if yaml_template_path.exists():
@@ -1157,8 +1334,35 @@ def validate_managed_metadata_templates(root: Path, findings: list[Finding]) -> 
                 )
             else:
                 if isinstance(frontmatter_payload, dict):
+                    for field_name in ("doc_id", "doc_type"):
+                        if field_name in frontmatter_payload:
+                            _validate_canonical_concise_string(
+                                findings,
+                                path=MARKDOWN_FRONTMATTER_TEMPLATE_PATH,
+                                subject="Frontmatter template",
+                                field_name=field_name,
+                                value=frontmatter_payload.get(field_name),
+                                fix="Keep fenced frontmatter concise fields single-line and canonical.",
+                            )
                     explains = frontmatter_payload.get("explains", {})
                     if isinstance(explains, dict):
+                        for key, values in explains.items():
+                            if values is None:
+                                continue
+                            _validate_canonical_string_list(
+                                findings,
+                                root=root,
+                                path=MARKDOWN_FRONTMATTER_TEMPLATE_PATH,
+                                subject="Frontmatter template",
+                                field_name=f"explains.{key}",
+                                value=values,
+                                check_paths=key in {"configs", "components"},
+                                require_exists=False,
+                                item_fix="Use canonical string lists in the fenced frontmatter example.",
+                                duplicate_fix="Keep fenced frontmatter explains lists deduplicated.",
+                                enforce_sorted=True,
+                                order_fix="Keep fenced frontmatter explains lists in canonical lexical order.",
+                            )
                         features = explains.get("features", [])
                         capabilities = explains.get("capabilities", [])
                         feature_id = features[0] if isinstance(features, list) and features else None
@@ -1178,6 +1382,80 @@ def validate_managed_metadata_templates(root: Path, findings: list[Finding]) -> 
                                         "example so doc metadata preserves downstream capability qualification."
                                     ),
                                 )
+
+
+def validate_mode_a_template_pack(root: Path, findings: list[Finding]) -> None:
+    if not (root / MODE_A_TEMPLATE_SPEC_PATH).exists():
+        return
+
+    template_root = root / MODE_A_TEMPLATE_ROOT
+    for relative_template_path in MODE_A_TEMPLATE_REQUIRED_FILES:
+        path = template_root / relative_template_path
+        if path.exists() and path.is_file():
+            continue
+        add_error(
+            findings,
+            f"{MODE_A_TEMPLATE_ROOT}/{relative_template_path}",
+            "Mode A project template pack is missing a required file.",
+            "Create the path-mirrored template file so starter-method-only projects do not invent it.",
+        )
+
+    adoption_template_path = template_root / "repo_config" / "adoption-mode.yaml"
+    if adoption_template_path.exists():
+        try:
+            payload = load_yaml(adoption_template_path)
+        except yaml.YAMLError as exc:
+            add_error(
+                findings,
+                f"{MODE_A_TEMPLATE_ROOT}/repo_config/adoption-mode.yaml",
+                f"Could not parse Mode A adoption-mode template YAML: {exc}",
+                "Fix YAML syntax so projects can copy the starter_method_only adoption-mode source.",
+            )
+        else:
+            expected_values = {
+                "adoption_mode": "starter_method_only",
+                "managed_architecture_metadata": False,
+                "legacy_feature_contracts": False,
+                "architecture_generator": "none",
+            }
+            if not isinstance(payload, dict):
+                add_error(
+                    findings,
+                    f"{MODE_A_TEMPLATE_ROOT}/repo_config/adoption-mode.yaml",
+                    "Mode A adoption-mode template must be a top-level mapping.",
+                    "Use the same mapping shape as repo_config/adoption-mode.yaml.",
+                )
+            else:
+                for key, expected_value in expected_values.items():
+                    if payload.get(key) == expected_value:
+                        continue
+                    add_error(
+                        findings,
+                        f"{MODE_A_TEMPLATE_ROOT}/repo_config/adoption-mode.yaml",
+                        f"Mode A adoption-mode template must set {key}: {expected_value}.",
+                        "Keep Mode A templates starter-method-only and free of managed architecture metadata.",
+                    )
+
+    for relative_template_path in MODE_A_TEMPLATE_REQUIRED_FILES:
+        path = template_root / relative_template_path
+        if not path.exists() or not path.is_file():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for marker in MODE_A_TEMPLATE_MANAGED_MARKERS:
+            if marker not in text:
+                continue
+            add_error(
+                findings,
+                f"{MODE_A_TEMPLATE_ROOT}/{relative_template_path}",
+                "Mode A project template contains managed architecture metadata.",
+                (
+                    f"Remove `{marker}` from the Mode A template pack. "
+                    "Use docs/architecture_templates/ only for Mode B managed metadata."
+                ),
+            )
 
 
 def extract_template_comment_body(line: str) -> str | None:
@@ -1216,13 +1494,31 @@ def _validate_string_list(
             f"Regenerate the lineage file so `{field_name}` is emitted as a list.",
         )
         return
+    seen: set[str] = set()
     for index, item in enumerate(value):
-        if not isinstance(item, str) or not item.strip():
+        if not _is_non_empty_string(item) or not isinstance(item, str) or item != item.strip() or "\r" in item or "\n" in item:
             add_error(
                 findings,
                 lineage_path,
                 f"{field_name}[{index}] must be a non-empty string for lineage capability `{capability_id}`.",
                 f"Regenerate the lineage file so `{field_name}` contains stable string values only.",
+            )
+            continue
+        if item in seen:
+            add_error(
+                findings,
+                lineage_path,
+                f"{field_name} contains duplicate value for lineage capability `{capability_id}`: {item}",
+                f"Regenerate the lineage file so `{field_name}` stays deduplicated.",
+            )
+            continue
+        seen.add(item)
+        if check_paths and ("\\" in item or item != item.strip()):
+            add_error(
+                findings,
+                lineage_path,
+                f"{field_name}[{index}] must be a canonical repo-relative path for lineage capability `{capability_id}`.",
+                f"Regenerate the lineage file so `{field_name}` uses forward-slash repo-relative paths.",
             )
             continue
         if check_paths and not (root / item).exists():
@@ -1502,50 +1798,45 @@ def _validate_lineage_timeline(
                 f"timeline[{index}] must include a non-empty `completed_at` string.",
                 "Emit completed timeline entries from completed plans with stable timestamps.",
             )
-        source_plan = item.get("source_plan")
-        if not isinstance(source_plan, str) or not source_plan.strip():
-            add_error(
-                findings,
-                lineage_path,
-                f"timeline[{index}] must include a non-empty `source_plan` string.",
-                "Emit the originating completed plan path for each timeline entry.",
-            )
-        elif not (root / source_plan).exists():
-            add_error(
-                findings,
-                lineage_path,
-                f"timeline[{index}] references a missing source_plan: {source_plan}",
-                "Refresh generated lineage so timeline entries point at existing plan files.",
-            )
+        _validate_canonical_repo_relative_path(
+            findings,
+            root=root,
+            path=lineage_path,
+            subject=f"timeline[{index}]",
+            field_name="source_plan",
+            value=item.get("source_plan"),
+            require_exists=True,
+            fix="Refresh generated lineage so timeline entries point at existing plan files with canonical repo-relative paths.",
+        )
         for field_name in ("change_id", "summary", "outcome"):
-            field_value = item.get(field_name)
-            if not isinstance(field_value, str) or not field_value.strip():
-                add_error(
-                    findings,
-                    lineage_path,
-                    f"timeline[{index}] must include a non-empty `{field_name}` string.",
-                    "Emit canonical completed-plan metadata for each timeline entry.",
-                )
-        capabilities = item.get("capabilities")
-        if not isinstance(capabilities, list) or not all(
-            isinstance(entry, str) and entry.strip() for entry in capabilities
-        ):
-            add_error(
+            _validate_canonical_concise_string(
                 findings,
-                lineage_path,
-                f"timeline[{index}] must include a string `capabilities` list.",
-                "Emit capability-qualified IDs for every completed change record.",
+                path=lineage_path,
+                subject=f"timeline[{index}]",
+                field_name=field_name,
+                value=item.get(field_name),
+                fix="Emit canonical completed-plan metadata for each timeline entry.",
             )
-        verification = item.get("verification")
-        if not isinstance(verification, list) or not all(
-            isinstance(entry, str) and entry.strip() for entry in verification
-        ):
-            add_error(
-                findings,
-                lineage_path,
-                f"timeline[{index}] must include a string `verification` list.",
-                "Emit verification commands as a list of non-empty strings.",
-            )
+        _validate_canonical_string_list(
+            findings,
+            root=root,
+            path=lineage_path,
+            subject=f"timeline[{index}]",
+            field_name="capabilities",
+            value=item.get("capabilities"),
+            item_fix="Emit capability-qualified IDs as canonical non-empty strings.",
+            duplicate_fix="Keep timeline capability lists deduplicated.",
+        )
+        _validate_canonical_string_list(
+            findings,
+            root=root,
+            path=lineage_path,
+            subject=f"timeline[{index}]",
+            field_name="verification",
+            value=item.get("verification"),
+            item_fix="Emit verification commands as canonical non-empty strings.",
+            duplicate_fix="Keep timeline verification entries deduplicated when order is non-semantic.",
+        )
 
 
 def validate_generated_feature_contract_schema(root: Path, findings: list[Finding]) -> None:
@@ -1589,14 +1880,14 @@ def validate_generated_feature_contract_schema(root: Path, findings: list[Findin
             )
 
         for field_name in FEATURE_CONTRACT_STRING_FIELDS:
-            value = payload.get(field_name)
-            if not isinstance(value, str) or not value.strip():
-                add_error(
-                    findings,
-                    relative_contract_path,
-                    f"Generated feature contract {field_name} must be a non-empty string.",
-                    "Regenerate the feature contract so canonical top-level feature fields stay explicit.",
-                )
+            _validate_canonical_concise_string(
+                findings,
+                path=relative_contract_path,
+                subject="Generated feature contract",
+                field_name=field_name,
+                value=payload.get(field_name),
+                fix="Regenerate the feature contract so canonical top-level feature fields stay explicit and single-line.",
+            )
 
         refs = payload.get("refs")
         if not isinstance(refs, dict):
@@ -1616,24 +1907,29 @@ def validate_generated_feature_contract_schema(root: Path, findings: list[Findin
                     "Include: " + ", ".join(sorted(FEATURE_CONTRACT_REF_KEYS)) + ".",
                 )
             for key in FEATURE_CONTRACT_REF_KEYS.intersection(refs):
-                _validate_string_list(
+                _validate_canonical_string_list(
                     findings,
                     root=root,
-                    lineage_path=relative_contract_path,
-                    capability_id=payload.get("feature_id", contract_path.stem),
+                    path=relative_contract_path,
+                    subject="Generated feature contract",
                     field_name=f"refs.{key}",
                     value=refs.get(key, []),
                     check_paths=key in {"code", "tests", "specs", "plans", "docs", "configs", "components"},
+                    require_exists=True,
+                    item_fix="Regenerate the feature contract so refs use canonical repo-relative paths.",
+                    duplicate_fix="Regenerate the feature contract so refs stay deduplicated.",
                 )
 
         for field_name in ("domains", "depends_on"):
-            _validate_string_list(
+            _validate_canonical_string_list(
                 findings,
                 root=root,
-                lineage_path=relative_contract_path,
-                capability_id=payload.get("feature_id", contract_path.stem),
+                path=relative_contract_path,
+                subject="Generated feature contract",
                 field_name=field_name,
                 value=payload.get(field_name, []),
+                item_fix="Regenerate the feature contract so unordered metadata lists contain unique canonical string values.",
+                duplicate_fix="Regenerate the feature contract so unordered metadata lists stay deduplicated.",
             )
         for field_name in ("invariants", "capabilities"):
             value = payload.get(field_name, [])
@@ -1670,68 +1966,57 @@ def validate_generated_feature_contract_schema(root: Path, findings: list[Findin
                     )
                 for required_field in required_keys:
                     field_value = item.get(required_field)
-                    if not isinstance(field_value, str) or not field_value.strip():
-                        add_error(
-                            findings,
-                            relative_contract_path,
-                            (
-                                f"Generated feature contract {field_name}[{index}].{required_field} "
-                                "must be a non-empty string."
-                            ),
-                            (
-                                "Regenerate the feature contract so "
-                                f"{field_name} entries keep canonical structured fields."
-                            ),
-                        )
+                    _validate_canonical_concise_string(
+                        findings,
+                        path=relative_contract_path,
+                        subject=f"Generated feature contract {field_name}[{index}]",
+                        field_name=required_field,
+                        value=field_value,
+                        fix=(
+                            "Regenerate the feature contract so "
+                            f"{field_name} entries keep canonical structured fields."
+                        ),
+                    )
                 if field_name == "capabilities":
-                    satisfies = item.get("satisfies", [])
-                    _validate_string_list(
+                    _validate_canonical_string_list(
                         findings,
                         root=root,
-                        lineage_path=relative_contract_path,
-                        capability_id=str(item.get(id_field, payload.get("feature_id", contract_path.stem))),
-                        field_name=f"{field_name}[{index}].satisfies",
-                        value=satisfies,
+                        path=relative_contract_path,
+                        subject=f"Generated feature contract {field_name}[{index}]",
+                        field_name="satisfies",
+                        value=item.get("satisfies", []),
+                        item_fix="Regenerate the feature contract so satisfies lists contain unique canonical string values.",
+                        duplicate_fix="Regenerate the feature contract so satisfies lists stay deduplicated.",
                     )
 
-        if any(key in payload for key in FEATURE_CONTRACT_FRESHNESS_KEYS):
-            revision = payload.get("revision")
-            if revision is not None and not isinstance(revision, int):
-                add_error(
+        missing_freshness = FEATURE_CONTRACT_FRESHNESS_KEYS.difference(payload)
+        if missing_freshness:
+            add_error(
+                findings,
+                relative_contract_path,
+                "Generated feature contract is missing required freshness metadata.",
+                "Include: " + ", ".join(sorted(FEATURE_CONTRACT_FRESHNESS_KEYS)) + ".",
+            )
+
+        revision = payload.get("revision")
+        if revision is not None and not isinstance(revision, int):
+            add_error(
+                findings,
+                relative_contract_path,
+                "Generated feature contract revision must be an integer.",
+                "Regenerate the contract so revision is emitted as an integer freshness field.",
+            )
+        for field_name in ("latest_change_id", "last_updated_at"):
+            value = payload.get(field_name)
+            if value is not None:
+                _validate_canonical_concise_string(
                     findings,
-                    relative_contract_path,
-                    "Generated feature contract revision must be an integer.",
-                    "Regenerate the contract so revision is emitted as an integer freshness field.",
+                    path=relative_contract_path,
+                    subject="Generated feature contract",
+                    field_name=field_name,
+                    value=value,
+                    fix="Regenerate the contract so freshness metadata uses canonical string values.",
                 )
-            for field_name in ("latest_change_id", "last_updated_at"):
-                value = payload.get(field_name)
-                if value is not None and (not isinstance(value, str) or not value.strip()):
-                    add_error(
-                        findings,
-                        relative_contract_path,
-                        f"Generated feature contract {field_name} must be a non-empty string.",
-                        "Regenerate the contract so freshness metadata uses canonical string values.",
-                    )
-
-        lineage_path = contract_path.parent / "lineage.generated.yaml"
-        if lineage_path.exists():
-            try:
-                lineage_payload = load_yaml(lineage_path)
-            except yaml.YAMLError:
-                lineage_payload = None
-            if isinstance(lineage_payload, dict):
-                timeline = lineage_payload.get("timeline")
-                if isinstance(timeline, list) and timeline:
-                    missing_freshness = [
-                        key for key in FEATURE_CONTRACT_FRESHNESS_KEYS if key not in payload
-                    ]
-                    if missing_freshness:
-                        add_error(
-                            findings,
-                            relative_contract_path,
-                            "Generated feature contract is missing freshness metadata despite completed lineage history.",
-                            "Include: " + ", ".join(sorted(FEATURE_CONTRACT_FRESHNESS_KEYS)) + ".",
-                        )
 
 
 def validate_generated_stage_contract_schema(root: Path, findings: list[Finding]) -> None:
@@ -1785,33 +2070,34 @@ def validate_generated_stage_contract_schema(root: Path, findings: list[Finding]
             )
 
         stage_id = payload.get("stage_id")
-        if not isinstance(stage_id, str) or not stage_id.strip():
-            add_error(
-                findings,
-                relative_stage_path,
-                "Generated stage contract must include a non-empty stage_id.",
-                "Regenerate the file so the stage contract records its canonical stage_id.",
-            )
+        _validate_canonical_concise_string(
+            findings,
+            path=relative_stage_path,
+            subject="Generated stage contract",
+            field_name="stage_id",
+            value=stage_id,
+            fix="Regenerate the file so the stage contract records its canonical stage_id.",
+        )
 
         for field_name in ("name", "status", "purpose"):
-            value = payload.get(field_name)
-            if not isinstance(value, str) or not value.strip():
-                add_error(
-                    findings,
-                    relative_stage_path,
-                    f"Generated stage contract must include a non-empty {field_name}.",
-                    "Regenerate the file so the stage contract keeps canonical top-level fields.",
-                )
+            _validate_canonical_concise_string(
+                findings,
+                path=relative_stage_path,
+                subject="Generated stage contract",
+                field_name=field_name,
+                value=payload.get(field_name),
+                fix="Regenerate the file so the stage contract keeps canonical top-level fields.",
+            )
 
         if "workflow_position" in payload:
-            workflow_position = payload.get("workflow_position")
-            if not isinstance(workflow_position, str) or not workflow_position.strip():
-                add_error(
-                    findings,
-                    relative_stage_path,
-                    "Generated stage contract workflow_position must be a non-empty string when present.",
-                    "Regenerate the file so optional workflow_position stays in canonical string form.",
-                )
+            _validate_canonical_concise_string(
+                findings,
+                path=relative_stage_path,
+                subject="Generated stage contract",
+                field_name="workflow_position",
+                value=payload.get("workflow_position"),
+                fix="Regenerate the file so optional workflow_position stays in canonical string form.",
+            )
 
         for field_name in (
             "feature_refs",
@@ -1822,25 +2108,30 @@ def validate_generated_stage_contract_schema(root: Path, findings: list[Finding]
             "config_refs",
             "component_refs",
         ):
-            _validate_string_list(
+            _validate_canonical_string_list(
                 findings,
                 root=root,
-                lineage_path=relative_stage_path,
-                capability_id=str(stage_id or stage_path.stem),
+                path=relative_stage_path,
+                subject="Generated stage contract",
                 field_name=field_name,
                 value=payload.get(field_name, []),
                 check_paths=field_name in {"code_refs", "test_refs", "doc_refs", "config_refs", "component_refs"},
+                require_exists=True,
+                item_fix="Regenerate the stage contract so refs use canonical string values or repo-relative paths.",
+                duplicate_fix="Regenerate the stage contract so unordered ref lists stay deduplicated.",
             )
 
         for field_name in STAGE_CONTRACT_STRING_LIST_OPTIONAL_KEYS:
             if field_name in payload:
-                _validate_string_list(
+                _validate_canonical_string_list(
                     findings,
                     root=root,
-                    lineage_path=relative_stage_path,
-                    capability_id=str(stage_id or stage_path.stem),
+                    path=relative_stage_path,
+                    subject="Generated stage contract",
                     field_name=field_name,
                     value=payload.get(field_name, []),
+                    item_fix="Regenerate the stage contract so optional lists contain unique canonical string values.",
+                    duplicate_fix="Regenerate the stage contract so optional unordered lists stay deduplicated.",
                 )
 
 
@@ -1944,14 +2235,16 @@ def validate_generated_discovery_schema(root: Path, findings: list[Finding]) -> 
                     )
                     continue
                 for field_name in ("lineage_file",):
-                    value = feature_payload.get(field_name)
-                    if not isinstance(value, str) or not value.strip():
-                        add_error(
-                            findings,
-                            relative_path,
-                            f"capability_lineage.yaml features.{feature_id}.{field_name} must be a non-empty string.",
-                            "Regenerate aggregate lineage so each feature summary records its lineage file path.",
-                        )
+                    _validate_canonical_repo_relative_path(
+                        findings,
+                        root=root,
+                        path=relative_path,
+                        subject=f"capability_lineage.yaml features.{feature_id}",
+                        field_name=field_name,
+                        value=feature_payload.get(field_name),
+                        require_exists=True,
+                        fix="Regenerate aggregate lineage so each feature summary records a canonical lineage file path.",
+                    )
                 capability_count = feature_payload.get("capability_count")
                 if not isinstance(capability_count, int):
                     add_error(
@@ -2089,6 +2382,17 @@ def validate_lineage_generated_schema(root: Path, findings: list[Finding]) -> No
                 "Include: " + ", ".join(sorted(REQUIRED_LINEAGE_TOP_LEVEL_KEYS)) + ".",
             )
 
+        _validate_canonical_repo_relative_path(
+            findings,
+            root=root,
+            path=relative_lineage_path,
+            subject="lineage.generated.yaml",
+            field_name="source",
+            value=payload.get("source"),
+            require_exists=True,
+            fix="Regenerate the lineage file so the source field records a canonical repo-relative path.",
+        )
+
         legacy_keys = LEGACY_LINEAGE_TOP_LEVEL_KEYS.intersection(payload)
         if legacy_keys:
             add_error(
@@ -2202,6 +2506,8 @@ def validate_starter_method_only(root: Path, findings: list[Finding]) -> None:
 def validate_managed_mode(config: AdoptionConfig, root: Path, findings: list[Finding]) -> None:
     validate_managed_required_root_doc_metadata(root, findings)
     validate_managed_optional_root_doc_metadata(root, findings)
+    validate_managed_feature_source_schema(root, findings)
+    validate_managed_stage_source_schema(root, findings)
     for path in flat_feature_files(root):
         add_error(
             findings,
@@ -2332,6 +2638,7 @@ def run_validation(root: Path, adoption_mode_path: Path) -> list[Finding]:
     validate_required_root_docs(root, findings)
     validate_required_project_folders(root, findings)
     validate_managed_metadata_templates(root, findings)
+    validate_mode_a_template_pack(root, findings)
     validate_method_feature_ids(root, findings)
     validate_feature_dependencies(root, findings)
     validate_capability_ids(root, findings)

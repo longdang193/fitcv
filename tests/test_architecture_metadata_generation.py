@@ -40,6 +40,29 @@ def write_yaml(path: Path, payload: object) -> None:
     path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
+def test_dump_yaml_normalizes_long_mapping_keys() -> None:
+    generator = load_generator_module()
+    long_capability_id = (
+        "pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-"
+        "only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match"
+    )
+
+    dumped = generator.dump_yaml(
+        {
+            "capabilities": {
+                long_capability_id: {
+                    "state": "active",
+                    "statement": "Long keys should stay readable in generated contracts.",
+                }
+            }
+        }
+    )
+
+    assert "\n  ? " not in dumped
+    assert f'  "{long_capability_id}":' in dumped
+    assert yaml.safe_load(dumped)["capabilities"][long_capability_id]["state"] == "active"
+
+
 def build_repo(tmp_path: Path) -> Path:
     repo_root = tmp_path / "repo"
     write_yaml(
@@ -293,3 +316,44 @@ def test_generator_builds_history_from_completed_plan_metadata(tmp_path: Path) -
     assert contract_payload["revision"] == 1
     assert contract_payload["latest_change_id"] == "phase-history-rollup"
     assert contract_payload["last_updated_at"] == "2026-04-22T10:15:00+00:00"
+
+
+def test_generator_suppresses_placeholder_history_sections(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    generator = load_generator_module()
+    plan_path = (
+        repo_root
+        / "docs"
+        / "superpowers"
+        / "plans"
+        / "2026-04-22-generic-rollup.md"
+    )
+    plan_path.parent.mkdir(parents=True, exist_ok=True)
+    plan_path.write_text(
+        "---\n"
+        "artifact_type: plan\n"
+        "status: completed\n"
+        "related_features:\n"
+        "  - cv_system\n"
+        "completed_at: 2026-04-22T11:00:00+00:00\n"
+        "change_id: generic-rollup\n"
+        "verification: []\n"
+        "outcome:\n"
+        "  summary: See plan body closeout verification notes.\n"
+        "---\n\n"
+        "# Generic rollup\n",
+        encoding="utf-8",
+    )
+
+    assert generator.main(["--repo-root", str(repo_root)]) == 0
+
+    history_text = (repo_root / "docs" / "features" / "cv_system" / "history.md").read_text(
+        encoding="utf-8"
+    )
+    assert "### Generic rollup" in history_text
+    assert "Source plan: `docs/superpowers/plans/2026-04-22-generic-rollup.md`" in history_text
+    assert "Affected capabilities:" not in history_text
+    assert "Verification:" not in history_text
+    assert "Outcome:" not in history_text
+    assert "none recorded" not in history_text
+    assert "No outcome summary recorded." not in history_text

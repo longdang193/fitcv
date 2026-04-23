@@ -95,6 +95,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -148,6 +149,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -247,6 +251,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -300,6 +305,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -326,10 +334,6 @@ capabilities:
       symbols:
       - test_render_cv_markdown_consumes_structured_cv
     - path: tests/test_sync_architecture_docs.py
-      confidence: high
-      source:
-      - python_proves
-    - path: tests/test_validate_adoption_shape.py
       confidence: high
       source:
       - python_proves
@@ -399,6 +403,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -452,6 +457,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -549,6 +557,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -602,6 +611,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -691,6 +703,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -744,6 +757,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -833,6 +849,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -886,6 +903,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -981,6 +1001,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1034,6 +1055,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1137,6 +1161,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md
     - docs/superpowers/archive/specs/2026-04-22-23-20-config-yaml-metadata-backfill-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1190,9 +1215,109 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+    - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-timeline: []
+timeline:
+- completed_at: '2026-04-22T00:07:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+  change_id: 2026-04-22-option-b-phase-2-rollout
+  summary: Option B Phase 2 Rollout Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the Option B phase 2 rollout.
+- completed_at: '2026-04-22T00:10:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-00-10-option-b-phase-1-pilot-plan.md
+  change_id: 2026-04-22-option-b-phase-1-pilot
+  summary: Option B Phase 1 Pilot Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the Option B phase 1 pilot.
+- completed_at: '2026-04-22T00:32:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+  change_id: 2026-04-22-option-b-phase-3-cleanup
+  summary: Option B Phase 3 Cleanup Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the Option B phase 3 cleanup.
+- completed_at: '2026-04-22T01:35:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+  change_id: 2026-04-22-phase-4-required-metadata-correction
+  summary: Phase 4 Required Metadata Correction Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 4 required metadata correction.
+- completed_at: '2026-04-22T12:09:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-12-09-phase-7-direct-evidence-backfill-plan.md
+  change_id: 2026-04-22-phase-7-direct-evidence-backfill
+  summary: Phase 7 Direct Evidence Backfill Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 7 direct evidence backfill.
+- completed_at: '2026-04-22T12:20:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+  change_id: 2026-04-22-phase-5-evidence-oriented-lineage-alignment
+  summary: Phase 5 Evidence-Oriented Lineage Alignment Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 5 evidence-oriented lineage alignment.
+- completed_at: '2026-04-22T13:25:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+  change_id: 2026-04-22-phase-6-lineage-evidence-hydration
+  summary: Phase 6 Lineage Evidence Hydration Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 6 lineage evidence hydration.
+- completed_at: '2026-04-22T22:20:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md
+  change_id: 2026-04-22-phase-15-remaining-direct-evidence-completion
+  summary: Phase 15 Remaining Direct-Evidence Completion Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 15 remaining direct evidence work.
+- completed_at: '2026-04-23T16:57:09+02:00'
+  source_plan: docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
+  change_id: 2026-04-23-double-entry-truth-cleanup-batch-a
+  summary: Double-Entry Truth Cleanup Batch A Implementation Plan
+  capabilities: []
+  verification:
+  - python scripts/sync_architecture_docs.py --check
+  - python scripts/validate_adoption_shape.py
+  - python scripts/validate_repo_contracts.py --fast
+  - git diff --check
+  outcome: Removed manual downstream changelog truth from the `cv_system` and `inspection_debugging` history files while preserving generated chronology.
+- completed_at: '2026-04-23T17:03:52+02:00'
+  source_plan: docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+  change_id: 2026-04-23-double-entry-truth-cleanup-batch-b
+  summary: Double-Entry Truth Cleanup Batch B Implementation Plan
+  capabilities: []
+  verification:
+  - python scripts/sync_architecture_docs.py --check
+  - python scripts/validate_adoption_shape.py
+  - python scripts/validate_repo_contracts.py --fast
+  - git diff --check
+  outcome: Reframed `docs/FitCV-pipeline.md` as an explainer and updated `docs/pipeline.md` to point at it as a non-authoritative mental-model doc.
+- completed_at: '2026-04-23T17:08:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+  change_id: 2026-04-23-double-entry-truth-cleanup-batch-c
+  summary: Double-Entry Truth Cleanup Batch C Implementation Plan
+  capabilities: []
+  verification:
+  - python scripts/sync_architecture_docs.py --check
+  - python scripts/validate_adoption_shape.py
+  - python scripts/validate_repo_contracts.py --fast
+  - git diff --check
+  outcome: Reduced generated-history placeholder noise by omitting empty capabilities, verification, and generic outcome sections while preserving real plan-derived signal.

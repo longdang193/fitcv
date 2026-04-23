@@ -61,3 +61,6 @@ refs:
   - docs/features/ui_consistency_theming/history.md
   configs: []
   components: []
+revision: 7
+latest_change_id: 2026-04-22-phase-13-ui-theming-completion
+last_updated_at: '2026-04-22T17:05:00+02:00'

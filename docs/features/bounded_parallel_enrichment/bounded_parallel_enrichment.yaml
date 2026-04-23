@@ -6,8 +6,8 @@ type: add
 summary: Enrichment runs in bounded parallel batches with admin-controlled concurrency settings.
 invariants: []
 domains:
-- pipeline
 - api_optimization
+- pipeline
 depends_on:
 - pipeline_performance
 capabilities:
@@ -33,12 +33,12 @@ stage_participation:
 - stage_id: enrich
   role: primary
   capability_ids:
-  - bounded_parallel_enrichment.enrichment-batch-size-setting
-  - bounded_parallel_enrichment.enrichment-concurrency-setting
-  - bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
   - bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1
   - bounded_parallel_enrichment.deterministic-output-order
+  - bounded_parallel_enrichment.enrichment-batch-size-setting
+  - bounded_parallel_enrichment.enrichment-concurrency-setting
   - bounded_parallel_enrichment.per-job-failure-isolation
+  - bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
 refs:
   code:
   - src/fitcv/enrich.py
@@ -66,3 +66,6 @@ refs:
   - docs/features/bounded_parallel_enrichment/history.md
   configs: []
   components: []
+revision: 6
+latest_change_id: 2026-04-22-phase-15-remaining-direct-evidence-completion
+last_updated_at: '2026-04-22T22:20:00+02:00'

@@ -65,140 +65,140 @@ stage_participation:
   - stage_id: normalize
     role: primary
     capability_ids:
-      - trigger_run_management.runs-list-management
-      - trigger_run_management.run-detail-actions
-      - trigger_run_management.job-input-modes
       - trigger_run_management.candidate-profile-input-modes
+      - trigger_run_management.decision-chain-outcomes
       - trigger_run_management.execution-mode-selection
-      - trigger_run_management.synonym-overlay-at-trigger
-      - trigger_run_management.shared-stage-progress
+      - trigger_run_management.job-input-modes
       - trigger_run_management.manual-checkpoints-and-continue
-      - trigger_run_management.synonym-overlay-replacement
+      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.run-detail-actions
       - trigger_run_management.run-health-surface
       - trigger_run_management.run-owned-artifact-exports
-      - trigger_run_management.stage-artifact-downloads
-      - trigger_run_management.synonym-overlay-inspection
       - trigger_run_management.run-results-export
+      - trigger_run_management.runs-list-management
+      - trigger_run_management.shared-stage-progress
       - trigger_run_management.shortlist-debug-exports
-      - trigger_run_management.decision-chain-outcomes
-      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.stage-artifact-downloads
+      - trigger_run_management.synonym-overlay-at-trigger
+      - trigger_run_management.synonym-overlay-inspection
+      - trigger_run_management.synonym-overlay-replacement
   - stage_id: enrich
     role: supporting
     capability_ids:
-      - trigger_run_management.runs-list-management
-      - trigger_run_management.run-detail-actions
-      - trigger_run_management.job-input-modes
       - trigger_run_management.candidate-profile-input-modes
+      - trigger_run_management.decision-chain-outcomes
       - trigger_run_management.execution-mode-selection
-      - trigger_run_management.synonym-overlay-at-trigger
-      - trigger_run_management.shared-stage-progress
+      - trigger_run_management.job-input-modes
       - trigger_run_management.manual-checkpoints-and-continue
-      - trigger_run_management.synonym-overlay-replacement
+      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.run-detail-actions
       - trigger_run_management.run-health-surface
       - trigger_run_management.run-owned-artifact-exports
-      - trigger_run_management.stage-artifact-downloads
-      - trigger_run_management.synonym-overlay-inspection
       - trigger_run_management.run-results-export
+      - trigger_run_management.runs-list-management
+      - trigger_run_management.shared-stage-progress
       - trigger_run_management.shortlist-debug-exports
-      - trigger_run_management.decision-chain-outcomes
-      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.stage-artifact-downloads
+      - trigger_run_management.synonym-overlay-at-trigger
+      - trigger_run_management.synonym-overlay-inspection
+      - trigger_run_management.synonym-overlay-replacement
   - stage_id: rule_filter
     role: supporting
     capability_ids:
-      - trigger_run_management.runs-list-management
-      - trigger_run_management.run-detail-actions
-      - trigger_run_management.job-input-modes
       - trigger_run_management.candidate-profile-input-modes
+      - trigger_run_management.decision-chain-outcomes
       - trigger_run_management.execution-mode-selection
-      - trigger_run_management.synonym-overlay-at-trigger
-      - trigger_run_management.shared-stage-progress
+      - trigger_run_management.job-input-modes
       - trigger_run_management.manual-checkpoints-and-continue
-      - trigger_run_management.synonym-overlay-replacement
+      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.run-detail-actions
       - trigger_run_management.run-health-surface
       - trigger_run_management.run-owned-artifact-exports
-      - trigger_run_management.stage-artifact-downloads
-      - trigger_run_management.synonym-overlay-inspection
       - trigger_run_management.run-results-export
+      - trigger_run_management.runs-list-management
+      - trigger_run_management.shared-stage-progress
       - trigger_run_management.shortlist-debug-exports
-      - trigger_run_management.decision-chain-outcomes
-      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.stage-artifact-downloads
+      - trigger_run_management.synonym-overlay-at-trigger
+      - trigger_run_management.synonym-overlay-inspection
+      - trigger_run_management.synonym-overlay-replacement
   - stage_id: shortlist
     role: supporting
     capability_ids:
-      - trigger_run_management.runs-list-management
-      - trigger_run_management.run-detail-actions
-      - trigger_run_management.job-input-modes
       - trigger_run_management.candidate-profile-input-modes
+      - trigger_run_management.decision-chain-outcomes
       - trigger_run_management.execution-mode-selection
-      - trigger_run_management.synonym-overlay-at-trigger
-      - trigger_run_management.shared-stage-progress
+      - trigger_run_management.job-input-modes
       - trigger_run_management.manual-checkpoints-and-continue
-      - trigger_run_management.synonym-overlay-replacement
+      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.run-detail-actions
       - trigger_run_management.run-health-surface
       - trigger_run_management.run-owned-artifact-exports
-      - trigger_run_management.stage-artifact-downloads
-      - trigger_run_management.synonym-overlay-inspection
       - trigger_run_management.run-results-export
+      - trigger_run_management.runs-list-management
+      - trigger_run_management.shared-stage-progress
       - trigger_run_management.shortlist-debug-exports
-      - trigger_run_management.decision-chain-outcomes
-      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.stage-artifact-downloads
+      - trigger_run_management.synonym-overlay-at-trigger
+      - trigger_run_management.synonym-overlay-inspection
+      - trigger_run_management.synonym-overlay-replacement
   - stage_id: ranking
     role: supporting
     capability_ids:
-      - trigger_run_management.runs-list-management
-      - trigger_run_management.run-detail-actions
-      - trigger_run_management.job-input-modes
       - trigger_run_management.candidate-profile-input-modes
+      - trigger_run_management.decision-chain-outcomes
       - trigger_run_management.execution-mode-selection
-      - trigger_run_management.synonym-overlay-at-trigger
-      - trigger_run_management.shared-stage-progress
+      - trigger_run_management.job-input-modes
       - trigger_run_management.manual-checkpoints-and-continue
-      - trigger_run_management.synonym-overlay-replacement
+      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.run-detail-actions
       - trigger_run_management.run-health-surface
       - trigger_run_management.run-owned-artifact-exports
-      - trigger_run_management.stage-artifact-downloads
-      - trigger_run_management.synonym-overlay-inspection
       - trigger_run_management.run-results-export
+      - trigger_run_management.runs-list-management
+      - trigger_run_management.shared-stage-progress
       - trigger_run_management.shortlist-debug-exports
-      - trigger_run_management.decision-chain-outcomes
-      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.stage-artifact-downloads
+      - trigger_run_management.synonym-overlay-at-trigger
+      - trigger_run_management.synonym-overlay-inspection
+      - trigger_run_management.synonym-overlay-replacement
   - stage_id: cv_analysis
     role: supporting
     capability_ids:
-      - trigger_run_management.runs-list-management
-      - trigger_run_management.run-detail-actions
-      - trigger_run_management.job-input-modes
       - trigger_run_management.candidate-profile-input-modes
+      - trigger_run_management.decision-chain-outcomes
       - trigger_run_management.execution-mode-selection
-      - trigger_run_management.synonym-overlay-at-trigger
-      - trigger_run_management.shared-stage-progress
+      - trigger_run_management.job-input-modes
       - trigger_run_management.manual-checkpoints-and-continue
-      - trigger_run_management.synonym-overlay-replacement
+      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.run-detail-actions
       - trigger_run_management.run-health-surface
       - trigger_run_management.run-owned-artifact-exports
-      - trigger_run_management.stage-artifact-downloads
-      - trigger_run_management.synonym-overlay-inspection
       - trigger_run_management.run-results-export
+      - trigger_run_management.runs-list-management
+      - trigger_run_management.shared-stage-progress
       - trigger_run_management.shortlist-debug-exports
-      - trigger_run_management.decision-chain-outcomes
-      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.stage-artifact-downloads
+      - trigger_run_management.synonym-overlay-at-trigger
+      - trigger_run_management.synonym-overlay-inspection
+      - trigger_run_management.synonym-overlay-replacement
   - stage_id: cv_generation
     role: supporting
     capability_ids:
-      - trigger_run_management.runs-list-management
-      - trigger_run_management.run-detail-actions
-      - trigger_run_management.job-input-modes
       - trigger_run_management.candidate-profile-input-modes
+      - trigger_run_management.decision-chain-outcomes
       - trigger_run_management.execution-mode-selection
-      - trigger_run_management.synonym-overlay-at-trigger
-      - trigger_run_management.shared-stage-progress
+      - trigger_run_management.job-input-modes
       - trigger_run_management.manual-checkpoints-and-continue
-      - trigger_run_management.synonym-overlay-replacement
+      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.run-detail-actions
       - trigger_run_management.run-health-surface
       - trigger_run_management.run-owned-artifact-exports
-      - trigger_run_management.stage-artifact-downloads
-      - trigger_run_management.synonym-overlay-inspection
       - trigger_run_management.run-results-export
+      - trigger_run_management.runs-list-management
+      - trigger_run_management.shared-stage-progress
       - trigger_run_management.shortlist-debug-exports
-      - trigger_run_management.decision-chain-outcomes
-      - trigger_run_management.reranker-fit-authority
+      - trigger_run_management.stage-artifact-downloads
+      - trigger_run_management.synonym-overlay-at-trigger
+      - trigger_run_management.synonym-overlay-inspection
+      - trigger_run_management.synonym-overlay-replacement

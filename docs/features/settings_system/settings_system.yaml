@@ -75,14 +75,14 @@ stage_participation:
 - stage_id: normalize
   role: supporting
   capability_ids:
+  - settings_system.baseline-default-hydration
   - settings_system.run-safety-settings
   - settings_system.trigger-time-effective-settings-snapshot
-  - settings_system.baseline-default-hydration
 - stage_id: enrich
   role: supporting
   capability_ids:
-  - settings_system.retrieval-settings
   - settings_system.global-job-filters
+  - settings_system.retrieval-settings
 - stage_id: rule_filter
   role: supporting
   capability_ids:
@@ -94,8 +94,8 @@ stage_participation:
 - stage_id: ranking
   role: supporting
   capability_ids:
-  - settings_system.ranking-settings
   - settings_system.preference-fit-calibration
+  - settings_system.ranking-settings
 - stage_id: cv_analysis
   role: supporting
   capability_ids:
@@ -103,10 +103,10 @@ stage_participation:
 - stage_id: cv_generation
   role: supporting
   capability_ids:
-  - settings_system.cv-generation-settings
   - settings_system.cv-composition-visibility-settings
-  - settings_system.warning-only-cv-max-pages-validation-setting
+  - settings_system.cv-generation-settings
   - settings_system.settings-used-exports
+  - settings_system.warning-only-cv-max-pages-validation-setting
 refs:
   code:
   - src/fitcv/config.py
@@ -168,3 +168,6 @@ refs:
   - docs/features/settings_system/history.md
   configs: []
   components: []
+revision: 7
+latest_change_id: 2026-04-22-phase-10-settings-performance-residual-evidence-audit
+last_updated_at: '2026-04-22T14:48:00+02:00'

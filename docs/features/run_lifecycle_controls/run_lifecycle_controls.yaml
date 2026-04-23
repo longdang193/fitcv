@@ -44,64 +44,64 @@ stage_participation:
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - stage_id: enrich
   role: supporting
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - stage_id: rule_filter
   role: supporting
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - stage_id: shortlist
   role: supporting
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - stage_id: ranking
   role: supporting
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - stage_id: cv_analysis
   role: supporting
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - stage_id: cv_generation
   role: supporting
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 refs:
   code:
   - src/fitcv_cp/app.py
@@ -147,6 +147,6 @@ refs:
   - docs/features/run_lifecycle_controls/history.md
   configs: []
   components: []
-revision: 1
+revision: 7
 latest_change_id: 2026-04-23-run-lifecycle-stage-participation
 last_updated_at: '2026-04-23T11:19:53+02:00'

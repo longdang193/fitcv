@@ -2,6 +2,12 @@
 layer: change
 artifact_type: plan
 status: completed
+completed_at: 2026-04-22T21:25:00+02:00
+change_id: 2026-04-22-lineage-timeline-contract-patch
+verification:
+  - See plan body closeout verification notes.
+outcome:
+  summary: Completed the lineage timeline contract patch.
 parent_workstream: none
 targets:
   - scripts/sync_architecture_docs.py

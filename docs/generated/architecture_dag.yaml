@@ -839,12 +839,12 @@ edges:
   type: participates_in
   role: primary
   capability_ids:
-  - bounded_parallel_enrichment.enrichment-batch-size-setting
-  - bounded_parallel_enrichment.enrichment-concurrency-setting
-  - bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
   - bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1
   - bounded_parallel_enrichment.deterministic-output-order
+  - bounded_parallel_enrichment.enrichment-batch-size-setting
+  - bounded_parallel_enrichment.enrichment-concurrency-setting
   - bounded_parallel_enrichment.per-job-failure-isolation
+  - bounded_parallel_enrichment.pre-enrichment-global-filters-run-first
 - from: cv_analysis
   to: ranking
   type: depends_on
@@ -905,19 +905,19 @@ edges:
   role: primary
   capability_ids:
   - cv_system.analysis-evidence-selection
-  - cv_system.fit-gate-resolution
   - cv_system.exact-match-late-stage-reuse
+  - cv_system.fit-gate-resolution
   - cv_system.stage-artifact-diagnostics
 - from: cv_system
   to: cv_generation
   type: participates_in
   role: primary
   capability_ids:
-  - cv_system.structured-cv-generation
   - cv_system.analysis-grounded-validation
+  - cv_system.config-owned-generation-contract
   - cv_system.header-placeholder-repair
   - cv_system.stage-artifact-diagnostics
-  - cv_system.config-owned-generation-contract
+  - cv_system.structured-cv-generation
 - from: cv_system
   to: enrich
   type: participates_in
@@ -929,8 +929,8 @@ edges:
   type: participates_in
   role: supporting
   capability_ids:
-  - cv_system.fit-gate-resolution
   - cv_system.exact-match-late-stage-reuse
+  - cv_system.fit-gate-resolution
 - from: enrich
   to: normalize
   type: depends_on
@@ -1002,133 +1002,133 @@ edges:
   type: participates_in
   role: supporting
   capability_ids:
-  - inspection_debugging.run-detail-inspection-tabs
-  - inspection_debugging.run-progress-and-checkpoints
-  - inspection_debugging.synonym-overlay-inspection
-  - inspection_debugging.run-owned-artifact-exports
-  - inspection_debugging.stage-artifact-downloads
-  - inspection_debugging.settings-used-export
-  - inspection_debugging.results-ledger-inspection
-  - inspection_debugging.stage-transition-diagnostics
-  - inspection_debugging.prompt-provenance-diagnostics
-  - inspection_debugging.ranking-diagnostics
-  - inspection_debugging.shortlist-diagnostics
   - inspection_debugging.cv-analysis-diagnostics
   - inspection_debugging.cv-generation-diagnostics
-  - inspection_debugging.reuse-diagnostics
-  - inspection_debugging.quality-metrics-diagnostics
   - inspection_debugging.enriched-job-debug-export
+  - inspection_debugging.prompt-provenance-diagnostics
+  - inspection_debugging.quality-metrics-diagnostics
+  - inspection_debugging.ranking-diagnostics
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.reuse-diagnostics
   - inspection_debugging.rule-filter-diagnostics
+  - inspection_debugging.run-detail-inspection-tabs
+  - inspection_debugging.run-owned-artifact-exports
+  - inspection_debugging.run-progress-and-checkpoints
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.shortlist-diagnostics
+  - inspection_debugging.stage-artifact-downloads
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.synonym-overlay-inspection
 - from: inspection_debugging
   to: cv_generation
   type: participates_in
   role: primary
   capability_ids:
-  - inspection_debugging.run-detail-inspection-tabs
-  - inspection_debugging.run-progress-and-checkpoints
-  - inspection_debugging.synonym-overlay-inspection
-  - inspection_debugging.run-owned-artifact-exports
-  - inspection_debugging.stage-artifact-downloads
-  - inspection_debugging.settings-used-export
-  - inspection_debugging.results-ledger-inspection
-  - inspection_debugging.stage-transition-diagnostics
-  - inspection_debugging.prompt-provenance-diagnostics
-  - inspection_debugging.ranking-diagnostics
-  - inspection_debugging.shortlist-diagnostics
   - inspection_debugging.cv-analysis-diagnostics
   - inspection_debugging.cv-generation-diagnostics
-  - inspection_debugging.reuse-diagnostics
-  - inspection_debugging.quality-metrics-diagnostics
   - inspection_debugging.enriched-job-debug-export
+  - inspection_debugging.prompt-provenance-diagnostics
+  - inspection_debugging.quality-metrics-diagnostics
+  - inspection_debugging.ranking-diagnostics
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.reuse-diagnostics
   - inspection_debugging.rule-filter-diagnostics
+  - inspection_debugging.run-detail-inspection-tabs
+  - inspection_debugging.run-owned-artifact-exports
+  - inspection_debugging.run-progress-and-checkpoints
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.shortlist-diagnostics
+  - inspection_debugging.stage-artifact-downloads
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.synonym-overlay-inspection
 - from: inspection_debugging
   to: enrich
   type: participates_in
   role: supporting
   capability_ids:
-  - inspection_debugging.run-detail-inspection-tabs
-  - inspection_debugging.run-progress-and-checkpoints
-  - inspection_debugging.synonym-overlay-inspection
-  - inspection_debugging.run-owned-artifact-exports
-  - inspection_debugging.stage-artifact-downloads
-  - inspection_debugging.settings-used-export
-  - inspection_debugging.results-ledger-inspection
-  - inspection_debugging.stage-transition-diagnostics
-  - inspection_debugging.prompt-provenance-diagnostics
-  - inspection_debugging.ranking-diagnostics
-  - inspection_debugging.shortlist-diagnostics
   - inspection_debugging.cv-analysis-diagnostics
   - inspection_debugging.cv-generation-diagnostics
-  - inspection_debugging.reuse-diagnostics
-  - inspection_debugging.quality-metrics-diagnostics
   - inspection_debugging.enriched-job-debug-export
+  - inspection_debugging.prompt-provenance-diagnostics
+  - inspection_debugging.quality-metrics-diagnostics
+  - inspection_debugging.ranking-diagnostics
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.reuse-diagnostics
   - inspection_debugging.rule-filter-diagnostics
+  - inspection_debugging.run-detail-inspection-tabs
+  - inspection_debugging.run-owned-artifact-exports
+  - inspection_debugging.run-progress-and-checkpoints
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.shortlist-diagnostics
+  - inspection_debugging.stage-artifact-downloads
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.synonym-overlay-inspection
 - from: inspection_debugging
   to: ranking
   type: participates_in
   role: supporting
   capability_ids:
-  - inspection_debugging.run-detail-inspection-tabs
-  - inspection_debugging.run-progress-and-checkpoints
-  - inspection_debugging.synonym-overlay-inspection
-  - inspection_debugging.run-owned-artifact-exports
-  - inspection_debugging.stage-artifact-downloads
-  - inspection_debugging.settings-used-export
-  - inspection_debugging.results-ledger-inspection
-  - inspection_debugging.stage-transition-diagnostics
-  - inspection_debugging.prompt-provenance-diagnostics
-  - inspection_debugging.ranking-diagnostics
-  - inspection_debugging.shortlist-diagnostics
   - inspection_debugging.cv-analysis-diagnostics
   - inspection_debugging.cv-generation-diagnostics
-  - inspection_debugging.reuse-diagnostics
-  - inspection_debugging.quality-metrics-diagnostics
   - inspection_debugging.enriched-job-debug-export
+  - inspection_debugging.prompt-provenance-diagnostics
+  - inspection_debugging.quality-metrics-diagnostics
+  - inspection_debugging.ranking-diagnostics
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.reuse-diagnostics
   - inspection_debugging.rule-filter-diagnostics
+  - inspection_debugging.run-detail-inspection-tabs
+  - inspection_debugging.run-owned-artifact-exports
+  - inspection_debugging.run-progress-and-checkpoints
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.shortlist-diagnostics
+  - inspection_debugging.stage-artifact-downloads
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.synonym-overlay-inspection
 - from: inspection_debugging
   to: rule_filter
   type: participates_in
   role: supporting
   capability_ids:
-  - inspection_debugging.run-detail-inspection-tabs
-  - inspection_debugging.run-progress-and-checkpoints
-  - inspection_debugging.synonym-overlay-inspection
-  - inspection_debugging.run-owned-artifact-exports
-  - inspection_debugging.stage-artifact-downloads
-  - inspection_debugging.settings-used-export
-  - inspection_debugging.results-ledger-inspection
-  - inspection_debugging.stage-transition-diagnostics
-  - inspection_debugging.prompt-provenance-diagnostics
-  - inspection_debugging.ranking-diagnostics
-  - inspection_debugging.shortlist-diagnostics
   - inspection_debugging.cv-analysis-diagnostics
   - inspection_debugging.cv-generation-diagnostics
-  - inspection_debugging.reuse-diagnostics
-  - inspection_debugging.quality-metrics-diagnostics
   - inspection_debugging.enriched-job-debug-export
+  - inspection_debugging.prompt-provenance-diagnostics
+  - inspection_debugging.quality-metrics-diagnostics
+  - inspection_debugging.ranking-diagnostics
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.reuse-diagnostics
   - inspection_debugging.rule-filter-diagnostics
+  - inspection_debugging.run-detail-inspection-tabs
+  - inspection_debugging.run-owned-artifact-exports
+  - inspection_debugging.run-progress-and-checkpoints
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.shortlist-diagnostics
+  - inspection_debugging.stage-artifact-downloads
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.synonym-overlay-inspection
 - from: inspection_debugging
   to: shortlist
   type: participates_in
   role: supporting
   capability_ids:
-  - inspection_debugging.run-detail-inspection-tabs
-  - inspection_debugging.run-progress-and-checkpoints
-  - inspection_debugging.synonym-overlay-inspection
-  - inspection_debugging.run-owned-artifact-exports
-  - inspection_debugging.stage-artifact-downloads
-  - inspection_debugging.settings-used-export
-  - inspection_debugging.results-ledger-inspection
-  - inspection_debugging.stage-transition-diagnostics
-  - inspection_debugging.prompt-provenance-diagnostics
-  - inspection_debugging.ranking-diagnostics
-  - inspection_debugging.shortlist-diagnostics
   - inspection_debugging.cv-analysis-diagnostics
   - inspection_debugging.cv-generation-diagnostics
-  - inspection_debugging.reuse-diagnostics
-  - inspection_debugging.quality-metrics-diagnostics
   - inspection_debugging.enriched-job-debug-export
+  - inspection_debugging.prompt-provenance-diagnostics
+  - inspection_debugging.quality-metrics-diagnostics
+  - inspection_debugging.ranking-diagnostics
+  - inspection_debugging.results-ledger-inspection
+  - inspection_debugging.reuse-diagnostics
   - inspection_debugging.rule-filter-diagnostics
+  - inspection_debugging.run-detail-inspection-tabs
+  - inspection_debugging.run-owned-artifact-exports
+  - inspection_debugging.run-progress-and-checkpoints
+  - inspection_debugging.settings-used-export
+  - inspection_debugging.shortlist-diagnostics
+  - inspection_debugging.stage-artifact-downloads
+  - inspection_debugging.stage-transition-diagnostics
+  - inspection_debugging.synonym-overlay-inspection
 - from: multi_file_job_input
   to: trigger_run_management
   type: depends_on
@@ -1152,11 +1152,11 @@ edges:
   type: participates_in
   role: primary
   capability_ids:
-  - multi_file_job_input.multiple-file-inputs-in-trigger-form
-  - multi_file_job_input.per-file-server-side-validation
-  - multi_file_job_input.canonical-merge-preserving-order
-  - multi_file_job_input.one-immutable-snapshot-stored-per-run
   - multi_file_job_input.all-or-nothing-rejection-on-validation-failure
+  - multi_file_job_input.canonical-merge-preserving-order
+  - multi_file_job_input.multiple-file-inputs-in-trigger-form
+  - multi_file_job_input.one-immutable-snapshot-stored-per-run
+  - multi_file_job_input.per-file-server-side-validation
 - from: normalize
   to: trigger_run_management
   type: primary_feature
@@ -1232,17 +1232,17 @@ edges:
   type: participates_in
   role: primary
   capability_ids:
-  - pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
-  - pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
-  - pipeline_performance.fallback-path-for-unparseable-responses
-  - pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
-  - pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
   - pipeline_performance.canonical-skill-companion-lists-and-entity-payloads-for-required-preferred-skills
-  - pipeline_performance.enrich-stage-mapping-suggestion-capture-for-review-debug-surfaces
-  - pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
   - pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes
-  - pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
+  - pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
+  - pipeline_performance.enrich-stage-mapping-suggestion-capture-for-review-debug-surfaces
+  - pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
+  - pipeline_performance.fallback-path-for-unparseable-responses
+  - pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
+  - pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
   - pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
+  - pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
+  - pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
 - from: pipeline_performance
   to: ranking
   type: participates_in
@@ -1261,9 +1261,9 @@ edges:
   type: participates_in
   role: primary
   capability_ids:
+  - pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
   - pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors
   - pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
-  - pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
 - from: ranking
   to: shortlist
   type: depends_on
@@ -1319,10 +1319,10 @@ edges:
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - from: run_lifecycle_controls
   to: cv_generation
   type: participates_in
@@ -1330,10 +1330,10 @@ edges:
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - from: run_lifecycle_controls
   to: enrich
   type: participates_in
@@ -1341,10 +1341,10 @@ edges:
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - from: run_lifecycle_controls
   to: normalize
   type: participates_in
@@ -1352,10 +1352,10 @@ edges:
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - from: run_lifecycle_controls
   to: ranking
   type: participates_in
@@ -1363,10 +1363,10 @@ edges:
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - from: run_lifecycle_controls
   to: rule_filter
   type: participates_in
@@ -1374,10 +1374,10 @@ edges:
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - from: run_lifecycle_controls
   to: shortlist
   type: participates_in
@@ -1385,10 +1385,10 @@ edges:
   capability_ids:
   - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
   - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
   - run_lifecycle_controls.stale-cancellation-repair-endpoint
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - from: settings_system
   to: admin_control_plane_core
   type: depends_on
@@ -1463,32 +1463,32 @@ edges:
   type: participates_in
   role: supporting
   capability_ids:
-  - settings_system.cv-generation-settings
   - settings_system.cv-composition-visibility-settings
-  - settings_system.warning-only-cv-max-pages-validation-setting
+  - settings_system.cv-generation-settings
   - settings_system.settings-used-exports
+  - settings_system.warning-only-cv-max-pages-validation-setting
 - from: settings_system
   to: enrich
   type: participates_in
   role: supporting
   capability_ids:
-  - settings_system.retrieval-settings
   - settings_system.global-job-filters
+  - settings_system.retrieval-settings
 - from: settings_system
   to: normalize
   type: participates_in
   role: supporting
   capability_ids:
+  - settings_system.baseline-default-hydration
   - settings_system.run-safety-settings
   - settings_system.trigger-time-effective-settings-snapshot
-  - settings_system.baseline-default-hydration
 - from: settings_system
   to: ranking
   type: participates_in
   role: supporting
   capability_ids:
-  - settings_system.ranking-settings
   - settings_system.preference-fit-calibration
+  - settings_system.ranking-settings
 - from: settings_system
   to: rule_filter
   type: participates_in
@@ -1569,155 +1569,155 @@ edges:
   type: participates_in
   role: supporting
   capability_ids:
-  - trigger_run_management.runs-list-management
-  - trigger_run_management.run-detail-actions
-  - trigger_run_management.job-input-modes
   - trigger_run_management.candidate-profile-input-modes
+  - trigger_run_management.decision-chain-outcomes
   - trigger_run_management.execution-mode-selection
-  - trigger_run_management.synonym-overlay-at-trigger
-  - trigger_run_management.shared-stage-progress
+  - trigger_run_management.job-input-modes
   - trigger_run_management.manual-checkpoints-and-continue
-  - trigger_run_management.synonym-overlay-replacement
+  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.run-detail-actions
   - trigger_run_management.run-health-surface
   - trigger_run_management.run-owned-artifact-exports
-  - trigger_run_management.stage-artifact-downloads
-  - trigger_run_management.synonym-overlay-inspection
   - trigger_run_management.run-results-export
+  - trigger_run_management.runs-list-management
+  - trigger_run_management.shared-stage-progress
   - trigger_run_management.shortlist-debug-exports
-  - trigger_run_management.decision-chain-outcomes
-  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.stage-artifact-downloads
+  - trigger_run_management.synonym-overlay-at-trigger
+  - trigger_run_management.synonym-overlay-inspection
+  - trigger_run_management.synonym-overlay-replacement
 - from: trigger_run_management
   to: cv_generation
   type: participates_in
   role: supporting
   capability_ids:
-  - trigger_run_management.runs-list-management
-  - trigger_run_management.run-detail-actions
-  - trigger_run_management.job-input-modes
   - trigger_run_management.candidate-profile-input-modes
+  - trigger_run_management.decision-chain-outcomes
   - trigger_run_management.execution-mode-selection
-  - trigger_run_management.synonym-overlay-at-trigger
-  - trigger_run_management.shared-stage-progress
+  - trigger_run_management.job-input-modes
   - trigger_run_management.manual-checkpoints-and-continue
-  - trigger_run_management.synonym-overlay-replacement
+  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.run-detail-actions
   - trigger_run_management.run-health-surface
   - trigger_run_management.run-owned-artifact-exports
-  - trigger_run_management.stage-artifact-downloads
-  - trigger_run_management.synonym-overlay-inspection
   - trigger_run_management.run-results-export
+  - trigger_run_management.runs-list-management
+  - trigger_run_management.shared-stage-progress
   - trigger_run_management.shortlist-debug-exports
-  - trigger_run_management.decision-chain-outcomes
-  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.stage-artifact-downloads
+  - trigger_run_management.synonym-overlay-at-trigger
+  - trigger_run_management.synonym-overlay-inspection
+  - trigger_run_management.synonym-overlay-replacement
 - from: trigger_run_management
   to: enrich
   type: participates_in
   role: supporting
   capability_ids:
-  - trigger_run_management.runs-list-management
-  - trigger_run_management.run-detail-actions
-  - trigger_run_management.job-input-modes
   - trigger_run_management.candidate-profile-input-modes
+  - trigger_run_management.decision-chain-outcomes
   - trigger_run_management.execution-mode-selection
-  - trigger_run_management.synonym-overlay-at-trigger
-  - trigger_run_management.shared-stage-progress
+  - trigger_run_management.job-input-modes
   - trigger_run_management.manual-checkpoints-and-continue
-  - trigger_run_management.synonym-overlay-replacement
+  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.run-detail-actions
   - trigger_run_management.run-health-surface
   - trigger_run_management.run-owned-artifact-exports
-  - trigger_run_management.stage-artifact-downloads
-  - trigger_run_management.synonym-overlay-inspection
   - trigger_run_management.run-results-export
+  - trigger_run_management.runs-list-management
+  - trigger_run_management.shared-stage-progress
   - trigger_run_management.shortlist-debug-exports
-  - trigger_run_management.decision-chain-outcomes
-  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.stage-artifact-downloads
+  - trigger_run_management.synonym-overlay-at-trigger
+  - trigger_run_management.synonym-overlay-inspection
+  - trigger_run_management.synonym-overlay-replacement
 - from: trigger_run_management
   to: normalize
   type: participates_in
   role: primary
   capability_ids:
-  - trigger_run_management.runs-list-management
-  - trigger_run_management.run-detail-actions
-  - trigger_run_management.job-input-modes
   - trigger_run_management.candidate-profile-input-modes
+  - trigger_run_management.decision-chain-outcomes
   - trigger_run_management.execution-mode-selection
-  - trigger_run_management.synonym-overlay-at-trigger
-  - trigger_run_management.shared-stage-progress
+  - trigger_run_management.job-input-modes
   - trigger_run_management.manual-checkpoints-and-continue
-  - trigger_run_management.synonym-overlay-replacement
+  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.run-detail-actions
   - trigger_run_management.run-health-surface
   - trigger_run_management.run-owned-artifact-exports
-  - trigger_run_management.stage-artifact-downloads
-  - trigger_run_management.synonym-overlay-inspection
   - trigger_run_management.run-results-export
+  - trigger_run_management.runs-list-management
+  - trigger_run_management.shared-stage-progress
   - trigger_run_management.shortlist-debug-exports
-  - trigger_run_management.decision-chain-outcomes
-  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.stage-artifact-downloads
+  - trigger_run_management.synonym-overlay-at-trigger
+  - trigger_run_management.synonym-overlay-inspection
+  - trigger_run_management.synonym-overlay-replacement
 - from: trigger_run_management
   to: ranking
   type: participates_in
   role: supporting
   capability_ids:
-  - trigger_run_management.runs-list-management
-  - trigger_run_management.run-detail-actions
-  - trigger_run_management.job-input-modes
   - trigger_run_management.candidate-profile-input-modes
+  - trigger_run_management.decision-chain-outcomes
   - trigger_run_management.execution-mode-selection
-  - trigger_run_management.synonym-overlay-at-trigger
-  - trigger_run_management.shared-stage-progress
+  - trigger_run_management.job-input-modes
   - trigger_run_management.manual-checkpoints-and-continue
-  - trigger_run_management.synonym-overlay-replacement
+  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.run-detail-actions
   - trigger_run_management.run-health-surface
   - trigger_run_management.run-owned-artifact-exports
-  - trigger_run_management.stage-artifact-downloads
-  - trigger_run_management.synonym-overlay-inspection
   - trigger_run_management.run-results-export
+  - trigger_run_management.runs-list-management
+  - trigger_run_management.shared-stage-progress
   - trigger_run_management.shortlist-debug-exports
-  - trigger_run_management.decision-chain-outcomes
-  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.stage-artifact-downloads
+  - trigger_run_management.synonym-overlay-at-trigger
+  - trigger_run_management.synonym-overlay-inspection
+  - trigger_run_management.synonym-overlay-replacement
 - from: trigger_run_management
   to: rule_filter
   type: participates_in
   role: supporting
   capability_ids:
-  - trigger_run_management.runs-list-management
-  - trigger_run_management.run-detail-actions
-  - trigger_run_management.job-input-modes
   - trigger_run_management.candidate-profile-input-modes
+  - trigger_run_management.decision-chain-outcomes
   - trigger_run_management.execution-mode-selection
-  - trigger_run_management.synonym-overlay-at-trigger
-  - trigger_run_management.shared-stage-progress
+  - trigger_run_management.job-input-modes
   - trigger_run_management.manual-checkpoints-and-continue
-  - trigger_run_management.synonym-overlay-replacement
+  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.run-detail-actions
   - trigger_run_management.run-health-surface
   - trigger_run_management.run-owned-artifact-exports
-  - trigger_run_management.stage-artifact-downloads
-  - trigger_run_management.synonym-overlay-inspection
   - trigger_run_management.run-results-export
+  - trigger_run_management.runs-list-management
+  - trigger_run_management.shared-stage-progress
   - trigger_run_management.shortlist-debug-exports
-  - trigger_run_management.decision-chain-outcomes
-  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.stage-artifact-downloads
+  - trigger_run_management.synonym-overlay-at-trigger
+  - trigger_run_management.synonym-overlay-inspection
+  - trigger_run_management.synonym-overlay-replacement
 - from: trigger_run_management
   to: shortlist
   type: participates_in
   role: supporting
   capability_ids:
-  - trigger_run_management.runs-list-management
-  - trigger_run_management.run-detail-actions
-  - trigger_run_management.job-input-modes
   - trigger_run_management.candidate-profile-input-modes
+  - trigger_run_management.decision-chain-outcomes
   - trigger_run_management.execution-mode-selection
-  - trigger_run_management.synonym-overlay-at-trigger
-  - trigger_run_management.shared-stage-progress
+  - trigger_run_management.job-input-modes
   - trigger_run_management.manual-checkpoints-and-continue
-  - trigger_run_management.synonym-overlay-replacement
+  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.run-detail-actions
   - trigger_run_management.run-health-surface
   - trigger_run_management.run-owned-artifact-exports
-  - trigger_run_management.stage-artifact-downloads
-  - trigger_run_management.synonym-overlay-inspection
   - trigger_run_management.run-results-export
+  - trigger_run_management.runs-list-management
+  - trigger_run_management.shared-stage-progress
   - trigger_run_management.shortlist-debug-exports
-  - trigger_run_management.decision-chain-outcomes
-  - trigger_run_management.reranker-fit-authority
+  - trigger_run_management.stage-artifact-downloads
+  - trigger_run_management.synonym-overlay-at-trigger
+  - trigger_run_management.synonym-overlay-inspection
+  - trigger_run_management.synonym-overlay-replacement
 - from: ui_consistency_theming
   to: admin_control_plane_core
   type: depends_on

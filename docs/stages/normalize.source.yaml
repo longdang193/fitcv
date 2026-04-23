@@ -9,9 +9,9 @@ inputs:
   - raw job payloads from file, path, or pasted JSON inputs
   - run-level input source context from trigger handling
 outputs:
-  - normalized job rows
-  - deduplicated job decisions
   - bounded `stage_transition_artifacts.normalize` runtime block with input, output, and changed-state samples
+  - deduplicated job decisions
+  - normalized job rows
 depends_on: []
 primary_features:
   - trigger_run_management
@@ -32,3 +32,5 @@ keywords:
   - ingest
   - deduplication
   - normalized jobs
+status: active
+purpose: Normalize raw run inputs into a stable job list, apply deduplication, and hand the surviving normalized rows to downstream filtering and enrichment.

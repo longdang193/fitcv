@@ -63,16 +63,16 @@ component_refs: []
 depends_on:
 - enrich
 inputs:
-- enriched job rows
 - deterministic filter and policy settings
 - effective skill synonym map, which may include a run-scoped overlay uploaded after `enrich` in manual staged mode
+- enriched job rows
 outputs:
-- passed jobs
-- rejected jobs
-- reject reasons
+- bounded `stage_transition_artifacts.rule_filter` runtime block with input, output, and changed-state samples
 - non-blocking marks for failed but unselected deterministic checks
 - optional manual checkpoint payloads that can resume shortlist/ranking from the passed-job set
-- bounded `stage_transition_artifacts.rule_filter` runtime block with input, output, and changed-state samples
+- passed jobs
+- reject reasons
+- rejected jobs
 invariants:
 - deterministic pass/reject ownership belongs to this stage
 - reject reasons should be finalized here

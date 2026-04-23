@@ -86,15 +86,15 @@ inputs:
 - normalized job rows
 - pre-enrichment global filter settings from runtime config
 outputs:
-- enriched job rows
-- raw job fields plus canonical skill outputs for `required_skills` and `preferred_skills`
-- enrich-stage mapping suggestions for review/debug export
-- raw-job and enrich-contract fingerprint fields plus `enrich_reuse_status` provenance on enriched rows
-- pre-enrichment rejects with reasons
-- optional manual checkpoint payloads that can resume downstream rule filtering without rerunning normalize/enrich
-- optional enrich-checkpoint upload of a run-scoped synonym overlay for downstream matching
 - bounded `stage_transition_artifacts.enrich` runtime block with input, output, and changed-state samples
 - enrich prompt provenance and fresh-vs-reused enrich counts in stage decision summaries when available
+- enrich-stage mapping suggestions for review/debug export
+- enriched job rows
+- optional enrich-checkpoint upload of a run-scoped synonym overlay for downstream matching
+- optional manual checkpoint payloads that can resume downstream rule filtering without rerunning normalize/enrich
+- pre-enrichment rejects with reasons
+- raw job fields plus canonical skill outputs for `required_skills` and `preferred_skills`
+- raw-job and enrich-contract fingerprint fields plus `enrich_reuse_status` provenance on enriched rows
 invariants:
 - normalized jobs enter and enriched job rows leave
 - pre-enrichment global filter ownership belongs to this stage in the current runtime flow

@@ -5,8 +5,8 @@ explains:
   features:
     - trigger_run_management
   stages:
-    - normalize
     - cv_generation
+    - normalize
 ---
 
 # Usage

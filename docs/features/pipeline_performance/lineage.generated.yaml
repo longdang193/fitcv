@@ -56,6 +56,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -75,6 +76,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -129,6 +132,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -148,6 +152,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -196,6 +202,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -215,6 +222,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -269,6 +278,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -288,13 +298,15 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-  ? pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
-  : state: active
+  "pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids":
+    state: active
     statement: Enrich extraction prompt text now comes from a centralized prompt registry with config-selected prompt IDs
     satisfies: []
     code:
@@ -346,6 +358,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -365,6 +378,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -419,6 +434,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -438,6 +454,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -486,6 +504,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -505,6 +524,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -559,6 +580,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -578,6 +600,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -626,6 +650,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -645,13 +670,15 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-  ? pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes
-  : state: active
+  "pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes":
+    state: active
     statement: Enrich-contract fingerprinting invalidates reuse automatically when prompt/model/schema behavior changes
     satisfies: []
     code:
@@ -693,6 +720,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -712,13 +740,15 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-  ? pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
-  : state: active
+  "pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table":
+    state: active
     statement: Shared `structured_jobs` reuse lookup avoids redundant enrich calls while only fresh rows are upserted back into the shared table
     satisfies: []
     code:
@@ -760,6 +790,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -779,13 +810,15 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-  ? pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors
-  : state: active
+  "pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors":
+    state: active
     statement: Shortlist now builds a stable structured embedding-input signature before generating `job_summary` vectors
     satisfies: []
     code:
@@ -833,6 +866,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -852,13 +886,15 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-  ? pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
-  : state: active
+  "pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match":
+    state: active
     statement: Shortlist reuses the latest stored embedding row for a `job_url` only when both the structured signature and embedding contract fingerprint still match
     satisfies: []
     code:
@@ -900,6 +936,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -919,13 +956,15 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-  ? pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
-  : state: active
+  "pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely":
+    state: active
     statement: Fresh shortlist embeddings persist signature metadata so later runs can skip repeated embedding work safely
     satisfies: []
     code:
@@ -967,6 +1006,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -986,13 +1026,15 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-  ? pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
-  : state: active
+  "pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage":
+    state: active
     statement: Operator-facing enriched-job exports now keep canonical semantic fields and fingerprint/reuse provenance while omitting retired raw duplicate classification baggage
     satisfies: []
     code:
@@ -1038,6 +1080,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -1057,13 +1100,15 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-  ? pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
-  : state: active
+  "pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts":
+    state: active
     statement: Large runs avoid some row-scaled Layer 4 event noise by relying more on aggregate stage summaries plus stage-owned artifacts
     satisfies: []
     code:
@@ -1109,6 +1154,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -1128,13 +1174,15 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-  ? pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere
-  : state: active
+  "pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere":
+    state: active
     statement: '`results.json` now keeps only compact job-ledger fields instead of repeating full job snapshots, heavy score-explanation internals, and full CV bodies already represented elsewhere'
     satisfies: []
     code:
@@ -1176,6 +1224,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -1195,13 +1244,15 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-  ? pipeline_performance.cv-analysis-now-uses-bounded-semantic-lift-for-required-skill-and-role-channels-instead-of-reserving-semantic-work-only-for-domain-and-responsibility-alignment
-  : state: active
+  "pipeline_performance.cv-analysis-now-uses-bounded-semantic-lift-for-required-skill-and-role-channels-instead-of-reserving-semantic-work-only-for-domain-and-responsibility-alignment":
+    state: active
     statement: '`cv_analysis` now uses bounded semantic lift for required-skill and role channels instead of reserving semantic work only for domain and responsibility alignment'
     satisfies: []
     code:
@@ -1253,6 +1304,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -1272,13 +1324,15 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-  ? pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis
-  : state: active
+  "pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis":
+    state: active
     statement: Ranked jobs with authoritative reranker `fit_label = skip` now stop before evidence retrieval, gap computation, and semantic alignment inside `cv_analysis`
     satisfies: []
     code:
@@ -1320,6 +1374,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-02-19-25-central-prompt-registry-plan.md
     - docs/superpowers/archive/plans/2026-04-03-00-10-enrich-reuse-via-raw-job-fingerprint-plan.md
@@ -1339,9 +1394,89 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
-timeline: []
+timeline:
+- completed_at: '2026-04-22T00:07:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+  change_id: 2026-04-22-option-b-phase-2-rollout
+  summary: Option B Phase 2 Rollout Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the Option B phase 2 rollout.
+- completed_at: '2026-04-22T00:32:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+  change_id: 2026-04-22-option-b-phase-3-cleanup
+  summary: Option B Phase 3 Cleanup Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the Option B phase 3 cleanup.
+- completed_at: '2026-04-22T01:35:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+  change_id: 2026-04-22-phase-4-required-metadata-correction
+  summary: Phase 4 Required Metadata Correction Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 4 required metadata correction.
+- completed_at: '2026-04-22T12:20:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+  change_id: 2026-04-22-phase-5-evidence-oriented-lineage-alignment
+  summary: Phase 5 Evidence-Oriented Lineage Alignment Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 5 evidence-oriented lineage alignment.
+- completed_at: '2026-04-22T12:48:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
+  change_id: 2026-04-22-phase-8-settings-performance-evidence-backfill
+  summary: Phase 8 Settings And Performance Evidence Backfill Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 8 settings and performance evidence backfill.
+- completed_at: '2026-04-22T13:25:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+  change_id: 2026-04-22-phase-6-lineage-evidence-hydration
+  summary: Phase 6 Lineage Evidence Hydration Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 6 lineage evidence hydration.
+- completed_at: '2026-04-22T14:48:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
+  change_id: 2026-04-22-phase-10-settings-performance-residual-evidence-audit
+  summary: Phase 10 Settings And Performance Residual Evidence Audit Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 10 settings and performance residual evidence audit.
+- completed_at: '2026-04-23T17:03:52+02:00'
+  source_plan: docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
+  change_id: 2026-04-23-double-entry-truth-cleanup-batch-b
+  summary: Double-Entry Truth Cleanup Batch B Implementation Plan
+  capabilities: []
+  verification:
+  - python scripts/sync_architecture_docs.py --check
+  - python scripts/validate_adoption_shape.py
+  - python scripts/validate_repo_contracts.py --fast
+  - git diff --check
+  outcome: Reframed `docs/FitCV-pipeline.md` as an explainer and updated `docs/pipeline.md` to point at it as a non-authoritative mental-model doc.
+- completed_at: '2026-04-23T17:08:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+  change_id: 2026-04-23-double-entry-truth-cleanup-batch-c
+  summary: Double-Entry Truth Cleanup Batch C Implementation Plan
+  capabilities: []
+  verification:
+  - python scripts/sync_architecture_docs.py --check
+  - python scripts/validate_adoption_shape.py
+  - python scripts/validate_repo_contracts.py --fast
+  - git diff --check
+  outcome: Reduced generated-history placeholder noise by omitting empty capabilities, verification, and generic outcome sections while preserving real plan-derived signal.
