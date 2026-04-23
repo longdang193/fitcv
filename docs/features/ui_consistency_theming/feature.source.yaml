@@ -34,3 +34,4 @@ capabilities:
     statement: Responsive wrapping
     state: active
 stage_participation: []
+stage_participation_rationale: This feature owns cross-admin UI design-system and theming behavior, not pipeline stage execution behavior.

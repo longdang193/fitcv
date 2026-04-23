@@ -53,9 +53,9 @@ inputs:
 - raw job payloads from file, path, or pasted JSON inputs
 - run-level input source context from trigger handling
 outputs:
-- normalized job rows
-- deduplicated job decisions
 - bounded `stage_transition_artifacts.normalize` runtime block with input, output, and changed-state samples
+- deduplicated job decisions
+- normalized job rows
 invariants:
 - raw job input ends here and normalized job rows begin here
 - deduplication ownership belongs to this stage

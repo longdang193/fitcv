@@ -9,8 +9,8 @@ explains:
     - cv_analysis
     - cv_generation
   components:
-    - src/fitcv_cp
     - src/fitcv
+    - src/fitcv_cp
 ---
 
 # Architecture

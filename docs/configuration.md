@@ -5,8 +5,8 @@ explains:
   features:
     - settings_system
   configs:
-    - repo_config/adoption-mode.yaml
     - config/runtime/pipeline.yaml
+    - repo_config/adoption-mode.yaml
 ---
 
 # Configuration

@@ -2,6 +2,12 @@
 layer: operating_system
 artifact_type: plan
 status: completed
+completed_at: 2026-04-22T12:09:00+02:00
+change_id: 2026-04-22-phase-7-direct-evidence-backfill
+verification:
+  - See plan body closeout verification notes.
+outcome:
+  summary: Completed the phase 7 direct evidence backfill.
 parent_workstream: none
 targets:
   - docs/features/cv_system/lineage.generated.yaml

@@ -74,19 +74,19 @@ component_refs: []
 depends_on:
 - rule_filter
 inputs:
-- passed jobs
 - candidate query text, bounded candidate-query components, and one reusable candidate query embedding derived from the profile evidence surface
+- passed jobs
 - vector search results
 outputs:
+- '`stage_transition_artifacts.shortlist.decision_summary.quality_metrics` with shortlist backfill-rate counts and rate'
+- bounded `stage_transition_artifacts.shortlist` runtime block with input, output, and changed-state samples
+- bounded candidate-query context for the single retrieval vector used in this stage
+- bounded shortlist candidate-query components and candidate-query reuse provenance for debugging
+- fresh-versus-reused embedding provenance for passed jobs
+- raw row versus raw unique-job retrieval counts
 - raw vector hits
 - scoring shortlist
 - shortlist transition reasons including any backfill
-- raw row versus raw unique-job retrieval counts
-- bounded shortlist candidate-query components and candidate-query reuse provenance for debugging
-- fresh-versus-reused embedding provenance for passed jobs
-- bounded candidate-query context for the single retrieval vector used in this stage
-- bounded `stage_transition_artifacts.shortlist` runtime block with input, output, and changed-state samples
-- '`stage_transition_artifacts.shortlist.decision_summary.quality_metrics` with shortlist backfill-rate counts and rate'
 invariants:
 - raw retrieval output enters here and the scoring shortlist leaves here
 - this stage owns the distinction between raw vector hits and the later scoring shortlist

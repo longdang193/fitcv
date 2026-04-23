@@ -2,6 +2,12 @@
 layer: operating_system
 artifact_type: plan
 status: completed
+completed_at: 2026-04-23T01:45:00+02:00
+change_id: 2026-04-23-agent-instruction-layer-drift
+verification:
+  - See plan body closeout verification notes.
+outcome:
+  summary: Completed the agent instruction layer drift work.
 parent_workstream: none
 targets:
   - agent-core/adapters/codex/root-AGENTS.template.md

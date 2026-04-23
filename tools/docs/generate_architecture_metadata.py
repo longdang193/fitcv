@@ -70,6 +70,38 @@ class NoAliasDumper(yaml.SafeDumper):
         return True
 
 
+def quote_yaml_key(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def normalize_explicit_string_keys(yaml_text: str) -> str:
+    lines = yaml_text.splitlines()
+    normalized: list[str] = []
+    index = 0
+
+    while index < len(lines):
+        line = lines[index]
+        stripped = line.lstrip(" ")
+        indent = line[: len(line) - len(stripped)]
+
+        if stripped.startswith("? ") and index + 1 < len(lines):
+            next_line = lines[index + 1]
+            next_stripped = next_line.lstrip(" ")
+            next_indent = next_line[: len(next_line) - len(next_stripped)]
+            if next_indent == indent and next_stripped.startswith(": "):
+                normalized.append(f"{indent}{quote_yaml_key(stripped[2:])}:")
+                normalized.append(f"{indent}  {next_stripped[2:]}")
+                index += 2
+                continue
+
+        normalized.append(line)
+        index += 1
+
+    trailing_newline = "\n" if yaml_text.endswith("\n") else ""
+    return "\n".join(normalized) + trailing_newline
+
+
 class EvidenceNode(NamedTuple):
     path: str
     confidence: str
@@ -132,13 +164,14 @@ def read_yaml(path: Path) -> object:
 
 
 def dump_yaml(payload: object) -> str:
-    return yaml.dump(
+    dumped = yaml.dump(
         payload,
         Dumper=NoAliasDumper,
         sort_keys=False,
         allow_unicode=False,
         width=1000,
     )
+    return normalize_explicit_string_keys(dumped)
 
 
 def relpath(path: Path, root: Path) -> str:
@@ -904,23 +937,20 @@ def build_generated_history_section(*, timeline: list[dict[str, object]]) -> str
         lines.append(f"Source plan: `{str(item.get('source_plan', ''))}`")
         lines.append("")
         capabilities = item.get("capabilities", [])
-        lines.append("Affected capabilities:")
         if isinstance(capabilities, list) and capabilities:
+            lines.append("Affected capabilities:")
             lines.extend(f"- `{capability}`" for capability in capabilities)
-        else:
-            lines.append("- none recorded")
-        lines.append("")
+            lines.append("")
         verification = item.get("verification", [])
-        lines.append("Verification:")
         if isinstance(verification, list) and verification:
+            lines.append("Verification:")
             lines.extend(f"- `{entry}`" for entry in verification)
-        else:
-            lines.append("- none recorded")
-        lines.append("")
+            lines.append("")
         outcome = str(item.get("outcome", "")).strip()
-        lines.append("Outcome:")
-        lines.append(outcome if outcome else "No outcome summary recorded.")
-        lines.append("")
+        if outcome and outcome != "See plan body closeout verification notes.":
+            lines.append("Outcome:")
+            lines.append(outcome)
+            lines.append("")
 
     if lines[-1] == "":
         lines.pop()

@@ -5,8 +5,8 @@ type: modify
 summary: Reduced API costs by filtering jobs before enrichment, using reliable structured output parsing, centralizing enrich prompt management, reusing unchanged enrich results via fingerprints, reusing unchanged shortlist embeddings via a structured signature plus embedding contract, extending bounded semantic lift to the most important `cv_analysis` fit channels, short-circuiting reranker `skip` jobs before expensive `cv_analysis` work, and trimming dead-weight operator-facing payloads, especially by tightening the `results.json` ledger boundary and row-scaled timeline noise.
 invariants: []
 domains:
-  - pipeline
   - api_optimization
+  - pipeline
 depends_on: []
 capabilities:
   - capability_id: pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
@@ -70,17 +70,17 @@ stage_participation:
   - stage_id: enrich
     role: primary
     capability_ids:
-      - pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
-      - pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
-      - pipeline_performance.fallback-path-for-unparseable-responses
-      - pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
-      - pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
       - pipeline_performance.canonical-skill-companion-lists-and-entity-payloads-for-required-preferred-skills
-      - pipeline_performance.enrich-stage-mapping-suggestion-capture-for-review-debug-surfaces
-      - pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
       - pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes
-      - pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
+      - pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
+      - pipeline_performance.enrich-stage-mapping-suggestion-capture-for-review-debug-surfaces
+      - pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
+      - pipeline_performance.fallback-path-for-unparseable-responses
+      - pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
+      - pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
       - pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
+      - pipeline_performance.pre-enrichment-global-job-filters-applications-count-max-max-age-days
+      - pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
   - stage_id: rule_filter
     role: primary
     capability_ids:
@@ -88,9 +88,9 @@ stage_participation:
   - stage_id: shortlist
     role: primary
     capability_ids:
+      - pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
       - pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors
       - pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
-      - pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
   - stage_id: ranking
     role: supporting
     capability_ids:

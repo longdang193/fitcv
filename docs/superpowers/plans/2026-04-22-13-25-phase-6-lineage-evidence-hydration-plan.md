@@ -2,6 +2,12 @@
 layer: operating_system
 artifact_type: plan
 status: completed
+completed_at: 2026-04-22T13:25:00+02:00
+change_id: 2026-04-22-phase-6-lineage-evidence-hydration
+verification:
+  - See plan body closeout verification notes.
+outcome:
+  summary: Completed the phase 6 lineage evidence hydration.
 parent_workstream: none
 targets:
   - docs/features/*/lineage.generated.yaml

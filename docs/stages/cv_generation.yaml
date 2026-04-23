@@ -78,17 +78,17 @@ component_refs: []
 depends_on:
 - cv_analysis
 inputs:
-- generation-ready analysis records
-- selected grounded evidence and gap explanation inputs prepared by `cv_analysis`
 - CV generation settings plus section-visibility controls and warning-only max-pages validation settings
+- generation-ready analysis records
 - one active structured runtime prompt contract for final-stage generation
+- selected grounded evidence and gap explanation inputs prepared by `cv_analysis`
 outputs:
-- structured CV artifacts
-- rendered markdown CVs
-- validation and repair outcomes
-- final CV generation status
-- bounded `stage_transition_artifacts.cv_generation` runtime block with input, output, and changed-state samples, including bounded upstream `cv_analysis` inputs, selected evidence context, and hybrid validation provenance for debugging
 - '`stage_transition_artifacts.cv_generation.decision_summary.quality_metrics` with accepted, validation-failed, generation-failed, and persistence-failed counts and rates'
+- bounded `stage_transition_artifacts.cv_generation` runtime block with input, output, and changed-state samples, including bounded upstream `cv_analysis` inputs, selected evidence context, and hybrid validation provenance for debugging
+- final CV generation status
+- rendered markdown CVs
+- structured CV artifacts
+- validation and repair outcomes
 invariants:
 - cv-analysis-ready jobs enter and accepted or rejected CV artifacts leave
 - generation, validation, repair, and persistence ownership belong to this stage

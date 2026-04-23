@@ -2,13 +2,11 @@ feature_id: cv_system
 name: CV System
 status: active
 type: add
-summary: 'Own the grounded CV-writing path from post-ranking evidence preparation through `cv_analysis` and `cv_generation`, including evidence selection, fit-gate resolution, structured CV generation, validation against selected evidence, and the stage-owned artifacts that explain final CV outcomes.
-
-  '
+summary: Own the grounded CV-writing path from post-ranking evidence preparation through `cv_analysis` and `cv_generation`, including evidence selection, fit-gate resolution, structured CV generation, validation against selected evidence, and the stage-owned artifacts that explain final CV outcomes.
 invariants: []
 domains:
-  - pipeline
   - cv_generation
+  - pipeline
 depends_on:
   - admin_control_plane_core
 capabilities:
@@ -60,20 +58,20 @@ stage_participation:
   - stage_id: ranking
     role: supporting
     capability_ids:
-      - cv_system.fit-gate-resolution
       - cv_system.exact-match-late-stage-reuse
+      - cv_system.fit-gate-resolution
   - stage_id: cv_analysis
     role: primary
     capability_ids:
       - cv_system.analysis-evidence-selection
-      - cv_system.fit-gate-resolution
       - cv_system.exact-match-late-stage-reuse
+      - cv_system.fit-gate-resolution
       - cv_system.stage-artifact-diagnostics
   - stage_id: cv_generation
     role: primary
     capability_ids:
-      - cv_system.structured-cv-generation
       - cv_system.analysis-grounded-validation
+      - cv_system.config-owned-generation-contract
       - cv_system.header-placeholder-repair
       - cv_system.stage-artifact-diagnostics
-      - cv_system.config-owned-generation-contract
+      - cv_system.structured-cv-generation

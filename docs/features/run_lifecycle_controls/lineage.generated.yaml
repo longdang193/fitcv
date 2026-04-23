@@ -698,6 +698,54 @@ capabilities:
     unresolved_evidence_gaps: []
     completeness_status: complete
 timeline:
+- completed_at: '2026-04-22T00:07:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+  change_id: 2026-04-22-option-b-phase-2-rollout
+  summary: Option B Phase 2 Rollout Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the Option B phase 2 rollout.
+- completed_at: '2026-04-22T00:32:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+  change_id: 2026-04-22-option-b-phase-3-cleanup
+  summary: Option B Phase 3 Cleanup Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the Option B phase 3 cleanup.
+- completed_at: '2026-04-22T01:35:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+  change_id: 2026-04-22-phase-4-required-metadata-correction
+  summary: Phase 4 Required Metadata Correction Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 4 required metadata correction.
+- completed_at: '2026-04-22T12:20:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+  change_id: 2026-04-22-phase-5-evidence-oriented-lineage-alignment
+  summary: Phase 5 Evidence-Oriented Lineage Alignment Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 5 evidence-oriented lineage alignment.
+- completed_at: '2026-04-22T13:25:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+  change_id: 2026-04-22-phase-6-lineage-evidence-hydration
+  summary: Phase 6 Lineage Evidence Hydration Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 6 lineage evidence hydration.
+- completed_at: '2026-04-22T15:37:00+02:00'
+  source_plan: docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
+  change_id: 2026-04-22-phase-11-control-plane-evidence-completion
+  summary: Phase 11 Control Plane Evidence Completion Implementation Plan
+  capabilities: []
+  verification:
+  - See plan body closeout verification notes.
+  outcome: Completed the phase 11 control-plane evidence work.
 - completed_at: '2026-04-23T11:19:53+02:00'
   source_plan: docs/superpowers/plans/2026-04-23-02-10-run-lifecycle-stage-participation-plan.md
   change_id: 2026-04-23-run-lifecycle-stage-participation

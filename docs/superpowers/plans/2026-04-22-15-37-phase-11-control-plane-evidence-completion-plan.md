@@ -2,6 +2,12 @@
 layer: change
 artifact_type: plan
 status: completed
+completed_at: 2026-04-22T15:37:00+02:00
+change_id: 2026-04-22-phase-11-control-plane-evidence-completion
+verification:
+  - See plan body closeout verification notes.
+outcome:
+  summary: Completed the phase 11 control-plane evidence work.
 parent_workstream: none
 targets:
   - docs/features/run_lifecycle_controls/run_lifecycle_controls.yaml

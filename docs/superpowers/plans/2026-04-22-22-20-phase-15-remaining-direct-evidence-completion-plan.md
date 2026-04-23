@@ -2,6 +2,12 @@
 layer: change
 artifact_type: plan
 status: completed
+completed_at: 2026-04-22T22:20:00+02:00
+change_id: 2026-04-22-phase-15-remaining-direct-evidence-completion
+verification:
+  - See plan body closeout verification notes.
+outcome:
+  summary: Completed the phase 15 remaining direct evidence work.
 parent_workstream: none
 targets:
   - docs/superpowers/archive/specs/2026-04-22-22-05-phase-15-remaining-direct-evidence-completion-spec.md

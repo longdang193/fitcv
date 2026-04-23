@@ -2,6 +2,12 @@
 layer: operating_system
 artifact_type: plan
 status: completed
+completed_at: 2026-04-22T01:35:00+02:00
+change_id: 2026-04-22-phase-4-required-metadata-correction
+verification:
+  - See plan body closeout verification notes.
+outcome:
+  summary: Completed the phase 4 required metadata correction.
 parent_workstream: none
 targets:
   - docs/features/*/feature.source.yaml

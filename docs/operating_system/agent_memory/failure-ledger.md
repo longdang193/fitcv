@@ -36,3 +36,16 @@ Use this file for repeated or important failures, not every small mistake.
   - `tests/test_pipeline.py`
   - `tests/test_fitcv_cp/test_app.py`
   - `tests/test_fitcv_cp/test_models.py`
+
+## Starter validator drift masked generated contract freshness failures
+
+- Title: Local adoption validator passed while starter validator would fail
+- Date: 2026-04-23
+- Trigger / Context: Syncing JOB-PROJECT against the latest local `project-OS-starter` adoption-shape validator.
+- What went wrong: The local `scripts/validate_adoption_shape.py` still had older conditional freshness validation, so generated feature contracts without `revision`, `latest_change_id`, and `last_updated_at` passed locally even though the starter validator required those fields.
+- Correct behavior: Before interpreting a validator pass as meaningful during starter-sync work, compare the local validator against the starter source of truth and run the synced validator against the repo.
+- Prevention added or required: Keep `scripts/validate_adoption_shape.py` in exact sync with the matching starter surface, and ensure completed plan metadata can generate contract freshness rather than hand-editing generated YAML.
+- Related artifacts:
+  - `scripts/validate_adoption_shape.py`
+  - `tools/docs/generate_architecture_metadata.py`
+  - `docs/superpowers/plans/*.md`
