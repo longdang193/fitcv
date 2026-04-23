@@ -153,6 +153,53 @@ REQUIRED_ROOT_PROJECT_DOCS = (
     "docs/pipeline.md",
     "docs/architecture.md",
 )
+MANAGED_REQUIRED_ROOT_DOC_METADATA = {
+    "docs/setup.md": {
+        "doc_id": "setup",
+        "required_explain_groups": ("features", "stages"),
+        "missing_explains_message": "Setup doc must explain one or more features or stages.",
+        "missing_explains_fix": (
+            "Add an `explains.features` or `explains.stages` list so setup guidance remains "
+            "linked to the managed architecture surface."
+        ),
+    },
+    "docs/configuration.md": {
+        "doc_id": "configuration",
+        "required_explain_groups": ("features", "configs"),
+        "missing_explains_message": "Configuration doc must explain one or more features or configs.",
+        "missing_explains_fix": (
+            "Add an `explains.features` or `explains.configs` list so configuration guidance "
+            "maps back to the managed config surface."
+        ),
+    },
+    "docs/usage.md": {
+        "doc_id": "usage",
+        "required_explain_groups": ("features", "stages"),
+        "missing_explains_message": "Usage doc must explain one or more features or stages.",
+        "missing_explains_fix": (
+            "Add an `explains.features` or `explains.stages` list so operator usage stays "
+            "linked to the managed architecture surface."
+        ),
+    },
+    "docs/pipeline.md": {
+        "doc_id": "pipeline",
+        "required_explain_groups": ("stages",),
+        "missing_explains_message": "Pipeline doc must explain one or more stages.",
+        "missing_explains_fix": (
+            "Add an `explains.stages` list so pipeline guidance stays grounded in the stage "
+            "contracts instead of prose only."
+        ),
+    },
+    "docs/architecture.md": {
+        "doc_id": "architecture",
+        "required_explain_groups": ("features", "stages", "components"),
+        "missing_explains_message": "Architecture doc must explain one or more features, stages, or components.",
+        "missing_explains_fix": (
+            "Add at least one of `explains.features`, `explains.stages`, or `explains.components` "
+            "so architecture guidance is anchored to managed architecture surfaces."
+        ),
+    },
+}
 REQUIRED_DOC_KEYWORDS = {
     "docs/setup.md": ("depend", "tool version", "install", "provision", "prerequisite", "bootstrap"),
     "docs/configuration.md": (
@@ -277,6 +324,28 @@ def relpath(path: Path, root: Path) -> str:
 def load_yaml(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as handle:
         return yaml.safe_load(handle)
+
+
+def extract_markdown_frontmatter(text: str) -> tuple[dict[str, Any] | None, str | None, str]:
+    if not text.startswith("---"):
+        return None, None, text
+
+    match = re.match(r"\A---\s*\r?\n(.*?)\r?\n---\s*(?:\r?\n|$)", text, re.DOTALL)
+    if match is None:
+        return None, "Frontmatter block is not properly closed.", text
+
+    yaml_block = match.group(1)
+    try:
+        payload = yaml.safe_load(yaml_block)
+    except yaml.YAMLError as exc:
+        return None, str(exc), text
+
+    if payload is None:
+        payload = {}
+    if not isinstance(payload, dict):
+        return None, "Frontmatter must parse to a top-level mapping.", text
+
+    return payload, None, text[match.end() :]
 
 
 def add_error(findings: list[Finding], path: str, message: str, fix: str) -> None:
@@ -704,7 +773,8 @@ def validate_required_root_docs(root: Path, findings: list[Finding]) -> None:
         except OSError:
             continue
 
-        if not re.search(r"(?m)^#\s+\S", text):
+        _, _, body_without_frontmatter = extract_markdown_frontmatter(text)
+        if not re.search(r"(?m)^#\s+\S", body_without_frontmatter):
             add_error(
                 findings,
                 relative_path,
@@ -715,7 +785,7 @@ def validate_required_root_docs(root: Path, findings: list[Finding]) -> None:
 
         body_lines = [
             line.strip()
-            for line in text.splitlines()
+            for line in body_without_frontmatter.splitlines()
             if line.strip() and not line.lstrip().startswith("#")
         ]
         if not body_lines:
@@ -747,6 +817,92 @@ def validate_required_root_docs(root: Path, findings: list[Finding]) -> None:
                     "Add file-specific guidance so the doc covers its intended subject "
                     "instead of only generic prose."
                 ),
+            )
+
+
+def validate_managed_required_root_doc_metadata(root: Path, findings: list[Finding]) -> None:
+    for relative_path, rule in MANAGED_REQUIRED_ROOT_DOC_METADATA.items():
+        path = root / Path(relative_path)
+        if not path.exists():
+            continue
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError:
+            continue
+
+        payload, error, _ = extract_markdown_frontmatter(text)
+        if error is not None:
+            add_error(
+                findings,
+                relative_path,
+                "Managed required root doc frontmatter is invalid.",
+                "Fix the YAML frontmatter block so the managed root doc metadata is parseable.",
+            )
+            continue
+        if payload is None:
+            add_error(
+                findings,
+                relative_path,
+                "Managed required root doc must include frontmatter metadata.",
+                (
+                    "Add frontmatter with `doc_id`, `doc_type`, and `explains.*` fields so "
+                    "the doc participates in the managed architecture linkage surface."
+                ),
+            )
+            continue
+
+        expected_doc_id = rule["doc_id"]
+        doc_id = payload.get("doc_id")
+        if doc_id != expected_doc_id:
+            add_error(
+                findings,
+                relative_path,
+                "Managed required root doc has the wrong doc_id.",
+                f"Set `doc_id: {expected_doc_id}` so the root doc keeps the canonical managed identifier.",
+            )
+
+        doc_type = payload.get("doc_type")
+        if not isinstance(doc_type, str) or not doc_type.strip():
+            add_error(
+                findings,
+                relative_path,
+                "Managed required root doc must declare doc_type.",
+                "Add a stable `doc_type` such as `setup-guide`, `operator-guide`, or `architecture-guide`.",
+            )
+
+        explains = payload.get("explains")
+        if not isinstance(explains, dict):
+            add_error(
+                findings,
+                relative_path,
+                "Managed required root doc must declare explains metadata.",
+                "Add an `explains` mapping with the relevant managed feature, stage, config, or component references.",
+            )
+            continue
+
+        has_required_links = False
+        for key, values in explains.items():
+            if values is None:
+                continue
+            if not isinstance(values, list) or any(
+                not isinstance(value, str) or not value.strip() for value in values
+            ):
+                add_error(
+                    findings,
+                    relative_path,
+                    f"Managed required root doc explains.{key} must be a list of non-empty strings.",
+                    "Use YAML lists of stable feature IDs, stage IDs, config paths, or component paths.",
+                )
+                continue
+            if key in rule["required_explain_groups"] and values:
+                has_required_links = True
+
+        if not has_required_links:
+            add_error(
+                findings,
+                relative_path,
+                rule["missing_explains_message"],
+                rule["missing_explains_fix"],
             )
 
 
@@ -1973,6 +2129,7 @@ def validate_starter_method_only(root: Path, findings: list[Finding]) -> None:
 
 
 def validate_managed_mode(config: AdoptionConfig, root: Path, findings: list[Finding]) -> None:
+    validate_managed_required_root_doc_metadata(root, findings)
     for path in flat_feature_files(root):
         add_error(
             findings,

@@ -112,22 +112,67 @@ def build_repo(tmp_path: Path) -> Path:
 
     for relative_path, content in {
         "docs/setup.md": (
+            "---\n"
+            "doc_id: setup\n"
+            "doc_type: setup-guide\n"
+            "explains:\n"
+            "  features:\n"
+            "    - cv_system\n"
+            "  stages:\n"
+            "    - cv_analysis\n"
+            "---\n\n"
             "# Setup\n\n"
             "Install the required dependencies, confirm tool versions, provision prerequisites, and bootstrap in order.\n"
         ),
         "docs/configuration.md": (
+            "---\n"
+            "doc_id: configuration\n"
+            "doc_type: operator-guide\n"
+            "explains:\n"
+            "  features:\n"
+            "    - cv_system\n"
+            "  configs:\n"
+            "    - config/runtime/prompts.yaml\n"
+            "---\n\n"
             "# Configuration\n\n"
             "Each environment variable and config file has profile defaults, override rules, ownership, and repo_config guidance.\n"
         ),
         "docs/usage.md": (
+            "---\n"
+            "doc_id: usage\n"
+            "doc_type: operator-guide\n"
+            "explains:\n"
+            "  features:\n"
+            "    - cv_system\n"
+            "  stages:\n"
+            "    - cv_analysis\n"
+            "---\n\n"
             "# Usage\n\n"
             "Use the command entrypoint for the operator workflow, developer flow, and run loop.\n"
         ),
         "docs/pipeline.md": (
+            "---\n"
+            "doc_id: pipeline\n"
+            "doc_type: architecture-guide\n"
+            "explains:\n"
+            "  stages:\n"
+            "    - cv_analysis\n"
+            "---\n\n"
             "# Pipeline\n\n"
             "The stage workflow documents the processing flow, sequence, handoff, and step order.\n"
         ),
         "docs/architecture.md": (
+            "---\n"
+            "doc_id: architecture\n"
+            "doc_type: architecture-guide\n"
+            "explains:\n"
+            "  features:\n"
+            "    - cv_system\n"
+            "  stages:\n"
+            "    - cv_analysis\n"
+            "  components:\n"
+            "    - src/fitcv\n"
+            "---\n\n"
             "# Architecture\n\n"
             "The architecture captures each component boundary, integration point, information flow, and control flow.\n"
         ),
@@ -346,6 +391,44 @@ def test_validator_fails_when_required_doc_is_only_a_heading(tmp_path: Path) -> 
 
     assert process.returncode == 1
     assert "required doc must contain more than a heading" in process.stdout.lower()
+
+
+def test_validator_fails_when_managed_root_doc_frontmatter_is_missing(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    (repo_root / "docs" / "setup.md").write_text(
+        "# Setup\n\nInstall the dependencies, confirm tool versions, provision prerequisites, and bootstrap.\n",
+        encoding="utf-8",
+    )
+    process = run_validator(repo_root)
+
+    assert process.returncode == 1
+    assert "managed required root doc must include frontmatter metadata" in process.stdout.lower()
+
+
+def test_validator_fails_when_managed_root_doc_metadata_is_not_linked(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    (repo_root / "docs" / "configuration.md").write_text(
+        "---\n"
+        "doc_id: configuration\n"
+        "doc_type: operator-guide\n"
+        "explains:\n"
+        "  docs:\n"
+        "    - docs/configuration.md\n"
+        "---\n\n"
+        "# Configuration\n\n"
+        "Each environment variable and config file has profile defaults, override rules, ownership, and repo_config guidance.\n",
+        encoding="utf-8",
+    )
+    process = run_validator(repo_root)
+
+    assert process.returncode == 1
+    assert "configuration doc must explain one or more features or configs" in process.stdout.lower()
 
 
 def test_validator_accepts_rich_lineage_generated_shape(tmp_path: Path) -> None:

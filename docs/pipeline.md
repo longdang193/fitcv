@@ -1,3 +1,17 @@
+---
+doc_id: pipeline
+doc_type: architecture-guide
+explains:
+  stages:
+    - normalize
+    - enrich
+    - rule_filter
+    - shortlist
+    - ranking
+    - cv_analysis
+    - cv_generation
+---
+
 # Pipeline
 
 FitCV processes jobs through these ordered stages:
