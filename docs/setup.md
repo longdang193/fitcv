@@ -1,3 +1,14 @@
+---
+doc_id: setup
+doc_type: setup-guide
+explains:
+  features:
+    - trigger_run_management
+  stages:
+    - normalize
+    - enrich
+---
+
 # Setup
 
 Use [fitcv-control-plane-setup.md](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/fitcv-control-plane-setup.md) as the detailed runbook for local web, worker, Docker, credentials, and troubleshooting.

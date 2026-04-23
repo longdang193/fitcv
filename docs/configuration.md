@@ -1,3 +1,14 @@
+---
+doc_id: configuration
+doc_type: operator-guide
+explains:
+  features:
+    - settings_system
+  configs:
+    - repo_config/adoption-mode.yaml
+    - config/runtime/pipeline.yaml
+---
+
 # Configuration
 
 FitCV splits configuration ownership by purpose.

@@ -3,7 +3,7 @@ managed_architecture_metadata: true
 legacy_feature_contracts: false
 architecture_generator: scripts/sync_architecture_docs.py
 starter_sync:
-  starter_baseline_ref: a5d2d85b3174cde84f90df26642385b429e3c194
+  starter_baseline_ref: c102fe9d02575ca533d598696fd8ec9037d2bd3c
   last_shared_surface_review_at: 2026-04-23
   reviewed_surface_classes:
     - repo_config
@@ -49,6 +49,10 @@ starter_sync:
       class: validation_and_sync_scripts
       status: customized
       rationale: JOB-PROJECT now includes a starter-style repo-config validator layer, but the contract gate still keeps the additional local adoption-shape validator on top of that narrower starter check.
+    - path: scripts/validate_adoption_shape.py
+      class: validation_and_sync_scripts
+      status: customized
+      rationale: JOB-PROJECT syncs the starter managed-root-doc metadata contract while retaining repo-local checks for underscore feature IDs, `config/` surfaces, generated lineage evidence, and Windows validation paths.
     - path: scripts/sync_architecture_docs.py
       class: validation_and_sync_scripts
       status: customized

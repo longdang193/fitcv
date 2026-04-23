@@ -1,3 +1,14 @@
+---
+doc_id: usage
+doc_type: operator-guide
+explains:
+  features:
+    - trigger_run_management
+  stages:
+    - normalize
+    - cv_generation
+---
+
 # Usage
 
 FitCV supports two main usage modes: operator workflows and engineering workflows.

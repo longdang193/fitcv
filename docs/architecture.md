@@ -1,3 +1,18 @@
+---
+doc_id: architecture
+doc_type: architecture-guide
+explains:
+  features:
+    - cv_system
+    - inspection_debugging
+  stages:
+    - cv_analysis
+    - cv_generation
+  components:
+    - src/fitcv_cp
+    - src/fitcv
+---
+
 # Architecture
 
 FitCV combines an operator-facing control plane with a staged job-processing pipeline and a managed architecture-doc layer.
