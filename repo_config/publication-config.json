@@ -8,12 +8,17 @@
     "config",
     "data",
     "docker-compose.yml",
+    "docs/architecture.md",
+    "docs/configuration.md",
     "docs/features",
     "docs/generated/architecture_dag.yaml",
     "docs/generated/capability_lineage.yaml",
     "docs/FitCV-pipeline.md",
     "docs/fitcv-control-plane-setup.md",
+    "docs/pipeline.md",
+    "docs/setup.md",
     "docs/stages",
+    "docs/usage.md",
     "pyproject.toml",
     "requirements.txt",
     "scripts/bootstrap_bigquery.py",
@@ -40,10 +45,18 @@
   ],
   "requiredPaths": [
     "README.md",
+    "docs/architecture.md",
     "docs/FitCV-pipeline.md",
+    "docs/pipeline.md",
+    "docs/setup.md",
     "docs/fitcv-control-plane-setup.md",
-    "docs/features",
+    "docs/usage.md",
     "src"
+  ],
+  "omittedPublicPaths": [
+    "docs/features/*/history.md",
+    "docs/features/*/lineage.generated.yaml",
+    "docs/features/*/migration-checklist.md"
   ],
   "allowedGeneratedPaths": [
     "docs/generated/architecture_dag.yaml",

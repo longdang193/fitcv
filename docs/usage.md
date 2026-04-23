@@ -11,7 +11,8 @@ explains:
 
 # Usage
 
-FitCV supports two main usage modes: operator workflows and engineering workflows.
+FitCV supports two main public-facing usage modes: operator workflows and local
+developer workflows.
 
 ## Operator Workflow
 
@@ -21,16 +22,17 @@ FitCV supports two main usage modes: operator workflows and engineering workflow
 4. Inspect run health, stage progress, and downloadable artifacts.
 5. Review stage-owned diagnostics before acting on generated CV outputs.
 
-## Engineering Workflow
+## Local Developer Workflow
 
-1. Update code, settings, or lifecycle sources in the private repo.
-2. Refresh generated architecture docs with `python scripts/sync_architecture_docs.py` when feature or stage source files change.
-3. Run `python scripts/validate_adoption_shape.py` when working on Mode B lifecycle surfaces.
-4. Use the curated publication workflow only when public-safe code and docs are ready.
+1. Update code, settings, or docs in your working checkout.
+2. Run the web and worker services locally or with Docker.
+3. Use the generated architecture docs when you need a quick view of stages,
+   features, and capabilities.
+4. Run the relevant tests before sharing or deploying changes.
 
 ## Related Surfaces
 
-- [pipeline.md](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/pipeline.md)
-- [FitCV-pipeline.md](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/FitCV-pipeline.md)
-- [docs/generated/architecture_dag.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/architecture_dag.yaml)
-- [docs/generated/capability_lineage.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/capability_lineage.yaml)
+- [pipeline.md](pipeline.md)
+- [FitCV-pipeline.md](FitCV-pipeline.md)
+- [docs/generated/architecture_dag.yaml](generated/architecture_dag.yaml)
+- [docs/generated/capability_lineage.yaml](generated/capability_lineage.yaml)
