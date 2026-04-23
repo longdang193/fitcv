@@ -28,6 +28,12 @@ capability_refs:
 - inspection_debugging.synonym-overlay-inspection
 - pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
 - pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere
+- run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+- run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+- run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+- run_lifecycle_controls.stale-cancellation-repair-endpoint
+- run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+- run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
 - settings_system.preference-fit-calibration
 - settings_system.ranking-settings
 - trigger_run_management.candidate-profile-input-modes

@@ -27,6 +27,12 @@ capability_refs:
 - pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
 - pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors
 - pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
+- run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+- run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+- run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+- run_lifecycle_controls.stale-cancellation-repair-endpoint
+- run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+- run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
 - settings_system.retrieval-settings
 - trigger_run_management.candidate-profile-input-modes
 - trigger_run_management.decision-chain-outcomes

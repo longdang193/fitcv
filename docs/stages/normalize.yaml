@@ -12,6 +12,12 @@ capability_refs:
 - multi_file_job_input.multiple-file-inputs-in-trigger-form
 - multi_file_job_input.one-immutable-snapshot-stored-per-run
 - multi_file_job_input.per-file-server-side-validation
+- run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+- run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+- run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+- run_lifecycle_controls.stale-cancellation-repair-endpoint
+- run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+- run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
 - settings_system.baseline-default-hydration
 - settings_system.run-safety-settings
 - settings_system.trigger-time-effective-settings-snapshot

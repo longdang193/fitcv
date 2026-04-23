@@ -2,7 +2,27 @@
 
 <!-- GENERATED HISTORY START -->
 
-No completed implementation-plan metadata currently targets this feature.
+## 2026-04-23
+
+### Run Lifecycle Stage Participation Implementation Plan
+
+Source plan: `docs/superpowers/plans/2026-04-23-02-10-run-lifecycle-stage-participation-plan.md`
+
+Affected capabilities:
+- `run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs`
+- `run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue`
+- `run_lifecycle_controls.stale-cancellation-repair-endpoint`
+- `run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs`
+- `run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time`
+- `run_lifecycle_controls.full-audit-trail-in-pipeline-run-events`
+
+Verification:
+- `python scripts/sync_architecture_docs.py --check`
+- `python scripts/validate_adoption_shape.py`
+- `python scripts/validate_repo_contracts.py --fast`
+
+Outcome:
+Run lifecycle controls now declare supporting stage participation across runtime stages.
 
 <!-- GENERATED HISTORY END -->
 
