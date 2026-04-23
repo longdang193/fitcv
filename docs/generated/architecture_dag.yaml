@@ -1312,6 +1312,83 @@ edges:
 - from: run_lifecycle_controls
   to: run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
   type: owns_capability
+- from: run_lifecycle_controls
+  to: cv_analysis
+  type: participates_in
+  role: supporting
+  capability_ids:
+  - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+  - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.stale-cancellation-repair-endpoint
+  - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+  - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+- from: run_lifecycle_controls
+  to: cv_generation
+  type: participates_in
+  role: supporting
+  capability_ids:
+  - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+  - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.stale-cancellation-repair-endpoint
+  - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+  - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+- from: run_lifecycle_controls
+  to: enrich
+  type: participates_in
+  role: supporting
+  capability_ids:
+  - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+  - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.stale-cancellation-repair-endpoint
+  - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+  - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+- from: run_lifecycle_controls
+  to: normalize
+  type: participates_in
+  role: supporting
+  capability_ids:
+  - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+  - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.stale-cancellation-repair-endpoint
+  - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+  - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+- from: run_lifecycle_controls
+  to: ranking
+  type: participates_in
+  role: supporting
+  capability_ids:
+  - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+  - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.stale-cancellation-repair-endpoint
+  - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+  - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+- from: run_lifecycle_controls
+  to: rule_filter
+  type: participates_in
+  role: supporting
+  capability_ids:
+  - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+  - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.stale-cancellation-repair-endpoint
+  - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+  - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+- from: run_lifecycle_controls
+  to: shortlist
+  type: participates_in
+  role: supporting
+  capability_ids:
+  - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+  - run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+  - run_lifecycle_controls.stale-cancellation-repair-endpoint
+  - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+  - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
+  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
 - from: settings_system
   to: admin_control_plane_core
   type: depends_on

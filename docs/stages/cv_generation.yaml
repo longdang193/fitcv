@@ -30,6 +30,12 @@ capability_refs:
 - inspection_debugging.stage-artifact-downloads
 - inspection_debugging.stage-transition-diagnostics
 - inspection_debugging.synonym-overlay-inspection
+- run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
+- run_lifecycle_controls.direct-cancellation-of-paused-manual-runs-in-awaiting-continue
+- run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
+- run_lifecycle_controls.stale-cancellation-repair-endpoint
+- run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
+- run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
 - settings_system.cv-composition-visibility-settings
 - settings_system.cv-generation-settings
 - settings_system.settings-used-exports
