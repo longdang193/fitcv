@@ -15,7 +15,8 @@ explains:
 
 # Architecture
 
-FitCV combines an operator-facing control plane with a staged job-processing pipeline and a managed architecture-doc layer.
+FitCV combines an operator-facing control plane with a staged job-processing
+pipeline and a generated architecture-doc layer.
 
 ## Runtime Architecture
 
@@ -36,16 +37,10 @@ The main runtime boundary is between the operator-facing control-plane component
 - `docs/generated/architecture_dag.yaml` is the generated topology/discovery surface.
 - `docs/generated/capability_lineage.yaml` is the generated capability evidence summary.
 
-## Sync And Validation
+## Regeneration
 
 Refresh generated architecture docs with:
 
 ```powershell
 python scripts/sync_architecture_docs.py
-```
-
-Validate Mode B repo shape with:
-
-```powershell
-python scripts/validate_adoption_shape.py
 ```

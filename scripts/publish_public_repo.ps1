@@ -202,6 +202,26 @@ function Remove-PrivateAdapterFiles {
     }
 }
 
+function Remove-OmittedPublicPaths {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationRoot,
+        [Parameter(Mandatory = $true)]
+        [string[]]$Patterns
+    )
+
+    $files = Get-ChildItem -LiteralPath $DestinationRoot -Recurse -File -ErrorAction SilentlyContinue
+    foreach ($file in $files) {
+        $relativePath = [System.IO.Path]::GetRelativePath($DestinationRoot, $file.FullName).Replace('\', '/')
+        foreach ($pattern in $Patterns) {
+            if ($relativePath -like $pattern) {
+                Remove-Item -LiteralPath $file.FullName -Force
+                break
+            }
+        }
+    }
+}
+
 function Remove-PrivateReferenceLines {
     param(
         [Parameter(Mandatory = $true)]
@@ -251,6 +271,7 @@ $publicationConfig = Load-PublicationConfig -RepoRoot $repoRoot
 $publicPaths = @($publicationConfig.publicPaths)
 $forbiddenPaths = @($publicationConfig.forbiddenPaths)
 $requiredPaths = @($publicationConfig.requiredPaths)
+$omittedPublicPaths = @($publicationConfig.omittedPublicPaths)
 $allowedGeneratedPaths = @($publicationConfig.allowedGeneratedPaths)
 $scrubPrivateReferencePaths = @($publicationConfig.scrubPrivateReferencePaths)
 
@@ -287,6 +308,9 @@ Remove-UnlistedGeneratedDocs -DestinationRoot $ExportRoot -AllowedGeneratedPaths
 )
 
 Remove-PrivateAdapterFiles -DestinationRoot $ExportRoot
+Remove-OmittedPublicPaths -DestinationRoot $ExportRoot -Patterns @(
+    $omittedPublicPaths
+)
 
 foreach ($relativePath in $scrubPrivateReferencePaths) {
     Remove-PrivateReferenceLines -DestinationRoot $ExportRoot -RelativePath $relativePath

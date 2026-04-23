@@ -8,10 +8,10 @@ outputs that an operator can inspect, trust, and act on.
 This document is an explainer, not the editable stage contract. Canonical stage
 and feature truth lives in:
 
-- [docs/stages](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/stages)
-- [docs/features](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/features)
-- [architecture_dag.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/architecture_dag.yaml)
-- [capability_lineage.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/capability_lineage.yaml)
+- [docs/stages](stages/)
+- [docs/features](features/)
+- [architecture_dag.yaml](generated/architecture_dag.yaml)
+- [capability_lineage.yaml](generated/capability_lineage.yaml)
 
 ## End-to-End Flow
 
@@ -63,8 +63,8 @@ representation that later stages can reason about consistently.
 
 Canonical ownership:
 
-- stage contracts in [docs/stages](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/stages)
-- cross-stage feature ownership in [docs/features](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/features)
+- stage contracts in [docs/stages](stages/)
+- cross-stage feature ownership in [docs/features](features/)
 
 ### 2. Narrow The Candidate Set
 
@@ -76,9 +76,9 @@ with more expensive work reserved for better candidates.
 
 Canonical ownership:
 
-- [rule_filter.source.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/stages/rule_filter.source.yaml)
-- [shortlist.source.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/stages/shortlist.source.yaml)
-- [ranking.source.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/stages/ranking.source.yaml)
+- [rule_filter.source.yaml](stages/rule_filter.source.yaml)
+- [shortlist.source.yaml](stages/shortlist.source.yaml)
+- [ranking.source.yaml](stages/ranking.source.yaml)
 
 ### 3. Personalize Safely
 
@@ -91,9 +91,9 @@ owned evidence surfaces.
 
 Canonical ownership:
 
-- [cv_analysis.source.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/stages/cv_analysis.source.yaml)
-- [cv_generation.source.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/stages/cv_generation.source.yaml)
-- [cv_system feature source](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/features/cv_system/feature.source.yaml)
+- [cv_analysis.source.yaml](stages/cv_analysis.source.yaml)
+- [cv_generation.source.yaml](stages/cv_generation.source.yaml)
+- [cv_system feature source](features/cv_system/feature.source.yaml)
 
 ### 4. Operate And Inspect
 
@@ -105,9 +105,9 @@ batch job.
 
 Canonical ownership:
 
-- [trigger_run_management feature source](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/features/trigger_run_management/feature.source.yaml)
-- [inspection_debugging feature source](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/features/inspection_debugging/feature.source.yaml)
-- [run_lifecycle_controls feature source](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/features/run_lifecycle_controls/feature.source.yaml)
+- [trigger_run_management feature source](features/trigger_run_management/feature.source.yaml)
+- [inspection_debugging feature source](features/inspection_debugging/feature.source.yaml)
+- [run_lifecycle_controls feature source](features/run_lifecycle_controls/feature.source.yaml)
 
 ## Execution Modes
 
@@ -139,8 +139,8 @@ where each kind of truth belongs.
 
 For the current generated view of the architecture and evidence graph, use:
 
-- [architecture_dag.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/architecture_dag.yaml)
-- [capability_lineage.yaml](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/JOB-PROJECT/docs/generated/capability_lineage.yaml)
+- [architecture_dag.yaml](generated/architecture_dag.yaml)
+- [capability_lineage.yaml](generated/capability_lineage.yaml)
 
 ## Why The Staged Model Matters
 
