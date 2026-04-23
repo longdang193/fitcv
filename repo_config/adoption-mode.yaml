@@ -3,7 +3,7 @@ managed_architecture_metadata: true
 legacy_feature_contracts: false
 architecture_generator: scripts/sync_architecture_docs.py
 starter_sync:
-  starter_baseline_ref: c102fe9d02575ca533d598696fd8ec9037d2bd3c
+  starter_baseline_ref: 362289dea72510f0dc570120a818d6920f0fd795
   last_shared_surface_review_at: 2026-04-23
   reviewed_surface_classes:
     - repo_config
@@ -16,7 +16,7 @@ starter_sync:
     - path: repo_config/agent-adapter-mappings.json
       class: repo_config
       status: customized
-      rationale: This repo publishes generated rules under `codex/` and includes repo-local `src/fitcv*` adapter outputs.
+      rationale: This repo publishes generated rules under `codex/` and includes the repo-local `src/fitcv/AGENTS.md` adapter output while intentionally omitting stale nested control-plane mappings.
     - path: repo_config/publication-config.json
       class: repo_config
       status: customized
@@ -44,7 +44,7 @@ starter_sync:
     - path: AGENTS.md
       class: generated_instruction_surfaces
       status: customized
-      rationale: The generated repo instruction surface stays aligned to starter structure but retains repo-local path truths such as `config/` and `codex/rules/`.
+      rationale: The generated repo instruction surface adopts applicable starter guidance while retaining repo-local path truths such as `config/`, `codex/rules/`, and advisory-only GitNexus usage.
     - path: scripts/validate_repo_contracts.py
       class: validation_and_sync_scripts
       status: customized

@@ -431,6 +431,77 @@ def test_validator_fails_when_managed_root_doc_metadata_is_not_linked(tmp_path: 
     assert "configuration doc must explain one or more features or configs" in process.stdout.lower()
 
 
+def test_validator_fails_when_optional_root_doc_metadata_is_not_mapping(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    (repo_root / "docs" / "dataset.md").write_text(
+        "---\n"
+        "doc_id: dataset\n"
+        "doc_type: dataset-guide\n"
+        "explains: not-a-mapping\n"
+        "---\n\n"
+        "# Dataset\n\n"
+        "Dataset sources, schemas, and provenance guidance.\n",
+        encoding="utf-8",
+    )
+    process = run_validator(repo_root)
+
+    assert process.returncode == 1
+    assert "docs/dataset.md" in process.stdout
+    assert "managed optional root doc must declare explains metadata" in process.stdout.lower()
+
+
+def test_validator_fails_when_optional_root_doc_missing_required_links(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    (repo_root / "docs" / "api.md").write_text(
+        "---\n"
+        "doc_id: api\n"
+        "doc_type: api-guide\n"
+        "explains:\n"
+        "  docs:\n"
+        "    - docs/api.md\n"
+        "---\n\n"
+        "# API\n\n"
+        "API commands and endpoint component guidance.\n",
+        encoding="utf-8",
+    )
+    process = run_validator(repo_root)
+
+    assert process.returncode == 1
+    assert "docs/api.md" in process.stdout
+    assert "api doc must explain one or more features, capabilities, or components" in process.stdout.lower()
+
+
+def test_validator_fails_when_optional_root_doc_frontmatter_is_not_at_first_byte(tmp_path: Path) -> None:
+    repo_root = build_repo(tmp_path)
+    sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
+
+    assert sync_module.main(["--repo-root", str(repo_root)]) == 0
+    (repo_root / "docs" / "testing.md").write_text(
+        "\n"
+        "---\n"
+        "doc_id: testing\n"
+        "doc_type: testing-guide\n"
+        "explains:\n"
+        "  features:\n"
+        "    - cv_system\n"
+        "---\n\n"
+        "# Testing\n\n"
+        "Testing guidance describes validation stages and verification flow.\n",
+        encoding="utf-8",
+    )
+    process = run_validator(repo_root)
+
+    assert process.returncode == 1
+    assert "docs/testing.md" in process.stdout
+    assert "frontmatter must start at the first byte" in process.stdout.lower()
+
+
 def test_validator_accepts_rich_lineage_generated_shape(tmp_path: Path) -> None:
     repo_root = build_repo(tmp_path)
     sync_module = load_module(SYNC_SCRIPT_PATH, "sync_architecture_docs")
