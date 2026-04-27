@@ -62,6 +62,8 @@ from copy import deepcopy
 from typing import Any, Callable
 
 from fitcv.ai_score import build_ai_score_input_fingerprint, run_ai_scoring
+from fitcv.agentic_cv_analysis import analyze_ranked_job as run_agentic_cv_analysis
+from fitcv.agentic_cv_generation import generate_from_analysis as run_agentic_cv_generation
 from fitcv.candidate import (
     flatten_skills,
     infer_effective_preferences,
@@ -1114,6 +1116,14 @@ def _cv_generation_enabled_sections(config: dict[str, Any]) -> list[str]:
     return enabled_sections
 
 
+def _agentic_late_stage_enabled(config: dict[str, Any]) -> bool:
+    cv_block = config.get("cv") or {}
+    late_stage_block = cv_block.get("agentic_late_stage") or {}
+    if isinstance(late_stage_block, dict):
+        return bool(late_stage_block.get("enabled", False))
+    return False
+
+
 def _build_validation_grounding_payload(
     *,
     evidence_payload: list[dict[str, Any]],
@@ -1342,6 +1352,8 @@ def _build_cv_analysis_record(
     gap_summary: dict[str, Any] | None,
     fit_classification: str | None,
     error: dict[str, str] | None,
+    pre_writing_decision: dict[str, Any] | None = None,
+    readiness_diagnostics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     ranking_fit_label = str(fit_classification or "").strip() or None
     ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
@@ -1375,6 +1387,8 @@ def _build_cv_analysis_record(
         "evidence_used": evidence_used,
         "evidence_selection_summary": dict(evidence_selection_summary or {}),
         "gap_summary": gap_summary,
+        "pre_writing_decision": dict(pre_writing_decision or {}),
+        "readiness_diagnostics": dict(readiness_diagnostics or {}),
         # Reranker blocks and fit-gate skips are expected analysis outcomes, not runtime errors.
         "outcome_reason": error if status in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
         "error": error if status not in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
@@ -1680,6 +1694,8 @@ def _analysis_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | N
         "evidence_used": record.get("evidence_used"),
         "evidence_selection_summary": record.get("evidence_selection_summary"),
         "gap_summary": record.get("gap_summary"),
+        "pre_writing_decision": record.get("pre_writing_decision"),
+        "readiness_diagnostics": record.get("readiness_diagnostics"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "", [])}
 
@@ -1702,6 +1718,8 @@ def _analysis_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | 
         "evidence_used": record.get("evidence_used"),
         "evidence_selection_summary": record.get("evidence_selection_summary"),
         "gap_summary": record.get("gap_summary"),
+        "pre_writing_decision": record.get("pre_writing_decision"),
+        "readiness_diagnostics": record.get("readiness_diagnostics"),
         "outcome_reason": record.get("outcome_reason") or record.get("error"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "", [])}
@@ -2953,6 +2971,7 @@ def run_pipeline(
     cv_prompt_template_path_value = cv_generation_prompt_runtime["template_path"]
     cv_prompt_version_value = get_cv_generation_prompt_version(config)
     enabled_cv_sections = _cv_generation_enabled_sections(config)
+    agentic_late_stage_enabled = _agentic_late_stage_enabled(config)
     if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("cv_analysis"):
         if cancellation_check and cancellation_check():
             raise PipelineCancelled("Cancelled before CV analysis")
@@ -3051,6 +3070,36 @@ def run_pipeline(
             gap: dict[str, Any] | None = None
             fit = "skip"
             try:
+                if agentic_late_stage_enabled:
+                    analysis_record = dict(run_agentic_cv_analysis(job, profile, config))
+                    cv_analysis_results.append(analysis_record)
+                    evidence = list(analysis_record.get("evidence_payload") or [])
+                    evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
+                    gap = analysis_record.get("gap_summary")
+                    fit = str(analysis_record.get("fit_classification") or fit)
+                    if str(analysis_record.get("status") or "") != "ready_for_generation":
+                        cv_generation_debug_records.append(
+                            _build_cv_generation_debug_record(
+                                job=job,
+                                status=str(analysis_record.get("status") or "analysis_failed"),
+                                fit_classification=fit,
+                                evidence_used=analysis_record["evidence_used"],
+                                evidence_selection_summary=analysis_record.get("evidence_selection_summary"),
+                                analysis_input_summary=_build_cv_generation_analysis_input_summary(job),
+                                gap_summary=gap,
+                                structured_cv_initial=None,
+                                validation_initial=None,
+                                repair_attempt=dict(_EMPTY_REPAIR_ATTEMPT),
+                                structured_cv_final=None,
+                                markdown_final=None,
+                                enabled_sections=enabled_cv_sections,
+                                cv_generation_model=cv_generation_model_value,
+                                cv_prompt_id=cv_prompt_id_value,
+                                cv_prompt_template_path=cv_prompt_template_path_value,
+                                error=analysis_record.get("outcome_reason") or analysis_record["error"],
+                            )
+                        )
+                    continue
                 evidence_top_k = int(config["pipeline"]["evidence_top_k"])
                 evidence_bundle = retrieve_evidence_bundle(
                     profile,
@@ -3276,53 +3325,58 @@ def run_pipeline(
         structured_cv_final: dict[str, Any] | None = None
         markdown_final: str | None = None
         try:
-            generated_cv = generate_cv(
-                job,
-                evidence,
-                gap,
-                profile,
-                config,
-                fit_classification=fit,
-                evidence_selection_summary=evidence_selection_summary,
-            )
-            structured_cv, cv = _unwrap_generated_cv(generated_cv)
-            structured_cv_initial = structured_cv
-            validation = run_all_validations(
-                cv,
-                profile,
-                config,
-                structured_cv=structured_cv,
-                analysis_grounding=analysis_grounding,
-            )
-            validation_initial = _build_validation_snapshot(validation)
-            if not validation["valid"] and _should_repair_candidate_name_placeholder(validation, structured_cv, profile):
-                repair_attempt = _build_candidate_name_repair_attempt()
-                logger.info(
-                    "[run_id=%s] Repairing candidate-name placeholder for %s",
-                    run_id,
-                    job.get("job_url"),
+            if agentic_late_stage_enabled:
+                agentic_generation_result = run_agentic_cv_generation(
+                    analysis_record=analysis_record,
+                    profile=profile,
+                    config=config,
                 )
-                structured_cv, cv = _repair_candidate_name_placeholder(
-                    structured_cv,
-                    profile,
-                    config,
-                )
-                validation = run_all_validations(
-                    cv,
-                    profile,
-                    config,
-                    structured_cv=structured_cv,
-                    analysis_grounding=analysis_grounding,
-                )
-            if not validation["valid"] and _should_retry_missing_sections(validation):
-                missing_sections = list(validation.get("missing_sections") or [])
-                repair_attempt = _build_repair_attempt(missing_sections)
-                logger.info(
-                    "[run_id=%s] Retrying CV for %s with missing sections: %s",
-                    run_id,
-                    job.get("job_url"),
-                    missing_sections,
-                )
+                fit = str(agentic_generation_result["fit_classification"] or fit)
+                analysis_input_summary = dict(agentic_generation_result["analysis_input_summary"])
+                evidence_used = list(agentic_generation_result["evidence_used"])
+                evidence_selection_summary = dict(agentic_generation_result["evidence_selection_summary"])
+                gap = agentic_generation_result["gap_summary"]
+                structured_cv_initial = agentic_generation_result["structured_cv_initial"]
+                raw_validation_initial = agentic_generation_result["validation_initial"]
+                validation_initial = dict(raw_validation_initial) if raw_validation_initial is not None else None
+                repair_attempt = dict(agentic_generation_result["repair_attempt"])
+                structured_cv_final = agentic_generation_result["structured_cv_final"]
+                markdown_final = agentic_generation_result["markdown_final"]
+                if agentic_generation_result["status"] != "accepted":
+                    generation_error = agentic_generation_result["error"]
+                    cv_generation_debug_records.append(
+                        _build_cv_generation_debug_record(
+                            job=job,
+                            status=agentic_generation_result["status"],
+                            fit_classification=fit,
+                            evidence_used=evidence_used,
+                            evidence_selection_summary=evidence_selection_summary,
+                            analysis_input_summary=analysis_input_summary,
+                            gap_summary=gap,
+                            structured_cv_initial=structured_cv_initial,
+                            validation_initial=validation_initial,
+                            repair_attempt=repair_attempt,
+                            structured_cv_final=structured_cv_final,
+                            markdown_final=markdown_final,
+                            enabled_sections=enabled_cv_sections,
+                            cv_generation_model=cv_generation_model_value,
+                            cv_prompt_id=cv_prompt_id_value,
+                            cv_prompt_template_path=cv_prompt_template_path_value,
+                            error=(
+                                {
+                                    "stage": str(generation_error["stage"]),
+                                    "message": str(generation_error["message"]),
+                                }
+                                if generation_error is not None
+                                else None
+                            ),
+                        )
+                    )
+                    continue
+                structured_cv = structured_cv_final
+                cv = str(markdown_final or "")
+                validation: dict[str, Any] = {"valid": True, "missing_sections": []}
+            else:
                 generated_cv = generate_cv(
                     job,
                     evidence,
@@ -3331,9 +3385,9 @@ def run_pipeline(
                     config,
                     fit_classification=fit,
                     evidence_selection_summary=evidence_selection_summary,
-                    repair_missing_sections=missing_sections,
                 )
                 structured_cv, cv = _unwrap_generated_cv(generated_cv)
+                structured_cv_initial = structured_cv
                 validation = run_all_validations(
                     cv,
                     profile,
@@ -3341,8 +3395,56 @@ def run_pipeline(
                     structured_cv=structured_cv,
                     analysis_grounding=analysis_grounding,
                 )
+                validation_initial = _build_validation_snapshot(validation)
+                if not validation["valid"] and _should_repair_candidate_name_placeholder(validation, structured_cv, profile):
+                    assert structured_cv is not None
+                    repair_attempt = _build_candidate_name_repair_attempt()
+                    logger.info(
+                        "[run_id=%s] Repairing candidate-name placeholder for %s",
+                        run_id,
+                        job.get("job_url"),
+                    )
+                    structured_cv, cv = _repair_candidate_name_placeholder(
+                        structured_cv,
+                        profile,
+                        config,
+                    )
+                    validation = run_all_validations(
+                        cv,
+                        profile,
+                        config,
+                        structured_cv=structured_cv,
+                        analysis_grounding=analysis_grounding,
+                    )
+                if not validation["valid"] and _should_retry_missing_sections(validation):
+                    missing_sections: list[str] = list(validation.get("missing_sections") or [])
+                    repair_attempt = _build_repair_attempt(missing_sections)
+                    logger.info(
+                        "[run_id=%s] Retrying CV for %s with missing sections: %s",
+                        run_id,
+                        job.get("job_url"),
+                        missing_sections,
+                    )
+                    generated_cv = generate_cv(
+                        job,
+                        evidence,
+                        gap,
+                        profile,
+                        config,
+                        fit_classification=fit,
+                        evidence_selection_summary=evidence_selection_summary,
+                        repair_missing_sections=missing_sections,
+                    )
+                    structured_cv, cv = _unwrap_generated_cv(generated_cv)
+                    validation = run_all_validations(
+                        cv,
+                        profile,
+                        config,
+                        structured_cv=structured_cv,
+                        analysis_grounding=analysis_grounding,
+                    )
             if not validation["valid"]:
-                failure_details = {
+                failure_details: dict[str, Any] = {
                     "missing_sections": validation.get("missing_sections") or [],
                     "grounding_violations": validation.get("grounding_violations") or [],
                     "deterministic_grounding_violations": validation.get("deterministic_grounding_violations") or [],
@@ -3397,7 +3499,7 @@ def run_pipeline(
                 evidence_ids=[str(e.get("evidence_id") or "") for e in evidence],
                 prompt_version=cv_prompt_version_value,
                 cv_markdown=cv,
-                gap_summary=gap,
+                gap_summary=gap or {},
                 fit_classification=fit,
                 cv_structured=structured_cv,
                 cv_generation_model=cv_generation_model_value,
