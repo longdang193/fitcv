@@ -58,6 +58,11 @@ def _is_concurrent_pipeline_runs_update_error(exc: Exception) -> bool:
     )
 
 
+def _is_unrecognized_column_error(exc: Exception, column_name: str) -> bool:
+    message = str(exc).lower()
+    return "unrecognized name:" in message and column_name.lower() in message
+
+
 def _execute_query_with_pipeline_runs_retry(
     bq: Any,
     sql: str,
@@ -457,7 +462,7 @@ def update_run_synonym_proposals(
     *,
     project: str,
     dataset: str,
-) -> None:
+) -> dict[str, str]:
     """Persist the mutable run-scoped synonym proposal review snapshot."""
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
@@ -471,7 +476,21 @@ def update_run_synonym_proposals(
             bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
         ]
     )
-    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+    try:
+        _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+        return {"persistence_status": "persisted", "degradation_reason": ""}
+    except Exception as exc:
+        if not _is_unrecognized_column_error(exc, "synonym_proposals_json"):
+            raise
+        logger.warning(
+            "pipeline_runs.synonym_proposals_json missing in live schema; "
+            "skipping synonym proposal snapshot persistence until migration is applied: %s",
+            exc,
+        )
+        return {
+            "persistence_status": "bundle_only_degraded",
+            "degradation_reason": "missing_synonym_proposals_json_column",
+        }
 
 
 def update_run_effective_settings(

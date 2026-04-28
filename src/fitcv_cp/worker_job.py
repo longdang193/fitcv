@@ -116,6 +116,29 @@ def _snapshot_persist_failed_event(run_id: str, snapshot_name: str, message: str
     )
 
 
+def _config_agentic_late_stage_enabled(config: dict[str, Any] | None) -> bool:
+    cv_block = dict((config or {}).get("cv") or {})
+    late_stage_block = dict(cv_block.get("agentic_late_stage") or {})
+    return bool(late_stage_block.get("enabled"))
+
+
+def _build_late_stage_mode_payload(
+    *,
+    summary: dict[str, Any],
+    effective_config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    existing_payload = summary.get("late_stage_mode")
+    if isinstance(existing_payload, dict):
+        return dict(existing_payload)
+    agentic_enabled = _config_agentic_late_stage_enabled(effective_config)
+    return {
+        "late_stage_mode": "agentic" if agentic_enabled else "non_agentic",
+        "agentic_late_stage_enabled": agentic_enabled,
+        "mode_source": "cv.agentic_late_stage.enabled",
+        "agentic_status": "completed" if agentic_enabled else "not_applicable",
+    }
+
+
 def _build_results_export_payload(
     *,
     run_id: str,
@@ -173,6 +196,7 @@ def _build_results_export_payload(
             "ranked": int(summary.get("ranked", 0)),
             "cvs_generated": int(summary.get("cvs_generated", 0)),
         },
+        "late_stage_mode": _build_late_stage_mode_payload(summary=summary),
         "results": _json_safe(export_results),
     }
     if diagnostic_support["late_stage_reuse_snapshots"]:
@@ -369,6 +393,10 @@ def _build_settings_used_payload(
         "run_id": run_id,
         "settings_schema_version": "settings_used_v2",
         "created_at": finished_at.isoformat(),
+        "late_stage_mode": _build_late_stage_mode_payload(
+            summary={},
+            effective_config=effective_config,
+        ),
         "effective_settings": effective_settings,
         "sources": {
             "config_path": str(config_path or getattr(run_record, "config_path", "") or ""),
@@ -522,6 +550,8 @@ def _build_synonym_proposals_payload(
         "run_id": run_id,
         "synonym_proposals_schema_version": "synonym_proposals_v1",
         "created_at": created_at.isoformat(),
+        "proposal_generation_status": "generated" if proposals else "not_applicable",
+        "persistence_status": "persisted" if proposals else "not_applicable",
         "proposals": proposals,
     }
     return json.dumps(payload, ensure_ascii=False)

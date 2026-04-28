@@ -2179,8 +2179,10 @@ def test_download_run_artifact_bundle_zip_endpoint_for_partial_run() -> None:
     assert manifest["bundle_schema_version"] == "run_artifact_bundle_v2"
     assert manifest["run_mode"] == "manual_staged"
     assert manifest["run_mode_label"] == "Stage by Stage"
+    assert manifest["late_stage_mode"]["late_stage_mode"] == "non_agentic"
     assert "normalize.json" in manifest["included_files"]
     assert "mapping-suggestions.json" in manifest["missing_files"]
+    assert manifest["artifact_states"]["mapping-suggestions.json"] == "not_applicable"
 
 
 def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
@@ -2204,8 +2206,9 @@ def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
         completed_stages=["normalize", "enrich"],
         results_export_json='{"run_id":"run-bundle-success-1","results":[]}',
         cv_generation_debug_json='{"run_id":"run-bundle-success-1","debug_records":[]}',
-        settings_used_json='{"run_id":"run-bundle-success-1","effective_settings":{"pipeline":{"final_top_n":10}}}',
+        settings_used_json='{"run_id":"run-bundle-success-1","late_stage_mode":{"late_stage_mode":"non_agentic","agentic_late_stage_enabled":false,"mode_source":"cv.agentic_late_stage.enabled","agentic_status":"not_applicable"},"effective_settings":{"pipeline":{"final_top_n":10}}}',
         mapping_suggestions_json='{"run_id":"run-bundle-success-1","suggestions":[]}',
+        synonym_proposals_json='{"run_id":"run-bundle-success-1","proposal_generation_status":"generated","persistence_status":"bundle_only_degraded","proposals":[]}',
         stage_transition_artifacts_json=json.dumps(
             {
                 "run_id": "run-bundle-success-1",
@@ -2243,12 +2246,15 @@ def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
         assert "cv_analysis.json" in names
         assert "cv_generation.json" in names
         assert "mapping-suggestions.json" in names
+        assert "synonym-proposals.json" in names
         manifest = json.loads(archive.read("manifest.json"))
     assert manifest["run_id"] == "run-bundle-success-1"
     assert manifest["bundle_schema_version"] == "run_artifact_bundle_v2"
     assert manifest["run_mode"] == "run_all"
     assert manifest["run_mode_label"] == "Run All"
+    assert manifest["late_stage_mode"]["late_stage_mode"] == "non_agentic"
     assert "results.json" in manifest["included_files"]
+    assert manifest["artifact_states"]["synonym-proposals.json"] == "present"
     assert manifest["missing_files"] == []
 
 
@@ -2991,13 +2997,23 @@ def test_grouped_save_audit_identity_encoded_in_updated_by():
 
 # ── POST /admin/settings/section/{section_name} ───────────────────────────────
 
-def _retrieval_section_form(
+def _retrieval_core_section_form(
     *,
     vector_search_top_n: str = "100",
     ai_score_top_n: str = "20",
     final_top_n: str = "10",
     evidence_top_k: str = "5",
-    semantic_alignment_enabled: str = "true",
+) -> dict[str, str]:
+    return {
+        "pipeline.vector_search_top_n": vector_search_top_n,
+        "pipeline.ai_score_top_n": ai_score_top_n,
+        "pipeline.final_top_n": final_top_n,
+        "pipeline.evidence_top_k": evidence_top_k,
+    }
+
+
+def _retrieval_advanced_section_form(
+    *,
     semantic_alignment_model: str = "text-embedding-005",
     required_skill_lexical_weight: str = "0.70",
     required_skill_semantic_weight: str = "0.30",
@@ -3010,11 +3026,44 @@ def _retrieval_section_form(
     channel_pool_size: str = "4",
 ) -> dict[str, str]:
     return {
-        "pipeline.vector_search_top_n": vector_search_top_n,
-        "pipeline.ai_score_top_n": ai_score_top_n,
-        "pipeline.final_top_n": final_top_n,
-        "pipeline.evidence_top_k": evidence_top_k,
+        "cv_analysis.semantic_alignment.model": semantic_alignment_model,
+        "cv_analysis.semantic_alignment.required_skill_lexical_weight": required_skill_lexical_weight,
+        "cv_analysis.semantic_alignment.required_skill_semantic_weight": required_skill_semantic_weight,
+        "cv_analysis.semantic_alignment.role_lexical_weight": role_lexical_weight,
+        "cv_analysis.semantic_alignment.role_semantic_weight": role_semantic_weight,
+        "cv_analysis.semantic_alignment.responsibility_lexical_weight": responsibility_lexical_weight,
+        "cv_analysis.semantic_alignment.responsibility_semantic_weight": responsibility_semantic_weight,
+        "cv_analysis.semantic_alignment.domain_lexical_weight": domain_lexical_weight,
+        "cv_analysis.semantic_alignment.domain_semantic_weight": domain_semantic_weight,
+        "cv_analysis.semantic_alignment.channel_pool_size": channel_pool_size,
+    }
+
+
+def _agentic_core_section_form(
+    *,
+    agentic_late_stage_enabled: str = "true",
+    semantic_alignment_enabled: str = "true",
+) -> dict[str, str]:
+    return {
+        "cv.agentic_late_stage.enabled": agentic_late_stage_enabled,
         "cv_analysis.semantic_alignment.enabled": semantic_alignment_enabled,
+    }
+
+
+def _agentic_advanced_section_form(
+    *,
+    semantic_alignment_model: str = "text-embedding-005",
+    required_skill_lexical_weight: str = "0.70",
+    required_skill_semantic_weight: str = "0.30",
+    role_lexical_weight: str = "0.60",
+    role_semantic_weight: str = "0.40",
+    responsibility_lexical_weight: str = "0.25",
+    responsibility_semantic_weight: str = "0.75",
+    domain_lexical_weight: str = "0.40",
+    domain_semantic_weight: str = "0.60",
+    channel_pool_size: str = "4",
+) -> dict[str, str]:
+    return {
         "cv_analysis.semantic_alignment.model": semantic_alignment_model,
         "cv_analysis.semantic_alignment.required_skill_lexical_weight": required_skill_lexical_weight,
         "cv_analysis.semantic_alignment.required_skill_semantic_weight": required_skill_semantic_weight,
@@ -3029,15 +3078,154 @@ def _retrieval_section_form(
 
 
 def test_post_settings_section_valid_redirects():
-    """Valid payload for retrieval section returns 303."""
+    """Valid payload for retrieval core section returns 303."""
     with patch("fitcv_cp.app.save_settings_group"), \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app(), follow_redirects=False).post(
-            "/admin/settings/section/retrieval",
-            data=_retrieval_section_form(),
+            "/admin/settings/section/retrieval-core",
+            data=_retrieval_core_section_form(),
         )
     assert resp.status_code == 303
     assert resp.headers["location"] == "/admin/settings"
+
+
+def test_post_settings_section_advanced_retrieval_valid_redirects():
+    """Valid payload for advanced retrieval section returns 303."""
+    with patch("fitcv_cp.app.save_settings_group"), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/retrieval-advanced",
+            data=_retrieval_advanced_section_form(),
+        )
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/admin/settings"
+
+
+def test_post_settings_section_advanced_retrieval_valid_redirects_without_metadata_only_input() -> None:
+    """Advanced retrieval form should save without posting the metadata-only model field."""
+    captured = {}
+
+    def _capture_save(values, *, updated_by, bq, project, dataset):
+        captured["values"] = values
+
+    form_data = _retrieval_advanced_section_form()
+    del form_data["cv_analysis.semantic_alignment.model"]
+
+    with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/retrieval-advanced",
+            data=form_data,
+        )
+    assert resp.status_code == 303
+    assert "cv_analysis.semantic_alignment.model" not in captured["values"]
+    assert "cv_analysis.semantic_alignment.role_semantic_weight" in captured["values"]
+
+
+def test_post_settings_section_agentic_core_valid_redirects() -> None:
+    captured = {}
+
+    def _capture_save(values, *, updated_by, bq, project, dataset):
+        captured["values"] = values
+
+    with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/agentic-core",
+            data=_agentic_core_section_form(),
+        )
+
+    assert resp.status_code == 303
+    assert captured["values"] == {
+        "cv.agentic_late_stage.enabled": True,
+        "cv_analysis.semantic_alignment.enabled": True,
+    }
+
+
+def test_post_settings_section_agentic_advanced_omits_metadata_only_input() -> None:
+    captured = {}
+
+    def _capture_save(values, *, updated_by, bq, project, dataset):
+        captured["values"] = values
+
+    form_data = _agentic_advanced_section_form()
+    del form_data["cv_analysis.semantic_alignment.model"]
+
+    with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/agentic-advanced",
+            data=form_data,
+        )
+
+    assert resp.status_code == 303
+    assert "cv_analysis.semantic_alignment.model" not in captured["values"]
+    assert "cv_analysis.semantic_alignment.role_semantic_weight" in captured["values"]
+
+
+def test_post_settings_section_agentic_core_preserves_current_vs_draft_feedback() -> None:
+    active = {"cv.agentic_late_stage.enabled": False}
+
+    with patch("fitcv_cp.app.load_active_settings", return_value=active):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/agentic-core",
+            data=_agentic_core_section_form(semantic_alignment_enabled="not-a-bool"),
+        )
+
+    assert resp.status_code == 422
+    html = resp.text
+    assert 'data-task-section="agentic"' in html
+    assert 'class="settings-field-row is-dirty"' in html
+    assert "1 unsaved edit" in html
+    assert "Current:" in html
+    assert "No" in html
+
+
+def test_post_settings_section_agentic_advanced_typed_equivalent_values_are_not_marked_dirty() -> None:
+    active = {
+        "cv_analysis.semantic_alignment.required_skill_lexical_weight": 0.7,
+        "cv_analysis.semantic_alignment.required_skill_semantic_weight": 0.3,
+        "cv_analysis.semantic_alignment.role_lexical_weight": 0.6,
+        "cv_analysis.semantic_alignment.role_semantic_weight": 0.4,
+        "cv_analysis.semantic_alignment.responsibility_lexical_weight": 0.25,
+        "cv_analysis.semantic_alignment.responsibility_semantic_weight": 0.75,
+        "cv_analysis.semantic_alignment.domain_lexical_weight": 0.4,
+        "cv_analysis.semantic_alignment.domain_semantic_weight": 0.6,
+        "cv_analysis.semantic_alignment.channel_pool_size": 4,
+    }
+
+    with patch("fitcv_cp.app.load_active_settings", return_value=active):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/agentic-advanced",
+            data=_agentic_advanced_section_form(role_semantic_weight="0.10"),
+        )
+
+    assert resp.status_code == 422
+    html = resp.text
+    assert 'data-task-section="agentic"' in html
+    assert 'data-entry-key="cv_analysis.semantic_alignment.required_skill_lexical_weight"' in html
+    assert 'data-entry-key="cv_analysis.semantic_alignment.required_skill_lexical_weight" data-dirty="true"' not in html
+    assert 'data-entry-key="cv_analysis.semantic_alignment.role_semantic_weight" data-dirty="true"' in html
+    assert "1 unsaved edit" in html
+
+
+def test_post_settings_key_rejects_metadata_only_agentic_setting() -> None:
+    resp = TestClient(_app()).post(
+        "/settings/cv_analysis.semantic_alignment.model",
+        json={"value": "text-embedding-005", "updated_by": "admin"},
+    )
+    assert resp.status_code == 422
+    assert "metadata-only" in resp.json()["detail"]
+
+
+def test_admin_post_settings_key_rejects_metadata_only_agentic_setting() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/cv_analysis.semantic_alignment.model",
+            data={"value": "text-embedding-005"},
+        )
+    assert resp.status_code == 422
+    assert "metadata-only" in resp.text
 
 
 def test_post_settings_section_unknown_returns_404():
@@ -3053,10 +3241,20 @@ def test_post_settings_section_unknown_returns_404():
 def test_post_settings_section_invalid_value_returns_422():
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app(), follow_redirects=False).post(
-            "/admin/settings/section/retrieval",
-            data=_retrieval_section_form(vector_search_top_n="not-a-number"),
+            "/admin/settings/section/retrieval-core",
+            data=_retrieval_core_section_form(vector_search_top_n="not-a-number"),
         )
     assert resp.status_code == 422
+
+
+def test_post_settings_section_advanced_retrieval_opens_details_on_validation_error():
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/settings/section/retrieval-advanced",
+            data=_retrieval_advanced_section_form(role_semantic_weight="0.10"),
+        )
+    assert resp.status_code == 422
+    assert '<details class="settings-advanced-details" open>' in resp.text
 
 
 def test_post_settings_section_rule_filter_uses_list_values() -> None:
@@ -4984,10 +5182,56 @@ def test_settings_page_uses_advanced_disclosure_for_expert_controls() -> None:
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert "Advanced Retrieval Tuning" in html
+    assert "Advanced Agentic Tuning" in html
     assert "Advanced Runtime Tuning" in html
+    assert "Semantic channel weights and pool sizing" in html
     assert "Timing and throttling controls" in html
     assert "<details" in html
+    assert 'name="cv_analysis.semantic_alignment.required_skill_lexical_weight"' in html
+    assert 'name="cv_analysis.semantic_alignment.role_semantic_weight"' in html
+
+
+def test_settings_page_renders_dedicated_agentic_section() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'data-task-section="agentic"' in html
+    assert "Agentic" in html
+    assert "Agentic Controls" in html
+    assert "Advanced Agentic Tuning" in html
+    assert 'action="/admin/settings/section/agentic-core"' in html
+    assert 'action="/admin/settings/section/agentic-advanced"' in html
+
+
+def test_settings_page_agentic_controls_hide_setup_only_and_metadata_only_inputs() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'name="cv.agentic_late_stage.enabled"' in html
+    assert 'name="cv_analysis.semantic_alignment.enabled"' in html
+    assert 'name="cv_analysis.semantic_alignment.model"' not in html
+    assert 'name="cv_prompt_version"' not in html
+
+
+def test_settings_page_semantic_alignment_toggle_has_single_agentic_owner() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert html.count('name="cv_analysis.semantic_alignment.enabled"') == 2
+    assert 'action="/admin/settings/section/agentic-core"' in html
+    assert 'action="/admin/settings/section/retrieval-core"' in html
+
+
+def test_settings_page_agentic_truth_copy_points_to_run_detail_and_settings_used() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "settings-used.json" in html
+    assert "run detail" in html.lower()
 
 
 def test_settings_page_marks_dirty_rows_when_draft_differs_from_effective() -> None:
@@ -5007,6 +5251,23 @@ def test_settings_page_marks_dirty_rows_when_draft_differs_from_effective() -> N
     assert "1 unsaved edit" in html or "2 unsaved edits" in html
     assert "Current:" in html
     assert "1.0" in html
+
+
+def test_settings_page_explains_future_defaults_per_run_overrides_and_settings_used_truth() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "future runs only" in html.lower()
+    assert "Per-run overrides" in html
+    assert "settings-used.json" in html
+
+
+def test_settings_page_labels_when_current_value_comes_from_baseline_default() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    assert "Source: Baseline default" in resp.text
 
 
 def test_settings_page_cv_sections_no_raw_yaml():
@@ -5291,20 +5552,19 @@ def test_settings_page_no_raw_required_cv_sections_freeform():
 # ── Preset-based CV grouped save endpoints ────────────────────────────────────────
 
 def test_grouped_save_cv_preset_valid_redirects():
-    """Valid cv-preset form POST → 303 redirect; save_settings_group called."""
+    """Valid cv-preset form POST saves editable fields without requiring metadata-only inputs."""
     with patch("fitcv_cp.app.save_settings_group") as mock_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
             resp = TestClient(_app(), follow_redirects=False).post(
                 "/admin/settings/group/cv-preset",
                 data={
-                    "cv_preset": "europass",
                     "cv_generation_model": "gemini-2.5-flash",
                 },
             )
     assert resp.status_code == 303
     mock_save.assert_called_once()
     saved_keys = set(mock_save.call_args[0][0].keys())
-    assert saved_keys == {"cv_preset", "cv_generation_model"}
+    assert saved_keys == {"cv_generation_model"}
 
 
 def test_grouped_save_cv_preset_rejects_empty():
