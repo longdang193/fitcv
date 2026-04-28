@@ -17,6 +17,7 @@ tags:
 """
 
 import uuid
+from typing import Any
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
@@ -1882,6 +1883,127 @@ def test_run_pipeline_reuses_exact_match_cv_analysis_records() -> None:
     }
     assert cv_analysis_block["outputs_sample"][0]["analysis_reuse_status"] == "reused_exact_match"
     assert cv_analysis_block["outputs_sample"][0]["analysis_input_fingerprint"] == analysis_fingerprint
+
+
+def test_run_pipeline_emits_bounded_reused_cv_analysis_failure_event() -> None:
+    from fitcv.evidence import build_cv_analysis_input_fingerprint
+    from fitcv.pipeline import run_pipeline
+
+    class _Reporter:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, str, str, dict[str, Any] | None]] = []
+
+        def emit(self, stage: str, level: str, message: str, payload: dict[str, Any] | None = None) -> None:
+            self.events.append((stage, level, message, payload))
+
+    job = {
+        **_minimal_job(),
+        "title": "Data Engineer",
+        "required_skills": ["SQL"],
+        "preferred_skills": ["Python"],
+        "responsibilities": ["Build data pipelines for stakeholders."],
+        "domain": "banking",
+        "job_family": "analytics",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+    profile = _minimal_profile()
+    config = _minimal_config()
+    reporter = _Reporter()
+    analysis_fingerprint = build_cv_analysis_input_fingerprint(
+        profile,
+        job,
+        config,
+    )["fingerprint"]
+    reused_analysis_record = {
+        "job_url": job["job_url"],
+        "job_title": "Data Engineer",
+        "status": "analysis_failed",
+        "ranking_fit_label": "strong",
+        "fit_classification": "strong",
+        "decision_chain": {
+            "shortlist": {"status": "returned_by_vector_search", "advanced_to_scoring": True},
+            "primary_fit": {"source": "reranker", "label": "strong"},
+            "cv_analysis": {"status": "analysis_failed", "completed": True},
+            "cv_generation": {"status": "not_attempted", "attempted": False},
+            "validation": {"status": "not_run"},
+        },
+        "job_snapshot": dict(job),
+        "evidence_payload": [{"evidence_id": "e1", "evidence_type": "experience_entry", "source_ref": "experiences[0]"}],
+        "evidence_used": [{"evidence_type": "experience_entry", "source_ref": "experiences[0]", "name": "DE"}],
+        "evidence_selection_summary": {"selected_evidence_count": 1},
+        "gap_summary": {"matched": ["SQL"], "partial": [], "missing": []},
+        "analysis_input_fingerprint": analysis_fingerprint,
+        "analysis_reuse_status": "reused_exact_match",
+        "outcome_reason": {"stage": "analysis", "message": "cached failure"},
+        "error": {"stage": "analysis", "message": "cached failure"},
+    }
+    reuse_snapshots = {
+        "schema_version": "late_stage_reuse_v1",
+        "ranking_ai_scores": [],
+        "cv_analysis_records": [
+            {
+                "job_url": job["job_url"],
+                "analysis_input_fingerprint": analysis_fingerprint,
+                "analysis_record": reused_analysis_record,
+            }
+        ],
+    }
+
+    with patch("fitcv.pipeline.load_config", return_value=config), \
+         patch("fitcv.pipeline.parse_jobs_file", return_value=[job]), \
+         patch("fitcv.pipeline.normalize_batch", return_value=[job]), \
+         patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])), \
+         patch("fitcv.pipeline.load_to_bigquery"), \
+         patch("fitcv.pipeline.apply_pre_enrichment_global_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
+         patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}), \
+         patch("fitcv.pipeline.enrich_batch", return_value=[job]), \
+         patch("fitcv.pipeline.load_structured_jobs"), \
+         patch("fitcv.pipeline.load_run_structured_jobs"), \
+         patch("fitcv.pipeline.load_profile_yaml", return_value=profile), \
+         patch("fitcv.pipeline.load_candidate_to_bigquery"), \
+         patch("fitcv.pipeline.apply_rule_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
+         patch("fitcv.pipeline.store_filter_results"), \
+         patch("fitcv.pipeline.embed_and_store_jobs"), \
+         patch("fitcv.pipeline.run_vector_search", return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]), \
+         patch("fitcv.pipeline.run_ai_scoring", return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}]), \
+         patch("fitcv.pipeline.store_final_ranking"), \
+         patch("fitcv.pipeline.retrieve_evidence_bundle") as mock_retrieve_bundle, \
+         patch("fitcv.pipeline.compute_gap") as mock_compute_gap:
+        run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+            reuse_snapshots=reuse_snapshots,
+            reporter=reporter,
+            stop_after_stage="cv_analysis",
+        )
+
+    mock_retrieve_bundle.assert_not_called()
+    mock_compute_gap.assert_not_called()
+    assert (
+        "layer4_cv_error",
+        "error",
+        f"CV analysis failed for {job['job_url']}: {reused_analysis_record['error']}",
+        {
+            "event_name": "cv_analysis_decision",
+            "event_family": "decision",
+            "source_stage": "cv_analysis",
+            "job_url": job["job_url"],
+            "event_status": "completed",
+            "deterministic_outcome": "rejected",
+            "stage_owned_subreason": "analysis_failed",
+            "fallback_used": False,
+            "input_snapshot": {
+                "ranking_fit_label": "strong",
+            },
+            "output_snapshot": {
+                "error_stage": "analysis",
+            },
+            "artifact_refs": {
+                "stage_id": "cv_analysis",
+            },
+        },
+    ) in reporter.events
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -4521,10 +4643,10 @@ def test_run_pipeline_emits_layer4_cv_error_for_per_job_exception(
 
     class _Reporter:
         def __init__(self) -> None:
-            self.events: list[tuple[str, str, str]] = []
+            self.events: list[tuple[str, str, str, dict[str, Any] | None]] = []
 
-        def emit(self, stage: str, level: str, message: str) -> None:
-            self.events.append((stage, level, message))
+        def emit(self, stage: str, level: str, message: str, payload: dict[str, Any] | None = None) -> None:
+            self.events.append((stage, level, message, payload))
 
     job = {
         **_minimal_job(),
@@ -4554,6 +4676,25 @@ def test_run_pipeline_emits_layer4_cv_error_for_per_job_exception(
         "layer4_cv_error",
         "error",
         f"CV analysis failed for {job['job_url']}: BQ connection failed",
+        {
+            "event_name": "cv_analysis_decision",
+            "event_family": "decision",
+            "source_stage": "cv_analysis",
+            "job_url": job["job_url"],
+            "event_status": "completed",
+            "deterministic_outcome": "rejected",
+            "stage_owned_subreason": "analysis_failed",
+            "fallback_used": False,
+            "input_snapshot": {
+                "ranking_fit_label": "strong",
+            },
+            "output_snapshot": {
+                "error_stage": "analysis",
+            },
+            "artifact_refs": {
+                "stage_id": "cv_analysis",
+            },
+        },
     ) in reporter.events
 
 
@@ -4615,10 +4756,10 @@ def test_run_pipeline_emits_shortlist_and_ai_score_counts(
 
     class _Reporter:
         def __init__(self) -> None:
-            self.events: list[tuple[str, str, str]] = []
+            self.events: list[tuple[str, str, str, dict[str, Any] | None]] = []
 
-        def emit(self, stage: str, level: str, message: str) -> None:
-            self.events.append((stage, level, message))
+        def emit(self, stage: str, level: str, message: str, payload: dict[str, Any] | None = None) -> None:
+            self.events.append((stage, level, message, payload))
 
     jobs = [_minimal_job("https://example.com/1"), _minimal_job("https://example.com/2")]
     profile = _minimal_profile()
@@ -4653,8 +4794,8 @@ def test_run_pipeline_emits_shortlist_and_ai_score_counts(
 
     run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
 
-    assert ("layer3_shortlist", "info", "Vector shortlist: 2 raw hits") in reporter.events
-    assert ("layer3_ai_score", "info", "AI scored: 1 jobs") in reporter.events
+    assert ("layer3_shortlist", "info", "Vector shortlist: 2 raw hits", None) in reporter.events
+    assert ("layer3_ai_score", "info", "AI scored: 1 jobs", None) in reporter.events
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -4713,10 +4854,10 @@ def test_run_pipeline_emits_normalization_dedupe_event(
 
     class _Reporter:
         def __init__(self) -> None:
-            self.events: list[tuple[str, str, str]] = []
+            self.events: list[tuple[str, str, str, dict[str, Any] | None]] = []
 
-        def emit(self, stage: str, level: str, message: str) -> None:
-            self.events.append((stage, level, message))
+        def emit(self, stage: str, level: str, message: str, payload: dict[str, Any] | None = None) -> None:
+            self.events.append((stage, level, message, payload))
 
     duplicate_jobs = [
         _raw_scraper_job("https://example.com/1"),
@@ -4744,6 +4885,7 @@ def test_run_pipeline_emits_normalization_dedupe_event(
         "layer1_normalize",
         "info",
         "Normalization dedupe: kept 1 of 2 jobs, removed 1 duplicate(s)",
+        None,
     ) in reporter.events
 
 
@@ -4803,10 +4945,16 @@ def test_run_pipeline_emits_normalize_event_even_when_no_duplicates_removed(
 
     class _Reporter:
         def __init__(self) -> None:
-            self.events: list[tuple[str, str, str]] = []
+            self.events: list[tuple[str, str, str, dict[str, Any] | None]] = []
 
-        def emit(self, stage: str, level: str, message: str) -> None:
-            self.events.append((stage, level, message))
+        def emit(
+            self,
+            stage: str,
+            level: str,
+            message: str,
+            payload: dict[str, Any] | None = None,
+        ) -> None:
+            self.events.append((stage, level, message, payload))
 
     reporter = _Reporter()
     raw_job = _raw_scraper_job("https://example.com/1")
@@ -4828,6 +4976,7 @@ def test_run_pipeline_emits_normalize_event_even_when_no_duplicates_removed(
         "layer1_normalize",
         "info",
         "Normalization dedupe: kept 1 of 1 jobs, removed 0 duplicate(s)",
+        None,
     ) in reporter.events
 
 
@@ -4889,10 +5038,16 @@ def test_run_pipeline_pipeline_complete_event_omits_export_rows(
 
     class _Reporter:
         def __init__(self) -> None:
-            self.events: list[tuple[str, str, str]] = []
+            self.events: list[tuple[str, str, str, dict[str, Any] | None]] = []
 
-        def emit(self, stage: str, level: str, message: str) -> None:
-            self.events.append((stage, level, message))
+        def emit(
+            self,
+            stage: str,
+            level: str,
+            message: str,
+            payload: dict[str, Any] | None = None,
+        ) -> None:
+            self.events.append((stage, level, message, payload))
 
     job = _minimal_job()
     profile = _minimal_profile()
@@ -4926,6 +5081,245 @@ def test_run_pipeline_pipeline_complete_event_omits_export_rows(
 
     pipeline_complete = next(event for event in reporter.events if event[0] == "pipeline_complete")
     assert "export_results" not in pipeline_complete[2]
+    assert pipeline_complete[3] == {
+        "event_name": "pipeline_complete",
+        "event_family": "summary",
+        "source_stage": "cv_generation",
+        "event_status": "completed",
+        "deterministic_outcome": None,
+        "fallback_used": False,
+        "input_snapshot": {
+            "total_jobs": 1,
+            "passed_filter": 1,
+            "ranked": 1,
+        },
+        "output_snapshot": {
+            "cvs_generated": 1,
+        },
+    }
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_pre_filter: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    class _Reporter:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, str, str, dict[str, Any] | None]] = []
+
+        def emit(self, stage: str, level: str, message: str, payload: dict[str, Any] | None = None) -> None:
+            self.events.append((stage, level, message, payload))
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+    reporter = _Reporter()
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_pre_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_enrich.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_ai.return_value = [{**job, "fit_label": "skip", "fit_label_source": "reranker"}]
+    mock_build_feat.return_value = [{**job, "fit_label": "skip", "fit_label_source": "reranker"}]
+    mock_rank.return_value = [{**job, "fit_label": "skip", "fit_label_source": "reranker"}]
+
+    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
+
+    cv_analysis_event = next(event for event in reporter.events if event[0] == "layer4_cv_analysis")
+    assert cv_analysis_event[3] == {
+        "event_name": "cv_analysis_decision",
+        "event_family": "decision",
+        "source_stage": "cv_analysis",
+        "event_status": "completed",
+        "deterministic_outcome": None,
+        "stage_owned_subreason": "stage_summary",
+        "fallback_used": False,
+        "input_snapshot": {
+            "ranked_jobs": 1,
+        },
+        "output_snapshot": {
+            "ready_for_generation": 0,
+            "blocked_by_reranker_fit": 1,
+            "skipped_fit_gate": 0,
+            "analysis_failed": 0,
+        },
+        "artifact_refs": {
+            "stage_id": "cv_analysis",
+        },
+    }
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.create_cv_version_record")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.apply_pre_enrichment_global_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_failed_job(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_pre_filter: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_cand: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_create_version: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    class _Reporter:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, str, str, dict[str, Any] | None]] = []
+
+        def emit(self, stage: str, level: str, message: str, payload: dict[str, Any] | None = None) -> None:
+            self.events.append((stage, level, message, payload))
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+    reporter = _Reporter()
+
+    mock_config.return_value = _minimal_config()
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_pre_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_enrich.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "similarity_score": 0.9, "rank": 1}]
+    mock_ai.return_value = [job]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = [job]
+    mock_evidence.return_value = [{"evidence_id": "e1", "source_ref": "profile:experience"}]
+    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+    mock_classify.return_value = "strong"
+    mock_gen_cv.return_value = "# Broken CV"
+    mock_validate.return_value = {
+        "valid": False,
+        "missing_sections": ["experience"],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+    }
+
+    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter, run_id="run-validation-event")
+
+    cv_generation_event = next(event for event in reporter.events if event[0] == "layer4_cv_validation_failed")
+    assert cv_generation_event[3] == {
+        "event_name": "cv_generation_decision",
+        "event_family": "decision",
+        "source_stage": "cv_generation",
+        "job_url": job["job_url"],
+        "event_status": "completed",
+        "deterministic_outcome": "rejected",
+        "stage_owned_subreason": "validation_failed",
+        "fallback_used": False,
+        "provenance": {
+            "cv_generation_model": _minimal_config()["cv_generation_model"],
+        },
+        "input_snapshot": {
+            "ranking_fit_label": "strong",
+            "fit_classification": "strong",
+            "selected_evidence_count": 1,
+        },
+        "output_snapshot": {
+            "validation_status": "failed",
+            "missing_sections": ["experience"],
+        },
+        "artifact_refs": {
+            "stage_id": "cv_generation",
+        },
+    }
 
 
 @patch("fitcv.pipeline.store_cv_version")
