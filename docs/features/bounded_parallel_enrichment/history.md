@@ -54,16 +54,6 @@ Verification:
 Outcome:
 Completed the phase 6 lineage evidence hydration.
 
-### Phase 15 Remaining Direct-Evidence Completion Implementation Plan
-
-Source plan: `docs/superpowers/plans/2026-04-22-22-20-phase-15-remaining-direct-evidence-completion-plan.md`
-
-Verification:
-- `See plan body closeout verification notes.`
-
-Outcome:
-Completed the phase 15 remaining direct evidence work.
-
 <!-- GENERATED HISTORY END -->
 
 ## Human Notes

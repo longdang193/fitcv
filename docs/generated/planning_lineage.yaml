@@ -1,0 +1,228 @@
+roadmap:
+  path: docs/intent/master-workstream-roadmap.md
+  workstream_count: 7
+  completed_workstream_count: 0
+workstreams:
+- workstream_id: workstream-agentic-observability
+  status: active
+  path: docs/intent/workstreams/workstream-agentic-observability.md
+  thread_count: 4
+  completed_thread_count: 0
+  derived_completion: not_started
+  threads:
+  - thread_id: workstream-agentic-observability.agentic-observability-event-contract
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-agentic-observability/01-agentic-observability-event-contract.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-agentic-observability.agentic-observability-operator-surface
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-agentic-observability/02-agentic-observability-operator-surface.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-agentic-observability.agentic-observability-provider-provenance
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-agentic-observability/03-agentic-observability-provider-provenance.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-agentic-observability.agentic-observability-synonym-proposal-trace
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-agentic-observability/04-agentic-observability-synonym-proposal-trace.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+- workstream_id: workstream-agentic-synonym-management
+  status: active
+  path: docs/intent/workstreams/workstream-agentic-synonym-management.md
+  thread_count: 5
+  completed_thread_count: 0
+  derived_completion: not_started
+  threads:
+  - thread_id: workstream-agentic-synonym-management.agentic-synonym-unmatched-term-detection
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-agentic-synonym-management/01-agentic-synonym-unmatched-term-detection.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-agentic-synonym-management.agentic-synonym-proposal-engine
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-agentic-synonym-management/02-agentic-synonym-proposal-engine.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-agentic-synonym-management.agentic-synonym-review-queue-and-approval
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-agentic-synonym-management/03-agentic-synonym-review-queue-and-approval.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-agentic-synonym-management.agentic-synonym-canonical-promotion-flow
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-agentic-synonym-management/04-agentic-synonym-canonical-promotion-flow.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-agentic-synonym-management.agentic-synonym-downstream-impact-preview
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-agentic-synonym-management/05-agentic-synonym-downstream-impact-preview.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+- workstream_id: workstream-bounded-agentic-cv-quality
+  status: active
+  path: docs/intent/workstreams/workstream-bounded-agentic-cv-quality.md
+  thread_count: 4
+  completed_thread_count: 0
+  derived_completion: not_started
+  threads:
+  - thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-analysis-grounding
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-bounded-agentic-cv-quality/01-agentic-cv-quality-analysis-grounding.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-generation-repair
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-bounded-agentic-cv-quality/02-agentic-cv-quality-generation-repair.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-provider-bridge
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-bounded-agentic-cv-quality/03-agentic-cv-quality-provider-bridge.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-cross-seam-calibration
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-bounded-agentic-cv-quality/04-agentic-cv-quality-cross-seam-calibration.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+- workstream_id: workstream-deterministic-acceptance-and-artifact-truth
+  status: active
+  path: docs/intent/workstreams/workstream-deterministic-acceptance-and-artifact-truth.md
+  thread_count: 4
+  completed_thread_count: 0
+  derived_completion: not_started
+  threads:
+  - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-outcome-contract
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/01-deterministic-truth-outcome-contract.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-stage-artifact-contract
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/02-deterministic-truth-stage-artifact-contract.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-results-ledger-contract
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/03-deterministic-truth-results-ledger-contract.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-agentic-gate-integration
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/04-deterministic-truth-agentic-gate-integration.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+- workstream_id: workstream-fitcv-semantic-spine
+  status: active
+  path: docs/intent/workstreams/workstream-fitcv-semantic-spine.md
+  thread_count: 4
+  completed_thread_count: 0
+  derived_completion: not_started
+  threads:
+  - thread_id: workstream-fitcv-semantic-spine.semantic-spine-input-mode-parity
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-fitcv-semantic-spine/01-semantic-spine-input-mode-parity.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-fitcv-semantic-spine.semantic-spine-stage-authority-contract
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-fitcv-semantic-spine/02-semantic-spine-stage-authority-contract.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-fitcv-semantic-spine.semantic-spine-checkpoint-and-continue-truth
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-fitcv-semantic-spine/03-semantic-spine-checkpoint-and-continue-truth.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-fitcv-semantic-spine.semantic-spine-replay-drift-removal
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-fitcv-semantic-spine/04-semantic-spine-replay-drift-removal.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+- workstream_id: workstream-operator-control-plane
+  status: active
+  path: docs/intent/workstreams/workstream-operator-control-plane.md
+  thread_count: 4
+  completed_thread_count: 0
+  derived_completion: not_started
+  threads:
+  - thread_id: workstream-operator-control-plane.operator-control-plane-trigger-and-mode-contract
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-operator-control-plane/01-operator-control-plane-trigger-and-mode-contract.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-operator-control-plane.operator-control-plane-run-detail-truth
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-operator-control-plane/02-operator-control-plane-run-detail-truth.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-operator-control-plane.operator-control-plane-settings-surface-alignment
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-operator-control-plane/03-operator-control-plane-settings-surface-alignment.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-operator-control-plane.operator-control-plane-agentic-review-actions
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-operator-control-plane/04-operator-control-plane-agentic-review-actions.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+- workstream_id: workstream-pipeline-efficiency-and-reuse
+  status: active
+  path: docs/intent/workstreams/workstream-pipeline-efficiency-and-reuse.md
+  thread_count: 4
+  completed_thread_count: 0
+  derived_completion: not_started
+  threads:
+  - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/01-efficiency-reuse-exact-match-contract.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/02-efficiency-reuse-late-stage-gating.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-operator-diagnostics
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/03-efficiency-reuse-operator-diagnostics.md
+    specs: []
+    plans: []
+    derived_completion: not_started
+  - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-cross-stage-cache-safety
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/04-efficiency-reuse-cross-stage-cache-safety.md
+    specs: []
+    plans: []
+    derived_completion: not_started

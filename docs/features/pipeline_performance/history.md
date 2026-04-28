@@ -74,35 +74,6 @@ Verification:
 Outcome:
 Completed the phase 10 settings and performance residual evidence audit.
 
-
-## 2026-04-23
-
-### Double-Entry Truth Cleanup Batch B Implementation Plan
-
-Source plan: `docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md`
-
-Verification:
-- `python scripts/sync_architecture_docs.py --check`
-- `python scripts/validate_adoption_shape.py`
-- `python scripts/validate_repo_contracts.py --fast`
-- `git diff --check`
-
-Outcome:
-Reframed `docs/FitCV-pipeline.md` as an explainer and updated `docs/pipeline.md` to point at it as a non-authoritative mental-model doc.
-
-### Double-Entry Truth Cleanup Batch C Implementation Plan
-
-Source plan: `docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md`
-
-Verification:
-- `python scripts/sync_architecture_docs.py --check`
-- `python scripts/validate_adoption_shape.py`
-- `python scripts/validate_repo_contracts.py --fast`
-- `git diff --check`
-
-Outcome:
-Reduced generated-history placeholder noise by omitting empty capabilities, verification, and generic outcome sections while preserving real plan-derived signal.
-
 <!-- GENERATED HISTORY END -->
 
 ## Human Notes

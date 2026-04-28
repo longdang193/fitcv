@@ -13,6 +13,10 @@ The end goal is:
 
 This roadmap separates product work from operating-system work so repo-method cleanup does not get mistaken for product completion.
 
+Product completion is defined by the product workstreams in this roadmap.
+
+`operating_system` completion is required for repo maturity, maintainability, and publication discipline, but it is not part of the product-complete gate.
+
 ## Product Workstreams
 
 ### 1. FitCV Semantic Spine
@@ -70,7 +74,35 @@ This workstream owns:
 
 This is the main upgrade workstream, but it must stay subordinate to the semantic spine and deterministic acceptance workstreams.
 
-### 5. Pipeline Efficiency And Reuse
+### 5. Agentic Observability
+
+Make every bounded agentic seam inspectable so operators and engineers can see what the agentic layer did, why it did it, and how deterministic gates responded.
+
+This workstream owns:
+
+- explicit invocation records for agentic analysis, generation, and future synonym-assistance seams
+- bounded input and output snapshots for agentic steps
+- evidence refs, hold reasons, confidence or uncertainty signals, and fallback-path visibility
+- structured provenance for provider, model, prompt, repair, retry, and reuse behavior
+- operator-facing views that distinguish agentic recommendation from deterministic acceptance or rejection
+
+This workstream is required for trustworthy agentic upgrades and should ship alongside each agentic seam, not after it.
+
+### 6. Agentic Synonym Management
+
+Replace purely manual synonym maintenance with a review-first agentic assistance flow while preserving deterministic runtime authority for canonical matching.
+
+This workstream owns:
+
+- unmatched-term detection and low-confidence synonym review queues
+- candidate canonical mappings, clustering, confidence, and rationale
+- run-scoped overlay proposals and approval flows
+- explicit operator review and promotion paths for synonym changes
+- clear separation between proposal surfaces and authoritative runtime synonym state
+
+This workstream must remain subordinate to the semantic spine and deterministic acceptance workstreams.
+
+### 7. Pipeline Efficiency And Reuse
 
 Improve throughput and repeatability without weakening stage truth.
 
@@ -111,6 +143,8 @@ The current intent docs were too thin in a few places. The main missing or vague
 - no separate product thread for deterministic acceptance and artifact truth
 - no clear distinction between operator product work and repo operating-system work
 - no explicit bounded-agentic thread saying where agentic AI is allowed and where it is not
+- no dedicated observability thread for agentic decisions, fallbacks, and provenance
+- no explicit synonym-management thread for the manual-review bottleneck
 - no efficiency-and-reuse thread to keep performance work from being smuggled into semantic changes
 
 ## Sequencing
@@ -121,9 +155,11 @@ Recommended execution order:
 2. Operator Control Plane
 3. Deterministic Acceptance And Artifact Truth
 4. Bounded Agentic CV Quality
-5. Pipeline Efficiency And Reuse
+5. Agentic Observability
+6. Agentic Synonym Management
+7. Pipeline Efficiency And Reuse
 
-Operating-system threads should run in parallel only when they reduce drift or unblock product truth, not as substitutes for product delivery.
+Operating-system threads should run in parallel only when they reduce drift or unblock product truth, not as substitutes for product delivery or as hidden product-completion gates.
 
 ## Completion Criteria
 
@@ -132,5 +168,8 @@ The roadmap is complete when:
 - the upgraded line still behaves like FitCV in its stage meaning and acceptance rules
 - operators can run and inspect the system through the original control-plane shape
 - late-stage agentic behavior improves quality without becoming an unbounded second runtime
+- the agentic layer is observable enough that operators can tell what ran, what it proposed, and what deterministic gates decided
+- synonym management no longer depends on purely manual list maintenance for every meaningful update, while canonical runtime authority remains review-controlled
 - artifacts, diagnostics, and exports tell the truth about what happened
-- doc and repo-governance layers support the product without redefining it
+
+Repo maturity goes further and additionally requires the operating-system threads to be in good shape, but that is a separate standard from product completion.
