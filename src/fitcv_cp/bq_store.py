@@ -450,6 +450,30 @@ def update_run_mapping_suggestions(
     _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
+def update_run_synonym_proposals(
+    run_id: str,
+    synonym_proposals_json: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    """Persist the mutable run-scoped synonym proposal review snapshot."""
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET synonym_proposals_json = @synonym_proposals_json WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter(
+                "synonym_proposals_json", "STRING", synonym_proposals_json
+            ),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+
+
 def update_run_effective_settings(
     run_id: str,
     effective_settings_json: str,
@@ -605,6 +629,7 @@ def _row_to_run(row: Any) -> PipelineRun:
         stage_transition_artifacts_json=r.get("stage_transition_artifacts_json"),
         settings_used_json=r.get("settings_used_json"),
         mapping_suggestions_json=r.get("mapping_suggestions_json"),
+        synonym_proposals_json=r.get("synonym_proposals_json"),
         run_mode=r.get("run_mode") or "run_all",
         checkpoint_status=r.get("checkpoint_status"),
         next_stage=r.get("next_stage"),

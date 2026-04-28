@@ -78,6 +78,7 @@ class PipelineRun:
     stage_transition_artifacts_json: Optional[str] = None  # immutable run-scoped stage transition artifact snapshot
     settings_used_json: Optional[str] = None  # immutable run-scoped effective-settings snapshot
     mapping_suggestions_json: Optional[str] = None  # immutable run-scoped mapping suggestions snapshot
+    synonym_proposals_json: Optional[str] = None  # mutable run-scoped synonym proposal review snapshot
     run_mode: str = "run_all"
     checkpoint_status: Optional[str] = None
     next_stage: Optional[str] = None

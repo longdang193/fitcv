@@ -1120,6 +1120,108 @@ def test_worker_manual_resume_uses_uploaded_run_scoped_synonym_overlay() -> None
     assert call_kwargs["config"]["skill_synonyms_runtime"]["has_run_overlay"] is True
 
 
+def test_build_synonym_proposals_payload_groups_conflicts_for_review() -> None:
+    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+
+    payload = json.loads(
+        _build_synonym_proposals_payload(
+            run_id="run-synonym-proposals",
+            summary={
+                "mapping_suggestions": [
+                    {
+                        "alias": "gcp",
+                        "canonical": "google cloud",
+                        "confidence": 0.9,
+                        "must_have_skill": "google cloud",
+                    },
+                    {
+                        "alias": "gcp",
+                        "canonical": "google cloud platform",
+                        "confidence": 0.7,
+                        "must_have_skill": "google cloud platform",
+                    },
+                ]
+            },
+            created_at=datetime.datetime(2026, 4, 28, tzinfo=datetime.timezone.utc),
+        )
+    )
+
+    assert payload["synonym_proposals_schema_version"] == "synonym_proposals_v1"
+    assert len(payload["proposals"]) == 1
+    proposal = payload["proposals"][0]
+    assert proposal["proposal_scope"] == "run_scoped_overlay_candidate"
+    assert proposal["proposal_status"] == "proposed_unreviewed"
+    assert proposal["proposal_family"] == "conflict_bundle"
+    assert proposal["alias"] == "gcp"
+    assert proposal["canonical"] == "google cloud"
+    assert proposal["candidate_canonicals"] == ["google cloud", "google cloud platform"]
+    assert proposal["conflict_summary"]["has_conflict"] is True
+    assert proposal["evidence_summary"]["occurrence_count"] == 2
+
+
+def test_build_synonym_proposals_payload_preserves_existing_review_state() -> None:
+    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+
+    baseline_payload = json.loads(
+        _build_synonym_proposals_payload(
+            run_id="run-synonym-proposals",
+            summary={
+                "mapping_suggestions": [
+                    {
+                        "alias": "gcp",
+                        "canonical": "google cloud",
+                        "confidence": 0.9,
+                        "must_have_skill": "google cloud",
+                    }
+                ]
+            },
+            created_at=datetime.datetime(2026, 4, 28, tzinfo=datetime.timezone.utc),
+        )
+    )
+    proposal_id = baseline_payload["proposals"][0]["proposal_id"]
+
+    existing_payload_json = json.dumps(
+        {
+            "run_id": "run-synonym-proposals",
+            "proposals": [
+                {
+                    "proposal_id": proposal_id,
+                    "proposal_status": "approved_for_run_overlay",
+                    "review_history": [
+                        {
+                            "action": "approve_for_run_overlay",
+                            "acted_by": "operator@example.com",
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+
+    payload = json.loads(
+        _build_synonym_proposals_payload(
+            run_id="run-synonym-proposals",
+            summary={
+                "mapping_suggestions": [
+                    {
+                        "alias": "gcp",
+                        "canonical": "google cloud",
+                        "confidence": 0.9,
+                        "must_have_skill": "google cloud",
+                    }
+                ]
+            },
+            created_at=datetime.datetime(2026, 4, 28, tzinfo=datetime.timezone.utc),
+            existing_payload_json=existing_payload_json,
+        )
+    )
+
+    proposal = payload["proposals"][0]
+    assert proposal["proposal_id"] == proposal_id
+    assert proposal["proposal_status"] == "approved_for_run_overlay"
+    assert proposal["review_history"][0]["action"] == "approve_for_run_overlay"
+
+
 # ── cooperative cancellation ─────────────────────────────────────────────────
 
 def test_worker_marks_cancelled_when_cancel_already_requested():
