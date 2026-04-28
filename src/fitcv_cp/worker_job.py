@@ -116,6 +116,30 @@ def _snapshot_persist_failed_event(run_id: str, snapshot_name: str, message: str
     )
 
 
+def _append_degraded_snapshot_persistence_warning(
+    *,
+    run_id: str,
+    snapshot_name: str,
+    persistence_status: dict[str, str] | None,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> None:
+    status = dict(persistence_status or {})
+    if status.get("persistence_status") in {"persisted", "not_applicable", ""}:
+        return
+    append_event(
+        _snapshot_persist_failed_event(
+            run_id,
+            snapshot_name,
+            str(status.get("degradation_reason") or status.get("persistence_status") or "unknown_degradation"),
+        ),
+        bq,
+        project=project,
+        dataset=dataset,
+    )
+
+
 def _config_agentic_late_stage_enabled(config: dict[str, Any] | None) -> bool:
     cv_block = dict((config or {}).get("cv") or {})
     late_stage_block = dict(cv_block.get("agentic_late_stage") or {})
@@ -635,7 +659,7 @@ def _persist_shared_progress_snapshot(
             project=project,
             dataset=dataset,
         )
-        update_run_synonym_proposals(
+        synonym_status = update_run_synonym_proposals(
             run_id,
             _build_synonym_proposals_payload(
                 run_id=run_id,
@@ -644,6 +668,14 @@ def _persist_shared_progress_snapshot(
                 existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
             ),
             bq,
+            project=project,
+            dataset=dataset,
+        )
+        _append_degraded_snapshot_persistence_warning(
+            run_id=run_id,
+            snapshot_name="synonym_proposals",
+            persistence_status=synonym_status,
+            bq=bq,
             project=project,
             dataset=dataset,
         )
@@ -855,7 +887,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                             inner,
                         )
                 try:
-                    update_run_synonym_proposals(
+                    synonym_status = update_run_synonym_proposals(
                         run_id,
                         _build_synonym_proposals_payload(
                             run_id=run_id,
@@ -864,6 +896,14 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                             existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
                         ),
                         bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+                    _append_degraded_snapshot_persistence_warning(
+                        run_id=run_id,
+                        snapshot_name="synonym_proposals",
+                        persistence_status=synonym_status,
+                        bq=bq,
                         project=project,
                         dataset=dataset,
                     )
@@ -1028,7 +1068,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                         inner,
                     )
             try:
-                update_run_synonym_proposals(
+                synonym_status = update_run_synonym_proposals(
                     run_id,
                     _build_synonym_proposals_payload(
                         run_id=run_id,
@@ -1037,6 +1077,14 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                         existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
                     ),
                     bq,
+                    project=project,
+                    dataset=dataset,
+                )
+                _append_degraded_snapshot_persistence_warning(
+                    run_id=run_id,
+                    snapshot_name="synonym_proposals",
+                    persistence_status=synonym_status,
+                    bq=bq,
                     project=project,
                     dataset=dataset,
                 )
