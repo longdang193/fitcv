@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any, Mapping
 
 
 RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION = "ranking_ai_score_prompt_v1"
@@ -44,3 +45,30 @@ ANALYSIS_CHANNEL_DEFINITIONS = {
 }
 
 ANALYSIS_CHANNEL_IDS = tuple(ANALYSIS_CHANNEL_DEFINITIONS.keys())
+
+ANALYSIS_CHANNEL_ALIASES = {
+    "responsibility": RESPONSIBILITY_ALIGNMENT_CHANNEL,
+    "domain": DOMAIN_ALIGNMENT_CHANNEL,
+}
+
+
+def canonical_analysis_channel_id(channel_id: str) -> str:
+    normalized = str(channel_id or "").strip()
+    if not normalized:
+        return normalized
+    return ANALYSIS_CHANNEL_ALIASES.get(normalized, normalized)
+
+
+def normalize_analysis_channel_mapping(mapping: Mapping[str, Any] | None) -> dict[str, Any]:
+    normalized: dict[str, Any] = {}
+    for raw_key, value in dict(mapping or {}).items():
+        canonical_key = canonical_analysis_channel_id(str(raw_key))
+        if not canonical_key:
+            continue
+        if canonical_key in normalized and isinstance(normalized[canonical_key], dict) and isinstance(value, Mapping):
+            merged = dict(normalized[canonical_key])
+            merged.update(dict(value))
+            normalized[canonical_key] = merged
+            continue
+        normalized[canonical_key] = value
+    return normalized

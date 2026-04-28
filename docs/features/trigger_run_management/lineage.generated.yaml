@@ -379,6 +379,12 @@ capabilities:
       source:
       - python_proves
       symbols:
+      - test_admin_upload_trigger_candidate_profile_modes_share_canonical_runtime_payload
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
       - test_admin_upload_trigger_default_config_stores_profile_snapshot
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -826,6 +832,12 @@ capabilities:
       - python_proves
       symbols:
       - test_admin_continue_run_requeues_manual_paused_run
+    - path: tests/test_fitcv_cp/test_app.py
+      confidence: high
+      source:
+      - python_proves
+      symbols:
+      - test_admin_continue_run_uses_canonical_next_stage_from_completed_truth
     - path: tests/test_fitcv_cp/test_queue.py
       confidence: high
       source:
