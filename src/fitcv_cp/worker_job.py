@@ -36,6 +36,7 @@ lifecycle:
   status: active
 """
 import datetime
+import hashlib
 import json
 import logging
 import os
@@ -53,6 +54,7 @@ from fitcv_cp.bq_store import (
     update_run_progress,
     update_run_cv_generation_debug,
     update_run_mapping_suggestions,
+    update_run_synonym_proposals,
     update_run_results_export,
     update_run_settings_used,
     update_run_stage_transition_artifacts,
@@ -405,6 +407,126 @@ def _build_mapping_suggestions_payload(
     return json.dumps(payload, ensure_ascii=False)
 
 
+def _build_synonym_proposals_payload(
+    *,
+    run_id: str,
+    summary: dict[str, Any],
+    created_at: datetime.datetime,
+    existing_payload_json: str | None = None,
+) -> str:
+    existing_proposals_by_id: dict[str, dict[str, Any]] = {}
+    if existing_payload_json:
+        try:
+            existing_payload = json.loads(existing_payload_json)
+        except (TypeError, json.JSONDecodeError):
+            existing_payload = None
+        if isinstance(existing_payload, dict):
+            for existing_proposal in list(existing_payload.get("proposals") or []):
+                if not isinstance(existing_proposal, dict):
+                    continue
+                proposal_id = str(existing_proposal.get("proposal_id") or "").strip()
+                if proposal_id:
+                    existing_proposals_by_id[proposal_id] = existing_proposal
+
+    grouped: dict[str, dict[str, Any]] = {}
+    for suggestion in list(summary.get("mapping_suggestions") or []):
+        if not isinstance(suggestion, dict):
+            continue
+        alias = str(suggestion.get("alias") or "").strip().lower()
+        canonical = str(suggestion.get("canonical") or "").strip().lower()
+        if not alias or not canonical:
+            continue
+        bucket = grouped.setdefault(
+            alias,
+            {
+                "alias": alias,
+                "candidate_canonicals": {},
+                "must_have_skills": set(),
+                "job_refs": [],
+                "occurrence_count": 0,
+                "confidence_sum": 0.0,
+            },
+        )
+        bucket["occurrence_count"] += 1
+        confidence = float(suggestion.get("confidence") or 0.0)
+        bucket["confidence_sum"] += confidence
+        bucket["candidate_canonicals"][canonical] = (
+            bucket["candidate_canonicals"].get(canonical, 0) + 1
+        )
+        must_have_skill = str(suggestion.get("must_have_skill") or "").strip().lower()
+        if must_have_skill:
+            bucket["must_have_skills"].add(must_have_skill)
+        job_url = str(suggestion.get("job_url") or "").strip()
+        if job_url and len(bucket["job_refs"]) < 5:
+            bucket["job_refs"].append(
+                {
+                    "job_url": job_url,
+                    "job_title": str(suggestion.get("job_title") or "").strip(),
+                    "confidence": confidence,
+                }
+            )
+
+    proposals: list[dict[str, Any]] = []
+    for alias, bucket in grouped.items():
+        ranked_canonicals = sorted(
+            bucket["candidate_canonicals"].items(),
+            key=lambda item: (-int(item[1]), item[0]),
+        )
+        candidate_canonicals = [canonical for canonical, _count in ranked_canonicals]
+        primary_canonical = candidate_canonicals[0]
+        has_conflict = len(candidate_canonicals) > 1
+        proposal_family = "conflict_bundle" if has_conflict else "alias_to_canonical_mapping"
+        occurrence_count = int(bucket["occurrence_count"])
+        avg_confidence = (
+            float(bucket["confidence_sum"]) / occurrence_count if occurrence_count else 0.0
+        )
+        identity_seed = f"{run_id}:{alias}:{'|'.join(candidate_canonicals)}:{proposal_family}"
+        proposal_id = f"synprop-{hashlib.sha1(identity_seed.encode('utf-8')).hexdigest()[:12]}"
+        existing_proposal = existing_proposals_by_id.get(proposal_id) or {}
+        proposals.append(
+            {
+                "proposal_id": proposal_id,
+                "run_id": run_id,
+                "alias": alias,
+                "canonical": primary_canonical,
+                "candidate_aliases": [alias],
+                "candidate_canonicals": candidate_canonicals,
+                "confidence": round(avg_confidence, 6),
+                "rationale": {
+                    "kind": "alias_conflict" if has_conflict else "repeated_alias_mapping",
+                    "occurrence_count": occurrence_count,
+                    "distinct_canonical_count": len(candidate_canonicals),
+                },
+                "evidence_summary": {
+                    "occurrence_count": occurrence_count,
+                    "average_confidence": round(avg_confidence, 6),
+                    "must_have_skills": sorted(bucket["must_have_skills"]),
+                    "sample_job_refs": list(bucket["job_refs"]),
+                },
+                "conflict_summary": {
+                    "has_conflict": has_conflict,
+                    "conflicting_canonicals": candidate_canonicals[1:],
+                },
+                "proposal_status": str(existing_proposal.get("proposal_status") or "proposed_unreviewed"),
+                "proposal_scope": "run_scoped_overlay_candidate",
+                "proposal_family": proposal_family,
+                "source_artifact_refs": {
+                    "run_id": run_id,
+                    "artifact_type": "mapping_suggestions",
+                },
+                "review_history": list(existing_proposal.get("review_history") or []),
+            }
+        )
+    proposals.sort(key=lambda item: (-float(item["confidence"]), str(item["alias"])))
+    payload = {
+        "run_id": run_id,
+        "synonym_proposals_schema_version": "synonym_proposals_v1",
+        "created_at": created_at.isoformat(),
+        "proposals": proposals,
+    }
+    return json.dumps(payload, ensure_ascii=False)
+
+
 def _summary_has_reached_stage(summary: dict[str, Any], stage_id: str) -> bool:
     normalized_stage_id = str(stage_id or "").strip()
     if not normalized_stage_id:
@@ -478,6 +600,18 @@ def _persist_shared_progress_snapshot(
                 run_id=run_id,
                 summary=summary,
                 created_at=snapshot_at,
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        update_run_synonym_proposals(
+            run_id,
+            _build_synonym_proposals_payload(
+                run_id=run_id,
+                summary=summary,
+                created_at=snapshot_at,
+                existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
             ),
             bq,
             project=project,
@@ -690,6 +824,38 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                             run_id,
                             inner,
                         )
+                try:
+                    update_run_synonym_proposals(
+                        run_id,
+                        _build_synonym_proposals_payload(
+                            run_id=run_id,
+                            summary=summary,
+                            created_at=checkpoint_time,
+                            existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
+                        ),
+                        bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "[run_id=%s] Failed to persist synonym proposals snapshot at checkpoint: %s",
+                        run_id,
+                        exc,
+                    )
+                    try:
+                        append_event(
+                            _snapshot_persist_failed_event(run_id, "synonym_proposals", str(exc)),
+                            bq,
+                            project=project,
+                            dataset=dataset,
+                        )
+                    except Exception as inner:
+                        logger.warning(
+                            "[run_id=%s] Failed to append synonym proposals persistence warning event: %s",
+                            run_id,
+                            inner,
+                        )
             append_event(
                 RunEvent(
                     run_id=run_id,
@@ -828,6 +994,34 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 except Exception as inner:
                     logger.warning(
                         "[run_id=%s] Failed to append mapping suggestions persistence warning event: %s",
+                        run_id,
+                        inner,
+                    )
+            try:
+                update_run_synonym_proposals(
+                    run_id,
+                    _build_synonym_proposals_payload(
+                        run_id=run_id,
+                        summary=summary,
+                        created_at=finished_at,
+                        existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+            except Exception as exc:
+                logger.warning("[run_id=%s] Failed to persist synonym proposals snapshot: %s", run_id, exc)
+                try:
+                    append_event(
+                        _snapshot_persist_failed_event(run_id, "synonym_proposals", str(exc)),
+                        bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+                except Exception as inner:
+                    logger.warning(
+                        "[run_id=%s] Failed to append synonym proposals persistence warning event: %s",
                         run_id,
                         inner,
                     )
