@@ -27,6 +27,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 VALIDATOR = REPO_ROOT / "scripts" / "validate_adoption_shape.py"
 POLICY = REPO_ROOT / "scripts" / "validator_policy.py"
+PLANNING_LINEAGE_GENERATOR = REPO_ROOT / "scripts" / "generate_planning_lineage.py"
 
 
 def load_module(name: str, path: Path):
@@ -50,6 +51,16 @@ def write_text(path: Path, text: str) -> None:
 def run_validator(repo_root: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(VALIDATOR), "--repo-root", str(repo_root)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def run_planning_lineage_generator(repo_root: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(PLANNING_LINEAGE_GENERATOR), "--repo-root", str(repo_root)],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -977,6 +988,124 @@ def seed_required_folder_surface(root: Path) -> None:
             write_text(root / relative_path, "# placeholder\n")
 
 
+def seed_required_starter_docs(root: Path) -> None:
+    write_text(root / "README.md", "# Starter Repo\n")
+    for relative_path in (
+        "docs/setup.md",
+        "docs/configuration.md",
+        "docs/usage.md",
+        "docs/pipeline.md",
+        "docs/architecture.md",
+    ):
+        write_text(root / relative_path, required_root_doc_text(relative_path).split("---\n", 2)[-1])
+
+
+def seed_workstream_registry_entry(root: Path, workstream_id: str = "platform-delivery") -> None:
+    write_text(
+        root / "docs" / "intent" / "workstreams" / f"{workstream_id}.md",
+        f"""---
+workstream_id: {workstream_id}
+status: active
+---
+
+# {workstream_id}
+
+This workstream exists to coordinate durable delivery work.
+""",
+    )
+
+
+def seed_thread_registry_entry(
+    root: Path,
+    *,
+    workstream_id: str = "platform-delivery",
+    thread_slug: str = "sample-thread",
+    status: str = "proposed",
+) -> str:
+    seed_workstream_registry_entry(root, workstream_id)
+    thread_id = f"{workstream_id}.{thread_slug}"
+    write_text(
+        root
+        / "docs"
+        / "intent"
+        / "workstreams"
+        / "threads"
+        / workstream_id
+        / f"01-{thread_slug}.md",
+        f"""---
+thread_id: {thread_id}
+status: {status}
+---
+
+# {thread_slug}
+""",
+    )
+    return thread_id
+
+
+def seed_nontrivial_runtime_surface(root: Path) -> None:
+    write_text(
+        root / "src" / "app.py",
+        "def run_app() -> None:\n    return None\n",
+    )
+    write_text(
+        root / "src" / "services" / "matching.py",
+        "def build_matches() -> list[str]:\n    return []\n",
+    )
+    write_text(
+        root / "tests" / "test_runtime_flow.py",
+        "def test_runtime_flow_placeholder() -> None:\n    assert True\n",
+    )
+
+
+def seed_api_runtime_surface(root: Path) -> None:
+    seed_nontrivial_runtime_surface(root)
+    write_text(
+        root / "src" / "api" / "server.py",
+        "def build_api_server() -> None:\n    return None\n",
+    )
+
+
+def seed_mature_runtime_surface(root: Path) -> None:
+    for relative_path in (
+        "src/fitcv_langgraph/contracts/parser.py",
+        "src/fitcv_langgraph/contracts/schema.py",
+        "src/fitcv_langgraph/graphs/build.py",
+        "src/fitcv_langgraph/graphs/runner.py",
+        "src/fitcv_langgraph/providers/openai_client.py",
+        "src/fitcv_langgraph/providers/embeddings.py",
+        "src/fitcv_langgraph/validation/cv_rules.py",
+        "src/fitcv_langgraph/validation/fit_checks.py",
+        "src/fitcv_langgraph/runtime.py",
+        "src/fitcv_langgraph/api_server.py",
+    ):
+        write_text(
+            root / relative_path,
+            "def placeholder() -> None:\n    return None\n",
+        )
+    for relative_path in (
+        "tests/test_contract_parser.py",
+        "tests/test_graph_runner.py",
+        "tests/test_openai_client.py",
+        "tests/test_embeddings.py",
+        "tests/test_cv_rules.py",
+        "tests/test_fit_checks.py",
+    ):
+        write_text(
+            root / relative_path,
+            "def test_placeholder() -> None:\n    assert True\n",
+        )
+    for relative_path in (
+        "scripts/build_runtime.py",
+        "scripts/run_pipeline.py",
+        "scripts/export_results.py",
+    ):
+        write_text(
+            root / relative_path,
+            "def main() -> None:\n    return None\n",
+        )
+
+
 MODE_A_TEMPLATE_FILES = (
     "README.md",
     "docs/setup.md",
@@ -1001,7 +1130,19 @@ MODE_A_TEMPLATE_FILES = (
 def seed_mode_a_template_pack(root: Path) -> None:
     write_text(
         root / "docs" / "superpowers" / "specs" / "2026-04-23-mode-a-project-template-pack-spec.md",
-        "# Mode A Project Template Pack Spec\n",
+        """---
+layer: operating_system
+artifact_type: spec
+status: completed
+parent_workstream: none
+targets:
+  - docs/project_templates/mode-a/
+related_features: []
+related_stages: []
+---
+
+# Mode A Project Template Pack Spec
+""",
     )
     template_root = root / "docs" / "project_templates" / "mode-a"
     for relative_path in MODE_A_TEMPLATE_FILES:
@@ -1660,6 +1801,344 @@ lineage_exceptions: []
     assert "docs/architecture_templates/feature.source.yaml" in result.stdout
 
 
+def test_starter_method_only_allows_missing_feature_folders(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    write_text(tmp_path / "README.md", "# Starter Repo\n")
+    for relative_path in (
+        "docs/setup.md",
+        "docs/configuration.md",
+        "docs/usage.md",
+        "docs/pipeline.md",
+        "docs/architecture.md",
+    ):
+        write_text(tmp_path / relative_path, required_root_doc_text(relative_path).split("---\n", 2)[-1])
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 0
+
+
+def test_starter_method_only_allows_prose_only_feature_readme(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    write_text(tmp_path / "README.md", "# Starter Repo\n")
+    for relative_path in (
+        "docs/setup.md",
+        "docs/configuration.md",
+        "docs/usage.md",
+        "docs/pipeline.md",
+        "docs/architecture.md",
+    ):
+        write_text(tmp_path / relative_path, required_root_doc_text(relative_path).split("---\n", 2)[-1])
+    write_text(tmp_path / "docs" / "features" / "README.md", "# Feature Notes\n")
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 0
+
+
+def test_starter_method_only_warns_when_nontrivial_repo_lacks_feature_index(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    seed_nontrivial_runtime_surface(tmp_path)
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 0
+    assert "warn: docs/features/readme.md" in result.stdout.lower()
+    assert "missing the lightweight feature index" in result.stdout.lower()
+    assert "managed_architecture_metadata" in result.stdout
+
+
+def test_starter_method_only_clears_feature_index_warning_once_readme_exists(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    seed_nontrivial_runtime_surface(tmp_path)
+    write_text(tmp_path / "docs" / "features" / "README.md", "# Feature Index\n")
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 0
+    assert "warn: docs/features/README.md" not in result.stdout.lower()
+    assert "outgrown lightweight anchors" not in result.stdout.lower()
+
+
+def test_starter_method_only_warns_when_api_surface_lacks_api_doc(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    seed_api_runtime_surface(tmp_path)
+    write_text(tmp_path / "docs" / "features" / "README.md", "# Feature Index\n")
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 0
+    assert "warn: docs/api.md" in result.stdout.lower()
+    assert "api-heavy" in result.stdout.lower()
+    assert "early anchor" in result.stdout.lower()
+    assert "managed_architecture_metadata" in result.stdout
+
+
+def test_starter_method_only_clears_api_doc_warning_once_doc_exists(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    seed_api_runtime_surface(tmp_path)
+    write_text(tmp_path / "docs" / "features" / "README.md", "# Feature Index\n")
+    write_text(tmp_path / "docs" / "api.md", "# API\nDocument the external interface.\n")
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 0
+    assert "warn: docs/api.md" not in result.stdout.lower()
+
+
+def test_starter_method_only_warns_when_repo_appears_to_have_outgrown_lightweight_anchors(
+    tmp_path: Path,
+) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    seed_mature_runtime_surface(tmp_path)
+    write_text(tmp_path / "docs" / "features" / "README.md", "# Feature Index\n")
+    write_text(tmp_path / "docs" / "api.md", "# API\nDocument the external interface.\n")
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 0
+    assert "outgrown lightweight anchors" in result.stdout.lower()
+    assert "managed_architecture_metadata" in result.stdout
+
+
+def test_validator_rejects_superpowers_spec_missing_parent_workstream(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    write_text(
+        tmp_path / "docs" / "superpowers" / "specs" / "2026-04-25-sample-spec.md",
+        """---
+layer: operating_system
+artifact_type: spec
+status: proposed
+targets:
+  - docs/operating_system/repo-governance.md
+related_features: []
+related_stages: []
+---
+
+# Sample Spec
+""",
+    )
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "superpowers spec parent_workstream must be a non-empty canonical concise string" in result.stdout.lower()
+
+
+def test_validator_rejects_operating_system_plan_with_named_parent_workstream(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    write_text(
+        tmp_path / "docs" / "superpowers" / "plans" / "2026-04-25-sample-plan.md",
+        """---
+layer: operating_system
+artifact_type: plan
+status: proposed
+parent_workstream: platform-delivery
+targets:
+  - docs/operating_system/repo-governance.md
+related_features: []
+related_stages: []
+---
+
+# Sample Plan
+""",
+    )
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "operating-system superpowers artifacts must use parent_workstream: none" in result.stdout.lower()
+
+
+def test_validator_rejects_thread_with_redundant_parent_workstream(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    seed_workstream_registry_entry(tmp_path)
+    write_text(
+        tmp_path
+        / "docs"
+        / "intent"
+        / "workstreams"
+        / "threads"
+        / "platform-delivery"
+        / "01-sample-thread.md",
+        """---
+thread_id: platform-delivery.sample-thread
+parent_workstream: platform-delivery
+status: proposed
+---
+
+# sample-thread
+""",
+    )
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "must not restate parent_workstream" in result.stdout.lower()
+
+
+def test_validator_accepts_superpowers_change_plan_with_parent_thread_and_parent_spec(
+    tmp_path: Path,
+) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    thread_id = seed_thread_registry_entry(tmp_path)
+    write_text(
+        tmp_path / "docs" / "superpowers" / "specs" / "2026-04-25-sample-spec.md",
+        f"""---
+layer: change
+artifact_type: spec
+status: proposed
+parent_thread: {thread_id}
+targets:
+  - docs/operating_system/repo-governance.md
+related_features: []
+related_stages: []
+---
+
+# Sample Spec
+""",
+    )
+    write_text(
+        tmp_path / "docs" / "superpowers" / "plans" / "2026-04-25-sample-plan.md",
+        f"""---
+layer: change
+artifact_type: plan
+status: proposed
+parent_thread: {thread_id}
+parent_spec: docs/superpowers/specs/2026-04-25-sample-spec.md
+targets:
+  - docs/operating_system/repo-governance.md
+related_features: []
+related_stages: []
+---
+
+# Sample Plan
+""",
+    )
+    generator = run_planning_lineage_generator(tmp_path)
+    assert generator.returncode == 0, generator.stderr
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 0
+
+
+def test_validator_rejects_superpowers_change_plan_with_unknown_parent_thread(
+    tmp_path: Path,
+) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    write_text(
+        tmp_path / "docs" / "superpowers" / "specs" / "2026-04-25-sample-spec.md",
+        """---
+layer: change
+artifact_type: spec
+status: proposed
+parent_thread: platform-delivery.sample-thread
+targets:
+  - docs/operating_system/repo-governance.md
+related_features: []
+related_stages: []
+---
+
+# Sample Spec
+""",
+    )
+    write_text(
+        tmp_path / "docs" / "superpowers" / "plans" / "2026-04-25-sample-plan.md",
+        """---
+layer: change
+artifact_type: plan
+status: proposed
+parent_thread: platform-delivery.sample-thread
+parent_spec: docs/superpowers/specs/2026-04-25-sample-spec.md
+targets:
+  - docs/operating_system/repo-governance.md
+related_features: []
+related_stages: []
+---
+
+# Sample Plan
+""",
+    )
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "parent_thread must resolve to a registered bounded change thread" in result.stdout.lower()
+
+
+def test_validator_rejects_change_plan_when_parent_spec_thread_does_not_match(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    thread_id = seed_thread_registry_entry(tmp_path, thread_slug="sample-thread")
+    other_thread_id = seed_thread_registry_entry(tmp_path, thread_slug="other-thread")
+    write_text(
+        tmp_path / "docs" / "superpowers" / "specs" / "2026-04-25-sample-spec.md",
+        f"""---
+layer: change
+artifact_type: spec
+status: proposed
+parent_thread: {thread_id}
+targets:
+  - docs/operating_system/repo-governance.md
+related_features: []
+related_stages: []
+---
+
+# Sample Spec
+""",
+    )
+    write_text(
+        tmp_path / "docs" / "superpowers" / "plans" / "2026-04-25-sample-plan.md",
+        f"""---
+layer: change
+artifact_type: plan
+status: proposed
+parent_thread: {other_thread_id}
+parent_spec: docs/superpowers/specs/2026-04-25-sample-spec.md
+targets:
+  - docs/operating_system/repo-governance.md
+related_features: []
+related_stages: []
+---
+
+# Sample Plan
+""",
+    )
+    generator = run_planning_lineage_generator(tmp_path)
+    assert generator.returncode == 0, generator.stderr
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "must match the parent_spec thread lineage" in result.stdout.lower()
+
+
+def test_validator_rejects_stale_generated_planning_lineage(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    seed_thread_registry_entry(tmp_path)
+    write_text(
+        tmp_path / "docs" / "generated" / "planning_lineage.yaml",
+        "roadmap:\n  path: docs/intent/master-workstream-roadmap.md\n  workstream_count: 999\n",
+    )
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "generated planning lineage is stale" in result.stdout.lower()
+
+
 def test_validator_rejects_bare_capability_ids_in_yaml_architecture_template(
     tmp_path: Path,
 ) -> None:
@@ -1829,6 +2308,7 @@ timeline: []
 def test_validator_accepts_rich_lineage_generated_shape(tmp_path: Path) -> None:
     seed_required_managed_mode_surface(tmp_path)
     seed_managed_feature_folder(tmp_path, include_lineage=False)
+    seed_workstream_registry_entry(tmp_path, "sample-delivery")
     write_text(
         tmp_path / "docs" / "features" / "sample-feature" / "sample-feature.yaml",
         """# GENERATED FILE - do not edit directly.
@@ -1856,9 +2336,48 @@ last_updated_at: "2026-04-22T10:30:00+02:00"
 """,
     )
     write_text(tmp_path / "docs" / "sample.md", "# Sample Doc\nMeaningful doc body.\n")
+    thread_id = seed_thread_registry_entry(
+        tmp_path,
+        workstream_id="sample-delivery",
+        thread_slug="sample-capability-lineage",
+        status="completed",
+    )
+    write_text(
+        tmp_path / "docs" / "superpowers" / "specs" / "2026-04-22-sample-spec.md",
+        f"""---
+layer: change
+artifact_type: spec
+status: completed
+parent_thread: {thread_id}
+targets:
+  - docs/sample.md
+related_features: []
+related_stages: []
+---
+
+# Sample Spec
+
+Completed spec body.
+""",
+    )
     write_text(
         tmp_path / "docs" / "superpowers" / "plans" / "2026-04-22-sample-plan.md",
-        "# Sample Plan\nCompleted plan body.\n",
+        f"""---
+layer: change
+artifact_type: plan
+status: completed
+parent_thread: {thread_id}
+parent_spec: docs/superpowers/specs/2026-04-22-sample-spec.md
+targets:
+  - docs/sample.md
+related_features: []
+related_stages: []
+---
+
+# Sample Plan
+
+Completed plan body.
+""",
     )
     write_text(
         tmp_path / "docs" / "features" / "sample-feature" / "lineage.generated.yaml",
@@ -1914,6 +2433,8 @@ timeline:
     outcome: Sample capability now has explicit lineage metadata.
 """,
     )
+    generator = run_planning_lineage_generator(tmp_path)
+    assert generator.returncode == 0, generator.stderr
 
     result = run_validator(tmp_path)
 

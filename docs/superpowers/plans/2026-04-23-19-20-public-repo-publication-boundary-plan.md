@@ -1,8 +1,10 @@
 ---
+layer: operating_system
 artifact_type: plan
 status: completed
 created_at: 2026-04-23T19:20:00+02:00
 completed_at: 2026-04-23T19:45:00+02:00
+parent_workstream: none
 related_specs:
   - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
 related_features:

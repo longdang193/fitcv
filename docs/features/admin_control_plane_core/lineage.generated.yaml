@@ -507,11 +507,3 @@ timeline:
   verification:
   - See plan body closeout verification notes.
   outcome: Completed the phase 6 lineage evidence hydration.
-- completed_at: '2026-04-22T15:37:00+02:00'
-  source_plan: docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
-  change_id: 2026-04-22-phase-11-control-plane-evidence-completion
-  summary: Phase 11 Control Plane Evidence Completion Implementation Plan
-  capabilities: []
-  verification:
-  - See plan body closeout verification notes.
-  outcome: Completed the phase 11 control-plane evidence work.

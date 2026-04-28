@@ -7,7 +7,7 @@ responsibility:
   - Centralize validator-owned adoption-shape policy constants and field registries.
   - Keep schema, template, and canonical-style rule data separate from validator flow logic.
 inputs:
-  - Internal starter validation policy maintained in code.
+  - Internal validator policy maintained in code.
 outputs:
   - Shared constants imported by validator scripts.
 tags:
@@ -168,6 +168,15 @@ REQUIRED_DOC_KEYWORDS = {
     "docs/architecture.md": ("component", "boundar", "integration", "information flow", "control flow"),
 }
 PLACEHOLDER_PATTERNS = ("todo", "tbd", "placeholder", "fill this in later")
+MODE_A_DISCOVERY_CODE_SUFFIXES = {".py", ".ts", ".tsx", ".js", ".jsx"}
+MODE_A_DISCOVERY_RUNTIME_DIRS = ("src", "app")
+MODE_A_DISCOVERY_TEST_DIRS = ("tests",)
+MODE_A_DISCOVERY_MIN_RUNTIME_CODE_FILES = 2
+MODE_A_DISCOVERY_MIN_TEST_CODE_FILES = 1
+MODE_A_DISCOVERY_API_PATH_HINTS = ("api", "server", "router", "route", "endpoint", "http")
+MODE_A_OUTGROWN_MIN_RUNTIME_CODE_FILES = 10
+MODE_A_OUTGROWN_MIN_TEST_CODE_FILES = 5
+MODE_A_OUTGROWN_MIN_RUNTIME_BREADTH_DIRS = 3
 
 # Generated schema and feature/stage contract policy.
 GENERATED_INDEX_NAMES = {
@@ -310,6 +319,7 @@ def format_manual_refs_forbidden_message(*, owner: str | None = None) -> str:
     if owner is None:
         return message
     return f"{owner}: {message}"
+
 
 # Template and metadata-scan policy.
 MODE_A_TEMPLATE_SPEC_PATH = "docs/superpowers/specs/2026-04-23-mode-a-project-template-pack-spec.md"

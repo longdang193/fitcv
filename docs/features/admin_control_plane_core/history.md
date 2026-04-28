@@ -54,16 +54,6 @@ Verification:
 Outcome:
 Completed the phase 6 lineage evidence hydration.
 
-### Phase 11 Control Plane Evidence Completion Implementation Plan
-
-Source plan: `docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md`
-
-Verification:
-- `See plan body closeout verification notes.`
-
-Outcome:
-Completed the phase 11 control-plane evidence work.
-
 <!-- GENERATED HISTORY END -->
 
 ## Human Notes

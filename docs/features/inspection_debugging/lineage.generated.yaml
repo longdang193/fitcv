@@ -78,6 +78,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -135,8 +136,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -223,6 +224,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -280,8 +282,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -362,6 +364,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -419,8 +422,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -507,6 +510,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -564,8 +568,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -646,6 +650,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -703,8 +708,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -811,6 +816,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -868,8 +874,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -982,6 +988,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1039,8 +1046,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1141,6 +1148,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1198,8 +1206,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1289,6 +1297,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1346,8 +1355,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1428,6 +1437,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1485,8 +1495,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1567,6 +1577,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1624,8 +1635,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1712,6 +1723,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1769,8 +1781,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1857,6 +1869,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -1914,8 +1927,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2012,6 +2025,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2069,8 +2083,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2161,6 +2175,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2218,8 +2233,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2310,6 +2325,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2367,8 +2383,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2455,6 +2471,7 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-18-10-phase-14-inspection-diagnostics-completion-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
     - docs/superpowers/specs/2026-04-23-double-entry-truth-cleanup-spec.md
+    - docs/superpowers/specs/2026-04-23-public-repo-publication-boundary-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
     - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md
@@ -2512,8 +2529,8 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
     - docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-    - docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-    - docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-27-23-29-fitcv-agentic-fork-migration-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2576,44 +2593,3 @@ timeline:
   verification:
   - See plan body closeout verification notes.
   outcome: Completed the phase 6 lineage evidence hydration.
-- completed_at: '2026-04-22T18:20:00+02:00'
-  source_plan: docs/superpowers/plans/2026-04-22-18-20-phase-14-inspection-diagnostics-completion-plan.md
-  change_id: 2026-04-22-phase-14-inspection-diagnostics-completion
-  summary: Phase 14 Inspection Diagnostics Completion Implementation Plan
-  capabilities: []
-  verification:
-  - See plan body closeout verification notes.
-  outcome: Completed the phase 14 inspection diagnostics work.
-- completed_at: '2026-04-23T16:57:09+02:00'
-  source_plan: docs/superpowers/plans/2026-04-23-16-48-double-entry-truth-cleanup-batch-a-plan.md
-  change_id: 2026-04-23-double-entry-truth-cleanup-batch-a
-  summary: Double-Entry Truth Cleanup Batch A Implementation Plan
-  capabilities: []
-  verification:
-  - python scripts/sync_architecture_docs.py --check
-  - python scripts/validate_adoption_shape.py
-  - python scripts/validate_repo_contracts.py --fast
-  - git diff --check
-  outcome: Removed manual downstream changelog truth from the `cv_system` and `inspection_debugging` history files while preserving generated chronology.
-- completed_at: '2026-04-23T17:03:52+02:00'
-  source_plan: docs/superpowers/plans/2026-04-23-17-02-double-entry-truth-cleanup-batch-b-plan.md
-  change_id: 2026-04-23-double-entry-truth-cleanup-batch-b
-  summary: Double-Entry Truth Cleanup Batch B Implementation Plan
-  capabilities: []
-  verification:
-  - python scripts/sync_architecture_docs.py --check
-  - python scripts/validate_adoption_shape.py
-  - python scripts/validate_repo_contracts.py --fast
-  - git diff --check
-  outcome: Reframed `docs/FitCV-pipeline.md` as an explainer and updated `docs/pipeline.md` to point at it as a non-authoritative mental-model doc.
-- completed_at: '2026-04-23T17:08:00+02:00'
-  source_plan: docs/superpowers/plans/2026-04-23-17-08-double-entry-truth-cleanup-batch-c-plan.md
-  change_id: 2026-04-23-double-entry-truth-cleanup-batch-c
-  summary: Double-Entry Truth Cleanup Batch C Implementation Plan
-  capabilities: []
-  verification:
-  - python scripts/sync_architecture_docs.py --check
-  - python scripts/validate_adoption_shape.py
-  - python scripts/validate_repo_contracts.py --fast
-  - git diff --check
-  outcome: Reduced generated-history placeholder noise by omitting empty capabilities, verification, and generic outcome sections while preserving real plan-derived signal.
