@@ -71,6 +71,9 @@ def test_worker_persists_results_export_json_on_success():
     assert payload["run_mode"] == "run_all"
     assert payload["run_mode_label"] == "Run All"
     assert payload["summary"]["ranked"] == 2
+    assert payload["late_stage_mode"]["late_stage_mode"] == "non_agentic"
+    assert payload["late_stage_mode"]["agentic_late_stage_enabled"] is False
+    assert payload["late_stage_mode"]["agentic_status"] == "not_applicable"
     assert "stage_quality_metrics" not in payload
     assert "late_stage_reuse_metrics" not in payload
     assert "shortlist_debug" not in payload
@@ -565,6 +568,9 @@ def test_worker_persists_settings_used_json_on_success():
     payload = json.loads(mock_store_settings.call_args.args[1])
     assert payload["run_id"] == "r1"
     assert payload["settings_schema_version"] == "settings_used_v2"
+    assert payload["late_stage_mode"]["late_stage_mode"] == "non_agentic"
+    assert payload["late_stage_mode"]["agentic_late_stage_enabled"] is False
+    assert payload["late_stage_mode"]["agentic_status"] == "not_applicable"
     assert payload["effective_settings"]["pipeline"]["final_top_n"] == 10
     assert payload["sources"]["config_path"] == ".env.yaml"
     assert payload["sources"]["effective_settings_snapshot_present"] is True
@@ -712,6 +718,49 @@ def test_worker_mapping_suggestions_persistence_failure_appends_warning_event() 
     assert event_row["stage"] == "snapshot_persist_failed"
     assert event_row["level"] == "warning"
     assert "mapping_suggestions snapshot persistence failed" in event_row["message"]
+
+
+def test_worker_synonym_proposals_degradation_appends_warning_event() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.checkpoint_payload_json = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r1",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 1,
+        "mapping_suggestions": [{"alias": "gcp", "canonical": "google cloud"}],
+        "completed_stages": ["normalize", "enrich"],
+        "last_completed_stage": "enrich",
+        "stage_transition_artifacts": {
+            "artifacts": {"stages": {"enrich": {"status": "completed"}}}
+        },
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_synonym_proposals", return_value={
+           "persistence_status": "bundle_only_degraded",
+           "degradation_reason": "missing_synonym_proposals_json_column",
+       }), \
+       patch("fitcv_cp.worker_job.update_run_status") as mock_update:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    final_status = mock_update.call_args_list[-1].args[1]
+    assert final_status.value == "succeeded"
+    event_row = bq.insert_rows_json.call_args_list[-1][0][1][0]
+    assert event_row["stage"] == "snapshot_persist_failed"
+    assert event_row["level"] == "warning"
+    assert "synonym_proposals snapshot persistence failed" in event_row["message"]
+    assert "missing_synonym_proposals_json_column" in event_row["message"]
 
 
 def test_worker_debug_snapshot_persistence_failure_does_not_fail_run():
@@ -1220,6 +1269,22 @@ def test_build_synonym_proposals_payload_preserves_existing_review_state() -> No
     assert proposal["proposal_id"] == proposal_id
     assert proposal["proposal_status"] == "approved_for_run_overlay"
     assert proposal["review_history"][0]["action"] == "approve_for_run_overlay"
+
+
+def test_build_synonym_proposals_payload_marks_not_applicable_without_mapping_suggestions() -> None:
+    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+
+    payload = json.loads(
+        _build_synonym_proposals_payload(
+            run_id="run-synonym-proposals-empty",
+            summary={},
+            created_at=datetime.datetime(2026, 4, 28, tzinfo=datetime.timezone.utc),
+        )
+    )
+
+    assert payload["proposal_generation_status"] == "not_applicable"
+    assert payload["persistence_status"] == "not_applicable"
+    assert payload["proposals"] == []
 
 
 # ── cooperative cancellation ─────────────────────────────────────────────────

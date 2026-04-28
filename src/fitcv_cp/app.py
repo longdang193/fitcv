@@ -120,6 +120,7 @@ from fitcv_cp.bq_store import (
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.queue import cancel_queued_run, enqueue_run, enqueue_run_with_job_id
 from fitcv_cp.settings_schema import (
+    AGENTIC_SETTINGS_SECTIONS,
     ALL_GROUP_REGISTRIES,
     CV_GROUPS,
     RANKING_GROUPS,
@@ -128,6 +129,8 @@ from fitcv_cp.settings_schema import (
     ValidationError,
     apply_settings_to_config,
     coerce_value,
+    editable_settings_keys,
+    metadata_only_settings_keys,
     validate_settings,
 )
 from fitcv_cp.settings_store import load_active_settings, save_setting, save_settings_group
@@ -405,6 +408,7 @@ BUNDLE_ARTIFACT_FILENAMES: tuple[str, ...] = (
     "settings-used.json",
     "cv-debug.json",
     "mapping-suggestions.json",
+    "synonym-proposals.json",
 )
 
 
@@ -425,6 +429,16 @@ def _load_stage_transition_artifacts_payload(run: PipelineRun) -> dict[str, Any]
     except (_json.JSONDecodeError, TypeError):
         return {}
     return payload if isinstance(payload, dict) else {}
+
+
+def _load_json_object(raw_payload: str | None) -> dict[str, Any] | None:
+    if not raw_payload:
+        return None
+    try:
+        payload = _json.loads(raw_payload)
+    except (_json.JSONDecodeError, TypeError):
+        return None
+    return payload if isinstance(payload, dict) else None
 
 
 def _stage_artifacts_by_id(run: PipelineRun) -> dict[str, dict[str, Any]]:
@@ -787,6 +801,15 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 content=_pretty_json_string(run.mapping_suggestions_json),
             )
         )
+    if run.synonym_proposals_json and _run_has_reached_stage(run, "enrich"):
+        files.append(
+            RunArtifactFile(
+                filename="synonym-proposals.json",
+                label="Synonym Proposals JSON",
+                href=f"/admin/runs/{run.run_id}/synonym-proposals.json",
+                content=_pretty_json_string(run.synonym_proposals_json),
+            )
+        )
     if stage_transition_artifact_payload and run.status != RunStatus.QUEUED:
         files.append(
             RunArtifactFile(
@@ -812,9 +835,62 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
     return files
 
 
+def _default_late_stage_mode_payload() -> dict[str, Any]:
+    return {
+        "late_stage_mode": "non_agentic",
+        "agentic_late_stage_enabled": False,
+        "mode_source": "artifact_bundle_default",
+        "agentic_status": "not_applicable",
+    }
+
+
+def _load_run_late_stage_mode_payload(run: PipelineRun) -> dict[str, Any]:
+    for raw_payload in (run.settings_used_json, run.results_export_json):
+        payload = _load_json_object(raw_payload)
+        if isinstance(payload, dict) and isinstance(payload.get("late_stage_mode"), dict):
+            return dict(payload["late_stage_mode"])
+    for stage_id in ("cv_generation", "cv_analysis"):
+        stage_payload = dict(_stage_artifacts_by_id(run).get(stage_id) or {})
+        if isinstance(stage_payload.get("late_stage_mode"), dict):
+            return dict(stage_payload["late_stage_mode"])
+    return _default_late_stage_mode_payload()
+
+
+def _artifact_applicability_state(run: PipelineRun, filename: str, included_files: set[str]) -> str:
+    if filename in included_files:
+        return "present"
+    if filename in {f"{stage_id}.json" for stage_id in BUNDLE_STAGE_IDS}:
+        stage_id = filename[:-5]
+        if _run_has_stage_artifact(run, stage_id):
+            return "missing"
+        return "not_applicable" if not _run_has_reached_stage(run, stage_id) else "missing"
+    if filename == "mapping-suggestions.json":
+        return (
+            "missing"
+            if _run_has_reached_stage(run, "enrich") and _run_has_stage_artifact(run, "enrich")
+            else "not_applicable"
+        )
+    if filename == "synonym-proposals.json":
+        return "missing" if _run_has_reached_stage(run, "enrich") else "not_applicable"
+    if filename == "results.json":
+        return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
+    if filename == "settings-used.json":
+        return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
+    if filename == "cv-debug.json":
+        return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
+    if filename == "stage-artifacts.json":
+        return "missing" if run.status != RunStatus.QUEUED else "not_applicable"
+    return "missing"
+
+
 def _build_run_artifact_bundle_manifest(run: PipelineRun, files: list[RunArtifactFile]) -> dict[str, Any]:
     included_files = [artifact.filename for artifact in files]
     missing_files = [filename for filename in BUNDLE_ARTIFACT_FILENAMES if filename not in included_files]
+    included_file_set = set(included_files)
+    artifact_states = {
+        filename: _artifact_applicability_state(run, filename, included_file_set)
+        for filename in BUNDLE_ARTIFACT_FILENAMES
+    }
     return {
         "run_id": run.run_id,
         "status": run.status.value,
@@ -823,8 +899,10 @@ def _build_run_artifact_bundle_manifest(run: PipelineRun, files: list[RunArtifac
         "created_at": run.created_at.isoformat() if run.created_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
         "bundle_schema_version": "run_artifact_bundle_v2",
+        "late_stage_mode": _load_run_late_stage_mode_payload(run),
         "included_files": included_files,
         "missing_files": missing_files,
+        "artifact_states": artifact_states,
     }
 
 
@@ -1503,10 +1581,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     app = FastAPI(title="FitCV Admin Control Plane")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
-    metadata_only_keys = {
-        entry["key"]
-        for entry in SETTINGS_SCHEMA
-        if isinstance(entry.get("options"), list) and len(entry.get("options", [])) <= 1
+    metadata_only_keys = metadata_only_settings_keys()
+    editable_keys = editable_settings_keys()
+    all_settings_sections = {
+        **SETTINGS_SECTIONS,
+        **AGENTIC_SETTINGS_SECTIONS,
     }
     composition_sections = [
         {
@@ -1599,15 +1678,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 {
                     "id": "selection-funnel",
                     "title": "Retrieval Settings",
-                    "helper": "Higher values broaden recall but increase shortlist, reranking, and downstream latency.",
+                    "helper": (
+                        "Set the future-run candidate funnel before jobs move into ranking and later CV stages."
+                    ),
                     "submit_kind": "section",
-                    "submit_slug": "retrieval",
-                    "keys": [
-                        "pipeline.vector_search_top_n",
-                        "pipeline.ai_score_top_n",
-                        "pipeline.final_top_n",
-                        "pipeline.evidence_top_k",
-                    ],
+                    "submit_slug": "retrieval-core",
+                    "keys": SETTINGS_SECTIONS["retrieval-core"],
                 },
                 {
                     "id": "selection-global-filters",
@@ -1627,6 +1703,32 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "submit_kind": "section",
                     "submit_slug": "rule-filter",
                     "keys": ["rule_filter.selected_filters"],
+                },
+            ],
+        },
+        {
+            "id": "agentic",
+            "title": "Agentic",
+            "helper": "Control bounded future-run agentic defaults without turning this page into a historical run-inspection view.",
+            "cards": [
+                {
+                    "id": "agentic-controls",
+                    "title": "Agentic Controls",
+                    "helper": "Enable the late-stage agentic path and the semantic-alignment gate used by future runs.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-core",
+                    "save_label": "Save Agentic Settings",
+                    "keys": AGENTIC_SETTINGS_SECTIONS["agentic-core"],
+                },
+                {
+                    "id": "agentic-advanced",
+                    "title": "Advanced Agentic Tuning",
+                    "helper": "Semantic channel weights and pool sizing stay behind disclosure; fixed runtime metadata remains explanatory.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-advanced",
+                    "save_label": "Save Advanced Agentic Settings",
+                    "keys": AGENTIC_SETTINGS_SECTIONS["agentic-advanced"],
+                    "is_advanced": True,
                 },
             ],
         },
@@ -1731,23 +1833,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "helper": "Expert-only tuning for semantic alignment, batching, concurrency, and throttle behavior.",
             "cards": [
                 {
-                    "id": "advanced-retrieval",
-                    "title": "Advanced Retrieval Tuning",
-                    "helper": "Hybrid semantic-alignment controls. Useful when evidence quality drifts more than raw throughput.",
-                    "submit_kind": "section",
-                    "submit_slug": "retrieval",
-                    "keys": [
-                        "cv_analysis.semantic_alignment.enabled",
-                        "cv_analysis.semantic_alignment.model",
-                        "cv_analysis.semantic_alignment.responsibility_lexical_weight",
-                        "cv_analysis.semantic_alignment.responsibility_semantic_weight",
-                        "cv_analysis.semantic_alignment.domain_lexical_weight",
-                        "cv_analysis.semantic_alignment.domain_semantic_weight",
-                        "cv_analysis.semantic_alignment.channel_pool_size",
-                    ],
-                    "is_advanced": True,
-                },
-                {
                     "id": "advanced-runtime",
                     "title": "Advanced Runtime Tuning",
                     "helper": "Timing and throttling controls. Higher concurrency does not bypass global rate limits, so use carefully.",
@@ -1782,6 +1867,25 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 return "Yes" if bool(value) else "No"
             if isinstance(value, list):
                 return ", ".join(str(item) for item in value) if value else "—"
+            return str(value)
+
+        def _normalize_for_dirty(value: Any, entry_type: str) -> str:
+            if entry_type == "bool":
+                return "true" if bool(value) else "false"
+            if entry_type == "int":
+                try:
+                    return str(int(value))
+                except (TypeError, ValueError):
+                    return str(value)
+            if entry_type == "float":
+                try:
+                    return str(float(value))
+                except (TypeError, ValueError):
+                    return str(value)
+            if entry_type == "list[str]":
+                if isinstance(value, list):
+                    return "|".join(str(item).strip() for item in value)
+                return str(value)
             return str(value)
 
         def _draft_value_for_card(
@@ -1823,15 +1927,26 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     submit_slug=submit_slug,
                     key=key,
                 )
-                current_value = draft_value if draft_value is not None else effective_value
+                typed_draft_value = None
+                if draft_value is not None:
+                    try:
+                        typed_draft_value = coerce_value(key, draft_value)
+                    except (KeyError, TypeError, ValueError):
+                        typed_draft_value = None
+                form_value = draft_value if draft_value is not None else effective_value
+                comparison_value = typed_draft_value if typed_draft_value is not None else form_value
                 entries.append(
                     {
                         "entry": entry,
                         "effective_value": effective_value,
-                        "current_value": current_value,
+                        "form_value": form_value,
                         "effective_display": _display_value_for_settings(effective_value, str(entry["type"])),
-                        "current_display": _display_value_for_settings(current_value, str(entry["type"])),
-                        "is_dirty": current_value != effective_value,
+                        "current_display": _display_value_for_settings(comparison_value, str(entry["type"])),
+                        "current_source_label": "Persisted override" if key in active else "Baseline default",
+                        "is_dirty": _normalize_for_dirty(comparison_value, str(entry["type"])) != _normalize_for_dirty(
+                            effective_value,
+                            str(entry["type"]),
+                        ),
                         "is_metadata_only": key in metadata_only_keys,
                     }
                 )
@@ -1875,6 +1990,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "metadata_only_keys": metadata_only_keys,
             "settings_page_task_sections": settings_page_task_sections,
             "settings_metadata_note": "Currently fixed by the active runtime contract",
+            "settings_truth_notes": [
+                "This page edits future-run defaults only.",
+                "Per-run overrides are captured at trigger time and do not change these saved defaults.",
+                "Use settings-used.json on a completed run as the historical source of truth for what that run actually used.",
+                "Use run detail observability to inspect what a specific run did stage by stage.",
+            ],
         }
         context.update(extra)
         return context
@@ -2367,6 +2488,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
     @app.post("/settings/{key}", status_code=200)
     def update_setting(key: str, body: SettingUpdate) -> dict:
+        if key in metadata_only_keys:
+            raise HTTPException(status_code=422, detail=f"Setting '{key}' is metadata-only and cannot be saved through single-key routes")
         try:
             coerced = coerce_value(key, body.value)
         except KeyError:
@@ -2391,10 +2514,20 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
     @app.post("/admin/settings/{key}", response_class=HTMLResponse)
     async def admin_settings_update_key(request: Request, key: str) -> HTMLResponse:
-        from fastapi import Form
         from fastapi.responses import RedirectResponse
         form = await request.form()
         value = form.get("value", "")
+        if key in metadata_only_keys:
+            active = load_active_settings(bq=bq, project=project, dataset=dataset)
+            return templates.TemplateResponse(
+                request=request,
+                name="settings.html",
+                context=_build_settings_context(
+                    active,
+                    error=f"Setting '{key}' is metadata-only and cannot be saved through single-key routes",
+                ),
+                status_code=422,
+            )
         try:
             coerced = coerce_value(key, value)
             validate_settings({key: coerced})
@@ -2427,22 +2560,22 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
         keys = target_registry[group_name]
         form = await request.form()
+        active = load_active_settings(bq=bq, project=project, dataset=dataset)
 
         # Coerce all keys in the group
         coerced: dict = {}
         coerce_errors: list[str] = []
         for key in keys:
-            raw = _settings_form_value(form, key)
+            if key in metadata_only_keys and key not in form:
+                raw = active.get(key, schema_by_key[key]["default"])
+            else:
+                raw = _settings_form_value(form, key)
             try:
                 coerced[key] = coerce_value(key, raw)
             except (KeyError, ValueError) as exc:
                 coerce_errors.append(str(exc))
 
-        def _get_active() -> dict:
-            return load_active_settings(bq=bq, project=project, dataset=dataset)
-
         def _error_response(msg: str) -> HTMLResponse:
-            active = _get_active()
             return templates.TemplateResponse(
                 request=request,
                 name="settings.html",
@@ -2471,7 +2604,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         # Write — surface BQ failures to the user
         try:
             save_settings_group(
-                coerced, updated_by=updated_by, bq=bq, project=project, dataset=dataset
+                {key: value for key, value in coerced.items() if key in editable_keys},
+                updated_by=updated_by,
+                bq=bq,
+                project=project,
+                dataset=dataset,
             )
         except RuntimeError as exc:
             return _error_response(f"Save failed: {exc}")
@@ -2491,17 +2628,21 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         from uuid import uuid4
         from fastapi.responses import RedirectResponse as _Redirect
 
-        if section_name not in SETTINGS_SECTIONS:
+        if section_name not in all_settings_sections:
             raise HTTPException(status_code=404, detail=f"Unknown section: {section_name!r}")
 
-        keys = SETTINGS_SECTIONS[section_name]
+        keys = all_settings_sections[section_name]
         form = await request.form()
+        active = load_active_settings(bq=bq, project=project, dataset=dataset)
 
         coerced: dict = {}
         section_errors: dict[str, str] = {}
 
         for key in keys:
-            raw = _settings_form_value(form, key)
+            if key in metadata_only_keys and key not in form:
+                raw = active.get(key, schema_by_key[key]["default"])
+            else:
+                raw = _settings_form_value(form, key)
             try:
                 coerced[key] = coerce_value(key, raw)
             except (KeyError, ValueError) as exc:
@@ -2515,7 +2656,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 section_errors[keys[0]] = str(exc)
 
         def _section_error_response(errors: dict[str, str]) -> HTMLResponse:
-            active = load_active_settings(bq=bq, project=project, dataset=dataset)
             return templates.TemplateResponse(
                 request=request,
                 name="settings.html",
@@ -2535,7 +2675,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         updated_by = f"admin:section:{update_id}"
         try:
             save_settings_group(
-                coerced, updated_by=updated_by, bq=bq, project=project, dataset=dataset
+                {key: value for key, value in coerced.items() if key in editable_keys},
+                updated_by=updated_by,
+                bq=bq,
+                project=project,
+                dataset=dataset,
             )
         except RuntimeError as exc:
             return _section_error_response({keys[0]: f"Save failed: {exc}"})
@@ -3269,6 +3413,25 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-mapping-suggestions.json"'},
         )
 
+    @app.get("/admin/runs/{run_id}/synonym-proposals.json")
+    def download_run_synonym_proposals_json(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if not _run_has_reached_stage(run, "enrich"):
+            raise HTTPException(
+                status_code=404,
+                detail="Synonym proposals export is not available until enrich has completed for this run",
+            )
+        if not run.synonym_proposals_json:
+            raise HTTPException(status_code=404, detail="Synonym proposals export is not available for this run")
+        pretty_json = _json.dumps(_json.loads(run.synonym_proposals_json), ensure_ascii=False, indent=2)
+        return Response(
+            content=pretty_json,
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-synonym-proposals.json"'},
+        )
+
     @app.get("/admin/mapping-suggestions.json")
     def download_aggregate_mapping_suggestions_json() -> Response:
         runs = list_runs(
@@ -3425,7 +3588,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 dataset=dataset,
             )
 
-        update_run_synonym_proposals(
+        persistence_status = update_run_synonym_proposals(
             run.run_id,
             _json.dumps(updated_payload, ensure_ascii=False),
             bq,
@@ -3456,10 +3619,29 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
+        if persistence_status.get("persistence_status") not in {"persisted", "not_applicable"}:
+            append_event(
+                RunEvent(
+                    run_id=run.run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="snapshot_persist_failed",
+                    level="warning",
+                    message=(
+                        "synonym_proposals snapshot persistence failed: "
+                        f"{persistence_status.get('degradation_reason') or persistence_status.get('persistence_status')}"
+                    ),
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
         return {
             "proposal_id": proposal_id,
             "run_id": run.run_id,
             "proposal_status": next_status,
+            "persistence_status": persistence_status.get("persistence_status", "persisted"),
+            "degradation_reason": persistence_status.get("degradation_reason", ""),
         }
 
     return app
