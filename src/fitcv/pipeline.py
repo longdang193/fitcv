@@ -1308,6 +1308,44 @@ def _deterministic_truth_fields(status: str | None) -> dict[str, str | None]:
     }
 
 
+def _bounded_event_payload(
+    *,
+    event_name: str,
+    event_family: str,
+    source_stage: str,
+    event_status: str,
+    job_url: str | None = None,
+    deterministic_outcome: str | None = None,
+    stage_owned_subreason: str | None = None,
+    fallback_used: bool = False,
+    provenance: dict[str, Any] | None = None,
+    input_snapshot: dict[str, Any] | None = None,
+    output_snapshot: dict[str, Any] | None = None,
+    artifact_refs: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "event_name": event_name,
+        "event_family": event_family,
+        "source_stage": source_stage,
+        "event_status": event_status,
+        "deterministic_outcome": deterministic_outcome,
+        "fallback_used": fallback_used,
+    }
+    if job_url:
+        payload["job_url"] = job_url
+    if stage_owned_subreason is not None:
+        payload["stage_owned_subreason"] = stage_owned_subreason
+    if provenance:
+        payload["provenance"] = _json_safe_pipeline_value(provenance)
+    if input_snapshot:
+        payload["input_snapshot"] = _json_safe_pipeline_value(input_snapshot)
+    if output_snapshot:
+        payload["output_snapshot"] = _json_safe_pipeline_value(output_snapshot)
+    if artifact_refs:
+        payload["artifact_refs"] = _json_safe_pipeline_value(artifact_refs)
+    return payload
+
+
 def _authoritative_ranking_fit_label(
     job: dict[str, Any],
     fit_classification: str | None,
@@ -3148,7 +3186,29 @@ def run_pipeline(
                         )
                     )
                     if reporter is not None and reused_status == "analysis_failed":
-                        reporter.emit("layer4_cv_error", "error", f"CV analysis failed for {job.get('job_url')}: {debug_error}")  # type: ignore[union-attr]
+                        reporter.emit(
+                            "layer4_cv_error",
+                            "error",
+                            f"CV analysis failed for {job.get('job_url')}: {debug_error}",
+                            _bounded_event_payload(
+                                event_name="cv_analysis_decision",
+                                event_family="decision",
+                                source_stage="cv_analysis",
+                                event_status="completed",
+                                job_url=str(job.get("job_url") or ""),
+                                deterministic_outcome="rejected",
+                                stage_owned_subreason=CV_ANALYSIS_FAILED_STATUS,
+                                input_snapshot={
+                                    "ranking_fit_label": analysis_record.get("ranking_fit_label"),
+                                },
+                                output_snapshot={
+                                    "error_stage": str(
+                                        (debug_error or {}).get("stage") if isinstance(debug_error, dict) else ""
+                                    ),
+                                },
+                                artifact_refs={"stage_id": "cv_analysis"},
+                            ),
+                        )  # type: ignore[union-attr]
                 continue
             evidence: list[dict[str, Any]] = []
             evidence_selection_summary: dict[str, Any] = {}
@@ -3338,7 +3398,27 @@ def run_pipeline(
                     )
                 )
                 if reporter is not None:
-                    reporter.emit("layer4_cv_error", "error", f"CV analysis failed for {job.get('job_url')}: {exc}")  # type: ignore[union-attr]
+                    reporter.emit(
+                        "layer4_cv_error",
+                        "error",
+                        f"CV analysis failed for {job.get('job_url')}: {exc}",
+                        _bounded_event_payload(
+                            event_name="cv_analysis_decision",
+                            event_family="decision",
+                            source_stage="cv_analysis",
+                            event_status="completed",
+                            job_url=str(job.get("job_url") or ""),
+                            deterministic_outcome="rejected",
+                            stage_owned_subreason=CV_ANALYSIS_FAILED_STATUS,
+                            input_snapshot={
+                                "ranking_fit_label": analysis_record.get("ranking_fit_label"),
+                            },
+                            output_snapshot={
+                                "error_stage": str(analysis_record["error"].get("stage") or ""),
+                            },
+                            artifact_refs={"stage_id": "cv_analysis"},
+                        ),
+                    )  # type: ignore[union-attr]
                 continue
         if reporter is not None:
             reporter.emit(
@@ -3350,6 +3430,36 @@ def run_pipeline(
                     f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS)} blocked by reranker, "
                     f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == 'skipped_fit_gate')} skipped, "
                     f"{sum(1 for record in cv_analysis_results if str(record.get('status') or '') == 'analysis_failed')} failed"
+                ),
+                _bounded_event_payload(
+                    event_name="cv_analysis_decision",
+                    event_family="decision",
+                    source_stage="cv_analysis",
+                    event_status="completed",
+                    deterministic_outcome=None,
+                    stage_owned_subreason="stage_summary",
+                    input_snapshot={
+                        "ranked_jobs": len(ranked),
+                    },
+                    output_snapshot={
+                        "ready_for_generation": sum(
+                            1 for record in cv_analysis_results
+                            if str(record.get("status") or "") == CV_ANALYSIS_READY_FOR_GENERATION_STATUS
+                        ),
+                        "blocked_by_reranker_fit": sum(
+                            1 for record in cv_analysis_results
+                            if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
+                        ),
+                        "skipped_fit_gate": sum(
+                            1 for record in cv_analysis_results
+                            if str(record.get("status") or "") == CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS
+                        ),
+                        "analysis_failed": sum(
+                            1 for record in cv_analysis_results
+                            if str(record.get("status") or "") == CV_ANALYSIS_FAILED_STATUS
+                        ),
+                    },
+                    artifact_refs={"stage_id": "cv_analysis"},
                 ),
             )  # type: ignore[union-attr]
         state["cv_analysis_results"] = cv_analysis_results
@@ -3570,6 +3680,34 @@ def run_pipeline(
                         },
                     )
                 )
+                if reporter is not None:
+                    reporter.emit(
+                        "layer4_cv_validation_failed",
+                        "warning",
+                        f"CV validation failed for {job.get('job_url')}",
+                        _bounded_event_payload(
+                            event_name="cv_generation_decision",
+                            event_family="decision",
+                            source_stage="cv_generation",
+                            event_status="completed",
+                            job_url=str(job.get("job_url") or ""),
+                            deterministic_outcome="rejected",
+                            stage_owned_subreason="validation_failed",
+                            provenance={
+                                "cv_generation_model": cv_generation_model_value,
+                            },
+                            input_snapshot={
+                                "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
+                                "fit_classification": fit,
+                                "selected_evidence_count": len(evidence_used),
+                            },
+                            output_snapshot={
+                                "validation_status": "failed",
+                                "missing_sections": list(validation.get("missing_sections") or []),
+                            },
+                            artifact_refs={"stage_id": "cv_generation"},
+                        ),
+                    )  # type: ignore[union-attr]
                 continue
 
             structured_cv_final = structured_cv
@@ -3661,6 +3799,27 @@ def run_pipeline(
                     "layer4_cv_error",
                     "error",
                     f"CV generation failed for {job.get('job_url')}: {exc}",
+                    _bounded_event_payload(
+                        event_name="cv_generation_decision",
+                        event_family="decision",
+                        source_stage="cv_generation",
+                        event_status="completed",
+                        job_url=str(job.get("job_url") or ""),
+                        deterministic_outcome="rejected",
+                        stage_owned_subreason=failure_status,
+                        provenance={
+                            "cv_generation_model": cv_generation_model_value,
+                        },
+                        input_snapshot={
+                            "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
+                            "fit_classification": fit,
+                            "selected_evidence_count": len(evidence_used),
+                        },
+                        output_snapshot={
+                            "error_stage": failure_stage,
+                        },
+                        artifact_refs={"stage_id": "cv_generation"},
+                    ),
                 )  # type: ignore[union-attr]
             continue
 
@@ -3731,5 +3890,23 @@ def run_pipeline(
             "ranked": summary["ranked"],
             "cvs_generated": summary["cvs_generated"],
         }
-        reporter.emit("pipeline_complete", "info", str(event_summary))  # type: ignore[union-attr]
+        reporter.emit(
+            "pipeline_complete",
+            "info",
+            str(event_summary),
+            _bounded_event_payload(
+                event_name="pipeline_complete",
+                event_family="summary",
+                source_stage="cv_generation",
+                event_status="completed",
+                input_snapshot={
+                    "total_jobs": summary["total_jobs"],
+                    "passed_filter": summary["passed_filter"],
+                    "ranked": summary["ranked"],
+                },
+                output_snapshot={
+                    "cvs_generated": summary["cvs_generated"],
+                },
+            ),
+        )  # type: ignore[union-attr]
     return summary

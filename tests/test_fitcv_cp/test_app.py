@@ -1079,6 +1079,204 @@ def test_run_detail_timeline_shows_cv_analysis_download_only_on_aggregate_row():
     assert "Skipped https://jobs.example.com/1 (fit=skip)" in resp.text
 
 
+def test_run_detail_timeline_uses_bounded_cv_analysis_payload_counts():
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-cv-analysis-payload",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "cv_analysis": {
+                            "status": "completed",
+                        }
+                    }
+                }
+            }
+        ),
+    )
+    events = [
+        RunEvent(
+            run_id="run-cv-analysis-payload",
+            event_id="e1",
+            stage="layer4_cv_analysis",
+            level="info",
+            message="legacy summary",
+            created_at=datetime.now(timezone.utc),
+            payload_json=json.dumps(
+                {
+                    "event_name": "cv_analysis_decision",
+                    "event_family": "decision",
+                    "source_stage": "cv_analysis",
+                    "event_status": "completed",
+                    "deterministic_outcome": None,
+                    "stage_owned_subreason": "stage_summary",
+                    "fallback_used": False,
+                    "output_snapshot": {
+                        "ready_for_generation": 1,
+                        "blocked_by_reranker_fit": 2,
+                        "skipped_fit_gate": 0,
+                        "analysis_failed": 1,
+                    },
+                    "artifact_refs": {"stage_id": "cv_analysis"},
+                }
+            ),
+        )
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-cv-analysis-payload")
+
+    assert resp.status_code == 200
+    assert "CV analysis complete: 1 ready, 2 blocked, 0 skipped, 1 failed" in resp.text
+
+
+def test_run_detail_timeline_keeps_validation_failed_job_message_from_payload():
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-cv-validation-row",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "cv_generation": {
+                            "status": "completed",
+                            "output_counts": {
+                                "accepted": 1,
+                                "validation_failed": 1,
+                                "generation_failed": 0,
+                                "persistence_failed": 0,
+                            },
+                        }
+                    }
+                }
+            }
+        ),
+    )
+    events = [
+        RunEvent(
+            run_id="run-cv-validation-row",
+            event_id="e1",
+            stage="layer4_cv_validation_failed",
+            level="warning",
+            message="legacy validation copy",
+            created_at=datetime.now(timezone.utc),
+            payload_json=json.dumps(
+                {
+                    "event_name": "cv_generation_decision",
+                    "event_family": "decision",
+                    "source_stage": "cv_generation",
+                    "job_url": "https://jobs.example.com/1",
+                    "event_status": "completed",
+                    "deterministic_outcome": "rejected",
+                    "stage_owned_subreason": "validation_failed",
+                    "fallback_used": False,
+                    "artifact_refs": {"stage_id": "cv_generation"},
+                }
+            ),
+        )
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-cv-validation-row")
+
+    assert resp.status_code == 200
+    assert "CV validation failed for https://jobs.example.com/1" in resp.text
+    assert "CV generation complete:" not in resp.text
+
+
+def test_run_detail_timeline_hides_stage_download_for_mapped_event_without_stage_artifact():
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-stage-link-missing-artifact",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json='{"run_id":"run-stage-link-missing-artifact","artifacts":{"stages":{"shortlist":{"status":"completed"}}}}',
+    )
+    events = [
+        RunEvent(
+            run_id="run-stage-link-missing-artifact",
+            event_id="e1",
+            stage="layer3_ranking",
+            level="info",
+            message="Final ranking: top 3 jobs",
+            created_at=datetime.now(timezone.utc),
+        )
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-stage-link-missing-artifact")
+
+    assert resp.status_code == 200
+    assert 'href="/admin/runs/run-stage-link-missing-artifact/stage-artifacts/ranking.json"' not in resp.text
+
+
+def test_run_detail_timeline_hides_stage_download_when_stage_artifact_json_is_malformed():
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-stage-link-bad-json",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json="{bad json",
+    )
+    events = [
+        RunEvent(
+            run_id="run-stage-link-bad-json",
+            event_id="e1",
+            stage="layer3_ranking",
+            level="info",
+            message="Final ranking: top 3 jobs",
+            created_at=datetime.now(timezone.utc),
+        )
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-stage-link-bad-json")
+
+    assert resp.status_code == 200
+    assert 'href="/admin/runs/run-stage-link-bad-json/stage-artifacts/ranking.json"' not in resp.text
+
+
 def test_run_detail_timeline_hides_stage_download_for_unmapped_event():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
