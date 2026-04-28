@@ -5,6 +5,8 @@ plan.
 
 If the workstream is still unclear, use `roadmap-to-workstream-prompt.md`
 before this prompt.
+If multiple approved detailed specs still need sequencing or parallel-lane
+decisions, use `spec-set-execution-map-prompt.md` first.
 
 ```text
 Turn this approved design into an implementation plan.
@@ -13,6 +15,7 @@ Spec:
 - path:
 - bounded change thread this plan follows (use a valid thread id from `docs/intent/workstreams/threads/`, or `none`):
 - if `none`, why this is operating_system work:
+- implementation execution map path, if this plan is part of a multi-spec execution wave:
 
 Please:
 1. review the spec and classify the bounded change
@@ -21,6 +24,7 @@ Please:
 4. name files to create or modify
 5. include verification steps
 6. keep the plan small, explicit, and execution-ready
+7. if an implementation execution map exists, explain how this plan fits its wave or lane
 ```
 
 Expected output:

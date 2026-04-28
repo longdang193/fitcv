@@ -3,7 +3,7 @@ managed_architecture_metadata: true
 legacy_feature_contracts: false
 architecture_generator: scripts/sync_architecture_docs.py
 starter_sync:
-  starter_baseline_ref: f3302020220bc040795d05f536d3bf20244e71d5
+  starter_baseline_ref: 17c2712ecb3251ef667b0501dbe4b6c44e684564
   last_shared_surface_review_at: 2026-04-28
   reviewed_surface_classes:
     - repo_config
@@ -21,10 +21,6 @@ starter_sync:
       class: repo_config
       status: customized
       rationale: Public export paths remain FitCV-specific and use the current repo's `config/` and docs layout.
-    - path: docs/operating_system/repo-governance.md
-      class: operating_system_docs
-      status: customized
-      rationale: Governance wording is tailored to the current `codex/` root and the repo's in-progress Mode B migration state.
     - path: docs/operating_system/publication-workflow.md
       class: operating_system_docs
       status: customized
