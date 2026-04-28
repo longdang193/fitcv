@@ -1785,6 +1785,203 @@ def test_download_aggregate_mapping_suggestions_json_endpoint_200() -> None:
     assert payload["suggestions"][0]["occurrences"] == 2
 
 
+def test_download_synonym_proposals_json_endpoint_200() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    runs = [
+        PipelineRun(
+            run_id="run-proposal-a",
+            status=RunStatus.SUCCEEDED,
+            triggered_by="admin",
+            trigger_source="web",
+            jobs_path="data/sample_jobs.json",
+            config_path=".env.yaml",
+            created_at=datetime.now(timezone.utc),
+            synonym_proposals_json=(
+                '{"run_id":"run-proposal-a","proposals":['
+                '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed",'
+                '"proposal_scope":"run_scoped_overlay_candidate","proposal_family":"alias_to_canonical_mapping",'
+                '"alias":"gcp","canonical":"google cloud","candidate_aliases":["gcp"],'
+                '"candidate_canonicals":["google cloud"],"confidence":0.9,'
+                '"rationale":{"kind":"repeated_alias_mapping"},"evidence_summary":{"occurrence_count":2},'
+                '"conflict_summary":{"has_conflict":false},"source_artifact_refs":{"run_id":"run-proposal-a"}}'
+                ']}'
+            ),
+        )
+    ]
+    with patch("fitcv_cp.app.list_runs", return_value=runs):
+        resp = TestClient(_app()).get("/admin/synonym-proposals.json")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["proposals"][0]["proposal_id"] == "proposal-gcp"
+    assert payload["proposals"][0]["run_id"] == "run-proposal-a"
+
+
+def test_approve_synonym_proposal_updates_run_overlay_provenance() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-proposal-approve",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="manual_staged",
+        last_completed_stage="enrich",
+        completed_stages=["normalize", "enrich"],
+        next_stage="rule_filter",
+        effective_settings_json='{"skill_synonyms":{"sql":"structured query language"},"skill_synonyms_runtime":{"base_policy_path":"config/taxonomy/skill_synonyms.yaml","overlay_paths":[],"has_overlay":false,"entry_count":1}}',
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-approve","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed",'
+            '"proposal_scope":"run_scoped_overlay_candidate","proposal_family":"alias_to_canonical_mapping",'
+            '"alias":"gcp","canonical":"google cloud","candidate_aliases":["gcp"],'
+            '"candidate_canonicals":["google cloud"],"confidence":0.9,'
+            '"rationale":{"kind":"repeated_alias_mapping"},"evidence_summary":{"occurrence_count":2},'
+            '"conflict_summary":{"has_conflict":false},"source_artifact_refs":{"run_id":"run-proposal-approve"}}'
+            ']}'
+        ),
+    )
+
+    with patch("fitcv_cp.app.list_runs", return_value=[run]), \
+         patch("fitcv_cp.app.update_run_synonym_proposals") as mock_update_proposals, \
+         patch("fitcv_cp.app.update_run_effective_settings") as mock_update_effective, \
+         patch("fitcv_cp.app.append_event") as mock_event:
+        resp = TestClient(_app()).post(
+            "/admin/synonym-proposals/proposal-gcp/approve-for-run-overlay",
+            data={"acted_by": "operator@example.com", "note": "Looks good"},
+        )
+
+    assert resp.status_code == 200
+    updated_payload = json.loads(mock_update_proposals.call_args.args[1])
+    proposal = updated_payload["proposals"][0]
+    assert proposal["proposal_status"] == "approved_for_run_overlay"
+    assert proposal["review_history"][0]["action"] == "approve_for_run_overlay"
+    effective_payload = json.loads(mock_update_effective.call_args.args[1])
+    assert effective_payload["skill_synonyms"]["gcp"] == "google cloud"
+    assert effective_payload["skill_synonyms_runtime"]["run_overlay_source"] == "proposal_review"
+    assert effective_payload["skill_synonyms_runtime"]["run_overlay_proposal_ids"] == ["proposal-gcp"]
+    assert "proposal-gcp" in mock_event.call_args.args[0].message
+
+
+def test_approve_synonym_proposal_requires_overlay_eligible_run() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-proposal-ineligible",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-ineligible","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed",'
+            '"proposal_scope":"run_scoped_overlay_candidate","proposal_family":"alias_to_canonical_mapping",'
+            '"alias":"gcp","canonical":"google cloud","candidate_aliases":["gcp"],'
+            '"candidate_canonicals":["google cloud"],"confidence":0.9,'
+            '"rationale":{"kind":"repeated_alias_mapping"},"evidence_summary":{"occurrence_count":2},'
+            '"conflict_summary":{"has_conflict":false},"source_artifact_refs":{"run_id":"run-proposal-ineligible"}}'
+            ']}'
+        ),
+    )
+
+    with patch("fitcv_cp.app.list_runs", return_value=[run]), \
+         patch("fitcv_cp.app.update_run_synonym_proposals") as mock_update_proposals, \
+         patch("fitcv_cp.app.update_run_effective_settings") as mock_update_effective:
+        resp = TestClient(_app()).post(
+            "/admin/synonym-proposals/proposal-gcp/approve-for-run-overlay",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 409
+    assert "paused after enrich" in resp.json()["detail"]
+    mock_update_proposals.assert_not_called()
+    mock_update_effective.assert_not_called()
+
+
+def test_approve_synonym_proposal_does_not_persist_approved_state_if_overlay_write_fails() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-proposal-write-fail",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        effective_settings_json='{"skill_synonyms":{"sql":"structured query language"},"skill_synonyms_runtime":{"base_policy_path":"config/taxonomy/skill_synonyms.yaml","overlay_paths":[],"has_overlay":false,"entry_count":1}}',
+        run_mode="manual_staged",
+        last_completed_stage="enrich",
+        completed_stages=["normalize", "enrich"],
+        next_stage="rule_filter",
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-write-fail","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed",'
+            '"proposal_scope":"run_scoped_overlay_candidate","proposal_family":"alias_to_canonical_mapping",'
+            '"alias":"gcp","canonical":"google cloud","candidate_aliases":["gcp"],'
+            '"candidate_canonicals":["google cloud"],"confidence":0.9,'
+            '"rationale":{"kind":"repeated_alias_mapping"},"evidence_summary":{"occurrence_count":2},'
+            '"conflict_summary":{"has_conflict":false},"source_artifact_refs":{"run_id":"run-proposal-write-fail"}}'
+            ']}'
+        ),
+    )
+
+    with patch("fitcv_cp.app.list_runs", return_value=[run]), \
+         patch("fitcv_cp.app.update_run_synonym_proposals") as mock_update_proposals, \
+         patch("fitcv_cp.app.update_run_effective_settings", side_effect=RuntimeError("bq write failed")), \
+         patch("fitcv_cp.app.append_event") as mock_event:
+        resp = TestClient(_app(), raise_server_exceptions=False).post(
+            "/admin/synonym-proposals/proposal-gcp/approve-for-run-overlay",
+            data={"acted_by": "operator@example.com", "note": "Looks good"},
+        )
+
+    assert resp.status_code == 500
+    mock_update_proposals.assert_not_called()
+    mock_event.assert_not_called()
+
+
+def test_admin_run_detail_shows_review_derived_synonym_overlay_state() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-overlay-reviewed",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        effective_settings_json=(
+            '{"skill_synonyms":{"gcp":"google cloud","ga4":"google analytics"},'
+            '"skill_synonyms_runtime":{"base_policy_path":"config/taxonomy/skill_synonyms.yaml",'
+            '"overlay_paths":[],"has_overlay":true,"entry_count":2,"has_run_overlay":true,'
+            '"run_overlay_source":"proposal_review","run_overlay_entry_count":1,'
+            '"run_overlay_proposal_ids":["proposal-gcp"]}}'
+        ),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-overlay-reviewed")
+
+    assert resp.status_code == 200
+    assert "Proposal Review" in resp.text
+
+
 def test_download_settings_used_json_endpoint_200():
     """@proves inspection_debugging.settings-used-export"""
     from fitcv_cp.models import PipelineRun, RunStatus
