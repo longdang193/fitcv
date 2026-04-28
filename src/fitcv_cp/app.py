@@ -174,6 +174,7 @@ DECISION_CHAIN_LABELS: dict[str, str] = {
     "advanced_to_scoring": "advanced to scoring",
     "not_returned_by_vector_search": "not returned by vector search",
     "accepted": "accepted",
+    "ready_for_generation": "ready for CV generation",
     "validation_failed": "validation failed",
     "generation_failed": "generation failed",
     "persistence_failed": "persistence failed",
@@ -478,8 +479,8 @@ def _build_stage_quality_metric_rows(stage_quality_metrics: dict[str, Any]) -> l
         ("CV Analysis Skip Rate", "skip_rate", "skipped_fit_gate", "Jobs blocked by the fit gate after ranking."),
         (
             "CV Analysis Ready Rate",
-            "generation_ready_rate",
-            "generation_ready",
+            "ready_for_generation_rate",
+            "ready_for_generation",
             "Jobs that are ready to hand off to CV generation.",
         ),
         (
@@ -881,7 +882,7 @@ def _format_pipeline_outcome_detail(row: dict[str, Any]) -> str | None:
     cv_analysis = decision_chain.get("cv_analysis")
     if isinstance(cv_analysis, dict):
         cv_analysis_status = _decision_chain_label(cv_analysis.get("status"))
-        if cv_analysis_status and cv_analysis_status not in {"not run", "ready_for_generation"}:
+        if cv_analysis_status and cv_analysis_status not in {"not run", "ready for CV generation"}:
             detail_parts.append(f"CV analysis: {cv_analysis_status}")
 
     cv_generation = decision_chain.get("cv_generation")
@@ -912,6 +913,41 @@ def _results_export_rows(run: PipelineRun) -> list[dict[str, Any]]:
     if not isinstance(rows, list):
         return []
     return [dict(row) for row in rows if isinstance(row, dict)]
+
+
+def _pipeline_outcome_surface(row: dict[str, Any]) -> dict[str, str]:
+    pipeline_status = str(row.get("pipeline_status") or "")
+    deterministic_outcome = str(row.get("deterministic_outcome") or "").strip()
+    stage_owned_subreason = str(row.get("stage_owned_subreason") or "").strip()
+    source_stage = str(row.get("source_stage") or "").strip()
+
+    if source_stage == "cv_generation":
+        if deterministic_outcome == "accepted":
+            return {"label": "CV created", "badge_class": "badge-success"}
+        if stage_owned_subreason == "validation_failed":
+            return {"label": "CV validation failed", "badge_class": "badge-error"}
+        if stage_owned_subreason == "generation_failed":
+            return {"label": "CV generation failed", "badge_class": "badge-error"}
+        if stage_owned_subreason == "persistence_failed":
+            return {"label": "CV persistence failed", "badge_class": "badge-error"}
+
+    if source_stage == "cv_analysis":
+        if stage_owned_subreason == "ready_for_generation":
+            return {"label": "Ready for CV generation", "badge_class": "badge-info"}
+        if stage_owned_subreason == "blocked_by_reranker_fit":
+            return {"label": "Ranked, blocked by reranker fit", "badge_class": "badge-warning"}
+        if stage_owned_subreason == "skipped_fit_gate":
+            return {"label": "Skipped after CV analysis", "badge_class": "badge-warning"}
+        if stage_owned_subreason == "analysis_failed":
+            return {"label": "CV analysis failed", "badge_class": "badge-error"}
+
+    return PIPELINE_OUTCOME_META.get(
+        pipeline_status,
+        {
+            "label": pipeline_status or "Unknown pipeline outcome",
+            "badge_class": "badge-info",
+        },
+    )
 
 
 def _job_title_by_url_from_results_rows(rows: list[dict[str, Any]]) -> dict[str, str]:
@@ -971,14 +1007,8 @@ def _build_enriched_tab_context(
     pipeline_outcomes_by_job_url: dict[str, dict[str, str | None]] = {
         str(row.get("job_url") or ""): {
             "status": str(row.get("pipeline_status") or ""),
-            "label": PIPELINE_OUTCOME_META.get(
-                str(row.get("pipeline_status") or ""),
-                {"label": str(row.get("pipeline_status") or "Unknown pipeline outcome")},
-            )["label"],
-            "badge_class": PIPELINE_OUTCOME_META.get(
-                str(row.get("pipeline_status") or ""),
-                {"badge_class": "badge-info"},
-            )["badge_class"],
+            "label": _pipeline_outcome_surface(row)["label"],
+            "badge_class": _pipeline_outcome_surface(row)["badge_class"],
             "detail": _format_pipeline_outcome_detail(row),
         }
         for row in results_rows
@@ -1131,7 +1161,7 @@ def _timeline_stage_summary_message(
         if details:
             return f"Ranking complete: {', '.join(details)}"
     if event.stage == "layer4_cv_analysis":
-        ready = outputs.get("generation_ready")
+        ready = outputs.get("ready_for_generation")
         skipped = outputs.get("skipped_fit_gate")
         failed = outputs.get("analysis_failed")
         if ready is not None and skipped is not None and failed is not None:
