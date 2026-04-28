@@ -100,6 +100,9 @@ def test_worker_persists_compact_cv_fields_in_results_export_json():
         "export_results": [{
             "job_url": "https://example.com/1",
             "pipeline_status": "ranked_with_cv",
+            "deterministic_outcome": "accepted",
+            "stage_owned_subreason": "accepted",
+            "source_stage": "cv_generation",
             "decision_chain": {
                 "shortlist": {"status": "returned_by_vector_search", "advanced_to_scoring": True},
                 "primary_fit": {"source": "reranker", "label": "strong"},
@@ -120,6 +123,9 @@ def test_worker_persists_compact_cv_fields_in_results_export_json():
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     payload = json.loads(mock_store_export.call_args.args[1])
+    assert payload["results"][0]["deterministic_outcome"] == "accepted"
+    assert payload["results"][0]["stage_owned_subreason"] == "accepted"
+    assert payload["results"][0]["source_stage"] == "cv_generation"
     assert payload["results"][0]["decision_chain"]["primary_fit"]["label"] == "strong"
     assert payload["results"][0]["cv"]["ranking_fit_label"] == "strong"
     assert payload["results"][0]["cv"]["model_used"] == "gemini-2.5-pro"
