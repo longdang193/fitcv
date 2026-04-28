@@ -2425,6 +2425,10 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
     assert record["structured_cv_final"] is None
     assert record["markdown_final"] is None
     assert record["error"]["stage"] == "validation"
+    changed_sample = result["stage_transition_artifacts"]["stages"]["cv_generation"]["dropped_or_changed_sample"][0]
+    assert changed_sample["deterministic_outcome"] == "rejected"
+    assert changed_sample["stage_owned_subreason"] == "validation_failed"
+    assert changed_sample["source_stage"] == "cv_generation"
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -2538,6 +2542,10 @@ def test_run_pipeline_returns_debug_record_for_persistence_failed_cv(
     assert record["structured_cv_final"] == structured_cv
     assert record["markdown_final"] == "# CV Markdown"
     assert record["error"]["stage"] == "persistence"
+    output_sample = result["stage_transition_artifacts"]["stages"]["cv_generation"]["outputs_sample"][0]
+    assert output_sample["deterministic_outcome"] == "rejected"
+    assert output_sample["stage_owned_subreason"] == "persistence_failed"
+    assert output_sample["source_stage"] == "cv_generation"
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -5118,6 +5126,9 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "https://example.com/4",
     ]
     assert export_results[0]["pipeline_status"] == "ranked_with_cv"
+    assert export_results[0]["deterministic_outcome"] == "accepted"
+    assert export_results[0]["stage_owned_subreason"] == "accepted"
+    assert export_results[0]["source_stage"] == "cv_generation"
     assert export_results[0]["cv"]["version_id"] == "v1"
     assert export_results[0]["cv"]["ranking_fit_label"] == "strong"
     assert export_results[0]["location_type"] == "remote"
@@ -5151,6 +5162,9 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         },
     }
     assert export_results[1]["pipeline_status"] == "ranked_blocked_by_reranker_fit"
+    assert export_results[1]["deterministic_outcome"] == "blocked"
+    assert export_results[1]["stage_owned_subreason"] == "blocked_by_reranker_fit"
+    assert export_results[1]["source_stage"] == "cv_analysis"
     assert export_results[1]["decision_chain"] == {
         "shortlist": {
             "status": "returned_by_vector_search",
@@ -5298,6 +5312,9 @@ def test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependenci
 
     changed_sample = result["stage_transition_artifacts"]["stages"]["cv_analysis"]["dropped_or_changed_sample"][0]
     assert changed_sample["change_type"] == "blocked_by_reranker_fit"
+    assert changed_sample["deterministic_outcome"] == "blocked"
+    assert changed_sample["stage_owned_subreason"] == "blocked_by_reranker_fit"
+    assert changed_sample["source_stage"] == "cv_analysis"
     assert changed_sample["analysis_reuse_status"] == "not_run_reranker_skip"
     assert "analysis_input_fingerprint" not in changed_sample
     assert changed_sample["outcome_reason"] == {

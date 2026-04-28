@@ -583,6 +583,13 @@ def _build_export_results(
                 ranking_fit_source=ranking_fit_source,
                 cv_status=cv_status,
             )
+        truth_fields = (
+            _deterministic_truth_fields(debug_row.get("status"))
+            if isinstance(debug_row, dict)
+            else _deterministic_truth_fields(analysis_row.get("status"))
+            if isinstance(analysis_row, dict)
+            else _deterministic_truth_fields(None)
+        )
 
         rows.append(
             {
@@ -595,6 +602,7 @@ def _build_export_results(
                 "job_family": (enriched_job or {}).get("job_family"),
                 "domain": (enriched_job or {}).get("domain"),
                 "pipeline_status": pipeline_status,
+                **truth_fields,
                 "reject_reasons": reject_reasons,
                 "rule_filter_marks": rule_filter_marks,
                 "scores": {
@@ -1249,6 +1257,57 @@ def _validation_status_for_cv_status(status: str) -> str:
     return "not_run"
 
 
+def _deterministic_truth_fields(status: str | None) -> dict[str, str | None]:
+    normalized_status = str(status or "").strip()
+    if not normalized_status:
+        return {
+            "deterministic_outcome": None,
+            "stage_owned_subreason": None,
+            "source_stage": None,
+        }
+    if normalized_status == "accepted":
+        return {
+            "deterministic_outcome": "accepted",
+            "stage_owned_subreason": normalized_status,
+            "source_stage": "cv_generation",
+        }
+    if normalized_status in {"validation_failed", "generation_failed", "persistence_failed"}:
+        return {
+            "deterministic_outcome": "rejected",
+            "stage_owned_subreason": normalized_status,
+            "source_stage": "cv_generation",
+        }
+    if normalized_status == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
+        return {
+            "deterministic_outcome": "blocked",
+            "stage_owned_subreason": normalized_status,
+            "source_stage": "cv_analysis",
+        }
+    if normalized_status == CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS:
+        return {
+            "deterministic_outcome": "skipped",
+            "stage_owned_subreason": normalized_status,
+            "source_stage": "cv_analysis",
+        }
+    if normalized_status in {CV_ANALYSIS_FAILED_STATUS}:
+        return {
+            "deterministic_outcome": "rejected",
+            "stage_owned_subreason": normalized_status,
+            "source_stage": "cv_analysis",
+        }
+    if normalized_status == CV_ANALYSIS_READY_FOR_GENERATION_STATUS:
+        return {
+            "deterministic_outcome": None,
+            "stage_owned_subreason": normalized_status,
+            "source_stage": "cv_analysis",
+        }
+    return {
+        "deterministic_outcome": None,
+        "stage_owned_subreason": None,
+        "source_stage": None,
+    }
+
+
 def _authoritative_ranking_fit_label(
     job: dict[str, Any],
     fit_classification: str | None,
@@ -1709,6 +1768,7 @@ def _analysis_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | N
         "job_url": job_url,
         "job_title": str(record.get("job_title") or ""),
         "status": status,
+        **_deterministic_truth_fields(status),
         "analysis_reuse_status": record.get("analysis_reuse_status"),
         "analysis_input_fingerprint": record.get("analysis_input_fingerprint"),
         "ranking_fit_label": record.get("ranking_fit_label"),
@@ -1733,6 +1793,7 @@ def _analysis_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | 
         "job_url": job_url,
         "job_title": str(record.get("job_title") or ""),
         "change_type": status,
+        **_deterministic_truth_fields(status),
         "analysis_reuse_status": record.get("analysis_reuse_status"),
         "analysis_input_fingerprint": record.get("analysis_input_fingerprint"),
         "ranking_fit_label": record.get("ranking_fit_label"),
@@ -1758,6 +1819,7 @@ def _debug_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | None
         "job_url": job_url,
         "job_title": str(record.get("job_title") or ""),
         "status": status,
+        **_deterministic_truth_fields(status),
         "ranking_fit_label": record.get("ranking_fit_label"),
         "fit_classification": record.get("fit_classification"),
         "analysis_input_summary": record.get("analysis_input_summary"),
@@ -1787,6 +1849,7 @@ def _debug_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | Non
         "job_url": job_url,
         "job_title": str(record.get("job_title") or ""),
         "change_type": status,
+        **_deterministic_truth_fields(status),
         "ranking_fit_label": record.get("ranking_fit_label"),
         "fit_classification": record.get("fit_classification"),
         "analysis_input_summary": record.get("analysis_input_summary"),
