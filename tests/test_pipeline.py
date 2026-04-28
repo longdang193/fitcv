@@ -16,6 +16,7 @@ tags:
   - ci-safe
 """
 
+import json
 import uuid
 from typing import Any
 from unittest.mock import ANY, MagicMock, patch
@@ -184,6 +185,78 @@ def test_ready_for_generation_keeps_ranking_fit_as_upstream_authority() -> None:
     assert record["decision_chain"]["cv_generation"] == {
         "status": "not_attempted",
         "attempted": False,
+    }
+
+
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+def test_analyze_ranked_job_marks_fallback_retrieval_in_evidence_selection_summary(
+    mock_retrieve_bundle: MagicMock,
+    mock_retrieve_evidence: MagicMock,
+    mock_compute_gap: MagicMock,
+) -> None:
+    from fitcv.agentic_cv_analysis import analyze_ranked_job
+
+    job = {
+        **_minimal_job("https://example.com/fallback"),
+        "title": "Fallback Job",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+    profile = _minimal_profile()
+    config = _minimal_config()
+
+    mock_retrieve_bundle.return_value = {
+        "selected_evidence": [],
+        "selected_evidence_ids": [],
+        "channel_counts": {
+            "required_skill_support": 1,
+            "role_alignment": 1,
+            "domain_alignment": 1,
+            "responsibility_alignment": 1,
+        },
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 0,
+        "deduped_pool_size": 0,
+        "hybrid_alignment": {
+            "required_skill_support": {"lexical_weight": 0.70, "semantic_weight": 0.30},
+            "role_alignment": {"lexical_weight": 0.60, "semantic_weight": 0.40},
+            "responsibility": {"lexical_weight": 0.25, "semantic_weight": 0.75},
+            "domain": {"lexical_weight": 0.40, "semantic_weight": 0.60},
+        },
+        "semantic_alignment": {
+            "enabled": True,
+            "semantic_methods": {
+                "required_skill_support": "embedding_similarity",
+                "role_alignment": "embedding_similarity",
+                "responsibility_alignment": "embedding_similarity",
+                "domain_alignment": "embedding_similarity",
+            },
+        },
+    }
+    mock_retrieve_evidence.return_value = [
+        {
+            "evidence_id": "exp-fallback-1",
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "Fallback Experience",
+            "matched_channels": ["required_skill_support"],
+            "selection_reasons": ["required_skill_support"],
+        }
+    ]
+    mock_compute_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+
+    record = analyze_ranked_job(job, profile, config)
+
+    assert record["status"] == "ready_for_generation"
+    assert record["evidence_selection_summary"]["fallback_used"] is True
+    assert record["evidence_selection_summary"]["selected_evidence_ids"] == ["exp-fallback-1"]
+    assert record["evidence_selection_summary"]["hybrid_alignment"] == {
+        "required_skill_support": {"lexical_weight": 0.70, "semantic_weight": 0.30},
+        "role_alignment": {"lexical_weight": 0.60, "semantic_weight": 0.40},
+        "responsibility_alignment": {"lexical_weight": 0.25, "semantic_weight": 0.75},
+        "domain_alignment": {"lexical_weight": 0.40, "semantic_weight": 0.60},
     }
 
 
@@ -906,6 +979,73 @@ def test_run_pipeline_resume_from_ranking_uses_checkpoint_payload(
     assert result["paused_after_stage"] == "ranking"
     assert result["next_stage"] == "cv_analysis"
     assert mock_ai.call_args.args[0] == shortlist
+
+
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_resume_from_checkpoint_uses_canonical_next_stage_only(
+    mock_config: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_candidate: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_retrieve_evidence: MagicMock,
+    mock_compute_gap: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    profile = _minimal_profile()
+    job = _minimal_job("https://example.com/1")
+    ranked = [{
+        **job,
+        "job_url": job["job_url"],
+        "final_score": 0.9,
+        "ai_score": 0.8,
+        "vector_rank": 1,
+        "ranking_fit_label": "stretch",
+        "fit_label": "stretch",
+    }]
+    checkpoint_payload = {
+        "raw_jobs": [job],
+        "normalized": [job],
+        "deduplicated_jobs": [],
+        "pre_filter_rejected_jobs": [],
+        "enriched": [job],
+        "passed_jobs": [job],
+        "candidate_filter_rejected_jobs": [],
+        "raw_shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        "shortlist": [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}],
+        "backfilled_job_urls": [],
+        "ai_scores": [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "stretch"}],
+        "ranking_inputs": ranked,
+        "ranked": ranked,
+    }
+    mock_config.return_value = _minimal_config()
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": [], "passed_records": [{"job_url": job["job_url"], "marks": []}]}
+    mock_retrieve_evidence.return_value = [{"evidence_id": "e1", "evidence_type": "project", "source_ref": "p1", "name": "SQL"}]
+    mock_compute_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+
+    result = run_pipeline(
+        "data/sample_jobs.json",
+        config_path="config/env.yaml",
+        run_id="resume-canonical-next-stage",
+        start_stage="rule_filter",
+        stop_after_stage="cv_analysis",
+        checkpoint_payload=checkpoint_payload,
+    )
+
+    assert result["paused_after_stage"] == "cv_analysis"
+    assert result["completed_stages"] == ["normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis"]
+    assert len(result["checkpoint_payload"]["cv_analysis_results"]) == 1
+    assert result["checkpoint_payload"]["cv_analysis_results"][0]["job_url"] == job["job_url"]
+    mock_filter.assert_not_called()
+    mock_store_filter.assert_not_called()
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -2189,6 +2329,125 @@ def test_run_pipeline_uses_runtime_profile_json_without_touching_profile_path(
 
     mock_profile_json.assert_called_once_with("{\"name\": \"Runtime Candidate\"}")
     mock_profile_yaml.assert_not_called()
+
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.create_cv_version_record")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_candidate")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_json_text")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch_with_exclusions")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_manual_staged_resume_matches_run_all_outcome_semantics_for_candidate_profile_json(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_norm_with_exclusions: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_profile_json: MagicMock,
+    mock_load_candidate: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_embed_candidate: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_create_version: MagicMock,
+    mock_store_cv: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = {
+        **_minimal_job("https://example.com/1"),
+        "job_title": "Data Engineer",
+        "title": "Data Engineer",
+        "fit_label": "strong",
+        "ai_score": 0.91,
+        "final_score": 0.91,
+        "ranking_fit_label": "strong",
+    }
+    profile = _minimal_profile()
+    run_all_config = _minimal_config()
+    staged_config = _minimal_config()
+    staged_config["runtime_inputs"] = {"candidate_profile_json": json.dumps(profile)}
+
+    mock_config.return_value = run_all_config
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_norm_with_exclusions.return_value = ([job], [])
+    mock_enrich.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_profile_json.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": [], "passed_records": [{"job_url": job["job_url"], "marks": []}]}
+    mock_vec.return_value = {"rows": [{"job_url": job["job_url"], "vector_similarity": 0.95, "vector_rank": 1}], "candidate_query": {"components": {}, "text": "candidate"}}
+    mock_ai.return_value = [{"job_url": job["job_url"], "ai_score": 0.91, "fit_label": "strong"}]
+    mock_build_feat.return_value = [job]
+    mock_rank.return_value = [job]
+    mock_evidence.return_value = [{"evidence_id": "e1", "name": "Python", "evidence_type": "project", "source_ref": "p1"}]
+    mock_gap.return_value = {"matched": ["Python"], "partial": [], "missing": []}
+    mock_classify.return_value = "strong"
+    mock_gen_cv.return_value = "# CV Markdown"
+    mock_validate.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+    }
+    mock_create_version.return_value = {"version_id": "v1"}
+
+    run_all_result = run_pipeline("data/sample_jobs.json", config=run_all_config, run_id="run-all-parity")
+    pause_result = run_pipeline(
+        "data/sample_jobs.json",
+        config=staged_config,
+        run_id="run-staged-parity",
+        stop_after_stage="ranking",
+    )
+    resumed_result = run_pipeline(
+        "data/sample_jobs.json",
+        config=staged_config,
+        run_id="run-staged-parity",
+        start_stage="cv_analysis",
+        checkpoint_payload=pause_result["checkpoint_payload"],
+    )
+
+    assert pause_result["next_stage"] == "cv_analysis"
+    assert run_all_result["export_results"] == resumed_result["export_results"]
+    assert run_all_result["cv_generation_debug_records"] == resumed_result["cv_generation_debug_records"]
+    assert json.loads(staged_config["runtime_inputs"]["candidate_profile_json"]) == profile
+    assert mock_profile_json.called
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -6159,6 +6418,7 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
             "domain_alignment": 1,
             "responsibility_alignment": 1,
         },
+        "fallback_used": False,
         "effective_channel_pool_size": 4,
         "merged_pool_size": 4,
         "deduped_pool_size": 2,
@@ -6176,8 +6436,8 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
         "hybrid_alignment": {
             "required_skill_support": {"lexical_weight": 0.70, "semantic_weight": 0.30},
             "role_alignment": {"lexical_weight": 0.60, "semantic_weight": 0.40},
-            "responsibility": {"lexical_weight": 0.25, "semantic_weight": 0.75},
-            "domain": {"lexical_weight": 0.40, "semantic_weight": 0.60},
+            "responsibility_alignment": {"lexical_weight": 0.25, "semantic_weight": 0.75},
+            "domain_alignment": {"lexical_weight": 0.40, "semantic_weight": 0.60},
         },
         "semantic_alignment": {
             "enabled": True,
@@ -6215,8 +6475,8 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
     assert analysis_record["evidence_selection_summary"]["hybrid_alignment"] == {
         "required_skill_support": {"lexical_weight": 0.70, "semantic_weight": 0.30},
         "role_alignment": {"lexical_weight": 0.60, "semantic_weight": 0.40},
-        "responsibility": {"lexical_weight": 0.25, "semantic_weight": 0.75},
-        "domain": {"lexical_weight": 0.40, "semantic_weight": 0.60},
+        "responsibility_alignment": {"lexical_weight": 0.25, "semantic_weight": 0.75},
+        "domain_alignment": {"lexical_weight": 0.40, "semantic_weight": 0.60},
     }
 
 

@@ -26,12 +26,16 @@ def _app():
     return create_app(bq=bq, project="p", dataset="d", redis_url="redis://localhost:6379/0")
 
 
-def test_post_runs_inserts_before_enqueue():
+def test_post_runs_inserts_before_enqueue(tmp_path):
     """@proves admin_control_plane_core.insert-before-enqueue-invariant
 
     BQ insert must happen before enqueue to ensure DB is source of truth.
     """
     call_order = []
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
     def fake_insert(*args, **kwargs):
         call_order.append("insert")
@@ -46,9 +50,10 @@ def test_post_runs_inserts_before_enqueue():
          patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-             "pipeline": {"final_top_n": 10}
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": str(profile_path)},
          }):
-        resp = TestClient(_app()).post("/runs", json={"jobs_path": "data/sample_jobs.json"})
+        resp = TestClient(_app()).post("/runs", json={"jobs_path": str(jobs_file)})
     assert resp.status_code == 201
     assert "run_id" in resp.json()
     assert call_order == ["insert", "enqueue"], f"Order was: {call_order}"
@@ -59,9 +64,13 @@ def test_post_runs_rejects_empty_jobs_path():
     assert resp.status_code == 422
 
 
-def test_post_runs_persists_manual_staged_mode() -> None:
+def test_post_runs_persists_manual_staged_mode(tmp_path) -> None:
     """@proves trigger_run_management.execution-mode-selection"""
     captured = {}
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
 
     def _capture_insert(run, *args, **kwargs):
         captured["run"] = run
@@ -72,10 +81,11 @@ def test_post_runs_persists_manual_staged_mode() -> None:
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-             "pipeline": {"final_top_n": 10}
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": str(profile_path)},
          }):
         resp = TestClient(_app()).post("/runs", json={
-            "jobs_path": "data/sample_jobs.json",
+            "jobs_path": str(jobs_file),
             "run_mode": "manual_staged",
         })
 
@@ -83,6 +93,89 @@ def test_post_runs_persists_manual_staged_mode() -> None:
     assert captured["run"].run_mode == "manual_staged"
     assert captured["run"].next_stage == "normalize"
     assert captured["run"].completed_stages == []
+
+
+def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(tmp_path) -> None:
+    captured = {}
+
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p",
+             "bigquery_dataset": "d",
+             "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": str(profile_path)},
+         }):
+        resp = TestClient(_app()).post("/runs", json={"jobs_path": str(jobs_file)})
+
+    assert resp.status_code == 201
+    assert captured["run"].jobs_input_source == "path"
+    assert json.loads(captured["run"].jobs_input_json) == [{"job_url": "http://a.com"}]
+    assert captured["run"].candidate_profile_source == "default_config"
+    profile_snapshot = json.loads(captured["run"].candidate_profile_json)
+    assert profile_snapshot["preferences"]["domains"] == ["fintech"]
+    effective = json.loads(captured["run"].effective_settings_json)
+    assert json.loads(effective["runtime_inputs"]["candidate_profile_json"]) == profile_snapshot
+
+
+def test_post_runs_run_all_and_manual_staged_share_canonical_runtime_envelope(tmp_path) -> None:
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    captured_runs: list = []
+
+    def _capture_insert(run, *args, **kwargs):
+        captured_runs.append(run)
+
+    config = {
+        "gcp_project": "p",
+        "bigquery_dataset": "d",
+        "service_account_key": "k",
+        "pipeline": {"final_top_n": 10},
+        "paths": {"candidate_profile": str(profile_path)},
+    }
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value=config):
+        run_all_resp = TestClient(_app()).post(
+            "/runs",
+            json={"jobs_path": str(jobs_file), "run_mode": "run_all"},
+        )
+        staged_resp = TestClient(_app()).post(
+            "/runs",
+            json={"jobs_path": str(jobs_file), "run_mode": "manual_staged"},
+        )
+
+    assert run_all_resp.status_code == 201
+    assert staged_resp.status_code == 201
+    run_all, staged = captured_runs
+    assert run_all.jobs_input_source == staged.jobs_input_source == "path"
+    assert json.loads(run_all.jobs_input_json) == json.loads(staged.jobs_input_json)
+    assert run_all.candidate_profile_source == staged.candidate_profile_source == "default_config"
+    assert json.loads(run_all.candidate_profile_json) == json.loads(staged.candidate_profile_json)
+    run_all_effective = json.loads(run_all.effective_settings_json)
+    staged_effective = json.loads(staged.effective_settings_json)
+    assert json.loads(run_all_effective["runtime_inputs"]["candidate_profile_json"]) == json.loads(
+        staged_effective["runtime_inputs"]["candidate_profile_json"]
+    )
+    assert run_all.next_stage is None
+    assert staged.next_stage == "normalize"
 
 
 def test_get_runs_returns_list():
@@ -151,21 +244,27 @@ def test_post_settings_key_rejects_unknown_key():
     assert resp.status_code == 422
 
 
-def test_post_runs_with_config_overrides():
+def test_post_runs_with_config_overrides(tmp_path):
     """@proves settings_system.per-run-overrides
 
     POST /runs with per-run overrides snapshot effective settings.
     """
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run"), \
          patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
-             "pipeline": {"final_top_n": 10}
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": str(profile_path)},
          }):
         resp = TestClient(_app()).post("/runs", json={
-            "jobs_path": "data/sample_jobs.json",
+            "jobs_path": str(jobs_file),
             "config_overrides": {"pipeline.final_top_n": 5},
         })
     assert resp.status_code == 201
@@ -277,6 +376,119 @@ def test_admin_continue_run_requeues_manual_paused_run() -> None:
     mock_status.assert_called_once()
     mock_queue.assert_called_once()
     mock_checkpoint.assert_called_once()
+
+
+def test_admin_continue_run_uses_canonical_next_stage_from_completed_truth() -> None:
+    """@proves trigger_run_management.manual-checkpoints-and-continue"""
+    paused_run = MagicMock()
+    paused_run.run_id = "run-continue-canonical"
+    paused_run.run_mode = "manual_staged"
+    paused_run.status = RunStatus.AWAITING_CONTINUE
+    paused_run.next_stage = "rule_filter"
+    paused_run.last_completed_stage = "shortlist"
+    paused_run.completed_stages = ["normalize", "enrich", "rule_filter", "shortlist"]
+    paused_run.checkpoint_payload_json = '{"checkpoint_payload":{"shortlist":[{"job_url":"https://example.com/1"}]}}'
+    paused_run.jobs_path = "data/sample_jobs.json"
+    paused_run.config_path = ".env.yaml"
+
+    with patch("fitcv_cp.app.get_run", return_value=paused_run), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-continue-canonical", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_status"), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_checkpoint, \
+         patch("fitcv_cp.app.append_event") as mock_event:
+        resp = TestClient(_app()).post("/admin/runs/run-continue-canonical/continue")
+
+    assert resp.status_code == 200
+    assert mock_checkpoint.call_args.kwargs["next_stage"] == "ranking"
+    assert mock_event.call_args.args[0].message == "Manual run queued to continue from ranking"
+
+
+def test_admin_continue_run_rejects_underspecified_checkpoint_truth() -> None:
+    paused_run = MagicMock()
+    paused_run.run_id = "run-continue-invalid"
+    paused_run.run_mode = "manual_staged"
+    paused_run.status = RunStatus.AWAITING_CONTINUE
+    paused_run.next_stage = "cv_generation"
+    paused_run.last_completed_stage = None
+    paused_run.completed_stages = []
+    paused_run.checkpoint_payload_json = '{"checkpoint_payload":{"cv_analysis_results":[]}}'
+    paused_run.jobs_path = "data/sample_jobs.json"
+    paused_run.config_path = ".env.yaml"
+
+    with patch("fitcv_cp.app.get_run", return_value=paused_run), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id") as mock_enqueue, \
+         patch("fitcv_cp.app.update_run_status") as mock_status, \
+         patch("fitcv_cp.app.update_run_queue_job_id") as mock_queue, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_checkpoint, \
+         patch("fitcv_cp.app.append_event") as mock_event:
+        resp = TestClient(_app()).post("/admin/runs/run-continue-invalid/continue")
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "Run has no canonical next stage to continue"
+    mock_enqueue.assert_not_called()
+    mock_status.assert_not_called()
+    mock_queue.assert_not_called()
+    mock_checkpoint.assert_not_called()
+    mock_event.assert_not_called()
+
+
+def test_admin_continue_run_rejects_invalid_stage_truth() -> None:
+    paused_run = MagicMock()
+    paused_run.run_id = "run-continue-bogus"
+    paused_run.run_mode = "manual_staged"
+    paused_run.status = RunStatus.AWAITING_CONTINUE
+    paused_run.next_stage = "cv_generation"
+    paused_run.last_completed_stage = "bogus"
+    paused_run.completed_stages = ["normalize", "bogus"]
+    paused_run.checkpoint_payload_json = '{"checkpoint_payload":{"shortlist":[]}}'
+    paused_run.jobs_path = "data/sample_jobs.json"
+    paused_run.config_path = ".env.yaml"
+
+    with patch("fitcv_cp.app.get_run", return_value=paused_run), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id") as mock_enqueue, \
+         patch("fitcv_cp.app.update_run_status") as mock_status, \
+         patch("fitcv_cp.app.update_run_queue_job_id") as mock_queue, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_checkpoint, \
+         patch("fitcv_cp.app.append_event") as mock_event:
+        resp = TestClient(_app()).post("/admin/runs/run-continue-bogus/continue")
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "Run has no canonical next stage to continue"
+    mock_enqueue.assert_not_called()
+    mock_status.assert_not_called()
+    mock_queue.assert_not_called()
+    mock_checkpoint.assert_not_called()
+    mock_event.assert_not_called()
+
+
+def test_admin_continue_run_rejects_checkpoint_progress_drift() -> None:
+    paused_run = MagicMock()
+    paused_run.run_id = "run-continue-drift"
+    paused_run.run_mode = "manual_staged"
+    paused_run.status = RunStatus.AWAITING_CONTINUE
+    paused_run.next_stage = "ranking"
+    paused_run.last_completed_stage = "shortlist"
+    paused_run.completed_stages = ["normalize", "enrich", "rule_filter", "shortlist"]
+    paused_run.checkpoint_payload_json = '{"checkpoint_payload":{"ranked":[{"job_url":"https://example.com/1"}]}}'
+    paused_run.jobs_path = "data/sample_jobs.json"
+    paused_run.config_path = ".env.yaml"
+
+    with patch("fitcv_cp.app.get_run", return_value=paused_run), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id") as mock_enqueue, \
+         patch("fitcv_cp.app.update_run_status") as mock_status, \
+         patch("fitcv_cp.app.update_run_queue_job_id") as mock_queue, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_checkpoint, \
+         patch("fitcv_cp.app.append_event") as mock_event:
+        resp = TestClient(_app()).post("/admin/runs/run-continue-drift/continue")
+
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "Run has no canonical next stage to continue"
+    mock_enqueue.assert_not_called()
+    mock_status.assert_not_called()
+    mock_queue.assert_not_called()
+    mock_checkpoint.assert_not_called()
+    mock_event.assert_not_called()
 
 
 def test_admin_run_detail_shows_synonym_overlay_card_for_manual_enrich_checkpoint() -> None:
@@ -4244,6 +4456,76 @@ def test_admin_upload_trigger_default_config_missing_profile_returns_422(tmp_pat
             )
     assert resp.status_code == 422
     mock_insert.assert_not_called()
+
+
+def test_admin_upload_trigger_candidate_profile_modes_share_canonical_runtime_payload(tmp_path):
+    """@proves trigger_run_management.candidate-profile-input-modes"""
+    from fitcv.candidate import load_profile_yaml
+
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_payload = load_profile_yaml(str(profile_path))
+    upload_bytes = json.dumps(profile_payload).encode("utf-8")
+    expected_payload = profile_payload
+
+    config = {
+        "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+        "pipeline": {"final_top_n": 10},
+        "paths": {"candidate_profile": str(profile_path)},
+    }
+
+    captured_runs = {}
+
+    def _capture_insert(run, *args, **kwargs):
+        captured_runs[run.candidate_profile_source] = run
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-profile-mode", "rq-job-1")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value=config):
+        default_resp = TestClient(_app()).post(
+            "/admin/upload-trigger",
+            data={
+                "jobs_input_mode": "path",
+                "jobs_path": str(jobs_file),
+                "candidate_profile_mode": "default_config",
+            },
+        )
+        upload_resp = TestClient(_app()).post(
+            "/admin/upload-trigger",
+            data={
+                "jobs_input_mode": "path",
+                "jobs_path": str(jobs_file),
+                "candidate_profile_mode": "upload",
+            },
+            files={"candidate_profile_file": ("profile.json", upload_bytes, "application/json")},
+        )
+        paste_resp = TestClient(_app()).post(
+            "/admin/upload-trigger",
+            data={
+                "jobs_input_mode": "path",
+                "jobs_path": str(jobs_file),
+                "candidate_profile_mode": "paste",
+                "candidate_profile_text": json.dumps(profile_payload),
+            },
+        )
+
+    assert default_resp.status_code == 201, default_resp.text
+    assert upload_resp.status_code == 201, upload_resp.text
+    assert paste_resp.status_code == 201, paste_resp.text
+
+    for source in ("default_config", "upload", "paste"):
+        run = captured_runs[source]
+        assert json.loads(run.candidate_profile_json) == expected_payload
+        effective = json.loads(run.effective_settings_json)
+        assert json.loads(effective["runtime_inputs"]["candidate_profile_json"]) == expected_payload
+
+    assert captured_runs["default_config"].candidate_profile_source == "default_config"
+    assert captured_runs["upload"].candidate_profile_source == "upload"
+    assert captured_runs["paste"].candidate_profile_source == "paste"
 
 
 # ── Task 3: Snapshot semantics – run detail display and legacy fallback ────────

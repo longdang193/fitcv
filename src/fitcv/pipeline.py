@@ -78,6 +78,7 @@ from fitcv.config import (
     get_gemini_model,
     load_config,
 )
+from fitcv.contracts import normalize_analysis_channel_mapping
 from fitcv.cv_generator import generate_cv, render_cv_markdown
 from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
 from fitcv.enrich import (
@@ -858,6 +859,43 @@ def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _infer_last_completed_stage_from_state(state: dict[str, Any]) -> str | None:
+    stage_state_keys = (
+        ("cv_analysis", ("cv_analysis_results",)),
+        ("ranking", ("ranked", "ranking_inputs", "ai_scores")),
+        ("shortlist", ("shortlist", "raw_shortlist", "backfilled_job_urls", "candidate_query_debug")),
+        ("rule_filter", ("passed_jobs", "candidate_filter_rejected_jobs")),
+        ("enrich", ("enriched", "pre_filter_rejected_jobs")),
+        ("normalize", ("normalized", "deduplicated_jobs", "raw_jobs")),
+    )
+    for stage_name, keys in stage_state_keys:
+        for key in keys:
+            value = state.get(key)
+            if isinstance(value, list) and value:
+                return stage_name
+            if isinstance(value, dict) and value:
+                return stage_name
+    return None
+
+
+def _canonical_resume_start_stage(
+    *,
+    requested_start_stage: str | None,
+    checkpoint_payload: dict[str, Any] | None,
+    run_id: str,
+) -> str | None:
+    validated_start_stage = _validate_pipeline_stage_name(requested_start_stage)
+    if not checkpoint_payload:
+        return validated_start_stage
+
+    resume_state = _restore_pipeline_state(run_id=run_id, checkpoint_payload=checkpoint_payload)
+    last_completed_stage = _infer_last_completed_stage_from_state(resume_state)
+    canonical_next_stage = next_pipeline_stage(last_completed_stage)
+    if canonical_next_stage:
+        return canonical_next_stage
+    return validated_start_stage
+
+
 def _collect_mapping_suggestions(enriched: list[dict[str, Any]], run_id: str) -> list[dict[str, Any]]:
     suggestions: list[dict[str, Any]] = []
     seen_keys: set[tuple[str, str, str]] = set()
@@ -1344,6 +1382,31 @@ def _bounded_event_payload(
     if artifact_refs:
         payload["artifact_refs"] = _json_safe_pipeline_value(artifact_refs)
     return payload
+
+
+def _build_analysis_evidence_selection_summary(
+    evidence_bundle: dict[str, Any],
+    evidence: list[dict[str, Any]],
+    *,
+    fallback_used: bool,
+) -> dict[str, Any]:
+    payload = {
+        "channel_counts": normalize_analysis_channel_mapping(
+            evidence_bundle.get("channel_counts") or {}
+        ),
+        "fallback_used": fallback_used,
+        "effective_channel_pool_size": int(evidence_bundle.get("effective_channel_pool_size") or 0),
+        "merged_pool_size": int(evidence_bundle.get("merged_pool_size") or 0),
+        "deduped_pool_size": int(evidence_bundle.get("deduped_pool_size") or 0),
+        "selected_evidence_count": len(evidence),
+        "selected_evidence_ids": list(evidence_bundle.get("selected_evidence_ids") or []),
+        "unselected_top_candidates": list(evidence_bundle.get("unselected_top_candidates") or []),
+        "hybrid_alignment": normalize_analysis_channel_mapping(
+            evidence_bundle.get("hybrid_alignment") or {}
+        ),
+        "semantic_alignment": dict(evidence_bundle.get("semantic_alignment") or {}),
+    }
+    return {key: value for key, value in payload.items() if value not in ({}, [], None)}
 
 
 def _authoritative_ranking_fit_label(
@@ -2620,7 +2683,11 @@ def run_pipeline(
     if config is None:
         config = load_config(config_path)
     run_id = run_id or create_run_id()
-    start_stage = _validate_pipeline_stage_name(start_stage) or PIPELINE_STAGE_SEQUENCE[0]
+    start_stage = _canonical_resume_start_stage(
+        requested_start_stage=start_stage,
+        checkpoint_payload=checkpoint_payload,
+        run_id=run_id,
+    ) or PIPELINE_STAGE_SEQUENCE[0]
     stop_after_stage = _validate_pipeline_stage_name(stop_after_stage)
     if stop_after_stage is not None:
         if PIPELINE_STAGE_SEQUENCE.index(stop_after_stage) < PIPELINE_STAGE_SEQUENCE.index(start_stage):
@@ -3253,20 +3320,11 @@ def run_pipeline(
                     config=config,
                 )
                 evidence = list(evidence_bundle.get("selected_evidence") or [])
-                evidence_selection_summary = {
-                    "channel_counts": dict(evidence_bundle.get("channel_counts") or {}),
-                    "effective_channel_pool_size": int(evidence_bundle.get("effective_channel_pool_size") or 0),
-                    "merged_pool_size": int(evidence_bundle.get("merged_pool_size") or 0),
-                    "deduped_pool_size": int(evidence_bundle.get("deduped_pool_size") or 0),
-                    "selected_evidence_count": len(evidence),
-                    "selected_evidence_ids": list(evidence_bundle.get("selected_evidence_ids") or []),
-                    "unselected_top_candidates": list(evidence_bundle.get("unselected_top_candidates") or []),
-                    "hybrid_alignment": dict(evidence_bundle.get("hybrid_alignment") or {}),
-                    "semantic_alignment": dict(evidence_bundle.get("semantic_alignment") or {}),
-                }
-                evidence_selection_summary = {
-                    key: value for key, value in evidence_selection_summary.items() if value not in ({}, [], None)
-                }
+                evidence_selection_summary = _build_analysis_evidence_selection_summary(
+                    evidence_bundle,
+                    evidence,
+                    fallback_used=False,
+                )
                 if not evidence:
                     evidence = retrieve_evidence(
                         profile,
@@ -3274,24 +3332,27 @@ def run_pipeline(
                         top_k=evidence_top_k,
                     )
                     if evidence:
-                        evidence_selection_summary = {
-                            "channel_counts": evidence_selection_summary.get("channel_counts") or {},
-                            "effective_channel_pool_size": int(
-                                evidence_selection_summary.get("effective_channel_pool_size") or 0
-                            ),
-                            "merged_pool_size": max(len(evidence), int(evidence_selection_summary.get("merged_pool_size") or 0)),
-                            "deduped_pool_size": max(len(evidence), int(evidence_selection_summary.get("deduped_pool_size") or 0)),
-                            "selected_evidence_count": len(evidence),
-                            "selected_evidence_ids": [str(item.get("evidence_id") or "") for item in evidence],
-                            "unselected_top_candidates": list(
-                                evidence_selection_summary.get("unselected_top_candidates") or []
-                            ),
-                            "hybrid_alignment": dict(evidence_selection_summary.get("hybrid_alignment") or {}),
-                            "semantic_alignment": dict(evidence_selection_summary.get("semantic_alignment") or {}),
-                        }
-                        evidence_selection_summary = {
-                            key: value for key, value in evidence_selection_summary.items() if value not in ({}, [], None)
-                        }
+                        evidence_selection_summary = _build_analysis_evidence_selection_summary(
+                            {
+                                **evidence_bundle,
+                                "selected_evidence_ids": [str(item.get("evidence_id") or "") for item in evidence],
+                                "merged_pool_size": max(
+                                    len(evidence),
+                                    int(evidence_selection_summary.get("merged_pool_size") or 0),
+                                ),
+                                "deduped_pool_size": max(
+                                    len(evidence),
+                                    int(evidence_selection_summary.get("deduped_pool_size") or 0),
+                                ),
+                                "unselected_top_candidates": list(
+                                    evidence_selection_summary.get("unselected_top_candidates") or []
+                                ),
+                                "hybrid_alignment": evidence_selection_summary.get("hybrid_alignment") or {},
+                                "semantic_alignment": evidence_selection_summary.get("semantic_alignment") or {},
+                            },
+                            evidence,
+                            fallback_used=True,
+                        )
 
                 gap = compute_gap(
                     required_skills=job.get("required_skills") or [],
