@@ -1038,7 +1038,7 @@ def test_run_detail_timeline_shows_cv_analysis_download_only_on_aggregate_row():
                         "cv_analysis": {
                             "status": "completed",
                             "output_counts": {
-                                "generation_ready": 1,
+                                "ready_for_generation": 1,
                                 "skipped_fit_gate": 2,
                                 "analysis_failed": 0,
                             },
@@ -3321,6 +3321,96 @@ def test_run_detail_enriched_shows_pipeline_outcome_for_reranker_blocked_job():
     assert "Ranked, blocked by reranker fit" in resp.text
     assert "Primary fit: skip" in resp.text
     assert "CV analysis: blocked by reranker fit" in resp.text
+
+
+def test_run_detail_enriched_uses_deterministic_subreason_for_validation_failed_job():
+    import json as _json
+
+    export_payload = _json.dumps({
+        "results": [
+            {
+                "job_url": "https://jobs.example.com/1",
+                "job_title": "Validation Failed CV",
+                "pipeline_status": "ranked_no_cv",
+                "deterministic_outcome": "rejected",
+                "stage_owned_subreason": "validation_failed",
+                "source_stage": "cv_generation",
+                "decision_chain": {
+                    "shortlist": {"status": "returned_by_vector_search", "advanced_to_scoring": True},
+                    "primary_fit": {"source": "reranker", "label": "strong"},
+                    "cv_analysis": {"status": "ready_for_generation", "completed": True},
+                    "cv_generation": {"status": "validation_failed", "attempted": True},
+                    "validation": {"status": "failed"},
+                },
+                "reject_reasons": [],
+            }
+        ]
+    })
+    enriched = [{
+        "job_url": "https://jobs.example.com/1",
+        "title": "Validation Failed CV",
+        "domain": "banking",
+        "job_family": "analytics",
+        "required_skills": [],
+        "location_type": "hybrid",
+        "seniority": "mid",
+    }]
+    filter_results = [{"job_url": "https://jobs.example.com/1", "passed": True, "reasons": []}]
+    patches = _run_detail_patches(
+        enriched_jobs=enriched,
+        filter_results=filter_results,
+        results_export_json=export_payload,
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
+    assert resp.status_code == 200
+    assert "CV validation failed" in resp.text
+    assert "Validation: failed" in resp.text
+
+
+def test_run_detail_enriched_uses_analysis_handoff_truth_for_ready_job():
+    import json as _json
+
+    export_payload = _json.dumps({
+        "results": [
+            {
+                "job_url": "https://jobs.example.com/1",
+                "job_title": "Ready Job",
+                "pipeline_status": "ranked_no_cv",
+                "deterministic_outcome": None,
+                "stage_owned_subreason": "ready_for_generation",
+                "source_stage": "cv_analysis",
+                "decision_chain": {
+                    "shortlist": {"status": "returned_by_vector_search", "advanced_to_scoring": True},
+                    "primary_fit": {"source": "reranker", "label": "strong"},
+                    "cv_analysis": {"status": "ready_for_generation", "completed": True},
+                    "cv_generation": {"status": "not_attempted", "attempted": False},
+                    "validation": {"status": "not_run"},
+                },
+                "reject_reasons": [],
+            }
+        ]
+    })
+    enriched = [{
+        "job_url": "https://jobs.example.com/1",
+        "title": "Ready Job",
+        "domain": "banking",
+        "job_family": "analytics",
+        "required_skills": [],
+        "location_type": "hybrid",
+        "seniority": "mid",
+    }]
+    filter_results = [{"job_url": "https://jobs.example.com/1", "passed": True, "reasons": []}]
+    patches = _run_detail_patches(
+        enriched_jobs=enriched,
+        filter_results=filter_results,
+        results_export_json=export_payload,
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
+    assert resp.status_code == 200
+    assert "Ready for CV generation" in resp.text
+    assert "CV analysis: ready for CV generation" not in resp.text
 
 
 def test_run_detail_cv_versions_show_job_title():

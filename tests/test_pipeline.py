@@ -21,8 +21,10 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 
+from fitcv.agentic_cv_analysis import build_cv_analysis_record as build_agentic_cv_analysis_record
 from fitcv.pipeline import (
     _build_stage_transition_artifacts,
+    _build_cv_analysis_record,
     _build_cv_generation_debug_record,
     _collect_mapping_suggestions,
     _enrich_jobs_with_reuse,
@@ -146,6 +148,185 @@ def test_stage_block_orders_outcome_samples_before_inputs() -> None:
         "dropped_or_changed_sample",
         "inputs_sample",
     ]
+
+
+def test_ready_for_generation_keeps_ranking_fit_as_upstream_authority() -> None:
+    job = {
+        "job_url": "https://example.com/ready",
+        "title": "Ready Job",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+
+    record = build_agentic_cv_analysis_record(
+        job=job,
+        status="ready_for_generation",
+        analysis_input_fingerprint="analysis-fp",
+        analysis_reuse_status="fresh_compute",
+        evidence_payload=[],
+        evidence_selection_summary=None,
+        gap_summary=None,
+        fit_classification="skip",
+        error=None,
+    )
+
+    assert record["ranking_fit_label"] == "strong"
+    assert record["fit_classification"] == "skip"
+    assert record["decision_chain"]["primary_fit"] == {
+        "source": "reranker",
+        "label": "strong",
+    }
+    assert record["decision_chain"]["cv_analysis"] == {
+        "status": "ready_for_generation",
+        "completed": True,
+    }
+    assert record["decision_chain"]["cv_generation"] == {
+        "status": "not_attempted",
+        "attempted": False,
+    }
+
+
+def test_blocked_by_reranker_fit_keeps_cv_analysis_stage_authority() -> None:
+    job = {
+        "job_url": "https://example.com/blocked",
+        "title": "Blocked Job",
+        "fit_label": "stretch",
+        "fit_label_source": "reranker",
+    }
+
+    record = _build_cv_generation_debug_record(
+        job=job,
+        status="blocked_by_reranker_fit",
+        fit_classification="strong",
+        evidence_used=[],
+        evidence_selection_summary=None,
+        analysis_input_summary=None,
+        gap_summary=None,
+        structured_cv_initial=None,
+        validation_initial=None,
+        repair_attempt={"performed": False, "missing_sections": []},
+        structured_cv_final=None,
+        markdown_final=None,
+        enabled_sections=None,
+        cv_generation_model=None,
+        cv_prompt_id=None,
+        cv_prompt_template_path=None,
+        error={"stage": "reranker_fit", "message": "blocked"},
+    )
+
+    assert record["ranking_fit_label"] == "stretch"
+    assert record["fit_classification"] == "strong"
+    assert record["decision_chain"]["primary_fit"] == {
+        "source": "reranker",
+        "label": "stretch",
+    }
+    assert record["decision_chain"]["cv_analysis"] == {
+        "status": "blocked_by_reranker_fit",
+        "completed": False,
+    }
+    assert record["decision_chain"]["cv_generation"] == {
+        "status": "not_attempted",
+        "attempted": False,
+    }
+
+
+def test_skipped_fit_gate_keeps_cv_analysis_stage_authority() -> None:
+    job = {
+        "job_url": "https://example.com/skipped",
+        "title": "Skipped Job",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+    outcome_reason = {"stage": "fit_gate", "message": "skipped"}
+
+    record = _build_cv_analysis_record(
+        job=job,
+        status="skipped_fit_gate",
+        analysis_input_fingerprint="analysis-fp",
+        analysis_reuse_status="fresh_compute",
+        evidence_payload=[],
+        evidence_used=[],
+        evidence_selection_summary=None,
+        gap_summary={"matched": [], "partial": [], "missing": ["SQL"]},
+        fit_classification="skip",
+        error=outcome_reason,
+    )
+
+    assert record["ranking_fit_label"] == "strong"
+    assert record["fit_classification"] == "skip"
+    assert record["decision_chain"]["primary_fit"] == {
+        "source": "reranker",
+        "label": "strong",
+    }
+    assert record["decision_chain"]["cv_analysis"] == {
+        "status": "skipped_fit_gate",
+        "completed": True,
+    }
+    assert record["decision_chain"]["cv_generation"] == {
+        "status": "not_attempted",
+        "attempted": False,
+    }
+    assert record["outcome_reason"] == outcome_reason
+    assert record["error"] is None
+
+
+@pytest.mark.parametrize(
+    ("status", "expected_validation_status"),
+    [
+        ("validation_failed", "failed"),
+        ("generation_failed", "not_run"),
+        ("persistence_failed", "accepted"),
+    ],
+)
+def test_ready_for_generation_keeps_generation_terminal_statuses_stage_owned(
+    status: str,
+    expected_validation_status: str,
+) -> None:
+    job = {
+        "job_url": "https://example.com/generation",
+        "title": "Generation Job",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+
+    record = _build_cv_generation_debug_record(
+        job=job,
+        status=status,
+        fit_classification="skip",
+        evidence_used=[],
+        evidence_selection_summary=None,
+        analysis_input_summary=None,
+        gap_summary=None,
+        structured_cv_initial=None,
+        validation_initial=None,
+        repair_attempt={"performed": False, "missing_sections": []},
+        structured_cv_final=None,
+        markdown_final=None,
+        enabled_sections=None,
+        cv_generation_model=None,
+        cv_prompt_id=None,
+        cv_prompt_template_path=None,
+        error={"stage": "cv_generation", "message": status},
+    )
+
+    assert record["status"] == status
+    assert record["ranking_fit_label"] == "strong"
+    assert record["fit_classification"] == "skip"
+    assert record["decision_chain"]["primary_fit"] == {
+        "source": "reranker",
+        "label": "strong",
+    }
+    assert record["decision_chain"]["cv_analysis"] == {
+        "status": "ready_for_generation",
+        "completed": True,
+    }
+    assert record["decision_chain"]["cv_generation"] == {
+        "status": status,
+        "attempted": True,
+    }
+    assert record["decision_chain"]["validation"] == {
+        "status": expected_validation_status,
+    }
 
 
 def test_build_ranking_features_accepts_vector_search_field_names() -> None:
@@ -2244,6 +2425,10 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
     assert record["structured_cv_final"] is None
     assert record["markdown_final"] is None
     assert record["error"]["stage"] == "validation"
+    changed_sample = result["stage_transition_artifacts"]["stages"]["cv_generation"]["dropped_or_changed_sample"][0]
+    assert changed_sample["deterministic_outcome"] == "rejected"
+    assert changed_sample["stage_owned_subreason"] == "validation_failed"
+    assert changed_sample["source_stage"] == "cv_generation"
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -2357,6 +2542,10 @@ def test_run_pipeline_returns_debug_record_for_persistence_failed_cv(
     assert record["structured_cv_final"] == structured_cv
     assert record["markdown_final"] == "# CV Markdown"
     assert record["error"]["stage"] == "persistence"
+    output_sample = result["stage_transition_artifacts"]["stages"]["cv_generation"]["outputs_sample"][0]
+    assert output_sample["deterministic_outcome"] == "rejected"
+    assert output_sample["stage_owned_subreason"] == "persistence_failed"
+    assert output_sample["source_stage"] == "cv_generation"
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -2467,7 +2656,7 @@ def test_run_pipeline_returns_correct_schema(
         assert "dropped_or_changed_sample" in block
     assert stage_artifacts["stages"]["normalize"]["input_counts"]["raw_jobs"] == 1
     assert stage_artifacts["stages"]["ranking"]["output_counts"]["ranked_jobs"] == 1
-    assert stage_artifacts["stages"]["cv_analysis"]["output_counts"]["generation_ready"] == 1
+    assert stage_artifacts["stages"]["cv_analysis"]["output_counts"]["ready_for_generation"] == 1
     assert stage_artifacts["stages"]["cv_generation"]["output_counts"]["accepted"] == 1
     assert stage_artifacts["stages"]["cv_generation"]["outputs_sample"][0]["job_url"] == job["job_url"]
 
@@ -3351,8 +3540,8 @@ def test_build_stage_transition_artifacts_emits_stage_quality_metrics() -> None:
         },
     ]
     cv_analysis_results = [
-        {"job_url": "https://example.com/1", "status": "generation_ready"},
-        {"job_url": "https://example.com/2", "status": "generation_ready"},
+        {"job_url": "https://example.com/1", "status": "ready_for_generation"},
+        {"job_url": "https://example.com/2", "status": "ready_for_generation"},
         {"job_url": "https://example.com/3", "status": "skipped_fit_gate"},
     ]
     cv_generation_debug_records = [
@@ -3408,11 +3597,11 @@ def test_build_stage_transition_artifacts_emits_stage_quality_metrics() -> None:
     assert cv_analysis_metrics == {
         "blocked_by_reranker_fit_rate": pytest.approx(0.0),
         "skip_rate": pytest.approx(1 / 3),
-        "generation_ready_rate": pytest.approx(2 / 3),
+        "ready_for_generation_rate": pytest.approx(2 / 3),
         "analysis_failed_rate": pytest.approx(0.0),
         "blocked_by_reranker_fit": 0,
         "skipped_fit_gate": 1,
-        "generation_ready": 2,
+        "ready_for_generation": 2,
         "analysis_failed": 0,
         "total_processed": 3,
     }
@@ -4043,7 +4232,7 @@ def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
     }
     cv_analysis_block = result["stage_transition_artifacts"]["stages"]["cv_analysis"]
     assert cv_analysis_block["output_counts"]["blocked_by_reranker_fit"] == 1
-    assert cv_analysis_block["output_counts"]["generation_ready"] == 0
+    assert cv_analysis_block["output_counts"]["ready_for_generation"] == 0
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -4937,6 +5126,9 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         "https://example.com/4",
     ]
     assert export_results[0]["pipeline_status"] == "ranked_with_cv"
+    assert export_results[0]["deterministic_outcome"] == "accepted"
+    assert export_results[0]["stage_owned_subreason"] == "accepted"
+    assert export_results[0]["source_stage"] == "cv_generation"
     assert export_results[0]["cv"]["version_id"] == "v1"
     assert export_results[0]["cv"]["ranking_fit_label"] == "strong"
     assert export_results[0]["location_type"] == "remote"
@@ -4970,6 +5162,9 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         },
     }
     assert export_results[1]["pipeline_status"] == "ranked_blocked_by_reranker_fit"
+    assert export_results[1]["deterministic_outcome"] == "blocked"
+    assert export_results[1]["stage_owned_subreason"] == "blocked_by_reranker_fit"
+    assert export_results[1]["source_stage"] == "cv_analysis"
     assert export_results[1]["decision_chain"] == {
         "shortlist": {
             "status": "returned_by_vector_search",
@@ -5117,6 +5312,9 @@ def test_run_pipeline_short_circuits_reranker_skip_before_cv_analysis_dependenci
 
     changed_sample = result["stage_transition_artifacts"]["stages"]["cv_analysis"]["dropped_or_changed_sample"][0]
     assert changed_sample["change_type"] == "blocked_by_reranker_fit"
+    assert changed_sample["deterministic_outcome"] == "blocked"
+    assert changed_sample["stage_owned_subreason"] == "blocked_by_reranker_fit"
+    assert changed_sample["source_stage"] == "cv_analysis"
     assert changed_sample["analysis_reuse_status"] == "not_run_reranker_skip"
     assert "analysis_input_fingerprint" not in changed_sample
     assert changed_sample["outcome_reason"] == {
