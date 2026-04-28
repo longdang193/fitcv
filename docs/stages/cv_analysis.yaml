@@ -77,12 +77,12 @@ inputs:
 - ranked jobs
 - semantic-alignment settings
 outputs:
-- generation-ready jobs with selected evidence and gap payloads
+- blocked_by_reranker_fit, skipped_fit_gate, and analysis_failed outcomes
 - persisted cv-analysis records
-- skipped-fit-gate or analysis-failed outcomes
+- ready_for_generation records with selected evidence and gap payloads
 - stage-owned quality and reuse metrics
 invariants:
-- ranked jobs enter and generation-ready or analysis-rejected records leave
+- ranked jobs enter and stage-owned `ready_for_generation`, `blocked_by_reranker_fit`, `skipped_fit_gate`, or `analysis_failed` records leave
 - evidence retrieval, final evidence selection, gap analysis, and fit-gate ownership belong to this stage
 - this stage does not generate or persist final CV artifacts
 human_notes:

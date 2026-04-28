@@ -155,6 +155,23 @@ def _validation_status_for_cv_status(status: str) -> str:
     return "not_run"
 
 
+def _authoritative_ranking_fit_label(
+    job: dict[str, Any],
+    fit_classification: FitClassification | None,
+) -> FitClassification | None:
+    ranked_fit_raw = str(job.get("fit_label") or "").strip().lower()
+    if ranked_fit_raw in _FIT_LABEL_ORDER:
+        return cast(FitClassification, ranked_fit_raw)
+    if fit_classification is None:
+        return None
+    return fit_classification
+
+
+def _cv_generation_status_for_analysis_status(status: AnalysisStatus) -> str:
+    del status
+    return "not_attempted"
+
+
 def build_decision_chain(
     *,
     job: dict[str, Any],
@@ -162,7 +179,7 @@ def build_decision_chain(
     cv_analysis_status: str,
     cv_status: str,
 ) -> dict[str, Any]:
-    ranking_fit_label = str(fit_classification or "").strip() or None
+    ranking_fit_label = _authoritative_ranking_fit_label(job, fit_classification)
     ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
     return {
         "shortlist": {
@@ -199,14 +216,7 @@ def build_cv_analysis_record(
     fit_classification: FitClassification | None,
     error: ErrorPayload | None,
 ) -> CvAnalysisRecord:
-    if status == READY_FOR_GENERATION_STATUS:
-        cv_status = "not_attempted"
-    elif status == SKIPPED_FIT_GATE_STATUS:
-        cv_status = SKIPPED_FIT_GATE_STATUS
-    elif status == BLOCKED_BY_RERANKER_STATUS:
-        cv_status = "not_attempted"
-    else:
-        cv_status = "failed"
+    cv_status = _cv_generation_status_for_analysis_status(status)
 
     evidence_used = build_evidence_used(evidence_payload)
     return {
@@ -215,7 +225,7 @@ def build_cv_analysis_record(
         "status": status,
         "analysis_input_fingerprint": analysis_input_fingerprint,
         "analysis_reuse_status": analysis_reuse_status,
-        "ranking_fit_label": str(fit_classification or "").strip() or None,
+        "ranking_fit_label": _authoritative_ranking_fit_label(job, fit_classification),
         "fit_classification": fit_classification,
         "decision_chain": build_decision_chain(
             job=job,
