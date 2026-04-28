@@ -102,6 +102,11 @@ from fitcv.config import (
     load_config,
     parse_skill_synonym_overlay_yaml,
 )
+from fitcv.pipeline import (
+    _infer_last_completed_stage_from_state,
+    _restore_pipeline_state,
+    next_pipeline_stage,
+)
 from fitcv_cp.bq_store import (
     append_event,
     archive_run,
@@ -209,6 +214,123 @@ RUN_MODE_LABELS = {
     "run_all": "Run All",
     "manual_staged": "Stage by Stage",
 }
+
+
+def _apply_trigger_runtime_envelope(
+    effective_config: dict[str, Any],
+    *,
+    jobs_input_source: str | None,
+    jobs_input_json: str | None,
+    candidate_profile_source: str | None,
+    candidate_profile_json: str | None,
+    run_mode: str,
+) -> dict[str, Any]:
+    runtime_inputs = effective_config.setdefault("runtime_inputs", {})
+    if jobs_input_json:
+        runtime_inputs["jobs_input_json"] = jobs_input_json
+    if candidate_profile_json:
+        runtime_inputs["candidate_profile_json"] = candidate_profile_json
+    effective_config["trigger_runtime_envelope"] = {
+        "jobs_input_source": jobs_input_source,
+        "candidate_profile_source": candidate_profile_source,
+        "run_mode": run_mode,
+        "has_jobs_input_snapshot": bool(jobs_input_json),
+        "has_candidate_profile_snapshot": bool(candidate_profile_json),
+    }
+    return effective_config
+
+
+def _resolve_jobs_path_snapshot(jobs_path: str) -> tuple[str, str]:
+    normalized_jobs_path = str(jobs_path or "").strip()
+    if not normalized_jobs_path:
+        raise HTTPException(status_code=422, detail="jobs_path required for path mode")
+    path_file = Path(normalized_jobs_path)
+    if not path_file.exists():
+        raise HTTPException(status_code=422, detail=f"Jobs file not found: {normalized_jobs_path}")
+    try:
+        raw_text = path_file.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise HTTPException(status_code=422, detail=f"Cannot read jobs file {normalized_jobs_path}: {exc}")
+    try:
+        parsed_jobs = _json.loads(raw_text)
+    except _json.JSONDecodeError as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid jobs JSON at {normalized_jobs_path}: {exc}")
+    if not isinstance(parsed_jobs, list):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid jobs JSON at {normalized_jobs_path}: top-level value must be a JSON array",
+        )
+    return normalized_jobs_path, _json.dumps(parsed_jobs, ensure_ascii=False, indent=2)
+
+
+def _resolve_default_candidate_profile_snapshot(config_path: str) -> str:
+    from fitcv.candidate import load_profile_yaml as _load_profile_yaml, validate_profile as _validate_profile
+
+    base_cfg_for_profile = load_config(config_path)
+    profile_path_str = str(base_cfg_for_profile.get("paths", {}).get("candidate_profile", "") or "").strip()
+    if not profile_path_str:
+        raise HTTPException(status_code=422, detail="No candidate_profile path configured")
+    try:
+        resolved_profile = _load_profile_yaml(profile_path_str)
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Candidate profile not found: {profile_path_str}",
+        )
+    profile_errors = _validate_profile(resolved_profile)
+    if profile_errors:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Candidate profile validation failed: {'; '.join(profile_errors)}",
+        )
+    return _json.dumps(resolved_profile, ensure_ascii=False, indent=2)
+
+
+def _canonical_continue_next_stage(run: PipelineRun) -> str | None:
+    def _safe_next_stage(stage_name: str | None) -> str | None:
+        normalized_stage = str(stage_name or "").strip()
+        if not normalized_stage:
+            return None
+        try:
+            return next_pipeline_stage(normalized_stage)
+        except ValueError:
+            return None
+
+    checkpoint_next_stage: str | None = None
+    checkpoint_payload_json = str(run.checkpoint_payload_json or "").strip()
+    if checkpoint_payload_json:
+        try:
+            raw_payload = _json.loads(checkpoint_payload_json)
+        except _json.JSONDecodeError:
+            raw_payload = None
+        if isinstance(raw_payload, dict):
+            checkpoint_payload = raw_payload.get("checkpoint_payload")
+            if not isinstance(checkpoint_payload, dict):
+                checkpoint_payload = raw_payload
+            restored_state = _restore_pipeline_state(
+                run_id=str(run.run_id or ""),
+                checkpoint_payload=checkpoint_payload,
+            )
+            checkpoint_last_completed_stage = _infer_last_completed_stage_from_state(restored_state)
+            checkpoint_next_stage = _safe_next_stage(checkpoint_last_completed_stage)
+
+    last_completed_stage = str(run.last_completed_stage or "").strip()
+    if last_completed_stage:
+        canonical_next_stage = _safe_next_stage(last_completed_stage)
+        if canonical_next_stage:
+            if checkpoint_next_stage and checkpoint_next_stage != canonical_next_stage:
+                return None
+            return canonical_next_stage
+
+    completed_stages = list(run.completed_stages or [])
+    if completed_stages:
+        canonical_next_stage = _safe_next_stage(str(completed_stages[-1]))
+        if canonical_next_stage:
+            if checkpoint_next_stage and checkpoint_next_stage != canonical_next_stage:
+                return None
+            return canonical_next_stage
+
+    return None
 STAGE_SEQUENCE: tuple[str, ...] = (
     "normalize",
     "enrich",
@@ -1773,6 +1895,16 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         apply_settings_to_config(effective_config, coerced_overrides)
         # Recompute derived fields (required_cv_sections, etc.) from effective composition
         effective_config = apply_cv_compatibility_projection(effective_config)
+        actual_jobs_path, jobs_input_json_snapshot = _resolve_jobs_path_snapshot(jobs_path)
+        candidate_json_snapshot = _resolve_default_candidate_profile_snapshot(config_path)
+        effective_config = _apply_trigger_runtime_envelope(
+            effective_config,
+            jobs_input_source="path",
+            jobs_input_json=jobs_input_json_snapshot,
+            candidate_profile_source="default_config",
+            candidate_profile_json=candidate_json_snapshot,
+            run_mode=run_mode,
+        )
 
         run_id = str(uuid.uuid4())
         # Insert FIRST — then enqueue. DB is the source of truth.
@@ -1781,10 +1913,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             status=RunStatus.QUEUED,
             triggered_by=triggered_by,
             trigger_source="ui",
-            jobs_path=jobs_path,
+            jobs_path=actual_jobs_path,
             config_path=config_path,
             created_at=datetime.datetime.now(datetime.timezone.utc),
             effective_settings_json=_json.dumps(effective_config),
+            jobs_input_source="path",
+            jobs_input_json=jobs_input_json_snapshot,
+            candidate_profile_source="default_config",
+            candidate_profile_json=candidate_json_snapshot,
             run_mode=run_mode,
             checkpoint_status="pending_first_stage" if run_mode == "manual_staged" else None,
             next_stage="normalize" if run_mode == "manual_staged" else None,
@@ -1792,7 +1928,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         )
         insert_run(run, bq, project=project, dataset=dataset)
         _, queue_job_id = enqueue_run_with_job_id(
-            jobs_path=jobs_path,
+            jobs_path=actual_jobs_path,
             config_path=config_path,
             triggered_by=triggered_by,
             redis_url=redis_url,
@@ -1838,10 +1974,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         apply_settings_to_config(effective_config, coerced_overrides)
         # Recompute derived fields (required_cv_sections, etc.) from effective composition
         effective_config = apply_cv_compatibility_projection(effective_config)
-
-        # Inject runtime candidate profile override
-        if candidate_profile_json:
-            effective_config.setdefault("runtime_inputs", {})["candidate_profile_json"] = candidate_profile_json
+        effective_config = _apply_trigger_runtime_envelope(
+            effective_config,
+            jobs_input_source=jobs_input_source,
+            jobs_input_json=jobs_input_json,
+            candidate_profile_source=candidate_profile_source,
+            candidate_profile_json=candidate_profile_json,
+            run_mode=run_mode,
+        )
 
         if run_synonym_overlay:
             effective_config = apply_runtime_skill_synonym_overlay(
@@ -1909,7 +2049,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         synonym_overlay_file: UploadFile | None = File(None),
     ) -> dict:
         from fitcv.candidate import load_profile_json_text as _load_json_profile
-        from fastapi import HTTPException as _HTTPEx
 
         _MAX_FILES = 20
         _MAX_TOTAL_BYTES = 50 * 1024 * 1024  # 50 MB
@@ -1917,32 +2056,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         upload_dir = Path("data/uploads")
         upload_dir.mkdir(parents=True, exist_ok=True)
 
-        from fitcv.candidate import load_profile_yaml as _load_profile_yaml, validate_profile as _validate_profile
-
         # ── Jobs input resolution ──────────────────────────────────────
         jobs_input_json_snapshot: str | None = None
         if jobs_input_mode == "path":
-            if not jobs_path or not jobs_path.strip():
-                raise HTTPException(status_code=422, detail="jobs_path required for path mode")
-            # Task 1: Resolve and snapshot path-mode jobs input at trigger time
-            path_file = Path(jobs_path)
-            if not path_file.exists():
-                raise HTTPException(status_code=422, detail=f"Jobs file not found: {jobs_path}")
-            try:
-                raw_text = path_file.read_text(encoding="utf-8")
-            except OSError as exc:
-                raise HTTPException(status_code=422, detail=f"Cannot read jobs file {jobs_path}: {exc}")
-            try:
-                parsed_jobs = _json.loads(raw_text)
-            except _json.JSONDecodeError as exc:
-                raise HTTPException(status_code=422, detail=f"Invalid jobs JSON at {jobs_path}: {exc}")
-            if not isinstance(parsed_jobs, list):
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Invalid jobs JSON at {jobs_path}: top-level value must be a JSON array",
-                )
-            jobs_input_json_snapshot = _json.dumps(parsed_jobs, ensure_ascii=False, indent=2)
-            actual_jobs_path = jobs_path
+            actual_jobs_path, jobs_input_json_snapshot = _resolve_jobs_path_snapshot(jobs_path)
             jobs_input_source = "path"
         elif jobs_input_mode == "upload":
             # Normalize: accept multi-file (jobs_files) or legacy single-file (jobs_file)
@@ -2035,25 +2152,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         # ── Candidate profile resolution ─────────────────────────────────
         candidate_json_snapshot: str | None = None
         if candidate_profile_mode == "default_config":
-            # Task 2: Resolve and snapshot default_config candidate profile at trigger time
-            base_cfg_for_profile = load_config(config_path)
-            profile_path_str = base_cfg_for_profile.get("paths", {}).get("candidate_profile", "")
-            if not profile_path_str:
-                raise HTTPException(status_code=422, detail="No candidate_profile path configured")
-            try:
-                resolved_profile = _load_profile_yaml(profile_path_str)
-            except FileNotFoundError:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Candidate profile not found: {profile_path_str}",
-                )
-            profile_errors = _validate_profile(resolved_profile)
-            if profile_errors:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"Candidate profile validation failed: {'; '.join(profile_errors)}",
-                )
-            candidate_json_snapshot = _json.dumps(resolved_profile, ensure_ascii=False, indent=2)
+            candidate_json_snapshot = _resolve_default_candidate_profile_snapshot(config_path)
             candidate_profile_source = "default_config"
         elif candidate_profile_mode == "upload":
             if not candidate_profile_file or not candidate_profile_file.filename:
@@ -2666,8 +2765,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 status_code=409,
                 detail=f"Cannot continue run with status '{run.status.value}'",
             )
-        if not run.next_stage:
-            raise HTTPException(status_code=409, detail="Run has no next stage to continue")
+        canonical_next_stage = _canonical_continue_next_stage(run)
+        if not canonical_next_stage:
+            raise HTTPException(
+                status_code=409,
+                detail="Run has no canonical next stage to continue",
+            )
         _, queue_job_id = enqueue_run_with_job_id(
             jobs_path=run.jobs_path,
             config_path=run.config_path,
@@ -2683,7 +2786,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
             checkpoint_status="queued_for_continue",
-            next_stage=run.next_stage,
+            next_stage=canonical_next_stage,
             last_completed_stage=run.last_completed_stage,
             completed_stages=run.completed_stages,
             checkpoint_payload_json=run.checkpoint_payload_json,
@@ -2694,7 +2797,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 event_id=str(uuid.uuid4()),
                 stage="manual_continue_requested",
                 level="info",
-                message=f"Manual run queued to continue from {run.next_stage}",
+                message=f"Manual run queued to continue from {canonical_next_stage}",
                 created_at=datetime.datetime.now(datetime.timezone.utc),
             ),
             bq,

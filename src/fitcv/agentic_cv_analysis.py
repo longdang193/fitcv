@@ -25,6 +25,7 @@ lifecycle:
 from typing import Any, Final, Literal, TypedDict, cast
 
 from fitcv.candidate import flatten_skills
+from fitcv.contracts import normalize_analysis_channel_mapping
 from fitcv.evidence import (
     build_cv_analysis_input_fingerprint,
     retrieve_evidence,
@@ -269,17 +270,24 @@ def _compact_mapping(mapping: dict[str, Any]) -> dict[str, Any]:
 def _build_evidence_selection_summary(
     evidence_bundle: dict[str, Any],
     evidence: list[dict[str, Any]],
+    *,
+    fallback_used: bool,
 ) -> dict[str, Any]:
     return _compact_mapping(
         {
-            "channel_counts": dict(evidence_bundle.get("channel_counts") or {}),
+            "channel_counts": normalize_analysis_channel_mapping(
+                evidence_bundle.get("channel_counts") or {}
+            ),
+            "fallback_used": fallback_used,
             "effective_channel_pool_size": int(evidence_bundle.get("effective_channel_pool_size") or 0),
             "merged_pool_size": int(evidence_bundle.get("merged_pool_size") or 0),
             "deduped_pool_size": int(evidence_bundle.get("deduped_pool_size") or 0),
             "selected_evidence_count": len(evidence),
             "selected_evidence_ids": list(evidence_bundle.get("selected_evidence_ids") or []),
             "unselected_top_candidates": list(evidence_bundle.get("unselected_top_candidates") or []),
-            "hybrid_alignment": dict(evidence_bundle.get("hybrid_alignment") or {}),
+            "hybrid_alignment": normalize_analysis_channel_mapping(
+                evidence_bundle.get("hybrid_alignment") or {}
+            ),
             "semantic_alignment": dict(evidence_bundle.get("semantic_alignment") or {}),
         }
     )
@@ -322,14 +330,21 @@ def analyze_ranked_job(
             config=config,
         )
         evidence = list(evidence_bundle.get("selected_evidence") or [])
-        evidence_selection_summary = _build_evidence_selection_summary(evidence_bundle, evidence)
+        evidence_selection_summary = _build_evidence_selection_summary(
+            evidence_bundle,
+            evidence,
+            fallback_used=False,
+        )
 
         if not evidence:
             evidence = retrieve_evidence(profile, job, top_k=evidence_top_k)
             if evidence:
                 evidence_selection_summary = _compact_mapping(
                     {
-                        "channel_counts": evidence_selection_summary.get("channel_counts") or {},
+                        "channel_counts": normalize_analysis_channel_mapping(
+                            evidence_selection_summary.get("channel_counts") or {}
+                        ),
+                        "fallback_used": True,
                         "effective_channel_pool_size": int(
                             evidence_selection_summary.get("effective_channel_pool_size") or 0
                         ),
@@ -346,7 +361,9 @@ def analyze_ranked_job(
                         "unselected_top_candidates": list(
                             evidence_selection_summary.get("unselected_top_candidates") or []
                         ),
-                        "hybrid_alignment": dict(evidence_selection_summary.get("hybrid_alignment") or {}),
+                        "hybrid_alignment": normalize_analysis_channel_mapping(
+                            evidence_selection_summary.get("hybrid_alignment") or {}
+                        ),
                         "semantic_alignment": dict(evidence_selection_summary.get("semantic_alignment") or {}),
                     }
                 )
