@@ -85,8 +85,8 @@ inputs:
 outputs:
 - '`stage_transition_artifacts.cv_generation.decision_summary.quality_metrics` with accepted, validation-failed, generation-failed, and persistence-failed counts and rates'
 - bounded `stage_transition_artifacts.cv_generation` runtime block with input, output, and changed-state samples, including bounded upstream `cv_analysis` inputs, selected evidence context, and hybrid validation provenance for debugging
-- final CV generation status
 - rendered markdown CVs
+- stage-owned final CV generation statuses (accepted, validation_failed, generation_failed, persistence_failed)
 - structured CV artifacts
 - validation and repair outcomes
 invariants:
