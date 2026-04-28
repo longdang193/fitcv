@@ -1173,6 +1173,25 @@ def _agentic_late_stage_enabled(config: dict[str, Any]) -> bool:
     return False
 
 
+def _build_late_stage_mode_payload(
+    *,
+    agentic_late_stage_enabled: bool,
+    stage_reached: bool,
+) -> dict[str, Any]:
+    return {
+        "late_stage_mode": "agentic" if agentic_late_stage_enabled else "non_agentic",
+        "agentic_late_stage_enabled": agentic_late_stage_enabled,
+        "mode_source": "cv.agentic_late_stage.enabled",
+        "agentic_status": (
+            "completed"
+            if agentic_late_stage_enabled and stage_reached
+            else "pending"
+            if agentic_late_stage_enabled
+            else "not_applicable"
+        ),
+    }
+
+
 def _build_validation_grounding_payload(
     *,
     evidence_payload: list[dict[str, Any]],
@@ -1980,6 +1999,7 @@ def _stage_block(
     outputs_sample: list[dict[str, Any]],
     dropped_or_changed_sample: list[dict[str, Any]],
     settings_refs: list[str] | None = None,
+    late_stage_mode: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     block = {
         "stage_id": stage_id,
@@ -1994,6 +2014,8 @@ def _stage_block(
     }
     if settings_refs:
         block["settings_refs"] = settings_refs
+    if late_stage_mode:
+        block["late_stage_mode"] = late_stage_mode
     return _truncate_stage_value(block)
 
 
@@ -2211,6 +2233,7 @@ def _build_stage_transition_artifacts(
         int(cv_analysis_reuse_metrics["analysis_rows_executed"]),
     )
     cv_generation_quality_metrics = _build_cv_generation_quality_metrics(cv_generation_debug_records)
+    agentic_late_stage_enabled = _agentic_late_stage_enabled(config)
 
     return {
         "schema_version": "stage_transition_artifacts_v6",
@@ -2504,6 +2527,10 @@ def _build_stage_transition_artifacts(
                     "cv_analysis.semantic_alignment.domain_semantic_weight",
                     "cv_analysis.semantic_alignment.channel_pool_size",
                 ],
+                late_stage_mode=_build_late_stage_mode_payload(
+                    agentic_late_stage_enabled=agentic_late_stage_enabled,
+                    stage_reached=cv_analysis_reached,
+                ),
             ) if cv_analysis_reached else _stage_block_not_reached("cv_analysis"),
             "cv_generation": _stage_block(
                 stage_id="cv_generation",
@@ -2544,6 +2571,10 @@ def _build_stage_transition_artifacts(
                     _debug_record_changed_sample,
                 ),
                 settings_refs=["cv.generation.model", "prompts.cv_generation.structured_write.prompt_id"],
+                late_stage_mode=_build_late_stage_mode_payload(
+                    agentic_late_stage_enabled=agentic_late_stage_enabled,
+                    stage_reached=cv_generation_reached,
+                ),
             ) if cv_generation_reached else _stage_block_not_reached("cv_generation"),
         },
     }
@@ -3915,12 +3946,21 @@ def run_pipeline(
         ai_scores=ai_scores,
         cv_analysis_results=cv_analysis_results,
     )
+    cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
+    cv_generation_reached = any(
+        str(record.get("status") or "") in {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
+        for record in cv_generation_debug_records
+    )
     summary: dict[str, Any] = {
         "run_id": run_id,
         "total_jobs": len(raw_jobs),
         "passed_filter": len(passed_jobs),
         "ranked": len(ranked),
         "cvs_generated": len(results),
+        "late_stage_mode": _build_late_stage_mode_payload(
+            agentic_late_stage_enabled=agentic_late_stage_enabled,
+            stage_reached=cv_analysis_reached or cv_generation_reached,
+        ),
         "late_stage_reuse_snapshots": late_stage_reuse_snapshots,
         "cv_generation_debug_records": cv_generation_debug_records,
         "mapping_suggestions": _collect_mapping_suggestions(enriched, run_id),

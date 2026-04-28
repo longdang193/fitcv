@@ -71,6 +71,9 @@ def test_worker_persists_results_export_json_on_success():
     assert payload["run_mode"] == "run_all"
     assert payload["run_mode_label"] == "Run All"
     assert payload["summary"]["ranked"] == 2
+    assert payload["late_stage_mode"]["late_stage_mode"] == "non_agentic"
+    assert payload["late_stage_mode"]["agentic_late_stage_enabled"] is False
+    assert payload["late_stage_mode"]["agentic_status"] == "not_applicable"
     assert "stage_quality_metrics" not in payload
     assert "late_stage_reuse_metrics" not in payload
     assert "shortlist_debug" not in payload
@@ -565,6 +568,9 @@ def test_worker_persists_settings_used_json_on_success():
     payload = json.loads(mock_store_settings.call_args.args[1])
     assert payload["run_id"] == "r1"
     assert payload["settings_schema_version"] == "settings_used_v2"
+    assert payload["late_stage_mode"]["late_stage_mode"] == "non_agentic"
+    assert payload["late_stage_mode"]["agentic_late_stage_enabled"] is False
+    assert payload["late_stage_mode"]["agentic_status"] == "not_applicable"
     assert payload["effective_settings"]["pipeline"]["final_top_n"] == 10
     assert payload["sources"]["config_path"] == ".env.yaml"
     assert payload["sources"]["effective_settings_snapshot_present"] is True
@@ -1220,6 +1226,22 @@ def test_build_synonym_proposals_payload_preserves_existing_review_state() -> No
     assert proposal["proposal_id"] == proposal_id
     assert proposal["proposal_status"] == "approved_for_run_overlay"
     assert proposal["review_history"][0]["action"] == "approve_for_run_overlay"
+
+
+def test_build_synonym_proposals_payload_marks_not_applicable_without_mapping_suggestions() -> None:
+    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+
+    payload = json.loads(
+        _build_synonym_proposals_payload(
+            run_id="run-synonym-proposals-empty",
+            summary={},
+            created_at=datetime.datetime(2026, 4, 28, tzinfo=datetime.timezone.utc),
+        )
+    )
+
+    assert payload["proposal_generation_status"] == "not_applicable"
+    assert payload["persistence_status"] == "not_applicable"
+    assert payload["proposals"] == []
 
 
 # ── cooperative cancellation ─────────────────────────────────────────────────
