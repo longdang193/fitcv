@@ -8,13 +8,14 @@ execution-capable slices to be visible in the worktree.
 
 The planning ladder is:
 
-`master roadmap -> registered workstreams -> bounded change thread files -> specs -> implementation plans -> execution`
+`master roadmap -> registered workstreams -> bounded change thread files -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> implementation plans -> execution`
 
 Rules:
 
 - create one folder per registered workstream
 - keep thread files lightweight and execution-oriented
-- use thread files for slices that may later produce specs or plans
+- use thread files for slices that may later produce spec-set, spec-authoring,
+  detailed-spec, or implementation-plan work
 - do not turn the master roadmap into a thread tracker
 - do not turn thread files into full design docs
 
@@ -43,8 +44,6 @@ Suggested thread body:
 - why now
 - dependencies
 - shared surfaces
-- linked spec
-- linked plan
 - notes
 
 Thread files should answer:
@@ -53,11 +52,15 @@ Thread files should answer:
 - why it should move now
 - what it depends on
 - what it touches
-- what downstream artifacts it produced
+- what downstream reasoning should be authored next
 
 The parent workstream is derived from the folder path:
 
 - `docs/intent/workstreams/threads/<workstream-id>/`
+
+If you want to inspect what specs or plans came out of a thread, use
+`docs/generated/planning_lineage.yaml` rather than re-entering `linked_spec` or
+`linked_plan` into the thread file.
 
 In this first pass, the thread registry is product-workstream-focused. A
 parallel `operating_system` thread branch may be added later if the repo needs

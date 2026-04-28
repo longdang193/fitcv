@@ -41,6 +41,7 @@ docs/features/*/lineage.generated.yaml -> generated feature-local evidence
 docs/features/<feature_id>/          -> feature-specific explanation + partial-generated history
 docs/*.md                            -> cross-cutting product explanation
 docs/superpowers/specs/*.md          -> design artifacts
+docs/superpowers/execution_maps/*.md -> orchestration artifacts for approved spec sets
 docs/superpowers/plans/*.md          -> execution artifacts
 docs/generated/                      -> discovery (auto)
 README.md                            -> overview
@@ -49,8 +50,12 @@ README.md                            -> overview
 Rules:
 
 - `docs/intent/` governs project what-and-why
+- `docs/intent/master-workstream-roadmap.md` is the top-down bridge from
+  intent into durable product workstreams while preserving `operating_system`
+  as a parallel branch for repo-method work
 - `docs/operating_system/` governs repo method and workflow rules
 - specs live under `docs/superpowers/specs/`
+- execution maps live under `docs/superpowers/execution_maps/`
 - plans live under `docs/superpowers/plans/`
 - `feature.source.yaml` must exist before spec when a managed feature is changing; cross-cutting operating-system work may use `feature_source: none`
 - the spec must link back to the affected `docs/features/<feature_id>/feature.source.yaml` and generated `docs/features/<feature_id>/<feature_id>.yaml` when they exist
@@ -78,6 +83,8 @@ Rules:
      - docs/intent/*.md for intent work
      - docs/operating_system/*.md for operating-system work
      - docs/features/*/feature.source.yaml for feature-owned work
+   - when starting from intent, check whether the next branch is a product
+     workstream or `operating_system`
    - read code and generated contracts only as needed
    - when stage-aware work is central, read docs/stages/<stage_id>.source.yaml and the generated stage contract
    - when one feature folder is in scope, prefer the smallest truthful reading set
@@ -101,6 +108,8 @@ Rules:
    - classify the work as intent | operating_system | workstream | change
    - identify feature_id when one exists
    - identify affected stages when relevant
+   - if starting from intent, decide whether the next branch is workstream or
+     operating_system before writing downstream artifacts
    - decide the primary lens: stage | feature | mixed | cross-cutting
    - classify: add | modify | replace
    - name doc targets:
@@ -122,20 +131,37 @@ Rules:
 
 6. Invoke planning-dispatch
    - produce triage block
-   - confirm routing -> writing-plans
+   - confirm whether the next bounded artifact is a complete spec set, a
+     spec-authoring map, a detailed spec, an implementation execution map, or
+     a direct plan
 
-7. Write spec
+7. Write spec set or detailed spec
    - save to docs/superpowers/specs/YYYY-MM-DD-HH-MM-<topic>-spec.md
    - follow metadata rules
+   - for new change-layer specs, link them to the chosen thread via `parent_thread`
    - link the spec to the affected source docs and generated contracts
 
-8. Spec review loop
+8. Write a spec-authoring map when the complete spec set is known but the
+   detailed-spec authoring order is not
+   - save to docs/superpowers/execution_maps/YYYY-MM-DD-HH-MM-<topic>-execution-map.md
+   - use it only for orchestration across detailed-spec authoring work
+   - do not turn it into a design spec
+
+9. Write an implementation execution map when approved detailed specs now need
+   implementation sequencing
+   - save to docs/superpowers/execution_maps/YYYY-MM-DD-HH-MM-<topic>-execution-map.md
+   - use it only for implementation orchestration across approved detailed specs
+   - do not turn it into a giant implementation plan
+
+10. Spec review loop
    - review -> fix -> repeat (max 3)
 
-9. User approval
+11. User approval
 
-10. Handoff
-   - invoke writing-plans
+12. Handoff
+   - invoke writing-plans from one approved detailed spec or from an approved
+     implementation execution map, whichever now owns the next bounded plan
+     breakdown
 ```
 
 ---
@@ -157,7 +183,13 @@ User approval on direction
   ↓
 planning-dispatch (triage)
   ↓
-Write spec
+Write complete spec set
+  ↓
+Optional spec-authoring map
+  ↓
+Write detailed specs
+  ↓
+Optional implementation execution map
   ↓
 Review loop
   ↓
@@ -201,7 +233,7 @@ Each unit must answer:
 layer: intent | operating_system | workstream | change
 artifact_type: spec
 status: proposed | active | completed | superseded
-parent_workstream: <id> | none
+parent_thread: <thread-id> | none
 targets:
   - <path>
 related_features:
@@ -214,9 +246,14 @@ related_stages:
 Rules:
 
 - `layer`, `artifact_type`, and `status` are required
+- for new change-layer specs, `parent_thread` is the preferred lineage field
 - `targets` is required when the artifact is cross-cutting or otherwise ambiguous in scope
 - `targets` may be omitted only when the artifact is narrow and obviously local
 - `related_features` and `related_stages` are optional navigation aids, not a second ownership system
+
+When humans need the assembled thread/spec/plan view, point them to
+`docs/generated/planning_lineage.yaml` instead of adding derived links back
+into thread files.
 
 ---
 

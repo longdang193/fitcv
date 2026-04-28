@@ -40,6 +40,7 @@ docs/features/*/lineage.generated.yaml -> generated feature-local evidence
 docs/features/<feature_id>/          -> feature-specific explanation + partial-generated history
 docs/*.md                            -> cross-cutting product explanation
 docs/superpowers/specs/*.md          -> design artifacts
+docs/superpowers/execution_maps/*.md -> orchestration artifacts for approved spec sets
 docs/superpowers/plans/*.md          -> execution artifacts
 README.md                            -> overview
 docs/generated/*                     -> generated discovery
@@ -51,15 +52,15 @@ docs/generated/*                     -> generated discovery
 | Intent Source | `docs/intent/*.md` | Project purpose and outcomes | Stable, source-like, human-authored |
 | Operating-System Source | `docs/operating_system/*.md` | Repo method and governance | Stable, method-focused, human-authored |
 | Stage Source | `docs/stages/*.source.yaml` | Human-owned stage intent | Edit directly when stage meaning changes |
-| Stage Contract | `docs/stages/*.yaml` | Generated stage boundary view | Generated only |
+| Stage Contract | `docs/stages/*.yaml` | Generated stage boundary view | Generated only; validator-enforced in managed mode |
 | Feature Source | `docs/features/*/feature.source.yaml` | Human-owned feature meaning | Edit directly when feature meaning changes |
-| Feature Contract | `docs/features/*/<feature_id>.yaml` | Generated current feature contract | Generated only |
+| Feature Contract | `docs/features/*/<feature_id>.yaml` | Generated current feature contract | Generated only; validator-enforced in managed mode |
 | Feature Local Evidence | `docs/features/*/lineage.generated.yaml` | Generated ownership and lineage facts | Generated only |
 | Feature Explanation/History | `docs/features/<feature_id>/*` | Design, flow, ops notes, history | Feature-specific only |
 | Cross-Cutting Product Docs | `docs/*.md` | Architecture, pipelines, shared product explanation | Cross-feature only |
-| Execution Artifacts | `docs/superpowers/specs/*.md`, `docs/superpowers/plans/*.md` | Design and execution artifacts | Metadata-guided, not governing layers |
+| Execution Artifacts | `docs/superpowers/specs/*.md`, `docs/superpowers/execution_maps/*.md`, `docs/superpowers/plans/*.md` | Design, orchestration, and execution artifacts | Metadata-guided, not governing layers |
 | Overview | `README.md` | Purpose and navigation | Entry point only |
-| Generated Discovery | `docs/generated/*` | Fast lookup | Generated only; never edit manually |
+| Generated Discovery | `docs/generated/*` | Fast lookup | Generated only; current managed discovery surfaces are validator-enforced |
 
 ## Governing Layers
 
@@ -108,6 +109,9 @@ Rules:
 - stage source owns stage role semantics such as `primary_features` and `supporting_features`
 - feature source owns stage capability participation through `stage_participation.stage_id` and `capability_ids`
 - generated stage contracts derive assembled refs and linkage views from those sources
+- in managed mode, generated stage contracts are validator-enforced migration targets rather than loose generated suggestions
+- the expected steady-state shape is a flat top-level mapping with fields such as `stage_id`, `name`, `status`, `purpose`, and generated ref families like `feature_refs`, `capability_refs`, `code_refs`, `test_refs`, `doc_refs`, `config_refs`, and `component_refs`
+- older nested stage wrappers are migration debt, not a valid steady-state managed shape
 
 ## Feature Source, Generated Contract, And Evidence
 
@@ -123,6 +127,8 @@ Rules:
 - freshness fields such as `revision`, `latest_change_id`, and `last_updated_at` are generated from completed plans
 - do not use `manual_refs`; refs come from metadata on the owning code, tests, docs, specs, plans, configs, and AML components
 - use `lineage.generated.yaml` for detailed evidence, ownership, and timeline facts
+- in managed mode, the generated `<feature_id>.yaml` contract is validator-enforced, including canonical top-level fields and `refs` families
+- generated feature contracts should keep structured `invariants` and `capabilities` entries rather than legacy bare-string summaries
 
 Recommended feature-source shape:
 
@@ -163,6 +169,7 @@ Rules:
 - `history.md` is partially generated when the feature is opted into the architecture system:
   - the block between `<!-- GENERATED HISTORY START -->` and `<!-- GENERATED HISTORY END -->` is generator-owned
   - `## Human Notes` stays human-authored
+- in managed mode, that generated boundary pattern is validator-enforced for `history.md`
 
 ## Placement Table
 
@@ -182,6 +189,7 @@ Use this default placement:
 | Cross-cutting product architecture / pipeline / shared ops | `docs/*.md` |
 | Project overview / navigation | `README.md` |
 | Design artifacts | `docs/superpowers/specs/*.md` |
+| Spec-authoring and implementation-execution orchestration artifacts | `docs/superpowers/execution_maps/*.md` |
 | Execution artifacts | `docs/superpowers/plans/*.md` |
 | Generated lookup surfaces | `docs/generated/*` |
 
@@ -212,6 +220,7 @@ Use `docs/generated/*` for:
 - aggregate indexes
 - summaries
 - lookup surfaces
+- assembled planning lineage across workstreams, threads, specs, and plans
 
 Rules:
 
@@ -219,6 +228,9 @@ Rules:
 - never edit manually
 - not a source of truth
 - always point back to the source
+- use `docs/generated/planning_lineage.yaml` when humans need the assembled
+  thread/spec/plan lineage view
+- for the current managed target, treat `docs/generated/architecture_dag.yaml` and `docs/generated/capability_lineage.yaml` as validator-enforced generated contracts, not optional byproducts
 
 ## Metadata for Specs and Plans
 
@@ -229,7 +241,8 @@ For new or touched specs/plans under `docs/superpowers/`, use:
 layer: intent | operating_system | workstream | change
 artifact_type: spec | plan
 status: proposed | active | completed | superseded
-parent_workstream: <id> | none
+parent_thread: <thread-id> | none
+parent_spec: docs/superpowers/specs/<file>.md | none
 targets:
   - <path>
 related_features:
@@ -242,7 +255,9 @@ related_stages:
 Rules:
 
 - `layer`, `artifact_type`, and `status` are required
-- `parent_workstream`, `related_features`, and `related_stages` are optional
+- for new change-layer specs, prefer `parent_thread`
+- for new change-layer plans, prefer `parent_thread` plus `parent_spec`
+- `related_features` and `related_stages` are optional
 - `targets` is required when the artifact is cross-cutting or otherwise ambiguous in scope
 - `targets` may be omitted only when the scope is already obvious and narrowly local
 

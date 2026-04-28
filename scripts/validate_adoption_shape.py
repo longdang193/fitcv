@@ -731,6 +731,14 @@ def validate_thread_registry(root: Path, findings: list[Finding]) -> None:
                 "Bounded change thread must not restate parent_workstream in frontmatter.",
                 "Derive the parent workstream from docs/intent/workstreams/threads/<workstream-id>/ instead of repeating it manually.",
             )
+        for forbidden_field in ("linked_spec", "linked_plan"):
+            if forbidden_field in payload:
+                add_error(
+                    findings,
+                    relative_path,
+                    f"Bounded change thread must not define {forbidden_field} in frontmatter.",
+                    "Derive downstream spec/plan linkage through parent_thread and inspect it via docs/generated/planning_lineage.yaml instead of re-entering it in the thread file.",
+                )
 
         workstream_id = path.parent.name
         if workstream_id not in workstream_ids:

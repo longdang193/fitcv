@@ -1985,6 +1985,62 @@ status: proposed
     assert "must not restate parent_workstream" in result.stdout.lower()
 
 
+def test_validator_rejects_thread_with_linked_spec_field(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    seed_workstream_registry_entry(tmp_path)
+    write_text(
+        tmp_path
+        / "docs"
+        / "intent"
+        / "workstreams"
+        / "threads"
+        / "platform-delivery"
+        / "01-sample-thread.md",
+        """---
+thread_id: platform-delivery.sample-thread
+status: proposed
+linked_spec: docs/superpowers/specs/2026-04-25-sample-spec.md
+---
+
+# sample-thread
+""",
+    )
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "must not define linked_spec" in result.stdout.lower()
+
+
+def test_validator_rejects_thread_with_linked_plan_field(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    seed_workstream_registry_entry(tmp_path)
+    write_text(
+        tmp_path
+        / "docs"
+        / "intent"
+        / "workstreams"
+        / "threads"
+        / "platform-delivery"
+        / "01-sample-thread.md",
+        """---
+thread_id: platform-delivery.sample-thread
+status: proposed
+linked_plan: docs/superpowers/plans/2026-04-25-sample-plan.md
+---
+
+# sample-thread
+""",
+    )
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "must not define linked_plan" in result.stdout.lower()
+
+
 def test_validator_accepts_superpowers_change_plan_with_parent_thread_and_parent_spec(
     tmp_path: Path,
 ) -> None:

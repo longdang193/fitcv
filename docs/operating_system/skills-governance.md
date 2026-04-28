@@ -10,6 +10,15 @@ The canonical Codex skill surface remains:
 .agents/skills/
 ```
 
+This repo does not currently use a hidden `.codex/` directory as the
+canonical Codex skill root. The active ownership model is:
+
+- `AGENTS.md` for repo-wide Codex instructions
+- `.agents/skills/` for canonical Codex skills
+- `.codex/agents/` for optional narrow Codex subagent configuration
+- `docs/operating_system/` for human governance
+- `.codex/rules/` for generated rules output
+
 Phase 2 does not move canonical skill ownership into `agent-core/skills/`.
 
 That migration stays deferred until the adapter and sync model is more mature.
@@ -31,7 +40,7 @@ Skills are for:
 - debugging methods
 - planning methods
 - review workflows
-- focused task playbooks
+- focused task workflows
 
 Skills are not for:
 
@@ -44,7 +53,19 @@ Those belong in:
 
 - `docs/operating_system/`
 - `agent-core/policies/`
-- `codex/rules/`
+- `.codex/rules/`
+
+`.codex/rules/` is a generated rules surface. It is not the canonical home for
+skills, agent memory, or repo governance.
+
+## Relationship To Subagents
+
+If `.codex/agents/` exists in this repo:
+
+- it is an optional specialist executor layer
+- it does not replace `.agents/skills/`
+- it must stay narrower and more role-specific than the skill layer
+- it must not become a second governance surface
 
 ## Quality Rules
 
@@ -55,6 +76,23 @@ Each skill should:
 - use helper files only when they add real value
 - avoid turning into a general project manual
 
+
+## Validation Rule
+
+New skills are not considered trustworthy just because they were written down.
+
+Before a new skill is treated as landed:
+
+- validate it with the `writing-skills` workflow
+- define a baseline failure scenario
+- define the expected post-skill success behavior
+- tighten loopholes when the first version still leaves room for bad shortcuts
+- capture a short reusable validation summary in
+  `docs/operating_system/skills-validation-report.md` when the change affects
+  repo-wide routing or governance behavior
+
+In this repo, skill additions should be treated as process TDD rather than
+plain documentation edits.
 ## Migration Rule
 
 If future work introduces `agent-core/skills/`, that layer must not become canonical until:

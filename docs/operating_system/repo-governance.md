@@ -1,4 +1,4 @@
-﻿# Repo Governance
+# Repo Governance
 
 This document defines how a private project repo is organized for humans and agents.
 
@@ -245,14 +245,18 @@ Planning classification should stay explicit:
 
 The precise execution ladder is:
 
-`intent -> master workstream roadmap -> registered workstreams -> bounded change thread files -> specs -> implementation plans -> execution`
+`intent -> master workstream roadmap -> registered workstreams -> bounded change thread files -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> implementation plans -> execution`
 
 Use that model to keep responsibilities separate:
 
 - roadmap = coverage of the major threads needed to reach the end goal
 - registered workstreams = durable thread ownership plus progress roll-up
 - bounded change thread files = the safe parallel execution unit
-- specs/plans = bounded design and execution artifacts
+- complete spec set = the inventory of required specs before detailed design writing
+- spec-authoring maps = orchestration artifacts for detailed-spec authoring
+- detailed specs = bounded design artifacts
+- implementation execution maps = orchestration artifacts across approved detailed specs
+- plans = bounded execution artifacts
 
 Lineage should stay minimal:
 
@@ -262,6 +266,8 @@ Lineage should stay minimal:
 - change-layer specs should point to `parent_thread`
 - change-layer plans should point to `parent_thread` and `parent_spec`
 - downstream artifacts should not restate full ancestry when it can be derived
+- thread files should not store `linked_spec` or `linked_plan`; use
+  `docs/generated/planning_lineage.yaml` for the assembled linkage view instead
 
 When humans want help deciding which bounded change threads can safely run in
 parallel, use the prompt-pack entry at

@@ -11,18 +11,21 @@ Lifecycle order:
 4. `bounded-change-thread-build-prompt.md`
 5. `roadmap-to-workstream-prompt.md`
 6. `workstream-to-spec-prompt.md`
-7. `spec-prompt.md`
-8. `plan-prompt.md`
-9. `execute-prompt.md`
-10. `validate-or-drift-prompt.md`
-11. `managed-metadata-update-prompt.md`
-12. `mode-migration-prompt.md`
-13. `workstream-alignment-review-prompt.md`
-14. `roadmap-gap-prompt.md`
-15. `roadmap-vs-execution-divergence-prompt.md`
-16. `provider-history-sync-prompt.md`
-17. `gitnexus-refresh-prompt.md`
-18. `parallel-bounded-change-planning-prompt.md`
+7. `thread-set-to-spec-set-prompt.md`
+8. `spec-set-to-spec-authoring-map-prompt.md`
+9. `spec-prompt.md`
+10. `spec-set-execution-map-prompt.md`
+11. `plan-prompt.md`
+12. `execute-prompt.md`
+13. `validate-or-drift-prompt.md`
+14. `managed-metadata-update-prompt.md`
+15. `mode-migration-prompt.md`
+16. `workstream-alignment-review-prompt.md`
+17. `roadmap-gap-prompt.md`
+18. `roadmap-vs-execution-divergence-prompt.md`
+19. `provider-history-sync-prompt.md`
+20. `gitnexus-refresh-prompt.md`
+21. `parallel-bounded-change-planning-prompt.md`
 
 Use the smallest prompt that matches the step you actually want.
 
@@ -42,10 +45,17 @@ Routing prompts:
   roadmap thread into the right delivery branch
 - use a workstream-to-spec prompt when a thread is already chosen and you want
   the next bounded design slice
+- use a thread-set-to-spec-set prompt when you already have a thread set and
+  want the complete spec inventory before detailed-spec authoring
+- use a spec-set-to-spec-authoring-map prompt when the complete spec set exists
+  and you need to sequence detailed-spec authoring
+- use a spec-set-execution-map prompt when the approved detailed specs exist
+  and you need a distinct implementation execution map for ordering, waves, and
+  parallelism
 
 Execution prompts:
 
-- use a spec prompt when the design needs to be written down
+- use a spec prompt when one chosen detailed spec needs to be written down
 - use a plan prompt when the spec is approved and you want execution steps
 - use an execution prompt when a plan already exists
 
@@ -75,7 +85,7 @@ These are guidance files, not required repo artifacts.
 
 The practical ladder is:
 
-`intent -> master roadmap -> registered workstream set -> bounded change thread files -> spec -> plan -> execution`
+`intent -> master roadmap -> registered workstream set -> bounded change thread files -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> implementation plan -> execution`
 
 with `operating_system` remaining a parallel branch when the work is really
 about repo method rather than product delivery.

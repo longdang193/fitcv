@@ -34,6 +34,7 @@ docs/features/*/lineage.generated.yaml → generated feature-local evidence
 docs/features/<feature_id>/          → feature-specific explanation + partial-generated history
 docs/*.md                            → cross-cutting product explanation
 docs/superpowers/specs/*.md          → design artifacts
+docs/superpowers/execution_maps/*.md → orchestration artifacts for approved spec sets
 docs/superpowers/plans/*.md          → execution artifacts
 README.md                            → overview
 docs/generated/                      → generated discovery
@@ -42,6 +43,8 @@ docs/generated/                      → generated discovery
 Rules:
 
 - intent work should point back to `docs/intent/*.md`
+- when intent work is being translated into major delivery threads, the plan
+  should also point back to `docs/intent/master-workstream-roadmap.md`
 - operating-system work should point back to `docs/operating_system/*.md`
 - The affected `docs/features/<feature_id>/feature.source.yaml` file is the
   human-owned anchor when a managed feature exists
@@ -56,6 +59,13 @@ Rules:
 - Cross-cutting repo-method docs belong under `docs/operating_system/*.md`
 - The plan must link back to the feature source, generated contract, and spec
   when they exist
+- When a multi-spec set needs detailed-spec authoring order first, consult the
+  spec-authoring map
+- When approved detailed specs need implementation ordering or parallelization,
+  consult the implementation execution map rather than collapsing
+  orchestration into the plan
+- Use `docs/generated/planning_lineage.yaml` for derived thread/spec/plan
+  inspection instead of re-entering those links manually in thread files
 - Generated discovery is refreshed after source updates; do not edit it manually
 
 ---
@@ -70,6 +80,12 @@ Do not write the plan until these are true:
    managed feature is changing, or the plan explicitly says it must be created
    before implementation starts
 4. the spec exists if the design is non-trivial
+5. when the work is now a multi-spec set, the implementation execution map
+   exists or the plan explicitly explains why one is unnecessary
+
+When the plan is downstream of intent, the triage and plan should make clear
+whether the bounded change belongs under a product workstream or under the
+parallel `operating_system` branch.
 
 Important:
 
@@ -136,6 +152,10 @@ If the spec covers multiple independent subsystems, suggest splitting into separ
 
 If there is no spec because the user explicitly requested a clear bounded plan, state that the plan is proceeding from triage plus existing source-of-truth docs rather than inventing a placeholder spec.
 
+If the approved work now spans multiple specs, use the implementation execution
+map to choose ordering, parallel lanes, and bounded plan split before writing
+plans.
+
 ---
 
 ## File Structure First
@@ -178,6 +198,8 @@ layer: intent | operating_system | workstream | change
 artifact_type: plan
 status: proposed | active | completed | superseded
 parent_workstream: <id> | none
+parent_thread: <thread-id> | none
+parent_spec: `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<topic>-spec.md` | none
 targets:
   - <path>
 related_features:
@@ -191,6 +213,7 @@ related_stages:
 **Feature Source:** `docs/features/<feature_id>/feature.source.yaml` | `none`
 **Feature Contract:** `docs/features/<feature_id>/<feature_id>.yaml` | `none`
 **Spec:** `docs/superpowers/specs/YYYY-MM-DD-HH-MM-<topic>-spec.md` | `none`
+**Implementation Execution Map:** `docs/superpowers/execution_maps/YYYY-MM-DD-HH-MM-<topic>-execution-map.md` | `none`
 **Type:** add | modify | replace  
 **Plan Layer:** intent | operating_system | workstream | change
 **Plan Status:** proposed | active | completed | superseded
@@ -215,10 +238,14 @@ related_stages:
 Rules:
 
 - `layer`, `artifact_type`, and `status` are required frontmatter
+- new change-layer plans should use `parent_thread`
+- new change-layer plans should use `parent_spec`
 - `targets` is required when the plan is cross-cutting or otherwise ambiguous in scope
 - `targets` may be omitted only when the plan is narrow and obviously local
 - `related_features` and `related_stages` are optional navigation aids
 - keep plan metadata aligned with the triage block rather than inventing a second classification
+- `parent_workstream` is not the preferred downstream lineage field once a
+  change-layer thread/spec pair exists
 - when the plan is the requested primary artifact, the first created artifact should be the plan file under `docs/superpowers/plans/`, not an owning source doc
 
 Every plan must also include this section near the top:

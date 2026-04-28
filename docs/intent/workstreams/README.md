@@ -2,7 +2,7 @@
 
 This folder is the canonical registry for named product workstreams.
 
-Use [master-workstream-roadmap.md](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/project-OS-starter/docs/intent/master-workstream-roadmap.md)
+Use [master-workstream-roadmap.md](../master-workstream-roadmap.md)
 as the high-level overview.
 Use this folder when you need the concrete valid workstream IDs that specs and
 threads may derive from canonically.
@@ -27,7 +27,7 @@ Rules:
   the master roadmap
 
 Use the adjacent thread registry at
-[threads/README.md](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/project-OS-starter/docs/intent/workstreams/threads/README.md)
+[threads/README.md](./threads/README.md)
 when you need explicit execution-capable slices beneath a workstream.
 
 Suggested file shape:
@@ -54,4 +54,4 @@ Suggested body shape:
 - last alignment review
 
 For the full governance model, see
-[workstream-coverage-and-progress-guide.md](C:/Users/HOANG%20PHI%20LONG%20DANG/repos/project-OS-starter/docs/intent/workstream-coverage-and-progress-guide.md).
+[workstream-coverage-and-progress-guide.md](../workstream-coverage-and-progress-guide.md).

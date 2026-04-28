@@ -13,7 +13,10 @@ intent
 -> master workstream roadmap
 -> complete set of registered workstreams
 -> bounded change thread files
--> specs
+-> complete spec set
+-> spec-authoring map
+-> detailed specs
+-> implementation execution map
 -> implementation plans
 -> execution
 ```
@@ -30,10 +33,19 @@ Definitions:
 - `bounded change threads`
   - the discrete execution-capable slices beneath a workstream, expressed
     through `docs/intent/workstreams/threads/`
-- `specs`
-  - bounded design artifacts for one change thread
+- `complete spec set`
+  - the inventory of all detailed specs needed for a chosen thread set
+- `spec-authoring map`
+  - the orchestration artifact for detailed-spec authoring order and safe
+    parallel authoring lanes
+- `detailed specs`
+  - bounded design artifacts for one change thread or one approved shared
+    thread surface
+- `implementation execution map`
+  - the orchestration artifact for implementing an approved detailed-spec set
 - `implementation plans`
-  - bounded execution artifacts for one approved spec or change
+  - bounded execution artifacts for one approved detailed spec or approved
+    implementation-execution-map wave
 
 ## What Each Layer Tracks
 
@@ -80,12 +92,16 @@ Answers:
 
 Lives in:
 
+- [docs/superpowers/execution_maps/](../superpowers/execution_maps)
 - [docs/superpowers/specs/](../superpowers/specs)
 - [docs/superpowers/plans/](../superpowers/plans)
 
 Answers:
 
+- what complete spec set exists for a thread set?
+- what detailed specs should be authored first?
 - what bounded slices have been designed?
+- what approved detailed specs are ready for implementation ordering?
 - what slices have plans?
 - what has been executed?
 
@@ -144,7 +160,10 @@ The practical execution unit is the **bounded change thread**:
 
 Each bounded change thread may produce:
 
-- a spec
+- a place in the complete spec set
+- a spec-authoring map
+- a detailed spec
+- an implementation execution map
 - an implementation plan
 - direct execution when already bounded and clear
 
@@ -196,8 +215,14 @@ Use these prompts when helpful:
   - `docs/operating_system/prompt_templates/roadmap-to-workstream-prompt.md`
 - route a workstream into the next bounded design slice:
   - `docs/operating_system/prompt_templates/bounded-change-thread-build-prompt.md`
-- route a chosen bounded thread into the next spec:
+- turn a thread set into the complete spec set:
+  - `docs/operating_system/prompt_templates/thread-set-to-spec-set-prompt.md`
+- turn the complete spec set into the next detailed-spec authoring sequence:
+  - `docs/operating_system/prompt_templates/spec-set-to-spec-authoring-map-prompt.md`
+- route a chosen bounded thread into the next detailed spec:
   - `docs/operating_system/prompt_templates/workstream-to-spec-prompt.md`
+- turn approved detailed specs into the next implementation execution sequence:
+  - `docs/operating_system/prompt_templates/spec-set-execution-map-prompt.md`
 - review roadmap/workstream vs execution:
   - `docs/operating_system/prompt_templates/roadmap-vs-execution-divergence-prompt.md`
 
@@ -205,6 +230,8 @@ Use these prompts when helpful:
 
 - using the master roadmap as a task board
 - treating a workstream as if it were already a spec or plan
+- treating the complete spec set as if it were already detailed-spec authoring
+- treating a spec-authoring map as if it were already an implementation plan
 - running parallel work directly against a broad workstream with no bounded
   change split
 - tracking progress only in scattered specs/plans with no workstream roll-up
