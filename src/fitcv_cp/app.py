@@ -606,9 +606,9 @@ def _pretty_json_string(raw_json: str) -> str:
 def _build_stage_slice_payload(run: PipelineRun, stage_id: str) -> dict[str, Any] | None:
     if stage_id not in BUNDLE_STAGE_IDS:
         return None
-    if not run.stage_transition_artifacts_json:
+    artifact_payload = _load_stage_transition_artifacts_payload(run)
+    if not artifact_payload:
         return None
-    artifact_payload = _json.loads(run.stage_transition_artifacts_json)
     artifacts = artifact_payload.get("artifacts") or {}
     stages = artifacts.get("stages") or {}
     stage_artifact = stages.get(stage_id)
@@ -626,6 +626,7 @@ def _build_stage_slice_payload(run: PipelineRun, stage_id: str) -> dict[str, Any
 def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFile]:
     files: list[RunArtifactFile] = []
     stage_artifacts_by_id = _stage_artifacts_by_id(run)
+    stage_transition_artifact_payload = _load_stage_transition_artifacts_payload(run)
 
     if run.status == RunStatus.SUCCEEDED and run.results_export_json:
         files.append(
@@ -663,13 +664,13 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 content=_pretty_json_string(run.mapping_suggestions_json),
             )
         )
-    if run.stage_transition_artifacts_json and run.status != RunStatus.QUEUED:
+    if stage_transition_artifact_payload and run.status != RunStatus.QUEUED:
         files.append(
             RunArtifactFile(
                 filename="stage-artifacts.json",
                 label="Stage Artifacts JSON (Diagnostics)",
                 href=f"/admin/runs/{run.run_id}/stage-artifacts.json",
-                content=_pretty_json_string(run.stage_transition_artifacts_json),
+                content=_json.dumps(stage_transition_artifact_payload, ensure_ascii=False, indent=2),
             )
         )
         for stage_id in BUNDLE_STAGE_IDS:
@@ -915,6 +916,17 @@ def _results_export_rows(run: PipelineRun) -> list[dict[str, Any]]:
     return [dict(row) for row in rows if isinstance(row, dict)]
 
 
+def _event_payload(event: RunEvent) -> dict[str, Any]:
+    raw_payload = getattr(event, "payload_json", None)
+    if not raw_payload:
+        return {}
+    try:
+        payload = _json.loads(raw_payload)
+    except (_json.JSONDecodeError, TypeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
 def _pipeline_outcome_surface(row: dict[str, Any]) -> dict[str, str]:
     pipeline_status = str(row.get("pipeline_status") or "")
     deterministic_outcome = str(row.get("deterministic_outcome") or "").strip()
@@ -1104,6 +1116,8 @@ def _timeline_stage_summary_message(
     event: RunEvent,
     stage_artifacts_by_id: dict[str, dict[str, Any]],
 ) -> str:
+    payload = _event_payload(event)
+    payload_output = payload.get("output_snapshot") if isinstance(payload.get("output_snapshot"), dict) else {}
     stage_id = _timeline_stage_download_for_event(event.stage)
     if not stage_id:
         return event.message
@@ -1161,12 +1175,17 @@ def _timeline_stage_summary_message(
         if details:
             return f"Ranking complete: {', '.join(details)}"
     if event.stage == "layer4_cv_analysis":
-        ready = outputs.get("ready_for_generation")
-        skipped = outputs.get("skipped_fit_gate")
-        failed = outputs.get("analysis_failed")
-        if ready is not None and skipped is not None and failed is not None:
-            return f"CV analysis complete: {ready} ready, {skipped} skipped, {failed} failed"
-    if event.stage in {"layer4_cv_validation_failed", "pipeline_complete"}:
+        ready = outputs.get("ready_for_generation", payload_output.get("ready_for_generation"))
+        blocked = outputs.get("blocked_by_reranker_fit", payload_output.get("blocked_by_reranker_fit"))
+        skipped = outputs.get("skipped_fit_gate", payload_output.get("skipped_fit_gate"))
+        failed = outputs.get("analysis_failed", payload_output.get("analysis_failed"))
+        if ready is not None and blocked is not None and skipped is not None and failed is not None:
+            return f"CV analysis complete: {ready} ready, {blocked} blocked, {skipped} skipped, {failed} failed"
+    if event.stage == "layer4_cv_validation_failed":
+        job_url = str(payload.get("job_url") or "").strip()
+        if job_url:
+            return f"CV validation failed for {job_url}"
+    if event.stage == "pipeline_complete":
         accepted = outputs.get("accepted")
         validation_failed = outputs.get("validation_failed")
         generation_failed = outputs.get("generation_failed")
@@ -2792,7 +2811,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             if (
                 stage_id
                 and _timeline_event_allows_stage_download(ev.stage)
-                and stage_id in stage_artifacts_by_id
+                and _build_stage_slice_payload(run, stage_id) is not None
             ):
                 stage_download_url = f"/admin/runs/{run_id}/stage-artifacts/{stage_id}.json"
                 stage_download_label = _stage_download_label(stage_id)
