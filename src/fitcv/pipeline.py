@@ -161,6 +161,9 @@ _FIT_LABEL_ORDER = {"skip": 0, "stretch": 1, "strong": 2}
 _STAGE_ARTIFACT_SAMPLE_LIMIT = 20
 _STAGE_ARTIFACT_TEXT_LIMIT = 240
 CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS = "blocked_by_reranker_fit"
+CV_ANALYSIS_READY_FOR_GENERATION_STATUS = "ready_for_generation"
+CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS = "skipped_fit_gate"
+CV_ANALYSIS_FAILED_STATUS = "analysis_failed"
 PIPELINE_STATUS_RANKED_BLOCKED_BY_RERANKER = "ranked_blocked_by_reranker_fit"
 PIPELINE_STAGE_SEQUENCE = (
     "normalize",
@@ -1246,6 +1249,28 @@ def _validation_status_for_cv_status(status: str) -> str:
     return "not_run"
 
 
+def _authoritative_ranking_fit_label(
+    job: dict[str, Any],
+    fit_classification: str | None,
+) -> str | None:
+    ranked_fit_raw = str(job.get("fit_label") or "").strip().lower()
+    if ranked_fit_raw in _FIT_LABEL_ORDER:
+        return ranked_fit_raw
+    fallback_fit_raw = str(fit_classification or "").strip().lower()
+    return fallback_fit_raw or None
+
+
+def _cv_generation_status_for_analysis_status(status: str) -> str:
+    if status in {
+        CV_ANALYSIS_READY_FOR_GENERATION_STATUS,
+        CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
+        CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
+        CV_ANALYSIS_FAILED_STATUS,
+    }:
+        return "not_attempted"
+    return "failed"
+
+
 def _build_decision_chain(
     *,
     shortlist_status: str,
@@ -1298,13 +1323,17 @@ def _build_cv_generation_debug_record(
     cv_prompt_template_path: str | None,
     error: dict[str, str] | None,
 ) -> dict[str, Any]:
-    ranking_fit_label = str(fit_classification or "").strip() or None
+    ranking_fit_label = _authoritative_ranking_fit_label(job, fit_classification)
     ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
     cv_analysis_status = status
     cv_generation_status = status
     if status in {"accepted", "validation_failed", "generation_failed", "persistence_failed"}:
-        cv_analysis_status = "ready_for_generation"
-    elif status == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
+        cv_analysis_status = CV_ANALYSIS_READY_FOR_GENERATION_STATUS
+    elif status in {
+        CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
+        CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS,
+        CV_ANALYSIS_FAILED_STATUS,
+    }:
         cv_generation_status = "not_attempted"
     decision_chain = _build_decision_chain(
         shortlist_status=_shortlist_status_for_ranked_job(job),
@@ -1355,16 +1384,9 @@ def _build_cv_analysis_record(
     pre_writing_decision: dict[str, Any] | None = None,
     readiness_diagnostics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    ranking_fit_label = str(fit_classification or "").strip() or None
+    ranking_fit_label = _authoritative_ranking_fit_label(job, fit_classification)
     ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
-    if status == "ready_for_generation":
-        cv_status = "not_attempted"
-    elif status == "skipped_fit_gate":
-        cv_status = "skipped_fit_gate"
-    elif status == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
-        cv_status = "not_attempted"
-    else:
-        cv_status = "failed"
+    cv_status = _cv_generation_status_for_analysis_status(status)
     decision_chain = _build_decision_chain(
         shortlist_status=_shortlist_status_for_ranked_job(job),
         advanced_to_scoring=True,
@@ -1390,8 +1412,8 @@ def _build_cv_analysis_record(
         "pre_writing_decision": dict(pre_writing_decision or {}),
         "readiness_diagnostics": dict(readiness_diagnostics or {}),
         # Reranker blocks and fit-gate skips are expected analysis outcomes, not runtime errors.
-        "outcome_reason": error if status in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
-        "error": error if status not in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
+        "outcome_reason": error if status in {CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS, CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
+        "error": error if status not in {CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS, CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
     }
 
 
@@ -1495,28 +1517,28 @@ def _build_ranking_quality_metrics(ranking_inputs: list[dict[str, Any]]) -> dict
 
 def _build_cv_analysis_quality_metrics(cv_analysis_results: list[dict[str, Any]]) -> dict[str, Any]:
     blocked_by_reranker_fit = 0
-    generation_ready = 0
+    ready_for_generation = 0
     skipped_fit_gate = 0
     analysis_failed = 0
     for record in cv_analysis_results:
         status = str(record.get("status") or "").strip().lower()
-        if status in {"ready_for_generation", "generation_ready"}:
-            generation_ready += 1
+        if status == CV_ANALYSIS_READY_FOR_GENERATION_STATUS:
+            ready_for_generation += 1
         elif status == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
             blocked_by_reranker_fit += 1
-        elif status == "skipped_fit_gate":
+        elif status == CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS:
             skipped_fit_gate += 1
-        elif status == "analysis_failed":
+        elif status == CV_ANALYSIS_FAILED_STATUS:
             analysis_failed += 1
-    total_processed = generation_ready + blocked_by_reranker_fit + skipped_fit_gate + analysis_failed
+    total_processed = ready_for_generation + blocked_by_reranker_fit + skipped_fit_gate + analysis_failed
     return {
         "blocked_by_reranker_fit_rate": _safe_rate(blocked_by_reranker_fit, total_processed),
         "skip_rate": _safe_rate(skipped_fit_gate, total_processed),
-        "generation_ready_rate": _safe_rate(generation_ready, total_processed),
+        "ready_for_generation_rate": _safe_rate(ready_for_generation, total_processed),
         "analysis_failed_rate": _safe_rate(analysis_failed, total_processed),
         "blocked_by_reranker_fit": blocked_by_reranker_fit,
         "skipped_fit_gate": skipped_fit_gate,
-        "generation_ready": generation_ready,
+        "ready_for_generation": ready_for_generation,
         "analysis_failed": analysis_failed,
         "total_processed": total_processed,
     }
@@ -2271,17 +2293,17 @@ def _build_stage_transition_artifacts(
                         1 for record in cv_analysis_results
                         if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
                     ),
-                    "generation_ready": sum(
+                    "ready_for_generation": sum(
                         1 for record in cv_analysis_results
-                        if str(record.get("status") or "") == "ready_for_generation"
+                        if str(record.get("status") or "") == CV_ANALYSIS_READY_FOR_GENERATION_STATUS
                     ),
                     "skipped_fit_gate": sum(
                         1 for record in cv_analysis_results
-                        if str(record.get("status") or "") == "skipped_fit_gate"
+                        if str(record.get("status") or "") == CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS
                     ),
                     "analysis_failed": sum(
                         1 for record in cv_analysis_results
-                        if str(record.get("status") or "") == "analysis_failed"
+                        if str(record.get("status") or "") == CV_ANALYSIS_FAILED_STATUS
                     ),
                 },
                 decision_summary={
