@@ -16,6 +16,7 @@ capabilities:
   - settings_system.run-safety-settings
   - settings_system.global-job-filters
   - settings_system.settings-schema-registry
+  - settings_system.operator-facing-agentic-settings
   - settings_system.retrieval-settings
   - settings_system.ranking-settings
   - settings_system.preference-fit-calibration
@@ -75,6 +76,17 @@ _ROLE_ALIGNMENT_WEIGHT_KEYS = {
     "cv_analysis.semantic_alignment.role_lexical_weight",
     "cv_analysis.semantic_alignment.role_semantic_weight",
 }
+_UI_SURFACE_EDITABLE = "editable"
+_UI_SURFACE_METADATA_ONLY = "metadata_only"
+_AGENTIC_SECTION_CORE = "agentic-core"
+_AGENTIC_SECTION_ADVANCED = "agentic-advanced"
+_EXCLUDED_AGENTIC_KEYS: frozenset[str] = frozenset(
+    {
+        "cv_prompt_version",
+        "cv_template_path",
+        "skill_synonyms_runtime",
+    }
+)
 
 
 # ── schema registry ──────────────────────────────────────────────────────────
@@ -118,6 +130,16 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "config_path": ["pipeline", "evidence_top_k"],
     },
     {
+        "key": "cv.agentic_late_stage.enabled",
+        "type": "bool",
+        "default": False,
+        "label": "Agentic Late Stage Enabled",
+        "description": "Enable the bounded agentic late-stage analysis and generation path for future runs.",
+        "group": "agentic",
+        "config_path": ["cv", "agentic_late_stage", "enabled"],
+        "agentic_section": _AGENTIC_SECTION_CORE,
+    },
+    {
         "key": "cv_analysis.semantic_alignment.enabled",
         "type": "bool",
         "default": False,
@@ -125,6 +147,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Enable hybrid lexical-plus-semantic scoring for cv_analysis required-skill, role, domain, and responsibility alignment.",
         "group": "retrieval",
         "config_path": ["cv_analysis", "semantic_alignment", "enabled"],
+        "agentic_section": _AGENTIC_SECTION_CORE,
     },
     {
         "key": "cv_analysis.semantic_alignment.model",
@@ -133,8 +156,10 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "label": "Semantic Alignment Model",
         "description": "Embedding model used for cv_analysis semantic skill, role, domain, and responsibility similarity.",
         "options": ["text-embedding-005"],
+        "ui_surface": _UI_SURFACE_METADATA_ONLY,
         "group": "retrieval",
         "config_path": ["cv_analysis", "semantic_alignment", "model"],
+        "agentic_section": _AGENTIC_SECTION_ADVANCED,
     },
     {
         "key": "cv_analysis.semantic_alignment.required_skill_lexical_weight",
@@ -144,6 +169,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Relative weight of lexical overlap inside cv_analysis required-skill support.",
         "group": "retrieval",
         "config_path": ["cv_analysis", "semantic_alignment", "required_skill_lexical_weight"],
+        "agentic_section": _AGENTIC_SECTION_ADVANCED,
     },
     {
         "key": "cv_analysis.semantic_alignment.required_skill_semantic_weight",
@@ -153,6 +179,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Relative weight of embedding similarity inside cv_analysis required-skill support.",
         "group": "retrieval",
         "config_path": ["cv_analysis", "semantic_alignment", "required_skill_semantic_weight"],
+        "agentic_section": _AGENTIC_SECTION_ADVANCED,
     },
     {
         "key": "cv_analysis.semantic_alignment.role_lexical_weight",
@@ -162,6 +189,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Relative weight of lexical overlap and role-family heuristics inside cv_analysis role alignment.",
         "group": "retrieval",
         "config_path": ["cv_analysis", "semantic_alignment", "role_lexical_weight"],
+        "agentic_section": _AGENTIC_SECTION_ADVANCED,
     },
     {
         "key": "cv_analysis.semantic_alignment.role_semantic_weight",
@@ -171,6 +199,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Relative weight of embedding similarity inside cv_analysis role alignment.",
         "group": "retrieval",
         "config_path": ["cv_analysis", "semantic_alignment", "role_semantic_weight"],
+        "agentic_section": _AGENTIC_SECTION_ADVANCED,
     },
     {
         "key": "cv_analysis.semantic_alignment.responsibility_lexical_weight",
@@ -180,6 +209,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Relative weight of lexical overlap inside cv_analysis responsibility alignment.",
         "group": "retrieval",
         "config_path": ["cv_analysis", "semantic_alignment", "responsibility_lexical_weight"],
+        "agentic_section": _AGENTIC_SECTION_ADVANCED,
     },
     {
         "key": "cv_analysis.semantic_alignment.responsibility_semantic_weight",
@@ -189,6 +219,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Relative weight of embedding similarity inside cv_analysis responsibility alignment.",
         "group": "retrieval",
         "config_path": ["cv_analysis", "semantic_alignment", "responsibility_semantic_weight"],
+        "agentic_section": _AGENTIC_SECTION_ADVANCED,
     },
     {
         "key": "cv_analysis.semantic_alignment.domain_lexical_weight",
@@ -198,6 +229,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Relative weight of lexical overlap inside cv_analysis domain alignment.",
         "group": "retrieval",
         "config_path": ["cv_analysis", "semantic_alignment", "domain_lexical_weight"],
+        "agentic_section": _AGENTIC_SECTION_ADVANCED,
     },
     {
         "key": "cv_analysis.semantic_alignment.domain_semantic_weight",
@@ -207,6 +239,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Relative weight of embedding similarity inside cv_analysis domain alignment.",
         "group": "retrieval",
         "config_path": ["cv_analysis", "semantic_alignment", "domain_semantic_weight"],
+        "agentic_section": _AGENTIC_SECTION_ADVANCED,
     },
     {
         "key": "cv_analysis.semantic_alignment.channel_pool_size",
@@ -216,6 +249,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Maximum number of candidates retained per cv_analysis retrieval channel before merge and final bounded selection.",
         "group": "retrieval",
         "config_path": ["cv_analysis", "semantic_alignment", "channel_pool_size"],
+        "agentic_section": _AGENTIC_SECTION_ADVANCED,
     },
     # ── Timing / Throttling ───────────────────────────────────────────────────
     {
@@ -424,6 +458,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "label": "CV Generation Model",
         "description": "Choose the model that writes final CV content for future runs.",
         "options": _CV_GENERATION_MODELS,
+        "ui_surface": _UI_SURFACE_EDITABLE,
         "group": "cv_composition",
         "config_path": ["cv", "generation", "model"],
     },
@@ -434,6 +469,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "label": "CV Preset",
         "description": "The CV preset to use for generation. Controls template, section order, and supported composition options.",
         "options": _CV_PRESET_OPTIONS,
+        "ui_surface": _UI_SURFACE_METADATA_ONLY,
         "group": "cv_preset",
         "config_path": ["cv", "preset"],
     },
@@ -591,12 +627,13 @@ RANKING_GROUPS: dict[str, list[str]] = {
 # individually (no cross-key constraints within a section).
 
 SETTINGS_SECTIONS: dict[str, list[str]] = {
-    "retrieval": [
+    "retrieval-core": [
         "pipeline.vector_search_top_n",
         "pipeline.ai_score_top_n",
         "pipeline.final_top_n",
         "pipeline.evidence_top_k",
-        "cv_analysis.semantic_alignment.enabled",
+    ],
+    "retrieval-advanced": [
         "cv_analysis.semantic_alignment.model",
         "cv_analysis.semantic_alignment.required_skill_lexical_weight",
         "cv_analysis.semantic_alignment.required_skill_semantic_weight",
@@ -625,6 +662,19 @@ SETTINGS_SECTIONS: dict[str, list[str]] = {
         "rule_filter.selected_filters",
     ],
 }
+
+
+def _build_agentic_settings_sections() -> dict[str, list[str]]:
+    sections: dict[str, list[str]] = {}
+    for entry in SETTINGS_SCHEMA:
+        section = entry.get("agentic_section")
+        if not isinstance(section, str) or not section:
+            continue
+        sections.setdefault(section, []).append(entry["key"])
+    return sections
+
+
+AGENTIC_SETTINGS_SECTIONS: dict[str, list[str]] = _build_agentic_settings_sections()
 
 # ── CV Generation settings schema ──────────────────────────────────────────
 # Kept for reference and documentation only.  The actual schema entries live
@@ -664,12 +714,53 @@ ALL_GROUP_REGISTRIES: dict[str, dict[str, list[str]]] = {
 
 # Build lookup maps once
 _ALL_SCHEMA_BY_KEY: dict[str, dict[str, Any]] = {s["key"]: s for s in SETTINGS_SCHEMA}
+_METADATA_ONLY_KEYS: frozenset[str] = frozenset(
+    entry["key"]
+    for entry in SETTINGS_SCHEMA
+    if entry.get("ui_surface") == _UI_SURFACE_METADATA_ONLY
+)
+_EDITABLE_KEYS: frozenset[str] = frozenset(
+    entry["key"]
+    for entry in SETTINGS_SCHEMA
+    if entry.get("ui_surface", _UI_SURFACE_EDITABLE) == _UI_SURFACE_EDITABLE
+)
+_AGENTIC_KEYS: frozenset[str] = frozenset(
+    entry["key"]
+    for entry in SETTINGS_SCHEMA
+    if isinstance(entry.get("agentic_section"), str)
+)
+_EDITABLE_AGENTIC_KEYS: frozenset[str] = frozenset(
+    key for key in _AGENTIC_KEYS if key in _EDITABLE_KEYS
+)
+_METADATA_ONLY_AGENTIC_KEYS: frozenset[str] = frozenset(
+    key for key in _AGENTIC_KEYS if key in _METADATA_ONLY_KEYS
+)
 _WEIGHT_KEYS: frozenset[str] = frozenset(
     s["key"] for s in SETTINGS_SCHEMA if s["key"].startswith("ranking_weights.")
 )
 _PREFERENCE_WEIGHT_KEYS: frozenset[str] = frozenset(
     s["key"] for s in SETTINGS_SCHEMA if s["key"].startswith("preference_fit_weights.")
 )
+
+
+def metadata_only_settings_keys() -> set[str]:
+    return set(_METADATA_ONLY_KEYS)
+
+
+def editable_settings_keys() -> set[str]:
+    return set(_EDITABLE_KEYS)
+
+
+def editable_agentic_settings_keys() -> set[str]:
+    return set(_EDITABLE_AGENTIC_KEYS)
+
+
+def metadata_only_agentic_settings_keys() -> set[str]:
+    return set(_METADATA_ONLY_AGENTIC_KEYS)
+
+
+def excluded_agentic_settings_keys() -> set[str]:
+    return set(_EXCLUDED_AGENTIC_KEYS)
 
 
 # ── coercion ──────────────────────────────────────────────────────────────────

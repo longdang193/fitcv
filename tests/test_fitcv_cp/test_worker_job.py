@@ -720,6 +720,49 @@ def test_worker_mapping_suggestions_persistence_failure_appends_warning_event() 
     assert "mapping_suggestions snapshot persistence failed" in event_row["message"]
 
 
+def test_worker_synonym_proposals_degradation_appends_warning_event() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.checkpoint_payload_json = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r1",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 1,
+        "mapping_suggestions": [{"alias": "gcp", "canonical": "google cloud"}],
+        "completed_stages": ["normalize", "enrich"],
+        "last_completed_stage": "enrich",
+        "stage_transition_artifacts": {
+            "artifacts": {"stages": {"enrich": {"status": "completed"}}}
+        },
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_synonym_proposals", return_value={
+           "persistence_status": "bundle_only_degraded",
+           "degradation_reason": "missing_synonym_proposals_json_column",
+       }), \
+       patch("fitcv_cp.worker_job.update_run_status") as mock_update:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    final_status = mock_update.call_args_list[-1].args[1]
+    assert final_status.value == "succeeded"
+    event_row = bq.insert_rows_json.call_args_list[-1][0][1][0]
+    assert event_row["stage"] == "snapshot_persist_failed"
+    assert event_row["level"] == "warning"
+    assert "synonym_proposals snapshot persistence failed" in event_row["message"]
+    assert "missing_synonym_proposals_json_column" in event_row["message"]
+
+
 def test_worker_debug_snapshot_persistence_failure_does_not_fail_run():
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])

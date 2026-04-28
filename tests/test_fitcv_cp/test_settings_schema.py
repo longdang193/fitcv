@@ -12,10 +12,19 @@ tags:
   - ci-safe
 """
 
+from pathlib import Path
+
 import pytest
+import yaml
 from fitcv_cp.settings_schema import (
+    AGENTIC_SETTINGS_SECTIONS,
     SETTINGS_SCHEMA,
     apply_settings_to_config,
+    editable_agentic_settings_keys,
+    editable_settings_keys,
+    excluded_agentic_settings_keys,
+    metadata_only_agentic_settings_keys,
+    metadata_only_settings_keys,
     validate_settings,
     ValidationError,
 )
@@ -48,6 +57,101 @@ def test_schema_has_required_fields():
         assert "label" in entry
         assert "description" in entry
         assert "group" in entry      # "retrieval" | "timing" | "ranking"
+
+
+def test_schema_tracks_metadata_only_keys_from_registry_truth() -> None:
+    assert metadata_only_settings_keys() == {
+        "cv_analysis.semantic_alignment.model",
+        "cv_preset",
+    }
+
+
+def test_schema_tracks_editable_keys_separately_from_metadata_only() -> None:
+    editable_keys = editable_settings_keys()
+    assert "cv_generation_model" in editable_keys
+    assert "cv_preset" not in editable_keys
+    assert "cv_analysis.semantic_alignment.model" not in editable_keys
+
+
+def test_all_editable_settings_have_persistence_backed_config_paths() -> None:
+    schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
+    for key in editable_settings_keys():
+        assert schema_by_key[key]["config_path"], f"{key} is editable but has no config_path"
+
+
+def test_feature_source_names_operator_facing_agentic_settings_capability() -> None:
+    feature_source = yaml.safe_load(
+        Path("docs/features/settings_system/feature.source.yaml").read_text(encoding="utf-8")
+    )
+    capability_ids = {
+        capability["capability_id"]
+        for capability in feature_source["capabilities"]
+    }
+    assert "settings_system.operator-facing-agentic-settings" in capability_ids
+
+
+def test_agentic_settings_sections_have_expected_slugs() -> None:
+    assert set(AGENTIC_SETTINGS_SECTIONS.keys()) == {
+        "agentic-core",
+        "agentic-advanced",
+    }
+
+
+def test_agentic_settings_section_ownership_is_explicit() -> None:
+    assert AGENTIC_SETTINGS_SECTIONS["agentic-core"] == [
+        "cv.agentic_late_stage.enabled",
+        "cv_analysis.semantic_alignment.enabled",
+    ]
+    assert AGENTIC_SETTINGS_SECTIONS["agentic-advanced"] == [
+        "cv_analysis.semantic_alignment.model",
+        "cv_analysis.semantic_alignment.required_skill_lexical_weight",
+        "cv_analysis.semantic_alignment.required_skill_semantic_weight",
+        "cv_analysis.semantic_alignment.role_lexical_weight",
+        "cv_analysis.semantic_alignment.role_semantic_weight",
+        "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+        "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+        "cv_analysis.semantic_alignment.domain_lexical_weight",
+        "cv_analysis.semantic_alignment.domain_semantic_weight",
+        "cv_analysis.semantic_alignment.channel_pool_size",
+    ]
+
+
+def test_agentic_settings_mutability_distinguishes_editable_metadata_only_and_excluded() -> None:
+    assert metadata_only_agentic_settings_keys() == {
+        "cv_analysis.semantic_alignment.model",
+    }
+    assert editable_agentic_settings_keys() == {
+        "cv.agentic_late_stage.enabled",
+        "cv_analysis.semantic_alignment.enabled",
+        "cv_analysis.semantic_alignment.required_skill_lexical_weight",
+        "cv_analysis.semantic_alignment.required_skill_semantic_weight",
+        "cv_analysis.semantic_alignment.role_lexical_weight",
+        "cv_analysis.semantic_alignment.role_semantic_weight",
+        "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+        "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+        "cv_analysis.semantic_alignment.domain_lexical_weight",
+        "cv_analysis.semantic_alignment.domain_semantic_weight",
+        "cv_analysis.semantic_alignment.channel_pool_size",
+    }
+    assert excluded_agentic_settings_keys() == {
+        "cv_prompt_version",
+        "cv_template_path",
+        "skill_synonyms_runtime",
+    }
+
+
+def test_all_editable_agentic_settings_have_persistence_backed_config_paths() -> None:
+    schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
+    for key in editable_agentic_settings_keys():
+        assert schema_by_key[key]["config_path"], f"{key} is editable but has no config_path"
+
+
+def test_setup_only_and_deployment_only_agentic_knobs_stay_out_of_registry() -> None:
+    schema_keys = {entry["key"] for entry in SETTINGS_SCHEMA}
+    for key in excluded_agentic_settings_keys():
+        assert key not in schema_keys
+        assert key not in editable_settings_keys()
+        assert key not in metadata_only_settings_keys()
 
 
 # ── type coercion ─────────────────────────────────────────────────────────────
@@ -404,7 +508,8 @@ def test_ranking_groups_threshold_groups_have_two_keys_each():
 def test_settings_sections_has_expected_slugs():
     from fitcv_cp.settings_schema import SETTINGS_SECTIONS
     assert set(SETTINGS_SECTIONS.keys()) == {
-        "retrieval",
+        "retrieval-core",
+        "retrieval-advanced",
         "timing",
         "run-lifecycle",
         "global-job-filters",
@@ -431,20 +536,26 @@ def test_settings_sections_no_key_appears_twice():
             seen.add(key)
 
 
-def test_settings_sections_retrieval_has_semantic_alignment_keys():
+def test_settings_sections_retrieval_core_and_advanced_cover_semantic_alignment_keys():
     from fitcv_cp.settings_schema import SETTINGS_SECTIONS
-    assert "pipeline.evidence_top_k" in SETTINGS_SECTIONS["retrieval"]
-    assert "cv_analysis.semantic_alignment.enabled" in SETTINGS_SECTIONS["retrieval"]
-    assert "cv_analysis.semantic_alignment.model" in SETTINGS_SECTIONS["retrieval"]
-    assert "cv_analysis.semantic_alignment.required_skill_lexical_weight" in SETTINGS_SECTIONS["retrieval"]
-    assert "cv_analysis.semantic_alignment.required_skill_semantic_weight" in SETTINGS_SECTIONS["retrieval"]
-    assert "cv_analysis.semantic_alignment.role_lexical_weight" in SETTINGS_SECTIONS["retrieval"]
-    assert "cv_analysis.semantic_alignment.role_semantic_weight" in SETTINGS_SECTIONS["retrieval"]
-    assert "cv_analysis.semantic_alignment.responsibility_lexical_weight" in SETTINGS_SECTIONS["retrieval"]
-    assert "cv_analysis.semantic_alignment.responsibility_semantic_weight" in SETTINGS_SECTIONS["retrieval"]
-    assert "cv_analysis.semantic_alignment.domain_lexical_weight" in SETTINGS_SECTIONS["retrieval"]
-    assert "cv_analysis.semantic_alignment.domain_semantic_weight" in SETTINGS_SECTIONS["retrieval"]
-    assert "cv_analysis.semantic_alignment.channel_pool_size" in SETTINGS_SECTIONS["retrieval"]
+    assert "pipeline.evidence_top_k" in SETTINGS_SECTIONS["retrieval-core"]
+    assert "cv_analysis.semantic_alignment.enabled" not in SETTINGS_SECTIONS["retrieval-core"]
+    assert "cv_analysis.semantic_alignment.model" in SETTINGS_SECTIONS["retrieval-advanced"]
+    assert "cv_analysis.semantic_alignment.required_skill_lexical_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
+    assert "cv_analysis.semantic_alignment.required_skill_semantic_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
+    assert "cv_analysis.semantic_alignment.role_lexical_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
+    assert "cv_analysis.semantic_alignment.role_semantic_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
+    assert "cv_analysis.semantic_alignment.responsibility_lexical_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
+    assert "cv_analysis.semantic_alignment.responsibility_semantic_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
+    assert "cv_analysis.semantic_alignment.domain_lexical_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
+    assert "cv_analysis.semantic_alignment.domain_semantic_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
+    assert "cv_analysis.semantic_alignment.channel_pool_size" in SETTINGS_SECTIONS["retrieval-advanced"]
+
+
+def test_agentic_sections_own_semantic_alignment_enablement() -> None:
+    from fitcv_cp.settings_schema import AGENTIC_SETTINGS_SECTIONS
+
+    assert "cv_analysis.semantic_alignment.enabled" in AGENTIC_SETTINGS_SECTIONS["agentic-core"]
 
 
 def test_settings_sections_global_job_filters_has_two_keys():

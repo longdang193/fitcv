@@ -1583,16 +1583,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
     metadata_only_keys = metadata_only_settings_keys()
     editable_keys = editable_settings_keys()
-    retrieval_core_keys = [
-        "pipeline.vector_search_top_n",
-        "pipeline.ai_score_top_n",
-        "pipeline.final_top_n",
-        "pipeline.evidence_top_k",
-    ]
     all_settings_sections = {
         **SETTINGS_SECTIONS,
         **AGENTIC_SETTINGS_SECTIONS,
-        "retrieval-core": retrieval_core_keys,
     }
     composition_sections = [
         {
@@ -1690,7 +1683,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     ),
                     "submit_kind": "section",
                     "submit_slug": "retrieval-core",
-                    "keys": retrieval_core_keys,
+                    "keys": SETTINGS_SECTIONS["retrieval-core"],
                 },
                 {
                     "id": "selection-global-filters",
@@ -3595,7 +3588,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 dataset=dataset,
             )
 
-        update_run_synonym_proposals(
+        persistence_status = update_run_synonym_proposals(
             run.run_id,
             _json.dumps(updated_payload, ensure_ascii=False),
             bq,
@@ -3626,10 +3619,29 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
+        if persistence_status.get("persistence_status") not in {"persisted", "not_applicable"}:
+            append_event(
+                RunEvent(
+                    run_id=run.run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="snapshot_persist_failed",
+                    level="warning",
+                    message=(
+                        "synonym_proposals snapshot persistence failed: "
+                        f"{persistence_status.get('degradation_reason') or persistence_status.get('persistence_status')}"
+                    ),
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
         return {
             "proposal_id": proposal_id,
             "run_id": run.run_id,
             "proposal_status": next_status,
+            "persistence_status": persistence_status.get("persistence_status", "persisted"),
+            "degradation_reason": persistence_status.get("degradation_reason", ""),
         }
 
     return app

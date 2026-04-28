@@ -80,6 +80,18 @@ Completed the phase 10 settings and performance residual evidence audit.
 
 ## Changelog
 
+### 2.13.0 — active
+
+- `/admin/settings` now includes a dedicated `Agentic` task section for bounded future-run agentic defaults instead of leaving semantic and late-stage controls implicit or scattered across unrelated cards
+- The agentic surface keeps advanced semantic-alignment tuning behind disclosure, renders fixed runtime metadata as non-editable explanation, and points operators back to run detail plus `settings-used.json` for historical truth
+- Metadata-only settings can no longer be persisted through the legacy single-key save routes
+
+### 2.12.0 — active
+
+- The settings page now aligns card-level save boundaries with the actual retrieval and advanced-retrieval validation paths instead of sharing one broader retrieval submission seam
+- Metadata-only controls no longer have to be posted back as hidden required inputs, and the page now explains future-run defaults, per-run overrides, baseline-default fallback, and `settings-used.json` historical truth more explicitly
+- Advanced retrieval tuning now exposes the remaining supported required-skill and role semantic-alignment weights while reopening advanced disclosure blocks automatically on validation errors
+
 ### 2.11.0 — active
 
 - The admin settings page is now organized around operator tasks (`Selection`, `Ranking`, `CV Output`, `Run Safety`, and `Advanced`) instead of presenting the schema as a flat registry dump

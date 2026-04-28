@@ -486,6 +486,12 @@ nodes:
   feature_id: settings_system
   state: active
   path: docs/features/settings_system/lineage.generated.yaml
+- id: settings_system.operator-facing-agentic-settings
+  type: capability
+  kind: capability
+  feature_id: settings_system
+  state: active
+  path: docs/features/settings_system/lineage.generated.yaml
 - id: settings_system.per-run-overrides
   type: capability
   kind: capability
@@ -1421,6 +1427,9 @@ edges:
   type: owns_capability
 - from: settings_system
   to: settings_system.metadata-only-fixed-controls
+  type: owns_capability
+- from: settings_system
+  to: settings_system.operator-facing-agentic-settings
   type: owns_capability
 - from: settings_system
   to: settings_system.per-run-overrides

@@ -1848,7 +1848,10 @@ def test_approve_synonym_proposal_updates_run_overlay_provenance() -> None:
     )
 
     with patch("fitcv_cp.app.list_runs", return_value=[run]), \
-         patch("fitcv_cp.app.update_run_synonym_proposals") as mock_update_proposals, \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={
+             "persistence_status": "persisted",
+             "degradation_reason": "",
+         }) as mock_update_proposals, \
          patch("fitcv_cp.app.update_run_effective_settings") as mock_update_effective, \
          patch("fitcv_cp.app.append_event") as mock_event:
         resp = TestClient(_app()).post(
@@ -1866,6 +1869,57 @@ def test_approve_synonym_proposal_updates_run_overlay_provenance() -> None:
     assert effective_payload["skill_synonyms_runtime"]["run_overlay_source"] == "proposal_review"
     assert effective_payload["skill_synonyms_runtime"]["run_overlay_proposal_ids"] == ["proposal-gcp"]
     assert "proposal-gcp" in mock_event.call_args.args[0].message
+
+
+def test_approve_synonym_proposal_surfaces_persistence_degradation() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-proposal-degraded",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="manual_staged",
+        last_completed_stage="enrich",
+        completed_stages=["normalize", "enrich"],
+        next_stage="rule_filter",
+        effective_settings_json='{"skill_synonyms":{"sql":"structured query language"},"skill_synonyms_runtime":{"base_policy_path":"config/taxonomy/skill_synonyms.yaml","overlay_paths":[],"has_overlay":false,"entry_count":1}}',
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-degraded","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed",'
+            '"proposal_scope":"run_scoped_overlay_candidate","proposal_family":"alias_to_canonical_mapping",'
+            '"alias":"gcp","canonical":"google cloud","candidate_aliases":["gcp"],'
+            '"candidate_canonicals":["google cloud"],"confidence":0.9,'
+            '"rationale":{"kind":"repeated_alias_mapping"},"evidence_summary":{"occurrence_count":2},'
+            '"conflict_summary":{"has_conflict":false},"source_artifact_refs":{"run_id":"run-proposal-degraded"}}'
+            ']}'
+        ),
+    )
+
+    with patch("fitcv_cp.app.list_runs", return_value=[run]), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={
+             "persistence_status": "bundle_only_degraded",
+             "degradation_reason": "missing_synonym_proposals_json_column",
+         }), \
+         patch("fitcv_cp.app.update_run_effective_settings") as mock_update_effective, \
+         patch("fitcv_cp.app.append_event") as mock_event:
+        resp = TestClient(_app()).post(
+            "/admin/synonym-proposals/proposal-gcp/approve-for-run-overlay",
+            data={"acted_by": "operator@example.com", "note": "Looks good"},
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["persistence_status"] == "bundle_only_degraded"
+    assert resp.json()["degradation_reason"] == "missing_synonym_proposals_json_column"
+    mock_update_effective.assert_called_once()
+    assert mock_event.call_count == 2
+    warning_event = mock_event.call_args_list[-1].args[0]
+    assert warning_event.stage == "snapshot_persist_failed"
+    assert "synonym_proposals snapshot persistence failed" in warning_event.message
 
 
 def test_approve_synonym_proposal_requires_overlay_eligible_run() -> None:
@@ -3247,11 +3301,11 @@ def test_post_settings_section_invalid_value_returns_422():
     assert resp.status_code == 422
 
 
-def test_post_settings_section_advanced_retrieval_opens_details_on_validation_error():
+def test_post_settings_section_agentic_advanced_opens_details_on_validation_error():
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app(), follow_redirects=False).post(
-            "/admin/settings/section/retrieval-advanced",
-            data=_retrieval_advanced_section_form(role_semantic_weight="0.10"),
+            "/admin/settings/section/agentic-advanced",
+            data=_agentic_advanced_section_form(role_semantic_weight="0.10"),
         )
     assert resp.status_code == 422
     assert '<details class="settings-advanced-details" open>' in resp.text
@@ -5220,9 +5274,15 @@ def test_settings_page_semantic_alignment_toggle_has_single_agentic_owner() -> N
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert html.count('name="cv_analysis.semantic_alignment.enabled"') == 2
     assert 'action="/admin/settings/section/agentic-core"' in html
     assert 'action="/admin/settings/section/retrieval-core"' in html
+    assert html.count('name="cv_analysis.semantic_alignment.enabled"') == 2
+
+    retrieval_form = html.split('action="/admin/settings/section/retrieval-core"', 1)[1].split("</form>", 1)[0]
+    agentic_form = html.split('action="/admin/settings/section/agentic-core"', 1)[1].split("</form>", 1)[0]
+
+    assert 'name="cv_analysis.semantic_alignment.enabled"' not in retrieval_form
+    assert agentic_form.count('name="cv_analysis.semantic_alignment.enabled"') == 2
 
 
 def test_settings_page_agentic_truth_copy_points_to_run_detail_and_settings_used() -> None:

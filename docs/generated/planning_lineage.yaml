@@ -212,7 +212,7 @@ workstreams:
     plans: []
     derived_completion: not_started
   - thread_id: workstream-operator-control-plane.operator-control-plane-agentic-settings-surface
-    status: proposed
+    status: active
     path: docs/intent/workstreams/threads/workstream-operator-control-plane/05-operator-control-plane-agentic-settings-surface.md
     specs:
     - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md

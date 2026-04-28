@@ -23,11 +23,11 @@ settings UI; persisted settings snapshots
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
 
 ## Linked Plan
 
-- none yet
+- docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
 
 ## Notes
 

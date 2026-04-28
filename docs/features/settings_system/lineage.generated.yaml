@@ -54,6 +54,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -77,6 +82,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -127,6 +136,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -150,11 +164,93 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
     completeness_status: complete
+  settings_system.operator-facing-agentic-settings:
+    state: active
+    statement: Expose a bounded operator-facing registry for editable, metadata-only, and excluded agentic defaults.
+    satisfies: []
+    code:
+    - path: src/fitcv_cp/settings_schema.py
+      confidence: high
+      source:
+      - python_meta
+    tests: []
+    docs:
+    - docs/features/settings_system/history.md
+    docs_evidence:
+    - path: docs/features/settings_system/history.md
+      confidence: high
+      source:
+      - docs_frontmatter
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs:
+    - docs/superpowers/archive/specs/2026-04-01-12-15-ranking-contract-drift-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-01-six-feature-ranking-reactivation-design.md
+    - docs/superpowers/archive/specs/2026-04-03-01-35-ranking-quality-tuning-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-10-15-cv-analysis-semantic-alignment-upgrade-spec.md
+    - docs/superpowers/archive/specs/2026-04-04-16-20-config-centralization-audit-followup-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-10-00-config-folder-reorganization-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-18-10-retire-unused-cv-composition-formatting-settings-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-19-10-retire-unused-ui-settings-and-tighten-config-contract-spec.md
+    - docs/superpowers/archive/specs/2026-04-05-21-55-runs-list-selection-first-and-max-runtime-guard-spec.md
+    - docs/superpowers/archive/specs/2026-04-06-03-20-settings-ui-usability-and-contract-cleanup-spec.md
+    - docs/superpowers/archive/specs/2026-04-07-12-10-doc-system-cleanup-and-unused-doc-removal-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-01-20-required-metadata-correction-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-05-phase-5-evidence-oriented-lineage-alignment-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-12-35-phase-8-settings-performance-evidence-backfill-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
+    - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
+    - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
+    plans:
+    - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
+    - docs/superpowers/archive/plans/2026-04-03-01-50-ranking-quality-tuning-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-10-30-cv-analysis-semantic-alignment-upgrade-plan.md
+    - docs/superpowers/archive/plans/2026-04-04-16-35-config-centralization-audit-followup-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-10-20-config-folder-reorganization-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-17-20-remove-unused-cv-content-rules-from-pipeline-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-18-25-retire-unused-cv-composition-formatting-settings-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-19-25-retire-unused-ui-settings-and-tighten-config-contract-plan.md
+    - docs/superpowers/archive/plans/2026-04-05-22-10-runs-list-selection-first-and-max-runtime-guard-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-00-15-pipeline-log-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-06-03-35-settings-ui-usability-and-contract-cleanup-plan.md
+    - docs/superpowers/archive/plans/2026-04-07-12-25-doc-system-cleanup-and-unused-doc-removal-implementation.md
+    - docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md
+    - docs/superpowers/plans/2026-04-22-00-32-option-b-phase-3-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-22-01-35-phase-4-required-metadata-correction-plan.md
+    - docs/superpowers/plans/2026-04-22-12-20-phase-5-evidence-oriented-lineage-alignment-plan.md
+    - docs/superpowers/plans/2026-04-22-12-48-phase-8-settings-performance-evidence-backfill-plan.md
+    - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
+    - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
+    - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
+    - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
+    evidence_gaps:
+    - missing_test_evidence
+    allowed_evidence_gaps:
+    - missing_test_evidence
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: incomplete
   settings_system.retrieval-settings:
     state: active
     statement: Retrieval settings
@@ -200,6 +296,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -223,6 +324,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -277,6 +382,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -300,6 +410,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -354,6 +468,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -377,6 +496,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -427,6 +550,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -450,6 +578,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -500,6 +632,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -523,6 +660,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -577,6 +718,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -600,6 +746,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -666,6 +816,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -689,6 +844,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -753,6 +912,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -776,6 +940,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -840,6 +1008,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -863,6 +1036,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -913,6 +1090,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -936,6 +1118,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -986,6 +1172,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1009,6 +1200,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1059,6 +1254,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1082,6 +1282,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1138,6 +1342,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1161,6 +1370,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1221,6 +1434,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1244,6 +1462,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1300,6 +1522,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1323,6 +1550,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1373,6 +1604,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1396,6 +1632,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1452,6 +1692,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1475,6 +1720,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1531,6 +1780,11 @@ capabilities:
     - docs/superpowers/archive/specs/2026-04-22-13-10-phase-6-lineage-evidence-hydration-spec.md
     - docs/superpowers/archive/specs/2026-04-22-14-43-phase-10-settings-performance-residual-evidence-audit-spec.md
     - docs/superpowers/specs/2026-04-23-01-10-adoption-shape-migration-checklist-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-proposal-engine-spec.md
+    - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
+    - docs/superpowers/specs/2026-04-28-operator-control-plane-settings-surface-alignment-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-04-01-12-25-ranking-contract-drift-cleanup-plan.md
     - docs/superpowers/archive/plans/2026-04-01-six-feature-ranking-reactivation-implementation.md
@@ -1554,6 +1808,10 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-14-48-phase-10-settings-performance-residual-evidence-audit-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
     - docs/superpowers/plans/2026-04-23-19-20-public-repo-publication-boundary-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-04-28-operator-control-plane-settings-surface-alignment-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
