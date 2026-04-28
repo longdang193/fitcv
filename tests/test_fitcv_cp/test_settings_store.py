@@ -17,6 +17,7 @@ from unittest.mock import MagicMock
 
 from fitcv_cp.settings_store import (
     load_active_settings,
+    load_active_editable_settings,
     save_setting,
 )
 
@@ -69,3 +70,19 @@ def test_load_active_settings_uses_parameterized_query_or_safe_query():
     bq.query.return_value.result.return_value = iter([])
     load_active_settings(bq=bq, project="p", dataset="d")
     bq.query.assert_called_once()
+
+
+def test_load_active_editable_settings_excludes_metadata_only_keys() -> None:
+    bq = MagicMock()
+    rows = [
+        _make_bq_row("cv_preset", '"europass"', "2026-01-03T00:00:00"),
+        _make_bq_row("cv_analysis.semantic_alignment.model", '"text-embedding-005"', "2026-01-03T00:00:00"),
+        _make_bq_row("cv_generation_model", '"gemini-2.5-pro"', "2026-01-03T00:00:00"),
+    ]
+    bq.query.return_value.result.return_value = iter(rows)
+
+    result = load_active_editable_settings(bq=bq, project="p", dataset="d")
+
+    assert result == {
+        "cv_generation_model": "gemini-2.5-pro",
+    }

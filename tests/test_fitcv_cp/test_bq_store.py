@@ -672,6 +672,24 @@ def test_update_run_synonym_proposals_updates_only_synonym_proposals_field() -> 
     assert param_names == {"synonym_proposals_json", "run_id"}
 
 
+def test_update_run_synonym_proposals_tolerates_missing_column() -> None:
+    bq = MagicMock()
+    missing_column_job = MagicMock()
+    missing_column_job.result.side_effect = BadRequest("Unrecognized name: synonym_proposals_json")
+    bq.query.return_value = missing_column_job
+
+    status = update_run_synonym_proposals(
+        "run-123",
+        '{"run_id":"run-123","proposals":[]}',
+        bq,
+        project="p",
+        dataset="d",
+    )
+
+    assert status["persistence_status"] == "bundle_only_degraded"
+    assert status["degradation_reason"] == "missing_synonym_proposals_json_column"
+
+
 def test_update_run_effective_settings_updates_only_effective_settings_field() -> None:
     """@proves settings_system.trigger-time-effective-settings-snapshot"""
     bq = MagicMock()

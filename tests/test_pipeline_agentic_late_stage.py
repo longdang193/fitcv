@@ -175,11 +175,16 @@ def test_run_pipeline_keeps_original_late_stage_path_by_default(
         "fitcv.pipeline.run_agentic_cv_generation",
         create=True,
     ) as mock_agentic_generation:
-        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="late-stage-default")
+        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="late-stage-default")
 
     mock_agentic_analysis.assert_not_called()
     mock_agentic_generation.assert_not_called()
     mock_generate_cv.assert_called_once()
+    stage_artifacts = result["stage_transition_artifacts"]["stages"]
+    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["late_stage_mode"] == "non_agentic"
+    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["agentic_late_stage_enabled"] is False
+    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["agentic_status"] == "not_applicable"
+    assert stage_artifacts["cv_generation"]["late_stage_mode"]["late_stage_mode"] == "non_agentic"
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -323,6 +328,11 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     mock_generate_cv.assert_not_called()
     assert result["cv_generation_debug_records"][0]["status"] == "accepted"
     assert result["cv_generation_debug_records"][0]["markdown_final"].startswith("# Test Candidate")
+    stage_artifacts = result["stage_transition_artifacts"]["stages"]
+    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["late_stage_mode"] == "agentic"
+    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["agentic_late_stage_enabled"] is True
+    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["agentic_status"] == "completed"
+    assert stage_artifacts["cv_generation"]["late_stage_mode"]["late_stage_mode"] == "agentic"
 
 
 @patch("fitcv.agentic_cv_generation.generate_cv")

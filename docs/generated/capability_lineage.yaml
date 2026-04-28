@@ -126,7 +126,7 @@ features:
     status: active
     type: add
     lineage_file: docs/features/settings_system/lineage.generated.yaml
-    capability_count: 20
+    capability_count: 21
     capabilities:
     - settings_system.advanced-settings-disclosure
     - settings_system.baseline-default-hydration
@@ -138,6 +138,7 @@ features:
     - settings_system.global-job-filters
     - settings_system.grouped-form-validation
     - settings_system.metadata-only-fixed-controls
+    - settings_system.operator-facing-agentic-settings
     - settings_system.per-run-overrides
     - settings_system.preference-fit-calibration
     - settings_system.ranking-settings

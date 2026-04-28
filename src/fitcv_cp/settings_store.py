@@ -25,7 +25,7 @@ import json
 import logging
 from typing import Any
 
-from fitcv_cp.settings_schema import coerce_value
+from fitcv_cp.settings_schema import coerce_value, editable_settings_keys
 
 logger = logging.getLogger(__name__)
 
@@ -113,3 +113,14 @@ def load_active_settings(*, bq: Any, project: str, dataset: str) -> dict[str, An
             logger.warning("Skipping unknown/invalid setting key=%s: %s", key, exc)
 
     return result
+
+
+def load_active_editable_settings(*, bq: Any, project: str, dataset: str) -> dict[str, Any]:
+    """Return only schema-backed editable settings from the active settings snapshot."""
+    active_settings = load_active_settings(bq=bq, project=project, dataset=dataset)
+    editable_keys = editable_settings_keys()
+    return {
+        key: value
+        for key, value in active_settings.items()
+        if key in editable_keys
+    }
