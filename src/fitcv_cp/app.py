@@ -407,8 +407,11 @@ BUNDLE_ARTIFACT_FILENAMES: tuple[str, ...] = (
     "cv_generation.json",
     "settings-used.json",
     "cv-debug.json",
+    "cv-analysis-trace.json",
+    "agentic-live-trace.json",
     "mapping-suggestions.json",
     "synonym-proposals.json",
+    "synonym-proposals-trace.json",
 )
 
 
@@ -783,6 +786,34 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 content=_pretty_json_string(run.cv_generation_debug_json),
             )
         )
+    cv_analysis_trace_payload = _load_run_cv_analysis_trace_payload(run)
+    if (
+        run.status == RunStatus.SUCCEEDED
+        and isinstance(cv_analysis_trace_payload, dict)
+        and str(cv_analysis_trace_payload.get("trace_status") or "").strip() != "not_applicable"
+    ):
+        files.append(
+            RunArtifactFile(
+                filename="cv-analysis-trace.json",
+                label="CV Analysis Trace JSON",
+                href=f"/admin/runs/{run.run_id}/cv-analysis-trace.json",
+                content=_json.dumps(cv_analysis_trace_payload, ensure_ascii=False, indent=2),
+            )
+        )
+    agentic_live_trace_payload = _load_run_agentic_live_trace_payload(run)
+    if (
+        run.status == RunStatus.SUCCEEDED
+        and isinstance(agentic_live_trace_payload, dict)
+        and str(agentic_live_trace_payload.get("trace_status") or "").strip() != "not_applicable"
+    ):
+        files.append(
+            RunArtifactFile(
+                filename="agentic-live-trace.json",
+                label="Agentic Live Trace JSON",
+                href=f"/admin/runs/{run.run_id}/agentic-live-trace.json",
+                content=_json.dumps(agentic_live_trace_payload, ensure_ascii=False, indent=2),
+            )
+        )
     if run.status == RunStatus.SUCCEEDED and run.settings_used_json:
         files.append(
             RunArtifactFile(
@@ -808,6 +839,21 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 label="Synonym Proposals JSON",
                 href=f"/admin/runs/{run.run_id}/synonym-proposals.json",
                 content=_pretty_json_string(run.synonym_proposals_json),
+            )
+        )
+    synonym_proposals_trace_payload = _load_run_synonym_proposals_trace_payload(run)
+    if (
+        run.status == RunStatus.SUCCEEDED
+        and _run_has_reached_stage(run, "enrich")
+        and isinstance(synonym_proposals_trace_payload, dict)
+        and str(synonym_proposals_trace_payload.get("trace_status") or "").strip() != "not_applicable"
+    ):
+        files.append(
+            RunArtifactFile(
+                filename="synonym-proposals-trace.json",
+                label="Synonym Proposals Trace JSON",
+                href=f"/admin/runs/{run.run_id}/synonym-proposals-trace.json",
+                content=_json.dumps(synonym_proposals_trace_payload, ensure_ascii=False, indent=2),
             )
         )
     if stage_transition_artifact_payload and run.status != RunStatus.QUEUED:
@@ -856,6 +902,30 @@ def _load_run_late_stage_mode_payload(run: PipelineRun) -> dict[str, Any]:
     return _default_late_stage_mode_payload()
 
 
+def _load_run_agentic_live_trace_payload(run: PipelineRun) -> dict[str, Any] | None:
+    payload = _load_json_object(run.cv_generation_debug_json)
+    trace_payload = payload.get("agentic_live_trace") if isinstance(payload, dict) else None
+    if isinstance(trace_payload, dict):
+        return dict(trace_payload)
+    return None
+
+
+def _load_run_cv_analysis_trace_payload(run: PipelineRun) -> dict[str, Any] | None:
+    payload = _load_json_object(run.cv_generation_debug_json)
+    trace_payload = payload.get("cv_analysis_trace") if isinstance(payload, dict) else None
+    if isinstance(trace_payload, dict):
+        return dict(trace_payload)
+    return None
+
+
+def _load_run_synonym_proposals_trace_payload(run: PipelineRun) -> dict[str, Any] | None:
+    payload = _load_json_object(run.synonym_proposals_json)
+    trace_payload = payload.get("synonym_proposals_trace") if isinstance(payload, dict) else None
+    if isinstance(trace_payload, dict):
+        return dict(trace_payload)
+    return None
+
+
 def _artifact_applicability_state(run: PipelineRun, filename: str, included_files: set[str]) -> str:
     if filename in included_files:
         return "present"
@@ -872,12 +942,38 @@ def _artifact_applicability_state(run: PipelineRun, filename: str, included_file
         )
     if filename == "synonym-proposals.json":
         return "missing" if _run_has_reached_stage(run, "enrich") else "not_applicable"
+    if filename == "synonym-proposals-trace.json":
+        if not _run_has_reached_stage(run, "enrich"):
+            return "not_applicable"
+        trace_payload = _load_run_synonym_proposals_trace_payload(run)
+        if isinstance(trace_payload, dict) and str(trace_payload.get("trace_status") or "").strip():
+            trace_status = str(trace_payload.get("trace_status") or "").strip()
+            if trace_status == "not_applicable":
+                return "not_applicable"
+            return "degraded" if trace_status == "degraded" else "present"
+        return "missing"
     if filename == "results.json":
         return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
     if filename == "settings-used.json":
         return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
     if filename == "cv-debug.json":
         return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
+    if filename == "cv-analysis-trace.json":
+        late_stage_mode = _load_run_late_stage_mode_payload(run)
+        if str(late_stage_mode.get("late_stage_mode") or "").strip() != "agentic":
+            return "not_applicable"
+        trace_payload = _load_run_cv_analysis_trace_payload(run)
+        if isinstance(trace_payload, dict) and str(trace_payload.get("trace_status") or "").strip():
+            return "degraded" if str(trace_payload.get("trace_status") or "").strip() == "degraded" else "present"
+        return "missing"
+    if filename == "agentic-live-trace.json":
+        late_stage_mode = _load_run_late_stage_mode_payload(run)
+        if str(late_stage_mode.get("late_stage_mode") or "").strip() != "agentic":
+            return "not_applicable"
+        trace_payload = _load_run_agentic_live_trace_payload(run)
+        if isinstance(trace_payload, dict) and str(trace_payload.get("trace_status") or "").strip():
+            return "degraded" if str(trace_payload.get("trace_status") or "").strip() == "degraded" else "present"
+        return "missing"
     if filename == "stage-artifacts.json":
         return "missing" if run.status != RunStatus.QUEUED else "not_applicable"
     return "missing"
@@ -898,7 +994,7 @@ def _build_run_artifact_bundle_manifest(run: PipelineRun, files: list[RunArtifac
         "run_mode_label": RUN_MODE_LABELS.get(run.run_mode, run.run_mode),
         "created_at": run.created_at.isoformat() if run.created_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
-        "bundle_schema_version": "run_artifact_bundle_v2",
+        "bundle_schema_version": "run_artifact_bundle_v5",
         "late_stage_mode": _load_run_late_stage_mode_payload(run),
         "included_files": included_files,
         "missing_files": missing_files,
@@ -1430,13 +1526,20 @@ def _timeline_stage_summary_message(
     stage_artifacts_by_id: dict[str, dict[str, Any]],
 ) -> str:
     payload = _event_payload(event)
-    payload_output = payload.get("output_snapshot") if isinstance(payload.get("output_snapshot"), dict) else {}
+    raw_payload_output = payload.get("output_snapshot")
+    payload_output: dict[str, Any] = (
+        dict(raw_payload_output)
+        if isinstance(raw_payload_output, dict)
+        else {}
+    )
     stage_id = _timeline_stage_download_for_event(event.stage)
     if not stage_id:
         return event.message
     artifact = stage_artifacts_by_id.get(stage_id) or {}
-    outputs = artifact.get("output_counts") if isinstance(artifact.get("output_counts"), dict) else {}
-    decision = artifact.get("decision_summary") if isinstance(artifact.get("decision_summary"), dict) else {}
+    raw_outputs = artifact.get("output_counts")
+    outputs: dict[str, Any] = dict(raw_outputs) if isinstance(raw_outputs, dict) else {}
+    raw_decision = artifact.get("decision_summary")
+    decision: dict[str, Any] = dict(raw_decision) if isinstance(raw_decision, dict) else {}
     if event.stage == "layer1_normalize":
         kept = outputs.get("normalized_jobs")
         raw_jobs = outputs.get("raw_jobs") or decision.get("raw_jobs")
@@ -1477,7 +1580,8 @@ def _timeline_stage_summary_message(
             return f"Shortlist complete: {', '.join(details)}"
     if event.stage == "layer3_ranking":
         ranked = outputs.get("ranked_jobs")
-        distribution = decision.get("label_distribution") if isinstance(decision.get("label_distribution"), dict) else {}
+        raw_distribution = decision.get("label_distribution")
+        distribution: dict[str, Any] = dict(raw_distribution) if isinstance(raw_distribution, dict) else {}
         details = []
         if ranked is not None:
             details.append(f"{ranked} ranked")
@@ -1517,9 +1621,9 @@ def _timeline_stage_summary_message(
     return event.message
 
 
-def _stage_download_label(stage_id: str | None) -> str | None:
+def _stage_download_label(stage_id: str | None) -> str:
     if not stage_id:
-        return None
+        return "Download stage JSON"
     return STAGE_DOWNLOAD_LABELS.get(stage_id, f"Download {stage_id.replace('_', ' ').title()} JSON")
 
 
@@ -3324,6 +3428,48 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-cv-debug.json"'},
         )
 
+    @app.get("/admin/runs/{run_id}/agentic-live-trace.json")
+    def download_run_agentic_live_trace_json(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status != RunStatus.SUCCEEDED:
+            raise HTTPException(
+                status_code=409,
+                detail="Agentic live trace export is only available for succeeded runs",
+            )
+        trace_payload = _load_run_agentic_live_trace_payload(run)
+        if not isinstance(trace_payload, dict):
+            raise HTTPException(status_code=404, detail="Agentic live trace export is not available for this run")
+        if str(trace_payload.get("trace_status") or "").strip() == "not_applicable":
+            raise HTTPException(status_code=404, detail="Agentic live trace export is not applicable for this run")
+        return Response(
+            content=_json.dumps(trace_payload, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-agentic-live-trace.json"'},
+        )
+
+    @app.get("/admin/runs/{run_id}/cv-analysis-trace.json")
+    def download_run_cv_analysis_trace_json(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status != RunStatus.SUCCEEDED:
+            raise HTTPException(
+                status_code=409,
+                detail="CV analysis trace export is only available for succeeded runs",
+            )
+        trace_payload = _load_run_cv_analysis_trace_payload(run)
+        if not isinstance(trace_payload, dict):
+            raise HTTPException(status_code=404, detail="CV analysis trace export is not available for this run")
+        if str(trace_payload.get("trace_status") or "").strip() == "not_applicable":
+            raise HTTPException(status_code=404, detail="CV analysis trace export is not applicable for this run")
+        return Response(
+            content=_json.dumps(trace_payload, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-cv-analysis-trace.json"'},
+        )
+
     @app.get("/admin/runs/{run_id}/stage-artifacts.json")
     def download_run_stage_transition_artifacts_json(run_id: str) -> Response:
         run = get_run(run_id, bq, project=project, dataset=dataset)
@@ -3430,6 +3576,27 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             content=pretty_json,
             media_type="application/json",
             headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-synonym-proposals.json"'},
+        )
+
+    @app.get("/admin/runs/{run_id}/synonym-proposals-trace.json")
+    def download_run_synonym_proposals_trace_json(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if not _run_has_reached_stage(run, "enrich"):
+            raise HTTPException(
+                status_code=404,
+                detail="Synonym proposals trace export is not available until enrich has completed for this run",
+            )
+        trace_payload = _load_run_synonym_proposals_trace_payload(run)
+        if not isinstance(trace_payload, dict):
+            raise HTTPException(status_code=404, detail="Synonym proposals trace export is not available for this run")
+        if str(trace_payload.get("trace_status") or "").strip() == "not_applicable":
+            raise HTTPException(status_code=404, detail="Synonym proposals trace export is not applicable for this run")
+        return Response(
+            content=_json.dumps(trace_payload, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-synonym-proposals-trace.json"'},
         )
 
     @app.get("/admin/mapping-suggestions.json")

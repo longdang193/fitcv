@@ -181,10 +181,14 @@ not-found errors when the run is not in a valid state for the action.
 
 - `GET /admin/runs/{run_id}/export.json`
 - `GET /admin/runs/{run_id}/cv-debug.json`
+- `GET /admin/runs/{run_id}/cv-analysis-trace.json`
+- `GET /admin/runs/{run_id}/agentic-live-trace.json`
 - `GET /admin/runs/{run_id}/stage-artifacts.json`
 - `GET /admin/runs/{run_id}/stage-artifacts/{stage_id}.json`
 - `GET /admin/runs/{run_id}/settings-used.json`
 - `GET /admin/runs/{run_id}/mapping-suggestions.json`
+- `GET /admin/runs/{run_id}/synonym-proposals.json`
+- `GET /admin/runs/{run_id}/synonym-proposals-trace.json`
 - `GET /admin/runs/{run_id}/artifacts.zip`
 
 These routes expose the main observation payloads for completed or sufficiently
@@ -195,6 +199,13 @@ Common behavior:
 - `404` when the artifact does not exist yet
 - `409` when the route is only valid for succeeded runs and the run is not yet
   terminal
+
+Trace-specific note:
+
+- shared-standard trace downloads currently include:
+  - `cv-analysis-trace.json` with `step_id=cv_analysis`
+  - `agentic-live-trace.json` with `step_id=cv_generation`
+  - `synonym-proposals-trace.json` with `step_id=synonym_proposals`
 
 ### Aggregate exports
 

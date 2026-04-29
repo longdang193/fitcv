@@ -24,10 +24,13 @@ lifecycle:
 
 from copy import deepcopy
 from contextlib import contextmanager
+import datetime
+import json
 from pathlib import Path
 import importlib
 import os
 import sys
+import time
 from typing import Any, Final, Iterator, Literal, TypedDict, cast
 
 from fitcv.agentic_cv_analysis import (
@@ -41,7 +44,14 @@ from fitcv.agentic_cv_analysis import (
     extract_job_title,
     extract_job_url,
 )
-from fitcv.cv_generator import generate_cv, render_cv_markdown
+from fitcv.config import get_cv_generation_model
+from fitcv.cv_generator import (
+    _normalize_structured_cv,
+    _resolve_template_path,
+    build_structured_generation_prompt,
+    generate_cv,
+    render_cv_markdown,
+)
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
 
 ACCEPTED_STATUS: Final[Literal["accepted"]] = "accepted"
@@ -108,6 +118,19 @@ class CvGenerationResult(TypedDict, total=False):
     validation: dict[str, Any] | None
     outcome_reason: ErrorPayload | None
     error: ErrorPayload | None
+    runtime_provenance: dict[str, Any]
+    agentic_live_trace: dict[str, Any]
+
+
+_LIVE_TRACE_SCHEMA_VERSION = "agentic_step_trace_record_v1"
+_LIVE_TRACE_SCHEMA_NAME = "fitcv_structured_cv_document"
+_LIVE_TRACE_PROMPT_CONTRACT = "fitcv_structured_generation_prompt"
+_LIVE_TRACE_FAMILY = "agentic_step_trace"
+_LIVE_TRACE_STEP_ID = "cv_generation"
+_LIVE_TRACE_DEBUG_ENV_KEYS = (
+    "FITCV_LANGGRAPH_DEBUG_LIVE",
+    "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH",
+)
 
 
 class _LanggraphRuntimeBridge(TypedDict):
@@ -149,6 +172,36 @@ def _resolve_fitcv_langgraph_env_file(repo_root: Path) -> Path | None:
     if candidate.is_file():
         return candidate
     return None
+
+
+def _current_repo_env_file() -> Path | None:
+    candidate = _repo_root() / DEFAULT_FITCV_LANGGRAPH_ENV_FILENAME
+    if candidate.is_file():
+        return candidate
+    return None
+
+
+def _build_fitcv_langgraph_env_values(repo_root: Path | None) -> dict[str, str]:
+    env_values = dict(os.environ)
+    env_files: list[Path] = []
+
+    if repo_root is not None:
+        default_langgraph_env = repo_root / DEFAULT_FITCV_LANGGRAPH_ENV_FILENAME
+        if default_langgraph_env.is_file():
+            env_files.append(default_langgraph_env)
+
+    current_repo_env = _current_repo_env_file()
+    if current_repo_env is not None and current_repo_env not in env_files:
+        env_files.append(current_repo_env)
+
+    if repo_root is not None:
+        explicit_env_file = _resolve_fitcv_langgraph_env_file(repo_root)
+        if explicit_env_file is not None and explicit_env_file not in env_files:
+            env_files.append(explicit_env_file)
+
+    for env_file in env_files:
+        env_values.update(_parse_env_file(env_file))
+    return env_values
 
 
 def _parse_env_file(path: Path) -> dict[str, str]:
@@ -261,53 +314,24 @@ def _build_generation_ready_analysis(
     }
 
 
-def _render_langgraph_draft_markdown(draft: dict[str, Any] | None, profile: dict[str, Any]) -> str | None:
-    if not isinstance(draft, dict):
-        return None
-    lines = [f"# {_resolved_candidate_profile_name(profile) or 'Candidate'}"]
-    summary = str(draft.get("summary") or "").strip()
-    if summary:
-        lines.extend(["## Summary", summary])
-    skills = [str(skill).strip() for skill in list(draft.get("skills") or []) if str(skill).strip()]
-    if skills:
-        lines.extend(["## Skills", ", ".join(skills)])
-    experience_entries = list(draft.get("experience") or [])
-    if experience_entries:
-        lines.append("## Experience")
-        for entry in experience_entries:
-            if not isinstance(entry, dict):
-                continue
-            role = str(entry.get("role") or "").strip() or "Experience"
-            lines.append(f"### {role}")
-            for bullet in list(entry.get("bullets") or []):
-                if isinstance(bullet, dict):
-                    bullet_text = str(bullet.get("text") or "").strip()
-                else:
-                    bullet_text = str(bullet).strip()
-                if bullet_text:
-                    lines.append(f"- {bullet_text}")
-    return "\n".join(lines)
-
-
 def _load_fitcv_langgraph_runtime() -> _LanggraphRuntimeBridge | None:
     runtime_runner = globals().get("run_cv_generation_from_analysis")
     runtime_loader = globals().get("load_live_provider_config_from_env")
     repo_root = _discover_fitcv_langgraph_repo_root()
-    if repo_root is None:
-        return None
-    env_file = _resolve_fitcv_langgraph_env_file(repo_root)
-    env_values = dict(os.environ)
-    if env_file is not None:
-        env_values.update(_parse_env_file(env_file))
+    env_values = _build_fitcv_langgraph_env_values(repo_root)
 
     if runtime_loader is None or runtime_runner is None:
-        src_root = repo_root / "src"
-        if src_root.is_dir():
-            src_root_text = str(src_root)
-            if src_root_text not in sys.path:
-                sys.path.insert(0, src_root_text)
-        live_module = importlib.import_module("fitcv_langgraph.providers.live")
-        graph_module = importlib.import_module("fitcv_langgraph.graphs.cv_generation.graph")
+        if repo_root is not None:
+            src_root = repo_root / "src"
+            if src_root.is_dir():
+                src_root_text = str(src_root)
+                if src_root_text not in sys.path:
+                    sys.path.insert(0, src_root_text)
+        try:
+            live_module = importlib.import_module("fitcv_langgraph.providers.live")
+            graph_module = importlib.import_module("fitcv_langgraph.graphs.cv_generation.graph")
+        except Exception:
+            return None
         runtime_loader = getattr(live_module, "load_live_provider_config_from_env")
         runtime_runner = getattr(graph_module, "run_cv_generation_from_analysis")
 
@@ -318,62 +342,413 @@ def _load_fitcv_langgraph_runtime() -> _LanggraphRuntimeBridge | None:
     }
 
 
-def _run_fitcv_langgraph_live_generation(
-    analysis_record: dict[str, Any],
-    profile: dict[str, Any],
-    job: dict[str, Any],
-) -> CvGenerationResult | None:
-    runtime = _load_fitcv_langgraph_runtime()
-    if runtime is None:
-        return None
-    analysis_payload = _build_generation_ready_analysis(analysis_record, profile, job)
-    with _temporary_environ(runtime["env_values"]):
-        state = runtime["run_from_analysis"](analysis_payload, execution_mode="live")
-    final_result = state.get("final_result")
-    if not isinstance(final_result, dict):
-        return None
-    comparison_output = dict(final_result.get("comparison_output") or {})
-    comparison_validation = dict(final_result.get("comparison_validation") or {})
-    draft = comparison_output.get("draft")
-    structured_cv = dict(draft) if isinstance(draft, dict) else None
-    markdown = _render_langgraph_draft_markdown(structured_cv, profile)
-    repair_attempts = list(state.get("repair_attempts") or [])
-    repair_attempt: RepairAttempt = {
-        "performed": bool(repair_attempts),
-        "missing_sections": list(comparison_validation.get("missing_sections") or []),
+def _build_runtime_provenance(env_values: dict[str, str]) -> dict[str, Any]:
+    provider = str(env_values.get("FITCV_LANGGRAPH_PROVIDER", "openai") or "openai").strip().lower()
+    model = str(env_values.get("FITCV_LANGGRAPH_MODEL", "") or "").strip() or None
+    base_url = str(env_values.get("FITCV_LANGGRAPH_OPENAI_BASE_URL", "") or "").strip() or None
+    return {
+        "runtime_path": "fitcv_langgraph_live",
+        "provider": provider,
+        "model": model,
+        "base_url": base_url,
     }
-    if repair_attempts:
-        repair_attempt["reason"] = str(repair_attempts[0].get("repair_class") or "")
-    validation_payload = {
-        "valid": str(final_result.get("status") or "") == ACCEPTED_STATUS,
-        "missing_sections": list(comparison_validation.get("missing_sections") or []),
-        "grounding_violations": list(comparison_validation.get("unsupported_claim_ids") or []),
-        "deterministic_grounding_violations": list(comparison_validation.get("unsupported_claim_ids") or []),
-        "semantic_grounding_violations": [],
-        "skill_violations": [],
-        "warnings": [],
-        "support_source_summary": {},
+
+
+def _live_runtime_provenance_or_none() -> dict[str, Any] | None:
+    repo_root = _discover_fitcv_langgraph_repo_root()
+    env_values = _build_fitcv_langgraph_env_values(repo_root)
+    try:
+        runtime_loader = globals().get("load_live_provider_config_from_env")
+        if runtime_loader is None:
+            if repo_root is not None:
+                src_root = repo_root / "src"
+                if src_root.is_dir():
+                    src_root_text = str(src_root)
+                    if src_root_text not in sys.path:
+                        sys.path.insert(0, src_root_text)
+            live_module = importlib.import_module("fitcv_langgraph.providers.live")
+            runtime_loader = getattr(live_module, "load_live_provider_config_from_env")
+        runtime_loader(env_values)
+    except Exception:
+        return None
+    return _build_runtime_provenance(env_values)
+
+
+def _build_live_structured_cv_response_schema() -> dict[str, Any]:
+    nullable_string_schema = {
+        "anyOf": [
+            {"type": "string"},
+            {"type": "null"},
+        ]
     }
-    return _build_result(
-        analysis_record=analysis_record,
-        job=job,
-        status=(
-            ACCEPTED_STATUS
-            if str(final_result.get("status") or "") == ACCEPTED_STATUS
-            else VALIDATION_FAILED_STATUS
-        ),
-        fit_classification=_coerce_fit_classification(analysis_record.get("fit_classification")),
-        structured_cv_initial=structured_cv,
-        validation_initial=_build_validation_snapshot(validation_payload),
-        repair_attempt=repair_attempt,
-        structured_cv_final=structured_cv if str(final_result.get("status") or "") == ACCEPTED_STATUS else None,
-        markdown_final=markdown if str(final_result.get("status") or "") == ACCEPTED_STATUS else None,
-        validation=validation_payload,
-        error=None if str(final_result.get("status") or "") == ACCEPTED_STATUS else {
-            "stage": "validation",
-            "message": "fitcv-langgraph live provider rejected the draft.",
+    bullet_schema = {
+        "type": "string",
+    }
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["sections"],
+        "properties": {
+            "sections": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "header",
+                    "summary",
+                    "experience",
+                    "projects",
+                    "education",
+                    "skills",
+                    "certifications",
+                    "publications",
+                    "languages",
+                ],
+                "properties": {
+                    "header": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["name", "title", "location", "contact"],
+                        "properties": {
+                            "name": {"type": "string"},
+                            "title": {"type": "string"},
+                            "location": nullable_string_schema,
+                            "contact": {
+                                "type": "object",
+                                "additionalProperties": False,
+                                "required": ["email", "phone", "linkedin"],
+                                "properties": {
+                                    "email": nullable_string_schema,
+                                    "phone": nullable_string_schema,
+                                    "linkedin": nullable_string_schema,
+                                },
+                            },
+                        },
+                    },
+                    "summary": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["text"],
+                        "properties": {
+                            "text": {"type": "string"},
+                        },
+                    },
+                    "experience": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "required": ["role", "company", "start", "end", "location", "bullets"],
+                            "properties": {
+                                "role": {"type": "string"},
+                                "company": {"type": "string"},
+                                "start": nullable_string_schema,
+                                "end": nullable_string_schema,
+                                "location": nullable_string_schema,
+                                "bullets": {
+                                    "type": "array",
+                                    "items": bullet_schema,
+                                },
+                            },
+                        },
+                    },
+                    "projects": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "required": ["name", "context", "bullets"],
+                            "properties": {
+                                "name": {"type": "string"},
+                                "context": nullable_string_schema,
+                                "bullets": {
+                                    "type": "array",
+                                    "items": bullet_schema,
+                                },
+                            },
+                        },
+                    },
+                    "education": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "required": ["degree", "institution", "field", "start", "end"],
+                            "properties": {
+                                "degree": {"type": "string"},
+                                "institution": {"type": "string"},
+                                "field": nullable_string_schema,
+                                "start": nullable_string_schema,
+                                "end": nullable_string_schema,
+                            },
+                        },
+                    },
+                    "skills": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["groups"],
+                        "properties": {
+                            "groups": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "additionalProperties": False,
+                                    "required": ["label", "items"],
+                                    "properties": {
+                                        "label": {"type": "string"},
+                                        "items": {
+                                            "type": "array",
+                                            "items": {"type": "string"},
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                    "certifications": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "required": ["name", "issuer", "year"],
+                            "properties": {
+                                "name": {"type": "string"},
+                                "issuer": nullable_string_schema,
+                                "year": nullable_string_schema,
+                            },
+                        },
+                    },
+                    "publications": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "required": ["title", "publisher", "year"],
+                            "properties": {
+                                "title": {"type": "string"},
+                                "publisher": nullable_string_schema,
+                                "year": nullable_string_schema,
+                            },
+                        },
+                    },
+                    "languages": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "required": ["name", "level"],
+                            "properties": {
+                                "name": {"type": "string"},
+                                "level": nullable_string_schema,
+                            },
+                        },
+                    },
+                },
+            },
         },
+    }
+
+
+def _generate_cv_with_live_provider(
+    *,
+    job: dict[str, Any],
+    evidence: list[dict[str, Any]],
+    gap: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+    fit_classification: str,
+    evidence_selection_summary: dict[str, Any] | None,
+    repair_missing_sections: list[str] | None,
+    env_values: dict[str, str],
+    trace_attempt: dict[str, Any] | None = None,
+    attempt_index: int = 1,
+) -> dict[str, Any]:
+    repo_root = _discover_fitcv_langgraph_repo_root()
+    if repo_root is not None:
+        src_root = repo_root / "src"
+        if src_root.is_dir():
+            src_root_text = str(src_root)
+            if src_root_text not in sys.path:
+                sys.path.insert(0, src_root_text)
+    live_module = importlib.import_module("fitcv_langgraph.providers.live")
+    runtime_loader = getattr(live_module, "load_live_provider_config_from_env")
+    client_cls = getattr(live_module, "OpenAIResponsesClient")
+    provider_config = runtime_loader(env_values)
+    client = client_cls(provider_config)
+
+    template_path = _resolve_template_path(config)
+    template = Path(template_path).read_text(encoding="utf-8")
+    prompt = build_structured_generation_prompt(
+        jd=job,
+        evidence=evidence,
+        gap=gap,
+        template=template,
+        profile=profile,
+        config=config,
+        evidence_selection_summary=evidence_selection_summary,
+        repair_missing_sections=repair_missing_sections,
     )
+    started_at = datetime.datetime.now(datetime.timezone.utc)
+    started_monotonic = time.monotonic()
+    if trace_attempt is not None:
+        trace_attempt.update(
+            {
+                "attempt_index": attempt_index,
+                "attempt_type": "repair_retry" if repair_missing_sections else "initial_generation",
+                "started_at": started_at.isoformat(),
+                "input_character_count": len(prompt),
+                "input_item_count": len(evidence),
+                "retry_reason": "missing_sections" if repair_missing_sections else None,
+                "debug_flags_active": {
+                    key: bool(str(env_values.get(key) or "").strip())
+                    for key in _LIVE_TRACE_DEBUG_ENV_KEYS
+                },
+                "prompt_contract": _LIVE_TRACE_PROMPT_CONTRACT,
+                "template_path": str(template_path),
+                "response_schema_name": _LIVE_TRACE_SCHEMA_NAME,
+            }
+        )
+    response_payload: dict[str, Any]
+    response_id: str | None = None
+    provider_status = "accepted"
+    error_message = ""
+    try:
+        response_payload = client.generate_json(
+            instructions=(
+                "Generate one FitCV structured CV document. "
+                "Follow the prompt exactly, obey the rendering reference template, "
+                "and return only JSON matching the schema."
+            ),
+            input_text=prompt,
+            schema_name=_LIVE_TRACE_SCHEMA_NAME,
+            schema=_build_live_structured_cv_response_schema(),
+        )
+        if isinstance(response_payload, dict):
+            response_id = str(response_payload.get("response_id") or response_payload.get("id") or "").strip() or None
+    except Exception as exc:
+        provider_status = "error"
+        error_message = str(exc)
+        finished_at = datetime.datetime.now(datetime.timezone.utc)
+        if trace_attempt is not None:
+            trace_attempt.update(
+                {
+                    "finished_at": finished_at.isoformat(),
+                    "latency_ms": int((time.monotonic() - started_monotonic) * 1000),
+                    "provider_status": provider_status,
+                    "accepted_output_present": False,
+                    "error_stage": "agentic_live_provider",
+                    "error_message": error_message,
+                }
+            )
+        raise
+    finished_at = datetime.datetime.now(datetime.timezone.utc)
+    if trace_attempt is not None:
+        trace_attempt.update(
+            {
+                "finished_at": finished_at.isoformat(),
+                "latency_ms": int((time.monotonic() - started_monotonic) * 1000),
+                "provider_status": provider_status,
+                "accepted_output_present": True,
+                "response_id": response_id,
+            }
+        )
+    structured_cv = _normalize_structured_cv(
+        response_payload,
+        jd=job,
+        profile=profile,
+        config=config,
+        fit_classification=fit_classification,
+    )
+    markdown = render_cv_markdown(structured_cv, config)
+    return {
+        "structured_cv": structured_cv,
+        "markdown": markdown,
+    }
+
+
+def _build_live_trace_runtime_provenance(
+    runtime_provenance: dict[str, Any],
+    *,
+    template_path: str | None,
+) -> dict[str, Any]:
+    payload = dict(runtime_provenance)
+    payload["prompt_contract"] = _LIVE_TRACE_PROMPT_CONTRACT
+    payload["template_path"] = str(template_path or "")
+    payload["response_schema_name"] = _LIVE_TRACE_SCHEMA_NAME
+    return payload
+
+
+def _empty_agentic_live_trace(
+    runtime_provenance: dict[str, Any],
+    *,
+    template_path: str | None,
+) -> dict[str, Any]:
+    return {
+        "trace_schema_version": _LIVE_TRACE_SCHEMA_VERSION,
+        "trace_family": _LIVE_TRACE_FAMILY,
+        "step_id": _LIVE_TRACE_STEP_ID,
+        "trace_status": "completed",
+        "runtime_provenance": _build_live_trace_runtime_provenance(
+            runtime_provenance,
+            template_path=template_path,
+        ),
+        "attempts": [],
+        "input_summary": {
+            "attempt_count": 0,
+            "input_item_count": 0,
+        },
+        "output_summary": {
+            "accepted_output_present": False,
+            "final_status": "",
+        },
+        "validation_summary": {
+            "initial_valid": False,
+            "final_valid": False,
+            "initial_missing_fields": [],
+            "final_missing_fields": [],
+            "violation_count": 0,
+            "warning_count": 0,
+        },
+        "repair_summary": {
+            "repair_attempted": False,
+            "repair_attempt_count": 0,
+            "repair_targets": [],
+        },
+        "error_summary": None,
+    }
+
+
+def _error_code_from_message(message: str) -> str | None:
+    normalized = str(message or "")
+    for token in normalized.replace(":", " ").split():
+        if token.isdigit():
+            return token
+    return None
+
+
+def _update_live_trace_validation_cycle(
+    trace_payload: dict[str, Any],
+    *,
+    validation_initial: ValidationSnapshot | None,
+    validation_final: dict[str, Any] | None,
+) -> None:
+    if not isinstance(trace_payload.get("validation_summary"), dict):
+        return
+    validation_summary = dict(trace_payload["validation_summary"])
+    if validation_initial is None:
+        validation_summary["initial_valid"] = False
+        validation_summary["initial_missing_fields"] = []
+    else:
+        validation_summary["initial_valid"] = bool(validation_initial["valid"])
+        validation_summary["initial_missing_fields"] = list(validation_initial["missing_sections"])
+    if isinstance(validation_final, dict):
+        validation_summary["final_valid"] = bool(validation_final.get("valid"))
+        validation_summary["final_missing_fields"] = list(validation_final.get("missing_sections") or [])
+        validation_summary["violation_count"] = (
+            len(list(validation_final.get("grounding_violations") or []))
+            + len(list(validation_final.get("skill_violations") or []))
+        )
+        validation_summary["warning_count"] = len(list(validation_final.get("warnings") or []))
+    trace_payload["validation_summary"] = validation_summary
 
 
 def _coerce_fit_classification(value: Any) -> FitClassification | None:
@@ -552,6 +927,8 @@ def _build_result(
     markdown_final: str | None,
     validation: dict[str, Any] | None,
     error: ErrorPayload | None,
+    runtime_provenance: dict[str, Any] | None = None,
+    agentic_live_trace: dict[str, Any] | None = None,
 ) -> CvGenerationResult:
     evidence_payload = list(analysis_record.get("evidence_payload") or [])
     evidence_used = list(analysis_record.get("evidence_used") or [])
@@ -565,7 +942,7 @@ def _build_result(
     if status == BLOCKED_BY_RERANKER_STATUS:
         cv_status = "not_attempted"
 
-    return {
+    result: CvGenerationResult = {
         "job_url": extract_job_url(job),
         "job_title": extract_job_title(job),
         "status": status,
@@ -590,6 +967,11 @@ def _build_result(
         "outcome_reason": error if status in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS} else None,
         "error": error if status not in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS} else None,
     }
+    if runtime_provenance:
+        result["runtime_provenance"] = dict(runtime_provenance)
+    if agentic_live_trace:
+        result["agentic_live_trace"] = dict(agentic_live_trace)
+    return result
 
 
 def generate_from_analysis(
@@ -621,15 +1003,225 @@ def generate_from_analysis(
             markdown_final=None,
             validation=None,
             error=_coerce_error_payload(passthrough_error),
+            runtime_provenance=None,
         )
 
-    live_provider_result = _run_fitcv_langgraph_live_generation(
-        analysis_record=analysis_record,
-        profile=profile,
-        job=job,
-    )
-    if live_provider_result is not None:
-        return live_provider_result
+    live_runtime_provenance = _live_runtime_provenance_or_none()
+    if live_runtime_provenance is not None:
+        evidence_payload = list(analysis_record.get("evidence_payload") or [])
+        evidence_used = list(analysis_record.get("evidence_used") or [])
+        if not evidence_used and evidence_payload:
+            evidence_used = build_evidence_used(evidence_payload)
+        analysis_grounding = _build_validation_grounding_payload(
+            analysis_record,
+            job,
+            evidence_payload,
+            evidence_used,
+        )
+        gap_summary = analysis_record.get("gap_summary") or {}
+        fit = str(fit_classification or "skip")
+        structured_cv_initial: dict[str, Any] | None = None
+        validation_initial: ValidationSnapshot | None = None
+        repair_attempt = _empty_repair_attempt()
+        env_values = _build_fitcv_langgraph_env_values(_discover_fitcv_langgraph_repo_root())
+        trace_payload = _empty_agentic_live_trace(
+            live_runtime_provenance,
+            template_path=str(_resolve_template_path(config)),
+        )
+        first_attempt_trace: dict[str, Any] = {}
+        try:
+            generated_cv = _generate_cv_with_live_provider(
+                job=job,
+                evidence=evidence_payload,
+                gap=gap_summary,
+                profile=profile,
+                config=config,
+                fit_classification=fit,
+                evidence_selection_summary=dict(analysis_record.get("evidence_selection_summary") or {}),
+                repair_missing_sections=None,
+                env_values=env_values,
+                trace_attempt=first_attempt_trace,
+                attempt_index=1,
+            )
+            first_attempt_trace.setdefault("attempt_index", 1)
+            first_attempt_trace.setdefault("provider_status", "accepted")
+            first_attempt_trace.setdefault("attempt_type", "initial_generation")
+            first_attempt_trace.setdefault("accepted_output_present", True)
+            first_attempt_trace.setdefault("retry_reason", None)
+            trace_payload["attempts"].append(first_attempt_trace)
+            structured_cv, markdown = _unwrap_generated_cv(generated_cv)
+            structured_cv_initial = structured_cv
+            validation = run_all_validations(
+                markdown,
+                profile=profile,
+                config=config,
+                analysis_grounding=analysis_grounding,
+                structured_cv=structured_cv,
+            )
+            validation_initial = _build_validation_snapshot(validation)
+            if not validation["valid"] and _should_repair_candidate_name_placeholder(validation, structured_cv, profile):
+                assert structured_cv is not None
+                structured_cv, markdown = _repair_candidate_name_placeholder(structured_cv, profile, config)
+                validation = run_all_validations(
+                    markdown,
+                    profile=profile,
+                    config=config,
+                    analysis_grounding=analysis_grounding,
+                    structured_cv=structured_cv,
+                )
+
+            if not validation["valid"] and _should_retry_missing_sections(validation):
+                missing_sections = list(validation.get("missing_sections") or [])
+                repair_attempt = _build_repair_attempt(missing_sections)
+                second_attempt_trace: dict[str, Any] = {}
+                generated_cv = _generate_cv_with_live_provider(
+                    job=job,
+                    evidence=evidence_payload,
+                    gap=gap_summary,
+                    profile=profile,
+                    config=config,
+                    fit_classification=fit,
+                    evidence_selection_summary=dict(analysis_record.get("evidence_selection_summary") or {}),
+                    repair_missing_sections=missing_sections,
+                    env_values=env_values,
+                    trace_attempt=second_attempt_trace,
+                    attempt_index=2,
+                )
+                second_attempt_trace.setdefault("attempt_index", 2)
+                second_attempt_trace.setdefault("provider_status", "accepted")
+                second_attempt_trace.setdefault("attempt_type", "repair_retry")
+                second_attempt_trace.setdefault("accepted_output_present", True)
+                second_attempt_trace.setdefault("retry_reason", "missing_sections")
+                trace_payload["attempts"].append(second_attempt_trace)
+                structured_cv, markdown = _unwrap_generated_cv(generated_cv)
+                validation = run_all_validations(
+                    markdown,
+                    profile=profile,
+                    config=config,
+                    analysis_grounding=analysis_grounding,
+                    structured_cv=structured_cv,
+                )
+            _update_live_trace_validation_cycle(
+                trace_payload,
+                validation_initial=validation_initial,
+                validation_final=validation,
+            )
+            trace_payload["input_summary"] = {
+                "attempt_count": len(list(trace_payload.get("attempts") or [])),
+                "input_item_count": len(evidence_payload),
+            }
+            trace_payload["repair_summary"] = {
+                "repair_attempted": bool(repair_attempt.get("performed")),
+                "repair_attempt_count": len(list(trace_payload.get("attempts") or [])) - 1,
+                "repair_targets": list(repair_attempt.get("missing_sections") or []),
+                "repair_reason": str(repair_attempt.get("reason") or ""),
+            }
+
+            if not validation["valid"]:
+                trace_payload["output_summary"] = {
+                    "accepted_output_present": False,
+                    "final_status": VALIDATION_FAILED_STATUS,
+                }
+                trace_payload["error_summary"] = {
+                    "error_stage": "validation",
+                    "error_message": f"Live provider CV validation failed for {extract_job_url(job)}",
+                }
+                return _build_result(
+                    analysis_record=analysis_record,
+                    job=job,
+                    status=VALIDATION_FAILED_STATUS,
+                    fit_classification=fit_classification,
+                    structured_cv_initial=structured_cv_initial,
+                    validation_initial=validation_initial,
+                    repair_attempt=repair_attempt,
+                    structured_cv_final=None,
+                    markdown_final=None,
+                    validation=validation,
+                    error={
+                        "stage": "validation",
+                        "message": f"Live provider CV validation failed for {extract_job_url(job)}",
+                    },
+                    runtime_provenance=live_runtime_provenance,
+                    agentic_live_trace=trace_payload,
+                )
+
+            trace_payload["output_summary"] = {
+                "accepted_output_present": True,
+                "final_status": ACCEPTED_STATUS,
+            }
+            trace_payload["error_summary"] = None
+            return _build_result(
+                analysis_record=analysis_record,
+                job=job,
+                status=ACCEPTED_STATUS,
+                fit_classification=fit_classification,
+                structured_cv_initial=structured_cv_initial,
+                validation_initial=validation_initial,
+                repair_attempt=repair_attempt,
+                structured_cv_final=structured_cv,
+                markdown_final=markdown,
+                validation=validation,
+                error=None,
+                runtime_provenance=live_runtime_provenance,
+                agentic_live_trace=trace_payload,
+            )
+        except Exception as exc:
+            if not trace_payload["attempts"]:
+                trace_payload["attempts"].append(first_attempt_trace)
+            trace_payload["trace_status"] = "degraded"
+            trace_payload["input_summary"] = {
+                "attempt_count": len(list(trace_payload.get("attempts") or [])),
+                "input_item_count": len(evidence_payload),
+            }
+            trace_payload["repair_summary"] = {
+                "repair_attempted": bool(repair_attempt.get("performed")),
+                "repair_attempt_count": len(list(trace_payload.get("attempts") or [])) - 1,
+                "repair_targets": list(repair_attempt.get("missing_sections") or []),
+                "repair_reason": str(repair_attempt.get("reason") or ""),
+            }
+            _update_live_trace_validation_cycle(
+                trace_payload,
+                validation_initial=validation_initial,
+                validation_final=None,
+            )
+            latest_attempt = (
+                trace_payload["attempts"][-1]
+                if isinstance(trace_payload.get("attempts"), list) and trace_payload["attempts"]
+                else None
+            )
+            if isinstance(latest_attempt, dict):
+                latest_attempt.setdefault("provider_status", "error")
+                latest_attempt.setdefault("accepted_output_present", False)
+                latest_attempt.setdefault("error_stage", "agentic_live_provider")
+                latest_attempt.setdefault("error_message", str(exc))
+                latest_attempt.setdefault("error_code", _error_code_from_message(str(exc)))
+            trace_payload["output_summary"] = {
+                "accepted_output_present": False,
+                "final_status": GENERATION_FAILED_STATUS,
+            }
+            trace_payload["error_summary"] = {
+                "error_stage": "agentic_live_provider",
+                "error_code": _error_code_from_message(str(exc)),
+                "error_message": str(exc),
+            }
+            return _build_result(
+                analysis_record=analysis_record,
+                job=job,
+                status=GENERATION_FAILED_STATUS,
+                fit_classification=fit_classification,
+                structured_cv_initial=structured_cv_initial,
+                validation_initial=validation_initial,
+                repair_attempt=repair_attempt,
+                structured_cv_final=None,
+                markdown_final=None,
+                validation=None,
+                error={
+                    "stage": "agentic_live_provider",
+                    "message": str(exc),
+                },
+                runtime_provenance=live_runtime_provenance,
+                agentic_live_trace=trace_payload,
+            )
 
     evidence_payload = list(analysis_record.get("evidence_payload") or [])
     evidence_used = list(analysis_record.get("evidence_used") or [])
@@ -643,8 +1235,13 @@ def generate_from_analysis(
     )
     gap_summary = analysis_record.get("gap_summary") or {}
     fit = str(fit_classification or "skip")
-    structured_cv_initial: dict[str, Any] | None = None
-    validation_initial: ValidationSnapshot | None = None
+    fallback_runtime_provenance = {
+        "runtime_path": "fitcv_builtin_gemini",
+        "provider": "vertexai_gemini",
+        "model": get_cv_generation_model(config),
+    }
+    structured_cv_initial = None
+    validation_initial = None
     repair_attempt = _empty_repair_attempt()
 
     try:
@@ -718,6 +1315,7 @@ def generate_from_analysis(
                     "stage": "validation",
                     "message": f"CV validation failed for {extract_job_url(job)}",
                 },
+                runtime_provenance=fallback_runtime_provenance,
             )
 
         return _build_result(
@@ -732,6 +1330,7 @@ def generate_from_analysis(
             markdown_final=markdown,
             validation=validation,
             error=None,
+            runtime_provenance=fallback_runtime_provenance,
         )
     except Exception as exc:
         return _build_result(
@@ -749,4 +1348,5 @@ def generate_from_analysis(
                 "stage": "generation",
                 "message": str(exc),
             },
+            runtime_provenance=fallback_runtime_provenance,
         )

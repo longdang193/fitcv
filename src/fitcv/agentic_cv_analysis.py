@@ -70,6 +70,7 @@ class CvAnalysisRecord(TypedDict, total=False):
     gap_summary: dict[str, Any] | None
     outcome_reason: ErrorPayload | None
     error: ErrorPayload | None
+    cv_analysis_trace: dict[str, Any]
 
 
 def extract_job_url(job: dict[str, Any]) -> str:
@@ -115,6 +116,14 @@ def build_analysis_input_summary(job: dict[str, Any]) -> dict[str, Any]:
         key: value
         for key, value in summary.items()
         if value not in (None, "", [])
+    }
+
+
+def _build_runtime_provenance() -> dict[str, Any]:
+    return {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled",
     }
 
 
@@ -173,6 +182,59 @@ def _cv_generation_status_for_analysis_status(status: AnalysisStatus) -> str:
     return "not_attempted"
 
 
+def _build_cv_analysis_trace_record(
+    *,
+    job: dict[str, Any],
+    status: AnalysisStatus,
+    analysis_input_fingerprint: str | None,
+    evidence_selection_summary: dict[str, Any] | None,
+    error: ErrorPayload | None,
+) -> dict[str, Any]:
+    job_url = extract_job_url(job)
+    normalized_summary = dict(evidence_selection_summary or {})
+    selected_evidence_count = int(normalized_summary.get("selected_evidence_count") or 0)
+    fallback_used = bool(normalized_summary.get("fallback_used", False))
+    error_summary = dict(error) if isinstance(error, dict) else None
+    trace_status = "degraded" if status == ANALYSIS_FAILED_STATUS else "completed"
+    return {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_analysis",
+        "trace_status": trace_status,
+        "record_id": job_url or extract_job_title(job),
+        "scope_type": "job",
+        "scope_key": job_url,
+        "status": status,
+        "runtime_provenance": _build_runtime_provenance(),
+        "attempts": [
+            {
+                "attempt_index": 1,
+                "attempt_type": "analysis",
+                "attempt_status": status,
+                "provider_status": "failed" if status == ANALYSIS_FAILED_STATUS else "completed",
+            }
+        ],
+        "input_summary": {
+            "analysis_input_fingerprint": analysis_input_fingerprint,
+            "required_skills_count": len(list(job.get("required_skills") or [])),
+            "preferred_skills_count": len(list(job.get("preferred_skills") or [])),
+            "responsibilities_count": len(list(job.get("responsibilities") or [])),
+        },
+        "output_summary": {
+            "selected_evidence_count": selected_evidence_count,
+            "fallback_used": fallback_used,
+        },
+        "validation_summary": {
+            "status": "not_run",
+        },
+        "repair_summary": {
+            "repair_attempted": False,
+            "repair_attempts": 0,
+        },
+        "error_summary": error_summary,
+    }
+
+
 def build_decision_chain(
     *,
     job: dict[str, Any],
@@ -220,6 +282,13 @@ def build_cv_analysis_record(
     cv_status = _cv_generation_status_for_analysis_status(status)
 
     evidence_used = build_evidence_used(evidence_payload)
+    trace_record = _build_cv_analysis_trace_record(
+        job=job,
+        status=status,
+        analysis_input_fingerprint=analysis_input_fingerprint,
+        evidence_selection_summary=evidence_selection_summary,
+        error=error,
+    )
     return {
         "job_url": extract_job_url(job),
         "job_title": extract_job_title(job),
@@ -241,6 +310,7 @@ def build_cv_analysis_record(
         "gap_summary": gap_summary,
         "outcome_reason": error if status in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS} else None,
         "error": error if status not in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS} else None,
+        "cv_analysis_trace": trace_record,
     }
 
 

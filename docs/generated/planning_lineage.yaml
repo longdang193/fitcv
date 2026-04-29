@@ -6,7 +6,7 @@ workstreams:
 - workstream_id: workstream-agentic-observability
   status: active
   path: docs/intent/workstreams/workstream-agentic-observability.md
-  thread_count: 4
+  thread_count: 5
   completed_thread_count: 0
   derived_completion: in_progress
   threads:
@@ -29,15 +29,26 @@ workstreams:
   - thread_id: workstream-agentic-observability.agentic-observability-provider-provenance
     status: proposed
     path: docs/intent/workstreams/threads/workstream-agentic-observability/03-agentic-observability-provider-provenance.md
-    specs: []
-    plans: []
-    derived_completion: not_started
+    specs:
+    - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
+    plans:
+    - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-agentic-observability.agentic-observability-synonym-proposal-trace
     status: proposed
     path: docs/intent/workstreams/threads/workstream-agentic-observability/04-agentic-observability-synonym-proposal-trace.md
     specs: []
     plans: []
     derived_completion: not_started
+  - thread_id: workstream-agentic-observability.agentic-observability-shared-trace-standard
+    status: proposed
+    path: docs/intent/workstreams/threads/workstream-agentic-observability/05-agentic-observability-shared-trace-standard.md
+    specs:
+    - docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
+    plans:
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    derived_completion: in_progress
 - workstream_id: workstream-agentic-synonym-management
   status: active
   path: docs/intent/workstreams/workstream-agentic-synonym-management.md

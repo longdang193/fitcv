@@ -293,6 +293,62 @@ def test_worker_persists_cv_generation_debug_json_on_success():
         "passed_filter": 3,
         "ranked": 2,
         "cvs_generated": 1,
+        "cv_analysis_trace": {
+            "run_id": "r1",
+            "trace_schema_version": "agentic_step_trace_run_v1",
+            "trace_family": "agentic_step_trace",
+            "step_id": "cv_analysis",
+            "late_stage_mode": {
+                "late_stage_mode": "agentic",
+                "agentic_late_stage_enabled": True,
+                "mode_source": "cv.agentic_late_stage.enabled",
+                "agentic_status": "completed",
+            },
+            "trace_status": "completed",
+            "trace_summary": {
+                "records_total": 1,
+                "present_records": 1,
+                "attempted_analysis_jobs_total": 1,
+            },
+            "records": [
+                {
+                    "record_id": "https://example.com/1",
+                    "scope_type": "job",
+                    "scope_key": "https://example.com/1",
+                    "status": "ready_for_generation",
+                    "attempts": [{"attempt_index": 1, "attempt_type": "analysis"}],
+                }
+            ],
+            "degradation": {},
+        },
+        "agentic_live_trace": {
+            "run_id": "r1",
+            "trace_schema_version": "agentic_step_trace_run_v1",
+            "trace_family": "agentic_step_trace",
+            "step_id": "cv_generation",
+            "late_stage_mode": {
+                "late_stage_mode": "agentic",
+                "agentic_late_stage_enabled": True,
+                "mode_source": "cv.agentic_late_stage.enabled",
+                "agentic_status": "completed",
+            },
+            "trace_status": "completed",
+            "trace_summary": {
+                "records_total": 1,
+                "present_records": 1,
+                "attempted_generation_jobs_total": 1,
+            },
+            "records": [
+                {
+                    "record_id": "https://example.com/1",
+                    "scope_type": "job",
+                    "scope_key": "https://example.com/1",
+                    "status": "accepted",
+                    "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
+                }
+            ],
+            "degradation": {},
+        },
         "cv_generation_debug_records": [
             {
                 "job_url": "https://example.com/1",
@@ -330,6 +386,13 @@ def test_worker_persists_cv_generation_debug_json_on_success():
     assert payload["ranked_jobs_total"] == 2
     assert payload["debug_records_captured"] == 1
     assert payload["snapshot_complete"] is False
+    assert payload["cv_analysis_trace"]["trace_family"] == "agentic_step_trace"
+    assert payload["cv_analysis_trace"]["step_id"] == "cv_analysis"
+    assert payload["cv_analysis_trace"]["records"][0]["status"] == "ready_for_generation"
+    assert payload["agentic_live_trace"]["trace_status"] == "completed"
+    assert payload["agentic_live_trace"]["trace_family"] == "agentic_step_trace"
+    assert payload["agentic_live_trace"]["step_id"] == "cv_generation"
+    assert payload["agentic_live_trace"]["records"][0]["attempts"][0]["provider_status"] == "accepted"
     assert payload["debug_records"][0]["job_url"] == "https://example.com/1"
     assert payload["debug_records"][0]["ranking_fit_label"] == "strong"
     assert payload["debug_records"][0]["decision_chain"]["primary_fit"]["source"] == "reranker"
@@ -1078,6 +1141,10 @@ def test_worker_run_all_persists_stage_progress_without_checkpoint_state() -> No
          patch("fitcv_cp.worker_job.update_run_progress") as mock_progress, \
          patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts") as mock_stage_artifacts, \
          patch("fitcv_cp.worker_job.update_run_mapping_suggestions") as mock_mapping, \
+         patch("fitcv_cp.worker_job.update_run_synonym_proposals", return_value={
+             "persistence_status": "persisted",
+             "degradation_reason": "",
+         }) as mock_synonyms, \
          patch("fitcv_cp.worker_job.update_run_results_export"), \
          patch("fitcv_cp.worker_job.update_run_cv_generation_debug"), \
          patch("fitcv_cp.worker_job.update_run_settings_used"), \
@@ -1095,6 +1162,7 @@ def test_worker_run_all_persists_stage_progress_without_checkpoint_state() -> No
     assert first_progress.kwargs["completed_stages"] == ["normalize", "enrich"]
     mock_stage_artifacts.assert_called()
     mock_mapping.assert_called()
+    mock_synonyms.assert_called()
 
 
 def test_worker_manual_resume_passes_checkpoint_payload_to_pipeline() -> None:
@@ -1196,6 +1264,9 @@ def test_build_synonym_proposals_payload_groups_conflicts_for_review() -> None:
     )
 
     assert payload["synonym_proposals_schema_version"] == "synonym_proposals_v1"
+    assert payload["synonym_proposals_trace"]["trace_family"] == "agentic_step_trace"
+    assert payload["synonym_proposals_trace"]["step_id"] == "synonym_proposals"
+    assert payload["synonym_proposals_trace"]["trace_status"] == "completed"
     assert len(payload["proposals"]) == 1
     proposal = payload["proposals"][0]
     assert proposal["proposal_scope"] == "run_scoped_overlay_candidate"
@@ -1284,6 +1355,7 @@ def test_build_synonym_proposals_payload_marks_not_applicable_without_mapping_su
 
     assert payload["proposal_generation_status"] == "not_applicable"
     assert payload["persistence_status"] == "not_applicable"
+    assert payload["synonym_proposals_trace"]["trace_status"] == "not_applicable"
     assert payload["proposals"] == []
 
 
