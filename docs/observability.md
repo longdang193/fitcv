@@ -61,6 +61,7 @@ cross-run comparisons.
 
 The main surfaces are:
 
+- `/admin/runs/{run_id}/agentic-live-trace.json`
 - `/admin/runs/{run_id}/cv-debug.json`
 - `/admin/runs/{run_id}/stage-artifacts.json`
 - `/admin/runs/{run_id}/stage-artifacts/cv_analysis.json`
@@ -68,6 +69,9 @@ The main surfaces are:
 
 Use these to inspect:
 
+- live-provider request and response attempts
+- provider, model, template, and schema provenance for the agentic path
+- validation retry and repair behavior
 - evidence retrieval
 - bounded evidence summaries
 - gap analysis outcomes
@@ -75,6 +79,24 @@ Use these to inspect:
 - generation validation
 - repair behavior
 - final generation acceptance or failure
+
+### Agentic live trace
+
+`/admin/runs/{run_id}/agentic-live-trace.json`
+
+Use this when the question is specifically about the live agentic provider path
+rather than the broader CV-generation ledger.
+
+This artifact is the persisted run-scoped trace surface for:
+
+- actual runtime path used
+- provider attempt timing and status
+- bounded provider error payloads
+- repair retries triggered by missing sections
+- final validation-cycle summary
+
+The trace is intentionally bounded. It does not store raw chain-of-thought,
+full prompt bodies, or full raw provider response bodies.
 
 ### Timeline and event reasoning
 
@@ -122,9 +144,11 @@ When debugging a surprising run:
 2. scan run status, run health, and stage progress
 3. read the timeline around the first suspicious transition
 4. open `stage-artifacts.json` for stage-owned truth
-5. open `cv-debug.json` if the issue is in analysis or generation
-6. open `settings-used.json` if behavior may be config-driven
-7. open mapping-suggestion or synonym-proposal exports if the issue is
+5. open `agentic-live-trace.json` if the issue is specifically in the live
+   agentic generation path
+6. open `cv-debug.json` for the broader CV-generation ledger
+7. open `settings-used.json` if behavior may be config-driven
+8. open mapping-suggestion or synonym-proposal exports if the issue is
    taxonomy-related
 
 ## What Each Surface Is Good At
@@ -133,10 +157,12 @@ When debugging a surprising run:
   - fast human triage
 - raw events:
   - sequence reconstruction and tooling
+- agentic live trace export:
+  - live-provider attempt, retry, and bounded failure debugging
 - stage artifacts:
   - stage-owned truth
 - CV debug export:
-  - analysis/generation internals
+  - compact CV-generation ledger and per-job debug records
 - settings-used export:
   - runtime context and override visibility
 - mapping-suggestions and synonym-proposals exports:

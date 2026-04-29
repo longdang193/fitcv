@@ -29,9 +29,11 @@ workstreams:
   - thread_id: workstream-agentic-observability.agentic-observability-provider-provenance
     status: proposed
     path: docs/intent/workstreams/threads/workstream-agentic-observability/03-agentic-observability-provider-provenance.md
-    specs: []
-    plans: []
-    derived_completion: not_started
+    specs:
+    - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
+    plans:
+    - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-agentic-observability.agentic-observability-synonym-proposal-trace
     status: proposed
     path: docs/intent/workstreams/threads/workstream-agentic-observability/04-agentic-observability-synonym-proposal-trace.md

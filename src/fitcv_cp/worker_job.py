@@ -360,6 +360,8 @@ def _build_cv_generation_debug_payload(
         "snapshot_complete": len(debug_records) == ranked_jobs_total,
         "debug_records": debug_records,
     }
+    if isinstance(summary.get("agentic_live_trace"), dict):
+        payload["agentic_live_trace"] = dict(summary["agentic_live_trace"])
     return json.dumps(payload, ensure_ascii=False)
 
 
@@ -613,6 +615,7 @@ def _summary_has_reached_stage(summary: dict[str, Any], stage_id: str) -> bool:
 def _persist_shared_progress_snapshot(
     *,
     run_id: str,
+    run_record: Any,
     summary: dict[str, Any],
     snapshot_at: datetime.datetime,
     bq: Any,
@@ -714,7 +717,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
 
         # ── Step 2: Read current row (reads cancel_requested_at + config snapshot)
         run_record = get_run(run_id, bq, project=project, dataset=dataset)
-        effective_config: dict | None = None
+        effective_config: dict[str, Any] | None = None
         if run_record and run_record.effective_settings_json:
             try:
                 effective_config = json.loads(run_record.effective_settings_json)
@@ -768,6 +771,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             try:
                 _persist_shared_progress_snapshot(
                     run_id=run_id,
+                    run_record=run_record,
                     summary=progress_summary,
                     snapshot_at=snapshot_time,
                     bq=bq,

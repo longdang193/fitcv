@@ -1,7 +1,12 @@
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from fitcv.pipeline import run_pipeline
-from fitcv.agentic_cv_generation import generate_from_analysis
+from fitcv.agentic_cv_generation import (
+    _build_fitcv_langgraph_env_values,
+    _generate_cv_with_live_provider,
+    generate_from_analysis,
+)
 
 
 def _minimal_config() -> dict:
@@ -44,6 +49,8 @@ def _minimal_profile() -> dict:
         "preferences": {"target_role": "Data Engineer", "domains": []},
         "experiences": [{"role": "DE", "company": "ACME", "start": "2020", "end": "2022"}],
         "projects": [],
+        "certifications": [],
+        "languages": [],
     }
 
 
@@ -77,6 +84,42 @@ def _minimal_analysis_record() -> dict:
         "evidence_used": [{"evidence_id": "exp-1"}],
         "evidence_selection_summary": {"selected_evidence_count": 1},
         "gap_summary": {"matched": ["SQL"], "missing": []},
+    }
+
+
+def _minimal_structured_cv() -> dict:
+    return {
+        "schema_version": "structured_cv.v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://example.com/1",
+        "fit_classification": "strong",
+        "target_role": "Data Engineer",
+        "sections": {
+            "header": {
+                "name": "Test Candidate",
+                "title": "Data Engineer",
+                "location": None,
+                "contact": {"email": None, "phone": None, "linkedin": None},
+            },
+            "summary": {"text": "Grounded summary"},
+            "experience": [
+                {
+                    "role": "Data Engineer",
+                    "company": "ACME",
+                    "start": None,
+                    "end": None,
+                    "location": None,
+                    "bullets": ["Built grounded reporting workflows."],
+                }
+            ],
+            "projects": [],
+            "education": [],
+            "skills": {"groups": [{"label": "Core", "items": ["SQL", "Python"]}]},
+            "certifications": [],
+            "publications": [],
+            "languages": [],
+        },
     }
 
 
@@ -310,6 +353,44 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
         "structured_cv_final": {"sections": {"header": {"name": "Test Candidate"}}},
         "markdown_final": "# Test Candidate\n## Summary\nGrounded summary",
         "error": None,
+        "runtime_provenance": {
+            "runtime_path": "fitcv_langgraph_live",
+            "provider": "openai",
+            "model": "cx/gpt-5.5",
+        },
+        "agentic_live_trace": {
+            "trace_status": "completed",
+            "runtime_provenance": {
+                "runtime_path": "fitcv_langgraph_live",
+                "provider": "openai",
+                "model": "cx/gpt-5.5",
+                "prompt_contract": "fitcv_structured_generation_prompt",
+                "template_path": "src/fitcv/prompts/templates/europass.md",
+                "response_schema_name": "fitcv_structured_cv_document",
+            },
+            "provider_calls": [
+                {
+                    "attempt_index": 1,
+                    "provider_status": "accepted",
+                    "input_character_count": 512,
+                    "evidence_item_count": 1,
+                }
+            ],
+            "validation_cycle": {
+                "initial_valid": True,
+                "final_valid": True,
+                "initial_missing_sections": [],
+                "final_missing_sections": [],
+                "grounding_violation_count": 0,
+                "skill_violation_count": 0,
+                "warnings_count": 0,
+            },
+            "repair_cycle": {
+                "repair_attempted": False,
+                "repair_attempt_count": 0,
+                "repair_missing_sections": [],
+            },
+        },
     }
 
     with patch(
@@ -327,54 +408,343 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     mock_agentic_generation.assert_called_once()
     mock_generate_cv.assert_not_called()
     assert result["cv_generation_debug_records"][0]["status"] == "accepted"
+    assert result["cv_generation_debug_records"][0]["cv_generation_model"] == "cx/gpt-5.5"
+    assert result["cv_generation_debug_records"][0]["runtime_provenance"]["provider"] == "openai"
+    assert result["cv_generation_debug_records"][0]["agentic_live_trace"]["trace_status"] == "completed"
     assert result["cv_generation_debug_records"][0]["markdown_final"].startswith("# Test Candidate")
+    assert result["agentic_live_trace"]["trace_status"] == "completed"
+    assert result["agentic_live_trace"]["job_traces"][0]["provider_calls"][0]["provider_status"] == "accepted"
     stage_artifacts = result["stage_transition_artifacts"]["stages"]
     assert stage_artifacts["cv_analysis"]["late_stage_mode"]["late_stage_mode"] == "agentic"
     assert stage_artifacts["cv_analysis"]["late_stage_mode"]["agentic_late_stage_enabled"] is True
     assert stage_artifacts["cv_analysis"]["late_stage_mode"]["agentic_status"] == "completed"
     assert stage_artifacts["cv_generation"]["late_stage_mode"]["late_stage_mode"] == "agentic"
+    assert stage_artifacts["cv_generation"]["decision_summary"]["cv_generation_model"] == "cx/gpt-5.5"
+    assert stage_artifacts["cv_generation"]["decision_summary"]["cv_generation_provider"] == "openai"
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_generate_from_analysis_uses_fitcv_langgraph_live_provider_when_env_present(
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    profile = _minimal_profile()
+    config = _minimal_config()
+    config["cv"]["agentic_late_stage"]["enabled"] = True
+    mock_run_all_validations.return_value = {
+        "valid": True,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {},
+    }
+    fake_generated_cv = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": "# Test Candidate\n## Summary\nGrounded summary\n## Skills\nSQL, Python\n## Experience\n- Built grounded reporting workflows.",
+    }
+
+    with patch(
+        "fitcv.agentic_cv_generation._generate_cv_with_live_provider",
+        return_value=fake_generated_cv,
+    ) as mock_live_generation, patch(
+        "fitcv.agentic_cv_generation._live_runtime_provenance_or_none",
+        return_value={
+            "runtime_path": "fitcv_langgraph_live",
+            "provider": "openai",
+            "model": "cx/gpt-5.4",
+        },
+    ):
+        result = generate_from_analysis(analysis_record, profile, config)
+
+    mock_live_generation.assert_called_once()
+    mock_generate_cv.assert_not_called()
+    assert result["status"] == "accepted"
+    assert result["runtime_provenance"]["runtime_path"] == "fitcv_langgraph_live"
+    assert result["agentic_live_trace"]["trace_status"] == "completed"
+    assert result["agentic_live_trace"]["runtime_provenance"]["response_schema_name"] == "fitcv_structured_cv_document"
+    assert result["agentic_live_trace"]["provider_calls"][0]["provider_status"] == "accepted"
+    assert result["agentic_live_trace"]["validation_cycle"]["final_valid"] is True
 
 
 @patch("fitcv.agentic_cv_generation.generate_cv")
-def test_generate_from_analysis_uses_fitcv_langgraph_live_provider_when_env_present(
+def test_generate_from_analysis_does_not_silently_fallback_when_live_runtime_returns_no_final_result(
     mock_generate_cv: MagicMock,
 ) -> None:
     analysis_record = _minimal_analysis_record()
     profile = _minimal_profile()
     config = _minimal_config()
     config["cv"]["agentic_late_stage"]["enabled"] = True
-    fake_state = {
-        "final_result": {
-            "status": "accepted",
-            "comparison_output": {
-                "draft": {
-                    "summary": "Grounded summary",
-                    "experience": [],
-                    "skills": ["SQL"],
-                }
-            },
-            "comparison_validation": {
-                "status": "accepted",
-                "failure_category": None,
-                "missing_sections": [],
-                "placeholder_paths": [],
-                "unsupported_claim_ids": [],
-            },
-        },
-        "repair_attempts": [],
-    }
 
     with patch(
-        "fitcv.agentic_cv_generation.run_cv_generation_from_analysis",
-        create=True,
-        return_value=fake_state,
-    ) as mock_langgraph_run, patch(
-        "fitcv.agentic_cv_generation.load_live_provider_config_from_env",
-        create=True,
-        return_value=object(),
+        "fitcv.agentic_cv_generation._generate_cv_with_live_provider",
+        side_effect=RuntimeError("live provider broke"),
+    ) as mock_live_generation, patch(
+        "fitcv.agentic_cv_generation._live_runtime_provenance_or_none",
+        return_value={
+            "runtime_path": "fitcv_langgraph_live",
+            "provider": "openai",
+            "model": "cx/gpt-5.4",
+        },
     ):
         result = generate_from_analysis(analysis_record, profile, config)
 
-    mock_langgraph_run.assert_called_once()
+    mock_live_generation.assert_called_once()
+    mock_generate_cv.assert_not_called()
+    assert result["status"] == "generation_failed"
+    assert result["runtime_provenance"]["runtime_path"] == "fitcv_langgraph_live"
+    assert result["error"]["stage"] == "agentic_live_provider"
+    assert result["agentic_live_trace"]["trace_status"] == "degraded"
+    assert result["agentic_live_trace"]["provider_calls"][0]["provider_status"] == "error"
+    assert result["agentic_live_trace"]["provider_calls"][0]["error_stage"] == "agentic_live_provider"
+
+
+def test_build_fitcv_langgraph_env_values_prefers_current_repo_env(tmp_path) -> None:
+    current_repo_root = tmp_path / "job-project"
+    current_repo_root.mkdir()
+    (current_repo_root / ".env").write_text(
+        "OPENAI_API_KEY=current-key\nFITCV_LANGGRAPH_MODEL=cx/gpt-5.5\n",
+        encoding="utf-8",
+    )
+    langgraph_root = tmp_path / "fitcv-langgraph"
+    langgraph_root.mkdir()
+    (langgraph_root / ".env").write_text(
+        "OPENAI_API_KEY=langgraph-key\nFITCV_LANGGRAPH_MODEL=gpt-5.4-mini\n",
+        encoding="utf-8",
+    )
+
+    with patch("fitcv.agentic_cv_generation._repo_root", return_value=current_repo_root):
+        env_values = _build_fitcv_langgraph_env_values(langgraph_root)
+
+    assert env_values["OPENAI_API_KEY"] == "current-key"
+    assert env_values["FITCV_LANGGRAPH_MODEL"] == "cx/gpt-5.5"
+
+
+def test_build_fitcv_langgraph_env_values_works_without_repo_root(tmp_path) -> None:
+    current_repo_root = tmp_path / "job-project"
+    current_repo_root.mkdir()
+    (current_repo_root / ".env").write_text(
+        "OPENAI_API_KEY=current-key\nFITCV_LANGGRAPH_MODEL=cx/gpt-5.4\n",
+        encoding="utf-8",
+    )
+
+    with patch("fitcv.agentic_cv_generation._repo_root", return_value=current_repo_root):
+        env_values = _build_fitcv_langgraph_env_values(None)
+
+    assert env_values["OPENAI_API_KEY"] == "current-key"
+    assert env_values["FITCV_LANGGRAPH_MODEL"] == "cx/gpt-5.4"
+
+
+def test_generate_from_analysis_live_provider_uses_template_rendering_and_full_validation(tmp_path: Path) -> None:
+    analysis_record = _minimal_analysis_record()
+    profile = _minimal_profile()
+    config = _minimal_config()
+    config["cv"]["agentic_late_stage"]["enabled"] = True
+    config["required_cv_sections"] = ["Experience", "Certifications", "Projects"]
+    config["cv"]["composition"] = {
+        "summary": {"enabled": False},
+        "experience": {"enabled": True, "required": True},
+        "skills": {"enabled": False},
+        "certifications": {"enabled": True, "required": True},
+        "projects": {"enabled": True, "required": True},
+    }
+    template_path = tmp_path / "cv_template.md"
+    template_path.write_text(
+        "# {{ candidate.name }}\n"
+        "**{{ headline }}**\n\n"
+        "## Experience\n"
+        "{% for exp in selected_experiences %}- {{ exp.role }} at {{ exp.company }}\n{% endfor %}\n"
+        "## Certifications\n"
+        "{% for cert in selected_certifications %}- {{ cert.name }}\n{% endfor %}\n"
+        "## Projects\n"
+        "{% for project in selected_projects %}- {{ project.name }}\n{% endfor %}\n",
+        encoding="utf-8",
+    )
+    config["_template_path"] = str(template_path)
+    fake_generated_cv = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": "",
+    }
+
+    with patch(
+        "fitcv.agentic_cv_generation._generate_cv_with_live_provider",
+        return_value=fake_generated_cv,
+    ), patch(
+        "fitcv.agentic_cv_generation._live_runtime_provenance_or_none",
+        return_value={
+            "runtime_path": "fitcv_langgraph_live",
+            "provider": "openai",
+            "model": "cx/gpt-5.4",
+        },
+    ):
+        result = generate_from_analysis(analysis_record, profile, config)
+
+    assert result["status"] == "validation_failed"
+    assert result["runtime_provenance"]["runtime_path"] == "fitcv_langgraph_live"
+    assert set(result["validation"]["missing_sections"]) >= {"Certifications", "Projects"}
+    assert result["agentic_live_trace"]["trace_status"] == "completed"
+    assert set(result["agentic_live_trace"]["validation_cycle"]["final_missing_sections"]) >= {"Certifications", "Projects"}
+
+
+@patch("fitcv.agentic_cv_generation.run_all_validations")
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_generate_from_analysis_live_provider_records_retry_trace(
+    mock_generate_cv: MagicMock,
+    mock_run_all_validations: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    profile = _minimal_profile()
+    config = _minimal_config()
+    config["cv"]["agentic_late_stage"]["enabled"] = True
+    mock_run_all_validations.side_effect = [
+        {
+            "valid": False,
+            "missing_sections": ["Projects"],
+            "grounding_violations": [],
+            "deterministic_grounding_violations": [],
+            "semantic_grounding_violations": [],
+            "skill_violations": [],
+            "warnings": [],
+            "support_source_summary": {},
+        },
+        {
+            "valid": True,
+            "missing_sections": [],
+            "grounding_violations": [],
+            "deterministic_grounding_violations": [],
+            "semantic_grounding_violations": [],
+            "skill_violations": [],
+            "warnings": [],
+            "support_source_summary": {},
+        },
+    ]
+    fake_generated_cv = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": "# Test Candidate\n## Experience\n- Built grounded reporting workflows.",
+    }
+
+    with patch(
+        "fitcv.agentic_cv_generation._generate_cv_with_live_provider",
+        side_effect=[fake_generated_cv, fake_generated_cv],
+    ) as mock_live_generation, patch(
+        "fitcv.agentic_cv_generation._live_runtime_provenance_or_none",
+        return_value={
+            "runtime_path": "fitcv_langgraph_live",
+            "provider": "openai",
+            "model": "cx/gpt-5.4",
+        },
+    ):
+        result = generate_from_analysis(analysis_record, profile, config)
+
+    mock_live_generation.assert_called()
     mock_generate_cv.assert_not_called()
     assert result["status"] == "accepted"
+    assert result["agentic_live_trace"]["repair_cycle"]["repair_attempted"] is True
+    assert result["agentic_live_trace"]["repair_cycle"]["repair_attempt_count"] == 1
+    assert result["agentic_live_trace"]["repair_cycle"]["repair_missing_sections"] == ["Projects"]
+    assert result["agentic_live_trace"]["provider_calls"][1]["attempt_index"] == 2
+    assert result["agentic_live_trace"]["provider_calls"][1]["repair_missing_sections"] == ["Projects"]
+
+
+def test_generate_cv_with_live_provider_renders_repo_template_markdown(tmp_path: Path) -> None:
+    config = _minimal_config()
+    config["cv"]["composition"] = {
+        "summary": {"enabled": False},
+        "experience": {"enabled": True, "required": True},
+        "skills": {"enabled": False},
+        "projects": {"enabled": True},
+    }
+    template_path = tmp_path / "cv_template.md"
+    template_path.write_text(
+        "# {{ candidate.name }}\n"
+        "**{{ headline }}**\n\n"
+        "## Experience\n"
+        "{% for exp in selected_experiences %}- {{ exp.role }} at {{ exp.company }}\n{% endfor %}\n"
+        "## Projects\n"
+        "{% for project in selected_projects %}- {{ project.name }}\n{% endfor %}\n",
+        encoding="utf-8",
+    )
+    config["_template_path"] = str(template_path)
+
+    response_payload = {
+        "sections": {
+            "header": {
+                "name": "Test Candidate",
+                "title": "Data Engineer",
+                "location": None,
+                "contact": {"email": None, "phone": None, "linkedin": None},
+            },
+            "summary": {"text": "Should be hidden"},
+            "experience": [
+                {
+                    "role": "Data Engineer",
+                    "company": "ACME",
+                    "start": None,
+                    "end": None,
+                    "location": None,
+                    "bullets": ["Built grounded reporting workflows."],
+                }
+            ],
+            "projects": [
+                {
+                    "name": "Banking KPI Project",
+                    "context": None,
+                    "bullets": ["Created KPI reporting assets."],
+                }
+            ],
+            "education": [],
+            "skills": {"groups": [{"label": "Core", "items": ["SQL"]}]},
+            "certifications": [],
+            "publications": [],
+            "languages": [],
+        }
+    }
+
+    class _FakeClient:
+        def __init__(self, _config: object) -> None:
+            pass
+
+        def generate_json(
+            self,
+            *,
+            instructions: str,
+            input_text: str,
+            schema_name: str,
+            schema: dict[str, object],
+        ) -> dict[str, object]:
+            assert "Generate a tailored CV as a structured JSON document." in input_text
+            assert schema_name == "fitcv_structured_cv_document"
+            assert "sections" in schema["properties"]  # type: ignore[index]
+            return response_payload
+
+    class _FakeLiveModule:
+        @staticmethod
+        def load_live_provider_config_from_env(_environ: dict[str, str]) -> object:
+            return object()
+
+        OpenAIResponsesClient = _FakeClient
+
+    with patch("fitcv.agentic_cv_generation.importlib.import_module", return_value=_FakeLiveModule()):
+        generated_cv = _generate_cv_with_live_provider(
+            job=_minimal_job(),
+            evidence=[{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
+            gap={"matched": ["SQL"], "missing": []},
+            profile=_minimal_profile(),
+            config=config,
+            fit_classification="strong",
+            evidence_selection_summary={"selected_evidence_count": 1},
+            repair_missing_sections=None,
+            env_values={"OPENAI_API_KEY": "test-key", "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.4"},
+        )
+
+    markdown = generated_cv["markdown"]
+    assert "## Experience" in markdown
+    assert "## Projects" in markdown
+    assert "## Summary" not in markdown
+    assert "## Skills" not in markdown
+    assert "Data Engineer at ACME" in markdown
+    assert "Banking KPI Project" in markdown

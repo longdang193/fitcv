@@ -17,6 +17,17 @@ Use one mode at a time. Do not mix a local web or worker process with the Docker
 - Local mode: run `.\start_web.ps1` and `.\start_worker.ps1`
 - Docker mode: from the checkout or worktree you want to run, use `docker compose up -d --build redis web worker`
 
+Agentic late-stage runs in Docker mode also depend on two local inputs:
+
+- repo `.env` with `OPENAI_API_KEY` and any `FITCV_LANGGRAPH_*` overrides
+- a sibling `fitcv-langgraph` checkout, or an explicit `FITCV_LANGGRAPH_REPO_PATH`
+
+The Compose services now load `.env` into both `web` and `worker`, mount that
+same file as `/app/.env`, and mount `${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}`
+into the containers as `/opt/fitcv-langgraph`. That keeps the current repo `.env`
+authoritative when both repos define `FITCV_LANGGRAPH_*` values. If your fork
+lives elsewhere, set `FITCV_LANGGRAPH_REPO_PATH` before `docker compose up`.
+
 If the Docker worker is already running and you want local mode:
 
 ```powershell

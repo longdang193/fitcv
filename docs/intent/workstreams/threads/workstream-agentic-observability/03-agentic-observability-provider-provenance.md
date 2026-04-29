@@ -23,7 +23,7 @@ provider bridge; diagnostics artifacts
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
 
 ## Linked Plan
 
