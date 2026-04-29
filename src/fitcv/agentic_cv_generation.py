@@ -122,9 +122,11 @@ class CvGenerationResult(TypedDict, total=False):
     agentic_live_trace: dict[str, Any]
 
 
-_LIVE_TRACE_SCHEMA_VERSION = "agentic_live_trace_job_v1"
+_LIVE_TRACE_SCHEMA_VERSION = "agentic_step_trace_record_v1"
 _LIVE_TRACE_SCHEMA_NAME = "fitcv_structured_cv_document"
 _LIVE_TRACE_PROMPT_CONTRACT = "fitcv_structured_generation_prompt"
+_LIVE_TRACE_FAMILY = "agentic_step_trace"
+_LIVE_TRACE_STEP_ID = "cv_generation"
 _LIVE_TRACE_DEBUG_ENV_KEYS = (
     "FITCV_LANGGRAPH_DEBUG_LIVE",
     "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH",
@@ -591,10 +593,11 @@ def _generate_cv_with_live_provider(
         trace_attempt.update(
             {
                 "attempt_index": attempt_index,
-                "request_started_at": started_at.isoformat(),
+                "attempt_type": "repair_retry" if repair_missing_sections else "initial_generation",
+                "started_at": started_at.isoformat(),
                 "input_character_count": len(prompt),
-                "evidence_item_count": len(evidence),
-                "repair_missing_sections": list(repair_missing_sections or []),
+                "input_item_count": len(evidence),
+                "retry_reason": "missing_sections" if repair_missing_sections else None,
                 "debug_flags_active": {
                     key: bool(str(env_values.get(key) or "").strip())
                     for key in _LIVE_TRACE_DEBUG_ENV_KEYS
@@ -628,7 +631,7 @@ def _generate_cv_with_live_provider(
         if trace_attempt is not None:
             trace_attempt.update(
                 {
-                    "request_finished_at": finished_at.isoformat(),
+                    "finished_at": finished_at.isoformat(),
                     "latency_ms": int((time.monotonic() - started_monotonic) * 1000),
                     "provider_status": provider_status,
                     "accepted_output_present": False,
@@ -641,7 +644,7 @@ def _generate_cv_with_live_provider(
     if trace_attempt is not None:
         trace_attempt.update(
             {
-                "request_finished_at": finished_at.isoformat(),
+                "finished_at": finished_at.isoformat(),
                 "latency_ms": int((time.monotonic() - started_monotonic) * 1000),
                 "provider_status": provider_status,
                 "accepted_output_present": True,
@@ -681,26 +684,36 @@ def _empty_agentic_live_trace(
 ) -> dict[str, Any]:
     return {
         "trace_schema_version": _LIVE_TRACE_SCHEMA_VERSION,
+        "trace_family": _LIVE_TRACE_FAMILY,
+        "step_id": _LIVE_TRACE_STEP_ID,
         "trace_status": "completed",
         "runtime_provenance": _build_live_trace_runtime_provenance(
             runtime_provenance,
             template_path=template_path,
         ),
-        "provider_calls": [],
-        "validation_cycle": {
+        "attempts": [],
+        "input_summary": {
+            "attempt_count": 0,
+            "input_item_count": 0,
+        },
+        "output_summary": {
+            "accepted_output_present": False,
+            "final_status": "",
+        },
+        "validation_summary": {
             "initial_valid": False,
             "final_valid": False,
-            "initial_missing_sections": [],
-            "final_missing_sections": [],
-            "grounding_violation_count": 0,
-            "skill_violation_count": 0,
-            "warnings_count": 0,
+            "initial_missing_fields": [],
+            "final_missing_fields": [],
+            "violation_count": 0,
+            "warning_count": 0,
         },
-        "repair_cycle": {
+        "repair_summary": {
             "repair_attempted": False,
             "repair_attempt_count": 0,
-            "repair_missing_sections": [],
+            "repair_targets": [],
         },
+        "error_summary": None,
     }
 
 
@@ -718,22 +731,24 @@ def _update_live_trace_validation_cycle(
     validation_initial: ValidationSnapshot | None,
     validation_final: dict[str, Any] | None,
 ) -> None:
-    if not isinstance(trace_payload.get("validation_cycle"), dict):
+    if not isinstance(trace_payload.get("validation_summary"), dict):
         return
-    validation_cycle = dict(trace_payload["validation_cycle"])
+    validation_summary = dict(trace_payload["validation_summary"])
     if validation_initial is None:
-        validation_cycle["initial_valid"] = False
-        validation_cycle["initial_missing_sections"] = []
+        validation_summary["initial_valid"] = False
+        validation_summary["initial_missing_fields"] = []
     else:
-        validation_cycle["initial_valid"] = bool(validation_initial["valid"])
-        validation_cycle["initial_missing_sections"] = list(validation_initial["missing_sections"])
+        validation_summary["initial_valid"] = bool(validation_initial["valid"])
+        validation_summary["initial_missing_fields"] = list(validation_initial["missing_sections"])
     if isinstance(validation_final, dict):
-        validation_cycle["final_valid"] = bool(validation_final.get("valid"))
-        validation_cycle["final_missing_sections"] = list(validation_final.get("missing_sections") or [])
-        validation_cycle["grounding_violation_count"] = len(list(validation_final.get("grounding_violations") or []))
-        validation_cycle["skill_violation_count"] = len(list(validation_final.get("skill_violations") or []))
-        validation_cycle["warnings_count"] = len(list(validation_final.get("warnings") or []))
-    trace_payload["validation_cycle"] = validation_cycle
+        validation_summary["final_valid"] = bool(validation_final.get("valid"))
+        validation_summary["final_missing_fields"] = list(validation_final.get("missing_sections") or [])
+        validation_summary["violation_count"] = (
+            len(list(validation_final.get("grounding_violations") or []))
+            + len(list(validation_final.get("skill_violations") or []))
+        )
+        validation_summary["warning_count"] = len(list(validation_final.get("warnings") or []))
+    trace_payload["validation_summary"] = validation_summary
 
 
 def _coerce_fit_classification(value: Any) -> FitClassification | None:
@@ -1030,9 +1045,10 @@ def generate_from_analysis(
             )
             first_attempt_trace.setdefault("attempt_index", 1)
             first_attempt_trace.setdefault("provider_status", "accepted")
+            first_attempt_trace.setdefault("attempt_type", "initial_generation")
             first_attempt_trace.setdefault("accepted_output_present", True)
-            first_attempt_trace.setdefault("repair_missing_sections", [])
-            trace_payload["provider_calls"].append(first_attempt_trace)
+            first_attempt_trace.setdefault("retry_reason", None)
+            trace_payload["attempts"].append(first_attempt_trace)
             structured_cv, markdown = _unwrap_generated_cv(generated_cv)
             structured_cv_initial = structured_cv
             validation = run_all_validations(
@@ -1073,9 +1089,10 @@ def generate_from_analysis(
                 )
                 second_attempt_trace.setdefault("attempt_index", 2)
                 second_attempt_trace.setdefault("provider_status", "accepted")
+                second_attempt_trace.setdefault("attempt_type", "repair_retry")
                 second_attempt_trace.setdefault("accepted_output_present", True)
-                second_attempt_trace.setdefault("repair_missing_sections", missing_sections)
-                trace_payload["provider_calls"].append(second_attempt_trace)
+                second_attempt_trace.setdefault("retry_reason", "missing_sections")
+                trace_payload["attempts"].append(second_attempt_trace)
                 structured_cv, markdown = _unwrap_generated_cv(generated_cv)
                 validation = run_all_validations(
                     markdown,
@@ -1089,14 +1106,26 @@ def generate_from_analysis(
                 validation_initial=validation_initial,
                 validation_final=validation,
             )
-            trace_payload["repair_cycle"] = {
+            trace_payload["input_summary"] = {
+                "attempt_count": len(list(trace_payload.get("attempts") or [])),
+                "input_item_count": len(evidence_payload),
+            }
+            trace_payload["repair_summary"] = {
                 "repair_attempted": bool(repair_attempt.get("performed")),
-                "repair_attempt_count": len(list(trace_payload.get("provider_calls") or [])) - 1,
-                "repair_missing_sections": list(repair_attempt.get("missing_sections") or []),
+                "repair_attempt_count": len(list(trace_payload.get("attempts") or [])) - 1,
+                "repair_targets": list(repair_attempt.get("missing_sections") or []),
                 "repair_reason": str(repair_attempt.get("reason") or ""),
             }
 
             if not validation["valid"]:
+                trace_payload["output_summary"] = {
+                    "accepted_output_present": False,
+                    "final_status": VALIDATION_FAILED_STATUS,
+                }
+                trace_payload["error_summary"] = {
+                    "error_stage": "validation",
+                    "error_message": f"Live provider CV validation failed for {extract_job_url(job)}",
+                }
                 return _build_result(
                     analysis_record=analysis_record,
                     job=job,
@@ -1116,6 +1145,11 @@ def generate_from_analysis(
                     agentic_live_trace=trace_payload,
                 )
 
+            trace_payload["output_summary"] = {
+                "accepted_output_present": True,
+                "final_status": ACCEPTED_STATUS,
+            }
+            trace_payload["error_summary"] = None
             return _build_result(
                 analysis_record=analysis_record,
                 job=job,
@@ -1132,13 +1166,17 @@ def generate_from_analysis(
                 agentic_live_trace=trace_payload,
             )
         except Exception as exc:
-            if not trace_payload["provider_calls"]:
-                trace_payload["provider_calls"].append(first_attempt_trace)
+            if not trace_payload["attempts"]:
+                trace_payload["attempts"].append(first_attempt_trace)
             trace_payload["trace_status"] = "degraded"
-            trace_payload["repair_cycle"] = {
+            trace_payload["input_summary"] = {
+                "attempt_count": len(list(trace_payload.get("attempts") or [])),
+                "input_item_count": len(evidence_payload),
+            }
+            trace_payload["repair_summary"] = {
                 "repair_attempted": bool(repair_attempt.get("performed")),
-                "repair_attempt_count": len(list(trace_payload.get("provider_calls") or [])) - 1,
-                "repair_missing_sections": list(repair_attempt.get("missing_sections") or []),
+                "repair_attempt_count": len(list(trace_payload.get("attempts") or [])) - 1,
+                "repair_targets": list(repair_attempt.get("missing_sections") or []),
                 "repair_reason": str(repair_attempt.get("reason") or ""),
             }
             _update_live_trace_validation_cycle(
@@ -1147,8 +1185,8 @@ def generate_from_analysis(
                 validation_final=None,
             )
             latest_attempt = (
-                trace_payload["provider_calls"][-1]
-                if isinstance(trace_payload.get("provider_calls"), list) and trace_payload["provider_calls"]
+                trace_payload["attempts"][-1]
+                if isinstance(trace_payload.get("attempts"), list) and trace_payload["attempts"]
                 else None
             )
             if isinstance(latest_attempt, dict):
@@ -1157,6 +1195,15 @@ def generate_from_analysis(
                 latest_attempt.setdefault("error_stage", "agentic_live_provider")
                 latest_attempt.setdefault("error_message", str(exc))
                 latest_attempt.setdefault("error_code", _error_code_from_message(str(exc)))
+            trace_payload["output_summary"] = {
+                "accepted_output_present": False,
+                "final_status": GENERATION_FAILED_STATUS,
+            }
+            trace_payload["error_summary"] = {
+                "error_stage": "agentic_live_provider",
+                "error_code": _error_code_from_message(str(exc)),
+                "error_message": str(exc),
+            }
             return _build_result(
                 analysis_record=analysis_record,
                 job=job,

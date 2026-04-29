@@ -362,6 +362,8 @@ def _build_cv_generation_debug_payload(
     }
     if isinstance(summary.get("agentic_live_trace"), dict):
         payload["agentic_live_trace"] = dict(summary["agentic_live_trace"])
+    if isinstance(summary.get("cv_analysis_trace"), dict):
+        payload["cv_analysis_trace"] = dict(summary["cv_analysis_trace"])
     return json.dumps(payload, ensure_ascii=False)
 
 
@@ -580,7 +582,117 @@ def _build_synonym_proposals_payload(
         "persistence_status": "persisted" if proposals else "not_applicable",
         "proposals": proposals,
     }
+    payload["synonym_proposals_trace"] = _build_synonym_proposals_trace_payload(
+        run_id=run_id,
+        created_at=created_at,
+        proposal_generation_status=str(payload["proposal_generation_status"] or ""),
+        persistence_status=str(payload["persistence_status"] or ""),
+        proposals=proposals,
+    )
     return json.dumps(payload, ensure_ascii=False)
+
+
+def _build_synonym_proposals_trace_payload(
+    *,
+    run_id: str,
+    created_at: datetime.datetime,
+    proposal_generation_status: str,
+    persistence_status: str,
+    proposals: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if proposal_generation_status == "not_applicable":
+        return {
+            "run_id": run_id,
+            "trace_schema_version": "agentic_step_trace_run_v1",
+            "trace_family": "agentic_step_trace",
+            "step_id": "synonym_proposals",
+            "created_at": created_at.isoformat(),
+            "trace_status": "not_applicable",
+            "trace_summary": {
+                "records_total": 0,
+                "present_records": 0,
+                "proposal_count": 0,
+            },
+            "records": [],
+            "degradation": {},
+            "artifact_refs": {},
+        }
+
+    trace_records: list[dict[str, Any]] = []
+    for proposal in proposals:
+        if not isinstance(proposal, dict):
+            continue
+        proposal_id = str(proposal.get("proposal_id") or "").strip()
+        alias = str(proposal.get("alias") or "").strip()
+        trace_records.append(
+            {
+                "trace_schema_version": "agentic_step_trace_record_v1",
+                "trace_family": "agentic_step_trace",
+                "step_id": "synonym_proposals",
+                "trace_status": "completed",
+                "record_id": proposal_id or alias,
+                "scope_type": "alias",
+                "scope_key": alias,
+                "status": str(proposal.get("proposal_status") or "proposed_unreviewed"),
+                "runtime_provenance": {
+                    "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+                    "provider": "fitcv_builtin",
+                    "mode_source": "mapping_suggestions_to_synonym_proposals",
+                },
+                "attempts": [
+                    {
+                        "attempt_index": 1,
+                        "attempt_type": "proposal_generation",
+                        "attempt_status": "completed",
+                        "provider_status": "completed",
+                    }
+                ],
+                "input_summary": {
+                    "alias": alias,
+                    "candidate_canonicals_count": len(list(proposal.get("candidate_canonicals") or [])),
+                },
+                "output_summary": {
+                    "proposal_family": str(proposal.get("proposal_family") or ""),
+                    "proposal_scope": str(proposal.get("proposal_scope") or ""),
+                    "confidence": float(proposal.get("confidence") or 0.0),
+                },
+                "validation_summary": {"status": "not_run"},
+                "repair_summary": {"repair_attempted": False, "repair_attempts": 0},
+                "error_summary": None,
+            }
+        )
+
+    trace_status = "completed"
+    degradation: dict[str, Any] = {}
+    if persistence_status == "bundle_only_degraded":
+        trace_status = "degraded"
+        degradation = {"reason": "synonym_proposals_bundle_only_degraded"}
+    elif persistence_status == "failed":
+        trace_status = "degraded"
+        degradation = {"reason": "synonym_proposals_persistence_failed"}
+    elif not trace_records:
+        trace_status = "partial"
+        degradation = {"reason": "proposal_generation_without_trace_records"}
+
+    return {
+        "run_id": run_id,
+        "trace_schema_version": "agentic_step_trace_run_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "created_at": created_at.isoformat(),
+        "trace_status": trace_status,
+        "trace_summary": {
+            "records_total": len(proposals),
+            "present_records": len(trace_records),
+            "proposal_count": len(proposals),
+        },
+        "records": trace_records,
+        "degradation": degradation,
+        "artifact_refs": {
+            "proposal_artifact": "synonym-proposals.json",
+            "stage_artifact": "enrich.json",
+        },
+    }
 
 
 def _summary_has_reached_stage(summary: dict[str, Any], stage_id: str) -> bool:

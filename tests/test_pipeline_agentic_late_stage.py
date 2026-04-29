@@ -359,6 +359,8 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
             "model": "cx/gpt-5.5",
         },
         "agentic_live_trace": {
+            "trace_family": "agentic_step_trace",
+            "step_id": "cv_generation",
             "trace_status": "completed",
             "runtime_provenance": {
                 "runtime_path": "fitcv_langgraph_live",
@@ -368,28 +370,37 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
                 "template_path": "src/fitcv/prompts/templates/europass.md",
                 "response_schema_name": "fitcv_structured_cv_document",
             },
-            "provider_calls": [
+            "attempts": [
                 {
                     "attempt_index": 1,
                     "provider_status": "accepted",
+                    "attempt_type": "initial_generation",
                     "input_character_count": 512,
-                    "evidence_item_count": 1,
+                    "input_item_count": 1,
                 }
             ],
-            "validation_cycle": {
+            "input_summary": {
+                "attempt_count": 1,
+                "input_item_count": 1,
+            },
+            "output_summary": {
+                "accepted_output_present": True,
+                "final_status": "accepted",
+            },
+            "validation_summary": {
                 "initial_valid": True,
                 "final_valid": True,
-                "initial_missing_sections": [],
-                "final_missing_sections": [],
-                "grounding_violation_count": 0,
-                "skill_violation_count": 0,
-                "warnings_count": 0,
+                "initial_missing_fields": [],
+                "final_missing_fields": [],
+                "violation_count": 0,
+                "warning_count": 0,
             },
-            "repair_cycle": {
+            "repair_summary": {
                 "repair_attempted": False,
                 "repair_attempt_count": 0,
-                "repair_missing_sections": [],
+                "repair_targets": [],
             },
+            "error_summary": None,
         },
     }
 
@@ -413,7 +424,9 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     assert result["cv_generation_debug_records"][0]["agentic_live_trace"]["trace_status"] == "completed"
     assert result["cv_generation_debug_records"][0]["markdown_final"].startswith("# Test Candidate")
     assert result["agentic_live_trace"]["trace_status"] == "completed"
-    assert result["agentic_live_trace"]["job_traces"][0]["provider_calls"][0]["provider_status"] == "accepted"
+    assert result["agentic_live_trace"]["trace_family"] == "agentic_step_trace"
+    assert result["agentic_live_trace"]["step_id"] == "cv_generation"
+    assert result["agentic_live_trace"]["records"][0]["attempts"][0]["provider_status"] == "accepted"
     stage_artifacts = result["stage_transition_artifacts"]["stages"]
     assert stage_artifacts["cv_analysis"]["late_stage_mode"]["late_stage_mode"] == "agentic"
     assert stage_artifacts["cv_analysis"]["late_stage_mode"]["agentic_late_stage_enabled"] is True
@@ -466,9 +479,11 @@ def test_generate_from_analysis_uses_fitcv_langgraph_live_provider_when_env_pres
     assert result["status"] == "accepted"
     assert result["runtime_provenance"]["runtime_path"] == "fitcv_langgraph_live"
     assert result["agentic_live_trace"]["trace_status"] == "completed"
+    assert result["agentic_live_trace"]["trace_family"] == "agentic_step_trace"
+    assert result["agentic_live_trace"]["step_id"] == "cv_generation"
     assert result["agentic_live_trace"]["runtime_provenance"]["response_schema_name"] == "fitcv_structured_cv_document"
-    assert result["agentic_live_trace"]["provider_calls"][0]["provider_status"] == "accepted"
-    assert result["agentic_live_trace"]["validation_cycle"]["final_valid"] is True
+    assert result["agentic_live_trace"]["attempts"][0]["provider_status"] == "accepted"
+    assert result["agentic_live_trace"]["validation_summary"]["final_valid"] is True
 
 
 @patch("fitcv.agentic_cv_generation.generate_cv")
@@ -499,8 +514,9 @@ def test_generate_from_analysis_does_not_silently_fallback_when_live_runtime_ret
     assert result["runtime_provenance"]["runtime_path"] == "fitcv_langgraph_live"
     assert result["error"]["stage"] == "agentic_live_provider"
     assert result["agentic_live_trace"]["trace_status"] == "degraded"
-    assert result["agentic_live_trace"]["provider_calls"][0]["provider_status"] == "error"
-    assert result["agentic_live_trace"]["provider_calls"][0]["error_stage"] == "agentic_live_provider"
+    assert result["agentic_live_trace"]["attempts"][0]["provider_status"] == "error"
+    assert result["agentic_live_trace"]["attempts"][0]["error_stage"] == "agentic_live_provider"
+    assert result["agentic_live_trace"]["error_summary"]["error_stage"] == "agentic_live_provider"
 
 
 def test_build_fitcv_langgraph_env_values_prefers_current_repo_env(tmp_path) -> None:
@@ -587,7 +603,7 @@ def test_generate_from_analysis_live_provider_uses_template_rendering_and_full_v
     assert result["runtime_provenance"]["runtime_path"] == "fitcv_langgraph_live"
     assert set(result["validation"]["missing_sections"]) >= {"Certifications", "Projects"}
     assert result["agentic_live_trace"]["trace_status"] == "completed"
-    assert set(result["agentic_live_trace"]["validation_cycle"]["final_missing_sections"]) >= {"Certifications", "Projects"}
+    assert set(result["agentic_live_trace"]["validation_summary"]["final_missing_fields"]) >= {"Certifications", "Projects"}
 
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")
@@ -643,11 +659,11 @@ def test_generate_from_analysis_live_provider_records_retry_trace(
     mock_live_generation.assert_called()
     mock_generate_cv.assert_not_called()
     assert result["status"] == "accepted"
-    assert result["agentic_live_trace"]["repair_cycle"]["repair_attempted"] is True
-    assert result["agentic_live_trace"]["repair_cycle"]["repair_attempt_count"] == 1
-    assert result["agentic_live_trace"]["repair_cycle"]["repair_missing_sections"] == ["Projects"]
-    assert result["agentic_live_trace"]["provider_calls"][1]["attempt_index"] == 2
-    assert result["agentic_live_trace"]["provider_calls"][1]["repair_missing_sections"] == ["Projects"]
+    assert result["agentic_live_trace"]["repair_summary"]["repair_attempted"] is True
+    assert result["agentic_live_trace"]["repair_summary"]["repair_attempt_count"] == 1
+    assert result["agentic_live_trace"]["repair_summary"]["repair_targets"] == ["Projects"]
+    assert result["agentic_live_trace"]["attempts"][1]["attempt_index"] == 2
+    assert result["agentic_live_trace"]["attempts"][1]["retry_reason"] == "missing_sections"
 
 
 def test_generate_cv_with_live_provider_renders_repo_template_markdown(tmp_path: Path) -> None:
