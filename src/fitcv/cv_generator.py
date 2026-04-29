@@ -1053,13 +1053,21 @@ def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) ->
         for group in sections["skills"]["groups"]
         for item in group["items"]
     ]
-    selected_projects = [
-        {
-            "name": project.get("name"),
-            "description": project.get("context") or "\n".join(project.get("bullets") or []),
-        }
-        for project in sections["projects"]
-    ]
+    selected_projects: list[dict[str, Any]] = []
+    for project in sections["projects"]:
+        context = str(project.get("context") or "").strip()
+        bullets = [str(bullet).strip() for bullet in (project.get("bullets") or []) if str(bullet).strip()]
+        description_lines: list[str] = []
+        if context:
+            description_lines.append(context)
+        if bullets:
+            description_lines.extend(f"- {bullet}" for bullet in bullets)
+        selected_projects.append(
+            {
+                "name": project.get("name"),
+                "description": "\n".join(description_lines).strip(),
+            }
+        )
     selected_education = [
         {
             "degree": item.get("degree"),

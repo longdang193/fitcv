@@ -846,6 +846,30 @@ def _should_retry_missing_sections(validation: dict[str, Any]) -> bool:
         return False
     return all(not validation.get(field) for field in _REPAIRABLE_VALIDATION_FIELDS)
 
+def _shallow_section_repair_targets(structured_cv: dict[str, Any] | None) -> list[str]:
+    if not isinstance(structured_cv, dict):
+        return []
+    sections = structured_cv.get("sections")
+    if not isinstance(sections, dict):
+        return []
+    targets: list[str] = []
+    experience_rows = list(sections.get("experience") or [])
+    if experience_rows and any(
+        isinstance(item, dict)
+        and not [str(b).strip() for b in list(item.get("bullets") or []) if str(b).strip()]
+        for item in experience_rows
+    ):
+        targets.append("experience")
+    project_rows = list(sections.get("projects") or [])
+    if project_rows and any(
+        isinstance(item, dict)
+        and str(item.get("context") or "").strip()
+        and not [str(b).strip() for b in list(item.get("bullets") or []) if str(b).strip()]
+        for item in project_rows
+    ):
+        targets.append("projects")
+    return targets
+
 
 def _build_validation_grounding_payload(
     analysis_record: dict[str, Any],
@@ -1070,9 +1094,13 @@ def generate_from_analysis(
                     structured_cv=structured_cv,
                 )
 
+            repair_targets: list[str] = []
             if not validation["valid"] and _should_retry_missing_sections(validation):
-                missing_sections = list(validation.get("missing_sections") or [])
-                repair_attempt = _build_repair_attempt(missing_sections)
+                repair_targets = list(validation.get("missing_sections") or [])
+            if not repair_targets:
+                repair_targets = _shallow_section_repair_targets(structured_cv)
+            if repair_targets:
+                repair_attempt = _build_repair_attempt(repair_targets)
                 second_attempt_trace: dict[str, Any] = {}
                 generated_cv = _generate_cv_with_live_provider(
                     job=job,
@@ -1082,7 +1110,7 @@ def generate_from_analysis(
                     config=config,
                     fit_classification=fit,
                     evidence_selection_summary=dict(analysis_record.get("evidence_selection_summary") or {}),
-                    repair_missing_sections=missing_sections,
+                    repair_missing_sections=repair_targets,
                     env_values=env_values,
                     trace_attempt=second_attempt_trace,
                     attempt_index=2,
@@ -1091,7 +1119,7 @@ def generate_from_analysis(
                 second_attempt_trace.setdefault("provider_status", "accepted")
                 second_attempt_trace.setdefault("attempt_type", "repair_retry")
                 second_attempt_trace.setdefault("accepted_output_present", True)
-                second_attempt_trace.setdefault("retry_reason", "missing_sections")
+                second_attempt_trace.setdefault("retry_reason", "missing_or_shallow_sections")
                 trace_payload["attempts"].append(second_attempt_trace)
                 structured_cv, markdown = _unwrap_generated_cv(generated_cv)
                 validation = run_all_validations(
@@ -1277,9 +1305,13 @@ def generate_from_analysis(
                 analysis_grounding=analysis_grounding,
             )
 
+        repair_targets: list[str] = []
         if not validation["valid"] and _should_retry_missing_sections(validation):
-            missing_sections = list(validation.get("missing_sections") or [])
-            repair_attempt = _build_repair_attempt(missing_sections)
+            repair_targets = list(validation.get("missing_sections") or [])
+        if not repair_targets:
+            repair_targets = _shallow_section_repair_targets(structured_cv)
+        if repair_targets:
+            repair_attempt = _build_repair_attempt(repair_targets)
             generated_cv = generate_cv(
                 job,
                 evidence_payload,
@@ -1288,7 +1320,7 @@ def generate_from_analysis(
                 config,
                 fit_classification=fit,
                 evidence_selection_summary=dict(analysis_record.get("evidence_selection_summary") or {}),
-                repair_missing_sections=missing_sections,
+                repair_missing_sections=repair_targets,
             )
             structured_cv, markdown = _unwrap_generated_cv(generated_cv)
             validation = run_all_validations(

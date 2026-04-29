@@ -1749,9 +1749,43 @@ def _build_cv_analysis_trace_summary(
         if status != CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
             attempted_total += 1
         raw_trace = record.get("cv_analysis_trace")
-        if not isinstance(raw_trace, dict):
-            continue
-        trace_record = dict(raw_trace)
+        trace_record: dict[str, Any]
+        if isinstance(raw_trace, dict):
+            trace_record = dict(raw_trace)
+        else:
+            # Backward-compatibility fallback for reused historical analysis
+            # records that predate cv_analysis_trace embedding.
+            trace_record = {
+                "trace_schema_version": "agentic_step_trace_record_v1",
+                "trace_family": "agentic_step_trace",
+                "step_id": "cv_analysis",
+                "trace_status": "degraded" if status == CV_ANALYSIS_FAILED_STATUS else "completed",
+                "runtime_provenance": {
+                    "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+                    "provider": "fitcv_builtin",
+                    "mode_source": "cv.agentic_late_stage.enabled",
+                },
+                "attempts": [
+                    {
+                        "attempt_index": 1,
+                        "attempt_type": "analysis",
+                        "attempt_status": status or "unknown",
+                        "provider_status": "failed" if status == CV_ANALYSIS_FAILED_STATUS else "completed",
+                    }
+                ],
+                "input_summary": {
+                    "analysis_input_fingerprint": record.get("analysis_input_fingerprint"),
+                },
+                "output_summary": {
+                    "selected_evidence_count": len(list(record.get("evidence_used") or [])),
+                    "fallback_used": bool(
+                        dict(record.get("evidence_selection_summary") or {}).get("fallback_used", False)
+                    ),
+                },
+                "validation_summary": {"status": "not_run"},
+                "repair_summary": {"repair_attempted": False, "repair_attempts": 0},
+                "error_summary": dict(record.get("error") or {}) or None,
+            }
         job_url = str(record.get("job_url") or "").strip()
         trace_record.setdefault("record_id", job_url or str(record.get("job_title") or "").strip())
         trace_record.setdefault("scope_type", "job")

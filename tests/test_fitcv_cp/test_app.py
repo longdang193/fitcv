@@ -2573,7 +2573,13 @@ def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
                 }
             ),
     )
-    with patch("fitcv_cp.app.get_run", return_value=run):
+    with patch("fitcv_cp.app.get_run", return_value=run), patch(
+        "fitcv_cp.app.list_cvs_for_run",
+        return_value=[{"version_id": "v-1"}],
+    ), patch(
+        "fitcv_cp.app.get_cv_markdown",
+        return_value="# Sample CV\n\n## Experience\n- Item",
+    ):
         resp = TestClient(_app()).get("/admin/runs/run-bundle-success-1/artifacts.zip")
 
     assert resp.status_code == 200
@@ -2596,6 +2602,7 @@ def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
         assert "mapping-suggestions.json" in names
         assert "synonym-proposals.json" in names
         assert "synonym-proposals-trace.json" in names
+        assert "cv_v-1.md" in names
         manifest = json.loads(archive.read("manifest.json"))
         analysis_trace_payload = json.loads(archive.read("cv-analysis-trace.json"))
         trace_payload = json.loads(archive.read("agentic-live-trace.json"))
@@ -5599,6 +5606,18 @@ def test_settings_page_agentic_truth_copy_points_to_run_detail_and_settings_used
     html = resp.text
     assert "settings-used.json" in html
     assert "run detail" in html.lower()
+
+def test_settings_page_shows_mode_summary_strip_for_agentic_vs_cv_model() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Agentic Mode:" in html
+    assert "Live Provider:" in html
+    assert "Live Model:" in html
+    assert "CV Model (Settings):" in html
+    assert "Run Truth Check" in html
+    assert "Agentic Runtime Alignment" in html
 
 
 def test_settings_page_marks_dirty_rows_when_draft_differs_from_effective() -> None:
