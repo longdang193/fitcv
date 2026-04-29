@@ -59,7 +59,7 @@ can make this configurable without code changes.
 import logging
 import uuid
 from copy import deepcopy
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 from fitcv.ai_score import build_ai_score_input_fingerprint, run_ai_scoring
 from fitcv.agentic_cv_analysis import analyze_ranked_job as run_agentic_cv_analysis
@@ -532,6 +532,16 @@ def _build_export_results(
                 "ranking_fit_label": cv_row.get("ranking_fit_label") or cv_row.get("fit_classification"),
                 "fit_classification": cv_row.get("fit_classification"),
                 "model_used": cv_row.get("cv_generation_model"),
+                "runtime_path": (
+                    (cv_row.get("runtime_provenance") or {}).get("runtime_path")
+                    if isinstance(cv_row.get("runtime_provenance"), dict)
+                    else None
+                ),
+                "provider": (
+                    (cv_row.get("runtime_provenance") or {}).get("provider")
+                    if isinstance(cv_row.get("runtime_provenance"), dict)
+                    else None
+                ),
                 "prompt_id": cv_row.get("cv_prompt_id"),
                 "prompt_template_path": cv_row.get("cv_prompt_template_path"),
                 "schema_version": (
@@ -905,7 +915,7 @@ def _collect_mapping_suggestions(enriched: list[dict[str, Any]], run_id: str) ->
         for suggestion in list(job.get("mapping_suggestions") or []):
             if not isinstance(suggestion, dict):
                 continue
-            record = {
+            record: dict[str, Any] = {
                 "run_id": run_id,
                 "job_url": job_url,
                 "job_title": job_title,
@@ -1498,9 +1508,11 @@ def _build_cv_generation_debug_record(
     markdown_final: str | None,
     enabled_sections: list[str] | None,
     cv_generation_model: str | None,
+    runtime_provenance: dict[str, Any] | None,
     cv_prompt_id: str | None,
     cv_prompt_template_path: str | None,
     error: dict[str, str] | None,
+    agentic_live_trace: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     ranking_fit_label = _authoritative_ranking_fit_label(job, fit_classification)
     ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
@@ -1522,7 +1534,7 @@ def _build_cv_generation_debug_record(
         cv_analysis_status=cv_analysis_status,
         cv_status=cv_generation_status,
     )
-    return {
+    payload = {
         "job_url": str(job.get("job_url") or ""),
         "job_title": _extract_job_title(job),
         "status": status,
@@ -1545,6 +1557,130 @@ def _build_cv_generation_debug_record(
         # Reranker blocks and fit-gate skips are expected outcomes, not generation runtime errors.
         "outcome_reason": error if status in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
         "error": error if status not in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
+    }
+    if isinstance(runtime_provenance, dict):
+        payload["runtime_provenance"] = dict(runtime_provenance)
+    if isinstance(agentic_live_trace, dict):
+        payload["agentic_live_trace"] = dict(agentic_live_trace)
+    return payload
+
+
+def _resolved_cv_generation_model(
+    default_model: str | None,
+    runtime_provenance: dict[str, Any] | None,
+) -> str | None:
+    if isinstance(runtime_provenance, dict):
+        runtime_model = str(runtime_provenance.get("model") or "").strip()
+        if runtime_model:
+            return runtime_model
+    return default_model
+
+
+def _summarize_cv_generation_model(
+    cv_generation_debug_records: list[dict[str, Any]],
+    default_model: str | None,
+) -> str | None:
+    attempted_statuses = {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
+    models = [
+        str(record.get("cv_generation_model") or "").strip()
+        for record in cv_generation_debug_records
+        if str(record.get("status") or "") in attempted_statuses
+        and str(record.get("cv_generation_model") or "").strip()
+    ]
+    unique_models = sorted(set(models))
+    if len(unique_models) == 1:
+        return unique_models[0]
+    if len(unique_models) > 1:
+        return "mixed"
+    return default_model
+
+
+def _summarize_cv_generation_provider(
+    cv_generation_debug_records: list[dict[str, Any]],
+) -> str | None:
+    attempted_statuses = {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
+    providers = [
+        str((record.get("runtime_provenance") or {}).get("provider") or "").strip()
+        for record in cv_generation_debug_records
+        if str(record.get("status") or "") in attempted_statuses
+        and isinstance(record.get("runtime_provenance"), dict)
+        and str((record.get("runtime_provenance") or {}).get("provider") or "").strip()
+    ]
+    unique_providers = sorted(set(providers))
+    if len(unique_providers) == 1:
+        return unique_providers[0]
+    if len(unique_providers) > 1:
+        return "mixed"
+    return None
+
+
+def _build_agentic_live_trace_summary(
+    *,
+    run_id: str | None,
+    cv_generation_debug_records: list[dict[str, Any]],
+    late_stage_mode: dict[str, Any],
+) -> dict[str, Any]:
+    agentic_mode = str(late_stage_mode.get("late_stage_mode") or "").strip()
+    if agentic_mode != "agentic":
+        return {
+            "run_id": run_id,
+            "trace_schema_version": "agentic_live_trace_run_v1",
+            "late_stage_mode": dict(late_stage_mode),
+            "trace_status": "not_applicable",
+            "trace_summary": {
+                "job_traces_total": 0,
+                "present_job_traces": 0,
+                "attempted_generation_jobs_total": 0,
+            },
+            "job_traces": [],
+            "degradation": {},
+        }
+
+    attempted_statuses = {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
+    attempted_records = [
+        record for record in cv_generation_debug_records
+        if str(record.get("status") or "") in attempted_statuses
+    ]
+    job_traces = [
+        {
+            "job_url": str(record.get("job_url") or ""),
+            "job_title": str(record.get("job_title") or ""),
+            "cv_generation_status": str(record.get("status") or ""),
+            "decision_chain": dict(record.get("decision_chain") or {}),
+            **dict(record.get("agentic_live_trace") or {}),
+            "artifact_refs": {
+                "cv_debug_artifact": "cv-debug.json",
+                "stage_artifact": "cv_generation.json",
+            },
+        }
+        for record in attempted_records
+        if isinstance(record.get("agentic_live_trace"), dict)
+    ]
+    attempted_total = len(attempted_records)
+    present_total = len(job_traces)
+    trace_status = "completed"
+    degradation: dict[str, Any] = {}
+    if attempted_total == 0:
+        trace_status = "partial"
+        degradation = {"reason": "agentic_enabled_without_attempted_generation_records"}
+    elif present_total < attempted_total:
+        trace_status = "partial"
+        degradation = {"reason": "missing_job_trace_records"}
+    elif any(str(trace.get("trace_status") or "") == "degraded" for trace in job_traces):
+        trace_status = "degraded"
+        degradation = {"reason": "provider_or_capture_degraded"}
+    return {
+        "run_id": run_id,
+        "trace_schema_version": "agentic_live_trace_run_v1",
+        "late_stage_mode": dict(late_stage_mode),
+        "trace_status": trace_status,
+        "trace_summary": {
+            "job_traces_total": attempted_total,
+            "present_job_traces": present_total,
+            "attempted_generation_jobs_total": attempted_total,
+        },
+        "job_traces": job_traces,
+        "degradation": degradation,
     }
 
 
@@ -1767,7 +1903,7 @@ def _job_sample(job: dict[str, Any]) -> dict[str, Any] | None:
     job_url = _extract_job_url(job)
     if not job_url:
         return None
-    sample = {
+    sample: dict[str, Any] = {
         "job_url": job_url,
         "job_title": _extract_job_title(job),
         "company": str(job.get("company_name") or job.get("companyName") or ""),
@@ -2016,7 +2152,7 @@ def _stage_block(
         block["settings_refs"] = settings_refs
     if late_stage_mode:
         block["late_stage_mode"] = late_stage_mode
-    return _truncate_stage_value(block)
+    return cast(dict[str, Any], _truncate_stage_value(block))
 
 
 def _build_stage_transition_artifacts(
@@ -2213,7 +2349,7 @@ def _build_stage_transition_artifacts(
         record for record in cv_analysis_results
         if str(record.get("status") or "") != CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
     ]
-    cv_analysis_reuse_metrics = {
+    cv_analysis_reuse_metrics: dict[str, Any] = {
         "analysis_rows_executed": len(cv_analysis_executed_rows),
         "reused_analysis_rows": sum(
             1 for record in cv_analysis_executed_rows
@@ -2554,7 +2690,13 @@ def _build_stage_transition_artifacts(
                         if str(record.get("status") or "") == "ready_for_generation"
                     ),
                     "quality_metrics": cv_generation_quality_metrics,
-                    "cv_generation_model": get_cv_generation_model(config),
+                    "cv_generation_model": _summarize_cv_generation_model(
+                        cv_generation_debug_records,
+                        get_cv_generation_model(config),
+                    ),
+                    "cv_generation_provider": _summarize_cv_generation_provider(
+                        cv_generation_debug_records,
+                    ),
                     "cv_prompt_id": cv_generation_prompt_provenance["prompt_id"],
                     "cv_prompt_template_path": cv_generation_prompt_provenance["template_path"],
                 },
@@ -3126,9 +3268,9 @@ def run_pipeline(
         ai_scores = []
         for shortlisted_job in ai_score_candidates:
             job_url = _extract_job_url(shortlisted_job)
-            ai_row = reused_ai_scores_by_url.get(job_url) or fresh_ai_scores_by_url.get(job_url)
-            if ai_row is not None:
-                ai_scores.append(ai_row)
+            score_row: dict[str, Any] | None = reused_ai_scores_by_url.get(job_url) or fresh_ai_scores_by_url.get(job_url)
+            if score_row is not None:
+                ai_scores.append(score_row)
         if reporter is not None:
             reporter.emit("layer3_ai_score", "info", f"AI scored: {len(ai_scores)} jobs")  # type: ignore[union-attr]
 
@@ -3237,6 +3379,7 @@ def run_pipeline(
                         markdown_final=None,
                         enabled_sections=enabled_cv_sections,
                         cv_generation_model=cv_generation_model_value,
+                        runtime_provenance=None,
                         cv_prompt_id=cv_prompt_id_value,
                         cv_prompt_template_path=cv_prompt_template_path_value,
                         error=analysis_record.get("outcome_reason"),
@@ -3278,6 +3421,7 @@ def run_pipeline(
                             markdown_final=None,
                             enabled_sections=enabled_cv_sections,
                             cv_generation_model=cv_generation_model_value,
+                            runtime_provenance=None,
                             cv_prompt_id=cv_prompt_id_value,
                             cv_prompt_template_path=cv_prompt_template_path_value,
                             error=debug_error if isinstance(debug_error, dict) else None,
@@ -3337,6 +3481,7 @@ def run_pipeline(
                                 markdown_final=None,
                                 enabled_sections=enabled_cv_sections,
                                 cv_generation_model=cv_generation_model_value,
+                                runtime_provenance=None,
                                 cv_prompt_id=cv_prompt_id_value,
                                 cv_prompt_template_path=cv_prompt_template_path_value,
                                 error=analysis_record.get("outcome_reason") or analysis_record["error"],
@@ -3429,6 +3574,7 @@ def run_pipeline(
                             markdown_final=None,
                             enabled_sections=enabled_cv_sections,
                             cv_generation_model=cv_generation_model_value,
+                            runtime_provenance=None,
                             cv_prompt_id=cv_prompt_id_value,
                             cv_prompt_template_path=cv_prompt_template_path_value,
                             error=analysis_record.get("outcome_reason") or analysis_record["error"],
@@ -3484,9 +3630,10 @@ def run_pipeline(
                         markdown_final=None,
                         enabled_sections=enabled_cv_sections,
                         cv_generation_model=cv_generation_model_value,
+                        runtime_provenance=None,
                         cv_prompt_id=cv_prompt_id_value,
                         cv_prompt_template_path=cv_prompt_template_path_value,
-                            error=analysis_record["error"],
+                        error=analysis_record["error"],
                     )
                 )
                 if reporter is not None:
@@ -3611,6 +3758,9 @@ def run_pipeline(
         repair_attempt = dict(_EMPTY_REPAIR_ATTEMPT)
         structured_cv_final: dict[str, Any] | None = None
         markdown_final: str | None = None
+        job_cv_generation_model_value: str | None = cv_generation_model_value
+        job_runtime_provenance: dict[str, Any] | None = None
+        job_agentic_live_trace: dict[str, Any] | None = None
         try:
             if agentic_late_stage_enabled:
                 agentic_generation_result = run_agentic_cv_generation(
@@ -3618,6 +3768,14 @@ def run_pipeline(
                     profile=profile,
                     config=config,
                 )
+                job_cv_generation_model_value = _resolved_cv_generation_model(
+                    cv_generation_model_value,
+                    agentic_generation_result.get("runtime_provenance"),
+                )
+                if isinstance(agentic_generation_result.get("runtime_provenance"), dict):
+                    job_runtime_provenance = dict(agentic_generation_result["runtime_provenance"])
+                if isinstance(agentic_generation_result.get("agentic_live_trace"), dict):
+                    job_agentic_live_trace = dict(agentic_generation_result["agentic_live_trace"])
                 fit = str(agentic_generation_result["fit_classification"] or fit)
                 analysis_input_summary = dict(agentic_generation_result["analysis_input_summary"])
                 evidence_used = list(agentic_generation_result["evidence_used"])
@@ -3646,7 +3804,8 @@ def run_pipeline(
                             structured_cv_final=structured_cv_final,
                             markdown_final=markdown_final,
                             enabled_sections=enabled_cv_sections,
-                            cv_generation_model=cv_generation_model_value,
+                            cv_generation_model=job_cv_generation_model_value,
+                            runtime_provenance=job_runtime_provenance,
                             cv_prompt_id=cv_prompt_id_value,
                             cv_prompt_template_path=cv_prompt_template_path_value,
                             error=(
@@ -3657,6 +3816,7 @@ def run_pipeline(
                                 if generation_error is not None
                                 else None
                             ),
+                            agentic_live_trace=job_agentic_live_trace,
                         )
                     )
                     continue
@@ -3763,13 +3923,15 @@ def run_pipeline(
                         structured_cv_final=None,
                         markdown_final=None,
                         enabled_sections=enabled_cv_sections,
-                        cv_generation_model=cv_generation_model_value,
+                        cv_generation_model=job_cv_generation_model_value,
+                        runtime_provenance=job_runtime_provenance,
                         cv_prompt_id=cv_prompt_id_value,
                         cv_prompt_template_path=cv_prompt_template_path_value,
                         error={
                             "stage": "validation",
                             "message": f"CV validation failed for {job.get('job_url')}",
                         },
+                        agentic_live_trace=job_agentic_live_trace,
                     )
                 )
                 if reporter is not None:
@@ -3786,7 +3948,7 @@ def run_pipeline(
                             deterministic_outcome="rejected",
                             stage_owned_subreason="validation_failed",
                             provenance={
-                                "cv_generation_model": cv_generation_model_value,
+                                "cv_generation_model": job_cv_generation_model_value,
                             },
                             input_snapshot={
                                 "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
@@ -3817,7 +3979,7 @@ def run_pipeline(
                 gap_summary=gap or {},
                 fit_classification=fit,
                 cv_structured=structured_cv,
-                cv_generation_model=cv_generation_model_value,
+                cv_generation_model=job_cv_generation_model_value,
                 cv_prompt_version=cv_prompt_version_value,
             )
             store_cv_version(version, config)
@@ -3828,7 +3990,8 @@ def run_pipeline(
                 "cv_version_id": version["version_id"],
                 "gap": gap,
                 "structured_cv": structured_cv,
-                "cv_generation_model": cv_generation_model_value,
+                "cv_generation_model": job_cv_generation_model_value,
+                "runtime_provenance": job_runtime_provenance,
                 "cv_prompt_id": cv_prompt_id_value,
                 "cv_prompt_template_path": cv_prompt_template_path_value,
                 "cv_markdown": cv,
@@ -3850,10 +4013,12 @@ def run_pipeline(
                     structured_cv_final=structured_cv_final,
                     markdown_final=markdown_final,
                     enabled_sections=enabled_cv_sections,
-                    cv_generation_model=cv_generation_model_value,
+                    cv_generation_model=job_cv_generation_model_value,
+                    runtime_provenance=job_runtime_provenance,
                     cv_prompt_id=cv_prompt_id_value,
                     cv_prompt_template_path=cv_prompt_template_path_value,
                     error=None,
+                    agentic_live_trace=job_agentic_live_trace,
                 )
             )
             logger.info("[run_id=%s] CV generated for %s (fit=%s)", run_id, job.get("job_url"), fit)
@@ -3877,13 +4042,15 @@ def run_pipeline(
                     structured_cv_final=structured_cv_final if failure_status == "persistence_failed" else None,
                     markdown_final=markdown_final if failure_status == "persistence_failed" else None,
                     enabled_sections=enabled_cv_sections,
-                    cv_generation_model=cv_generation_model_value,
+                    cv_generation_model=job_cv_generation_model_value,
+                    runtime_provenance=job_runtime_provenance,
                     cv_prompt_id=cv_prompt_id_value,
                     cv_prompt_template_path=cv_prompt_template_path_value,
                     error={
                         "stage": failure_stage,
                         "message": str(exc),
                     },
+                    agentic_live_trace=job_agentic_live_trace,
                 )
             )
             if reporter is not None:
@@ -3900,7 +4067,7 @@ def run_pipeline(
                         deterministic_outcome="rejected",
                         stage_owned_subreason=failure_status,
                         provenance={
-                            "cv_generation_model": cv_generation_model_value,
+                            "cv_generation_model": job_cv_generation_model_value,
                         },
                         input_snapshot={
                             "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
@@ -3951,15 +4118,21 @@ def run_pipeline(
         str(record.get("status") or "") in {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
         for record in cv_generation_debug_records
     )
+    late_stage_mode_payload = _build_late_stage_mode_payload(
+        agentic_late_stage_enabled=agentic_late_stage_enabled,
+        stage_reached=cv_analysis_reached or cv_generation_reached,
+    )
     summary: dict[str, Any] = {
         "run_id": run_id,
         "total_jobs": len(raw_jobs),
         "passed_filter": len(passed_jobs),
         "ranked": len(ranked),
         "cvs_generated": len(results),
-        "late_stage_mode": _build_late_stage_mode_payload(
-            agentic_late_stage_enabled=agentic_late_stage_enabled,
-            stage_reached=cv_analysis_reached or cv_generation_reached,
+        "late_stage_mode": late_stage_mode_payload,
+        "agentic_live_trace": _build_agentic_live_trace_summary(
+            run_id=run_id,
+            cv_generation_debug_records=cv_generation_debug_records,
+            late_stage_mode=late_stage_mode_payload,
         ),
         "late_stage_reuse_snapshots": late_stage_reuse_snapshots,
         "cv_generation_debug_records": cv_generation_debug_records,
