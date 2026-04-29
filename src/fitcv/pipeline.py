@@ -1040,6 +1040,28 @@ def _build_checkpoint_summary(
         candidate_query_debug=candidate_query_debug,
         final_top_n=final_top_n,
     )
+    cv_analysis_results = list(state.get("cv_analysis_results") or [])
+    cv_generation_debug_records = list(state.get("cv_generation_debug_records") or [])
+    ranked = list(state.get("ranked") or [])
+    cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
+    cv_generation_reached = any(
+        str(record.get("status") or "") in {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
+        for record in cv_generation_debug_records
+    )
+    late_stage_mode_payload = _build_late_stage_mode_payload(
+        agentic_late_stage_enabled=_agentic_late_stage_enabled(config),
+        stage_reached=cv_analysis_reached or cv_generation_reached,
+    )
+    summary["cv_analysis_trace"] = _build_cv_analysis_trace_summary(
+        run_id=run_id,
+        cv_analysis_results=cv_analysis_results,
+        late_stage_mode=late_stage_mode_payload,
+    )
+    summary["agentic_live_trace"] = _build_agentic_live_trace_summary(
+        run_id=run_id,
+        cv_generation_debug_records=cv_generation_debug_records,
+        late_stage_mode=late_stage_mode_payload,
+    )
     summary["paused_after_stage"] = paused_after_stage
     summary["checkpoint_payload"] = _checkpoint_payload_from_state(state)
     return summary
@@ -1508,7 +1530,7 @@ def _build_cv_generation_debug_record(
     markdown_final: str | None,
     enabled_sections: list[str] | None,
     cv_generation_model: str | None,
-    runtime_provenance: dict[str, Any] | None,
+    runtime_provenance: dict[str, Any] | None = None,
     cv_prompt_id: str | None,
     cv_prompt_template_path: str | None,
     error: dict[str, str] | None,
@@ -1624,16 +1646,19 @@ def _build_agentic_live_trace_summary(
     if agentic_mode != "agentic":
         return {
             "run_id": run_id,
-            "trace_schema_version": "agentic_live_trace_run_v1",
+            "trace_schema_version": "agentic_step_trace_run_v1",
+            "trace_family": "agentic_step_trace",
+            "step_id": "cv_generation",
             "late_stage_mode": dict(late_stage_mode),
             "trace_status": "not_applicable",
             "trace_summary": {
-                "job_traces_total": 0,
-                "present_job_traces": 0,
+                "records_total": 0,
+                "present_records": 0,
                 "attempted_generation_jobs_total": 0,
             },
-            "job_traces": [],
+            "records": [],
             "degradation": {},
+            "artifact_refs": {},
         }
 
     attempted_statuses = {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
@@ -1641,23 +1666,25 @@ def _build_agentic_live_trace_summary(
         record for record in cv_generation_debug_records
         if str(record.get("status") or "") in attempted_statuses
     ]
-    job_traces = [
-        {
-            "job_url": str(record.get("job_url") or ""),
-            "job_title": str(record.get("job_title") or ""),
-            "cv_generation_status": str(record.get("status") or ""),
-            "decision_chain": dict(record.get("decision_chain") or {}),
-            **dict(record.get("agentic_live_trace") or {}),
-            "artifact_refs": {
-                "cv_debug_artifact": "cv-debug.json",
-                "stage_artifact": "cv_generation.json",
-            },
+    trace_records: list[dict[str, Any]] = []
+    for record in attempted_records:
+        raw_trace = record.get("agentic_live_trace")
+        if not isinstance(raw_trace, dict):
+            continue
+        trace_record = dict(raw_trace)
+        job_url = str(record.get("job_url") or "").strip()
+        trace_record.setdefault("record_id", job_url or str(record.get("job_title") or "").strip())
+        trace_record.setdefault("scope_type", "job")
+        trace_record.setdefault("scope_key", job_url)
+        trace_record["status"] = str(record.get("status") or "")
+        trace_record["decision_chain"] = dict(record.get("decision_chain") or {})
+        trace_record["artifact_refs"] = {
+            "cv_debug_artifact": "cv-debug.json",
+            "stage_artifact": "cv_generation.json",
         }
-        for record in attempted_records
-        if isinstance(record.get("agentic_live_trace"), dict)
-    ]
+        trace_records.append(trace_record)
     attempted_total = len(attempted_records)
-    present_total = len(job_traces)
+    present_total = len(trace_records)
     trace_status = "completed"
     degradation: dict[str, Any] = {}
     if attempted_total == 0:
@@ -1666,21 +1693,109 @@ def _build_agentic_live_trace_summary(
     elif present_total < attempted_total:
         trace_status = "partial"
         degradation = {"reason": "missing_job_trace_records"}
-    elif any(str(trace.get("trace_status") or "") == "degraded" for trace in job_traces):
+    elif any(str(trace.get("trace_status") or "") == "degraded" for trace in trace_records):
         trace_status = "degraded"
         degradation = {"reason": "provider_or_capture_degraded"}
     return {
         "run_id": run_id,
-        "trace_schema_version": "agentic_live_trace_run_v1",
+        "trace_schema_version": "agentic_step_trace_run_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_generation",
         "late_stage_mode": dict(late_stage_mode),
         "trace_status": trace_status,
         "trace_summary": {
-            "job_traces_total": attempted_total,
-            "present_job_traces": present_total,
+            "records_total": attempted_total,
+            "present_records": present_total,
             "attempted_generation_jobs_total": attempted_total,
         },
-        "job_traces": job_traces,
+        "records": trace_records,
         "degradation": degradation,
+        "artifact_refs": {
+            "cv_debug_artifact": "cv-debug.json",
+            "stage_artifact": "cv_generation.json",
+        },
+    }
+
+
+def _build_cv_analysis_trace_summary(
+    *,
+    run_id: str | None,
+    cv_analysis_results: list[dict[str, Any]],
+    late_stage_mode: dict[str, Any],
+) -> dict[str, Any]:
+    agentic_mode = str(late_stage_mode.get("late_stage_mode") or "").strip()
+    if agentic_mode != "agentic":
+        return {
+            "run_id": run_id,
+            "trace_schema_version": "agentic_step_trace_run_v1",
+            "trace_family": "agentic_step_trace",
+            "step_id": "cv_analysis",
+            "late_stage_mode": dict(late_stage_mode),
+            "trace_status": "not_applicable",
+            "trace_summary": {
+                "records_total": 0,
+                "present_records": 0,
+                "attempted_analysis_jobs_total": 0,
+            },
+            "records": [],
+            "degradation": {},
+            "artifact_refs": {},
+        }
+
+    trace_records: list[dict[str, Any]] = []
+    attempted_total = 0
+    for record in cv_analysis_results:
+        status = str(record.get("status") or "").strip()
+        if status != CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
+            attempted_total += 1
+        raw_trace = record.get("cv_analysis_trace")
+        if not isinstance(raw_trace, dict):
+            continue
+        trace_record = dict(raw_trace)
+        job_url = str(record.get("job_url") or "").strip()
+        trace_record.setdefault("record_id", job_url or str(record.get("job_title") or "").strip())
+        trace_record.setdefault("scope_type", "job")
+        trace_record.setdefault("scope_key", job_url)
+        trace_record["status"] = status
+        trace_record["decision_chain"] = dict(record.get("decision_chain") or {})
+        trace_record["artifact_refs"] = {
+            "cv_debug_artifact": "cv-debug.json",
+            "stage_artifact": "cv_analysis.json",
+        }
+        trace_records.append(trace_record)
+
+    records_total = len(cv_analysis_results)
+    present_total = len(trace_records)
+    trace_status = "completed"
+    degradation: dict[str, Any] = {}
+    if records_total == 0:
+        trace_status = "partial"
+        degradation = {"reason": "agentic_enabled_without_cv_analysis_records"}
+    elif present_total < records_total:
+        trace_status = "partial"
+        degradation = {"reason": "missing_job_trace_records"}
+    elif any(str(trace.get("trace_status") or "").strip() == "degraded" for trace in trace_records):
+        trace_status = "degraded"
+        degradation = {"reason": "analysis_or_capture_degraded"}
+
+    return {
+        "run_id": run_id,
+        "trace_schema_version": "agentic_step_trace_run_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_analysis",
+        "late_stage_mode": dict(late_stage_mode),
+        "trace_status": trace_status,
+        "trace_summary": {
+            "records_total": records_total,
+            "present_records": present_total,
+            "attempted_analysis_jobs_total": attempted_total,
+        },
+        "records": trace_records,
+        "degradation": degradation,
+        "artifact_refs": {
+            "cv_debug_artifact": "cv-debug.json",
+            "stage_artifact": "cv_analysis.json",
+        },
     }
 
 
@@ -4129,6 +4244,11 @@ def run_pipeline(
         "ranked": len(ranked),
         "cvs_generated": len(results),
         "late_stage_mode": late_stage_mode_payload,
+        "cv_analysis_trace": _build_cv_analysis_trace_summary(
+            run_id=run_id,
+            cv_analysis_results=cv_analysis_results,
+            late_stage_mode=late_stage_mode_payload,
+        ),
         "agentic_live_trace": _build_agentic_live_trace_summary(
             run_id=run_id,
             cv_generation_debug_records=cv_generation_debug_records,

@@ -1729,6 +1729,7 @@ def _minimal_config() -> dict:
             },
             "content_rules": {"evidence_grounded_only": True},
             "validation": {"max_pages": 2},
+            "agentic_late_stage": {"enabled": False},
         },
         # Compatibility flat keys (produced by _apply_cv_compatibility_projection)
         "cv_generation_model": "gemini-2.5-flash",
@@ -6478,6 +6479,78 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
         "responsibility_alignment": {"lexical_weight": 0.25, "semantic_weight": 0.75},
         "domain_alignment": {"lexical_weight": 0.40, "semantic_weight": 0.60},
     }
+
+
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.agentic_cv_analysis.compute_gap")
+@patch("fitcv.agentic_cv_analysis.retrieve_evidence_bundle")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_builds_cv_analysis_trace_for_agentic_analysis_stage(
+    mock_load_config: MagicMock,
+    mock_load_profile: MagicMock,
+    mock_retrieve_bundle: MagicMock,
+    mock_compute_gap: MagicMock,
+    mock_load_run_structured_jobs: MagicMock,
+) -> None:
+    job = {
+        "job_url": "https://example.com/trace-analysis",
+        "title": "Trace Analysis Job",
+        "required_skills": ["SQL"],
+        "preferred_skills": ["Python"],
+        "responsibilities": ["Build pipelines"],
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+    config = _minimal_config()
+    config["cv"]["agentic_late_stage"]["enabled"] = True
+    profile = _minimal_profile()
+    checkpoint_payload = {
+        "raw_jobs": [job],
+        "normalized": [job],
+        "enriched": [job],
+        "passed_jobs": [job],
+        "shortlist": [job],
+        "ranked": [job],
+        "cv_analysis_results": [],
+    }
+    mock_load_config.return_value = config
+    mock_load_profile.return_value = profile
+    mock_load_run_structured_jobs.return_value = [job]
+    mock_retrieve_bundle.return_value = {
+        "selected_evidence": [{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
+        "channel_counts": {"required_skill_support": 1},
+        "effective_channel_pool_size": 1,
+        "merged_pool_size": 1,
+        "deduped_pool_size": 1,
+        "selected_evidence_ids": ["exp-1"],
+    }
+    mock_compute_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
+
+    result = run_pipeline(
+        "data/sample_jobs.json",
+        config_path="config/env.yaml",
+        run_id="cv-analysis-trace",
+        start_stage="cv_analysis",
+        stop_after_stage="cv_analysis",
+        checkpoint_payload=checkpoint_payload,
+    )
+
+    trace_payload = result["cv_analysis_trace"]
+    assert trace_payload["trace_family"] == "agentic_step_trace"
+    assert trace_payload["step_id"] == "cv_analysis"
+    assert trace_payload["trace_status"] == "completed"
+    assert trace_payload["trace_summary"]["records_total"] == 1
+    record = trace_payload["records"][0]
+    assert record["scope_type"] == "job"
+    assert record["scope_key"] == "https://example.com/trace-analysis"
+    assert record["status"] == "ready_for_generation"
+    assert record["runtime_provenance"]["runtime_path"] == "fitcv_agentic_cv_analysis_builtin"
+    assert record["attempts"][0]["attempt_type"] == "analysis"
+    assert record["input_summary"]["analysis_input_fingerprint"]
+    assert record["output_summary"]["selected_evidence_count"] == 1
+    assert record["repair_summary"]["repair_attempted"] is False
+    assert record["error_summary"] is None
 
 
 # ── run_pipeline calls load_run_structured_jobs ──────────────────────────────

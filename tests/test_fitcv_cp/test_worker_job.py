@@ -293,9 +293,11 @@ def test_worker_persists_cv_generation_debug_json_on_success():
         "passed_filter": 3,
         "ranked": 2,
         "cvs_generated": 1,
-        "agentic_live_trace": {
+        "cv_analysis_trace": {
             "run_id": "r1",
-            "trace_schema_version": "agentic_live_trace_run_v1",
+            "trace_schema_version": "agentic_step_trace_run_v1",
+            "trace_family": "agentic_step_trace",
+            "step_id": "cv_analysis",
             "late_stage_mode": {
                 "late_stage_mode": "agentic",
                 "agentic_late_stage_enabled": True,
@@ -304,15 +306,45 @@ def test_worker_persists_cv_generation_debug_json_on_success():
             },
             "trace_status": "completed",
             "trace_summary": {
-                "job_traces_total": 1,
-                "present_job_traces": 1,
+                "records_total": 1,
+                "present_records": 1,
+                "attempted_analysis_jobs_total": 1,
+            },
+            "records": [
+                {
+                    "record_id": "https://example.com/1",
+                    "scope_type": "job",
+                    "scope_key": "https://example.com/1",
+                    "status": "ready_for_generation",
+                    "attempts": [{"attempt_index": 1, "attempt_type": "analysis"}],
+                }
+            ],
+            "degradation": {},
+        },
+        "agentic_live_trace": {
+            "run_id": "r1",
+            "trace_schema_version": "agentic_step_trace_run_v1",
+            "trace_family": "agentic_step_trace",
+            "step_id": "cv_generation",
+            "late_stage_mode": {
+                "late_stage_mode": "agentic",
+                "agentic_late_stage_enabled": True,
+                "mode_source": "cv.agentic_late_stage.enabled",
+                "agentic_status": "completed",
+            },
+            "trace_status": "completed",
+            "trace_summary": {
+                "records_total": 1,
+                "present_records": 1,
                 "attempted_generation_jobs_total": 1,
             },
-            "job_traces": [
+            "records": [
                 {
-                    "job_url": "https://example.com/1",
-                    "cv_generation_status": "accepted",
-                    "provider_calls": [{"attempt_index": 1, "provider_status": "accepted"}],
+                    "record_id": "https://example.com/1",
+                    "scope_type": "job",
+                    "scope_key": "https://example.com/1",
+                    "status": "accepted",
+                    "attempts": [{"attempt_index": 1, "provider_status": "accepted"}],
                 }
             ],
             "degradation": {},
@@ -354,8 +386,13 @@ def test_worker_persists_cv_generation_debug_json_on_success():
     assert payload["ranked_jobs_total"] == 2
     assert payload["debug_records_captured"] == 1
     assert payload["snapshot_complete"] is False
+    assert payload["cv_analysis_trace"]["trace_family"] == "agentic_step_trace"
+    assert payload["cv_analysis_trace"]["step_id"] == "cv_analysis"
+    assert payload["cv_analysis_trace"]["records"][0]["status"] == "ready_for_generation"
     assert payload["agentic_live_trace"]["trace_status"] == "completed"
-    assert payload["agentic_live_trace"]["job_traces"][0]["provider_calls"][0]["provider_status"] == "accepted"
+    assert payload["agentic_live_trace"]["trace_family"] == "agentic_step_trace"
+    assert payload["agentic_live_trace"]["step_id"] == "cv_generation"
+    assert payload["agentic_live_trace"]["records"][0]["attempts"][0]["provider_status"] == "accepted"
     assert payload["debug_records"][0]["job_url"] == "https://example.com/1"
     assert payload["debug_records"][0]["ranking_fit_label"] == "strong"
     assert payload["debug_records"][0]["decision_chain"]["primary_fit"]["source"] == "reranker"
@@ -1227,6 +1264,9 @@ def test_build_synonym_proposals_payload_groups_conflicts_for_review() -> None:
     )
 
     assert payload["synonym_proposals_schema_version"] == "synonym_proposals_v1"
+    assert payload["synonym_proposals_trace"]["trace_family"] == "agentic_step_trace"
+    assert payload["synonym_proposals_trace"]["step_id"] == "synonym_proposals"
+    assert payload["synonym_proposals_trace"]["trace_status"] == "completed"
     assert len(payload["proposals"]) == 1
     proposal = payload["proposals"][0]
     assert proposal["proposal_scope"] == "run_scoped_overlay_candidate"
@@ -1315,6 +1355,7 @@ def test_build_synonym_proposals_payload_marks_not_applicable_without_mapping_su
 
     assert payload["proposal_generation_status"] == "not_applicable"
     assert payload["persistence_status"] == "not_applicable"
+    assert payload["synonym_proposals_trace"]["trace_status"] == "not_applicable"
     assert payload["proposals"] == []
 
 

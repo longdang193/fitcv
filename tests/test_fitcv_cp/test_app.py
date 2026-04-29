@@ -1098,7 +1098,9 @@ def test_admin_run_detail_shows_agentic_live_trace_export_when_present() -> None
                 "run_id": "test-agentic-live-trace-btn",
                 "agentic_live_trace": {
                     "run_id": "test-agentic-live-trace-btn",
-                    "trace_schema_version": "agentic_live_trace_run_v1",
+                    "trace_schema_version": "agentic_step_trace_run_v1",
+                    "trace_family": "agentic_step_trace",
+                    "step_id": "cv_generation",
                     "late_stage_mode": {
                         "late_stage_mode": "agentic",
                         "agentic_late_stage_enabled": True,
@@ -1106,8 +1108,8 @@ def test_admin_run_detail_shows_agentic_live_trace_export_when_present() -> None
                         "agentic_status": "completed",
                     },
                     "trace_status": "completed",
-                    "trace_summary": {"job_traces_total": 1, "present_job_traces": 1, "attempted_generation_jobs_total": 1},
-                    "job_traces": [{"job_url": "https://example.com/1"}],
+                    "trace_summary": {"records_total": 1, "present_records": 1, "attempted_generation_jobs_total": 1},
+                    "records": [{"record_id": "https://example.com/1", "scope_type": "job", "scope_key": "https://example.com/1"}],
                     "degradation": {},
                 },
                 "debug_records": [],
@@ -1123,6 +1125,54 @@ def test_admin_run_detail_shows_agentic_live_trace_export_when_present() -> None
     assert resp.status_code == 200
     assert 'href="/admin/runs/test-agentic-live-trace-btn/agentic-live-trace.json"' in resp.text
     assert "Agentic Live Trace JSON" in resp.text
+
+
+def test_admin_run_detail_shows_cv_analysis_trace_export_when_present() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="test-cv-analysis-trace-btn",
+        status=RunStatus.SUCCEEDED,
+        cvs_generated=1,
+        total_jobs=10,
+        jobs_path="",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path="config/default.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "run_id": "test-cv-analysis-trace-btn",
+                "cv_analysis_trace": {
+                    "run_id": "test-cv-analysis-trace-btn",
+                    "trace_schema_version": "agentic_step_trace_run_v1",
+                    "trace_family": "agentic_step_trace",
+                    "step_id": "cv_analysis",
+                    "late_stage_mode": {
+                        "late_stage_mode": "agentic",
+                        "agentic_late_stage_enabled": True,
+                        "mode_source": "cv.agentic_late_stage.enabled",
+                        "agentic_status": "completed",
+                    },
+                    "trace_status": "completed",
+                    "trace_summary": {"records_total": 1, "present_records": 1, "attempted_analysis_jobs_total": 1},
+                    "records": [{"record_id": "https://example.com/1", "scope_type": "job", "scope_key": "https://example.com/1"}],
+                    "degradation": {},
+                },
+                "debug_records": [],
+            }
+        ),
+        settings_used_json='{"run_id":"test-cv-analysis-trace-btn","late_stage_mode":{"late_stage_mode":"agentic","agentic_late_stage_enabled":true,"mode_source":"cv.agentic_late_stage.enabled","agentic_status":"completed"}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/test-cv-analysis-trace-btn")
+    assert resp.status_code == 200
+    assert 'href="/admin/runs/test-cv-analysis-trace-btn/cv-analysis-trace.json"' in resp.text
+    assert "CV Analysis Trace JSON" in resp.text
 
 
 def test_admin_run_detail_hides_aggregate_mapping_suggestions_button() -> None:
@@ -1864,6 +1914,65 @@ def test_download_synonym_proposals_json_endpoint_200() -> None:
     assert payload["proposals"][0]["run_id"] == "run-proposal-a"
 
 
+def test_download_run_synonym_proposals_trace_json_endpoint_200() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-synonym-trace-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        completed_stages=["normalize", "enrich"],
+        last_completed_stage="enrich",
+        stage_transition_artifacts_json='{"artifacts":{"stages":{"enrich":{"status":"completed"}}}}',
+        synonym_proposals_json=json.dumps(
+            {
+                "run_id": "run-synonym-trace-1",
+                "proposal_generation_status": "generated",
+                "persistence_status": "persisted",
+                "proposals": [{"proposal_id": "proposal-gcp", "alias": "gcp"}],
+                "synonym_proposals_trace": {
+                    "run_id": "run-synonym-trace-1",
+                    "trace_schema_version": "agentic_step_trace_run_v1",
+                    "trace_family": "agentic_step_trace",
+                    "step_id": "synonym_proposals",
+                    "trace_status": "completed",
+                    "trace_summary": {"records_total": 1, "present_records": 1, "proposal_count": 1},
+                    "records": [{"record_id": "proposal-gcp", "scope_type": "alias", "scope_key": "gcp"}],
+                    "degradation": {},
+                },
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-synonym-trace-1/synonym-proposals-trace.json")
+    assert resp.status_code == 200
+    assert resp.json()["step_id"] == "synonym_proposals"
+    assert resp.json()["trace_family"] == "agentic_step_trace"
+
+
+def test_download_run_synonym_proposals_trace_json_endpoint_404_when_not_applicable() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-synonym-trace-2",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-synonym-trace-2/synonym-proposals-trace.json")
+    assert resp.status_code == 404
+
+
 def test_approve_synonym_proposal_updates_run_overlay_provenance() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -2244,7 +2353,9 @@ def test_download_agentic_live_trace_json_endpoint_200() -> None:
                 "run_id": "run-agentic-trace-1",
                 "agentic_live_trace": {
                     "run_id": "run-agentic-trace-1",
-                    "trace_schema_version": "agentic_live_trace_run_v1",
+                    "trace_schema_version": "agentic_step_trace_run_v1",
+                    "trace_family": "agentic_step_trace",
+                    "step_id": "cv_generation",
                     "late_stage_mode": {
                         "late_stage_mode": "agentic",
                         "agentic_late_stage_enabled": True,
@@ -2252,8 +2363,8 @@ def test_download_agentic_live_trace_json_endpoint_200() -> None:
                         "agentic_status": "completed",
                     },
                     "trace_status": "completed",
-                    "trace_summary": {"job_traces_total": 1, "present_job_traces": 1, "attempted_generation_jobs_total": 1},
-                    "job_traces": [{"job_url": "https://example.com/1", "provider_calls": [{"attempt_index": 1, "provider_status": "accepted"}]}],
+                    "trace_summary": {"records_total": 1, "present_records": 1, "attempted_generation_jobs_total": 1},
+                    "records": [{"record_id": "https://example.com/1", "scope_type": "job", "scope_key": "https://example.com/1", "attempts": [{"attempt_index": 1, "provider_status": "accepted"}]}],
                     "degradation": {},
                 },
                 "debug_records": [],
@@ -2265,6 +2376,8 @@ def test_download_agentic_live_trace_json_endpoint_200() -> None:
         resp = TestClient(_app()).get("/admin/runs/run-agentic-trace-1/agentic-live-trace.json")
     assert resp.status_code == 200
     assert resp.json()["run_id"] == "run-agentic-trace-1"
+    assert resp.json()["trace_family"] == "agentic_step_trace"
+    assert resp.json()["step_id"] == "cv_generation"
     assert resp.headers["content-type"] == "application/json"
     assert 'attachment; filename="fitcv-run-run-agentic-trace-1-agentic-live-trace.json"' in resp.headers["content-disposition"]
 
@@ -2286,6 +2399,71 @@ def test_download_agentic_live_trace_json_endpoint_404_when_not_applicable() -> 
     )
     with patch("fitcv_cp.app.get_run", return_value=run):
         resp = TestClient(_app()).get("/admin/runs/run-agentic-trace-2/agentic-live-trace.json")
+    assert resp.status_code == 404
+
+
+def test_download_cv_analysis_trace_json_endpoint_200() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-analysis-trace-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "run_id": "run-analysis-trace-1",
+                "cv_analysis_trace": {
+                    "run_id": "run-analysis-trace-1",
+                    "trace_schema_version": "agentic_step_trace_run_v1",
+                    "trace_family": "agentic_step_trace",
+                    "step_id": "cv_analysis",
+                    "late_stage_mode": {
+                        "late_stage_mode": "agentic",
+                        "agentic_late_stage_enabled": True,
+                        "mode_source": "cv.agentic_late_stage.enabled",
+                        "agentic_status": "completed",
+                    },
+                    "trace_status": "completed",
+                    "trace_summary": {"records_total": 1, "present_records": 1, "attempted_analysis_jobs_total": 1},
+                    "records": [{"record_id": "https://example.com/1", "scope_type": "job", "scope_key": "https://example.com/1", "status": "ready_for_generation"}],
+                    "degradation": {},
+                },
+                "debug_records": [],
+            }
+        ),
+        settings_used_json='{"run_id":"run-analysis-trace-1","late_stage_mode":{"late_stage_mode":"agentic","agentic_late_stage_enabled":true,"mode_source":"cv.agentic_late_stage.enabled","agentic_status":"completed"}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-analysis-trace-1/cv-analysis-trace.json")
+    assert resp.status_code == 200
+    assert resp.json()["run_id"] == "run-analysis-trace-1"
+    assert resp.json()["trace_family"] == "agentic_step_trace"
+    assert resp.json()["step_id"] == "cv_analysis"
+    assert 'attachment; filename="fitcv-run-run-analysis-trace-1-cv-analysis-trace.json"' in resp.headers["content-disposition"]
+
+
+def test_download_cv_analysis_trace_json_endpoint_404_when_not_applicable() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-analysis-trace-2",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json='{"run_id":"run-analysis-trace-2","debug_records":[]}',
+        settings_used_json='{"run_id":"run-analysis-trace-2","late_stage_mode":{"late_stage_mode":"non_agentic","agentic_late_stage_enabled":false,"mode_source":"cv.agentic_late_stage.enabled","agentic_status":"not_applicable"}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-analysis-trace-2/cv-analysis-trace.json")
     assert resp.status_code == 404
 
 
@@ -2338,7 +2516,7 @@ def test_download_run_artifact_bundle_zip_endpoint_for_partial_run() -> None:
         assert "mapping-suggestions.json" not in names
         manifest = json.loads(archive.read("manifest.json"))
     assert manifest["run_id"] == "run-bundle-partial-1"
-    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v3"
+    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v5"
     assert manifest["run_mode"] == "manual_staged"
     assert manifest["run_mode_label"] == "Stage by Stage"
     assert manifest["late_stage_mode"]["late_stage_mode"] == "non_agentic"
@@ -2367,10 +2545,16 @@ def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
         last_completed_stage="enrich",
         completed_stages=["normalize", "enrich"],
         results_export_json='{"run_id":"run-bundle-success-1","results":[]}',
-        cv_generation_debug_json='{"run_id":"run-bundle-success-1","agentic_live_trace":{"run_id":"run-bundle-success-1","trace_schema_version":"agentic_live_trace_run_v1","late_stage_mode":{"late_stage_mode":"agentic","agentic_late_stage_enabled":true,"mode_source":"cv.agentic_late_stage.enabled","agentic_status":"completed"},"trace_status":"completed","trace_summary":{"job_traces_total":1,"present_job_traces":1,"attempted_generation_jobs_total":1},"job_traces":[{"job_url":"https://example.com/1","provider_calls":[{"attempt_index":1,"provider_status":"accepted"}]}],"degradation":{}},"debug_records":[]}',
+        cv_generation_debug_json='{"run_id":"run-bundle-success-1","cv_analysis_trace":{"run_id":"run-bundle-success-1","trace_schema_version":"agentic_step_trace_run_v1","trace_family":"agentic_step_trace","step_id":"cv_analysis","late_stage_mode":{"late_stage_mode":"agentic","agentic_late_stage_enabled":true,"mode_source":"cv.agentic_late_stage.enabled","agentic_status":"completed"},"trace_status":"completed","trace_summary":{"records_total":1,"present_records":1,"attempted_analysis_jobs_total":1},"records":[{"record_id":"https://example.com/1","scope_type":"job","scope_key":"https://example.com/1","status":"ready_for_generation"}],"degradation":{}},"agentic_live_trace":{"run_id":"run-bundle-success-1","trace_schema_version":"agentic_step_trace_run_v1","trace_family":"agentic_step_trace","step_id":"cv_generation","late_stage_mode":{"late_stage_mode":"agentic","agentic_late_stage_enabled":true,"mode_source":"cv.agentic_late_stage.enabled","agentic_status":"completed"},"trace_status":"completed","trace_summary":{"records_total":1,"present_records":1,"attempted_generation_jobs_total":1},"records":[{"record_id":"https://example.com/1","scope_type":"job","scope_key":"https://example.com/1","attempts":[{"attempt_index":1,"provider_status":"accepted"}]}],"degradation":{}},"debug_records":[]}',
         settings_used_json='{"run_id":"run-bundle-success-1","late_stage_mode":{"late_stage_mode":"agentic","agentic_late_stage_enabled":true,"mode_source":"cv.agentic_late_stage.enabled","agentic_status":"completed"},"effective_settings":{"pipeline":{"final_top_n":10}}}',
         mapping_suggestions_json='{"run_id":"run-bundle-success-1","suggestions":[]}',
-        synonym_proposals_json='{"run_id":"run-bundle-success-1","proposal_generation_status":"generated","persistence_status":"bundle_only_degraded","proposals":[]}',
+        synonym_proposals_json=(
+            '{"run_id":"run-bundle-success-1","proposal_generation_status":"generated","persistence_status":"bundle_only_degraded",'
+            '"proposals":[],"synonym_proposals_trace":{"run_id":"run-bundle-success-1","trace_schema_version":"agentic_step_trace_run_v1",'
+            '"trace_family":"agentic_step_trace","step_id":"synonym_proposals","trace_status":"degraded",'
+            '"trace_summary":{"records_total":0,"present_records":0,"proposal_count":0},"records":[],'
+            '"degradation":{"reason":"synonym_proposals_bundle_only_degraded"}}}'
+        ),
         stage_transition_artifacts_json=json.dumps(
             {
                 "run_id": "run-bundle-success-1",
@@ -2398,6 +2582,7 @@ def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
         assert "manifest.json" in names
         assert "results.json" in names
         assert "cv-debug.json" in names
+        assert "cv-analysis-trace.json" in names
         assert "agentic-live-trace.json" in names
         assert "settings-used.json" in names
         assert "stage-artifacts.json" in names
@@ -2410,16 +2595,28 @@ def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
         assert "cv_generation.json" in names
         assert "mapping-suggestions.json" in names
         assert "synonym-proposals.json" in names
+        assert "synonym-proposals-trace.json" in names
         manifest = json.loads(archive.read("manifest.json"))
+        analysis_trace_payload = json.loads(archive.read("cv-analysis-trace.json"))
+        trace_payload = json.loads(archive.read("agentic-live-trace.json"))
+        synonym_trace_payload = json.loads(archive.read("synonym-proposals-trace.json"))
     assert manifest["run_id"] == "run-bundle-success-1"
-    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v3"
+    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v5"
     assert manifest["run_mode"] == "run_all"
     assert manifest["run_mode_label"] == "Run All"
     assert manifest["late_stage_mode"]["late_stage_mode"] == "agentic"
     assert "results.json" in manifest["included_files"]
+    assert manifest["artifact_states"]["cv-analysis-trace.json"] == "present"
     assert manifest["artifact_states"]["agentic-live-trace.json"] == "present"
     assert manifest["artifact_states"]["synonym-proposals.json"] == "present"
+    assert manifest["artifact_states"]["synonym-proposals-trace.json"] == "present"
     assert manifest["missing_files"] == []
+    assert analysis_trace_payload["trace_family"] == "agentic_step_trace"
+    assert analysis_trace_payload["step_id"] == "cv_analysis"
+    assert trace_payload["trace_family"] == "agentic_step_trace"
+    assert trace_payload["step_id"] == "cv_generation"
+    assert synonym_trace_payload["trace_family"] == "agentic_step_trace"
+    assert synonym_trace_payload["step_id"] == "synonym_proposals"
 
 
 def test_download_run_artifact_bundle_zip_endpoint_404_if_no_artifacts_available() -> None:
