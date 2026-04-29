@@ -61,6 +61,8 @@ cross-run comparisons.
 
 The main surfaces are:
 
+- `/admin/runs/{run_id}/cv-analysis-trace.json`
+- `/admin/runs/{run_id}/agentic-live-trace.json`
 - `/admin/runs/{run_id}/cv-debug.json`
 - `/admin/runs/{run_id}/stage-artifacts.json`
 - `/admin/runs/{run_id}/stage-artifacts/cv_analysis.json`
@@ -68,6 +70,10 @@ The main surfaces are:
 
 Use these to inspect:
 
+- analysis-time agentic decisions before generation starts
+- live-provider request and response attempts
+- provider, model, template, and schema provenance for the agentic path
+- validation retry and repair behavior
 - evidence retrieval
 - bounded evidence summaries
 - gap analysis outcomes
@@ -75,6 +81,79 @@ Use these to inspect:
 - generation validation
 - repair behavior
 - final generation acceptance or failure
+
+### CV analysis trace
+
+`/admin/runs/{run_id}/cv-analysis-trace.json`
+
+Use this when the question starts in `cv_analysis` rather than in the live
+generation provider path.
+
+This artifact follows the same shared agentic trace standard as
+`agentic-live-trace.json`, but its `step_id` is `cv_analysis` and its records
+capture the pre-generation analysis step for each ranked job.
+
+This artifact is the persisted run-scoped trace surface for:
+
+- reranker-blocked versus analysis-attempted rows
+- analysis runtime provenance
+- evidence-selection outcomes and fallback usage
+- bounded analysis failures without depending on transient worker logs
+
+Shared contract families you should expect in this trace:
+
+- top-level run-scoped trace state such as `trace_family`, `step_id`,
+  `trace_status`, `trace_summary`, `records`, and `degradation`
+- per-record stage facts such as `runtime_provenance`, `attempts`,
+  `input_summary`, `output_summary`, `validation_summary`, `repair_summary`,
+  and `error_summary`
+
+Current `cv_analysis`-specific details still visible inside that shared
+contract:
+
+- the step id is `cv_analysis`
+- records are job-scoped
+- attempts correspond to bounded analysis attempts
+- output summaries carry evidence-selection counts rather than generation or
+  repair facts
+
+### Agentic live trace
+
+`/admin/runs/{run_id}/agentic-live-trace.json`
+
+Use this when the question is specifically about the live agentic provider path
+rather than the broader CV-generation ledger.
+
+This artifact is the first persisted trace surface that follows the repo's
+shared agentic trace standard. Today it is specific to `cv_generation`, but the
+top-level vocabulary is intended to be reused by future agentic traces too.
+
+This artifact is the persisted run-scoped trace surface for:
+
+- actual runtime path used
+- provider attempt timing and status
+- bounded provider error payloads
+- repair retries triggered by missing sections
+- final validation-cycle summary
+
+Shared contract families you should expect in this trace:
+
+- top-level run-scoped trace state such as `trace_family`, `step_id`,
+  `trace_status`, `trace_summary`, `records`, and `degradation`
+- per-record agentic facts such as `runtime_provenance`, `attempts`,
+  `input_summary`, `output_summary`, `validation_summary`, `repair_summary`,
+  and `error_summary`
+
+Current `cv_generation`-specific details still visible inside that shared
+contract:
+
+- the step id is `cv_generation`
+- records are job-scoped
+- runtime provenance includes the CV template and structured CV schema contract
+- attempts correspond to generation and repair-retry calls
+
+The trace is intentionally bounded. It does not store raw chain-of-thought,
+full prompt bodies, or full raw provider response bodies.
 
 ### Timeline and event reasoning
 
@@ -93,14 +172,35 @@ to locate the exact stage boundary where the behavior changed.
 The current agentic synonym surfaces are:
 
 - `/admin/runs/{run_id}/mapping-suggestions.json`
+- `/admin/runs/{run_id}/synonym-proposals-trace.json`
+- `/admin/runs/{run_id}/synonym-proposals.json`
 - `/admin/mapping-suggestions.json`
 - `/admin/synonym-proposals.json`
 
 These let you inspect:
 
 - which aliases were detected from run-scoped evidence
+- per-alias proposal-generation trace status and degradation
 - how those suggestions were grouped into review-ready synonym proposals
 - which proposals are still unreviewed versus already actioned
+
+### Synonym proposals trace
+
+`/admin/runs/{run_id}/synonym-proposals-trace.json`
+
+Use this when debugging proposal-generation flow quality rather than reviewing
+proposal payload content itself.
+
+This artifact follows the same shared agentic trace contract as:
+
+- `cv-analysis-trace.json`
+- `agentic-live-trace.json`
+
+Its `step_id` is `synonym_proposals`, and it captures:
+
+- proposal-generation attempt status
+- alias-scoped records
+- persistence degradation status such as `bundle_only_degraded`
 
 ### Settings and runtime context
 
@@ -122,9 +222,14 @@ When debugging a surprising run:
 2. scan run status, run health, and stage progress
 3. read the timeline around the first suspicious transition
 4. open `stage-artifacts.json` for stage-owned truth
-5. open `cv-debug.json` if the issue is in analysis or generation
-6. open `settings-used.json` if behavior may be config-driven
-7. open mapping-suggestion or synonym-proposal exports if the issue is
+5. open `cv-analysis-trace.json` if the issue starts before generation
+6. open `agentic-live-trace.json` if the issue is specifically in the live
+   agentic generation path
+7. open `synonym-proposals-trace.json` when proposal persistence or proposal
+   generation status looks degraded
+8. open `cv-debug.json` for the broader CV-generation ledger
+9. open `settings-used.json` if behavior may be config-driven
+10. open mapping-suggestion or synonym-proposal exports if the issue is
    taxonomy-related
 
 ## What Each Surface Is Good At
@@ -133,10 +238,17 @@ When debugging a surprising run:
   - fast human triage
 - raw events:
   - sequence reconstruction and tooling
+- CV analysis trace export:
+  - analysis-stage attempt, evidence-selection, and pre-generation debugging
+- agentic live trace export:
+  - live-provider attempt, retry, bounded failure debugging, and shared
+    agentic trace-contract inspection
+- synonym proposals trace export:
+  - proposal-generation attempt and persistence-degradation debugging
 - stage artifacts:
   - stage-owned truth
 - CV debug export:
-  - analysis/generation internals
+  - compact CV-generation ledger and per-job debug records
 - settings-used export:
   - runtime context and override visibility
 - mapping-suggestions and synonym-proposals exports:
