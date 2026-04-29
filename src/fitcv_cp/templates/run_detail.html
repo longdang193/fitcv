@@ -68,6 +68,26 @@
   {% endif %}
 </div>
 
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Agentic Runtime Alignment</h3>
+    {% if agentic_runtime_drift.status == 'aligned' %}
+      <span class="badge badge-success">aligned</span>
+    {% elif agentic_runtime_drift.status == 'drifted' %}
+      <span class="badge badge-warning">drifted</span>
+    {% else %}
+      <span class="badge badge-info">not_applicable</span>
+    {% endif %}
+  </div>
+  <div class="meta" style="margin-bottom:0.75rem">{{ agentic_runtime_drift.message }}</div>
+  <div class="kv">
+    <span class="k">Expected Provider</span><span class="v"><code>{{ agentic_runtime_drift.expected_provider or '—' }}</code></span>
+    <span class="k">Actual Provider</span><span class="v"><code>{{ agentic_runtime_drift.actual_provider or '—' }}</code></span>
+    <span class="k">Expected Model</span><span class="v"><code>{{ agentic_runtime_drift.expected_model or '—' }}</code></span>
+    <span class="k">Actual Model</span><span class="v"><code>{{ agentic_runtime_drift.actual_model or '—' }}</code></span>
+  </div>
+</div>
+
 {% if synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay %}
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">

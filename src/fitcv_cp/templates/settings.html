@@ -24,6 +24,24 @@
     color: var(--text-muted);
     font-size: 0.82rem;
   }
+  .settings-mode-strip {
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-1);
+    padding: 0.85rem 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.6rem 1rem;
+    font-size: 0.82rem;
+  }
+  .settings-mode-item .k {
+    color: var(--text-muted);
+    margin-right: 0.4rem;
+  }
+  .settings-mode-item .v {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
   .task-section {
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -314,6 +332,8 @@
     <div class="settings-field-meta">
       <span>Current: <span class="current-value">{{ item.effective_display }}</span></span>
       <span>Source: {{ item.current_source_label }}</span>
+      <span>Owner: {{ item.owner_label }}</span>
+      <span>Active: {{ item.active_label }}</span>
     </div>
     {{ render_field_control(item, settings_metadata_note) }}
   </div>
@@ -334,11 +354,23 @@
     </div>
   {% endif %}
   <section class="settings-truth-panel">
-    <div class="settings-truth-title">Settings Truth</div>
+    <div class="settings-truth-title">How To Read This Page</div>
     <ul class="settings-truth-list">
       {% for note in settings_truth_notes %}
         <li>{{ note }}</li>
       {% endfor %}
+    </ul>
+  </section>
+  <section class="settings-mode-strip">
+    <div class="settings-mode-item"><span class="k">Agentic Mode:</span><span class="v">{{ settings_mode_summary.agentic_mode }}</span></div>
+    <div class="settings-mode-item"><span class="k">Live Provider:</span><span class="v">{{ settings_mode_summary.runtime_provider }}</span></div>
+    <div class="settings-mode-item"><span class="k">Live Model:</span><span class="v">{{ settings_mode_summary.runtime_model }}</span></div>
+    <div class="settings-mode-item"><span class="k">CV Model (Settings):</span><span class="v">{{ settings_mode_summary.settings_cv_model }}</span></div>
+  </section>
+  <section class="settings-truth-panel">
+    <div class="settings-truth-title">Run Truth Check</div>
+    <ul class="settings-truth-list">
+      <li>To confirm what actually ran, open Run Detail and check Agentic Runtime Alignment.</li>
     </ul>
   </section>
   {% for section in settings_page_task_sections %}

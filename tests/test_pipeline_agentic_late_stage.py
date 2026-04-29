@@ -5,6 +5,7 @@ from fitcv.pipeline import run_pipeline
 from fitcv.agentic_cv_generation import (
     _build_fitcv_langgraph_env_values,
     _generate_cv_with_live_provider,
+    _shallow_section_repair_targets,
     generate_from_analysis,
 )
 
@@ -121,6 +122,22 @@ def _minimal_structured_cv() -> dict:
             "languages": [],
         },
     }
+
+def test_shallow_section_repair_targets_flags_context_only_projects() -> None:
+    structured_cv = _minimal_structured_cv()
+    structured_cv["sections"]["projects"] = [
+        {
+            "name": "Project A",
+            "context": "2022-06 - 2022-10",
+            "bullets": [],
+        }
+    ]
+    assert _shallow_section_repair_targets(structured_cv) == ["projects"]
+
+def test_shallow_section_repair_targets_flags_empty_experience_bullets() -> None:
+    structured_cv = _minimal_structured_cv()
+    structured_cv["sections"]["experience"][0]["bullets"] = []
+    assert _shallow_section_repair_targets(structured_cv) == ["experience"]
 
 
 @patch("fitcv.pipeline.store_cv_version")

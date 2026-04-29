@@ -86,6 +86,7 @@ import dataclasses
 import datetime
 import io
 import json as _json
+import os
 import uuid
 import zipfile
 from pathlib import Path
@@ -908,6 +909,69 @@ def _load_run_agentic_live_trace_payload(run: PipelineRun) -> dict[str, Any] | N
     if isinstance(trace_payload, dict):
         return dict(trace_payload)
     return None
+
+def _run_agentic_runtime_drift_summary(run: PipelineRun) -> dict[str, Any]:
+    late_stage_mode = _load_run_late_stage_mode_payload(run)
+    if str(late_stage_mode.get("late_stage_mode") or "").strip() != "agentic":
+        return {
+            "status": "not_applicable",
+            "expected_provider": None,
+            "expected_model": None,
+            "actual_provider": None,
+            "actual_model": None,
+            "message": "Agentic late-stage mode was not active for this run.",
+        }
+    expected_provider: str | None = None
+    expected_model: str | None = None
+    effective_settings = _load_json_object(run.effective_settings_json)
+    if isinstance(effective_settings, dict):
+        expected_model = str(effective_settings.get("cv_generation_model") or "").strip() or None
+
+    trace_payload = _load_run_agentic_live_trace_payload(run) or {}
+    records = list(trace_payload.get("records") or [])
+    actual_provider: str | None = None
+    actual_model: str | None = None
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        runtime_provenance = dict(record.get("runtime_provenance") or {})
+        provider = str(runtime_provenance.get("provider") or "").strip() or None
+        model = str(runtime_provenance.get("model") or "").strip() or None
+        if provider and actual_provider is None:
+            actual_provider = provider
+        if model and actual_model is None:
+            actual_model = model
+        if actual_provider and actual_model:
+            break
+    if expected_provider is None:
+        expected_provider = actual_provider
+    if expected_model is None:
+        expected_model = actual_model
+    aligned = (
+        bool(actual_provider and expected_provider and actual_provider == expected_provider)
+        and bool(actual_model and expected_model and actual_model == expected_model)
+    )
+    if actual_provider is None and actual_model is None:
+        return {
+            "status": "not_applicable",
+            "expected_provider": expected_provider,
+            "expected_model": expected_model,
+            "actual_provider": None,
+            "actual_model": None,
+            "message": "No attempted live-generation provenance was captured for this run.",
+        }
+    return {
+        "status": "aligned" if aligned else "drifted",
+        "expected_provider": expected_provider,
+        "expected_model": expected_model,
+        "actual_provider": actual_provider,
+        "actual_model": actual_model,
+        "message": (
+            "Runtime provider/model match current run settings expectations."
+            if aligned else
+            "Runtime provider/model differ from current run settings expectations."
+        ),
+    }
 
 
 def _load_run_cv_analysis_trace_payload(run: PipelineRun) -> dict[str, Any] | None:
@@ -2023,6 +2087,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 else f"/admin/settings/section/{submit_slug}"
             )
             entries: list[dict[str, Any]] = []
+            agentic_enabled = bool(effective.get("cv.agentic_late_stage.enabled"))
             for key in card_spec["keys"]:
                 entry = schema_by_key[key]
                 effective_value = effective[key]
@@ -2039,6 +2104,17 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         typed_draft_value = None
                 form_value = draft_value if draft_value is not None else effective_value
                 comparison_value = typed_draft_value if typed_draft_value is not None else form_value
+                owner_label = "Settings"
+                active_label = "Yes"
+                if key == "cv_generation_model":
+                    owner_label = "Settings (non-agentic path)"
+                    active_label = "No (agentic mode ON)" if agentic_enabled else "Yes (agentic mode OFF)"
+                elif key == "cv.agentic_late_stage.enabled":
+                    owner_label = "Settings"
+                    active_label = "Yes"
+                elif key == "cv_analysis.semantic_alignment.model":
+                    owner_label = "Runtime Contract"
+                    active_label = "Yes"
                 entries.append(
                     {
                         "entry": entry,
@@ -2052,6 +2128,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                             str(entry["type"]),
                         ),
                         "is_metadata_only": key in metadata_only_keys,
+                        "owner_label": owner_label,
+                        "active_label": active_label,
                     }
                 )
             dirty_count = sum(1 for item in entries if item["is_dirty"])
@@ -2081,6 +2159,30 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             }
             for section in settings_page_sections
         ]
+        agentic_runtime_provider = str(os.environ.get("FITCV_LANGGRAPH_PROVIDER", "") or "").strip()
+        agentic_runtime_model = str(os.environ.get("FITCV_LANGGRAPH_MODEL", "") or "").strip()
+        agentic_runtime_note = ""
+        if agentic_runtime_provider or agentic_runtime_model:
+            agentic_runtime_note = (
+                "Agentic live runtime is env-managed"
+                f" (provider={agentic_runtime_provider or '—'}, model={agentic_runtime_model or '—'}). "
+                "In agentic mode, live runtime values can differ from CV model settings on this page."
+            )
+        settings_cv_generation_model = str(effective.get("cv_generation_model") or "").strip() or "—"
+        mode_summary = {
+            "agentic_mode": "ON" if bool(effective.get("cv.agentic_late_stage.enabled")) else "OFF",
+            "runtime_provider": agentic_runtime_provider or "—",
+            "runtime_model": agentic_runtime_model or "—",
+            "settings_cv_model": settings_cv_generation_model,
+        }
+        settings_truth_notes = [
+            "This page edits future-run defaults only.",
+            "Per-run overrides are captured at trigger time and do not change these saved defaults.",
+            "Use settings-used.json on a completed run as the historical source of truth for what that run actually used.",
+            "Use run detail observability to inspect what a specific run did stage by stage.",
+        ]
+        if agentic_runtime_note:
+            settings_truth_notes.append(agentic_runtime_note)
         context: dict[str, Any] = {
             "schema": SETTINGS_SCHEMA,
             "schema_by_key": schema_by_key,
@@ -2094,12 +2196,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "metadata_only_keys": metadata_only_keys,
             "settings_page_task_sections": settings_page_task_sections,
             "settings_metadata_note": "Currently fixed by the active runtime contract",
-            "settings_truth_notes": [
-                "This page edits future-run defaults only.",
-                "Per-run overrides are captured at trigger time and do not change these saved defaults.",
-                "Use settings-used.json on a completed run as the historical source of truth for what that run actually used.",
-                "Use run detail observability to inspect what a specific run did stage by stage.",
-            ],
+            "settings_truth_notes": settings_truth_notes,
+            "settings_mode_summary": mode_summary,
         }
         context.update(extra)
         return context
@@ -3295,6 +3393,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         results_rows = _results_export_rows(run)
         job_title_by_url = _job_title_by_url_from_results_rows(results_rows)
         run_export_links = _build_run_export_links(run)
+        agentic_runtime_drift = _run_agentic_runtime_drift_summary(run)
 
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
@@ -3319,6 +3418,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 ),
                 "can_upload_synonym_overlay": _can_upload_synonym_overlay(run),
                 "synonym_overlay_info": _extract_run_synonym_overlay_info(run),
+                "agentic_runtime_drift": agentic_runtime_drift,
             }
         )
 
@@ -3504,6 +3604,24 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
         artifact_files = _build_available_run_artifact_files(run)
+        if run.status == RunStatus.SUCCEEDED:
+            cv_versions = list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
+            for cv in cv_versions:
+                version_id = str(cv.get("version_id") or "").strip()
+                if not version_id:
+                    continue
+                cv_markdown = get_cv_markdown(version_id, bq, project=project, dataset=dataset)
+                if not cv_markdown:
+                    continue
+                artifact_files.append(
+                    RunArtifactFile(
+                        filename=f"cv_{version_id}.md",
+                        label=f"CV {version_id} Markdown",
+                        href=f"/admin/cvs/{version_id}/download",
+                        content=str(cv_markdown),
+                        show_in_exports=False,
+                    )
+                )
         if not artifact_files:
             raise HTTPException(
                 status_code=404,
