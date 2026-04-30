@@ -253,8 +253,38 @@ def test_run_all_validations_output_schema() -> None:
     }
     cv_text = "# Name\n## Summary\nX\n## Skills\nSQL, Python\n## Experience\nACME"
     result = run_all_validations(cv_text, profile=profile, config=_CV_CONFIG)
-    for key in ("valid", "missing_sections", "grounding_violations", "skill_violations", "warnings"):
+    for key in (
+        "valid",
+        "missing_sections",
+        "grounding_violations",
+        "skill_violations",
+        "warnings",
+        "markdown_quality_blocking_issues",
+        "markdown_quality_review_flags",
+    ):
         assert key in result
+
+def test_run_all_validations_blocks_nonstandard_bullet_markers() -> None:
+    profile = {
+        "experiences": [{"role": "DE", "company": "ACME", "start": "2020", "end": "2022"}],
+        "projects": [{"name": "GA4 Pipeline"}],
+        "skills": ["SQL", "Python"],
+    }
+    cv_text = "# Name\n## Summary\nX\n## Skills\nSQL, Python\n## Experience\n* Built ETL"
+    result = run_all_validations(cv_text, profile=profile, config=_CV_CONFIG)
+    assert result["valid"] is False
+    assert any("bullet marker" in str(item).lower() for item in result["markdown_quality_blocking_issues"])
+
+def test_run_all_validations_flags_shallow_experience_for_review() -> None:
+    profile = {
+        "experiences": [{"role": "DE", "company": "ACME", "start": "2020", "end": "2022"}],
+        "projects": [{"name": "GA4 Pipeline"}],
+        "skills": ["SQL", "Python"],
+    }
+    cv_text = "# Name\n## Summary\nX\n## Skills\nSQL, Python\n## Experience\n- Built ETL"
+    result = run_all_validations(cv_text, profile=profile, config=_CV_CONFIG)
+    assert result["valid"] is True
+    assert any("shallow" in str(item).lower() for item in result["markdown_quality_review_flags"])
 
 
 def test_run_all_validations_length_warning() -> None:

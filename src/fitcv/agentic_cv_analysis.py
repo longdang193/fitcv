@@ -68,6 +68,9 @@ class CvAnalysisRecord(TypedDict, total=False):
     evidence_used: list[dict[str, Any]]
     evidence_selection_summary: dict[str, Any]
     gap_summary: dict[str, Any] | None
+    requirement_coverage: list[dict[str, Any]]
+    section_confidence_hints: dict[str, str]
+    do_not_claim: list[str]
     outcome_reason: ErrorPayload | None
     error: ErrorPayload | None
     cv_analysis_trace: dict[str, Any]
@@ -188,6 +191,8 @@ def _build_cv_analysis_trace_record(
     status: AnalysisStatus,
     analysis_input_fingerprint: str | None,
     evidence_selection_summary: dict[str, Any] | None,
+    requirement_coverage: list[dict[str, Any]] | None,
+    section_confidence_hints: dict[str, str] | None,
     error: ErrorPayload | None,
 ) -> dict[str, Any]:
     job_url = extract_job_url(job)
@@ -223,6 +228,8 @@ def _build_cv_analysis_trace_record(
         "output_summary": {
             "selected_evidence_count": selected_evidence_count,
             "fallback_used": fallback_used,
+            "requirement_coverage_count": len(list(requirement_coverage or [])),
+            "section_confidence_present": bool(section_confidence_hints),
         },
         "validation_summary": {
             "status": "not_run",
@@ -276,6 +283,9 @@ def build_cv_analysis_record(
     evidence_payload: list[dict[str, Any]],
     evidence_selection_summary: dict[str, Any] | None,
     gap_summary: dict[str, Any] | None,
+    requirement_coverage: list[dict[str, Any]] | None,
+    section_confidence_hints: dict[str, str] | None,
+    do_not_claim: list[str] | None,
     fit_classification: FitClassification | None,
     error: ErrorPayload | None,
 ) -> CvAnalysisRecord:
@@ -287,6 +297,8 @@ def build_cv_analysis_record(
         status=status,
         analysis_input_fingerprint=analysis_input_fingerprint,
         evidence_selection_summary=evidence_selection_summary,
+        requirement_coverage=requirement_coverage,
+        section_confidence_hints=section_confidence_hints,
         error=error,
     )
     return {
@@ -308,9 +320,54 @@ def build_cv_analysis_record(
         "evidence_used": evidence_used,
         "evidence_selection_summary": dict(evidence_selection_summary or {}),
         "gap_summary": gap_summary,
+        "requirement_coverage": list(requirement_coverage or []),
+        "section_confidence_hints": dict(section_confidence_hints or {}),
+        "do_not_claim": list(do_not_claim or []),
         "outcome_reason": error if status in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS} else None,
         "error": error if status not in {SKIPPED_FIT_GATE_STATUS, BLOCKED_BY_RERANKER_STATUS} else None,
         "cv_analysis_trace": trace_record,
+    }
+
+def _build_requirement_coverage(
+    required_skills: list[str],
+    evidence: list[dict[str, Any]],
+    *,
+    missing_skills: list[str],
+) -> list[dict[str, Any]]:
+    normalized_missing = {str(skill).strip().lower() for skill in missing_skills if str(skill).strip()}
+    coverage: list[dict[str, Any]] = []
+    for skill in required_skills:
+        normalized_skill = str(skill).strip()
+        lowered = normalized_skill.lower()
+        if not normalized_skill:
+            continue
+        support_strength = "unsupported" if lowered in normalized_missing else "supported"
+        coverage.append(
+            {
+                "requirement": normalized_skill,
+                "support_strength": support_strength,
+                "evidence_support_count": 0 if support_strength == "unsupported" else max(1, len(evidence)),
+            }
+        )
+    return coverage
+
+def _build_section_confidence_hints(
+    evidence: list[dict[str, Any]],
+    gap_summary: dict[str, Any] | None,
+) -> dict[str, str]:
+    missing_count = len(list((gap_summary or {}).get("missing") or []))
+    evidence_count = len(evidence)
+    if evidence_count >= 3 and missing_count == 0:
+        level = "high"
+    elif evidence_count >= 1:
+        level = "medium"
+    else:
+        level = "low"
+    return {
+        "summary": level,
+        "experience": "high" if evidence_count >= 2 else level,
+        "projects": level,
+        "skills": "high" if missing_count == 0 else "medium",
     }
 
 
@@ -380,6 +437,9 @@ def analyze_ranked_job(
             evidence_payload=[],
             evidence_selection_summary=None,
             gap_summary=None,
+            requirement_coverage=[],
+            section_confidence_hints={},
+            do_not_claim=[],
             fit_classification=ranking_fit_label,
             error={
                 "stage": "reranker_fit",
@@ -449,6 +509,8 @@ def analyze_ranked_job(
 
         fit_classification = resolve_ranked_job_fit(job, config)
         if fit_classification == "skip":
+            required_skills = [str(skill) for skill in list(job.get("required_skills") or []) if str(skill)]
+            missing_skills = [str(skill) for skill in list((gap_summary or {}).get("missing") or []) if str(skill)]
             return build_cv_analysis_record(
                 job=job,
                 status=SKIPPED_FIT_GATE_STATUS,
@@ -457,6 +519,13 @@ def analyze_ranked_job(
                 evidence_payload=evidence,
                 evidence_selection_summary=evidence_selection_summary,
                 gap_summary=gap_summary,
+                requirement_coverage=_build_requirement_coverage(
+                    required_skills,
+                    evidence,
+                    missing_skills=missing_skills,
+                ),
+                section_confidence_hints=_build_section_confidence_hints(evidence, gap_summary),
+                do_not_claim=missing_skills,
                 fit_classification=fit_classification,
                 error={
                     "stage": "fit_gate",
@@ -464,6 +533,8 @@ def analyze_ranked_job(
                 },
             )
 
+        required_skills = [str(skill) for skill in list(job.get("required_skills") or []) if str(skill)]
+        missing_skills = [str(skill) for skill in list((gap_summary or {}).get("missing") or []) if str(skill)]
         return build_cv_analysis_record(
             job=job,
             status=READY_FOR_GENERATION_STATUS,
@@ -472,6 +543,13 @@ def analyze_ranked_job(
             evidence_payload=evidence,
             evidence_selection_summary=evidence_selection_summary,
             gap_summary=gap_summary,
+            requirement_coverage=_build_requirement_coverage(
+                required_skills,
+                evidence,
+                missing_skills=missing_skills,
+            ),
+            section_confidence_hints=_build_section_confidence_hints(evidence, gap_summary),
+            do_not_claim=missing_skills,
             fit_classification=fit_classification,
             error=None,
         )
@@ -484,6 +562,9 @@ def analyze_ranked_job(
             evidence_payload=evidence,
             evidence_selection_summary=evidence_selection_summary,
             gap_summary=gap_summary,
+            requirement_coverage=[],
+            section_confidence_hints={},
+            do_not_claim=[],
             fit_classification=ranking_fit_label,
             error={
                 "stage": "analysis",

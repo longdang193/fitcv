@@ -116,6 +116,11 @@ _CANDIDATE_NAME_PLACEHOLDER_VALUES = {
     "candidate name",
     "your name",
 }
+_MARKDOWN_PLACEHOLDER_PATTERNS = (
+    re.compile(r"\btbd\b", re.IGNORECASE),
+    re.compile(r"lorem ipsum", re.IGNORECASE),
+    re.compile(r"\bto be (filled|provided|updated)\b", re.IGNORECASE),
+)
 
 
 def _role_family_aliases(config: dict[str, Any]) -> dict[str, set[str]]:
@@ -203,6 +208,67 @@ def validate_output(cv_text: str, required_sections: list[str]) -> dict[str, Any
         "skill_violations": [],
         "warnings": [],
     }
+
+def _section_body(cv_text: str, section_name: str) -> str:
+    section_pattern = re.compile(
+        _SECTION_HEADING_PATTERN.format(section=re.escape(section_name)),
+        re.MULTILINE | re.IGNORECASE,
+    )
+    heading_match = section_pattern.search(cv_text)
+    if heading_match is None:
+        return ""
+    next_heading_match = re.search(r"^##?\s+", cv_text[heading_match.end():], re.MULTILINE)
+    section_end = (
+        heading_match.end() + next_heading_match.start()
+        if next_heading_match is not None
+        else len(cv_text)
+    )
+    return cv_text[heading_match.end():section_end].strip()
+
+def _markdown_quality_checks(cv_text: str, required_sections: list[str]) -> tuple[list[str], list[str]]:
+    blocking_issues: list[str] = []
+    review_flags: list[str] = []
+
+    positions: list[tuple[str, int]] = []
+    for section in required_sections:
+        pattern = re.compile(
+            _SECTION_HEADING_PATTERN.format(section=re.escape(section)),
+            re.MULTILINE | re.IGNORECASE,
+        )
+        match = pattern.search(cv_text)
+        if match is not None:
+            positions.append((section, match.start()))
+    if len(positions) >= 2:
+        sorted_positions = sorted(positions, key=lambda item: item[1])
+        if [name for name, _ in positions] != [name for name, _ in sorted_positions]:
+            blocking_issues.append("Required section headings are out of configured order.")
+
+    bad_bullet_lines = [
+        line.strip()
+        for line in cv_text.splitlines()
+        if re.match(r"^\s*[\*\u2022]\s+", line)
+    ]
+    if bad_bullet_lines:
+        blocking_issues.append("Unsupported bullet marker detected; use '- ' only.")
+
+    for pattern in _MARKDOWN_PLACEHOLDER_PATTERNS:
+        if pattern.search(cv_text):
+            blocking_issues.append("Placeholder text detected in markdown content.")
+            break
+
+    for section_name in ("Experience", "Projects"):
+        if section_name not in required_sections:
+            continue
+        body = _section_body(cv_text, section_name)
+        if not body:
+            continue
+        bullet_count = len(re.findall(r"(?m)^\s*-\s+\S+", body))
+        if bullet_count < 2:
+            review_flags.append(
+                f"{section_name} section appears shallow (fewer than 2 bullets)."
+            )
+
+    return (list(dict.fromkeys(blocking_issues)), list(dict.fromkeys(review_flags)))
 
 
 def _normalize_placeholder_name_token(value: str) -> str:
@@ -929,6 +995,11 @@ def run_all_validations(
             + semantic_grounding_violations
         ))
 
+    markdown_quality_blocking_issues, markdown_quality_review_flags = _markdown_quality_checks(
+        cv_text,
+        required_sections,
+    )
+
     # Non-blocking warnings
     warnings: list[str] = []
     if not check_length_constraints(cv_text, max_pages=max_pages):
@@ -944,6 +1015,7 @@ def run_all_validations(
 
     is_valid = (
         len(missing_sections) == 0
+        and len(markdown_quality_blocking_issues) == 0
         and len(grounding_violations) == 0
         and len(skill_violations) == 0
     )
@@ -957,4 +1029,6 @@ def run_all_validations(
         "skill_violations": skill_violations,
         "warnings": warnings,
         "support_source_summary": support_source_summary,
+        "markdown_quality_blocking_issues": markdown_quality_blocking_issues,
+        "markdown_quality_review_flags": markdown_quality_review_flags,
     }

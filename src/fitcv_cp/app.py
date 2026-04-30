@@ -117,6 +117,7 @@ from fitcv_cp.bq_store import (
     update_run_effective_settings,
     update_run_synonym_proposals,
     update_run_queue_job_id, update_run_status,
+    update_run_cv_generation_debug,
 )
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.queue import cancel_queued_run, enqueue_run, enqueue_run_with_job_id
@@ -235,6 +236,13 @@ def _apply_trigger_runtime_envelope(
         runtime_inputs["jobs_input_json"] = jobs_input_json
     if candidate_profile_json:
         runtime_inputs["candidate_profile_json"] = candidate_profile_json
+    # Capture trigger-time agentic runtime expectation to avoid later interpretation drift.
+    runtime_inputs["agentic_runtime_expectation"] = {
+        "provider": str(os.environ.get("FITCV_LANGGRAPH_PROVIDER", "") or "").strip() or None,
+        "model": str(os.environ.get("FITCV_LANGGRAPH_MODEL", "") or "").strip() or None,
+        "base_url": str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL", "") or "").strip() or None,
+        "wire_api": str(os.environ.get("FITCV_LANGGRAPH_WIRE_API", "") or "").strip() or None,
+    }
     effective_config["trigger_runtime_envelope"] = {
         "jobs_input_source": jobs_input_source,
         "candidate_profile_source": candidate_profile_source,
@@ -398,6 +406,7 @@ BUNDLE_STAGE_IDS: tuple[str, ...] = (
 )
 BUNDLE_ARTIFACT_FILENAMES: tuple[str, ...] = (
     "results.json",
+    "hitl-review-audit.json",
     "stage-artifacts.json",
     "normalize.json",
     "enrich.json",
@@ -770,12 +779,25 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
     stage_transition_artifact_payload = _load_stage_transition_artifacts_payload(run)
 
     if run.status == RunStatus.SUCCEEDED and run.results_export_json:
+        results_payload = {
+            "run_id": run.run_id,
+            "results": _results_export_rows_with_hitl_audit(run),
+        }
         files.append(
             RunArtifactFile(
                 filename="results.json",
                 label="Results JSON (Job Ledger)",
                 href=f"/admin/runs/{run.run_id}/export.json",
-                content=_pretty_json_string(run.results_export_json),
+                content=_json.dumps(results_payload, ensure_ascii=False, indent=2),
+            )
+        )
+    if run.status == RunStatus.SUCCEEDED and run.cv_generation_debug_json:
+        files.append(
+            RunArtifactFile(
+                filename="hitl-review-audit.json",
+                label="HITL Review Audit JSON",
+                href=f"/admin/runs/{run.run_id}/hitl-review-audit.json",
+                content=_json.dumps(_build_hitl_review_audit_payload(run), ensure_ascii=False, indent=2),
             )
         )
     if run.status == RunStatus.SUCCEEDED and run.cv_generation_debug_json:
@@ -910,6 +932,157 @@ def _load_run_agentic_live_trace_payload(run: PipelineRun) -> dict[str, Any] | N
         return dict(trace_payload)
     return None
 
+def _load_run_cv_generation_debug_payload(run: PipelineRun) -> dict[str, Any] | None:
+    return _load_json_object(run.cv_generation_debug_json)
+
+def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
+    payload = _load_run_cv_generation_debug_payload(run)
+    if not isinstance(payload, dict):
+        return {"queue_items": [], "pending_count": 0, "total_review_required": 0, "actions_count": 0}
+    records = list(payload.get("cv_generation_debug_records") or [])
+    actions = [item for item in list(payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
+    latest_action_by_job: dict[str, dict[str, Any]] = {}
+    for action in actions:
+        job_url = str(action.get("job_url") or "").strip()
+        if not job_url:
+            continue
+        latest_action_by_job[job_url] = action
+    queue_items: list[dict[str, Any]] = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        if str(record.get("status") or "").strip() != "review_required":
+            continue
+        job_url = str(record.get("job_url") or "").strip()
+        if not job_url:
+            continue
+        action = latest_action_by_job.get(job_url)
+        action_name = str((action or {}).get("action") or "").strip() or None
+        queue_items.append(
+            {
+                "job_url": job_url,
+                "job_title": str(record.get("job_title") or "").strip() or "Unknown title",
+                "fit_classification": str(record.get("fit_classification") or "").strip() or "unknown",
+                "reason": str((record.get("error") or {}).get("message") or "").strip() or "Manual review required.",
+                "action": action_name,
+                "action_at": str((action or {}).get("created_at") or "").strip() or None,
+                "action_by": str((action or {}).get("actor") or "").strip() or None,
+                "pending": action_name not in {"approve", "regenerate_once", "reject"},
+            }
+        )
+    queue_items.sort(key=lambda item: (not item["pending"], item["job_title"].lower(), item["job_url"]))
+    pending_count = sum(1 for item in queue_items if item["pending"])
+    return {
+        "queue_items": queue_items,
+        "pending_count": pending_count,
+        "total_review_required": len(queue_items),
+        "actions_count": len(actions),
+    }
+
+def _build_hitl_review_audit_payload(run: PipelineRun) -> dict[str, Any]:
+    queue = _build_hitl_review_queue(run)
+    payload = _load_run_cv_generation_debug_payload(run)
+    actions = [item for item in list((payload or {}).get("hitl_review_actions") or []) if isinstance(item, dict)]
+    return {
+        "schema_version": "hitl_review_audit_v1",
+        "run_id": run.run_id,
+        "status": run.status.value,
+        "summary": {
+            "review_required_total": int(queue.get("total_review_required") or 0),
+            "pending_total": int(queue.get("pending_count") or 0),
+            "actions_total": len(actions),
+        },
+        "queue_items": list(queue.get("queue_items") or []),
+        "actions": actions,
+    }
+
+def _build_markdown_quality_summary(run: PipelineRun) -> dict[str, Any]:
+    payload = _load_run_cv_generation_debug_payload(run)
+    if not isinstance(payload, dict):
+        return {
+            "attempted_total": 0,
+            "review_required_total": 0,
+            "blocking_total": 0,
+            "review_reasons_sample": [],
+            "blocking_reasons_sample": [],
+        }
+    records = [item for item in list(payload.get("cv_generation_debug_records") or []) if isinstance(item, dict)]
+    attempted_statuses = {"accepted", "review_required", "validation_failed", "generation_failed", "persistence_failed"}
+    attempted_records = [record for record in records if str(record.get("status") or "").strip() in attempted_statuses]
+    review_required_records = [
+        record for record in attempted_records
+        if str(record.get("status") or "").strip() == "review_required"
+        and str((record.get("error") or {}).get("stage") or "").strip() == "markdown_quality_review"
+    ]
+    blocking_records = [
+        record for record in attempted_records
+        if str(record.get("status") or "").strip() == "validation_failed"
+        and any(
+            str(item).strip()
+            for item in list((record.get("validation_initial") or {}).get("markdown_quality_blocking_issues") or [])
+        )
+    ]
+    review_reasons = [
+        str((record.get("error") or {}).get("message") or "").strip()
+        for record in review_required_records
+        if str((record.get("error") or {}).get("message") or "").strip()
+    ]
+    blocking_reasons: list[str] = []
+    for record in blocking_records:
+        for issue in list((record.get("validation_initial") or {}).get("markdown_quality_blocking_issues") or []):
+            message = str(issue or "").strip()
+            if message:
+                blocking_reasons.append(message)
+    return {
+        "attempted_total": len(attempted_records),
+        "review_required_total": len(review_required_records),
+        "blocking_total": len(blocking_records),
+        "review_reasons_sample": review_reasons[:3],
+        "blocking_reasons_sample": list(dict.fromkeys(blocking_reasons))[:3],
+    }
+
+def _results_export_rows_with_hitl_audit(run: PipelineRun) -> list[dict[str, Any]]:
+    rows = _results_export_rows(run)
+    if not rows:
+        return rows
+    payload = _load_run_cv_generation_debug_payload(run)
+    if not isinstance(payload, dict):
+        return rows
+    actions = [item for item in list(payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
+    latest_action_by_job: dict[str, dict[str, Any]] = {}
+    for action in actions:
+        job_url = str(action.get("job_url") or "").strip()
+        if job_url:
+            latest_action_by_job[job_url] = action
+    queue = _build_hitl_review_queue(run)
+    review_item_by_job = {
+        str(item.get("job_url") or "").strip(): item
+        for item in list(queue.get("queue_items") or [])
+        if isinstance(item, dict) and str(item.get("job_url") or "").strip()
+    }
+    enriched_rows: list[dict[str, Any]] = []
+    for row in rows:
+        row_copy = dict(row)
+        job_url = str(row_copy.get("job_url") or "").strip()
+        review_item = review_item_by_job.get(job_url)
+        latest_action = latest_action_by_job.get(job_url)
+        if review_item is not None:
+            row_copy["hitl_review_required"] = True
+            row_copy["hitl_review_reason"] = str(review_item.get("reason") or "").strip() or None
+            row_copy["hitl_review_pending"] = bool(review_item.get("pending"))
+            row_copy["hitl_review_category"] = (
+                "markdown_quality"
+                if "markdown quality" in str(review_item.get("reason") or "").strip().lower()
+                else "general"
+            )
+        if latest_action is not None:
+            row_copy["hitl_review_action"] = str(latest_action.get("action") or "").strip() or None
+            row_copy["hitl_review_actor"] = str(latest_action.get("actor") or "").strip() or None
+            row_copy["hitl_review_action_at"] = str(latest_action.get("created_at") or "").strip() or None
+            row_copy["hitl_review_note"] = str(latest_action.get("note") or "").strip() or None
+        enriched_rows.append(row_copy)
+    return enriched_rows
+
 def _run_agentic_runtime_drift_summary(run: PipelineRun) -> dict[str, Any]:
     late_stage_mode = _load_run_late_stage_mode_payload(run)
     if str(late_stage_mode.get("late_stage_mode") or "").strip() != "agentic":
@@ -925,7 +1098,12 @@ def _run_agentic_runtime_drift_summary(run: PipelineRun) -> dict[str, Any]:
     expected_model: str | None = None
     effective_settings = _load_json_object(run.effective_settings_json)
     if isinstance(effective_settings, dict):
-        expected_model = str(effective_settings.get("cv_generation_model") or "").strip() or None
+        runtime_inputs = dict(effective_settings.get("runtime_inputs") or {})
+        runtime_expectation = dict(runtime_inputs.get("agentic_runtime_expectation") or {})
+        expected_provider = str(runtime_expectation.get("provider") or "").strip() or None
+        expected_model = str(runtime_expectation.get("model") or "").strip() or None
+        if expected_model is None:
+            expected_model = str(effective_settings.get("cv_generation_model") or "").strip() or None
 
     trace_payload = _load_run_agentic_live_trace_payload(run) or {}
     records = list(trace_payload.get("records") or [])
@@ -1018,6 +1196,8 @@ def _artifact_applicability_state(run: PipelineRun, filename: str, included_file
         return "missing"
     if filename == "results.json":
         return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
+    if filename == "hitl-review-audit.json":
+        return "missing" if run.status == RunStatus.SUCCEEDED and bool(run.cv_generation_debug_json) else "not_applicable"
     if filename == "settings-used.json":
         return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
     if filename == "cv-debug.json":
@@ -1058,7 +1238,7 @@ def _build_run_artifact_bundle_manifest(run: PipelineRun, files: list[RunArtifac
         "run_mode_label": RUN_MODE_LABELS.get(run.run_mode, run.run_mode),
         "created_at": run.created_at.isoformat() if run.created_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
-        "bundle_schema_version": "run_artifact_bundle_v5",
+        "bundle_schema_version": "run_artifact_bundle_v6",
         "late_stage_mode": _load_run_late_stage_mode_payload(run),
         "included_files": included_files,
         "missing_files": missing_files,
@@ -1409,6 +1589,8 @@ def _pipeline_outcome_surface(row: dict[str, Any]) -> dict[str, str]:
     if source_stage == "cv_generation":
         if deterministic_outcome == "accepted":
             return {"label": "CV created", "badge_class": "badge-success"}
+        if stage_owned_subreason == "review_required":
+            return {"label": "CV review required", "badge_class": "badge-warning"}
         if stage_owned_subreason == "validation_failed":
             return {"label": "CV validation failed", "badge_class": "badge-error"}
         if stage_owned_subreason == "generation_failed":
@@ -1731,6 +1913,12 @@ class BulkRunActionRequest(BaseModel):
             raise ValueError("run_ids must include at least one run id")
         deduped = list(dict.fromkeys(filtered))
         return deduped
+
+class CvReviewActionRequest(BaseModel):
+    job_url: str
+    action: str
+    actor: str = "admin"
+    note: str | None = None
 
 
 def _can_cancel_run(run: PipelineRun) -> bool:
@@ -3394,6 +3582,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         job_title_by_url = _job_title_by_url_from_results_rows(results_rows)
         run_export_links = _build_run_export_links(run)
         agentic_runtime_drift = _run_agentic_runtime_drift_summary(run)
+        hitl_review_queue = _build_hitl_review_queue(run)
+        markdown_quality_summary = _build_markdown_quality_summary(run)
 
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
@@ -3419,8 +3609,89 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "can_upload_synonym_overlay": _can_upload_synonym_overlay(run),
                 "synonym_overlay_info": _extract_run_synonym_overlay_info(run),
                 "agentic_runtime_drift": agentic_runtime_drift,
+                "hitl_review_queue": hitl_review_queue,
+                "markdown_quality_summary": markdown_quality_summary,
             }
         )
+
+    @app.post("/admin/runs/{run_id}/cv-review-action")
+    async def admin_run_cv_review_action(
+        request: Request,
+        run_id: str,
+    ) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        form = await request.form()
+        payload = CvReviewActionRequest(
+            job_url=str(form.get("job_url") or ""),
+            action=str(form.get("action") or ""),
+            actor=str(form.get("actor") or "admin"),
+            note=str(form.get("note") or "").strip() or None,
+        )
+        allowed_actions = {"approve", "regenerate_once", "reject"}
+        if payload.action not in allowed_actions:
+            raise HTTPException(status_code=422, detail="Invalid review action")
+
+        debug_payload = _load_run_cv_generation_debug_payload(run)
+        if not isinstance(debug_payload, dict):
+            raise HTTPException(status_code=409, detail="No cv_generation_debug payload available")
+        records = list(debug_payload.get("cv_generation_debug_records") or [])
+        target_record = None
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            if str(record.get("status") or "").strip() != "review_required":
+                continue
+            if str(record.get("job_url") or "").strip() == payload.job_url:
+                target_record = record
+                break
+        if target_record is None:
+            raise HTTPException(status_code=404, detail="Review-required record not found for job_url")
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        action_entry = {
+            "job_url": payload.job_url,
+            "job_title": str(target_record.get("job_title") or "").strip() or None,
+            "action": payload.action,
+            "actor": payload.actor or "admin",
+            "note": payload.note,
+            "created_at": now.isoformat(),
+        }
+        review_actions = [item for item in list(debug_payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
+        review_actions.append(action_entry)
+        debug_payload["hitl_review_actions"] = review_actions
+        update_run_cv_generation_debug(
+            run_id,
+            _json.dumps(debug_payload, ensure_ascii=False),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        append_event(
+            RunEvent(
+                run_id=run_id,
+                event_id=str(uuid.uuid4()),
+                stage="cv_review_action",
+                level="info",
+                message=f"CV review action '{payload.action}' recorded",
+                created_at=now,
+                payload_json=_json.dumps(
+                    {
+                        "job_url": payload.job_url,
+                        "job_title": target_record.get("job_title"),
+                        "action": payload.action,
+                        "actor": payload.actor,
+                        "note": payload.note,
+                    },
+                    ensure_ascii=False,
+                ),
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
 
     @app.get("/admin/runs/{run_id}/tabs/enriched", response_class=HTMLResponse)
     def admin_run_detail_tab_enriched(
@@ -3505,11 +3776,33 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=409, detail="Run results export is only available for succeeded runs")
         if not run.results_export_json:
             raise HTTPException(status_code=404, detail="Run results export is not available for this run")
-        pretty_json = _json.dumps(_json.loads(run.results_export_json), ensure_ascii=False, indent=2)
+        pretty_json = _json.dumps(
+            {
+                "run_id": run.run_id,
+                "results": _results_export_rows_with_hitl_audit(run),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
         return Response(
             content=pretty_json,
             media_type="application/json",
             headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-results.json"'},
+        )
+
+    @app.get("/admin/runs/{run_id}/hitl-review-audit.json")
+    def download_run_hitl_review_audit_json(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status != RunStatus.SUCCEEDED:
+            raise HTTPException(status_code=409, detail="HITL review audit export is only available for succeeded runs")
+        if not run.cv_generation_debug_json:
+            raise HTTPException(status_code=404, detail="HITL review audit export is not available for this run")
+        return Response(
+            content=_json.dumps(_build_hitl_review_audit_payload(run), ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-hitl-review-audit.json"'},
         )
 
     @app.get("/admin/runs/{run_id}/cv-debug.json")

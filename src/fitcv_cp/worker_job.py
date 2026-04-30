@@ -75,6 +75,7 @@ _SETTINGS_COMPATIBILITY_KEYS = {
 }
 _CV_GENERATION_ATTEMPTED_STATUSES = {
     "accepted",
+    "review_required",
     "validation_failed",
     "generation_failed",
     "persistence_failed",

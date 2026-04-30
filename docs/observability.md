@@ -64,6 +64,7 @@ The main surfaces are:
 - `/admin/runs/{run_id}/cv-analysis-trace.json`
 - `/admin/runs/{run_id}/agentic-live-trace.json`
 - `/admin/runs/{run_id}/cv-debug.json`
+- `/admin/runs/{run_id}/hitl-review-audit.json`
 - `/admin/runs/{run_id}/stage-artifacts.json`
 - `/admin/runs/{run_id}/stage-artifacts/cv_analysis.json`
 - `/admin/runs/{run_id}/stage-artifacts/cv_generation.json`
@@ -81,6 +82,8 @@ Use these to inspect:
 - generation validation
 - repair behavior
 - final generation acceptance or failure
+- review-required outcomes, operator actions, and pending review queue state
+- markdown-quality review and blocking outcomes
 
 ### CV analysis trace
 
@@ -163,9 +166,27 @@ The timeline in run detail and the raw event stream are the best way to inspect:
 - checkpoint pauses and continues
 - snapshot persistence failures
 - agentic fallback or review-related transitions
+- HITL review actions (`cv_review_action`)
 
 If something “felt weird” during a run, the timeline is often the fastest way
 to locate the exact stage boundary where the behavior changed.
+
+### Markdown quality outcomes
+
+When CV generation is agentic and markdown quality checks are enabled, markdown
+consistency outcomes are observable through:
+
+- run detail "Markdown Quality" card
+- `cv_generation.json` quality metrics and output counts
+- `cv-debug.json` per-record validation snapshots
+- `hitl-review-audit.json` review-required reason/action payloads
+
+Outcome semantics:
+
+- blocking markdown issues (for example unsupported bullet markers) route to
+  validation failure
+- shallow markdown structure routes to `review_required`
+- accepted markdown passes both structural and grounding checks
 
 ### Mapping suggestions and synonym proposals
 
@@ -228,8 +249,11 @@ When debugging a surprising run:
 7. open `synonym-proposals-trace.json` when proposal persistence or proposal
    generation status looks degraded
 8. open `cv-debug.json` for the broader CV-generation ledger
-9. open `settings-used.json` if behavior may be config-driven
-10. open mapping-suggestion or synonym-proposal exports if the issue is
+9. open `hitl-review-audit.json` for review queue status and action history
+10. inspect the run detail "Markdown Quality" card when quality drift or shallow
+    outputs are suspected
+11. open `settings-used.json` if behavior may be config-driven
+12. open mapping-suggestion or synonym-proposal exports if the issue is
    taxonomy-related
 
 ## What Each Surface Is Good At
@@ -249,6 +273,12 @@ When debugging a surprising run:
   - stage-owned truth
 - CV debug export:
   - compact CV-generation ledger and per-job debug records
+- HITL review audit export:
+  - run-scoped `review_required` queue, pending/resolved status, and operator
+    action history (`approve`, `regenerate_once`, `reject`)
+- Markdown Quality card:
+  - compact view of markdown-quality review-required and blocking outcomes
+  - sample reasons to accelerate triage before drilling into raw artifacts
 - settings-used export:
   - runtime context and override visibility
 - mapping-suggestions and synonym-proposals exports:

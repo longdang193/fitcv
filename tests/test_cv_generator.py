@@ -23,6 +23,7 @@ from pathlib import Path
 import pytest
 
 from fitcv.cv_generator import (
+    _normalize_cv_markdown,
     build_empty_structured_cv,
     build_generation_prompt,
     build_structured_generation_prompt,
@@ -602,6 +603,84 @@ def test_normalize_structured_cv_coerces_null_section_lists() -> None:
     assert normalized["sections"]["publications"] == []
     assert normalized["sections"]["languages"] == []
 
+def test_normalize_cv_markdown_is_deterministic() -> None:
+    raw = "# Jane Doe\r\n\r\n## Experience\r\n* built pipelines\r\n\r\n\r\n## Projects\r\n• shipped feature\r\n"
+    once = _normalize_cv_markdown(raw)
+    twice = _normalize_cv_markdown(once)
+    assert once == twice
+    assert "\r" not in once
+    assert "* built pipelines" not in once
+    assert "• shipped feature" not in once
+    assert "- built pipelines" in once
+    assert "- shipped feature" in once
+
+def test_normalize_cv_markdown_compacts_blank_lines_between_bullets() -> None:
+    raw = (
+        "# Jane Doe\n"
+        "## Experience\n"
+        "- Built ETL\n"
+        "\n"
+        "- Improved latency\n"
+    )
+    normalized = _normalize_cv_markdown(raw)
+    assert "- Built ETL\n- Improved latency" in normalized
+
+def test_render_cv_markdown_applies_normalization(tmp_path: Path) -> None:
+    template_path = tmp_path / "cv_template.md"
+    template_path.write_text(
+        "# {{ candidate.name }}\n"
+        "**{{ headline }}**\n"
+        "## Summary\n"
+        "{{ summary }}\n"
+        "## Experience\n"
+        "{% for exp in selected_experiences %}\n"
+        "### {{ exp.role }}\n"
+        "{% for bullet in exp.bullets %}\n"
+        "* {{ bullet }}\n"
+        "{% endfor %}\n"
+        "{% endfor %}\n"
+        "## Projects\n"
+        "{% for proj in selected_projects %}\n"
+        "### {{ proj.name }}\n"
+        "{{ proj.description }}\n"
+        "{% endfor %}\n",
+        encoding="utf-8",
+    )
+    structured_cv = build_empty_structured_cv(
+        jd={"title": "Data Engineer"},
+        profile={"name": "Jane Doe"},
+        config={},
+        fit_classification="strong",
+    )
+    structured_cv["sections"]["summary"] = {"text": "Grounded summary"}
+    structured_cv["sections"]["experience"] = [
+        {
+            "role": "Data Engineer",
+            "company": "Acme",
+            "start": "2020-01",
+            "end": "2024-01",
+            "location": None,
+            "bullets": ["Built ETL"],
+        }
+    ]
+    structured_cv["sections"]["projects"] = [
+        {
+            "name": "FitCV",
+            "context": "Pipeline project",
+            "bullets": ["Shipped release"],
+        }
+    ]
+    rendered = render_cv_markdown(
+        structured_cv,
+        {
+            "cv": {"preset": "europass"},
+            "_template_path": str(template_path),
+        },
+    )
+    assert "* Built ETL" not in rendered
+    assert "- Built ETL" in rendered
+    assert "\r" not in rendered
+
 
 def test_generate_cv_uses_google_genai_client(
     monkeypatch: pytest.MonkeyPatch,
@@ -873,6 +952,8 @@ def test_build_generation_prompt_requires_enabled_sections_and_filters_template(
         config=config,
     )
     assert "The generated CV MUST include these sections in this order: Summary, Experience, Certifications, Projects, Languages" in prompt
+    assert "Use markdown headings exactly: '# {Candidate Name}', optional one-line subtitle, then each required section as '## Section'." in prompt
+    assert "Use '- ' as the only bullet marker and keep exactly one blank line between top-level sections." in prompt
     assert "## Summary" in prompt
     assert "## Experience" in prompt
     assert "## Certifications" in prompt
@@ -972,9 +1053,31 @@ def test_build_structured_generation_prompt_uses_dedicated_structured_template()
     )
 
     assert "Generate a tailored CV as a structured JSON document." in prompt
+    assert "## Markdown Output Standard" in prompt
     assert "## Structured JSON Schema" in prompt
     assert "Write only valid JSON matching the schema below." in prompt
     assert "Write only the completed CV markdown." not in prompt
+
+def test_build_generation_prompt_consumes_extended_analysis_hints() -> None:
+    prompt = build_generation_prompt(
+        jd={"title": "Data Analyst", "required_skills": ["SQL", "Python"]},
+        evidence=[{"evidence_type": "experience_entry", "role": "Analyst", "company": "Acme", "skills": ["SQL"]}],
+        gap={
+            "matched": ["SQL"],
+            "missing": ["Python"],
+            "do_not_claim": ["Python", "Data Vault"],
+            "requirement_coverage": [
+                {"requirement": "SQL", "support_strength": "supported"},
+                {"requirement": "Python", "support_strength": "unsupported"},
+            ],
+            "section_confidence_hints": {"experience": "high", "projects": "medium"},
+        },
+        template="## Summary\n...\n## Experience\n...",
+    )
+    assert "Do NOT claim the following unsupported items: Python, Data Vault" in prompt
+    assert "Prioritize these strongly supported requirements: SQL" in prompt
+    assert "Treat these requirements as unsupported unless explicit evidence is present: Python" in prompt
+    assert "Section confidence hints: experience=high, projects=medium" in prompt
 
 
 def test_europass_template_includes_publications_section() -> None:

@@ -165,6 +165,7 @@ CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS = "blocked_by_reranker_fit"
 CV_ANALYSIS_READY_FOR_GENERATION_STATUS = "ready_for_generation"
 CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS = "skipped_fit_gate"
 CV_ANALYSIS_FAILED_STATUS = "analysis_failed"
+CV_GENERATION_REVIEW_REQUIRED_STATUS = "review_required"
 PIPELINE_STATUS_RANKED_BLOCKED_BY_RERANKER = "ranked_blocked_by_reranker_fit"
 PIPELINE_STAGE_SEQUENCE = (
     "normalize",
@@ -1045,7 +1046,7 @@ def _build_checkpoint_summary(
     ranked = list(state.get("ranked") or [])
     cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
     cv_generation_reached = any(
-        str(record.get("status") or "") in {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
+        str(record.get("status") or "") in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
         for record in cv_generation_debug_records
     )
     late_stage_mode_payload = _build_late_stage_mode_payload(
@@ -1360,6 +1361,12 @@ def _deterministic_truth_fields(status: str | None) -> dict[str, str | None]:
             "stage_owned_subreason": normalized_status,
             "source_stage": "cv_generation",
         }
+    if normalized_status == CV_GENERATION_REVIEW_REQUIRED_STATUS:
+        return {
+            "deterministic_outcome": "not_applicable",
+            "stage_owned_subreason": normalized_status,
+            "source_stage": "cv_generation",
+        }
     if normalized_status in {"validation_failed", "generation_failed", "persistence_failed"}:
         return {
             "deterministic_outcome": "rejected",
@@ -1540,7 +1547,7 @@ def _build_cv_generation_debug_record(
     ranking_fit_source = str(job.get("fit_label_source") or "reranker").strip() or None
     cv_analysis_status = status
     cv_generation_status = status
-    if status in {"accepted", "validation_failed", "generation_failed", "persistence_failed"}:
+    if status in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}:
         cv_analysis_status = CV_ANALYSIS_READY_FOR_GENERATION_STATUS
     elif status in {
         CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
@@ -1597,12 +1604,59 @@ def _resolved_cv_generation_model(
             return runtime_model
     return default_model
 
+def _hitl_review_reason_for_agentic_case(
+    analysis_record: dict[str, Any] | None,
+    generation_result: dict[str, Any] | None,
+    validation_snapshot: dict[str, Any] | None = None,
+) -> str | None:
+    if not isinstance(analysis_record, dict) or not isinstance(generation_result, dict):
+        return None
+    if str(generation_result.get("status") or "").strip().lower() != "accepted":
+        return None
+    section_hints = analysis_record.get("section_confidence_hints")
+    if isinstance(section_hints, dict):
+        low_sections = sorted(
+            str(section).strip()
+            for section, hint in section_hints.items()
+            if str(hint or "").strip().lower() in {"low", "very_low", "none", "unsupported"}
+        )
+        if low_sections:
+            return f"Low confidence sections: {', '.join(low_sections)}"
+    do_not_claim = [str(item).strip() for item in list(analysis_record.get("do_not_claim") or []) if str(item).strip()]
+    if do_not_claim:
+        unsupported_requirements: list[str] = []
+        for item in list(analysis_record.get("requirement_coverage") or []):
+            if not isinstance(item, dict):
+                continue
+            support_strength = str(item.get("support_strength") or "").strip().lower()
+            if support_strength in {"unsupported", "weak", "insufficient"}:
+                requirement = str(item.get("requirement") or "").strip()
+                if requirement:
+                    unsupported_requirements.append(requirement)
+        if unsupported_requirements:
+            return "Unsupported requirements require review: " + ", ".join(sorted(set(unsupported_requirements))[:6])
+    markdown_review_flags = list((validation_snapshot or {}).get("markdown_quality_review_flags") or [])
+    if markdown_review_flags:
+        return "Markdown quality requires review: " + str(markdown_review_flags[0])
+    markdown_blocking_issues = list((validation_snapshot or {}).get("markdown_quality_blocking_issues") or [])
+    if markdown_blocking_issues:
+        return "Markdown quality issue detected: " + str(markdown_blocking_issues[0])
+    return None
+
+def _markdown_quality_review_reason(validation: dict[str, Any] | None) -> str | None:
+    if not isinstance(validation, dict):
+        return None
+    review_flags = [str(item).strip() for item in list(validation.get("markdown_quality_review_flags") or []) if str(item).strip()]
+    if review_flags:
+        return "Markdown quality requires review: " + review_flags[0]
+    return None
+
 
 def _summarize_cv_generation_model(
     cv_generation_debug_records: list[dict[str, Any]],
     default_model: str | None,
 ) -> str | None:
-    attempted_statuses = {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
+    attempted_statuses = {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
     models = [
         str(record.get("cv_generation_model") or "").strip()
         for record in cv_generation_debug_records
@@ -1620,7 +1674,7 @@ def _summarize_cv_generation_model(
 def _summarize_cv_generation_provider(
     cv_generation_debug_records: list[dict[str, Any]],
 ) -> str | None:
-    attempted_statuses = {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
+    attempted_statuses = {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
     providers = [
         str((record.get("runtime_provenance") or {}).get("provider") or "").strip()
         for record in cv_generation_debug_records
@@ -1661,7 +1715,7 @@ def _build_agentic_live_trace_summary(
             "artifact_refs": {},
         }
 
-    attempted_statuses = {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
+    attempted_statuses = {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
     attempted_records = [
         record for record in cv_generation_debug_records
         if str(record.get("status") or "") in attempted_statuses
@@ -2012,6 +2066,7 @@ def _build_cv_generation_quality_metrics(
     cv_generation_debug_records: list[dict[str, Any]],
 ) -> dict[str, Any]:
     accepted = 0
+    review_required = 0
     validation_failed = 0
     generation_failed = 0
     persistence_failed = 0
@@ -2019,19 +2074,23 @@ def _build_cv_generation_quality_metrics(
         status = str(record.get("status") or "").strip().lower()
         if status == "accepted":
             accepted += 1
+        elif status == CV_GENERATION_REVIEW_REQUIRED_STATUS:
+            review_required += 1
         elif status == "validation_failed":
             validation_failed += 1
         elif status == "generation_failed":
             generation_failed += 1
         elif status == "persistence_failed":
             persistence_failed += 1
-    total_attempted = accepted + validation_failed + generation_failed + persistence_failed
+    total_attempted = accepted + review_required + validation_failed + generation_failed + persistence_failed
     return {
         "validation_fail_rate": _safe_rate(validation_failed, total_attempted),
         "accepted_rate": _safe_rate(accepted, total_attempted),
+        "review_required_rate": _safe_rate(review_required, total_attempted),
         "generation_failed_rate": _safe_rate(generation_failed, total_attempted),
         "persistence_failed_rate": _safe_rate(persistence_failed, total_attempted),
         "accepted": accepted,
+        "review_required": review_required,
         "validation_failed": validation_failed,
         "generation_failed": generation_failed,
         "persistence_failed": persistence_failed,
@@ -2337,7 +2396,7 @@ def _build_stage_transition_artifacts(
     cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
     generation_execution_records = [
         record for record in cv_generation_debug_records
-        if str(record.get("status") or "") in {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
+        if str(record.get("status") or "") in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
     ]
     cv_generation_reached = len(generation_execution_records) > 0
     raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
@@ -2421,6 +2480,7 @@ def _build_stage_transition_artifacts(
         "ranked_jobs_total": len(ranked),
         "debug_records_captured": len(cv_generation_debug_records),
         "accepted_count": 0,
+        "review_required_count": 0,
         "blocked_by_reranker_fit_count": 0,
         "skipped_fit_gate_count": 0,
         "analysis_failed_count": 0,
@@ -2432,6 +2492,8 @@ def _build_stage_transition_artifacts(
         status = str(record.get("status") or "")
         if status == "accepted":
             cv_status_counts["accepted_count"] += 1
+        elif status == CV_GENERATION_REVIEW_REQUIRED_STATUS:
+            cv_status_counts["review_required_count"] += 1
         elif status == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS:
             cv_status_counts["blocked_by_reranker_fit_count"] += 1
         elif status == "skipped_fit_gate":
@@ -2828,6 +2890,7 @@ def _build_stage_transition_artifacts(
                 },
                 output_counts={
                     "accepted": cv_status_counts["accepted_count"],
+                    "review_required": cv_status_counts["review_required_count"],
                     "validation_failed": cv_status_counts["validation_failed_count"],
                     "generation_failed": cv_status_counts["generation_failed_count"],
                     "persistence_failed": cv_status_counts["persistence_failed_count"],
@@ -3969,6 +4032,40 @@ def run_pipeline(
                         )
                     )
                     continue
+                review_reason = _hitl_review_reason_for_agentic_case(
+                    analysis_record,
+                    agentic_generation_result,
+                    validation_initial,
+                )
+                if review_reason:
+                    review_error = {
+                        "stage": "review_gate",
+                        "message": review_reason,
+                    }
+                    cv_generation_debug_records.append(
+                        _build_cv_generation_debug_record(
+                            job=job,
+                            status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                            fit_classification=fit,
+                            evidence_used=evidence_used,
+                            evidence_selection_summary=evidence_selection_summary,
+                            analysis_input_summary=analysis_input_summary,
+                            gap_summary=gap,
+                            structured_cv_initial=structured_cv_initial,
+                            validation_initial=validation_initial,
+                            repair_attempt=repair_attempt,
+                            structured_cv_final=structured_cv_final,
+                            markdown_final=markdown_final,
+                            enabled_sections=enabled_cv_sections,
+                            cv_generation_model=job_cv_generation_model_value,
+                            runtime_provenance=job_runtime_provenance,
+                            cv_prompt_id=cv_prompt_id_value,
+                            cv_prompt_template_path=cv_prompt_template_path_value,
+                            error=review_error,
+                            agentic_live_trace=job_agentic_live_trace,
+                        )
+                    )
+                    continue
                 structured_cv = structured_cv_final
                 cv = str(markdown_final or "")
                 validation: dict[str, Any] = {"valid": True, "missing_sections": []}
@@ -4046,6 +4143,8 @@ def run_pipeline(
                     "deterministic_grounding_violations": validation.get("deterministic_grounding_violations") or [],
                     "semantic_grounding_violations": validation.get("semantic_grounding_violations") or [],
                     "skill_violations": validation.get("skill_violations") or [],
+                    "markdown_quality_blocking_issues": validation.get("markdown_quality_blocking_issues") or [],
+                    "markdown_quality_review_flags": validation.get("markdown_quality_review_flags") or [],
                     "warnings": validation.get("warnings") or [],
                     "support_source_summary": validation.get("support_source_summary") or {},
                 }
@@ -4111,6 +4210,36 @@ def run_pipeline(
                             artifact_refs={"stage_id": "cv_generation"},
                         ),
                     )  # type: ignore[union-attr]
+                continue
+
+            markdown_review_reason = _markdown_quality_review_reason(validation)
+            if markdown_review_reason:
+                cv_generation_debug_records.append(
+                    _build_cv_generation_debug_record(
+                        job=job,
+                        status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                        fit_classification=fit,
+                        evidence_used=evidence_used,
+                        evidence_selection_summary=evidence_selection_summary,
+                        analysis_input_summary=analysis_input_summary,
+                        gap_summary=gap,
+                        structured_cv_initial=structured_cv_initial,
+                        validation_initial=validation_initial,
+                        repair_attempt=repair_attempt,
+                        structured_cv_final=structured_cv,
+                        markdown_final=cv,
+                        enabled_sections=enabled_cv_sections,
+                        cv_generation_model=job_cv_generation_model_value,
+                        runtime_provenance=job_runtime_provenance,
+                        cv_prompt_id=cv_prompt_id_value,
+                        cv_prompt_template_path=cv_prompt_template_path_value,
+                        error={
+                            "stage": "markdown_quality_review",
+                            "message": markdown_review_reason,
+                        },
+                        agentic_live_trace=job_agentic_live_trace,
+                    )
+                )
                 continue
 
             structured_cv_final = structured_cv
@@ -4264,7 +4393,7 @@ def run_pipeline(
     )
     cv_analysis_reached = len(ranked) > 0 or len(cv_analysis_results) > 0
     cv_generation_reached = any(
-        str(record.get("status") or "") in {"accepted", "validation_failed", "generation_failed", "persistence_failed"}
+        str(record.get("status") or "") in {"accepted", CV_GENERATION_REVIEW_REQUIRED_STATUS, "validation_failed", "generation_failed", "persistence_failed"}
         for record in cv_generation_debug_records
     )
     late_stage_mode_payload = _build_late_stage_mode_payload(
