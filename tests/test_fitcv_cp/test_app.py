@@ -127,6 +127,47 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
     assert profile_snapshot["preferences"]["domains"] == ["fintech"]
     effective = json.loads(captured["run"].effective_settings_json)
     assert json.loads(effective["runtime_inputs"]["candidate_profile_json"]) == profile_snapshot
+    assert "agentic_runtime_expectation" in effective["runtime_inputs"]
+
+def test_post_runs_path_trigger_captures_agentic_runtime_expectation(tmp_path) -> None:
+    captured = {}
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    with patch.dict(
+        "os.environ",
+        {
+            "FITCV_LANGGRAPH_PROVIDER": "9router",
+            "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.2",
+            "FITCV_LANGGRAPH_OPENAI_BASE_URL": "http://localhost:20128/v1",
+            "FITCV_LANGGRAPH_WIRE_API": "responses",
+        },
+        clear=False,
+    ), patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p",
+             "bigquery_dataset": "d",
+             "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": str(profile_path)},
+         }):
+        resp = TestClient(_app()).post("/runs", json={"jobs_path": str(jobs_file)})
+
+    assert resp.status_code == 201
+    effective = json.loads(captured["run"].effective_settings_json)
+    expectation = effective["runtime_inputs"]["agentic_runtime_expectation"]
+    assert expectation["provider"] == "9router"
+    assert expectation["model"] == "cx/gpt-5.2"
+    assert expectation["base_url"] == "http://localhost:20128/v1"
+    assert expectation["wire_api"] == "responses"
 
 
 def test_post_runs_run_all_and_manual_staged_share_canonical_runtime_envelope(tmp_path) -> None:
@@ -568,6 +609,121 @@ def test_admin_run_detail_shows_trigger_uploaded_synonym_overlay_state() -> None
     assert "Synonym Overlay" in resp.text
     assert "Trigger Upload" in resp.text
     assert "custom_overlay.yaml" in resp.text
+
+def test_admin_run_detail_shows_agentic_review_queue_card() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-queue",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                        "error": {"stage": "review_gate", "message": "Low confidence sections: experience"},
+                    }
+                ],
+                "hitl_review_actions": [],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-review-queue")
+    assert resp.status_code == 200
+    assert "Agentic Review Queue" in resp.text
+    assert "Regenerate Once" in resp.text
+    assert 'action="/admin/runs/run-review-queue/cv-review-action"' in resp.text
+
+def test_admin_run_detail_shows_markdown_quality_card() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-markdown-quality",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                        "error": {"stage": "markdown_quality_review", "message": "Markdown quality requires review: Experience section appears shallow."},
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-markdown-quality")
+    assert resp.status_code == 200
+    assert "Markdown Quality" in resp.text
+    assert "review-required" in resp.text
+
+def test_admin_run_cv_review_action_persists_and_appends_event() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-action",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                        "error": {"stage": "review_gate", "message": "Low confidence sections: experience"},
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update, \
+         patch("fitcv_cp.app.append_event") as mock_append:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-action/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "approve", "actor": "operator"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    mock_update.assert_called_once()
+    saved_payload = json.loads(mock_update.call_args.args[1])
+    assert saved_payload["hitl_review_actions"][-1]["action"] == "approve"
+    assert saved_payload["hitl_review_actions"][-1]["job_url"] == "https://example.com/job-1"
+    mock_append.assert_called_once()
 
 
 def test_admin_run_detail_shows_synonym_overlay_yaml_snapshot() -> None:
@@ -1716,6 +1872,88 @@ def test_download_results_json_endpoint_409_for_running_run():
         resp = TestClient(_app()).get("/admin/runs/run-export-2/export.json")
     assert resp.status_code == 409
 
+def test_download_results_json_endpoint_includes_hitl_audit_fields_when_present():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-export-hitl-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        results_export_json=json.dumps(
+            {
+                "run_id": "run-export-hitl-1",
+                "results": [
+                    {"job_url": "https://example.com/job-1", "job_title": "Test Role", "pipeline_status": "ranked_no_cv"}
+                ],
+            }
+        ),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Test Role",
+                        "status": "review_required",
+                        "error": {"stage": "review_gate", "message": "Low confidence sections: experience"},
+                    }
+                ],
+                "hitl_review_actions": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "action": "approve",
+                        "actor": "operator",
+                        "created_at": "2026-04-30T10:00:00Z",
+                    }
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-export-hitl-1/export.json")
+    assert resp.status_code == 200
+    row = resp.json()["results"][0]
+    assert row["hitl_review_required"] is True
+    assert row["hitl_review_action"] == "approve"
+    assert row["hitl_review_actor"] == "operator"
+
+def test_download_hitl_review_audit_endpoint_200():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-hitl-audit-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Test Role",
+                        "status": "review_required",
+                        "error": {"stage": "review_gate", "message": "Low confidence sections: experience"},
+                    }
+                ],
+                "hitl_review_actions": [],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-hitl-audit-1/hitl-review-audit.json")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["schema_version"] == "hitl_review_audit_v1"
+    assert payload["summary"]["review_required_total"] == 1
+
 
 def test_download_results_json_endpoint_404_if_snapshot_missing():
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -2516,7 +2754,7 @@ def test_download_run_artifact_bundle_zip_endpoint_for_partial_run() -> None:
         assert "mapping-suggestions.json" not in names
         manifest = json.loads(archive.read("manifest.json"))
     assert manifest["run_id"] == "run-bundle-partial-1"
-    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v5"
+    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v6"
     assert manifest["run_mode"] == "manual_staged"
     assert manifest["run_mode_label"] == "Stage by Stage"
     assert manifest["late_stage_mode"]["late_stage_mode"] == "non_agentic"
@@ -2587,6 +2825,7 @@ def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
         names = set(archive.namelist())
         assert "manifest.json" in names
         assert "results.json" in names
+        assert "hitl-review-audit.json" in names
         assert "cv-debug.json" in names
         assert "cv-analysis-trace.json" in names
         assert "agentic-live-trace.json" in names
@@ -2608,11 +2847,12 @@ def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
         trace_payload = json.loads(archive.read("agentic-live-trace.json"))
         synonym_trace_payload = json.loads(archive.read("synonym-proposals-trace.json"))
     assert manifest["run_id"] == "run-bundle-success-1"
-    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v5"
+    assert manifest["bundle_schema_version"] == "run_artifact_bundle_v6"
     assert manifest["run_mode"] == "run_all"
     assert manifest["run_mode_label"] == "Run All"
     assert manifest["late_stage_mode"]["late_stage_mode"] == "agentic"
     assert "results.json" in manifest["included_files"]
+    assert "hitl-review-audit.json" in manifest["included_files"]
     assert manifest["artifact_states"]["cv-analysis-trace.json"] == "present"
     assert manifest["artifact_states"]["agentic-live-trace.json"] == "present"
     assert manifest["artifact_states"]["synonym-proposals.json"] == "present"

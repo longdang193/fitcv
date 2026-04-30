@@ -24,6 +24,7 @@ lifecycle:
 """
 
 import json
+import re
 import textwrap
 from typing import Any
 
@@ -475,6 +476,12 @@ def _build_generation_prompt_context(
             "Do NOT claim the candidate has the following skills "
             f"(they are missing from their profile): {', '.join(missing_skills)}"
         )
+    do_not_claim = [str(item) for item in list(gap.get("do_not_claim") or []) if str(item)]
+    if do_not_claim:
+        constraint_lines.append(
+            "Do NOT claim the following unsupported items: "
+            + ", ".join(do_not_claim)
+        )
     if matched_skills:
         constraint_lines.append(
             f"The candidate does have: {', '.join(matched_skills)}"
@@ -518,6 +525,12 @@ def _build_generation_prompt_context(
             "The generated CV MUST include these sections in this order: "
             + ", ".join(enabled_section_names)
         )
+        constraint_lines.append(
+            "Use markdown headings exactly: '# {Candidate Name}', optional one-line subtitle, then each required section as '## Section'."
+        )
+        constraint_lines.append(
+            "Use '- ' as the only bullet marker and keep exactly one blank line between top-level sections."
+        )
     if repair_missing_sections:
         constraint_lines.append(
             "Regenerate the CV and fix the previous structural failure by including these missing sections with grounded content: "
@@ -535,6 +548,42 @@ def _build_generation_prompt_context(
                 constraint_lines.append(
                     f"Do NOT include a '{display_name}' section."
                 )
+    requirement_coverage = [
+        dict(item)
+        for item in list(gap.get("requirement_coverage") or [])
+        if isinstance(item, dict)
+    ]
+    if requirement_coverage:
+        supported = [
+            str(item.get("requirement") or "").strip()
+            for item in requirement_coverage
+            if str(item.get("support_strength") or "").strip().lower() == "supported"
+            and str(item.get("requirement") or "").strip()
+        ]
+        unsupported = [
+            str(item.get("requirement") or "").strip()
+            for item in requirement_coverage
+            if str(item.get("support_strength") or "").strip().lower() == "unsupported"
+            and str(item.get("requirement") or "").strip()
+        ]
+        if supported:
+            constraint_lines.append(
+                "Prioritize these strongly supported requirements: " + ", ".join(supported)
+            )
+        if unsupported:
+            constraint_lines.append(
+                "Treat these requirements as unsupported unless explicit evidence is present: "
+                + ", ".join(unsupported)
+            )
+    section_confidence_hints = dict(gap.get("section_confidence_hints") or {})
+    if section_confidence_hints:
+        hints_text = ", ".join(
+            f"{section}={str(level)}"
+            for section, level in section_confidence_hints.items()
+            if str(section).strip() and str(level).strip()
+        )
+        if hints_text:
+            constraint_lines.append("Section confidence hints: " + hints_text)
     if any(str(item.get("evidence_type") or "") == "experience_entry" for item in evidence):
         constraint_lines.append(
             "For the Experience section, emphasize the bullets most relevant to the target JD."
@@ -1015,6 +1064,49 @@ def render_cv_template(
         summary=summary,
     )
 
+def _normalize_cv_markdown(markdown: str) -> str:
+    """Deterministically normalize rendered CV markdown formatting."""
+    text = str(markdown or "").replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"(?m)^\s*[\*\u2022]\s+", "- ", text)
+    text = re.sub(r"(?m)^\s*-\s{2,}", "- ", text)
+    raw_lines = [line.rstrip() for line in text.split("\n")]
+    lines: list[str] = []
+    for idx, line in enumerate(raw_lines):
+        stripped = line.strip()
+        if stripped:
+            lines.append(line)
+            continue
+        prev_nonempty = ""
+        next_nonempty = ""
+        for prev_idx in range(idx - 1, -1, -1):
+            if raw_lines[prev_idx].strip():
+                prev_nonempty = raw_lines[prev_idx].strip()
+                break
+        for next_idx in range(idx + 1, len(raw_lines)):
+            if raw_lines[next_idx].strip():
+                next_nonempty = raw_lines[next_idx].strip()
+                break
+        # Drop empty lines between adjacent list bullets for compact, consistent lists.
+        if prev_nonempty.startswith("- ") and next_nonempty.startswith("- "):
+            continue
+        lines.append(line)
+
+    normalized_lines: list[str] = []
+    previous_was_blank = False
+    for line in lines:
+        is_blank = not line.strip()
+        if is_blank:
+            if not previous_was_blank:
+                normalized_lines.append("")
+            previous_was_blank = True
+            continue
+        normalized_lines.append(line)
+        previous_was_blank = False
+    text = "\n".join(normalized_lines).strip()
+    text = re.sub(r"\n{2,}(## )", r"\n\n\1", text)
+    text = re.sub(r"(?<!\n)\n(## )", r"\n\n\1", text)
+    return text.strip() + "\n"
+
 
 # ── LLM generation (integration) ─────────────────────────────────────────────
 
@@ -1101,7 +1193,7 @@ def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) ->
         }
         for item in sections["languages"]
     ]
-    return render_cv_template(
+    rendered = render_cv_template(
         template_str=template_str,
         selected_skills=flattened_skills,
         selected_experiences=sections["experience"],
@@ -1114,6 +1206,7 @@ def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) ->
         headline=str(header.get("title") or ""),
         summary=str(sections["summary"].get("text") or ""),
     )
+    return _normalize_cv_markdown(rendered)
 
 
 def generate_structured_cv(

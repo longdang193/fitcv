@@ -171,6 +171,7 @@ These are primarily operator-facing action endpoints:
 - `POST /admin/runs/{run_id}/repair-cancellation`
 - `POST /admin/runs/{run_id}/continue`
 - `POST /admin/runs/{run_id}/synonym-overlay`
+- `POST /admin/runs/{run_id}/cv-review-action`
 
 These generally redirect in the HTML workflow, and they may return conflict or
 not-found errors when the run is not in a valid state for the action.
@@ -180,6 +181,7 @@ not-found errors when the run is not in a valid state for the action.
 ### Run-scoped exports
 
 - `GET /admin/runs/{run_id}/export.json`
+- `GET /admin/runs/{run_id}/hitl-review-audit.json`
 - `GET /admin/runs/{run_id}/cv-debug.json`
 - `GET /admin/runs/{run_id}/cv-analysis-trace.json`
 - `GET /admin/runs/{run_id}/agentic-live-trace.json`
@@ -199,6 +201,20 @@ Common behavior:
 - `404` when the artifact does not exist yet
 - `409` when the route is only valid for succeeded runs and the run is not yet
   terminal
+
+Review audit note:
+
+- `hitl-review-audit.json` contains run-scoped `review_required` queue items and
+  action history (`approve`, `regenerate_once`, `reject`)
+- `export.json` rows may include HITL fields such as:
+  - `hitl_review_required`
+  - `hitl_review_reason`
+  - `hitl_review_pending`
+  - `hitl_review_action`
+  - `hitl_review_actor`
+  - `hitl_review_action_at`
+  - `hitl_review_note`
+  - `hitl_review_category`
 
 Trace-specific note:
 

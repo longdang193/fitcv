@@ -2,7 +2,6 @@
 layer: change
 artifact_type: plan
 status: proposed
-parent_workstream: none
 parent_thread: workstream-agentic-observability.agentic-observability-shared-trace-standard
 parent_spec: docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
 targets:

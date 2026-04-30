@@ -103,6 +103,11 @@ capabilities:
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-input-mode-parity-spec.md
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-stage-authority-contract-spec.md
     - docs/superpowers/specs/2026-04-28-operator-control-plane-run-detail-truth-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-cv-quality-drift-and-depth-patch-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
+    - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
+    - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
+    - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -163,6 +168,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -270,6 +278,11 @@ capabilities:
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-input-mode-parity-spec.md
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-stage-authority-contract-spec.md
     - docs/superpowers/specs/2026-04-28-operator-control-plane-run-detail-truth-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-cv-quality-drift-and-depth-patch-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
+    - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
+    - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
+    - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -330,6 +343,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -433,6 +449,11 @@ capabilities:
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-input-mode-parity-spec.md
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-stage-authority-contract-spec.md
     - docs/superpowers/specs/2026-04-28-operator-control-plane-run-detail-truth-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-cv-quality-drift-and-depth-patch-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
+    - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
+    - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
+    - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -493,6 +514,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -598,6 +622,11 @@ capabilities:
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-input-mode-parity-spec.md
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-stage-authority-contract-spec.md
     - docs/superpowers/specs/2026-04-28-operator-control-plane-run-detail-truth-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-cv-quality-drift-and-depth-patch-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
+    - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
+    - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
+    - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -658,6 +687,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -755,6 +787,11 @@ capabilities:
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-input-mode-parity-spec.md
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-stage-authority-contract-spec.md
     - docs/superpowers/specs/2026-04-28-operator-control-plane-run-detail-truth-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-cv-quality-drift-and-depth-patch-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
+    - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
+    - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
+    - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -815,6 +852,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -912,6 +952,11 @@ capabilities:
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-input-mode-parity-spec.md
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-stage-authority-contract-spec.md
     - docs/superpowers/specs/2026-04-28-operator-control-plane-run-detail-truth-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-cv-quality-drift-and-depth-patch-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
+    - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
+    - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
+    - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -972,6 +1017,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1075,6 +1123,11 @@ capabilities:
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-input-mode-parity-spec.md
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-stage-authority-contract-spec.md
     - docs/superpowers/specs/2026-04-28-operator-control-plane-run-detail-truth-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-cv-quality-drift-and-depth-patch-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
+    - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
+    - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
+    - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1135,6 +1188,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1246,6 +1302,11 @@ capabilities:
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-input-mode-parity-spec.md
     - docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-stage-authority-contract-spec.md
     - docs/superpowers/specs/2026-04-28-operator-control-plane-run-detail-truth-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-cv-quality-drift-and-depth-patch-spec.md
+    - docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
+    - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
+    - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
+    - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1306,6 +1367,9 @@ capabilities:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
     - docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
+    - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null

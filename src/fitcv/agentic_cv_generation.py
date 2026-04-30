@@ -92,6 +92,8 @@ class ValidationSnapshot(TypedDict):
     skill_violations: list[str]
     warnings: list[str]
     support_source_summary: dict[str, Any]
+    markdown_quality_blocking_issues: list[str]
+    markdown_quality_review_flags: list[str]
 
 
 class ErrorPayload(TypedDict):
@@ -312,6 +314,23 @@ def _build_generation_ready_analysis(
             ),
         },
     }
+
+def _augmented_gap_summary_from_analysis(analysis_record: dict[str, Any]) -> dict[str, Any]:
+    gap_summary = dict(analysis_record.get("gap_summary") or {})
+    do_not_claim = [str(item) for item in list(analysis_record.get("do_not_claim") or []) if str(item)]
+    requirement_coverage = [
+        dict(item)
+        for item in list(analysis_record.get("requirement_coverage") or [])
+        if isinstance(item, dict)
+    ]
+    section_confidence_hints = dict(analysis_record.get("section_confidence_hints") or {})
+    if do_not_claim:
+        gap_summary["do_not_claim"] = do_not_claim
+    if requirement_coverage:
+        gap_summary["requirement_coverage"] = requirement_coverage
+    if section_confidence_hints:
+        gap_summary["section_confidence_hints"] = section_confidence_hints
+    return gap_summary
 
 
 def _load_fitcv_langgraph_runtime() -> _LanggraphRuntimeBridge | None:
@@ -897,6 +916,8 @@ def _build_validation_snapshot(validation: dict[str, Any] | None) -> ValidationS
         "skill_violations": list(validation.get("skill_violations") or []),
         "warnings": list(validation.get("warnings") or []),
         "support_source_summary": dict(validation.get("support_source_summary") or {}),
+        "markdown_quality_blocking_issues": list(validation.get("markdown_quality_blocking_issues") or []),
+        "markdown_quality_review_flags": list(validation.get("markdown_quality_review_flags") or []),
     }
 
 
@@ -1042,7 +1063,7 @@ def generate_from_analysis(
             evidence_payload,
             evidence_used,
         )
-        gap_summary = analysis_record.get("gap_summary") or {}
+        gap_summary = _augmented_gap_summary_from_analysis(analysis_record)
         fit = str(fit_classification or "skip")
         structured_cv_initial: dict[str, Any] | None = None
         validation_initial: ValidationSnapshot | None = None
@@ -1261,7 +1282,7 @@ def generate_from_analysis(
         evidence_payload,
         evidence_used,
     )
-    gap_summary = analysis_record.get("gap_summary") or {}
+    gap_summary = _augmented_gap_summary_from_analysis(analysis_record)
     fit = str(fit_classification or "skip")
     fallback_runtime_provenance = {
         "runtime_path": "fitcv_builtin_gemini",
