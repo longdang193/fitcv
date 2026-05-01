@@ -224,6 +224,119 @@
 </div>
 {% endif %}
 
+{% if synonym_proposal_review_queue.total_count and synonym_proposal_review_queue.total_count > 0 %}
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <div>
+      <h3 style="margin:0 0 0.35rem">Synonym Proposal Review</h3>
+      <div class="meta">
+        {{ synonym_proposal_review_queue.pending_count }} pending of {{ synonym_proposal_review_queue.total_count }} proposal(s).
+      </div>
+    </div>
+    <span class="badge badge-info">run-scoped HITL</span>
+  </div>
+  <form id="synonym-batch-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/batch-action" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+    <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
+    <input type="text" name="note" value="" placeholder="optional note" style="min-width:16rem">
+    <button class="btn-secondary" type="submit">Submit Selected Decisions</button>
+    <button class="btn-secondary" type="button" id="apply-recommendations-btn">Apply Recommendations to Selected</button>
+    <span class="meta">Only rows with selected action are applied.</span>
+  </form>
+  {% if request.query_params.get("synonym_batch_applied") is not none %}
+  <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Batch summary:
+    applied={{ request.query_params.get("synonym_batch_applied") }},
+    skipped={{ request.query_params.get("synonym_batch_skipped") or "0" }},
+    failed={{ request.query_params.get("synonym_batch_failed") or "0" }}.
+  </div>
+  {% endif %}
+  {% if request.query_params.get("synonym_promote_applied") is not none %}
+  <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Promote-to-global summary:
+    applied={{ request.query_params.get("synonym_promote_applied") }},
+    skipped={{ request.query_params.get("synonym_promote_skipped") or "0" }},
+    failed={{ request.query_params.get("synonym_promote_failed") or "0" }}.
+  </div>
+  {% endif %}
+  <form id="synonym-promote-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-preview" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+    <button class="btn-secondary" type="submit">Preview Promote to Global</button>
+    <span class="meta">Select approved rows below, preview the global diff, then confirm.</span>
+  </form>
+  <div style="display:flex;flex-direction:column;gap:0.85rem">
+    {% for item in synonym_proposal_review_queue["items"] %}
+    <div class="sub-card" style="padding:0.8rem">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+        <div>
+          {% if item.status == "approved_for_run_overlay" %}
+          <div style="margin-bottom:0.4rem">
+            <label class="meta" style="display:flex;align-items:center;gap:0.45rem">
+              <input type="checkbox" name="promote_proposal_id" value="{{ item.proposal_id }}" form="synonym-promote-form">
+              Include in Promote-to-Global preview
+            </label>
+          </div>
+          {% endif %}
+          <div style="font-weight:700"><code>{{ item.alias }}</code> → <code>{{ item.canonical }}</code></div>
+          <div class="meta">confidence: {{ '%.2f'|format(item.confidence) }}</div>
+          {% if item.recommended_action %}
+          <div class="meta" style="margin-top:0.35rem">
+            Recommendation: <strong>{{ item.recommended_action }}</strong>
+            {% if item.recommendation_confidence %}
+            (confidence {{ '%.2f'|format(item.recommendation_confidence) }})
+            {% endif %}
+          </div>
+          {% if item.recommendation_rationale %}
+          <div class="meta" style="margin-top:0.2rem">{{ item.recommendation_rationale }}</div>
+          {% endif %}
+          {% if item.recommendation_risk_flags %}
+          <div class="meta" style="margin-top:0.2rem">Risk flags: {{ item.recommendation_risk_flags | join(', ') }}</div>
+          {% endif %}
+          {% endif %}
+          {% if item.latest_action %}
+          <div class="meta" style="margin-top:0.35rem">
+            Last action: <strong>{{ item.latest_action }}</strong>{% if item.latest_action_by %} by {{ item.latest_action_by }}{% endif %}{% if item.latest_action_at %} at {{ item.latest_action_at }}{% endif %}
+          </div>
+          {% endif %}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+          <span class="badge badge-{{ 'warning' if item.pending else 'success' }}">{{ item.status }}</span>
+        </div>
+      </div>
+      {% if item.pending %}
+      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.65rem">
+        <label class="meta" for="proposal-action-{{ item.proposal_id }}">Batch Action</label>
+        <select
+          id="proposal-action-{{ item.proposal_id }}"
+          name="proposal_action__{{ item.proposal_id }}"
+          form="synonym-batch-form"
+          data-recommended-action="{{ item.recommended_action or '' }}"
+        >
+          <option value="">Keep Pending</option>
+          <option value="approve">Approve</option>
+          <option value="defer">Defer</option>
+          <option value="reject">Reject</option>
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">
+        <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline">
+          <input type="hidden" name="action" value="approve">
+          <button class="btn-secondary" type="submit">Approve</button>
+        </form>
+        <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline">
+          <input type="hidden" name="action" value="defer">
+          <button class="btn-secondary" type="submit">Defer</button>
+        </form>
+        <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline">
+          <input type="hidden" name="action" value="reject">
+          <button class="btn-secondary" type="submit">Reject</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {% if run_export_links %}
 <div class="card">
   <h3 style="margin:0 0 0.85rem">Run Exports</h3>
@@ -641,6 +754,24 @@ async function lifecycleAction(runId, action, btn) {
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   window.setTimeout(() => ensureTabLoaded('enriched'), 50);
+  const applyRecommendationsBtn = document.getElementById('apply-recommendations-btn');
+  if (applyRecommendationsBtn) {
+    applyRecommendationsBtn.addEventListener('click', () => {
+      const selects = document.querySelectorAll('#synonym-batch-form select[data-recommended-action]');
+      selects.forEach((selectEl) => {
+        if (!selectEl || selectEl.value) {
+          return;
+        }
+        const recommended = (selectEl.getAttribute('data-recommended-action') || '').trim();
+        if (!recommended) {
+          return;
+        }
+        if (recommended === 'approve' || recommended === 'defer' || recommended === 'reject') {
+          selectEl.value = recommended;
+        }
+      });
+    });
+  }
 });
 if (document.readyState !== 'loading') {
   window.setTimeout(() => ensureTabLoaded('enriched'), 50);

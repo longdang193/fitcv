@@ -172,6 +172,10 @@ These are primarily operator-facing action endpoints:
 - `POST /admin/runs/{run_id}/continue`
 - `POST /admin/runs/{run_id}/synonym-overlay`
 - `POST /admin/runs/{run_id}/cv-review-action`
+- `POST /admin/runs/{run_id}/synonym-proposals/{proposal_id}/action`
+- `POST /admin/runs/{run_id}/synonym-proposals/batch-action`
+- `POST /admin/runs/{run_id}/synonym-proposals/promote-preview`
+- `POST /admin/runs/{run_id}/synonym-proposals/promote-commit`
 
 These generally redirect in the HTML workflow, and they may return conflict or
 not-found errors when the run is not in a valid state for the action.
@@ -191,6 +195,7 @@ not-found errors when the run is not in a valid state for the action.
 - `GET /admin/runs/{run_id}/mapping-suggestions.json`
 - `GET /admin/runs/{run_id}/synonym-proposals.json`
 - `GET /admin/runs/{run_id}/synonym-proposals-trace.json`
+- `GET /admin/runs/{run_id}/approved-synonym-proposals.yaml`
 - `GET /admin/runs/{run_id}/artifacts.zip`
 
 These routes expose the main observation payloads for completed or sufficiently
@@ -232,6 +237,41 @@ These are useful for cross-run review workflows and higher-level operator
 inspection.
 
 ## Synonym Proposal Review Routes
+
+### Run-scoped review and promotion routes
+
+- `POST /admin/runs/{run_id}/synonym-proposals/{proposal_id}/action`
+- `POST /admin/runs/{run_id}/synonym-proposals/batch-action`
+- `POST /admin/runs/{run_id}/synonym-proposals/promote-preview`
+- `POST /admin/runs/{run_id}/synonym-proposals/promote-commit`
+
+Purpose:
+- execute HITL review actions in the context of one run
+- support repeated batch review submissions
+- preview and confirm explicit promotion of approved run proposals into global
+  synonym policy
+
+Typical form fields:
+
+- `action` (`approve` / `defer` / `reject`) for single-action route
+- `proposal_action__{proposal_id}` entries for batch route
+- `promote_proposal_id` entries for promotion preview
+- `selected_ids_csv`, `acted_by`, `note` for promotion commit
+
+Typical behavior:
+
+- review routes redirect back to run detail
+- batch route returns per-submit summary via query params:
+  - `synonym_batch_applied`
+  - `synonym_batch_skipped`
+  - `synonym_batch_failed`
+- promote commit returns summary via query params:
+  - `synonym_promote_applied`
+  - `synonym_promote_skipped`
+  - `synonym_promote_failed`
+- promotion requires run-scoped status `approved_for_run_overlay`
+
+### Legacy aggregate review routes
 
 - `POST /admin/synonym-proposals/{proposal_id}/start-review`
 - `POST /admin/synonym-proposals/{proposal_id}/approve-for-run-overlay`

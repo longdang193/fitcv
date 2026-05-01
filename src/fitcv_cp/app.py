@@ -91,6 +91,7 @@ import uuid
 import zipfile
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -996,6 +997,46 @@ def _build_hitl_review_audit_payload(run: PipelineRun) -> dict[str, Any]:
         "actions": actions,
     }
 
+def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
+    payload = _load_run_synonym_proposals_payload(run)
+    if not isinstance(payload, dict):
+        return {"items": [], "pending_count": 0, "total_count": 0}
+    items: list[dict[str, Any]] = []
+    for proposal in list(payload.get("proposals") or []):
+        if not isinstance(proposal, dict):
+            continue
+        status = str(proposal.get("proposal_status") or "proposed_unreviewed").strip() or "proposed_unreviewed"
+        pending = status in {"proposed_unreviewed", "in_review", "deferred"}
+        review_history = [entry for entry in list(proposal.get("review_history") or []) if isinstance(entry, dict)]
+        latest_action = review_history[-1] if review_history else {}
+        items.append(
+            {
+                "proposal_id": str(proposal.get("proposal_id") or "").strip(),
+                "alias": str(proposal.get("alias") or "").strip() or "—",
+                "canonical": str(proposal.get("canonical") or "").strip() or "—",
+                "confidence": float(proposal.get("confidence") or 0.0),
+                "status": status,
+                "pending": pending,
+                "latest_action": str(latest_action.get("action") or "").strip() or None,
+                "latest_action_at": str(latest_action.get("acted_at") or "").strip() or None,
+                "latest_action_by": str(latest_action.get("acted_by") or "").strip() or None,
+                "recommended_action": str(proposal.get("recommended_action") or "").strip() or None,
+                "recommendation_confidence": float(proposal.get("recommendation_confidence") or 0.0),
+                "recommendation_rationale": str(proposal.get("recommendation_rationale") or "").strip() or None,
+                "recommendation_risk_flags": [
+                    str(flag).strip()
+                    for flag in list(proposal.get("recommendation_risk_flags") or [])
+                    if str(flag).strip()
+                ],
+            }
+        )
+    items.sort(key=lambda item: (not item["pending"], -item["confidence"], item["alias"], item["canonical"]))
+    return {
+        "items": items,
+        "pending_count": sum(1 for item in items if item["pending"]),
+        "total_count": len(items),
+    }
+
 def _build_markdown_quality_summary(run: PipelineRun) -> dict[str, Any]:
     payload = _load_run_cv_generation_debug_payload(run)
     if not isinstance(payload, dict):
@@ -1261,6 +1302,22 @@ def _build_run_export_links(run: PipelineRun) -> list[dict[str, str]]:
         if not artifact.show_in_exports:
             continue
         links.append({"label": artifact.label, "href": artifact.href})
+    has_approved_synonym_proposals = False
+    synonym_payload = _load_run_synonym_proposals_payload(run)
+    if isinstance(synonym_payload, dict):
+        for proposal in list(synonym_payload.get("proposals") or []):
+            if not isinstance(proposal, dict):
+                continue
+            if str(proposal.get("proposal_status") or "").strip() == "approved_for_run_overlay":
+                has_approved_synonym_proposals = True
+                break
+    if has_approved_synonym_proposals:
+        links.append(
+            {
+                "label": "Approved Synonym Overlay YAML",
+                "href": f"/admin/runs/{run.run_id}/approved-synonym-proposals.yaml",
+            }
+        )
     return links
 
 
@@ -1337,6 +1394,18 @@ def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
         "snapshot_yaml": snapshot_yaml,
         "snapshot_label": snapshot_label,
     }
+
+def _find_synonym_proposal_index(payload: dict[str, Any], proposal_id: str) -> int | None:
+    target = str(proposal_id or "").strip()
+    if not target:
+        return None
+    proposals = list(payload.get("proposals") or [])
+    for idx, proposal in enumerate(proposals):
+        if not isinstance(proposal, dict):
+            continue
+        if str(proposal.get("proposal_id") or "").strip() == target:
+            return idx
+    return None
 
 
 def _aggregate_mapping_suggestion_payloads(runs: list[PipelineRun]) -> dict[str, Any]:
@@ -1506,6 +1575,119 @@ def _build_synonym_overlay_yaml(overlay: dict[str, str]) -> str:
     for alias, canonical in sorted(overlay.items()):
         lines.append(f"  {alias}: {canonical}")
     return "\n".join(lines) + "\n"
+
+
+def _global_skill_synonyms_path() -> Path:
+    return Path("config") / "taxonomy" / "skill_synonyms.yaml"
+
+
+def _load_global_skill_synonyms_map() -> dict[str, str]:
+    path = _global_skill_synonyms_path()
+    if not path.exists():
+        return {}
+    raw_yaml = path.read_text(encoding="utf-8")
+    return parse_skill_synonym_overlay_yaml(raw_yaml)
+
+
+def _persist_global_skill_synonyms_map(mappings: dict[str, str]) -> None:
+    path = _global_skill_synonyms_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(_build_synonym_overlay_yaml(mappings), encoding="utf-8")
+
+
+def _build_promote_global_preview(
+    *,
+    run: PipelineRun,
+    payload: dict[str, Any],
+    selected_proposal_ids: list[str],
+) -> dict[str, Any]:
+    global_map = _load_global_skill_synonyms_map()
+    proposal_by_id: dict[str, dict[str, Any]] = {}
+    for proposal in list(payload.get("proposals") or []):
+        if not isinstance(proposal, dict):
+            continue
+        proposal_id = str(proposal.get("proposal_id") or "").strip()
+        if proposal_id:
+            proposal_by_id[proposal_id] = proposal
+    selected: list[dict[str, Any]] = []
+    for proposal_id in selected_proposal_ids:
+        proposal = proposal_by_id.get(proposal_id)
+        if proposal is None:
+            selected.append(
+                {
+                    "proposal_id": proposal_id,
+                    "alias": "",
+                    "canonical": "",
+                    "status": "missing",
+                    "diff_type": "skip",
+                    "reason": "proposal_not_found",
+                }
+            )
+            continue
+        status = str(proposal.get("proposal_status") or "").strip() or "proposed_unreviewed"
+        alias = str(proposal.get("alias") or "").strip().lower()
+        canonical = str(proposal.get("canonical") or "").strip().lower()
+        selected.append(
+            {
+                "proposal_id": proposal_id,
+                "alias": alias,
+                "canonical": canonical,
+                "status": status,
+            }
+        )
+    duplicate_aliases: set[str] = set()
+    alias_counts: dict[str, set[str]] = {}
+    for row in selected:
+        alias = str(row.get("alias") or "").strip()
+        canonical = str(row.get("canonical") or "").strip()
+        if not alias or not canonical:
+            continue
+        alias_counts.setdefault(alias, set()).add(canonical)
+    for alias, canonicals in alias_counts.items():
+        if len(canonicals) > 1:
+            duplicate_aliases.add(alias)
+
+    counts = {"add": 0, "update": 0, "conflict": 0, "skip": 0}
+    for row in selected:
+        status = str(row.get("status") or "").strip()
+        alias = str(row.get("alias") or "").strip()
+        canonical = str(row.get("canonical") or "").strip()
+        if status != "approved_for_run_overlay":
+            row["diff_type"] = "skip"
+            row["reason"] = "not_approved_for_run_overlay"
+            counts["skip"] += 1
+            continue
+        if not alias or not canonical:
+            row["diff_type"] = "skip"
+            row["reason"] = "empty_alias_or_canonical"
+            counts["skip"] += 1
+            continue
+        if alias in duplicate_aliases:
+            row["diff_type"] = "conflict"
+            row["reason"] = "duplicate_alias_with_multiple_canonicals"
+            counts["conflict"] += 1
+            continue
+        current = str(global_map.get(alias) or "").strip().lower()
+        if not current:
+            row["diff_type"] = "add"
+            row["reason"] = "new_alias"
+            counts["add"] += 1
+        elif current == canonical:
+            row["diff_type"] = "skip"
+            row["reason"] = "already_present"
+            counts["skip"] += 1
+        else:
+            row["diff_type"] = "update"
+            row["reason"] = "canonical_change"
+            row["current_global_canonical"] = current
+            counts["update"] += 1
+
+    return {
+        "run_id": run.run_id,
+        "selected_count": len(selected),
+        "counts": counts,
+        "rows": selected,
+    }
 
 
 def _decision_chain_label(value: Any) -> str | None:
@@ -1918,6 +2100,15 @@ class CvReviewActionRequest(BaseModel):
     job_url: str
     action: str
     actor: str = "admin"
+    note: str | None = None
+
+class SynonymBatchDecision(BaseModel):
+    proposal_id: str
+    action: str
+
+class SynonymBatchActionRequest(BaseModel):
+    decisions: list[SynonymBatchDecision]
+    acted_by: str = "admin"
     note: str | None = None
 
 
@@ -3583,6 +3774,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run_export_links = _build_run_export_links(run)
         agentic_runtime_drift = _run_agentic_runtime_drift_summary(run)
         hitl_review_queue = _build_hitl_review_queue(run)
+        synonym_proposal_review_queue = _build_synonym_proposal_review_queue(run)
         markdown_quality_summary = _build_markdown_quality_summary(run)
 
         return templates.TemplateResponse(
@@ -3610,6 +3802,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_overlay_info": _extract_run_synonym_overlay_info(run),
                 "agentic_runtime_drift": agentic_runtime_drift,
                 "hitl_review_queue": hitl_review_queue,
+                "synonym_proposal_review_queue": synonym_proposal_review_queue,
                 "markdown_quality_summary": markdown_quality_summary,
             }
         )
@@ -3692,6 +3885,312 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             dataset=dataset,
         )
         return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
+
+    @app.post("/admin/runs/{run_id}/synonym-proposals/{proposal_id}/action")
+    async def admin_run_synonym_proposal_action(
+        request: Request,
+        run_id: str,
+        proposal_id: str,
+    ) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        form = await request.form()
+        action = str(form.get("action") or "").strip()
+        actor = str(form.get("acted_by") or "admin").strip() or "admin"
+        note = str(form.get("note") or "").strip()
+        action_map = {
+            "approve": "approve_for_run_overlay",
+            "reject": "reject",
+            "defer": "defer",
+        }
+        mapped_action = action_map.get(action)
+        if not mapped_action:
+            raise HTTPException(status_code=422, detail="Invalid synonym proposal action")
+        payload = _load_run_synonym_proposals_payload(run)
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
+        idx = _find_synonym_proposal_index(payload, proposal_id)
+        if idx is None:
+            raise HTTPException(status_code=404, detail="Synonym proposal not found")
+        result = _apply_synonym_proposal_action_in_run(
+            run=run,
+            payload=payload,
+            proposal_index=idx,
+            action=mapped_action,
+            acted_by=actor,
+            note=note,
+        )
+        return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
+
+    @app.post("/admin/runs/{run_id}/synonym-proposals/batch-action")
+    async def admin_run_synonym_proposals_batch_action(
+        request: Request,
+        run_id: str,
+    ) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        form = await request.form()
+        acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
+        note = str(form.get("note") or "").strip()
+        valid_actions = {"approve", "defer", "reject"}
+        decisions: list[SynonymBatchDecision] = []
+        for key, raw_value in form.multi_items():
+            if not str(key).startswith("proposal_action__"):
+                continue
+            proposal_id = str(key).split("proposal_action__", 1)[-1].strip()
+            action = str(raw_value or "").strip()
+            if not proposal_id or action not in valid_actions:
+                continue
+            decisions.append(SynonymBatchDecision(proposal_id=proposal_id, action=action))
+        payload = _load_run_synonym_proposals_payload(run)
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
+        seen: set[tuple[str, str]] = set()
+        deduped_decisions: list[SynonymBatchDecision] = []
+        for decision in decisions:
+            key = (decision.proposal_id, decision.action)
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped_decisions.append(decision)
+        action_map = {
+            "approve": "approve_for_run_overlay",
+            "defer": "defer",
+            "reject": "reject",
+        }
+        applied = 0
+        skipped = 0
+        failed = 0
+        for decision in deduped_decisions:
+            idx = _find_synonym_proposal_index(payload, decision.proposal_id)
+            if idx is None:
+                skipped += 1
+                continue
+            try:
+                _apply_synonym_proposal_action_in_run(
+                    run=run,
+                    payload=payload,
+                    proposal_index=idx,
+                    action=action_map[decision.action],
+                    acted_by=acted_by,
+                    note=note,
+                    persist=False,
+                )
+            except HTTPException as exc:
+                if exc.status_code == 409:
+                    skipped += 1
+                else:
+                    failed += 1
+                continue
+            applied += 1
+        if applied > 0:
+            _persist_synonym_proposal_payload(
+                run=run,
+                payload=payload,
+                acted_by=acted_by,
+                note=note,
+                event_stage="synonym_proposal_batch_reviewed",
+                event_message=f"Applied {applied} synonym proposal review decision(s)",
+            )
+        append_event(
+            RunEvent(
+                run_id=run.run_id,
+                event_id=str(uuid.uuid4()),
+                stage="synonym_proposal_batch_summary",
+                level="info",
+                message=f"Synonym batch review summary: applied={applied}, skipped={skipped}, failed={failed}",
+                created_at=datetime.datetime.now(datetime.timezone.utc),
+                payload_json=_json.dumps(
+                    {
+                        "applied_count": applied,
+                        "skipped_count": skipped,
+                        "failed_count": failed,
+                        "decisions_requested": len(deduped_decisions),
+                        "acted_by": acted_by,
+                    },
+                    ensure_ascii=False,
+                ),
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        query = urlencode(
+            {
+                "synonym_batch_applied": applied,
+                "synonym_batch_skipped": skipped,
+                "synonym_batch_failed": failed,
+            }
+        )
+        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+
+    @app.post("/admin/runs/{run_id}/synonym-proposals/promote-preview", response_class=HTMLResponse)
+    async def admin_run_synonym_proposals_promote_preview(
+        request: Request,
+        run_id: str,
+    ) -> HTMLResponse:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        form = await request.form()
+        selected_ids = [str(value or "").strip() for value in form.getlist("promote_proposal_id")]
+        selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
+        if not selected_ids:
+            raise HTTPException(status_code=422, detail="Select at least one proposal to preview promotion")
+        payload = _load_run_synonym_proposals_payload(run)
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
+        preview = _build_promote_global_preview(
+            run=run,
+            payload=payload,
+            selected_proposal_ids=selected_ids,
+        )
+        return templates.TemplateResponse(
+            request=request,
+            name="synonym_promote_preview.html",
+            context={
+                "run": run,
+                "preview": preview,
+                "selected_ids_csv": ",".join(selected_ids),
+            },
+        )
+
+    @app.post("/admin/runs/{run_id}/synonym-proposals/promote-commit")
+    async def admin_run_synonym_proposals_promote_commit(
+        request: Request,
+        run_id: str,
+    ) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        form = await request.form()
+        selected_csv = str(form.get("selected_ids_csv") or "").strip()
+        selected_ids = [value.strip() for value in selected_csv.split(",") if value and value.strip()]
+        if not selected_ids:
+            raise HTTPException(status_code=422, detail="No proposals selected for promotion")
+        acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
+        note = str(form.get("note") or "").strip()
+        payload = _load_run_synonym_proposals_payload(run)
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
+        preview = _build_promote_global_preview(
+            run=run,
+            payload=payload,
+            selected_proposal_ids=selected_ids,
+        )
+        if int(preview["counts"]["conflict"]) > 0:
+            query = urlencode(
+                {
+                    "synonym_promote_applied": 0,
+                    "synonym_promote_skipped": preview["counts"]["skip"],
+                    "synonym_promote_failed": preview["counts"]["conflict"],
+                }
+            )
+            return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+        global_map = _load_global_skill_synonyms_map()
+        applied = 0
+        skipped = 0
+        updated_ids: list[str] = []
+        for row in list(preview.get("rows") or []):
+            if not isinstance(row, dict):
+                continue
+            diff_type = str(row.get("diff_type") or "").strip()
+            if diff_type not in {"add", "update"}:
+                skipped += 1
+                continue
+            alias = str(row.get("alias") or "").strip()
+            canonical = str(row.get("canonical") or "").strip()
+            proposal_id = str(row.get("proposal_id") or "").strip()
+            if not alias or not canonical or not proposal_id:
+                skipped += 1
+                continue
+            global_map[alias] = canonical
+            applied += 1
+            updated_ids.append(proposal_id)
+        _persist_global_skill_synonyms_map(global_map)
+        proposals = list(payload.get("proposals") or [])
+        if updated_ids:
+            now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            for idx, proposal in enumerate(proposals):
+                if not isinstance(proposal, dict):
+                    continue
+                proposal_id = str(proposal.get("proposal_id") or "").strip()
+                if proposal_id not in set(updated_ids):
+                    continue
+                entry = dict(proposal)
+                history = [item for item in list(entry.get("global_promotion_history") or []) if isinstance(item, dict)]
+                history.append(
+                    {
+                        "action": "promote_to_global",
+                        "acted_by": acted_by,
+                        "acted_at": now_iso,
+                        "note": note,
+                        "run_id": run.run_id,
+                    }
+                )
+                entry["global_promotion_history"] = history
+                proposals[idx] = entry
+            payload["proposals"] = proposals
+            update_run_synonym_proposals(
+                run_id=run.run_id,
+                synonym_proposals_json=_json.dumps(payload, ensure_ascii=False),
+                bq=bq,
+                project=project,
+                dataset=dataset,
+            )
+        append_event(
+            RunEvent(
+                run_id=run.run_id,
+                event_id=str(uuid.uuid4()),
+                stage="synonym_proposal_promoted_global",
+                level="info",
+                message=f"Promoted {applied} synonym proposal mapping(s) to global policy",
+                created_at=datetime.datetime.now(datetime.timezone.utc),
+                payload_json=_json.dumps(
+                    {
+                        "applied_count": applied,
+                        "skipped_count": skipped,
+                        "selected_count": len(selected_ids),
+                        "proposal_ids": sorted(set(updated_ids)),
+                        "acted_by": acted_by,
+                        "note": note,
+                    },
+                    ensure_ascii=False,
+                ),
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        query = urlencode(
+            {
+                "synonym_promote_applied": applied,
+                "synonym_promote_skipped": skipped,
+                "synonym_promote_failed": 0,
+            }
+        )
+        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+
+    @app.get("/admin/runs/{run_id}/approved-synonym-proposals.yaml")
+    def download_run_approved_synonym_overlay_yaml(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        payload = _load_run_synonym_proposals_payload(run)
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=404, detail="Synonym proposals export is not available for this run")
+        proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
+        overlay_synonyms, _proposal_ids = _approved_synonym_overlay_payload(proposals)
+        if not overlay_synonyms:
+            raise HTTPException(status_code=404, detail="No approved synonym proposals are available for this run")
+        overlay_yaml = _build_synonym_overlay_yaml(overlay_synonyms)
+        return Response(
+            content=overlay_yaml,
+            media_type="text/yaml",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-approved-synonym-proposals.yaml"'},
+        )
 
     @app.get("/admin/runs/{run_id}/tabs/enriched", response_class=HTMLResponse)
     def admin_run_detail_tab_enriched(
@@ -4094,36 +4593,29 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             note=note,
         )
 
-    def _apply_synonym_proposal_action(
+    def _apply_synonym_proposal_action_in_run(
         *,
-        proposal_id: str,
+        run: PipelineRun,
+        payload: dict[str, Any],
+        proposal_index: int,
         action: str,
         acted_by: str,
         note: str,
+        persist: bool = True,
     ) -> dict[str, Any]:
-        runs = list_runs(
-            bq,
-            project=project,
-            dataset=dataset,
-            limit=500,
-            include_archived=True,
-        )
-        located = _find_run_and_synonym_proposal(runs, proposal_id)
-        if located is None:
+        proposals = list(payload.get("proposals") or [])
+        if proposal_index < 0 or proposal_index >= len(proposals):
             raise HTTPException(status_code=404, detail="Synonym proposal not found")
-        run, payload, proposal, idx = located
-        if action == "approve_for_run_overlay" and not _can_upload_synonym_overlay(run):
-            raise HTTPException(
-                status_code=409,
-                detail="Synonym proposal approval is only available for manual runs paused after enrich",
-            )
+        proposal = proposals[proposal_index]
+        if not isinstance(proposal, dict):
+            raise HTTPException(status_code=404, detail="Synonym proposal not found")
+        proposal_id = str(proposal.get("proposal_id") or "").strip()
         next_status = _transition_synonym_proposal_status(
             str(proposal.get("proposal_status") or ""),
             action,
         )
         if not next_status:
             raise HTTPException(status_code=409, detail="Synonym proposal action is not valid for the current state")
-        proposals = list(payload.get("proposals") or [])
         updated_proposal = dict(proposal)
         review_history = list(updated_proposal.get("review_history") or [])
         acted_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -4139,20 +4631,62 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         )
         updated_proposal["proposal_status"] = next_status
         updated_proposal["review_history"] = review_history
-        proposals[idx] = updated_proposal
+        proposals[proposal_index] = updated_proposal
+        payload["proposals"] = proposals
         updated_payload = dict(payload)
         updated_payload["proposals"] = proposals
 
-        if action == "approve_for_run_overlay":
+        if not persist:
+            return {
+                "proposal_id": proposal_id,
+                "run_id": run.run_id,
+                "proposal_status": next_status,
+                "persistence_status": "deferred",
+                "degradation_reason": "",
+            }
+
+        persistence_status = _persist_synonym_proposal_payload(
+            run=run,
+            payload=updated_payload,
+            acted_by=acted_by,
+            note=note,
+            event_stage="synonym_proposal_reviewed",
+            event_message=f"Synonym proposal {proposal_id} {next_status}",
+            event_payload={
+                "proposal_id": proposal_id,
+                "action": action,
+                "proposal_status": next_status,
+            },
+        )
+        return {
+            "proposal_id": proposal_id,
+            "run_id": run.run_id,
+            "proposal_status": next_status,
+            "persistence_status": persistence_status.get("persistence_status", "persisted"),
+            "degradation_reason": persistence_status.get("degradation_reason", ""),
+        }
+
+    def _persist_synonym_proposal_payload(
+        *,
+        run: PipelineRun,
+        payload: dict[str, Any],
+        acted_by: str,
+        note: str,
+        event_stage: str,
+        event_message: str,
+        event_payload: dict[str, Any] | None = None,
+    ) -> dict[str, str]:
+        proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
+        overlay_synonyms, proposal_ids = _approved_synonym_overlay_payload(proposals)
+        if overlay_synonyms:
             effective_config = _load_run_effective_config_snapshot(run)
-            overlay_synonyms, proposal_ids = _approved_synonym_overlay_payload(proposals)
             overlay_yaml = _build_synonym_overlay_yaml(overlay_synonyms)
             updated_config = apply_runtime_skill_synonym_overlay(
                 effective_config,
                 overlay_synonyms,
                 source="proposal_review",
                 filename="approved-synonym-proposals.yaml",
-                uploaded_at=acted_at,
+                uploaded_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 raw_yaml=overlay_yaml,
             )
             runtime = dict(updated_config.get("skill_synonyms_runtime") or {})
@@ -4165,33 +4699,25 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 project=project,
                 dataset=dataset,
             )
-
         persistence_status = update_run_synonym_proposals(
             run.run_id,
-            _json.dumps(updated_payload, ensure_ascii=False),
+            _json.dumps(payload, ensure_ascii=False),
             bq,
             project=project,
             dataset=dataset,
         )
-
+        payload_row = dict(event_payload or {})
+        payload_row["acted_by"] = str(acted_by or "admin")
+        payload_row["note"] = str(note or "").strip()
         append_event(
             RunEvent(
                 run_id=run.run_id,
                 event_id=str(uuid.uuid4()),
-                stage="synonym_proposal_reviewed",
+                stage=event_stage,
                 level="info",
-                message=f"Synonym proposal {proposal_id} {next_status}",
+                message=event_message,
                 created_at=datetime.datetime.now(datetime.timezone.utc),
-                payload_json=_json.dumps(
-                    {
-                        "proposal_id": proposal_id,
-                        "action": action,
-                        "proposal_status": next_status,
-                        "acted_by": str(acted_by or "admin"),
-                        "note": str(note or "").strip(),
-                    },
-                    ensure_ascii=False,
-                ),
+                payload_json=_json.dumps(payload_row, ensure_ascii=False),
             ),
             bq,
             project=project,
@@ -4214,13 +4740,34 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 project=project,
                 dataset=dataset,
             )
-        return {
-            "proposal_id": proposal_id,
-            "run_id": run.run_id,
-            "proposal_status": next_status,
-            "persistence_status": persistence_status.get("persistence_status", "persisted"),
-            "degradation_reason": persistence_status.get("degradation_reason", ""),
-        }
+        return persistence_status
+
+    def _apply_synonym_proposal_action(
+        *,
+        proposal_id: str,
+        action: str,
+        acted_by: str,
+        note: str,
+    ) -> dict[str, Any]:
+        runs = list_runs(
+            bq,
+            project=project,
+            dataset=dataset,
+            limit=500,
+            include_archived=True,
+        )
+        located = _find_run_and_synonym_proposal(runs, proposal_id)
+        if located is None:
+            raise HTTPException(status_code=404, detail="Synonym proposal not found")
+        run, payload, _proposal, idx = located
+        return _apply_synonym_proposal_action_in_run(
+            run=run,
+            payload=payload,
+            proposal_index=idx,
+            action=action,
+            acted_by=acted_by,
+            note=note,
+        )
 
     return app
 
