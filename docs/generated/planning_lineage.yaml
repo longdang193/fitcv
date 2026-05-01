@@ -76,6 +76,9 @@ workstreams:
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
+    - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
+    - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
     plans:
