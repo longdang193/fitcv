@@ -195,6 +195,7 @@ The current agentic synonym surfaces are:
 - `/admin/runs/{run_id}/mapping-suggestions.json`
 - `/admin/runs/{run_id}/synonym-proposals-trace.json`
 - `/admin/runs/{run_id}/synonym-proposals.json`
+- `/admin/runs/{run_id}/approved-synonym-proposals.yaml`
 - `/admin/mapping-suggestions.json`
 - `/admin/synonym-proposals.json`
 
@@ -204,6 +205,17 @@ These let you inspect:
 - per-alias proposal-generation trace status and degradation
 - how those suggestions were grouped into review-ready synonym proposals
 - which proposals are still unreviewed versus already actioned
+- which approved run-scoped mappings can be exported as overlay YAML
+
+Run detail now also exposes synonym-review operational summaries:
+
+- batch submit summary (`applied`, `skipped`, `failed`)
+- promote-to-global summary (`applied`, `skipped`, `failed`)
+- advisory recommendation metadata shown per pending proposal
+  (`recommended_action`, recommendation confidence, rationale, risk flags)
+
+Recommendation display is advisory-only. Final review and promotion actions
+remain explicit HITL submits by the operator.
 
 ### Synonym proposals trace
 

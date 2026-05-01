@@ -74,6 +74,10 @@ workstreams:
     path: docs/intent/workstreams/threads/workstream-agentic-synonym-management/03-agentic-synonym-review-queue-and-approval.md
     specs:
     - docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
+    - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
+    - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
+    - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
+    - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
     plans:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
     derived_completion: in_progress
