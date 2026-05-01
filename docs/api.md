@@ -176,6 +176,7 @@ These are primarily operator-facing action endpoints:
 - `POST /admin/runs/{run_id}/synonym-proposals/batch-action`
 - `POST /admin/runs/{run_id}/synonym-proposals/promote-preview`
 - `POST /admin/runs/{run_id}/synonym-proposals/promote-commit`
+- `POST /admin/runs/{run_id}/synonym-proposals/triage-refresh`
 
 These generally redirect in the HTML workflow, and they may return conflict or
 not-found errors when the run is not in a valid state for the action.
@@ -196,6 +197,7 @@ not-found errors when the run is not in a valid state for the action.
 - `GET /admin/runs/{run_id}/synonym-proposals.json`
 - `GET /admin/runs/{run_id}/synonym-proposals-trace.json`
 - `GET /admin/runs/{run_id}/approved-synonym-proposals.yaml`
+- `GET /admin/synonyms/global.yaml`
 - `GET /admin/runs/{run_id}/artifacts.zip`
 
 These routes expose the main observation payloads for completed or sufficiently
@@ -244,6 +246,7 @@ inspection.
 - `POST /admin/runs/{run_id}/synonym-proposals/batch-action`
 - `POST /admin/runs/{run_id}/synonym-proposals/promote-preview`
 - `POST /admin/runs/{run_id}/synonym-proposals/promote-commit`
+- `POST /admin/runs/{run_id}/synonym-proposals/triage-refresh`
 
 Purpose:
 - execute HITL review actions in the context of one run
@@ -257,6 +260,7 @@ Typical form fields:
 - `proposal_action__{proposal_id}` entries for batch route
 - `promote_proposal_id` entries for promotion preview
 - `selected_ids_csv`, `acted_by`, `note` for promotion commit
+- `acted_by`, `note` for triage refresh
 
 Typical behavior:
 
@@ -269,7 +273,26 @@ Typical behavior:
   - `synonym_promote_applied`
   - `synonym_promote_skipped`
   - `synonym_promote_failed`
+  - `synonym_promote_new_aliases`
+  - `synonym_promote_unchanged_aliases`
+  - `synonym_promote_overridden_aliases`
+- triage refresh returns summary via query params:
+  - `synonym_triage_triaged`
+  - `synonym_triage_reused`
+  - `synonym_triage_skipped`
+  - `synonym_triage_failed`
 - promotion requires run-scoped status `approved_for_run_overlay`
+- approved overlay export is delta-only (run-approved pairs), not a full global map export
+- global export endpoint returns the full canonical synonym map
+- promote-to-global is a merge/overlay into `config/taxonomy/skill_synonyms.yaml`
+  where alias collisions are explicit overrides
+
+Triage refresh behavior:
+
+- updates recommendation fields only (`recommended_action`, confidence,
+  rationale, risk flags, runtime metadata)
+- does not mutate `proposal_status`
+- supports in-run reuse using proposal/runtime fingerprint matching
 
 ### Legacy aggregate review routes
 

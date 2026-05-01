@@ -84,6 +84,7 @@ lifecycle:
 """
 import dataclasses
 import datetime
+import hashlib
 import io
 import json as _json
 import os
@@ -93,6 +94,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
+import httpx
 from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
@@ -1031,10 +1033,25 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
             }
         )
     items.sort(key=lambda item: (not item["pending"], -item["confidence"], item["alias"], item["canonical"]))
+    triage_status = "not_generated"
+    if items:
+        pending_items = [item for item in items if bool(item.get("pending"))]
+        pending_with_reco = [
+            item
+            for item in pending_items
+            if str(item.get("recommended_action") or "").strip()
+        ]
+        if pending_items and len(pending_with_reco) == len(pending_items):
+            triage_status = "fresh"
+        elif pending_with_reco:
+            triage_status = "partial"
+        elif any(str(item.get("recommended_action") or "").strip() for item in items):
+            triage_status = "stale"
     return {
         "items": items,
         "pending_count": sum(1 for item in items if item["pending"]),
         "total_count": len(items),
+        "triage_status": triage_status,
     }
 
 def _build_markdown_quality_summary(run: PipelineRun) -> dict[str, Any]:
@@ -1316,6 +1333,7 @@ def _build_run_export_links(run: PipelineRun) -> list[dict[str, str]]:
             {
                 "label": "Approved Synonym Overlay YAML",
                 "href": f"/admin/runs/{run.run_id}/approved-synonym-proposals.yaml",
+                "helper_text": "Run-approved delta only (does not replace the global canonical map).",
             }
         )
     return links
@@ -1577,6 +1595,246 @@ def _build_synonym_overlay_yaml(overlay: dict[str, str]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _triage_synonym_proposal_recommendation(
+    proposal: dict[str, Any],
+    *,
+    now_iso: str,
+    runtime: dict[str, Any],
+) -> dict[str, Any]:
+    provider = str(runtime.get("provider") or "fitcv_builtin").strip().lower()
+    model = str(runtime.get("model") or "synonym_triage_v1").strip() or "synonym_triage_v1"
+    base_url = str(runtime.get("base_url") or "").strip() or None
+    wire_api = str(runtime.get("wire_api") or "builtin").strip() or "builtin"
+    if provider not in {"fitcv_builtin", "builtin"}:
+        api_key = str(runtime.get("api_key") or "").strip()
+        if not api_key:
+            raise RuntimeError("missing_provider_api_key")
+        provider_result = _call_synonym_triage_provider(
+            proposal=proposal,
+            runtime=runtime,
+            now_iso=now_iso,
+        )
+        return {
+            "recommended_action": str(provider_result.get("recommended_action") or "defer").strip(),
+            "recommendation_confidence": round(float(provider_result.get("recommendation_confidence") or 0.5), 3),
+            "recommendation_rationale": str(provider_result.get("recommendation_rationale") or "Provider triage response").strip(),
+            "recommendation_risk_flags": [
+                str(flag).strip()
+                for flag in list(provider_result.get("recommendation_risk_flags") or [])
+                if str(flag).strip()
+            ],
+            "recommendation_runtime": {
+                "provider": provider,
+                "model": model,
+                "base_url": base_url,
+                "wire_api": wire_api,
+                "triage_at": now_iso,
+                "triage_version": "synonym_triage_v1",
+            },
+        }
+
+    alias = str(proposal.get("alias") or "").strip().lower()
+    canonical = str(proposal.get("canonical") or "").strip().lower()
+    confidence = float(proposal.get("confidence") or 0.0)
+    candidate_canonicals = [
+        str(item).strip().lower()
+        for item in list(proposal.get("candidate_canonicals") or [])
+        if str(item).strip()
+    ]
+    risk_flags: list[str] = []
+    rationale = "Alias/canonical pair appears stable for run-scoped overlay."
+    recommended_action = "approve"
+    recommendation_confidence = min(max(confidence, 0.0), 1.0)
+
+    if not alias or not canonical:
+        recommended_action = "reject"
+        recommendation_confidence = 0.98
+        rationale = "Alias or canonical is empty after normalization."
+        risk_flags.append("invalid_mapping_shape")
+    elif len(set(candidate_canonicals)) > 1:
+        recommended_action = "defer"
+        recommendation_confidence = max(0.55, min(confidence, 0.85))
+        rationale = "Alias maps to multiple canonical candidates; review conflict manually."
+        risk_flags.append("alias_canonical_conflict")
+    elif confidence < 0.50:
+        recommended_action = "reject"
+        recommendation_confidence = min(0.95, 1.0 - confidence + 0.2)
+        rationale = "Low confidence mapping is likely noisy and should be rejected."
+        risk_flags.append("low_confidence")
+    elif confidence < 0.75:
+        recommended_action = "defer"
+        recommendation_confidence = min(0.85, confidence + 0.1)
+        rationale = "Moderate confidence mapping should be deferred for review."
+        risk_flags.append("moderate_confidence")
+
+    return {
+        "recommended_action": recommended_action,
+        "recommendation_confidence": round(float(recommendation_confidence), 3),
+        "recommendation_rationale": rationale,
+        "recommendation_risk_flags": risk_flags,
+        "recommendation_runtime": {
+            "provider": provider,
+            "model": model,
+            "base_url": base_url,
+            "wire_api": wire_api,
+            "triage_at": now_iso,
+            "triage_version": "synonym_triage_v1",
+        },
+    }
+
+
+def _call_synonym_triage_provider(
+    *,
+    proposal: dict[str, Any],
+    runtime: dict[str, Any],
+    now_iso: str,
+) -> dict[str, Any]:
+    provider = str(runtime.get("provider") or "openai").strip().lower()
+    if provider not in {"openai", "9router"}:
+        raise RuntimeError(f"unsupported_provider:{provider}")
+    base_url = str(runtime.get("base_url") or "").strip() or "https://api.openai.com/v1"
+    api_key = str(runtime.get("api_key") or "").strip()
+    if not api_key:
+        raise RuntimeError("missing_provider_api_key")
+    model = str(runtime.get("model") or "gpt-4.1-mini").strip() or "gpt-4.1-mini"
+    wire_api = str(runtime.get("wire_api") or "responses").strip().lower() or "responses"
+    timeout = float(runtime.get("timeout_secs") or 20.0)
+
+    proposal_view = {
+        "proposal_id": str(proposal.get("proposal_id") or "").strip(),
+        "proposal_status": str(proposal.get("proposal_status") or "").strip(),
+        "alias": str(proposal.get("alias") or "").strip(),
+        "canonical": str(proposal.get("canonical") or "").strip(),
+        "confidence": float(proposal.get("confidence") or 0.0),
+        "candidate_canonicals": [
+            str(item).strip()
+            for item in list(proposal.get("candidate_canonicals") or [])
+            if str(item).strip()
+        ],
+    }
+    prompt = (
+        "You are a synonym triage assistant. Return strict JSON only with keys: "
+        "recommended_action (approve|defer|reject), recommendation_confidence (0..1), "
+        "recommendation_rationale (short string), recommendation_risk_flags (array of short strings). "
+        f"Proposal: {_json.dumps(proposal_view, ensure_ascii=False)}. Timestamp: {now_iso}."
+    )
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    if wire_api == "responses":
+        url = base_url.rstrip("/") + "/responses"
+        payload = {
+            "model": model,
+            "input": prompt,
+        }
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
+            body = resp.json()
+        output_text = _extract_responses_text(body)
+    else:
+        url = base_url.rstrip("/") + "/chat/completions"
+        payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0,
+        }
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
+            body = resp.json()
+        output_text = str((((body.get("choices") or [{}])[0].get("message") or {}).get("content")) or "").strip()
+    if not output_text:
+        raise RuntimeError("empty_provider_output")
+    parsed = _json.loads(output_text)
+    if not isinstance(parsed, dict):
+        raise RuntimeError("invalid_provider_json_shape")
+    action = str(parsed.get("recommended_action") or "").strip()
+    if action not in {"approve", "defer", "reject"}:
+        raise RuntimeError("invalid_provider_action")
+    confidence = float(parsed.get("recommendation_confidence") or 0.5)
+    confidence = min(1.0, max(0.0, confidence))
+    return {
+        "recommended_action": action,
+        "recommendation_confidence": confidence,
+        "recommendation_rationale": str(parsed.get("recommendation_rationale") or "").strip() or "Provider recommendation",
+        "recommendation_risk_flags": [
+            str(flag).strip()
+            for flag in list(parsed.get("recommendation_risk_flags") or [])
+            if str(flag).strip()
+        ],
+    }
+
+
+def _extract_responses_text(payload: dict[str, Any]) -> str:
+    output = list(payload.get("output") or [])
+    for block in output:
+        if not isinstance(block, dict):
+            continue
+        content = list(block.get("content") or [])
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            text = str(item.get("text") or "").strip()
+            if text:
+                return text
+    return str(payload.get("output_text") or "").strip()
+
+
+def _synonym_triage_fingerprint(
+    proposal: dict[str, Any],
+    *,
+    runtime: dict[str, Any],
+) -> str:
+    payload = {
+        "proposal_id": str(proposal.get("proposal_id") or "").strip(),
+        "proposal_status": str(proposal.get("proposal_status") or "").strip(),
+        "alias": str(proposal.get("alias") or "").strip().lower(),
+        "canonical": str(proposal.get("canonical") or "").strip().lower(),
+        "confidence": round(float(proposal.get("confidence") or 0.0), 6),
+        "candidate_canonicals": sorted(
+            {
+                str(item).strip().lower()
+                for item in list(proposal.get("candidate_canonicals") or [])
+                if str(item).strip()
+            }
+        ),
+        "provider": str(runtime.get("provider") or "fitcv_builtin").strip().lower(),
+        "model": str(runtime.get("model") or "synonym_triage_v1").strip(),
+        "wire_api": str(runtime.get("wire_api") or "builtin").strip(),
+        "triage_version": "synonym_triage_v1",
+    }
+    raw = _json.dumps(payload, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _resolve_synonym_triage_runtime(run: PipelineRun) -> dict[str, Any]:
+    provider = str(os.environ.get("FITCV_LANGGRAPH_PROVIDER", "fitcv_builtin") or "fitcv_builtin").strip().lower()
+    model = str(os.environ.get("FITCV_LANGGRAPH_MODEL", "synonym_triage_v1") or "synonym_triage_v1").strip()
+    base_url = str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL", "") or "").strip() or None
+    wire_api = str(os.environ.get("FITCV_LANGGRAPH_WIRE_API", "") or "").strip() or "builtin"
+    api_key = (
+        str(os.environ.get("FITCV_LANGGRAPH_OPENAI_API_KEY", "") or "").strip()
+        or str(os.environ.get("OPENAI_API_KEY", "") or "").strip()
+    )
+    effective_settings = _load_json_object(run.effective_settings_json)
+    if isinstance(effective_settings, dict):
+        runtime_inputs = dict(effective_settings.get("runtime_inputs") or {})
+        expected = dict(runtime_inputs.get("agentic_runtime_expectation") or {})
+        provider = str(expected.get("provider") or provider).strip().lower() or provider
+        model = str(expected.get("model") or model).strip() or model
+        base_url = str(expected.get("base_url") or base_url or "").strip() or None
+        wire_api = str(expected.get("wire_api") or wire_api).strip() or wire_api
+    return {
+        "provider": provider,
+        "model": model,
+        "base_url": base_url,
+        "wire_api": wire_api,
+        "api_key": api_key,
+    }
+
+
 def _global_skill_synonyms_path() -> Path:
     return Path("config") / "taxonomy" / "skill_synonyms.yaml"
 
@@ -1647,7 +1905,15 @@ def _build_promote_global_preview(
         if len(canonicals) > 1:
             duplicate_aliases.add(alias)
 
-    counts = {"add": 0, "update": 0, "conflict": 0, "skip": 0}
+    counts = {
+        "add": 0,
+        "update": 0,
+        "conflict": 0,
+        "skip": 0,
+        "new_aliases": 0,
+        "unchanged_aliases": 0,
+        "overridden_aliases": 0,
+    }
     for row in selected:
         status = str(row.get("status") or "").strip()
         alias = str(row.get("alias") or "").strip()
@@ -1672,15 +1938,18 @@ def _build_promote_global_preview(
             row["diff_type"] = "add"
             row["reason"] = "new_alias"
             counts["add"] += 1
+            counts["new_aliases"] += 1
         elif current == canonical:
             row["diff_type"] = "skip"
             row["reason"] = "already_present"
             counts["skip"] += 1
+            counts["unchanged_aliases"] += 1
         else:
             row["diff_type"] = "update"
             row["reason"] = "canonical_change"
             row["current_global_canonical"] = current
             counts["update"] += 1
+            counts["overridden_aliases"] += 1
 
     return {
         "run_id": run.run_id,
@@ -4086,18 +4355,26 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "synonym_promote_applied": 0,
                     "synonym_promote_skipped": preview["counts"]["skip"],
                     "synonym_promote_failed": preview["counts"]["conflict"],
+                    "synonym_promote_new_aliases": preview["counts"].get("new_aliases", 0),
+                    "synonym_promote_unchanged_aliases": preview["counts"].get("unchanged_aliases", 0),
+                    "synonym_promote_overridden_aliases": preview["counts"].get("overridden_aliases", 0),
                 }
             )
             return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
         global_map = _load_global_skill_synonyms_map()
         applied = 0
         skipped = 0
+        new_aliases = 0
+        unchanged_aliases = 0
+        overridden_aliases = 0
         updated_ids: list[str] = []
         for row in list(preview.get("rows") or []):
             if not isinstance(row, dict):
                 continue
             diff_type = str(row.get("diff_type") or "").strip()
             if diff_type not in {"add", "update"}:
+                if str(row.get("reason") or "").strip() == "already_present":
+                    unchanged_aliases += 1
                 skipped += 1
                 continue
             alias = str(row.get("alias") or "").strip()
@@ -4108,6 +4385,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 continue
             global_map[alias] = canonical
             applied += 1
+            if diff_type == "add":
+                new_aliases += 1
+            elif diff_type == "update":
+                overridden_aliases += 1
             updated_ids.append(proposal_id)
         _persist_global_skill_synonyms_map(global_map)
         proposals = list(payload.get("proposals") or [])
@@ -4153,6 +4434,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "applied_count": applied,
                         "skipped_count": skipped,
                         "selected_count": len(selected_ids),
+                        "new_aliases_count": new_aliases,
+                        "unchanged_aliases_count": unchanged_aliases,
+                        "overridden_aliases_count": overridden_aliases,
                         "proposal_ids": sorted(set(updated_ids)),
                         "acted_by": acted_by,
                         "note": note,
@@ -4169,6 +4453,110 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_promote_applied": applied,
                 "synonym_promote_skipped": skipped,
                 "synonym_promote_failed": 0,
+                "synonym_promote_new_aliases": new_aliases,
+                "synonym_promote_unchanged_aliases": unchanged_aliases,
+                "synonym_promote_overridden_aliases": overridden_aliases,
+            }
+        )
+        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+
+    @app.post("/admin/runs/{run_id}/synonym-proposals/triage-refresh")
+    async def admin_run_synonym_proposals_triage_refresh(
+        request: Request,
+        run_id: str,
+    ) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        payload = _load_run_synonym_proposals_payload(run)
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
+        form = await request.form()
+        acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
+        note = str(form.get("note") or "").strip()
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        triage_runtime = _resolve_synonym_triage_runtime(run)
+        proposals = list(payload.get("proposals") or [])
+        triaged_count = 0
+        reused_count = 0
+        skipped_count = 0
+        failed_count = 0
+        fallback_count = 0
+        for idx, proposal in enumerate(proposals):
+            if not isinstance(proposal, dict):
+                skipped_count += 1
+                continue
+            status = str(proposal.get("proposal_status") or "proposed_unreviewed").strip() or "proposed_unreviewed"
+            if status not in {"proposed_unreviewed", "in_review", "deferred"}:
+                skipped_count += 1
+                continue
+            triage_fp = _synonym_triage_fingerprint(proposal, runtime=triage_runtime)
+            runtime_meta = dict(proposal.get("recommendation_runtime") or {})
+            if str(runtime_meta.get("triage_fingerprint") or "").strip() == triage_fp:
+                reused_count += 1
+                continue
+            try:
+                recommendation = _triage_synonym_proposal_recommendation(
+                    proposal,
+                    now_iso=now_iso,
+                    runtime=triage_runtime,
+                )
+            except Exception:
+                # Provider/runtime degradation fallback: preserve advisory output
+                # using deterministic builtin triage instead of failing the row.
+                try:
+                    recommendation = _triage_synonym_proposal_recommendation(
+                        proposal,
+                        now_iso=now_iso,
+                        runtime={
+                            "provider": "fitcv_builtin",
+                            "model": "synonym_triage_v1_fallback",
+                            "wire_api": "builtin",
+                        },
+                    )
+                    fallback_count += 1
+                except Exception:
+                    failed_count += 1
+                    continue
+            updated = dict(proposal)
+            # Advisory-only: never mutate proposal_status during triage refresh.
+            updated.update(recommendation)
+            recommendation_runtime = dict(updated.get("recommendation_runtime") or {})
+            recommendation_runtime["triage_fingerprint"] = triage_fp
+            updated["recommendation_runtime"] = recommendation_runtime
+            proposals[idx] = updated
+            triaged_count += 1
+        payload["proposals"] = proposals
+        _persist_synonym_proposal_payload(
+            run=run,
+            payload=payload,
+            acted_by=acted_by,
+            note=note,
+            event_stage="synonym_proposal_triage_completed",
+            event_message=(
+                "Synonym triage refresh completed: "
+                f"triaged={triaged_count}, reused={reused_count}, "
+                f"fallback={fallback_count}, skipped={skipped_count}, failed={failed_count}"
+            ),
+            event_payload={
+                "triaged_count": triaged_count,
+                "reused_count": reused_count,
+                "fallback_count": fallback_count,
+                "skipped_count": skipped_count,
+                "failed_count": failed_count,
+                "provider": str(triage_runtime.get("provider") or "fitcv_builtin"),
+                "model": str(triage_runtime.get("model") or "synonym_triage_v1"),
+                "wire_api": str(triage_runtime.get("wire_api") or "builtin"),
+                "base_url": str(triage_runtime.get("base_url") or "") or None,
+            },
+        )
+        query = urlencode(
+            {
+                "synonym_triage_triaged": triaged_count,
+                "synonym_triage_reused": reused_count,
+                "synonym_triage_skipped": skipped_count,
+                "synonym_triage_failed": failed_count,
+                "synonym_triage_fallback": fallback_count,
             }
         )
         return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
@@ -4190,6 +4578,16 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             content=overlay_yaml,
             media_type="text/yaml",
             headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-approved-synonym-proposals.yaml"'},
+        )
+
+    @app.get("/admin/synonyms/global.yaml")
+    def download_global_synonyms_yaml() -> Response:
+        global_map = _load_global_skill_synonyms_map()
+        overlay_yaml = _build_synonym_overlay_yaml(global_map)
+        return Response(
+            content=overlay_yaml,
+            media_type="text/yaml",
+            headers={"Content-Disposition": 'attachment; filename="fitcv-global-skill-synonyms.yaml"'},
         )
 
     @app.get("/admin/runs/{run_id}/tabs/enriched", response_class=HTMLResponse)
