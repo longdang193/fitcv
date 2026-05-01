@@ -284,6 +284,20 @@
     <a href="/admin/synonyms/global.yaml" style="margin-left:0.65rem">Download Global Synonyms YAML</a>
   </div>
   {% endif %}
+  {% if request.query_params.get("synonym_apply_to_run_applied") is not none %}
+  <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Apply-approved-to-run summary:
+    applied={{ request.query_params.get("synonym_apply_to_run_applied") }},
+    skipped={{ request.query_params.get("synonym_apply_to_run_skipped") or "0" }},
+    failed={{ request.query_params.get("synonym_apply_to_run_failed") or "0" }}.
+  </div>
+  {% endif %}
+  <form id="synonym-apply-approved-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/apply-approved-to-run" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+    <input type="hidden" name="acted_by" value="admin">
+    <input type="hidden" name="note" value="ui:apply-approved-to-run">
+    <button class="btn-secondary" type="submit">Apply Approved to This Run</button>
+    <span class="meta">Applies approved pairs to this run’s downstream stages.</span>
+  </form>
   <form id="synonym-promote-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-preview" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
     <div id="promote-controls" style="display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
       <button class="btn-secondary" type="submit">Preview Promote to Global</button>
@@ -299,7 +313,7 @@
     <div class="sub-card" style="padding:0.8rem">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
         <div>
-          {% if item.status == "approved_for_run_overlay" %}
+          {% if item.status == "approved_for_run_overlay" and not item.globally_promoted %}
           <div style="margin-bottom:0.4rem">
             <label class="meta" style="display:flex;align-items:center;gap:0.45rem">
               <input type="checkbox" name="promote_proposal_id" value="{{ item.proposal_id }}" form="synonym-promote-form" data-promote-selectable="true">
@@ -458,7 +472,9 @@
   {% else %}
     <p style="font-size:0.9rem;color:var(--badge-error-fg)">
       <strong>0</strong> candidate CVs were generated.
-      {% if run.ranked %}
+      {% if reranker_blocked_ranked_count and run.ranked and reranker_blocked_ranked_count == run.ranked %}
+        {{ run.ranked }} ranked job(s) were blocked by reranker-fit gating before CV generation.
+      {% elif run.ranked %}
         {{ run.ranked }} ranked job(s) did not produce a valid CV output.
       {% else %}
         No candidates passed the final AI ranking threshold.

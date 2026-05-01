@@ -174,6 +174,7 @@ These are primarily operator-facing action endpoints:
 - `POST /admin/runs/{run_id}/cv-review-action`
 - `POST /admin/runs/{run_id}/synonym-proposals/{proposal_id}/action`
 - `POST /admin/runs/{run_id}/synonym-proposals/batch-action`
+- `POST /admin/runs/{run_id}/synonym-proposals/apply-approved-to-run`
 - `POST /admin/runs/{run_id}/synonym-proposals/promote-preview`
 - `POST /admin/runs/{run_id}/synonym-proposals/promote-commit`
 - `POST /admin/runs/{run_id}/synonym-proposals/triage-refresh`
@@ -251,6 +252,7 @@ inspection.
 Purpose:
 - execute HITL review actions in the context of one run
 - support repeated batch review submissions
+- explicitly apply approved pairs into the current run snapshot for downstream stages
 - preview and confirm explicit promotion of approved run proposals into global
   synonym policy
 
@@ -259,6 +261,7 @@ Typical form fields:
 - `action` (`approve` / `defer` / `reject`) for single-action route
 - `proposal_action__{proposal_id}` entries for batch route
 - `promote_proposal_id` entries for promotion preview
+- `acted_by`, `note` for apply-approved-to-run
 - `selected_ids_csv`, `acted_by`, `note` for promotion commit
 - `acted_by`, `note` for triage refresh
 
@@ -269,6 +272,10 @@ Typical behavior:
   - `synonym_batch_applied`
   - `synonym_batch_skipped`
   - `synonym_batch_failed`
+- apply-approved-to-run returns summary via query params:
+  - `synonym_apply_to_run_applied`
+  - `synonym_apply_to_run_skipped`
+  - `synonym_apply_to_run_failed`
 - promote commit returns summary via query params:
   - `synonym_promote_applied`
   - `synonym_promote_skipped`

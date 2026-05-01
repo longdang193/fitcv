@@ -3140,6 +3140,131 @@ def test_run_detail_shows_global_download_link_after_promote_summary() -> None:
     assert "/admin/synonyms/global.yaml" in resp.text
 
 
+def test_admin_run_synonym_apply_approved_to_run_redirects_with_summary() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-apply-approved-1",
+        status=RunStatus.AWAITING_CONTINUE,
+        run_mode="manual_staged",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        synonym_proposals_json=(
+            '{"run_id":"run-apply-approved-1","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"approved_for_run_overlay","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={"persistence_status": "persisted", "degradation_reason": ""}), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-apply-approved-1/synonym-proposals/apply-approved-to-run",
+            data={"acted_by": "operator@example.com"},
+        )
+    assert resp.status_code == 303
+    assert (
+        resp.headers["location"]
+        == "/admin/runs/run-apply-approved-1?synonym_apply_to_run_applied=1&synonym_apply_to_run_skipped=0&synonym_apply_to_run_failed=0"
+    )
+
+
+def test_run_detail_shows_apply_approved_action_and_summary_banner() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-apply-approved-banner",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        synonym_proposals_json=(
+            '{"run_id":"run-apply-approved-banner","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get(
+            "/admin/runs/run-apply-approved-banner?synonym_apply_to_run_applied=2&synonym_apply_to_run_skipped=0&synonym_apply_to_run_failed=0"
+        )
+    assert resp.status_code == 200
+    assert "Apply Approved to This Run" in resp.text
+    assert "Apply-approved-to-run summary" in resp.text
+
+
+def test_run_detail_hides_promote_checkbox_after_global_promotion() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-promoted-checkbox-hidden",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        synonym_proposals_json=(
+            '{"run_id":"run-promoted-checkbox-hidden","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"approved_for_run_overlay","alias":"gcp","canonical":"google cloud","confidence":0.9,'
+            '"global_promotion_history":[{"action":"promote_to_global","acted_by":"admin","acted_at":"2026-05-01T00:00:00Z"}]}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-promoted-checkbox-hidden")
+    assert resp.status_code == 200
+    assert "Include in Promote-to-Global preview" not in resp.text
+
+
+def test_run_detail_shows_reranker_blocked_message_when_no_cvs_generated() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-reranker-blocked-msg",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        ranked=2,
+        cvs_generated=0,
+        results_export_json=(
+            '{"run_id":"run-reranker-blocked-msg","results":['
+            '{"job_url":"https://example.com/a","pipeline_status":"ranked_blocked_by_reranker_fit"},'
+            '{"job_url":"https://example.com/b","pipeline_status":"ranked_blocked_by_reranker_fit"}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-reranker-blocked-msg")
+    assert resp.status_code == 200
+    assert "blocked by reranker-fit gating before CV generation" in resp.text
+
+
 def test_download_settings_used_json_endpoint_200():
     """@proves inspection_debugging.settings-used-export"""
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -3470,7 +3595,7 @@ def test_download_run_artifact_bundle_zip_endpoint_for_partial_run() -> None:
     assert manifest["run_mode_label"] == "Stage by Stage"
     assert manifest["late_stage_mode"]["late_stage_mode"] == "non_agentic"
     assert "normalize.json" in manifest["included_files"]
-    assert "mapping-suggestions.json" in manifest["missing_files"]
+    assert "mapping-suggestions.json" not in manifest["missing_files"]
     assert manifest["artifact_states"]["mapping-suggestions.json"] == "not_applicable"
 
 
@@ -3575,6 +3700,47 @@ def test_download_run_artifact_bundle_zip_endpoint_for_succeeded_run() -> None:
     assert trace_payload["step_id"] == "cv_generation"
     assert synonym_trace_payload["trace_family"] == "agentic_step_trace"
     assert synonym_trace_payload["step_id"] == "synonym_proposals"
+
+
+def test_download_run_artifact_bundle_includes_synonym_yaml_artifacts_when_available() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-bundle-synonym-yaml-1",
+        status=RunStatus.SUCCEEDED,
+        run_mode="run_all",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        finished_at=datetime.now(timezone.utc),
+        results_export_json='{"run_id":"run-bundle-synonym-yaml-1","results":[]}',
+        effective_settings_json=(
+            '{"skill_synonyms_runtime":{"has_run_overlay":true,"run_overlay_yaml":"skill_synonyms:\\n  ga4: google analytics\\n"}}'
+        ),
+        synonym_proposals_json=(
+            '{"run_id":"run-bundle-synonym-yaml-1","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"approved_for_run_overlay","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "run_id": "run-bundle-synonym-yaml-1",
+                "created_at": "2026-04-07T12:00:00+00:00",
+                "artifacts": {"stages": {"enrich": {"stage_id": "enrich", "status": "completed"}}},
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-bundle-synonym-yaml-1/artifacts.zip")
+
+    assert resp.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(resp.content)) as archive:
+        names = set(archive.namelist())
+        assert "approved-synonym-proposals.yaml" in names
+        assert "synonym-overlay-used.yaml" in names
 
 
 def test_download_run_artifact_bundle_zip_endpoint_404_if_no_artifacts_available() -> None:
