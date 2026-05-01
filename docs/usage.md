@@ -41,6 +41,8 @@ A typical operator flow is:
    - CV debug data
    - settings used
    - mapping suggestions
+   - approved synonym overlay YAML (run-approved delta only)
+   - global synonym YAML (full canonical map)
    - stage artifacts
    - artifact bundles
 6. continue, cancel, archive, or repair a run when lifecycle action is needed
@@ -60,6 +62,16 @@ bounded agentic defaults that actually affect future runs. Use that section for
 late-stage agentic enablement and semantic-alignment tuning, then use run
 detail plus `settings-used.json` on completed runs to confirm what a specific
 run actually used and did.
+
+For synonym review flows:
+
+1. review run-scoped proposals in run detail
+2. approve/defer/reject (single or batch)
+3. optionally export approved overlay YAML (delta-only)
+4. promote approved rows to global with preview/confirm
+
+Promotion is merge/overlay behavior, not full replacement of the canonical
+global synonym file.
 
 ## Engineering Workflow
 

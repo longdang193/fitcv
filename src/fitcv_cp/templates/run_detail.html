@@ -233,14 +233,26 @@
         {{ synonym_proposal_review_queue.pending_count }} pending of {{ synonym_proposal_review_queue.total_count }} proposal(s).
       </div>
     </div>
-    <span class="badge badge-info">run-scoped HITL</span>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+      <span class="badge badge-info">run-scoped HITL</span>
+      <span class="badge badge-{{ 'success' if synonym_proposal_review_queue.triage_status == 'fresh' else ('warning' if synonym_proposal_review_queue.triage_status in ('partial', 'stale') else 'neutral') }}">
+        triage: {{ synonym_proposal_review_queue.triage_status }}
+      </span>
+    </div>
   </div>
+  <form id="synonym-triage-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/triage-refresh" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+    <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
+    <input type="hidden" name="note" value="ui:triage-refresh">
+    <button class="btn-secondary" type="submit">Refresh Triage Recommendations</button>
+    <span class="meta">Advisory-only refresh for pending proposals.</span>
+  </form>
   <form id="synonym-batch-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/batch-action" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
     <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
-    <input type="text" name="note" value="" placeholder="optional note" style="min-width:16rem">
+    <input type="hidden" name="note" value="ui:batch-action">
     <button class="btn-secondary" type="submit">Submit Selected Decisions</button>
-    <button class="btn-secondary" type="button" id="apply-recommendations-btn">Apply Recommendations to Selected</button>
-    <span class="meta">Only rows with selected action are applied.</span>
+    <button class="btn-secondary" type="button" id="apply-recommendations-btn">Apply Recommendations</button>
+    <span class="meta">Fills recommended actions for pending rows only.</span>
+    <span class="meta" id="apply-recommendations-status" aria-live="polite"></span>
   </form>
   {% if request.query_params.get("synonym_batch_applied") is not none %}
   <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
@@ -250,17 +262,37 @@
     failed={{ request.query_params.get("synonym_batch_failed") or "0" }}.
   </div>
   {% endif %}
+  {% if request.query_params.get("synonym_triage_triaged") is not none %}
+  <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Triage summary:
+    triaged={{ request.query_params.get("synonym_triage_triaged") }},
+    reused={{ request.query_params.get("synonym_triage_reused") or "0" }},
+    fallback={{ request.query_params.get("synonym_triage_fallback") or "0" }},
+    skipped={{ request.query_params.get("synonym_triage_skipped") or "0" }},
+    failed={{ request.query_params.get("synonym_triage_failed") or "0" }}.
+  </div>
+  {% endif %}
   {% if request.query_params.get("synonym_promote_applied") is not none %}
   <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
     Promote-to-global summary:
     applied={{ request.query_params.get("synonym_promote_applied") }},
     skipped={{ request.query_params.get("synonym_promote_skipped") or "0" }},
-    failed={{ request.query_params.get("synonym_promote_failed") or "0" }}.
+    failed={{ request.query_params.get("synonym_promote_failed") or "0" }},
+    new={{ request.query_params.get("synonym_promote_new_aliases") or "0" }},
+    unchanged={{ request.query_params.get("synonym_promote_unchanged_aliases") or "0" }},
+    overridden={{ request.query_params.get("synonym_promote_overridden_aliases") or "0" }}.
+    <a href="/admin/synonyms/global.yaml" style="margin-left:0.65rem">Download Global Synonyms YAML</a>
   </div>
   {% endif %}
   <form id="synonym-promote-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-preview" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
-    <button class="btn-secondary" type="submit">Preview Promote to Global</button>
-    <span class="meta">Select approved rows below, preview the global diff, then confirm.</span>
+    <div id="promote-controls" style="display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+      <button class="btn-secondary" type="submit">Preview Promote to Global</button>
+      <button class="btn-secondary" type="button" id="promote-select-all-btn">Select All</button>
+      <button class="btn-secondary" type="button" id="promote-clear-all-btn">Clear Selection</button>
+      <span class="meta" id="promote-selected-count" aria-live="polite">Selected: 0</span>
+      <span class="meta">Select approved rows below, preview the global diff, then confirm.</span>
+    </div>
+    <span class="meta" id="promote-empty-note" style="display:none">No approved rows available for promotion yet.</span>
   </form>
   <div style="display:flex;flex-direction:column;gap:0.85rem">
     {% for item in synonym_proposal_review_queue["items"] %}
@@ -270,7 +302,7 @@
           {% if item.status == "approved_for_run_overlay" %}
           <div style="margin-bottom:0.4rem">
             <label class="meta" style="display:flex;align-items:center;gap:0.45rem">
-              <input type="checkbox" name="promote_proposal_id" value="{{ item.proposal_id }}" form="synonym-promote-form">
+              <input type="checkbox" name="promote_proposal_id" value="{{ item.proposal_id }}" form="synonym-promote-form" data-promote-selectable="true">
               Include in Promote-to-Global preview
             </label>
           </div>
@@ -755,9 +787,60 @@ async function lifecycleAction(runId, action, btn) {
 document.addEventListener('DOMContentLoaded', () => {
   window.setTimeout(() => ensureTabLoaded('enriched'), 50);
   const applyRecommendationsBtn = document.getElementById('apply-recommendations-btn');
+  const applyRecommendationsStatus = document.getElementById('apply-recommendations-status');
+  const promoteSelectAllBtn = document.getElementById('promote-select-all-btn');
+  const promoteClearAllBtn = document.getElementById('promote-clear-all-btn');
+  const promoteSelectedCount = document.getElementById('promote-selected-count');
+  const promoteControls = document.getElementById('promote-controls');
+  const promoteEmptyNote = document.getElementById('promote-empty-note');
+  const promoteCheckboxes = () => Array.from(document.querySelectorAll('input[type="checkbox"][name="promote_proposal_id"][data-promote-selectable="true"]'));
+
+  const refreshPromoteSelectedCount = () => {
+    if (!promoteSelectedCount) {
+      return;
+    }
+    const selected = promoteCheckboxes().filter((cb) => cb.checked).length;
+    promoteSelectedCount.textContent = `Selected: ${selected}`;
+  };
+
+  const promoteRows = promoteCheckboxes();
+  if (promoteControls && promoteEmptyNote) {
+    if (promoteRows.length === 0) {
+      promoteControls.style.display = 'none';
+      promoteEmptyNote.style.display = '';
+    } else {
+      promoteControls.style.display = 'flex';
+      promoteEmptyNote.style.display = 'none';
+    }
+  }
+
+  promoteRows.forEach((checkboxEl) => {
+    checkboxEl.addEventListener('change', refreshPromoteSelectedCount);
+  });
+  refreshPromoteSelectedCount();
+
+  if (promoteSelectAllBtn) {
+    promoteSelectAllBtn.addEventListener('click', () => {
+      promoteCheckboxes().forEach((checkboxEl) => {
+        checkboxEl.checked = true;
+      });
+      refreshPromoteSelectedCount();
+    });
+  }
+
+  if (promoteClearAllBtn) {
+    promoteClearAllBtn.addEventListener('click', () => {
+      promoteCheckboxes().forEach((checkboxEl) => {
+        checkboxEl.checked = false;
+      });
+      refreshPromoteSelectedCount();
+    });
+  }
+
   if (applyRecommendationsBtn) {
     applyRecommendationsBtn.addEventListener('click', () => {
-      const selects = document.querySelectorAll('#synonym-batch-form select[data-recommended-action]');
+      const selects = document.querySelectorAll('select[form="synonym-batch-form"][data-recommended-action]');
+      let appliedCount = 0;
       selects.forEach((selectEl) => {
         if (!selectEl || selectEl.value) {
           return;
@@ -768,8 +851,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (recommended === 'approve' || recommended === 'defer' || recommended === 'reject') {
           selectEl.value = recommended;
+          // Ensure UI listeners/paint update immediately in all browsers.
+          selectEl.dispatchEvent(new Event('input', { bubbles: true }));
+          selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+          appliedCount += 1;
         }
       });
+      if (applyRecommendationsStatus) {
+        if (appliedCount > 0) {
+          applyRecommendationsStatus.textContent = `Filled ${appliedCount} recommended action(s).`;
+        } else {
+          applyRecommendationsStatus.textContent = "No pending rows needed auto-fill.";
+        }
+      }
     });
   }
 });

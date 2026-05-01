@@ -196,6 +196,7 @@ The current agentic synonym surfaces are:
 - `/admin/runs/{run_id}/synonym-proposals-trace.json`
 - `/admin/runs/{run_id}/synonym-proposals.json`
 - `/admin/runs/{run_id}/approved-synonym-proposals.yaml`
+- `/admin/synonyms/global.yaml`
 - `/admin/mapping-suggestions.json`
 - `/admin/synonym-proposals.json`
 
@@ -211,11 +212,27 @@ Run detail now also exposes synonym-review operational summaries:
 
 - batch submit summary (`applied`, `skipped`, `failed`)
 - promote-to-global summary (`applied`, `skipped`, `failed`)
+- promote-to-global classification counts (`new`, `unchanged`, `overridden`)
+- triage refresh summary (`triaged`, `reused`, `skipped`, `failed`)
+- triage status badge (`fresh`, `partial`, `stale`, `not_generated`)
 - advisory recommendation metadata shown per pending proposal
   (`recommended_action`, recommendation confidence, rationale, risk flags)
 
 Recommendation display is advisory-only. Final review and promotion actions
 remain explicit HITL submits by the operator.
+
+Promotion semantics are merge/overlay-based:
+
+- exported `approved-synonym-proposals.yaml` is run-approved delta only
+- exported `global.yaml` is the full canonical synonym map snapshot
+- promote-to-global applies selected delta rows onto the global canonical map
+- alias collisions are surfaced as overrides rather than silent replacement
+
+Triage refresh emits run events for timeline/debug usage:
+
+- `synonym_proposal_triage_completed`
+  - includes counts (`triaged`, `reused`, `skipped`, `failed`)
+  - includes runtime metadata (`provider`, `model`, `wire_api`, `base_url`)
 
 ### Synonym proposals trace
 

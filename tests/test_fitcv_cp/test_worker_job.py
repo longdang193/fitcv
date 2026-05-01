@@ -33,6 +33,39 @@ def test_worker_marks_succeeded_on_success():
     assert bq.query.call_count >= 2  # running + succeeded
 
 
+def test_worker_normalizes_windows_service_account_key_in_non_windows_runtime():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(
+        effective_settings_json=json.dumps({
+            "service_account_key": "C:\\Users\\someone\\fitcv-key.json",
+            "gcp_project": "fitcv-491123",
+            "bigquery_dataset": "fitcv",
+        })
+    )
+    mock_run.cancel_requested_at = None
+    mock_run.run_mode = "run_all"
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "path"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    with patch("fitcv_cp.worker_job.os.name", "posix"), \
+       patch.dict("fitcv_cp.worker_job.os.environ", {"GOOGLE_APPLICATION_CREDENTIALS": "/app/sa_key.json"}, clear=False), \
+       patch("fitcv_cp.worker_job.Path.exists", return_value=True), \
+       patch("fitcv_cp.worker_job.run_pipeline", return_value={
+            "run_id": "r1", "total_jobs": 1, "passed_filter": 1, "ranked": 1, "cvs_generated": 1
+       }) as mock_run_pipeline, \
+       patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run):
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    effective_config = mock_run_pipeline.call_args.kwargs["config"]
+    assert effective_config["service_account_key"] == "/app/sa_key.json"
+
+
 def test_worker_persists_results_export_json_on_success():
     """@proves pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere
     @proves trigger_run_management.run-results-export

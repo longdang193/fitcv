@@ -40,7 +40,9 @@ import hashlib
 import json
 import logging
 import os
+import re
 import uuid
+from pathlib import Path
 from typing import Any
 
 from google.cloud import bigquery
@@ -89,10 +91,57 @@ _RUN_MODE_LABELS = {
     "run_all": "Run All",
     "manual_staged": "Stage by Stage",
 }
+_WINDOWS_ABSOLUTE_PATH_PATTERN = re.compile(r"^[A-Za-z]:[\\/]")
 
 
 def _get_bq() -> bigquery.Client:
     return bigquery.Client()
+
+
+def _normalize_runtime_service_account_key(
+    effective_config: dict[str, Any] | None,
+    *,
+    run_id: str,
+) -> dict[str, Any] | None:
+    """Normalize service_account_key for Linux/container runtime safety."""
+    if not isinstance(effective_config, dict):
+        return effective_config
+    key_path = str(effective_config.get("service_account_key") or "").strip()
+    if not key_path:
+        return effective_config
+    if os.name == "nt":
+        return effective_config
+    if not _WINDOWS_ABSOLUTE_PATH_PATTERN.match(key_path):
+        return effective_config
+
+    normalized = dict(effective_config)
+    env_key_path = str(os.environ.get("GOOGLE_APPLICATION_CREDENTIALS") or "").strip()
+    if env_key_path and Path(env_key_path).exists():
+        normalized["service_account_key"] = env_key_path
+        logger.warning(
+            "[run_id=%s] Normalized Windows service_account_key %r to runtime credential path %r",
+            run_id,
+            key_path,
+            env_key_path,
+        )
+        return normalized
+
+    fallback_path = "/app/sa_key.json"
+    if Path(fallback_path).exists():
+        normalized["service_account_key"] = fallback_path
+        logger.warning(
+            "[run_id=%s] Normalized Windows service_account_key %r to container fallback %r",
+            run_id,
+            key_path,
+            fallback_path,
+        )
+    else:
+        logger.warning(
+            "[run_id=%s] Windows service_account_key %r detected in non-Windows runtime and no fallback key file was found.",
+            run_id,
+            key_path,
+        )
+    return normalized
 
 
 def _run_cancelled_event(run_id: str, message: str) -> RunEvent:
@@ -836,6 +885,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 effective_config = json.loads(run_record.effective_settings_json)
             except Exception as exc:
                 logger.warning("[run_id=%s] Failed to parse effective_settings_json: %s", run_id, exc)
+        effective_config = _normalize_runtime_service_account_key(effective_config, run_id=run_id)
         run_mode = str(getattr(run_record, "run_mode", "run_all") or "run_all")
         next_stage = getattr(run_record, "next_stage", None) or "normalize"
         checkpoint_payload: dict[str, Any] | None = None

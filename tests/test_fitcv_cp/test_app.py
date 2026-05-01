@@ -2498,10 +2498,82 @@ def test_admin_run_detail_shows_synonym_recommendation_advisory_fields() -> None
         resp = TestClient(_app()).get("/admin/runs/run-proposal-ui-reco")
 
     assert resp.status_code == 200
-    assert "Apply Recommendations to Selected" in resp.text
+    assert "Apply Recommendations" in resp.text
     assert "Recommendation: <strong>approve</strong>" in resp.text
     assert "Risk flags: global_drift_check" in resp.text
     assert 'data-recommended-action="approve"' in resp.text
+
+
+def test_admin_run_detail_shows_synonym_triage_refresh_action_and_status() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-proposal-ui-triage-action",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-ui-triage-action","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed",'
+            '"alias":"gcp","canonical":"google cloud","confidence":0.9,'
+            '"recommended_action":"approve"}'
+            ']}'
+        ),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-proposal-ui-triage-action")
+
+    assert resp.status_code == 200
+    assert "/admin/runs/run-proposal-ui-triage-action/synonym-proposals/triage-refresh" in resp.text
+    assert "Refresh Triage Recommendations" in resp.text
+    assert "triage: fresh" in resp.text
+
+
+def test_admin_run_detail_shows_triage_summary_banner_from_query_params() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-proposal-ui-triage-summary",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-ui-triage-summary","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get(
+            "/admin/runs/run-proposal-ui-triage-summary"
+            "?synonym_triage_triaged=2&synonym_triage_reused=1&synonym_triage_fallback=0&synonym_triage_skipped=0&synonym_triage_failed=0"
+        )
+
+    assert resp.status_code == 200
+    assert "Triage summary:" in resp.text
+    assert "triaged=2" in resp.text
+    assert "reused=1" in resp.text
+    assert "fallback=0" in resp.text
 
 def test_admin_run_synonym_proposal_action_redirects_to_run_detail() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -2626,6 +2698,245 @@ def test_admin_run_synonym_proposals_batch_action_repeat_submit_skips_resolved_r
         == "/admin/runs/run-proposal-batch-repeat?synonym_batch_applied=1&synonym_batch_skipped=1&synonym_batch_failed=0"
     )
 
+
+def test_admin_run_synonym_proposals_triage_refresh_redirects_with_summary() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-triage-refresh",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-triage-refresh","proposals":['
+            '{"proposal_id":"proposal-pending","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9},'
+            '{"proposal_id":"proposal-approved","proposal_status":"approved_for_run_overlay","alias":"sql","canonical":"structured query language","confidence":0.9}'
+            ']}'
+        ),
+    )
+    persisted_payloads: list[dict[str, object]] = []
+
+    def _capture_update(run_id: str, synonym_proposals_json: str, bq, *, project: str, dataset: str):
+        import json
+        persisted_payloads.append(json.loads(synonym_proposals_json))
+        return {"persistence_status": "persisted", "degradation_reason": ""}
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", side_effect=_capture_update), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-refresh/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 303
+    assert (
+        resp.headers["location"]
+        == "/admin/runs/run-triage-refresh?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_skipped=1&synonym_triage_failed=0&synonym_triage_fallback=0"
+    )
+    assert persisted_payloads
+    proposals = persisted_payloads[-1]["proposals"]
+    pending = [row for row in proposals if row.get("proposal_id") == "proposal-pending"][0]
+    assert pending["recommended_action"] in {"approve", "defer", "reject"}
+    assert isinstance(pending["recommendation_confidence"], float)
+    assert pending["proposal_status"] == "proposed_unreviewed"
+
+
+def test_admin_run_synonym_proposals_triage_refresh_does_not_mutate_status() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-triage-status",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-triage-status","proposals":['
+            '{"proposal_id":"proposal-review","proposal_status":"in_review","alias":"k8s","canonical":"kubernetes","confidence":0.7}'
+            ']}'
+        ),
+    )
+    captured_statuses: list[str] = []
+
+    def _capture_update(run_id: str, synonym_proposals_json: str, bq, *, project: str, dataset: str):
+        import json
+        payload = json.loads(synonym_proposals_json)
+        proposal = payload["proposals"][0]
+        captured_statuses.append(str(proposal.get("proposal_status")))
+        return {"persistence_status": "persisted", "degradation_reason": ""}
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", side_effect=_capture_update), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-status/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 303
+    assert captured_statuses == ["in_review"]
+
+
+def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-triage-provider-fail",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-triage-provider-fail","proposals":['
+            '{"proposal_id":"proposal-pending","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={"persistence_status": "persisted", "degradation_reason": ""}), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"), \
+         patch.dict("os.environ", {"FITCV_LANGGRAPH_PROVIDER": "openai"}, clear=False):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-provider-fail/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 303
+    assert (
+        resp.headers["location"]
+        == "/admin/runs/run-triage-provider-fail?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=1"
+    )
+
+
+def test_admin_run_synonym_proposals_triage_refresh_provider_success_persists_recommendation() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    import json
+
+    run = PipelineRun(
+        run_id="run-triage-provider-success",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-triage-provider-success","proposals":['
+            '{"proposal_id":"proposal-pending","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+    persisted_payloads: list[dict[str, object]] = []
+
+    def _capture_update(run_id: str, synonym_proposals_json: str, bq, *, project: str, dataset: str):
+        persisted_payloads.append(json.loads(synonym_proposals_json))
+        return {"persistence_status": "persisted", "degradation_reason": ""}
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", side_effect=_capture_update), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"), \
+         patch("fitcv_cp.app._call_synonym_triage_provider", return_value={
+             "recommended_action": "approve",
+             "recommendation_confidence": 0.91,
+             "recommendation_rationale": "High-confidence normalized alias.",
+             "recommendation_risk_flags": [],
+         }), \
+         patch.dict("os.environ", {
+             "FITCV_LANGGRAPH_PROVIDER": "openai",
+             "OPENAI_API_KEY": "test-key",
+             "FITCV_LANGGRAPH_MODEL": "gpt-4.1-mini",
+         }, clear=False):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-provider-success/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 303
+    assert (
+        resp.headers["location"]
+        == "/admin/runs/run-triage-provider-success?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=0"
+    )
+    assert persisted_payloads
+    proposal = persisted_payloads[-1]["proposals"][0]
+    assert proposal["recommended_action"] == "approve"
+    assert proposal["recommendation_confidence"] == 0.91
+
+
+def test_admin_run_synonym_proposals_triage_refresh_reuses_unchanged_recommendation() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    import json
+
+    runtime_meta = '{"provider":"fitcv_builtin","model":"synonym_triage_v1","wire_api":"builtin","triage_version":"synonym_triage_v1"}'
+    run = PipelineRun(
+        run_id="run-triage-reuse",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-triage-reuse","proposals":['
+            '{"proposal_id":"proposal-a","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9,'
+            '"recommended_action":"approve","recommendation_confidence":0.9,"recommendation_rationale":"ok",'
+            f'"recommendation_runtime":{runtime_meta}'
+            '}]}'
+        ),
+    )
+    payload_holder: dict[str, object] = {}
+    from fitcv_cp import app as app_module
+    proposal = json.loads(run.synonym_proposals_json)["proposals"][0]
+    fp = app_module._synonym_triage_fingerprint(
+        proposal,
+        runtime={"provider": "fitcv_builtin", "model": "synonym_triage_v1", "wire_api": "builtin"},
+    )
+    run.synonym_proposals_json = run.synonym_proposals_json.replace(
+        '"recommendation_runtime":{"provider":"fitcv_builtin","model":"synonym_triage_v1","wire_api":"builtin","triage_version":"synonym_triage_v1"}',
+        f'"recommendation_runtime":{{"provider":"fitcv_builtin","model":"synonym_triage_v1","wire_api":"builtin","triage_version":"synonym_triage_v1","triage_fingerprint":"{fp}"}}',
+    )
+
+    def _capture_update(run_id: str, synonym_proposals_json: str, bq, *, project: str, dataset: str):
+        payload_holder["payload"] = json.loads(synonym_proposals_json)
+        return {"persistence_status": "persisted", "degradation_reason": ""}
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", side_effect=_capture_update), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-reuse/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 303
+    assert (
+        resp.headers["location"]
+        == "/admin/runs/run-triage-reuse?synonym_triage_triaged=0&synonym_triage_reused=1&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=0"
+    )
+
 def test_download_run_approved_synonym_overlay_yaml() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -2641,12 +2952,22 @@ def test_download_run_approved_synonym_overlay_yaml() -> None:
         run_mode="run_all",
         synonym_proposals_json=(
             '{"run_id":"run-approved-yaml","proposals":['
-            '{"proposal_id":"proposal-gcp","proposal_status":"approved_for_run_overlay","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            '{"proposal_id":"proposal-gcp","proposal_status":"approved_for_run_overlay","alias":"gcp","canonical":"google cloud","confidence":0.9},'
+            '{"proposal_id":"proposal-aws","proposal_status":"rejected","alias":"aws","canonical":"amazon web services","confidence":0.9}'
             ']}'
         ),
     )
     with patch("fitcv_cp.app.get_run", return_value=run):
         resp = TestClient(_app()).get("/admin/runs/run-approved-yaml/approved-synonym-proposals.yaml")
+    assert resp.status_code == 200
+    assert "skill_synonyms:" in resp.text
+    assert "gcp: google cloud" in resp.text
+    assert "aws: amazon web services" not in resp.text
+
+
+def test_download_global_synonyms_yaml() -> None:
+    with patch("fitcv_cp.app._load_global_skill_synonyms_map", return_value={"gcp": "google cloud"}):
+        resp = TestClient(_app()).get("/admin/synonyms/global.yaml")
     assert resp.status_code == 200
     assert "skill_synonyms:" in resp.text
     assert "gcp: google cloud" in resp.text
@@ -2680,8 +3001,8 @@ def test_admin_run_synonym_promote_preview_renders_diff_summary() -> None:
         )
     assert resp.status_code == 200
     assert "Promote Synonyms to Global Policy" in resp.text
-    assert "add=1" in resp.text
-    assert "skip=1" in resp.text
+    assert "new=1" in resp.text
+    assert "unchanged=1" in resp.text
 
 
 def test_admin_run_synonym_promote_commit_updates_global_policy_and_redirects() -> None:
@@ -2721,7 +3042,7 @@ def test_admin_run_synonym_promote_commit_updates_global_policy_and_redirects() 
     assert resp.status_code == 303
     assert (
         resp.headers["location"]
-        == "/admin/runs/run-promote-commit?synonym_promote_applied=1&synonym_promote_skipped=0&synonym_promote_failed=0"
+        == "/admin/runs/run-promote-commit?synonym_promote_applied=1&synonym_promote_skipped=0&synonym_promote_failed=0&synonym_promote_new_aliases=1&synonym_promote_unchanged_aliases=0&synonym_promote_overridden_aliases=0"
     )
     assert persisted_global["gcp"] == "google cloud"
     assert persisted_global["sql"] == "structured query language"
@@ -2759,6 +3080,64 @@ def test_run_detail_includes_approved_overlay_export_link_when_proposal_review_o
         resp = TestClient(_app()).get("/admin/runs/run-overlay-export-link")
     assert resp.status_code == 200
     assert "/admin/runs/run-overlay-export-link/approved-synonym-proposals.yaml" in resp.text
+    assert "/admin/synonyms/global.yaml" not in resp.text
+    assert "Select All" in resp.text
+    assert "Clear Selection" in resp.text
+    assert "Selected: 0" in resp.text
+
+
+def test_run_detail_shows_no_promote_controls_when_no_approved_rows() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-no-promote-eligible",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        synonym_proposals_json=(
+            '{"run_id":"run-no-promote-eligible","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-no-promote-eligible")
+    assert resp.status_code == 200
+    assert "No approved rows available for promotion yet." in resp.text
+
+
+def test_run_detail_shows_global_download_link_after_promote_summary() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-promote-summary-link",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        synonym_proposals_json='{"run_id":"run-promote-summary-link","proposals":[]}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get(
+            "/admin/runs/run-promote-summary-link?synonym_promote_applied=1&synonym_promote_skipped=0&synonym_promote_failed=0"
+        )
+    assert resp.status_code == 200
+    assert "/admin/synonyms/global.yaml" in resp.text
 
 
 def test_download_settings_used_json_endpoint_200():

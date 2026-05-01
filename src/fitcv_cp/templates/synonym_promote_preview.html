@@ -13,10 +13,14 @@
   <h3 style="margin:0 0 0.6rem">Preview Summary</h3>
   <div class="meta" style="margin-bottom:0.8rem">
     Selected={{ preview.selected_count }},
-    add={{ preview.counts.add }},
-    update={{ preview.counts.update }},
+    new={{ preview.counts.new_aliases }},
+    unchanged={{ preview.counts.unchanged_aliases }},
+    overridden={{ preview.counts.overridden_aliases }},
     conflict={{ preview.counts.conflict }},
     skip={{ preview.counts.skip }}.
+  </div>
+  <div class="meta" style="margin-bottom:0.8rem">
+    This promotion is a merge/overlay into the global synonym map, not a full replacement.
   </div>
   <table>
     <thead>
@@ -51,7 +55,7 @@
   <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-commit" style="display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
     <input type="hidden" name="selected_ids_csv" value="{{ selected_ids_csv }}">
     <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
-    <input type="text" name="note" value="" placeholder="promotion note" style="min-width:16rem">
+    <input type="hidden" name="note" value="ui:promote-to-global">
     <button class="btn-primary" type="submit" {% if preview.counts.conflict > 0 %}disabled{% endif %}>Confirm Promote to Global</button>
   </form>
 </div>
