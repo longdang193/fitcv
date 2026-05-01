@@ -211,6 +211,7 @@ These let you inspect:
 Run detail now also exposes synonym-review operational summaries:
 
 - batch submit summary (`applied`, `skipped`, `failed`)
+- apply-approved-to-run summary (`applied`, `skipped`, `failed`)
 - promote-to-global summary (`applied`, `skipped`, `failed`)
 - promote-to-global classification counts (`new`, `unchanged`, `overridden`)
 - triage refresh summary (`triaged`, `reused`, `skipped`, `failed`)
@@ -220,6 +221,13 @@ Run detail now also exposes synonym-review operational summaries:
 
 Recommendation display is advisory-only. Final review and promotion actions
 remain explicit HITL submits by the operator.
+
+Run-local application semantics:
+
+- review status changes alone do not imply cross-run canonical mutation
+- `Apply Approved to This Run` materializes approved pairs into the run snapshot
+  for downstream stage execution
+- promote-to-global remains the explicit canonical update path
 
 Promotion semantics are merge/overlay-based:
 

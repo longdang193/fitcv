@@ -67,8 +67,9 @@ For synonym review flows:
 
 1. review run-scoped proposals in run detail
 2. approve/defer/reject (single or batch)
-3. optionally export approved overlay YAML (delta-only)
-4. promote approved rows to global with preview/confirm
+3. apply approved pairs to this run for downstream stages
+4. optionally export approved overlay YAML (delta-only)
+5. promote approved rows to global with preview/confirm
 
 Promotion is merge/overlay behavior, not full replacement of the canonical
 global synonym file.

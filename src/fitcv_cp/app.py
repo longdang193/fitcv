@@ -425,6 +425,8 @@ BUNDLE_ARTIFACT_FILENAMES: tuple[str, ...] = (
     "mapping-suggestions.json",
     "synonym-proposals.json",
     "synonym-proposals-trace.json",
+    "approved-synonym-proposals.yaml",
+    "synonym-overlay-used.yaml",
 )
 
 
@@ -858,13 +860,36 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 content=_pretty_json_string(run.mapping_suggestions_json),
             )
         )
-    if run.synonym_proposals_json and _run_has_reached_stage(run, "enrich"):
+    if run.synonym_proposals_json and (
+        _run_has_reached_stage(run, "enrich") or _run_has_stage_artifact(run, "enrich")
+    ):
         files.append(
             RunArtifactFile(
                 filename="synonym-proposals.json",
                 label="Synonym Proposals JSON",
                 href=f"/admin/runs/{run.run_id}/synonym-proposals.json",
                 content=_pretty_json_string(run.synonym_proposals_json),
+            )
+        )
+        approved_overlay_yaml = _build_run_approved_synonym_overlay_yaml(run)
+        if approved_overlay_yaml:
+            files.append(
+                RunArtifactFile(
+                    filename="approved-synonym-proposals.yaml",
+                    label="Approved Synonym Overlay YAML",
+                    href=f"/admin/runs/{run.run_id}/approved-synonym-proposals.yaml",
+                    content=approved_overlay_yaml,
+                )
+            )
+    synonym_overlay_info = _extract_run_synonym_overlay_info(run)
+    runtime_overlay_yaml = str(synonym_overlay_info.get("run_overlay_yaml") or "").strip()
+    if runtime_overlay_yaml:
+        files.append(
+            RunArtifactFile(
+                filename="synonym-overlay-used.yaml",
+                label="Synonym Overlay Used YAML",
+                href=f"/admin/runs/{run.run_id}/settings-used.json",
+                content=runtime_overlay_yaml if runtime_overlay_yaml.endswith("\n") else runtime_overlay_yaml + "\n",
             )
         )
     synonym_proposals_trace_payload = _load_run_synonym_proposals_trace_payload(run)
@@ -1010,6 +1035,9 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
         status = str(proposal.get("proposal_status") or "proposed_unreviewed").strip() or "proposed_unreviewed"
         pending = status in {"proposed_unreviewed", "in_review", "deferred"}
         review_history = [entry for entry in list(proposal.get("review_history") or []) if isinstance(entry, dict)]
+        global_promotion_history = [
+            entry for entry in list(proposal.get("global_promotion_history") or []) if isinstance(entry, dict)
+        ]
         latest_action = review_history[-1] if review_history else {}
         items.append(
             {
@@ -1030,6 +1058,7 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
                     for flag in list(proposal.get("recommendation_risk_flags") or [])
                     if str(flag).strip()
                 ],
+                "globally_promoted": bool(global_promotion_history),
             }
         )
     items.sort(key=lambda item: (not item["pending"], -item["confidence"], item["alias"], item["canonical"]))
@@ -1252,6 +1281,16 @@ def _artifact_applicability_state(run: PipelineRun, filename: str, included_file
                 return "not_applicable"
             return "degraded" if trace_status == "degraded" else "present"
         return "missing"
+    if filename == "approved-synonym-proposals.yaml":
+        payload = _load_run_synonym_proposals_payload(run)
+        if not isinstance(payload, dict):
+            return "not_applicable"
+        proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
+        overlay_synonyms, _proposal_ids = _approved_synonym_overlay_payload(proposals)
+        return "missing" if overlay_synonyms else "not_applicable"
+    if filename == "synonym-overlay-used.yaml":
+        overlay_info = _extract_run_synonym_overlay_info(run)
+        return "missing" if str(overlay_info.get("run_overlay_yaml") or "").strip() else "not_applicable"
     if filename == "results.json":
         return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
     if filename == "hitl-review-audit.json":
@@ -1283,12 +1322,12 @@ def _artifact_applicability_state(run: PipelineRun, filename: str, included_file
 
 def _build_run_artifact_bundle_manifest(run: PipelineRun, files: list[RunArtifactFile]) -> dict[str, Any]:
     included_files = [artifact.filename for artifact in files]
-    missing_files = [filename for filename in BUNDLE_ARTIFACT_FILENAMES if filename not in included_files]
     included_file_set = set(included_files)
     artifact_states = {
         filename: _artifact_applicability_state(run, filename, included_file_set)
         for filename in BUNDLE_ARTIFACT_FILENAMES
     }
+    missing_files = [filename for filename, state in artifact_states.items() if state == "missing"]
     return {
         "run_id": run.run_id,
         "status": run.status.value,
@@ -1411,6 +1450,7 @@ def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
         "has_default_overlay": bool(runtime.get("has_overlay")),
         "snapshot_yaml": snapshot_yaml,
         "snapshot_label": snapshot_label,
+        "run_overlay_yaml": run_overlay_yaml,
     }
 
 def _find_synonym_proposal_index(payload: dict[str, Any], proposal_id: str) -> int | None:
@@ -1593,6 +1633,17 @@ def _build_synonym_overlay_yaml(overlay: dict[str, str]) -> str:
     for alias, canonical in sorted(overlay.items()):
         lines.append(f"  {alias}: {canonical}")
     return "\n".join(lines) + "\n"
+
+
+def _build_run_approved_synonym_overlay_yaml(run: PipelineRun) -> str | None:
+    payload = _load_run_synonym_proposals_payload(run)
+    if not isinstance(payload, dict):
+        return None
+    proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
+    overlay_synonyms, _proposal_ids = _approved_synonym_overlay_payload(proposals)
+    if not overlay_synonyms:
+        return None
+    return _build_synonym_overlay_yaml(overlay_synonyms)
 
 
 def _triage_synonym_proposal_recommendation(
@@ -4039,6 +4090,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             )
         cv_versions = list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
         results_rows = _results_export_rows(run)
+        reranker_blocked_ranked_count = sum(
+            1
+            for row in results_rows
+            if str(row.get("pipeline_status") or "").strip() == "ranked_blocked_by_reranker_fit"
+        )
         job_title_by_url = _job_title_by_url_from_results_rows(results_rows)
         run_export_links = _build_run_export_links(run)
         agentic_runtime_drift = _run_agentic_runtime_drift_summary(run)
@@ -4061,6 +4117,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "run_health_rows": run_health_rows,
                 "run_export_links": run_export_links,
                 "job_title_by_url": job_title_by_url,
+                "reranker_blocked_ranked_count": reranker_blocked_ranked_count,
                 "is_stale_cancelling": _is_stale_cancelling,
                 "can_continue_manual_run": (
                     run.run_mode == "manual_staged"
@@ -4291,6 +4348,48 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_batch_applied": applied,
                 "synonym_batch_skipped": skipped,
                 "synonym_batch_failed": failed,
+            }
+        )
+        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+
+    @app.post("/admin/runs/{run_id}/synonym-proposals/apply-approved-to-run")
+    async def admin_run_synonym_proposals_apply_approved_to_run(
+        request: Request,
+        run_id: str,
+    ) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}:
+            raise HTTPException(status_code=409, detail="Cannot apply approved overlay for terminal runs")
+        payload = _load_run_synonym_proposals_payload(run)
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
+        proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
+        overlay_synonyms, _proposal_ids = _approved_synonym_overlay_payload(proposals)
+        if not overlay_synonyms:
+            raise HTTPException(status_code=409, detail="No approved synonym proposals are available for this run")
+        form = await request.form()
+        acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
+        note = str(form.get("note") or "").strip() or "ui:apply-approved-to-run"
+        _persist_synonym_proposal_payload(
+            run=run,
+            payload=payload,
+            acted_by=acted_by,
+            note=note,
+            event_stage="synonym_apply_approved_to_run",
+            event_message=f"Applied {len(overlay_synonyms)} approved synonym mapping(s) to this run overlay",
+            event_payload={
+                "applied_count": len(overlay_synonyms),
+                "skipped_count": 0,
+                "failed_count": 0,
+            },
+        )
+        query = urlencode(
+            {
+                "synonym_apply_to_run_applied": len(overlay_synonyms),
+                "synonym_apply_to_run_skipped": 0,
+                "synonym_apply_to_run_failed": 0,
             }
         )
         return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
