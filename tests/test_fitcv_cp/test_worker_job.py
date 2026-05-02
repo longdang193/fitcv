@@ -656,10 +656,38 @@ def test_worker_persists_stage_transition_artifacts_json_on_success():
 
     payload = json.loads(mock_store_stage_artifacts.call_args.args[1])
     assert payload["run_id"] == "r1"
+    assert payload["status"] == "succeeded"
     assert payload["snapshot_complete"] is True
+    assert payload["degradation_reason"] == ""
     assert payload["artifacts"]["schema_version"] == "stage_transition_artifacts_v2"
     assert payload["artifacts"]["stages"]["normalize"]["input_counts"]["raw_jobs"] == 5
     assert payload["artifacts"]["stages"]["ranking"]["output_counts"]["ranked_jobs"] == 2
+
+def test_stage_transition_payload_marks_failed_partial_snapshot_with_reason() -> None:
+    summary = {
+        "run_id": "r1",
+        "stage_transition_artifacts": {
+            "schema_version": "stage_transition_artifacts_v6",
+            "stages": {
+                "normalize": {"status": "completed"},
+                "enrich": {"status": "completed"},
+                "rule_filter": {"status": "not_reached"},
+            },
+        },
+    }
+    from fitcv_cp.worker_job import _build_stage_transition_artifacts_payload
+    payload = json.loads(
+        _build_stage_transition_artifacts_payload(
+            run_id="r1",
+            summary=summary,
+            finished_at=datetime.datetime.now(datetime.timezone.utc),
+            run_status=RunStatus.FAILED,
+            degradation_reason="partial_snapshot",
+        )
+    )
+    assert payload["status"] == "failed"
+    assert payload["snapshot_complete"] is False
+    assert payload["degradation_reason"] == "partial_snapshot"
 
 
 def test_worker_persists_settings_used_json_on_success():

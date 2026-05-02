@@ -442,14 +442,22 @@ def _build_stage_transition_artifacts_payload(
     run_id: str,
     summary: dict[str, Any],
     finished_at: datetime.datetime,
+    run_status: RunStatus = RunStatus.SUCCEEDED,
+    degradation_reason: str | None = None,
 ) -> str:
     stage_artifacts = dict(summary.get("stage_transition_artifacts") or {})
+    snapshot_complete = bool(stage_artifacts) and run_status == RunStatus.SUCCEEDED
+    resolved_reason = (
+        str(degradation_reason or "").strip()
+        or ("partial_snapshot_non_terminal_success" if run_status != RunStatus.SUCCEEDED else "")
+    )
     payload = {
         "run_id": run_id,
-        "status": RunStatus.SUCCEEDED.value,
+        "status": run_status.value,
         "artifact_schema_version": "stage_transition_artifacts_run_v1",
         "created_at": finished_at.isoformat(),
-        "snapshot_complete": bool(stage_artifacts),
+        "snapshot_complete": snapshot_complete,
+        "degradation_reason": resolved_reason,
         "artifacts": stage_artifacts,
     }
     return json.dumps(payload, ensure_ascii=False)
@@ -978,6 +986,8 @@ def _persist_shared_progress_snapshot(
             run_id=run_id,
             summary=summary,
             finished_at=snapshot_at,
+            run_status=run_status,
+            degradation_reason="partial_snapshot",
         ),
         bq,
         project=project,
@@ -1194,6 +1204,8 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                         run_id=run_id,
                         summary=summary,
                         finished_at=checkpoint_time,
+                        run_status=RunStatus.AWAITING_CONTINUE,
+                        degradation_reason="checkpoint_partial_snapshot",
                     ),
                     bq,
                     project=project,
@@ -1377,6 +1389,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     run_id=run_id,
                     summary=summary,
                     finished_at=finished_at,
+                    run_status=RunStatus.SUCCEEDED,
                 ),
                 bq,
                 project=project,
