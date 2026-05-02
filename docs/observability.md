@@ -58,6 +58,11 @@ Runtime toggles:
 - `FITCV_OTEL_EXPORTER_OTLP_ENDPOINT` (OTLP HTTP endpoint)
 - `FITCV_OTEL_SERVICE_NAME` (optional, defaults to `fitcv-control-plane`)
 
+Collector example:
+
+- local collector endpoint: `http://localhost:4318/v1/traces`
+- for remote collectors, set the full OTLP HTTP trace endpoint URL
+
 Fallback behavior:
 
 - if OTel dependencies are unavailable, export is marked degraded
@@ -69,6 +74,17 @@ Operator signal:
 
 - run detail now shows a **Telemetry Export Health** card
 - degraded telemetry events are counted from persisted run events payloads
+
+Quick troubleshooting:
+
+- `status=degraded`, `degradation_reason=otel_disabled`
+  - set `FITCV_OTEL_ENABLED=true`
+- `status=degraded`, `degradation_reason=otel_exporter_endpoint_missing`
+  - set `FITCV_OTEL_EXPORTER_OTLP_ENDPOINT`
+- `status=degraded`, `degradation_reason=otel_dependency_missing`
+  - install OpenTelemetry SDK/exporter dependencies in runtime image/venv
+- `status=degraded`, `degradation_reason=otel_exporter_init_failed`
+  - verify endpoint reachability, protocol path, and collector health
 
 ### Raw run events
 
