@@ -1178,6 +1178,11 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
             lane["zero_state_reason"] = None
     return {
         "items": items,
+        "items_by_field": {
+            "skill": [item for item in items if str(item.get("field") or "").strip() == "skill"],
+            "domain": [item for item in items if str(item.get("field") or "").strip() == "domain"],
+            "role_family": [item for item in items if str(item.get("field") or "").strip() == "role_family"],
+        },
         "pending_count": sum(1 for item in items if item["pending"]),
         "total_count": len(items),
         "approved_count": sum(1 for item in items if item["status"] == "approved_for_run_overlay"),

@@ -2876,8 +2876,12 @@ def test_admin_run_detail_shows_synonym_proposal_review_actions() -> None:
         run_mode="run_all",
         synonym_proposals_json=(
             '{"run_id":"run-proposal-ui","proposals":['
-            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed",'
-            '"alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            '{"proposal_id":"proposal-gcpx","proposal_status":"proposed_unreviewed",'
+            '"field":"skill","alias":"gcpx","canonical":"google cloud platform","confidence":0.9},'
+            '{"proposal_id":"proposal-fintech","proposal_status":"proposed_unreviewed",'
+            '"field":"domain","alias":"it services and it consulting","canonical":"fintech","confidence":0.8},'
+            '{"proposal_id":"proposal-ml","proposal_status":"proposed_unreviewed",'
+            '"field":"role_family","alias":"ml engineering","canonical":"data_science","confidence":0.85}'
             ']}'
         ),
     )
@@ -2891,9 +2895,14 @@ def test_admin_run_detail_shows_synonym_proposal_review_actions() -> None:
 
     assert resp.status_code == 200
     assert "Synonym Proposal Review" in resp.text
-    assert "/admin/runs/run-proposal-ui/synonym-proposals/proposal-gcp/action" in resp.text
+    assert "/admin/runs/run-proposal-ui/synonym-proposals/proposal-gcpx/action" in resp.text
     assert "/admin/runs/run-proposal-ui/synonym-proposals/batch-action" in resp.text
-    assert "proposal_action__proposal-gcp" in resp.text
+    assert "proposal_action__proposal-gcpx" in resp.text
+    assert "Skills" in resp.text
+    assert "Domain" in resp.text
+    assert "Role Family" in resp.text
+    assert "proposal_action__proposal-fintech" in resp.text
+    assert "proposal_action__proposal-ml" in resp.text
 
 
 def test_admin_run_detail_shows_synonym_recommendation_advisory_fields() -> None:
@@ -2911,8 +2920,8 @@ def test_admin_run_detail_shows_synonym_recommendation_advisory_fields() -> None
         run_mode="run_all",
         synonym_proposals_json=(
             '{"run_id":"run-proposal-ui-reco","proposals":['
-            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed",'
-            '"alias":"gcp","canonical":"google cloud","confidence":0.9,'
+            '{"proposal_id":"proposal-gcpx","proposal_status":"proposed_unreviewed",'
+            '"alias":"gcpx","canonical":"google cloud platform","confidence":0.9,'
             '"recommended_action":"approve","recommendation_confidence":0.86,'
             '"recommendation_rationale":"Alias is standard in data engineering profiles.",'
             '"recommendation_risk_flags":["global_drift_check"]}'
@@ -2949,8 +2958,8 @@ def test_admin_run_detail_shows_synonym_triage_refresh_action_and_status() -> No
         run_mode="run_all",
         synonym_proposals_json=(
             '{"run_id":"run-proposal-ui-triage-action","proposals":['
-            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed",'
-            '"alias":"gcp","canonical":"google cloud","confidence":0.9,'
+            '{"proposal_id":"proposal-gcpx","proposal_status":"proposed_unreviewed",'
+            '"alias":"gcpx","canonical":"google cloud platform","confidence":0.9,'
             '"recommended_action":"approve"}'
             ']}'
         ),
