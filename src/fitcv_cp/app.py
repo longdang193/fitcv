@@ -1666,6 +1666,41 @@ def _can_regenerate_synonym_proposals(run: PipelineRun) -> bool:
         and bool(run.mapping_suggestions_json)
     )
 
+def _validate_overlay_scope(overlay_payload: dict[str, Any], scope: str) -> None:
+    normalized_scope = str(scope or "combined").strip().lower() or "combined"
+    if normalized_scope not in {"combined", "skill", "domain", "role_family"}:
+        raise HTTPException(status_code=422, detail=f"Unknown overlay upload scope: {normalized_scope!r}")
+    if normalized_scope == "combined":
+        return
+
+    section_keys = {
+        "skill_synonyms",
+        "domain_alias_map",
+        "role_family_alias_map",
+        "domain_neighbors",
+        "role_family_neighbors",
+    }
+    present_sections = {
+        key
+        for key in section_keys
+        if isinstance((overlay_payload or {}).get(key), dict) and bool((overlay_payload or {}).get(key))
+    }
+    allowed_by_scope = {
+        "skill": {"skill_synonyms"},
+        "domain": {"domain_alias_map", "domain_neighbors"},
+        "role_family": {"role_family_alias_map", "role_family_neighbors"},
+    }
+    allowed_sections = allowed_by_scope[normalized_scope]
+    invalid_sections = sorted(section for section in present_sections if section not in allowed_sections)
+    if invalid_sections:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Overlay scope '{normalized_scope}' allows sections {sorted(allowed_sections)}; "
+                f"found disallowed sections {invalid_sections}"
+            ),
+        )
+
 def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
     config = _load_run_effective_config_snapshot(run)
     block = dict(config.get("synonym_management") or {})
@@ -3504,6 +3539,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         candidate_profile_file: UploadFile | None = File(None),
         candidate_profile_text: str = Form(""),
         synonym_overlay_mode: str = Form("default_config"),
+        overlay_upload_scope: str = Form("combined"),
         synonym_overlay_file: UploadFile | None = File(None),
     ) -> dict:
         from fitcv.candidate import load_profile_json_text as _load_json_profile
@@ -3658,6 +3694,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 synonym_overlay_payload = parse_runtime_synonym_overlay_yaml(raw_text)
             except ValueError as exc:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
+            _validate_overlay_scope(synonym_overlay_payload, overlay_upload_scope)
             synonym_overlay_raw_yaml = raw_text
         else:
             raise HTTPException(status_code=422, detail=f"Unknown synonym_overlay_mode: {synonym_overlay_mode!r}")
@@ -4171,6 +4208,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     @app.post("/admin/runs/{run_id}/synonym-overlay")
     async def admin_upload_run_synonym_overlay(
         run_id: str,
+        overlay_upload_scope: str = Form("combined"),
         synonym_overlay_file: UploadFile = File(...),
     ) -> RedirectResponse:
         run = get_run(run_id, bq, project=project, dataset=dataset)
@@ -4195,6 +4233,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             overlay_payload = parse_runtime_synonym_overlay_yaml(raw_text)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+        _validate_overlay_scope(overlay_payload, overlay_upload_scope)
 
         effective_config = _load_run_effective_config_snapshot(run)
         uploaded_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -4243,11 +4282,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 level="info",
                 message=(
                     "Run-scoped synonym overlay uploaded "
+                    f"[scope={str(overlay_upload_scope or 'combined').strip().lower() or 'combined'}] "
                     f"({int(((updated_config.get('skill_synonyms_runtime') or {}).get('run_overlay_entry_count') or 0))} skill entries)"
                 ),
                 created_at=datetime.datetime.now(datetime.timezone.utc),
                 payload_json=_json.dumps(
                     {
+                        "scope": str(overlay_upload_scope or "combined").strip().lower() or "combined",
                         "filename": filename,
                         "entry_count": int(
                             ((updated_config.get("skill_synonyms_runtime") or {}).get("run_overlay_entry_count") or 0)
