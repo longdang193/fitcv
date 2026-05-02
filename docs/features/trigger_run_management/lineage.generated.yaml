@@ -16,6 +16,10 @@ capabilities:
       confidence: high
       source:
       - python_meta
+    - path: src/fitcv_cp/orchestrator.py
+      confidence: high
+      source:
+      - python_meta
     - path: src/fitcv_cp/queue.py
       confidence: high
       source:
@@ -193,6 +197,10 @@ capabilities:
       source:
       - python_meta
     - path: src/fitcv_cp/bq_store.py
+      confidence: high
+      source:
+      - python_meta
+    - path: src/fitcv_cp/orchestrator.py
       confidence: high
       source:
       - python_meta

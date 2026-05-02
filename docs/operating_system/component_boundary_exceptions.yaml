@@ -1,6 +1,2 @@
 # @architecture
-exceptions:
-  - source: src/fitcv_cp/app.py
-    import: fitcv_cp.worker_job
-    rationale: Legacy lifecycle helper usage pending orchestrator-adapter extraction in Plan I.
-    removal_target: workstream-fitcv-semantic-spine.semantic-spine-prefect-orchestration-adoption
+exceptions: []

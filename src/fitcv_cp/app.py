@@ -123,7 +123,7 @@ from fitcv_cp.bq_store import (
     update_run_cv_generation_debug,
 )
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
-from fitcv_cp.queue import cancel_queued_run, enqueue_run, enqueue_run_with_job_id
+from fitcv_cp.orchestrator import get_orchestration_adapter
 from fitcv_cp.settings_schema import (
     AGENTIC_SETTINGS_SECTIONS,
     ALL_GROUP_REGISTRIES,
@@ -139,7 +139,45 @@ from fitcv_cp.settings_schema import (
     validate_settings,
 )
 from fitcv_cp.settings_store import load_active_settings, save_setting, save_settings_group
+from fitcv_cp.synonym_proposals import build_synonym_proposals_payload
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+ORCHESTRATION_ADAPTER = get_orchestration_adapter()
+
+
+def enqueue_run_with_job_id(
+    jobs_path: str,
+    config_path: str,
+    triggered_by: str,
+    redis_url: str = "redis://redis:6379/0",
+    run_id: str | None = None,
+) -> tuple[str, str]:
+    return ORCHESTRATION_ADAPTER.enqueue_run_with_job_id(
+        jobs_path=jobs_path,
+        config_path=config_path,
+        triggered_by=triggered_by,
+        redis_url=redis_url,
+        run_id=run_id,
+    )
+
+
+def enqueue_run(
+    jobs_path: str,
+    config_path: str,
+    triggered_by: str,
+    redis_url: str = "redis://redis:6379/0",
+    run_id: str | None = None,
+) -> str:
+    return ORCHESTRATION_ADAPTER.enqueue_run(
+        jobs_path=jobs_path,
+        config_path=config_path,
+        triggered_by=triggered_by,
+        redis_url=redis_url,
+        run_id=run_id,
+    )
+
+
+def cancel_queued_run(queue_job_id: str, redis_url: str = "redis://redis:6379/0") -> bool:
+    return ORCHESTRATION_ADAPTER.cancel_queued_run(queue_job_id=queue_job_id, redis_url=redis_url)
 PIPELINE_OUTCOME_META: dict[str, dict[str, str]] = {
     "ranked_with_cv": {
         "label": "CV created",
@@ -4758,9 +4796,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=409, detail="Mapping suggestions payload is invalid for this run")
         suggestions = list((mapping_payload or {}).get("suggestions") or [])
 
-        from fitcv_cp.worker_job import _build_synonym_proposals_payload
-
-        synonym_payload_json = _build_synonym_proposals_payload(
+        synonym_payload_json = build_synonym_proposals_payload(
             run_id=run.run_id,
             summary={"mapping_suggestions": suggestions},
             created_at=datetime.datetime.now(datetime.timezone.utc),
