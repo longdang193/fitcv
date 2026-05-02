@@ -143,6 +143,7 @@ from fitcv_cp.settings_store import load_active_settings, save_setting, save_set
 from fitcv_cp.synonym_proposals import build_synonym_proposals_payload
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 ORCHESTRATION_ADAPTER = get_orchestration_adapter()
+_RUN_SUBMISSION_CACHE: dict[str, RunSubmission] = {}
 
 
 def enqueue_run_with_job_id(
@@ -159,6 +160,7 @@ def enqueue_run_with_job_id(
         redis_url=redis_url,
         run_id=run_id,
     )
+    _RUN_SUBMISSION_CACHE[submission.run_id] = submission
     return submission.run_id, submission.queue_job_id
 
 def submit_run(
@@ -212,7 +214,20 @@ def continue_run_with_job_id(
         triggered_by=triggered_by,
         redis_url=redis_url,
     )
+    _RUN_SUBMISSION_CACHE[submission.run_id] = submission
     return submission.run_id, submission.queue_job_id
+
+def _resolve_submission_binding(run_id: str, queue_job_id: str) -> RunSubmission:
+    submission = _RUN_SUBMISSION_CACHE.pop(run_id, None)
+    if submission is not None:
+        return submission
+    backend = str(ORCHESTRATION_ADAPTER.name or "default_queue")
+    return RunSubmission(
+        run_id=run_id,
+        queue_job_id=queue_job_id,
+        backend_run_id=queue_job_id,
+        backend=backend,
+    )
 
 def continue_run_submission(
     *,
@@ -3455,16 +3470,17 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             redis_url=redis_url,
             run_id=run_id,
         )
+        submission = _resolve_submission_binding(run_id, queue_job_id)
         update_run_orchestration_binding(
             run_id,
-            queue_job_id=queue_job_id,
-            orchestration_backend=str(ORCHESTRATION_ADAPTER.name),
-            orchestration_run_id=queue_job_id,
+            queue_job_id=submission.queue_job_id,
+            orchestration_backend=submission.backend,
+            orchestration_run_id=submission.backend_run_id,
             bq=bq,
             project=project,
             dataset=dataset,
         )
-        update_run_queue_job_id(run_id, queue_job_id, bq, project=project, dataset=dataset)
+        update_run_queue_job_id(run_id, submission.queue_job_id, bq, project=project, dataset=dataset)
         return {"run_id": run_id}
 
     def _execute_trigger_with_inputs(
@@ -3550,16 +3566,17 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             redis_url=redis_url,
             run_id=run_id,
         )
+        submission = _resolve_submission_binding(run_id, queue_job_id)
         update_run_orchestration_binding(
             run_id,
-            queue_job_id=queue_job_id,
-            orchestration_backend=str(ORCHESTRATION_ADAPTER.name),
-            orchestration_run_id=queue_job_id,
+            queue_job_id=submission.queue_job_id,
+            orchestration_backend=submission.backend,
+            orchestration_run_id=submission.backend_run_id,
             bq=bq,
             project=project,
             dataset=dataset,
         )
-        update_run_queue_job_id(run_id, queue_job_id, bq, project=project, dataset=dataset)
+        update_run_queue_job_id(run_id, submission.queue_job_id, bq, project=project, dataset=dataset)
         return {"run_id": run_id}
 
     @app.post("/runs", status_code=201)
@@ -4354,17 +4371,18 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             triggered_by="admin",
             redis_url=redis_url,
         )
+        submission = _resolve_submission_binding(run.run_id, queue_job_id)
         update_run_status(run.run_id, RunStatus.QUEUED, bq, project=project, dataset=dataset)
         update_run_orchestration_binding(
             run.run_id,
-            queue_job_id=queue_job_id,
-            orchestration_backend=str(ORCHESTRATION_ADAPTER.name),
-            orchestration_run_id=queue_job_id,
+            queue_job_id=submission.queue_job_id,
+            orchestration_backend=submission.backend,
+            orchestration_run_id=submission.backend_run_id,
             bq=bq,
             project=project,
             dataset=dataset,
         )
-        update_run_queue_job_id(run.run_id, queue_job_id, bq, project=project, dataset=dataset)
+        update_run_queue_job_id(run.run_id, submission.queue_job_id, bq, project=project, dataset=dataset)
         update_run_checkpoint(
             run.run_id,
             bq,
