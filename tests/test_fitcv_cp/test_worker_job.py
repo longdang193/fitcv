@@ -307,6 +307,47 @@ def test_worker_passes_collected_late_stage_reuse_snapshots_to_run_pipeline():
     assert passed_snapshots["ranking_ai_scores"][0]["ai_score_input_fingerprint"] == "fp-1"
     assert passed_snapshots["cv_analysis_records"][0]["analysis_input_fingerprint"] == "afp-1"
 
+def test_worker_reporter_event_includes_telemetry_degraded_payload() -> None:
+    bq = MagicMock()
+    bq.insert_rows_json.return_value = []
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "path"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.run_mode = "run_all"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    def _run_pipeline_stub(*args, **kwargs):
+        reporter = kwargs.get("reporter")
+        if reporter is not None:
+            reporter.emit("pipeline_start", "info", "Run started")
+        return {
+            "run_id": "r1",
+            "total_jobs": 0,
+            "passed_filter": 0,
+            "ranked": 0,
+            "cvs_generated": 0,
+        }
+
+    with patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.list_runs", return_value=[]), \
+       patch("fitcv_cp.worker_job.run_pipeline", side_effect=_run_pipeline_stub):
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    rows = bq.insert_rows_json.call_args_list
+    payload_rows = [call.args[1][0] for call in rows if call.args and len(call.args) > 1 and call.args[1]]
+    assert payload_rows, "expected at least one event row"
+    matching = [row for row in payload_rows if row.get("stage") == "pipeline_start"]
+    assert matching, "expected pipeline_start event row"
+    payload = json.loads(str(matching[0].get("payload_json") or "{}"))
+    telemetry_export = dict(payload.get("telemetry_export") or {})
+    assert telemetry_export.get("status") == "degraded"
+
 
 def test_worker_persists_cv_generation_debug_json_on_success():
     bq = MagicMock()
