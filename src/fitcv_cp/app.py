@@ -2666,6 +2666,39 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         """Repair RUNNING rows if their RQ job disappeared or already terminated."""
         if run.status != RunStatus.RUNNING:
             return run
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        started_at = getattr(run, "started_at", None)
+        run_age_seconds = 0.0
+        if isinstance(started_at, datetime.datetime):
+            started_at_utc = started_at if started_at.tzinfo else started_at.replace(tzinfo=datetime.timezone.utc)
+            run_age_seconds = max(0.0, (now_utc - started_at_utc).total_seconds())
+        completed_stages = list(getattr(run, "completed_stages", None) or [])
+        if run_age_seconds >= 300 and not completed_stages:
+            events = get_events(run.run_id, bq, project=project, dataset=dataset)
+            if not events:
+                update_run_status(
+                    run.run_id,
+                    RunStatus.FAILED,
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                    finished_at=now_utc,
+                    error_message="Run remained RUNNING without progress/events for >5 minutes (orphaned startup).",
+                )
+                append_event(
+                    RunEvent(
+                        run_id=run.run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="run_reconciled",
+                        level="warning",
+                        message="Run reconciled from orphaned startup (no progress/events >5 minutes)",
+                        created_at=now_utc,
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+                return get_run(run.run_id, bq, project=project, dataset=dataset) or run
         queue_job_id = str(getattr(run, "queue_job_id", "") or "").strip()
         if not queue_job_id:
             return run
