@@ -1145,7 +1145,7 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
                 "action": action_name,
                 "action_at": str((action or {}).get("created_at") or "").strip() or None,
                 "action_by": str((action or {}).get("actor") or "").strip() or None,
-                "pending": action_name not in {"approve", "regenerate_once", "reject"},
+                "pending": action_name not in {"approve", "reject"},
             }
         )
     queue_items.sort(key=lambda item: (not item["pending"], item["job_title"].lower(), item["job_url"]))
