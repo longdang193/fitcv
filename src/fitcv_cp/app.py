@@ -927,6 +927,30 @@ def _run_event_delivery_health(run_id: str) -> dict[str, Any]:
         "dead_letter_path": str(dead_letter_file),
     }
 
+def _run_telemetry_export_health(events: list[RunEvent]) -> dict[str, Any]:
+    degraded_count = 0
+    last_degraded_stage: str | None = None
+    for event in events:
+        payload_json = str(getattr(event, "payload_json", "") or "").strip()
+        if not payload_json:
+            continue
+        try:
+            payload = _json.loads(payload_json)
+        except Exception:
+            continue
+        telemetry = dict(payload.get("telemetry_export") or {})
+        if str(telemetry.get("status") or "") != "degraded":
+            continue
+        degraded_count += 1
+        stage = str(getattr(event, "stage", "") or "").strip()
+        if stage:
+            last_degraded_stage = stage
+    return {
+        "status": "degraded" if degraded_count > 0 else "healthy",
+        "degraded_count": degraded_count,
+        "last_degraded_stage": last_degraded_stage,
+    }
+
 def _event_dead_letter_path() -> Path:
     return Path(
         str(
@@ -4616,6 +4640,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         synonym_management_mode = _synonym_management_mode(run)
         markdown_quality_summary = _build_markdown_quality_summary(run)
         event_delivery_health = _run_event_delivery_health(run_id)
+        telemetry_export_health = _run_telemetry_export_health(events)
         orchestration_diagnostics = _build_orchestration_diagnostics(run)
 
         return templates.TemplateResponse(
@@ -4651,6 +4676,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_fingerprints": synonym_fingerprints,
                 "markdown_quality_summary": markdown_quality_summary,
                 "event_delivery_health": event_delivery_health,
+                "telemetry_export_health": telemetry_export_health,
                 "orchestration_diagnostics": orchestration_diagnostics,
             }
         )

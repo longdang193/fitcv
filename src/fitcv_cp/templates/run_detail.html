@@ -99,6 +99,24 @@
 
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Telemetry Export Health</h3>
+    {% if telemetry_export_health.status == 'degraded' %}
+      <span class="badge badge-warning">degraded</span>
+    {% else %}
+      <span class="badge badge-success">healthy</span>
+    {% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Degraded Telemetry Events</span><span class="v">{{ telemetry_export_health.degraded_count }}</span>
+    <span class="k">Last Degraded Stage</span><span class="v">{{ telemetry_export_health.last_degraded_stage or '—' }}</span>
+  </div>
+  <div class="meta" style="margin-top:0.85rem">
+    Stage artifacts remain the evidence source of truth even when telemetry export is degraded.
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
     <h3 style="margin:0">Agentic Runtime Alignment</h3>
     {% if agentic_runtime_drift.status == 'aligned' %}
       <span class="badge badge-success">aligned</span>

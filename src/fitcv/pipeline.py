@@ -122,6 +122,7 @@ from fitcv.rule_filter import (
 )
 from fitcv.tracker import create_cv_version_record, store_cv_version
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
+from fitcv.telemetry import build_trace_context
 from fitcv.vector_search import run_vector_search
 
 logger = logging.getLogger(__name__)
@@ -2536,11 +2537,10 @@ def _build_stage_result(
     summary = dict(decision_summary or {})
     decision = _resolve_stage_decision(status=status, decision_summary=summary)
     trace_seed = f"{stage_id}:{status}:{summary.get('debug_records_captured', '')}"
-    trace_id = _otel_id(trace_seed, length=32)
-    span_id = _otel_id(f"{trace_seed}:span", length=16)
-    parent_span_id = _otel_id(f"{trace_seed}:parent", length=16)
+    trace_context = build_trace_context(trace_seed)
     return {
         "stage_id": stage_id,
+        "status": status,
         "stage_version": "1.0.0",
         "output": dict(output_counts or {}),
         "evidence": {
@@ -2555,11 +2555,7 @@ def _build_stage_result(
         },
         "decision": decision,
         "policy_version": f"policy.{stage_id}.v1",
-        "trace_context": {
-            "trace_id": trace_id,
-            "span_id": span_id,
-            "parent_span_id": parent_span_id,
-        },
+        "trace_context": trace_context,
     }
 
 
