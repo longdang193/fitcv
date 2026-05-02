@@ -24,14 +24,27 @@ lifecycle:
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
+from typing import Literal
 
 from fitcv_cp import queue
 
 
 @dataclass(frozen=True)
+class RunSubmission:
+    run_id: str
+    queue_job_id: str
+    backend_run_id: str | None = None
+    backend: str = "queue"
+
+
+OrchestrationMode = Literal["default_queue", "prefect"]
+
+
+@dataclass(frozen=True)
 class OrchestrationAdapter:
-    name: str
+    name: OrchestrationMode
 
     def enqueue_run_with_job_id(
         self,
@@ -42,13 +55,14 @@ class OrchestrationAdapter:
         redis_url: str,
         run_id: str | None = None,
     ) -> tuple[str, str]:
-        return queue.enqueue_run_with_job_id(
+        submission = self.submit(
             jobs_path=jobs_path,
             config_path=config_path,
             triggered_by=triggered_by,
             redis_url=redis_url,
             run_id=run_id,
         )
+        return submission.run_id, submission.queue_job_id
 
     def enqueue_run(
         self,
@@ -59,7 +73,52 @@ class OrchestrationAdapter:
         redis_url: str,
         run_id: str | None = None,
     ) -> str:
-        return queue.enqueue_run(
+        submission = self.submit(
+            jobs_path=jobs_path,
+            config_path=config_path,
+            triggered_by=triggered_by,
+            redis_url=redis_url,
+            run_id=run_id,
+        )
+        return submission.run_id
+
+    def cancel_queued_run(self, *, queue_job_id: str, redis_url: str) -> bool:
+        return self.cancel(queue_job_id=queue_job_id, redis_url=redis_url)
+
+    def submit(
+        self,
+        *,
+        jobs_path: str,
+        config_path: str,
+        triggered_by: str,
+        redis_url: str,
+        run_id: str | None = None,
+    ) -> RunSubmission:
+        run_id_value, queue_job_id = queue.enqueue_run_with_job_id(
+            jobs_path=jobs_path,
+            config_path=config_path,
+            triggered_by=triggered_by,
+            redis_url=redis_url,
+            run_id=run_id,
+        )
+        return RunSubmission(
+            run_id=run_id_value,
+            queue_job_id=queue_job_id,
+            backend_run_id=queue_job_id,
+            backend="queue",
+        )
+
+    def continue_run(
+        self,
+        *,
+        run_id: str,
+        jobs_path: str,
+        config_path: str,
+        triggered_by: str,
+        redis_url: str,
+    ) -> RunSubmission:
+        # Continue uses the same bounded execution submit path with a fixed run_id.
+        return self.submit(
             jobs_path=jobs_path,
             config_path=config_path,
             triggered_by=triggered_by,
@@ -67,11 +126,46 @@ class OrchestrationAdapter:
             run_id=run_id,
         )
 
-    def cancel_queued_run(self, *, queue_job_id: str, redis_url: str) -> bool:
+    def cancel(self, *, queue_job_id: str, redis_url: str) -> bool:
         return queue.cancel_queued_run(queue_job_id=queue_job_id, redis_url=redis_url)
+
+    def status(self, *, queue_job_id: str, redis_url: str) -> str:
+        return queue.get_queue_job_status(queue_job_id=queue_job_id, redis_url=redis_url)
+
+
+@dataclass(frozen=True)
+class PrefectOrchestrationAdapter(OrchestrationAdapter):
+    """Prefect-mode adapter with safe queue fallback while Prefect rollout matures."""
+
+    def submit(
+        self,
+        *,
+        jobs_path: str,
+        config_path: str,
+        triggered_by: str,
+        redis_url: str,
+        run_id: str | None = None,
+    ) -> RunSubmission:
+        # Phase 2 bridge: keep runtime semantics stable by delegating execution to
+        # existing queue worker path while exposing a dedicated Prefect adapter mode.
+        submission = super().submit(
+            jobs_path=jobs_path,
+            config_path=config_path,
+            triggered_by=triggered_by,
+            redis_url=redis_url,
+            run_id=run_id,
+        )
+        return RunSubmission(
+            run_id=submission.run_id,
+            queue_job_id=submission.queue_job_id,
+            backend_run_id=submission.backend_run_id,
+            backend="prefect",
+        )
 
 
 def get_orchestration_adapter() -> OrchestrationAdapter:
-    """Default adapter seam for current queue-backed orchestration."""
+    """Resolve orchestration adapter from runtime mode, defaulting to queue."""
+    mode = str(os.environ.get("FITCV_ORCHESTRATION_MODE", "default_queue") or "default_queue").strip().lower()
+    if mode == "prefect":
+        return PrefectOrchestrationAdapter(name="prefect")
     return OrchestrationAdapter(name="default_queue")
-
