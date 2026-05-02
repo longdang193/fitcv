@@ -19,6 +19,7 @@ import zipfile
 from fastapi.testclient import TestClient
 from fitcv_cp.app import _timeline_stage_download_for_event, create_app
 from fitcv_cp.models import RunStatus
+from rq.exceptions import NoSuchJobError
 
 
 def _app():
@@ -57,6 +58,47 @@ def test_post_runs_inserts_before_enqueue(tmp_path):
     assert resp.status_code == 201
     assert "run_id" in resp.json()
     assert call_order == ["insert", "enqueue"], f"Order was: {call_order}"
+
+def test_get_run_detail_reconciles_orphaned_running_run_when_queue_job_missing() -> None:
+    from fitcv_cp.models import PipelineRun
+    from datetime import datetime, timezone
+
+    running = PipelineRun(
+        run_id="run-orphaned-1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        started_at=datetime.now(timezone.utc),
+        queue_job_id="rq-missing-1",
+        run_mode="run_all",
+    )
+    failed = PipelineRun(
+        run_id="run-orphaned-1",
+        status=RunStatus.FAILED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=running.created_at,
+        started_at=running.started_at,
+        finished_at=datetime.now(timezone.utc),
+        error_message="Queue job rq-missing-1 missing while run remained RUNNING",
+        run_mode="run_all",
+    )
+
+    with patch("fitcv_cp.app.get_run", side_effect=[running, failed]), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event"), \
+         patch("fitcv_cp.app.redis.from_url"), \
+         patch("fitcv_cp.app.Job.fetch", side_effect=NoSuchJobError("missing")):
+        resp = TestClient(_app()).get("/runs/run-orphaned-1")
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "failed"
+    assert mock_update_status.called
 
 
 def test_post_runs_rejects_empty_jobs_path():
