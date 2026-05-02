@@ -251,3 +251,30 @@ Apply migration:
 ```powershell
 python scripts/migrate_pipeline_runs_orchestration_columns.py --project <gcp-project> --dataset <dataset> --apply
 ```
+
+## Operator Verification (Queue + Prefect)
+
+Use this after triggering runs to confirm orchestration diagnostics are visible end-to-end in API and admin UI.
+
+Basic verification (schema + run evidence + run detail labels):
+
+```powershell
+.\scripts\verify_fitcv_orchestration_modes.ps1 -BaseUrl "http://localhost:8000"
+```
+
+Require both queue and prefect runs to exist in the inspected run set:
+
+```powershell
+.\scripts\verify_fitcv_orchestration_modes.ps1 `
+  -BaseUrl "http://localhost:8000" `
+  -RequireQueue `
+  -RequirePrefect
+```
+
+Verify a specific run id:
+
+```powershell
+.\scripts\verify_fitcv_orchestration_modes.ps1 `
+  -BaseUrl "http://localhost:8000" `
+  -RunId "<run-id>"
+```
