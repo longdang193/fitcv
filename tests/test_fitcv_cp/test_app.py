@@ -7692,3 +7692,109 @@ def test_run_detail_shows_event_delivery_healthy_when_no_dead_letter_for_run(tmp
     assert "healthy" in html
     assert "Dead-lettered Events" in html
     assert ">0<" in html
+
+def test_admin_replay_dead_letter_events_replays_and_clears_run_rows(tmp_path):
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="event-replay-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    dead_letter_file = tmp_path / "events-dead-letter.jsonl"
+    dead_letter_file.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "row": {
+                            "run_id": "event-replay-1",
+                            "event_id": "ev-1",
+                            "stage": "normalize",
+                            "level": "info",
+                            "message": "m1",
+                            "payload_json": None,
+                            "created_at": "2026-05-02T14:00:00Z",
+                        }
+                    }
+                ),
+                json.dumps(
+                    {
+                        "row": {
+                            "run_id": "other-run",
+                            "event_id": "ev-2",
+                            "stage": "enrich",
+                            "level": "warning",
+                            "message": "m2",
+                            "payload_json": None,
+                            "created_at": "2026-05-02T14:01:00Z",
+                        }
+                    }
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
+    with patch.dict("os.environ", {"FITCV_EVENT_DEAD_LETTER_PATH": str(dead_letter_file)}), \
+         patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.append_event", return_value={"persistence_status": "persisted", "degradation_reason": ""}) as mock_append:
+        resp = TestClient(_app()).post("/admin/runs/event-replay-1/replay-dead-letter-events")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["replay_candidates"] == 1
+    assert body["replayed"] == 1
+    assert body["failed"] == 0
+    assert mock_append.call_count == 1
+    content = dead_letter_file.read_text(encoding="utf-8")
+    assert "event-replay-1" not in content
+    assert "other-run" in content
+
+
+def test_admin_replay_dead_letter_events_keeps_failed_rows(tmp_path):
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="event-replay-2",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    dead_letter_file = tmp_path / "events-dead-letter.jsonl"
+    dead_letter_file.write_text(
+        json.dumps(
+            {
+                "row": {
+                    "run_id": "event-replay-2",
+                    "event_id": "ev-3",
+                    "stage": "ranking",
+                    "level": "error",
+                    "message": "m3",
+                    "payload_json": None,
+                    "created_at": "2026-05-02T14:02:00Z",
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    with patch.dict("os.environ", {"FITCV_EVENT_DEAD_LETTER_PATH": str(dead_letter_file)}), \
+         patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.append_event", return_value={"persistence_status": "dead_lettered", "degradation_reason": "x"}):
+        resp = TestClient(_app()).post("/admin/runs/event-replay-2/replay-dead-letter-events")
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["replay_candidates"] == 1
+    assert body["replayed"] == 0
+    assert body["failed"] == 1
+    content = dead_letter_file.read_text(encoding="utf-8")
+    assert "event-replay-2" in content

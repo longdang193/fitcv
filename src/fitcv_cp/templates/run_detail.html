@@ -88,6 +88,9 @@
   <div class="meta" style="margin-top:0.85rem">
     Some pipeline events for this run were dead-lettered after retry exhaustion. Inspect the dead-letter file and replay those rows to restore full event lineage.
   </div>
+  <div style="margin-top:0.65rem">
+    <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'replay-dead-letter-events', this)">Replay Dead-letter Events</button>
+  </div>
   {% endif %}
 </div>
 

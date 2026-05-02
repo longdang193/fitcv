@@ -802,6 +802,41 @@ def _run_event_delivery_health(run_id: str) -> dict[str, Any]:
         "dead_letter_path": str(dead_letter_file),
     }
 
+def _event_dead_letter_path() -> Path:
+    return Path(
+        str(
+            os.environ.get("FITCV_EVENT_DEAD_LETTER_PATH")
+            or "tmp/fitcv_pipeline_run_events_dead_letter.jsonl"
+        ).strip()
+    )
+
+def _load_event_dead_letter_records(dead_letter_file: Path) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    if not dead_letter_file.exists():
+        return records
+    with dead_letter_file.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            raw = line.strip()
+            if not raw:
+                continue
+            try:
+                parsed = _json.loads(raw)
+            except Exception:
+                continue
+            if isinstance(parsed, dict):
+                records.append(parsed)
+    return records
+
+def _persist_event_dead_letter_records(dead_letter_file: Path, records: list[dict[str, Any]]) -> None:
+    dead_letter_file.parent.mkdir(parents=True, exist_ok=True)
+    if not records:
+        if dead_letter_file.exists():
+            dead_letter_file.unlink()
+        return
+    with dead_letter_file.open("w", encoding="utf-8") as handle:
+        for record in records:
+            handle.write(_json.dumps(record, ensure_ascii=False) + "\n")
+
 def _pretty_json_string(raw_json: str) -> str:
     return _json.dumps(_json.loads(raw_json), ensure_ascii=False, indent=2)
 
@@ -4261,6 +4296,72 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             bq, project=project, dataset=dataset,
         )
         return {"status": "unarchived", "run_id": run_id}
+
+    @app.post("/admin/runs/{run_id}/replay-dead-letter-events")
+    def admin_replay_dead_letter_events(run_id: str) -> dict:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        dead_letter_file = _event_dead_letter_path()
+        try:
+            records = _load_event_dead_letter_records(dead_letter_file)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to read dead-letter file: {exc}") from exc
+        replay_candidates: list[dict[str, Any]] = []
+        kept_records: list[dict[str, Any]] = []
+        for record in records:
+            row = dict(record.get("row") or {})
+            if str(row.get("run_id") or "").strip() == run_id:
+                replay_candidates.append(record)
+            else:
+                kept_records.append(record)
+
+        replayed = 0
+        failed = 0
+        for record in replay_candidates:
+            row = dict(record.get("row") or {})
+            created_at_raw = str(row.get("created_at") or "").strip()
+            created_at = datetime.datetime.now(datetime.timezone.utc)
+            if created_at_raw:
+                try:
+                    created_at = datetime.datetime.fromisoformat(created_at_raw.replace("Z", "+00:00"))
+                except Exception:
+                    pass
+            status = append_event(
+                RunEvent(
+                    run_id=str(row.get("run_id") or run_id),
+                    event_id=str(row.get("event_id") or str(uuid.uuid4())),
+                    stage=str(row.get("stage") or "unknown"),
+                    level=str(row.get("level") or "warning"),
+                    message=str(row.get("message") or "Replayed dead-letter event"),
+                    payload_json=(
+                        str(row.get("payload_json"))
+                        if row.get("payload_json") is not None
+                        else None
+                    ),
+                    created_at=created_at,
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+            if status.get("persistence_status") == "persisted":
+                replayed += 1
+                continue
+            failed += 1
+            kept_records.append(record)
+        try:
+            _persist_event_dead_letter_records(dead_letter_file, kept_records)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to update dead-letter file: {exc}") from exc
+        return {
+            "status": "ok",
+            "run_id": run_id,
+            "replay_candidates": len(replay_candidates),
+            "replayed": replayed,
+            "failed": failed,
+            "remaining_dead_letter_total": len(kept_records),
+        }
 
     @app.get("/admin/runs/{run_id}", response_class=HTMLResponse)
     def admin_run_detail(request: Request, run_id: str) -> HTMLResponse:
