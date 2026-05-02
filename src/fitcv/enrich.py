@@ -448,6 +448,18 @@ def _build_field_mapping_suggestions(
     alias_map = (config or {}).get(map_key)
     if isinstance(alias_map, dict):
         canonical = str(alias_map.get(alias) or canonical).strip().lower()
+    if field == "role_family":
+        role_taxonomy = (config or {}).get("role_taxonomy") or {}
+        known_families: set[str] = set()
+        if isinstance(role_taxonomy, dict):
+            for family in list((role_taxonomy.get("role_family_neighbors") or {}).keys()):
+                normalized = str(family).strip().lower()
+                if normalized:
+                    known_families.add(normalized)
+        if alias and known_families and canonical == alias:
+            underscore_candidate = re.sub(r"\s+", "_", alias)
+            if underscore_candidate in known_families:
+                canonical = underscore_candidate
     if not alias or not canonical or alias == canonical:
         return []
     return [
@@ -914,6 +926,31 @@ def merge_scraped_and_enriched(
         "enrich_contract_fingerprint": enriched.get("enrich_contract_fingerprint"),
         "enrich_reuse_status": enriched.get("enrich_reuse_status"),
     }
+    # Seed domain mapping suggestions from scraper sector -> enrich domain when they differ.
+    sector_alias = str(scraped.get("sector") or "").strip().lower()
+    domain_canonical = str(merged.get("domain") or "").strip().lower()
+    if sector_alias and domain_canonical and sector_alias != domain_canonical:
+        existing = list(merged.get("domain_mapping_suggestions") or [])
+        dedupe_keys = {
+            (
+                str(item.get("alias") or "").strip().lower(),
+                str(item.get("canonical") or "").strip().lower(),
+            )
+            for item in existing
+            if isinstance(item, dict)
+        }
+        candidate_key = (sector_alias, domain_canonical)
+        if candidate_key not in dedupe_keys:
+            existing.append(
+                {
+                    "field": "domain",
+                    "alias": sector_alias,
+                    "canonical": domain_canonical,
+                    "confidence": 1.0,
+                    "matches": True,
+                }
+            )
+        merged["domain_mapping_suggestions"] = existing
     return merged
 
 
