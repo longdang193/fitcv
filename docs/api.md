@@ -139,6 +139,63 @@ Typical response:
 Purpose:
 - runs list UI
 
+### `GET /admin/outbox-replay-health.json`
+
+Purpose:
+- machine-readable aggregate outbox/dead-letter replay health for a runs view
+
+Query params:
+- `view` = `active` | `all` | `archived` (default `active`)
+
+Typical response shape:
+
+```json
+{
+  "view": "active",
+  "run_count": 12,
+  "generated_at": "2026-05-02T23:01:00+00:00",
+  "outbox_replay_health": {
+    "dead_letter_total": 0,
+    "impacted_runs": 0,
+    "replay_event_count": 5,
+    "replay_candidates": 10,
+    "replayed": 10,
+    "failed": 0,
+    "replay_success_ratio": 1.0,
+    "status": "healthy"
+  }
+}
+```
+
+### `POST /admin/outbox-replay-health/check`
+
+Purpose:
+- evaluate outbox replay health against threshold policy and emit auditable control-plane event
+
+Query params:
+- `view` = `active` | `all` | `archived` (default `active`)
+- `min_replay_success_ratio` (default `0.95`)
+- `emit_event` (default `true`)
+- `event_run_id` (default `system-outbox-replay-health`)
+
+Typical response shape:
+
+```json
+{
+  "view": "active",
+  "run_count": 12,
+  "min_replay_success_ratio": 0.95,
+  "decision": "ok",
+  "reason_code": "healthy",
+  "outbox_replay_health": {
+    "dead_letter_total": 0,
+    "impacted_runs": 0,
+    "replay_success_ratio": 1.0,
+    "status": "healthy"
+  }
+}
+```
+
 ### `GET /admin/runs/{run_id}`
 
 Purpose:
@@ -235,6 +292,7 @@ Trace-specific note:
 
 - `GET /admin/mapping-suggestions.json`
 - `GET /admin/synonym-proposals.json`
+- `GET /admin/outbox-replay-health.json`
 
 These are useful for cross-run review workflows and higher-level operator
 inspection.
