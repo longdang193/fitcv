@@ -85,6 +85,8 @@
   <div class="kv">
     <span class="k">Dead-lettered Events</span><span class="v">{{ event_delivery_health.count }}</span>
     <span class="k">Last Dead-letter Timestamp</span><span class="v">{{ event_delivery_health.last_failed_at or '—' }}</span>
+    <span class="k">Degradation Reason</span><span class="v"><code>{{ event_delivery_health.last_degradation_reason or '—' }}</code></span>
+    <span class="k">Max Retry Attempts</span><span class="v">{{ event_delivery_health.max_retry_attempts or 0 }}</span>
     <span class="k">Dead-letter Path</span><span class="v"><code>{{ event_delivery_health.dead_letter_path }}</code></span>
   </div>
   {% if event_delivery_health.status == 'degraded' %}

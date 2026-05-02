@@ -7784,6 +7784,8 @@ def test_run_detail_shows_event_delivery_degraded_when_dead_letter_exists(tmp_pa
                     {
                         "row": {"run_id": "event-degraded-1", "stage": "pipeline_failed"},
                         "failed_at": "2026-05-02T14:20:00Z",
+                        "degradation_reason": "event_insert_failed_dead_lettered",
+                        "retry_attempts": 3,
                     }
                 ),
                 json.dumps(
@@ -7807,6 +7809,8 @@ def test_run_detail_shows_event_delivery_degraded_when_dead_letter_exists(tmp_pa
     assert "degraded" in html
     assert "Dead-lettered Events" in html
     assert "2026-05-02T14:20:00Z" in html
+    assert "event_insert_failed_dead_lettered" in html
+    assert "Max Retry Attempts" in html
 
 
 def test_run_detail_shows_event_delivery_healthy_when_no_dead_letter_for_run(tmp_path):

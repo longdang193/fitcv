@@ -343,6 +343,8 @@ def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dic
                 "table": table,
                 "row": row,
                 "bq_errors": last_errors,
+                "retry_attempts": _EVENT_APPEND_RETRY_ATTEMPTS,
+                "degradation_reason": "event_insert_failed_dead_lettered",
                 "failed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             }
         )
