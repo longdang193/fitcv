@@ -124,6 +124,9 @@ from fitcv_cp.bq_store import (
 )
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.queue import cancel_queued_run, enqueue_run, enqueue_run_with_job_id
+import redis
+from rq.exceptions import NoSuchJobError
+from rq.job import Job
 from fitcv_cp.settings_schema import (
     AGENTIC_SETTINGS_SECTIONS,
     ALL_GROUP_REGISTRIES,
@@ -2658,6 +2661,74 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
     metadata_only_keys = metadata_only_settings_keys()
     editable_keys = editable_settings_keys()
+
+    def _reconcile_orphaned_running_run(run: PipelineRun) -> PipelineRun:
+        """Repair RUNNING rows if their RQ job disappeared or already terminated."""
+        if run.status != RunStatus.RUNNING:
+            return run
+        queue_job_id = str(getattr(run, "queue_job_id", "") or "").strip()
+        if not queue_job_id:
+            return run
+        try:
+            conn = redis.from_url(redis_url)
+            job = Job.fetch(queue_job_id, connection=conn)
+            rq_status = str(job.get_status(refresh=True) or "").strip().lower()
+            if rq_status in {"queued", "started", "deferred"}:
+                return run
+            if rq_status in {"finished", "failed", "stopped", "canceled", "cancelled"}:
+                update_run_status(
+                    run.run_id,
+                    RunStatus.FAILED if rq_status != "finished" else RunStatus.SUCCEEDED,
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                    finished_at=datetime.datetime.now(datetime.timezone.utc),
+                    error_message=(
+                        None if rq_status == "finished"
+                        else f"Queue job {queue_job_id} ended with status={rq_status} before lifecycle finalization"
+                    ),
+                )
+                append_event(
+                    RunEvent(
+                        run_id=run.run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="run_reconciled",
+                        level="warning" if rq_status != "finished" else "info",
+                        message=f"Run reconciled from orphaned running state (queue status={rq_status})",
+                        created_at=datetime.datetime.now(datetime.timezone.utc),
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+                return get_run(run.run_id, bq, project=project, dataset=dataset) or run
+            return run
+        except NoSuchJobError:
+            update_run_status(
+                run.run_id,
+                RunStatus.FAILED,
+                bq,
+                project=project,
+                dataset=dataset,
+                finished_at=datetime.datetime.now(datetime.timezone.utc),
+                error_message=f"Queue job {queue_job_id} missing while run remained RUNNING",
+            )
+            append_event(
+                RunEvent(
+                    run_id=run.run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="run_reconciled",
+                    level="warning",
+                    message="Run reconciled from orphaned running state (queue job missing)",
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+            return get_run(run.run_id, bq, project=project, dataset=dataset) or run
+        except Exception:
+            return run
     all_settings_sections = {
         **SETTINGS_SECTIONS,
         **AGENTIC_SETTINGS_SECTIONS,
@@ -3572,6 +3643,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
+        run = _reconcile_orphaned_running_run(run)
         return _run_to_dict(run)
 
     @app.get("/runs/{run_id}/events")
@@ -4275,6 +4347,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404)
+        run = _reconcile_orphaned_running_run(run)
         run = _enforce_run_timeout_guard(run, max_runtime_minutes=_run_max_runtime_minutes())
         timeline_limit = _coerce_positive_int(
             request.query_params.get("timeline_limit"),
