@@ -162,6 +162,35 @@ def _normalize_skill_synonyms(raw_synonyms: Any) -> dict[str, str]:
         if str(alias).strip() and str(canonical).strip()
     }
 
+def _normalize_alias_map(raw_map: Any) -> dict[str, str]:
+    if not isinstance(raw_map, dict):
+        return {}
+    normalized: dict[str, str] = {}
+    for alias, canonical in raw_map.items():
+        alias_normalized = _normalize_role_text(alias)
+        canonical_normalized = _normalize_role_text(canonical)
+        if not alias_normalized or not canonical_normalized:
+            continue
+        normalized[alias_normalized] = canonical_normalized
+    return normalized
+
+def _normalize_neighbor_map(raw_map: Any) -> dict[str, tuple[str, ...]]:
+    if not isinstance(raw_map, dict):
+        return {}
+    normalized: dict[str, tuple[str, ...]] = {}
+    for key, values in raw_map.items():
+        normalized_key = _normalize_role_text(key)
+        if not normalized_key or not isinstance(values, list):
+            continue
+        normalized_values = tuple(
+            candidate
+            for value in values
+            if (candidate := _normalize_role_text(value))
+        )
+        if normalized_values:
+            normalized[normalized_key] = normalized_values
+    return normalized
+
 
 def _normalize_role_text(value: Any) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9_]+", " ", str(value).lower())).strip()
@@ -524,6 +553,10 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     cfg = _apply_prompt_defaults(cfg)
 
     base_skill_synonyms = _normalize_skill_synonyms(cfg.get("skill_synonyms"))
+    cfg["domain_alias_map"] = _normalize_alias_map(cfg.get("domain_alias_map"))
+    cfg["role_family_alias_map"] = _normalize_alias_map(cfg.get("role_family_alias_map"))
+    cfg["domain_neighbors"] = _normalize_neighbor_map(cfg.get("domain_neighbors"))
+    cfg["role_family_neighbors"] = _normalize_neighbor_map(cfg.get("role_family_neighbors"))
     overlay_paths_raw = cfg.get("skill_synonyms_overlay_paths") or []
     overlay_paths = [
         str(item).strip()

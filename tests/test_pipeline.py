@@ -3556,6 +3556,7 @@ def test_collect_mapping_suggestions_deduplicates_per_run_by_alias_canonical_and
             "confidence": 0.91,
             "alias": "Python programming for data science",
             "canonical": "python",
+            "field": "skill",
         },
         {
             "run_id": "run-123",
@@ -3566,8 +3567,28 @@ def test_collect_mapping_suggestions_deduplicates_per_run_by_alias_canonical_and
             "confidence": 0.87,
             "alias": "python programming for data science",
             "canonical": "python",
+            "field": "skill",
         },
     ]
+
+def test_collect_mapping_suggestions_includes_domain_and_role_family_fields() -> None:
+    enriched = [
+        {
+            "job_url": "https://example.com/1",
+            "title": "Role A",
+            "domain_mapping_suggestions": [
+                {"alias": "fintech", "canonical": "financial services", "confidence": 0.9}
+            ],
+            "role_family_mapping_suggestions": [
+                {"alias": "bi analyst", "canonical": "analytics", "confidence": 0.8}
+            ],
+        }
+    ]
+
+    suggestions = _collect_mapping_suggestions(enriched, run_id="run-xyz")
+    fields = {(row["field"], row["alias"], row["canonical"]) for row in suggestions}
+    assert ("domain", "fintech", "financial services") in fields
+    assert ("role_family", "bi analyst", "analytics") in fields
 
 
 def test_build_stage_transition_artifacts_enrich_decision_summary_includes_prompt_provenance() -> None:
