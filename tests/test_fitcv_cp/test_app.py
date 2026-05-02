@@ -433,6 +433,58 @@ def test_admin_upload_trigger_persists_run_scoped_synonym_overlay() -> None:
     assert effective["skill_synonyms_runtime"]["has_run_overlay"] is True
     assert effective["skill_synonyms_runtime"]["run_overlay_source"] == "trigger_upload"
 
+def test_admin_upload_trigger_persists_multi_field_synonym_overlay() -> None:
+    captured = {}
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p",
+             "bigquery_dataset": "d",
+             "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": "data/candidate_profile.yaml"},
+             "skill_synonyms": {"gcp": "google cloud"},
+             "domain_alias_map": {},
+             "role_family_alias_map": {},
+             "skill_synonyms_runtime": {
+                 "base_policy_path": "config/taxonomy/skill_synonyms.yaml",
+                 "overlay_paths": [],
+                 "has_overlay": False,
+                 "entry_count": 1,
+             },
+         }):
+        files = {
+            "jobs_file": ("custom_jobs.json", b'[{"title": "Engineer", "job_url": "http://x.com"}]', "application/json"),
+            "synonym_overlay_file": (
+                "custom_overlay.yaml",
+                (
+                    b"skill_synonyms:\n  ga4: google analytics\n"
+                    b"domain_alias_map:\n  fintech: financial services\n"
+                    b"role_family_alias_map:\n  bi analyst: analytics\n"
+                ),
+                "application/x-yaml",
+            ),
+        }
+        data = {
+            "config_path": ".env.yaml",
+            "jobs_input_mode": "upload",
+            "candidate_profile_mode": "default_config",
+            "synonym_overlay_mode": "upload",
+        }
+        resp = TestClient(_app()).post("/admin/upload-trigger", data=data, files=files)
+
+    assert resp.status_code == 201, resp.text
+    effective = json.loads(captured["run"].effective_settings_json)
+    assert effective["skill_synonyms"]["ga4"] == "google analytics"
+    assert effective["domain_alias_map"]["fintech"] == "financial services"
+    assert effective["role_family_alias_map"]["bi analyst"] == "analytics"
+
 
 def test_admin_continue_run_requeues_manual_paused_run() -> None:
     """@proves trigger_run_management.manual-checkpoints-and-continue"""
@@ -635,6 +687,13 @@ def test_admin_run_detail_shows_trigger_uploaded_synonym_overlay_state() -> None
                     "run_overlay_filename": "custom_overlay.yaml",
                     "run_overlay_uploaded_at": "2026-04-05T23:30:00Z",
                     "run_overlay_entry_count": 1,
+                    "run_overlay_section_counts": {
+                        "skill_synonyms": 1,
+                        "domain_alias_map": 2,
+                        "role_family_alias_map": 1,
+                        "domain_neighbors": 1,
+                        "role_family_neighbors": 1,
+                    },
                 },
             }
         ),
@@ -651,6 +710,10 @@ def test_admin_run_detail_shows_trigger_uploaded_synonym_overlay_state() -> None
     assert "Synonym Overlay" in resp.text
     assert "Trigger Upload" in resp.text
     assert "custom_overlay.yaml" in resp.text
+    assert "Domain Entries" in resp.text
+    assert "Role Family Entries" in resp.text
+    assert "Domain Neighbors" in resp.text
+    assert "Role Family Neighbors" in resp.text
 
 def test_admin_run_detail_shows_agentic_review_queue_card() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -910,6 +973,62 @@ def test_admin_upload_synonym_overlay_updates_run_effective_settings() -> None:
     payload = json.loads(stored_json)
     assert payload["skill_synonyms"]["ga4"] == "google analytics"
     assert payload["skill_synonyms_runtime"]["has_run_overlay"] is True
+
+def test_admin_upload_synonym_overlay_updates_non_skill_effective_maps() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-overlay-upload-nonskill",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="manual_staged",
+        checkpoint_status="awaiting_continue",
+        last_completed_stage="enrich",
+        next_stage="rule_filter",
+        completed_stages=["normalize", "enrich"],
+        effective_settings_json=json.dumps({
+            "gcp_project": "p",
+            "bigquery_dataset": "d",
+            "service_account_key": "k",
+            "skill_synonyms": {"gcp": "google cloud"},
+            "domain_alias_map": {},
+            "role_family_alias_map": {},
+            "skill_synonyms_runtime": {
+                "base_policy_path": "config/skill_synonyms.yaml",
+                "overlay_paths": [],
+                "has_overlay": False,
+                "entry_count": 1,
+            },
+        }),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_effective_settings") as mock_update, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-overlay-upload-nonskill/synonym-overlay",
+            files={
+                "synonym_overlay_file": (
+                    "reviewed-synonyms.yaml",
+                    (
+                        b"domain_alias_map:\n  fintech: financial services\n"
+                        b"role_family_alias_map:\n  bi analyst: analytics\n"
+                    ),
+                    "application/x-yaml",
+                )
+            },
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 303
+    payload = json.loads(mock_update.call_args.args[1])
+    assert payload["domain_alias_map"]["fintech"] == "financial services"
+    assert payload["role_family_alias_map"]["bi analyst"] == "analytics"
 
 def test_admin_upload_synonym_overlay_regenerates_synonym_proposals_with_updated_overlay() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus

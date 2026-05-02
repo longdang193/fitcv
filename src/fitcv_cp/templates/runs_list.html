@@ -138,11 +138,11 @@
   </div>
 
   <div id="synonym-pane-default" style="margin-bottom:1rem">
-    <span class="meta">Uses the shared synonym config for this run. Stage by Stage runs can later replace it after <code>enrich</code> and before <code>rule_filter</code>.</span>
+    <span class="meta">Uses shared synonym config for <code>skill_synonyms</code>, <code>domain_alias_map</code>, and <code>role_family_alias_map</code>. Stage by Stage runs can later replace it after <code>enrich</code> and before <code>rule_filter</code>.</span>
   </div>
   <div id="synonym-pane-upload" style="display:none;margin-bottom:1rem">
     <input type="file" id="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml">
-    <span class="meta" style="display:block;margin-top:0.25rem">Applies to this run only. <code>Run All</code> uses this trigger-time overlay; <code>Stage by Stage</code> can replace it later before Rule Filter.</span>
+    <span class="meta" style="display:block;margin-top:0.25rem">Run-scoped YAML can include <code>skill_synonyms</code>, <code>domain_alias_map</code>, <code>role_family_alias_map</code>, and optional neighbor maps. <code>Run All</code> uses this trigger-time overlay; <code>Stage by Stage</code> can replace it later before Rule Filter.</span>
   </div>
 
   <hr>

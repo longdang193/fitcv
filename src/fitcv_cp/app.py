@@ -103,7 +103,9 @@ from pydantic import BaseModel, field_validator
 from fitcv.config import (
     apply_cv_compatibility_projection,
     apply_runtime_skill_synonym_overlay,
+    apply_runtime_synonym_overlay,
     load_config,
+    parse_runtime_synonym_overlay_yaml,
     parse_skill_synonym_overlay_yaml,
 )
 from fitcv.pipeline import (
@@ -1591,6 +1593,14 @@ def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
     runtime = payload.get("skill_synonyms_runtime")
     if not isinstance(runtime, dict):
         return {"has_run_overlay": False}
+    section_counts = dict(runtime.get("run_overlay_section_counts") or {})
+    normalized_section_counts = {
+        "skill_synonyms": int(section_counts.get("skill_synonyms") or 0),
+        "domain_alias_map": int(section_counts.get("domain_alias_map") or 0),
+        "role_family_alias_map": int(section_counts.get("role_family_alias_map") or 0),
+        "domain_neighbors": int(section_counts.get("domain_neighbors") or 0),
+        "role_family_neighbors": int(section_counts.get("role_family_neighbors") or 0),
+    }
     source = str(runtime.get("run_overlay_source") or "").strip().lower()
     source_labels = {
         "trigger_upload": "Trigger Upload",
@@ -1629,6 +1639,7 @@ def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
         "entry_count": int(runtime.get("run_overlay_entry_count") or 0),
         "uploaded_at": str(runtime.get("run_overlay_uploaded_at") or ""),
         "effective_entry_count": int(runtime.get("entry_count") or 0),
+        "section_counts": normalized_section_counts,
         "has_default_overlay": bool(runtime.get("has_overlay")),
         "snapshot_yaml": snapshot_yaml,
         "snapshot_label": snapshot_label,
@@ -3394,7 +3405,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         jobs_input_json: str | None = None,
         candidate_profile_source: str | None = None,
         candidate_profile_json: str | None = None,
-        run_synonym_overlay: dict[str, str] | None = None,
+        run_synonym_overlay: dict[str, Any] | None = None,
         run_synonym_overlay_filename: str | None = None,
         run_synonym_overlay_raw_yaml: str | None = None,
         run_synonym_overlay_source: str = "trigger_upload",
@@ -3431,7 +3442,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         )
 
         if run_synonym_overlay:
-            effective_config = apply_runtime_skill_synonym_overlay(
+            effective_config = apply_runtime_synonym_overlay(
                 effective_config,
                 run_synonym_overlay,
                 source=run_synonym_overlay_source,
@@ -3627,7 +3638,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=422, detail=f"Unknown candidate_profile_mode: {candidate_profile_mode!r}")
 
         # ── Run-scoped synonym overlay resolution ───────────────────────
-        synonym_overlay_payload: dict[str, str] | None = None
+        synonym_overlay_payload: dict[str, Any] | None = None
         synonym_overlay_filename: str | None = None
         synonym_overlay_raw_yaml: str | None = None
         if synonym_overlay_mode == "default_config":
@@ -3644,7 +3655,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             except UnicodeDecodeError as exc:
                 raise HTTPException(status_code=422, detail="Synonym overlay must be UTF-8 encoded text") from exc
             try:
-                synonym_overlay_payload = parse_skill_synonym_overlay_yaml(raw_text)
+                synonym_overlay_payload = parse_runtime_synonym_overlay_yaml(raw_text)
             except ValueError as exc:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
             synonym_overlay_raw_yaml = raw_text
@@ -4181,15 +4192,15 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         except UnicodeDecodeError as exc:
             raise HTTPException(status_code=422, detail="Synonym overlay must be UTF-8 encoded text") from exc
         try:
-            overlay_synonyms = parse_skill_synonym_overlay_yaml(raw_text)
+            overlay_payload = parse_runtime_synonym_overlay_yaml(raw_text)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
         effective_config = _load_run_effective_config_snapshot(run)
         uploaded_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        updated_config = apply_runtime_skill_synonym_overlay(
+        updated_config = apply_runtime_synonym_overlay(
             effective_config,
-            overlay_synonyms,
+            overlay_payload,
             source="staged_override",
             filename=filename,
             uploaded_at=uploaded_at,
@@ -4230,12 +4241,20 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 event_id=str(uuid.uuid4()),
                 stage="synonym_overlay_uploaded",
                 level="info",
-                message=f"Run-scoped synonym overlay uploaded ({len(overlay_synonyms)} entries)",
+                message=(
+                    "Run-scoped synonym overlay uploaded "
+                    f"({int(((updated_config.get('skill_synonyms_runtime') or {}).get('run_overlay_entry_count') or 0))} skill entries)"
+                ),
                 created_at=datetime.datetime.now(datetime.timezone.utc),
                 payload_json=_json.dumps(
                     {
                         "filename": filename,
-                        "entry_count": len(overlay_synonyms),
+                        "entry_count": int(
+                            ((updated_config.get("skill_synonyms_runtime") or {}).get("run_overlay_entry_count") or 0)
+                        ),
+                        "section_counts": dict(
+                            ((updated_config.get("skill_synonyms_runtime") or {}).get("run_overlay_section_counts") or {})
+                        ),
                     },
                     ensure_ascii=False,
                 ),
