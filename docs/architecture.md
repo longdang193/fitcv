@@ -94,6 +94,7 @@ python scripts/validate_repo_contracts.py --fast
 - [pipeline.md](pipeline.md) for the stage flow
 - [configuration.md](configuration.md) for runtime config and override layering
 - [setup.md](setup.md) for local and Docker startup
+- [component_boundaries.md](component_boundaries.md) for Phase 2 component ownership and dependency contracts
 - [docs/generated/architecture_dag.yaml](generated/architecture_dag.yaml) for
   generated topology
 - [docs/generated/capability_lineage.yaml](generated/capability_lineage.yaml)
