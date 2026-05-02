@@ -178,9 +178,9 @@
       <h3 style="margin:0 0 0.35rem">Synonym Overlay</h3>
       <div class="meta">
         {% if synonym_overlay_info.has_run_overlay %}
-          Run-scoped synonym mappings are active for this run.
+          Run-scoped synonym mappings are active for skills, domain, and role family.
         {% elif can_upload_synonym_overlay %}
-          No run-specific overlay is active yet. You can replace the default synonym config before continuing into <code>rule_filter</code>.
+          No run-specific overlay is active yet. You can replace default skill/domain/role-family synonym config before continuing into <code>rule_filter</code>.
         {% endif %}
       </div>
     </div>
@@ -195,7 +195,11 @@
     {% if synonym_overlay_info.has_run_overlay %}
     <span class="k">Source</span><span class="v">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
     <span class="k">Overlay File</span><span class="v"><code>{{ synonym_overlay_info.filename or '—' }}</code></span>
-    <span class="k">Overlay Entries</span><span class="v">{{ synonym_overlay_info.entry_count }}</span>
+    <span class="k">Skill Entries</span><span class="v">{{ synonym_overlay_info.entry_count }}</span>
+    <span class="k">Domain Entries</span><span class="v">{{ synonym_overlay_info.section_counts.domain_alias_map or 0 }}</span>
+    <span class="k">Role Family Entries</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_alias_map or 0 }}</span>
+    <span class="k">Domain Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.domain_neighbors or 0 }}</span>
+    <span class="k">Role Family Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_neighbors or 0 }}</span>
     <span class="k">Uploaded</span><span class="v">{{ synonym_overlay_info.uploaded_at or '—' }}</span>
     {% endif %}
     <span class="k">Effective Entries</span><span class="v">{{ synonym_overlay_info.effective_entry_count or '—' }}</span>

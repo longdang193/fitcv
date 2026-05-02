@@ -19,12 +19,14 @@ from pathlib import Path
 import pytest
 
 from fitcv.config import (
+    apply_runtime_synonym_overlay,
     apply_runtime_skill_synonym_overlay,
     get_cv_generation_structured_prompt_id,
     get_gemini_model,
     get_ranking_prompt_id,
     get_vertex_location,
     load_config,
+    parse_runtime_synonym_overlay_yaml,
     parse_skill_synonym_overlay_yaml,
 )
 
@@ -574,6 +576,65 @@ def test_parse_skill_synonym_overlay_yaml_rejects_invalid_mapping_values() -> No
             "skill_synonyms:\n"
             "  powerbi: ''\n"
         )
+
+def test_parse_runtime_synonym_overlay_yaml_accepts_multi_field_sections() -> None:
+    payload = parse_runtime_synonym_overlay_yaml(
+        "skill_synonyms:\n"
+        "  PowerBI: power bi\n"
+        "domain_alias_map:\n"
+        "  FinTech: Financial Services\n"
+        "role_family_alias_map:\n"
+        "  BI Analyst: analytics\n"
+        "domain_neighbors:\n"
+        "  Financial Services:\n"
+        "    - Banking\n"
+        "role_family_neighbors:\n"
+        "  analytics:\n"
+        "    - data_science\n"
+    )
+
+    assert payload["skill_synonyms"]["powerbi"] == "power bi"
+    assert payload["domain_alias_map"]["fintech"] == "financial services"
+    assert payload["role_family_alias_map"]["bi analyst"] == "analytics"
+    assert payload["domain_neighbors"]["financial services"] == ("banking",)
+    assert payload["role_family_neighbors"]["analytics"] == ("data_science",)
+
+def test_apply_runtime_synonym_overlay_merges_multi_field_maps() -> None:
+    cfg = {
+        "skill_synonyms": {"gcp": "google cloud"},
+        "domain_alias_map": {"fintech": "legacy"},
+        "role_family_alias_map": {"bi analyst": "legacy_family"},
+        "domain_neighbors": {"financial services": ("old_neighbor",)},
+        "role_family_neighbors": {"analytics": ("old_family_neighbor",)},
+        "skill_synonyms_runtime": {
+            "base_policy_path": "config/taxonomy/skill_synonyms.yaml",
+            "overlay_paths": [],
+            "has_overlay": False,
+            "entry_count": 1,
+        },
+    }
+
+    updated = apply_runtime_synonym_overlay(
+        cfg,
+        {
+            "skill_synonyms": {"gcp": "gcp cloud"},
+            "domain_alias_map": {"fintech": "financial services"},
+            "role_family_alias_map": {"bi analyst": "analytics"},
+            "domain_neighbors": {"financial services": ("banking",)},
+            "role_family_neighbors": {"analytics": ("data_science",)},
+        },
+        source="upload",
+        filename="reviewed-synonyms.yaml",
+        uploaded_at="2026-05-02T21:30:00Z",
+    )
+
+    assert updated["skill_synonyms"]["gcp"] == "gcp cloud"
+    assert updated["domain_alias_map"]["fintech"] == "financial services"
+    assert updated["role_family_alias_map"]["bi analyst"] == "analytics"
+    assert updated["domain_neighbors"]["financial services"] == ("banking",)
+    assert updated["role_family_neighbors"]["analytics"] == ("data_science",)
+    assert updated["skill_synonyms_runtime"]["has_run_overlay"] is True
+    assert updated["skill_synonyms_runtime"]["run_overlay_section_counts"]["domain_alias_map"] == 1
 
 
 def test_apply_runtime_skill_synonym_overlay_merges_entries_and_runtime_metadata() -> None:
