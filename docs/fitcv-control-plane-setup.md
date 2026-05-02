@@ -278,3 +278,28 @@ Verify a specific run id:
   -BaseUrl "http://localhost:8000" `
   -RunId "<run-id>"
 ```
+
+## OpenTelemetry Collector Setup
+
+Use this when you want telemetry events exported to an OTLP collector in addition to persisted run artifacts.
+
+Set runtime env vars before starting `web` and `worker`:
+
+```powershell
+$env:FITCV_OTEL_ENABLED="true"
+$env:FITCV_OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318/v1/traces"
+$env:FITCV_OTEL_SERVICE_NAME="fitcv-control-plane"
+```
+
+Notes:
+
+- exporter failure is non-destructive; pipeline execution and stage artifacts continue
+- run detail shows **Telemetry Export Health** so operators can detect degraded export
+- stage artifacts remain authoritative evidence even when telemetry export is degraded
+
+Recommended local collector smoke check:
+
+1. Start a collector listening on `4318` for OTLP HTTP traces.
+2. Trigger a run from `/admin/runs`.
+3. Open run detail and verify the Telemetry Export Health card.
+4. If degraded, inspect reason via event payloads or runtime logs.
