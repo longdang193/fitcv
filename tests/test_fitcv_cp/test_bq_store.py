@@ -725,6 +725,8 @@ def test_row_to_run_maps_lifecycle_fields():
         "config_path": ".env.yaml",
         "created_at": datetime.datetime.now(datetime.timezone.utc),
         "queue_job_id": "rq-job-1",
+        "orchestration_backend": "prefect",
+        "orchestration_run_id": "flow-run-1",
         "cancel_requested_at": None,
         "cancel_requested_by": None,
         "archived_at": None,
@@ -732,6 +734,8 @@ def test_row_to_run_maps_lifecycle_fields():
     }
     run = _row_to_run(row)
     assert run.queue_job_id == "rq-job-1"
+    assert run.orchestration_backend == "prefect"
+    assert run.orchestration_run_id == "flow-run-1"
     assert run.cancel_requested_at is None
     assert run.archived_at is None
 
@@ -741,10 +745,14 @@ def test_insert_run_includes_queue_job_id():
     bq = MagicMock()
     run = _make_run()
     run.queue_job_id = "rq-job-abc"
+    run.orchestration_backend = "default_queue"
+    run.orchestration_run_id = "rq-job-abc"
     insert_run(run, bq, project="p", dataset="d")
     bq.query.assert_called_once()
     sql_arg = bq.query.call_args[0][0]
     assert "queue_job_id" in sql_arg
+    assert "orchestration_backend" in sql_arg
+    assert "orchestration_run_id" in sql_arg
 
 
 def test_update_run_results_export_uses_parameterized_query() -> None:
@@ -787,6 +795,24 @@ def test_update_run_queue_job_id_uses_parameterized_query():
     sql_arg = bq.query.call_args[0][0]
     assert "rid" not in sql_arg
     assert "rq-job-1" not in sql_arg
+
+def test_update_run_orchestration_binding_uses_parameterized_query():
+    from fitcv_cp.bq_store import update_run_orchestration_binding
+    bq = MagicMock()
+    update_run_orchestration_binding(
+        "rid",
+        queue_job_id="rq-job-2",
+        orchestration_backend="prefect",
+        orchestration_run_id="flow-run-2",
+        bq=bq,
+        project="p",
+        dataset="d",
+    )
+    bq.query.assert_called_once()
+    sql_arg = bq.query.call_args[0][0]
+    assert "rid" not in sql_arg
+    assert "rq-job-2" not in sql_arg
+    assert "flow-run-2" not in sql_arg
 
 
 def test_update_run_checkpoint_uses_parameterized_query() -> None:

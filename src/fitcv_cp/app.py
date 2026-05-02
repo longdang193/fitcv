@@ -119,11 +119,11 @@ from fitcv_cp.bq_store import (
     request_run_cancel, unarchive_run, update_run_checkpoint,
     update_run_effective_settings,
     update_run_synonym_proposals,
-    update_run_queue_job_id, update_run_status,
+    update_run_orchestration_binding, update_run_queue_job_id, update_run_status,
     update_run_cv_generation_debug,
 )
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
-from fitcv_cp.orchestrator import get_orchestration_adapter
+from fitcv_cp.orchestrator import RunSubmission, get_orchestration_adapter
 from fitcv_cp.settings_schema import (
     AGENTIC_SETTINGS_SECTIONS,
     ALL_GROUP_REGISTRIES,
@@ -151,7 +151,24 @@ def enqueue_run_with_job_id(
     redis_url: str = "redis://redis:6379/0",
     run_id: str | None = None,
 ) -> tuple[str, str]:
-    return ORCHESTRATION_ADAPTER.enqueue_run_with_job_id(
+    submission = submit_run(
+        jobs_path=jobs_path,
+        config_path=config_path,
+        triggered_by=triggered_by,
+        redis_url=redis_url,
+        run_id=run_id,
+    )
+    return submission.run_id, submission.queue_job_id
+
+def submit_run(
+    *,
+    jobs_path: str,
+    config_path: str,
+    triggered_by: str,
+    redis_url: str = "redis://redis:6379/0",
+    run_id: str | None = None,
+) -> RunSubmission:
+    return ORCHESTRATION_ADAPTER.submit(
         jobs_path=jobs_path,
         config_path=config_path,
         triggered_by=triggered_by,
@@ -187,7 +204,7 @@ def continue_run_with_job_id(
     triggered_by: str,
     redis_url: str = "redis://redis:6379/0",
 ) -> tuple[str, str]:
-    submission = ORCHESTRATION_ADAPTER.continue_run(
+    submission = continue_run_submission(
         run_id=run_id,
         jobs_path=jobs_path,
         config_path=config_path,
@@ -196,12 +213,28 @@ def continue_run_with_job_id(
     )
     return submission.run_id, submission.queue_job_id
 
+def continue_run_submission(
+    *,
+    run_id: str,
+    jobs_path: str,
+    config_path: str,
+    triggered_by: str,
+    redis_url: str = "redis://redis:6379/0",
+) -> RunSubmission:
+    return ORCHESTRATION_ADAPTER.continue_run(
+        run_id=run_id,
+        jobs_path=jobs_path,
+        config_path=config_path,
+        triggered_by=triggered_by,
+        redis_url=redis_url,
+    )
+
 def orchestration_job_status(queue_job_id: str, redis_url: str = "redis://redis:6379/0") -> str:
     return ORCHESTRATION_ADAPTER.status(queue_job_id=queue_job_id, redis_url=redis_url)
 
 def _build_orchestration_diagnostics(run: PipelineRun) -> dict[str, Any]:
-    backend = str(ORCHESTRATION_ADAPTER.name or "default_queue")
-    backend_run_id = str(run.queue_job_id or "").strip() or None
+    backend = str(run.orchestration_backend or "").strip() or str(ORCHESTRATION_ADAPTER.name or "default_queue")
+    backend_run_id = str(run.orchestration_run_id or "").strip() or str(run.queue_job_id or "").strip() or None
     status = "not_available"
     status_checked = False
     if backend_run_id and run.status in {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.CANCELLING}:
@@ -3408,6 +3441,15 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             redis_url=redis_url,
             run_id=run_id,
         )
+        update_run_orchestration_binding(
+            run_id,
+            queue_job_id=queue_job_id,
+            orchestration_backend=str(ORCHESTRATION_ADAPTER.name),
+            orchestration_run_id=queue_job_id,
+            bq=bq,
+            project=project,
+            dataset=dataset,
+        )
         update_run_queue_job_id(run_id, queue_job_id, bq, project=project, dataset=dataset)
         return {"run_id": run_id}
 
@@ -3493,6 +3535,15 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             triggered_by=triggered_by,
             redis_url=redis_url,
             run_id=run_id,
+        )
+        update_run_orchestration_binding(
+            run_id,
+            queue_job_id=queue_job_id,
+            orchestration_backend=str(ORCHESTRATION_ADAPTER.name),
+            orchestration_run_id=queue_job_id,
+            bq=bq,
+            project=project,
+            dataset=dataset,
         )
         update_run_queue_job_id(run_id, queue_job_id, bq, project=project, dataset=dataset)
         return {"run_id": run_id}
@@ -4284,6 +4335,15 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             redis_url=redis_url,
         )
         update_run_status(run.run_id, RunStatus.QUEUED, bq, project=project, dataset=dataset)
+        update_run_orchestration_binding(
+            run.run_id,
+            queue_job_id=queue_job_id,
+            orchestration_backend=str(ORCHESTRATION_ADAPTER.name),
+            orchestration_run_id=queue_job_id,
+            bq=bq,
+            project=project,
+            dataset=dataset,
+        )
         update_run_queue_job_id(run.run_id, queue_job_id, bq, project=project, dataset=dataset)
         update_run_checkpoint(
             run.run_id,

@@ -1163,6 +1163,8 @@ def test_run_detail_shows_orchestration_backend_diagnostics() -> None:
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
         queue_job_id="flow-run-abc123",
+        orchestration_backend="prefect",
+        orchestration_run_id="flow-run-abc123",
     )
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.get_events", return_value=[]), \
@@ -5608,13 +5610,15 @@ def test_runs_list_shows_core_operational_columns_only():
 def test_runs_list_shows_orchestration_backend_diagnostics() -> None:
     run = _make_full_run_mock(status="queued", run_id="run-orch-list")
     run.queue_job_id = "backend-run-123"
+    run.orchestration_backend = "prefect"
+    run.orchestration_run_id = "backend-run-123"
     with patch("fitcv_cp.app.list_runs", return_value=[run]), \
          patch("fitcv_cp.app.orchestration_job_status", return_value="queued"):
         resp = TestClient(_app()).get("/admin/runs")
     assert resp.status_code == 200
     html = resp.text
     assert "backend-run-123" in html
-    assert "default_queue" in html
+    assert "prefect" in html
     assert "queued" in html
 
 

@@ -56,6 +56,8 @@ def test_pipeline_run_lifecycle_fields():
     fields = {f.name for f in dataclasses.fields(PipelineRun)}
     assert {
         "queue_job_id",
+        "orchestration_backend",
+        "orchestration_run_id",
         "cancel_requested_at",
         "cancel_requested_by",
         "archived_at",
@@ -76,6 +78,8 @@ def test_pipeline_run_lifecycle_fields_default_none():
         created_at=datetime.datetime.now(datetime.timezone.utc),
     )
     assert run.queue_job_id is None
+    assert run.orchestration_backend is None
+    assert run.orchestration_run_id is None
     assert run.cancel_requested_at is None
     assert run.cancel_requested_by is None
     assert run.archived_at is None
