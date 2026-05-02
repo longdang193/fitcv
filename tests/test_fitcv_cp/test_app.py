@@ -2826,6 +2826,38 @@ def test_admin_run_synonym_proposals_triage_refresh_does_not_mutate_status() -> 
     assert resp.status_code == 303
     assert captured_statuses == ["in_review"]
 
+def test_synonym_proposal_review_queue_filters_pairs_already_in_global_synonyms() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    from fitcv_cp.app import _build_synonym_proposal_review_queue
+
+    run = PipelineRun(
+        run_id="run-proposal-filtered-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps(
+            {
+                "skill_synonyms": {
+                    "gcp": "google cloud",
+                }
+            }
+        ),
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-filtered-1","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+
+    queue = _build_synonym_proposal_review_queue(run)
+    assert queue["total_count"] == 0
+    assert queue["filtered_as_already_global_count"] == 1
+
 
 def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -3658,6 +3690,40 @@ def test_download_cv_debug_json_endpoint_404_if_snapshot_missing():
     with patch("fitcv_cp.app.get_run", return_value=run):
         resp = TestClient(_app()).get("/admin/runs/run-debug-2/cv-debug.json")
     assert resp.status_code == 404
+
+def test_download_cv_generation_review_required_json_endpoint_200() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-required-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "run_id": "run-review-required-1",
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/j1",
+                        "job_title": "Data Engineer",
+                        "status": "review_required",
+                        "review_required_reason_code": "provider_error",
+                        "attempt_count": 2,
+                        "failed_rule_ids": ["rule_one"],
+                    }
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-review-required-1/cv-generation-review-required.json")
+    assert resp.status_code == 200
+    assert resp.json()["schema_version"] == "cv_generation_review_required_v1"
+    assert len(resp.json()["rows"]) == 1
 
 
 def test_download_agentic_live_trace_json_endpoint_200() -> None:

@@ -420,11 +420,13 @@ BUNDLE_ARTIFACT_FILENAMES: tuple[str, ...] = (
     "cv_generation.json",
     "settings-used.json",
     "cv-debug.json",
+    "cv-generation-review-required.json",
     "cv-analysis-trace.json",
     "agentic-live-trace.json",
     "mapping-suggestions.json",
     "synonym-proposals.json",
     "synonym-proposals-trace.json",
+    "synonym-suppression-diff.json",
     "approved-synonym-proposals.yaml",
     "synonym-overlay-used.yaml",
 )
@@ -814,6 +816,16 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 content=_pretty_json_string(run.cv_generation_debug_json),
             )
         )
+        review_required_payload = _build_cv_generation_review_required_payload(run)
+        if isinstance(review_required_payload, dict):
+            files.append(
+                RunArtifactFile(
+                    filename="cv-generation-review-required.json",
+                    label="CV Generation Review-Required JSON",
+                    href=f"/admin/runs/{run.run_id}/cv-generation-review-required.json",
+                    content=_json.dumps(review_required_payload, ensure_ascii=False, indent=2),
+                )
+            )
     cv_analysis_trace_payload = _load_run_cv_analysis_trace_payload(run)
     if (
         run.status == RunStatus.SUCCEEDED
@@ -876,7 +888,7 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
             files.append(
                 RunArtifactFile(
                     filename="approved-synonym-proposals.yaml",
-                    label="Approved Synonym Overlay YAML",
+                    label="Approved Synonym Overlay Delta YAML",
                     href=f"/admin/runs/{run.run_id}/approved-synonym-proposals.yaml",
                     content=approved_overlay_yaml,
                 )
@@ -887,7 +899,7 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
         files.append(
             RunArtifactFile(
                 filename="synonym-overlay-used.yaml",
-                label="Synonym Overlay Used YAML",
+                label="Synonym Overlay Delta Used YAML",
                 href=f"/admin/runs/{run.run_id}/settings-used.json",
                 content=runtime_overlay_yaml if runtime_overlay_yaml.endswith("\n") else runtime_overlay_yaml + "\n",
             )
@@ -905,6 +917,14 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 label="Synonym Proposals Trace JSON",
                 href=f"/admin/runs/{run.run_id}/synonym-proposals-trace.json",
                 content=_json.dumps(synonym_proposals_trace_payload, ensure_ascii=False, indent=2),
+            )
+        )
+        files.append(
+            RunArtifactFile(
+                filename="synonym-suppression-diff.json",
+                label="Synonym Suppression Diff JSON",
+                href=f"/admin/runs/{run.run_id}/synonym-suppression-diff.json",
+                content=_json.dumps(_build_synonym_suppression_diff_payload(run), ensure_ascii=False, indent=2),
             )
         )
     if stage_transition_artifact_payload and run.status != RunStatus.QUEUED:
@@ -962,6 +982,37 @@ def _load_run_agentic_live_trace_payload(run: PipelineRun) -> dict[str, Any] | N
 
 def _load_run_cv_generation_debug_payload(run: PipelineRun) -> dict[str, Any] | None:
     return _load_json_object(run.cv_generation_debug_json)
+
+def _build_cv_generation_review_required_payload(run: PipelineRun) -> dict[str, Any] | None:
+    payload = _load_run_cv_generation_debug_payload(run)
+    if not isinstance(payload, dict):
+        return None
+    records = [item for item in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or []) if isinstance(item, dict)]
+    rows: list[dict[str, Any]] = []
+    for record in records:
+        if str(record.get("status") or "").strip() != "review_required":
+            continue
+        rows.append(
+            {
+                "job_url": str(record.get("job_url") or ""),
+                "job_title": str(record.get("job_title") or ""),
+                "reason_code": str(record.get("review_required_reason_code") or "unknown"),
+                "attempt_count": int(record.get("attempt_count") or 1),
+                "failed_rule_ids": list(record.get("failed_rule_ids") or []),
+                "first_failing_section_key": record.get("first_failing_section_key"),
+                "operator_note": record.get("operator_note"),
+                "provider_name": str((record.get("runtime_provenance") or {}).get("provider") or ""),
+                "model_name": str(record.get("cv_generation_model") or ""),
+                "request_id": str((record.get("runtime_provenance") or {}).get("request_id") or ""),
+            }
+        )
+    if not rows:
+        return None
+    return {
+        "run_id": run.run_id,
+        "schema_version": "cv_generation_review_required_v1",
+        "rows": rows,
+    }
 
 def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
     payload = _load_run_cv_generation_debug_payload(run)
@@ -1028,7 +1079,9 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
     payload = _load_run_synonym_proposals_payload(run)
     if not isinstance(payload, dict):
         return {"items": [], "pending_count": 0, "total_count": 0}
+    global_synonyms = _global_synonyms_for_proposal_evaluation(run)
     items: list[dict[str, Any]] = []
+    filtered_as_already_global_count = 0
     for proposal in list(payload.get("proposals") or []):
         if not isinstance(proposal, dict):
             continue
@@ -1038,6 +1091,12 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
         global_promotion_history = [
             entry for entry in list(proposal.get("global_promotion_history") or []) if isinstance(entry, dict)
         ]
+        alias = str(proposal.get("alias") or "").strip().lower()
+        canonical = str(proposal.get("canonical") or "").strip().lower()
+        already_global = bool(alias) and bool(canonical) and global_synonyms.get(alias) == canonical
+        if already_global:
+            filtered_as_already_global_count += 1
+            continue
         latest_action = review_history[-1] if review_history else {}
         items.append(
             {
@@ -1058,7 +1117,7 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
                     for flag in list(proposal.get("recommendation_risk_flags") or [])
                     if str(flag).strip()
                 ],
-                "globally_promoted": bool(global_promotion_history),
+                "globally_promoted": bool(global_promotion_history) or already_global,
             }
         )
     items.sort(key=lambda item: (not item["pending"], -item["confidence"], item["alias"], item["canonical"]))
@@ -1080,6 +1139,8 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
         "items": items,
         "pending_count": sum(1 for item in items if item["pending"]),
         "total_count": len(items),
+        "approved_count": sum(1 for item in items if item["status"] == "approved_for_run_overlay"),
+        "filtered_as_already_global_count": filtered_as_already_global_count,
         "triage_status": triage_status,
     }
 
@@ -1254,6 +1315,84 @@ def _load_run_synonym_proposals_trace_payload(run: PipelineRun) -> dict[str, Any
         return dict(trace_payload)
     return None
 
+def _stable_sha256_json(payload: Any) -> str:
+    canonical = _json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+def _synonym_observability_fingerprints(run: PipelineRun) -> dict[str, str | None]:
+    effective_config = _load_run_effective_config_snapshot(run)
+    runtime = dict(effective_config.get("skill_synonyms_runtime") or {})
+    pre_run = dict(runtime.get("pre_run_overlay_skill_synonyms") or {})
+    overlay_yaml = str(runtime.get("run_overlay_yaml") or "").strip()
+    mapping_payload = _load_json_object(run.mapping_suggestions_json) or {}
+    proposal_input_bundle = {
+        "mapping_suggestions": list(mapping_payload.get("suggestions") or []),
+        "global_synonyms": _global_synonyms_for_proposal_evaluation(run),
+    }
+    return {
+        "pre_run_global_map_fingerprint": _stable_sha256_json(pre_run) if pre_run else None,
+        "run_overlay_fingerprint": hashlib.sha256(overlay_yaml.encode("utf-8")).hexdigest() if overlay_yaml else None,
+        "mapping_suggestions_fingerprint": _stable_sha256_json(mapping_payload) if mapping_payload else None,
+        "proposal_input_bundle_fingerprint": _stable_sha256_json(proposal_input_bundle),
+    }
+
+def _build_synonym_proposal_decision_ledger(run: PipelineRun) -> list[dict[str, Any]]:
+    payload = _load_run_synonym_proposals_payload(run) or {}
+    proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
+    rows: list[dict[str, Any]] = []
+    for proposal in proposals:
+        rows.append(
+            {
+                "alias": str(proposal.get("alias") or "").strip(),
+                "canonical": str(proposal.get("canonical") or "").strip(),
+                "decision_source": "generated_for_review",
+                "decision_reason": str((proposal.get("rationale") or {}).get("kind") or "generated"),
+                "confidence": float(proposal.get("confidence") or 0.0),
+                "conflict": bool((proposal.get("conflict_summary") or {}).get("has_conflict")),
+            }
+        )
+    trace_payload = _load_run_synonym_proposals_trace_payload(run) or {}
+    for example in list(trace_payload.get("suppression_examples") or []):
+        if not isinstance(example, dict):
+            continue
+        rows.append(
+            {
+                "alias": str(example.get("alias") or "").strip(),
+                "canonical": str(example.get("canonical") or "").strip(),
+                "decision_source": "suppressed_as_already_global",
+                "decision_reason": "already_global_exact_match",
+                "confidence": None,
+                "conflict": False,
+            }
+        )
+    rows.sort(key=lambda item: (str(item.get("decision_source")), str(item.get("alias"))))
+    return rows
+
+def _build_synonym_suppression_diff_payload(run: PipelineRun) -> dict[str, Any]:
+    mapping_payload = _load_json_object(run.mapping_suggestions_json) or {}
+    suggestions = [item for item in list(mapping_payload.get("suggestions") or []) if isinstance(item, dict)]
+    trace_payload = _load_run_synonym_proposals_trace_payload(run) or {}
+    trace_summary = dict(trace_payload.get("trace_summary") or {})
+    suppressed_examples = [item for item in list(trace_payload.get("suppression_examples") or []) if isinstance(item, dict)]
+    generated_payload = _load_run_synonym_proposals_payload(run) or {}
+    generated_proposals = [item for item in list(generated_payload.get("proposals") or []) if isinstance(item, dict)]
+    fps = _synonym_observability_fingerprints(run)
+    return {
+        "run_id": run.run_id,
+        "schema_version": "synonym_suppression_diff_v1",
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "suggested_pairs_total": len(suggestions),
+        "suppressed_pairs_total": int(trace_summary.get("suppressed_as_already_global_count") or len(suppressed_examples)),
+        "generated_pairs_total": int(trace_summary.get("generated_for_review_count") or len(generated_proposals)),
+        "suppressed_pairs": suppressed_examples[:200],
+        "generated_pairs": [
+            {"alias": str(p.get("alias") or ""), "canonical": str(p.get("canonical") or "")}
+            for p in generated_proposals[:200]
+        ],
+        "suppression_source": str(trace_summary.get("suppression_source") or "none"),
+        **fps,
+    }
+
 
 def _artifact_applicability_state(run: PipelineRun, filename: str, included_files: set[str]) -> str:
     if filename in included_files:
@@ -1281,6 +1420,16 @@ def _artifact_applicability_state(run: PipelineRun, filename: str, included_file
                 return "not_applicable"
             return "degraded" if trace_status == "degraded" else "present"
         return "missing"
+    if filename == "synonym-suppression-diff.json":
+        if not _run_has_reached_stage(run, "enrich"):
+            return "not_applicable"
+        trace_payload = _load_run_synonym_proposals_trace_payload(run)
+        if isinstance(trace_payload, dict) and str(trace_payload.get("trace_status") or "").strip():
+            trace_status = str(trace_payload.get("trace_status") or "").strip()
+            if trace_status == "not_applicable":
+                return "not_applicable"
+            return "degraded" if trace_status == "degraded" else "present"
+        return "missing"
     if filename == "approved-synonym-proposals.yaml":
         payload = _load_run_synonym_proposals_payload(run)
         if not isinstance(payload, dict):
@@ -1299,6 +1448,10 @@ def _artifact_applicability_state(run: PipelineRun, filename: str, included_file
         return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
     if filename == "cv-debug.json":
         return "missing" if run.status == RunStatus.SUCCEEDED else "not_applicable"
+    if filename == "cv-generation-review-required.json":
+        if run.status != RunStatus.SUCCEEDED:
+            return "not_applicable"
+        return "present" if isinstance(_build_cv_generation_review_required_payload(run), dict) else "not_applicable"
     if filename == "cv-analysis-trace.json":
         late_stage_mode = _load_run_late_stage_mode_payload(run)
         if str(late_stage_mode.get("late_stage_mode") or "").strip() != "agentic":
@@ -1357,24 +1510,12 @@ def _build_run_export_links(run: PipelineRun) -> list[dict[str, str]]:
     for artifact in artifact_files:
         if not artifact.show_in_exports:
             continue
-        links.append({"label": artifact.label, "href": artifact.href})
-    has_approved_synonym_proposals = False
-    synonym_payload = _load_run_synonym_proposals_payload(run)
-    if isinstance(synonym_payload, dict):
-        for proposal in list(synonym_payload.get("proposals") or []):
-            if not isinstance(proposal, dict):
-                continue
-            if str(proposal.get("proposal_status") or "").strip() == "approved_for_run_overlay":
-                has_approved_synonym_proposals = True
-                break
-    if has_approved_synonym_proposals:
-        links.append(
-            {
-                "label": "Approved Synonym Overlay YAML",
-                "href": f"/admin/runs/{run.run_id}/approved-synonym-proposals.yaml",
-                "helper_text": "Run-approved delta only (does not replace the global canonical map).",
-            }
-        )
+        helper_text = ""
+        if artifact.filename == "approved-synonym-proposals.yaml":
+            helper_text = "Run-approved delta only; does not replace the global map."
+        elif artifact.filename == "synonym-overlay-used.yaml":
+            helper_text = "Run overlay delta only; effective map includes base synonyms plus this delta."
+        links.append({"label": artifact.label, "href": artifact.href, "helper_text": helper_text})
     return links
 
 
@@ -1416,6 +1557,7 @@ def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
         "staged_override": "Staged Override",
         "upload": "Staged Override",
         "proposal_review": "Proposal Review",
+        "proposal_review_apply": "Proposal Review Apply",
     }
     snapshot_yaml = ""
     snapshot_label = ""
@@ -1452,6 +1594,26 @@ def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
         "snapshot_label": snapshot_label,
         "run_overlay_yaml": run_overlay_yaml,
     }
+
+def _global_synonyms_for_proposal_evaluation(run: PipelineRun) -> dict[str, str]:
+    effective_config = _load_run_effective_config_snapshot(run)
+    runtime = dict(effective_config.get("skill_synonyms_runtime") or {})
+    pre_run_global_synonyms = dict(runtime.get("pre_run_overlay_skill_synonyms") or {})
+    source_map = pre_run_global_synonyms if pre_run_global_synonyms else dict(effective_config.get("skill_synonyms") or {})
+    return {
+        str(alias).strip().lower(): str(canonical).strip().lower()
+        for alias, canonical in source_map.items()
+        if str(alias).strip() and str(canonical).strip()
+    }
+
+def _can_regenerate_synonym_proposals(run: PipelineRun) -> bool:
+    return (
+        run.run_mode == "manual_staged"
+        and run.status == RunStatus.AWAITING_CONTINUE
+        and str(run.last_completed_stage or "").strip() == "enrich"
+        and str(run.next_stage or "").strip() == "rule_filter"
+        and bool(run.mapping_suggestions_json)
+    )
 
 def _find_synonym_proposal_index(payload: dict[str, Any], proposal_id: str) -> int | None:
     target = str(proposal_id or "").strip()
@@ -4100,6 +4262,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         agentic_runtime_drift = _run_agentic_runtime_drift_summary(run)
         hitl_review_queue = _build_hitl_review_queue(run)
         synonym_proposal_review_queue = _build_synonym_proposal_review_queue(run)
+        synonym_proposal_decision_ledger = _build_synonym_proposal_decision_ledger(run)
+        synonym_fingerprints = _synonym_observability_fingerprints(run)
         markdown_quality_summary = _build_markdown_quality_summary(run)
 
         return templates.TemplateResponse(
@@ -4125,10 +4289,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     and bool(run.next_stage)
                 ),
                 "can_upload_synonym_overlay": _can_upload_synonym_overlay(run),
+                "can_regenerate_synonym_proposals": _can_regenerate_synonym_proposals(run),
                 "synonym_overlay_info": _extract_run_synonym_overlay_info(run),
                 "agentic_runtime_drift": agentic_runtime_drift,
                 "hitl_review_queue": hitl_review_queue,
                 "synonym_proposal_review_queue": synonym_proposal_review_queue,
+                "synonym_proposal_decision_ledger": synonym_proposal_decision_ledger,
+                "synonym_fingerprints": synonym_fingerprints,
                 "markdown_quality_summary": markdown_quality_summary,
             }
         )
@@ -4390,6 +4557,89 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_apply_to_run_applied": len(overlay_synonyms),
                 "synonym_apply_to_run_skipped": 0,
                 "synonym_apply_to_run_failed": 0,
+            }
+        )
+        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+
+    @app.post("/admin/runs/{run_id}/synonym-proposals/regenerate")
+    async def admin_run_synonym_proposals_regenerate(
+        run_id: str,
+    ) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if not _can_regenerate_synonym_proposals(run):
+            raise HTTPException(
+                status_code=409,
+                detail="Synonym proposals can be regenerated only at awaiting-continue enrich->rule_filter checkpoint",
+            )
+        if not run.mapping_suggestions_json:
+            raise HTTPException(status_code=404, detail="Mapping suggestions payload is not available for this run")
+        try:
+            mapping_payload = _json.loads(run.mapping_suggestions_json)
+        except (_json.JSONDecodeError, TypeError):
+            raise HTTPException(status_code=409, detail="Mapping suggestions payload is invalid for this run")
+        suggestions = list((mapping_payload or {}).get("suggestions") or [])
+
+        from fitcv_cp.worker_job import _build_synonym_proposals_payload
+
+        synonym_payload_json = _build_synonym_proposals_payload(
+            run_id=run.run_id,
+            summary={"mapping_suggestions": suggestions},
+            created_at=datetime.datetime.now(datetime.timezone.utc),
+            existing_payload_json=run.synonym_proposals_json,
+            global_synonyms=_global_synonyms_for_proposal_evaluation(run),
+        )
+        persistence_status = update_run_synonym_proposals(
+            run.run_id,
+            synonym_payload_json,
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        try:
+            synonym_payload = _json.loads(synonym_payload_json)
+        except (_json.JSONDecodeError, TypeError):
+            synonym_payload = {}
+        trace_summary = dict(
+            ((synonym_payload.get("synonym_proposals_trace") or {}).get("trace_summary") or {})
+            if isinstance(synonym_payload, dict)
+            else {}
+        )
+        regenerated_total = int(trace_summary.get("generated_for_review_count") or 0)
+        regenerated_suppressed = int(trace_summary.get("suppressed_as_already_global_count") or 0)
+        failed = 0 if persistence_status.get("persistence_status") in {"persisted", "not_applicable"} else 1
+        append_event(
+            RunEvent(
+                run_id=run.run_id,
+                event_id=str(uuid.uuid4()),
+                stage="synonym_proposals_regenerated",
+                level="info",
+                message=(
+                    "Synonym proposals regenerated from mapping suggestions: "
+                    f"generated={regenerated_total}, suppressed={regenerated_suppressed}, failed={failed}"
+                ),
+                created_at=datetime.datetime.now(datetime.timezone.utc),
+                payload_json=_json.dumps(
+                    {
+                        "generated_for_review_count": regenerated_total,
+                        "suppressed_as_already_global_count": regenerated_suppressed,
+                        "failed_count": failed,
+                        "persistence_status": persistence_status.get("persistence_status"),
+                        "degradation_reason": persistence_status.get("degradation_reason"),
+                    },
+                    ensure_ascii=False,
+                ),
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        query = urlencode(
+            {
+                "synonym_regenerated_total": regenerated_total,
+                "synonym_regenerated_suppressed": regenerated_suppressed,
+                "synonym_regenerated_failed": failed,
             }
         )
         return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
@@ -4817,6 +5067,22 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-cv-debug.json"'},
         )
 
+    @app.get("/admin/runs/{run_id}/cv-generation-review-required.json")
+    def download_run_cv_generation_review_required_json(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if run.status != RunStatus.SUCCEEDED:
+            raise HTTPException(status_code=409, detail="Review-required export is only available for succeeded runs")
+        payload = _build_cv_generation_review_required_payload(run)
+        if not isinstance(payload, dict):
+            raise HTTPException(status_code=404, detail="Review-required export is not available for this run")
+        return Response(
+            content=_json.dumps(payload, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-cv-generation-review-required.json"'},
+        )
+
     @app.get("/admin/runs/{run_id}/agentic-live-trace.json")
     def download_run_agentic_live_trace_json(run_id: str) -> Response:
         run = get_run(run_id, bq, project=project, dataset=dataset)
@@ -5004,6 +5270,28 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             content=_json.dumps(trace_payload, ensure_ascii=False, indent=2),
             media_type="application/json",
             headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-synonym-proposals-trace.json"'},
+        )
+
+    @app.get("/admin/runs/{run_id}/synonym-suppression-diff.json")
+    def download_run_synonym_suppression_diff_json(run_id: str) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        if not _run_has_reached_stage(run, "enrich"):
+            raise HTTPException(
+                status_code=404,
+                detail="Synonym suppression diff export is not available until enrich has completed for this run",
+            )
+        trace_payload = _load_run_synonym_proposals_trace_payload(run)
+        if not isinstance(trace_payload, dict):
+            raise HTTPException(status_code=404, detail="Synonym suppression diff export is not available for this run")
+        if str(trace_payload.get("trace_status") or "").strip() == "not_applicable":
+            raise HTTPException(status_code=404, detail="Synonym suppression diff export is not applicable for this run")
+        payload = _build_synonym_suppression_diff_payload(run)
+        return Response(
+            content=_json.dumps(payload, ensure_ascii=False, indent=2),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="fitcv-run-{run_id}-synonym-suppression-diff.json"'},
         )
 
     @app.get("/admin/mapping-suggestions.json")
