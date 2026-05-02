@@ -1443,6 +1443,47 @@ def test_build_synonym_proposals_payload_supports_domain_and_role_family_fields(
     assert len(proposals) == 2
     assert {proposal["field"] for proposal in proposals} == {"domain", "role_family"}
 
+def test_append_synonym_suppression_summary_event_deduplicates_same_fingerprint() -> None:
+    from fitcv_cp.worker_job import _append_synonym_suppression_summary_event
+
+    payload_json = json.dumps(
+        {
+            "synonym_proposals_trace": {
+                "trace_summary": {
+                    "suppressed_as_already_global_count": 2,
+                    "generated_for_review_count": 1,
+                    "suppression_source": "run_effective_skill_synonyms",
+                },
+                "suppression_examples": [{"field": "skill", "alias": "gcp", "canonical": "google cloud"}],
+            }
+        }
+    )
+    appended: list[object] = []
+    existing_events: list[object] = []
+
+    def _fake_append_event(event: object, bq: object, *, project: str, dataset: str) -> None:
+        appended.append(event)
+        existing_events.append(event)
+
+    with patch("fitcv_cp.worker_job.get_events", side_effect=lambda *args, **kwargs: list(existing_events)), \
+         patch("fitcv_cp.worker_job.append_event", side_effect=_fake_append_event):
+        _append_synonym_suppression_summary_event(
+            run_id="run-1",
+            synonym_payload_json=payload_json,
+            bq=object(),
+            project="proj",
+            dataset="ds",
+        )
+        _append_synonym_suppression_summary_event(
+            run_id="run-1",
+            synonym_payload_json=payload_json,
+            bq=object(),
+            project="proj",
+            dataset="ds",
+        )
+
+    assert len(appended) == 1
+
 def test_build_synonym_proposals_payload_keeps_conflicts_when_global_points_elsewhere() -> None:
     from fitcv_cp.worker_job import _build_synonym_proposals_payload
 

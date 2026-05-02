@@ -177,6 +177,13 @@ class MappingSuggestion(TypedDict):
     canonical: str
     confidence: float
 
+class FieldMappingSuggestion(TypedDict):
+    field: str
+    alias: str
+    canonical: str
+    confidence: float
+    matches: bool
+
 
 class RawJobFingerprintPayload(TypedDict):
     fingerprint_version: str
@@ -428,6 +435,31 @@ def _build_mapping_suggestions(
         )
     return suggestions
 
+def _build_field_mapping_suggestions(
+    *,
+    field: str,
+    alias_raw: str | None,
+    canonical_raw: str | None,
+    config: dict | None = None,
+) -> list[FieldMappingSuggestion]:
+    alias = str(alias_raw or "").strip().lower()
+    canonical = str(canonical_raw or "").strip().lower()
+    map_key = "domain_alias_map" if field == "domain" else "role_family_alias_map"
+    alias_map = (config or {}).get(map_key)
+    if isinstance(alias_map, dict):
+        canonical = str(alias_map.get(alias) or canonical).strip().lower()
+    if not alias or not canonical or alias == canonical:
+        return []
+    return [
+        {
+            "field": field,
+            "alias": alias,
+            "canonical": canonical,
+            "confidence": 1.0,
+            "matches": True,
+        }
+    ]
+
 
 def _build_array_companions(
     *,
@@ -532,6 +564,18 @@ def _apply_structured_normalization(
         *_build_mapping_suggestions(entities=required_skill_entities),
         *_build_mapping_suggestions(entities=preferred_skill_entities),
     ]
+    domain_mapping_suggestions = _build_field_mapping_suggestions(
+        field="domain",
+        alias_raw=_normalize_text_item(output.domain),
+        canonical_raw=output.domain.lower().strip() if output.domain else None,
+        config=config,
+    )
+    role_family_mapping_suggestions = _build_field_mapping_suggestions(
+        field="role_family",
+        alias_raw=_normalize_text_item(output.job_family),
+        canonical_raw=output.job_family.lower().strip() if output.job_family else None,
+        config=config,
+    )
 
     return {
         "location_type_raw": _normalize_text_item(output.location_type),
@@ -564,6 +608,8 @@ def _apply_structured_normalization(
         **_build_array_companions(field_name="tech_stack", raw_values=tech_stack, config=config),
         **_build_array_companions(field_name="keywords", raw_values=keywords, config=config),
         "mapping_suggestions": mapping_suggestions,
+        "domain_mapping_suggestions": domain_mapping_suggestions,
+        "role_family_mapping_suggestions": role_family_mapping_suggestions,
     }
 
 # ── prompt construction ───────────────────────────────────────────────────────
@@ -777,7 +823,21 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
         *_build_mapping_suggestions(entities=required_skill_entities),
         *_build_mapping_suggestions(entities=preferred_skill_entities),
     ]
+    domain_mapping_suggestions = _build_field_mapping_suggestions(
+        field="domain",
+        alias_raw=parsed.get("domain_raw"),
+        canonical_raw=parsed.get("domain"),
+        config=config,
+    )
+    role_family_mapping_suggestions = _build_field_mapping_suggestions(
+        field="role_family",
+        alias_raw=parsed.get("job_family_raw"),
+        canonical_raw=parsed.get("job_family"),
+        config=config,
+    )
     parsed["mapping_suggestions"] = mapping_suggestions
+    parsed["domain_mapping_suggestions"] = domain_mapping_suggestions
+    parsed["role_family_mapping_suggestions"] = role_family_mapping_suggestions
 
     return {
         "parsed": parsed,
@@ -844,6 +904,8 @@ def merge_scraped_and_enriched(
         "job_family_raw":       enriched.get("job_family_raw"),
         "job_family":           enriched.get("job_family"),
         "mapping_suggestions":  enriched.get("mapping_suggestions", []),
+        "domain_mapping_suggestions": enriched.get("domain_mapping_suggestions", []),
+        "role_family_mapping_suggestions": enriched.get("role_family_mapping_suggestions", []),
         # ── audit fields ──────────────────────────────────────────────
         "enrichment_version": version,
         "enrichment_model":   model,
@@ -896,6 +958,8 @@ def _cached_structured_row_to_enriched_payload(row: dict[str, Any]) -> dict[str,
         "job_family_raw": row.get("job_family_raw"),
         "job_family": row.get("job_family"),
         "mapping_suggestions": _parse_json_field(row.get("mapping_suggestions_json")) or [],
+        "domain_mapping_suggestions": _parse_json_field(row.get("domain_mapping_suggestions_json")) or [],
+        "role_family_mapping_suggestions": _parse_json_field(row.get("role_family_mapping_suggestions_json")) or [],
         "enrichment_version": row.get("enrichment_version"),
         "enrichment_model": row.get("enrichment_model"),
         "enriched_at": _normalise_enriched_at(row.get("enriched_at")),
