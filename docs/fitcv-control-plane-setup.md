@@ -303,3 +303,55 @@ Recommended local collector smoke check:
 2. Trigger a run from `/admin/runs`.
 3. Open run detail and verify the Telemetry Export Health card.
 4. If degraded, inspect reason via event payloads or runtime logs.
+
+## Scheduled Outbox Replay Health Check
+
+Use this when you want recurring operational checks and alert-friendly exit codes.
+
+Prerequisite:
+
+- `web` must be running and reachable at your chosen base URL (for example `http://localhost:8000`).
+
+Manual command:
+
+```powershell
+python scripts/check_outbox_replay_health.py `
+  --base-url http://localhost:8000 `
+  --view active `
+  --min-replay-success-ratio 0.95
+```
+
+Exit codes:
+
+- `0`: check decision is `ok`
+- `2`: check decision is `alert`
+- `3`: request/runtime failure during check execution
+
+### Windows Task Scheduler (recommended on Windows)
+
+Example `schtasks` registration (every 10 minutes):
+
+```powershell
+schtasks /Create /TN "FitCV-Outbox-Replay-Health" /SC MINUTE /MO 10 /F /TR "\"C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe\" \"C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\scripts\check_outbox_replay_health.py\" --base-url http://localhost:8000 --view active --min-replay-success-ratio 0.95"
+```
+
+Run now:
+
+```powershell
+schtasks /Run /TN "FitCV-Outbox-Replay-Health"
+```
+
+Delete job:
+
+```powershell
+schtasks /Delete /TN "FitCV-Outbox-Replay-Health" /F
+```
+
+### Cron example (Linux/macOS environments)
+
+```bash
+*/10 * * * * /path/to/python /path/to/repo/scripts/check_outbox_replay_health.py --base-url http://localhost:8000 --view active --min-replay-success-ratio 0.95 >> /var/log/fitcv-outbox-health.log 2>&1
+```
+
+The checker prints JSON payloads; use your scheduler or wrapper to route non-zero
+exit codes into alert channels.
