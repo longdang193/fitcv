@@ -19,6 +19,7 @@ import zipfile
 from fastapi.testclient import TestClient
 from fitcv_cp.app import _timeline_stage_download_for_event, create_app
 from fitcv_cp.models import RunStatus
+from fitcv_cp.orchestrator import RunSubmission
 
 
 def _app():
@@ -57,6 +58,37 @@ def test_post_runs_inserts_before_enqueue(tmp_path):
     assert resp.status_code == 201
     assert "run_id" in resp.json()
     assert call_order == ["insert", "enqueue"], f"Order was: {call_order}"
+
+def test_post_runs_persists_backend_binding_from_submission(tmp_path):
+    jobs_file = tmp_path / "jobs.json"
+    jobs_file.write_text('[{"job_url": "http://a.com"}]', encoding="utf-8")
+    profile_path = tmp_path / "profile.yaml"
+    profile_path.write_text(_minimal_valid_profile_yaml(), encoding="utf-8")
+
+    def _submit_stub(*, run_id: str | None = None, **_: object) -> RunSubmission:
+        return RunSubmission(
+            run_id=str(run_id or "run-123"),
+            queue_job_id="rq-job-abc",
+            backend_run_id="flow-run-xyz",
+            backend="prefect",
+        )
+
+    with patch("fitcv_cp.app.insert_run"), \
+         patch("fitcv_cp.app.submit_run", side_effect=_submit_stub), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.update_run_orchestration_binding") as binding_mock, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": str(profile_path)},
+         }):
+        resp = TestClient(_app()).post("/runs", json={"jobs_path": str(jobs_file)})
+    assert resp.status_code == 201
+    kwargs = binding_mock.call_args.kwargs
+    assert kwargs["queue_job_id"] == "rq-job-abc"
+    assert kwargs["orchestration_backend"] == "prefect"
+    assert kwargs["orchestration_run_id"] == "flow-run-xyz"
 
 
 def test_post_runs_rejects_empty_jobs_path():
@@ -5647,6 +5679,26 @@ def test_runs_list_shows_schema_fallback_banner_when_columns_missing() -> None:
     assert resp.status_code == 200
     assert "Orchestration Schema Fallback Mode" in resp.text
     assert "schema: fallback mode" in resp.text
+
+def test_runs_list_uses_persisted_backend_identity_per_run() -> None:
+    run_prefect = _make_full_run_mock(status="queued", run_id="run-prefect")
+    run_prefect.queue_job_id = "rq-job-prefect"
+    run_prefect.orchestration_backend = "prefect"
+    run_prefect.orchestration_run_id = "flow-run-1"
+    run_queue = _make_full_run_mock(status="queued", run_id="run-queue")
+    run_queue.queue_job_id = "rq-job-2"
+    run_queue.orchestration_backend = "default_queue"
+    run_queue.orchestration_run_id = "rq-job-2"
+    with patch("fitcv_cp.app.list_runs", return_value=[run_prefect, run_queue]), \
+         patch("fitcv_cp.app.get_pipeline_runs_schema_status", return_value={"status": "complete", "missing_columns": [], "warning": None}), \
+         patch("fitcv_cp.app.orchestration_job_status", return_value="queued"):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "flow-run-1" in html
+    assert "prefect" in html
+    assert "rq-job-2" in html
+    assert "default_queue" in html
 
 
 def test_runs_list_uses_canonical_run_mode_labels():
