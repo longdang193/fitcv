@@ -167,6 +167,16 @@ CV_ANALYSIS_SKIPPED_FIT_GATE_STATUS = "skipped_fit_gate"
 CV_ANALYSIS_FAILED_STATUS = "analysis_failed"
 CV_GENERATION_REVIEW_REQUIRED_STATUS = "review_required"
 PIPELINE_STATUS_RANKED_BLOCKED_BY_RERANKER = "ranked_blocked_by_reranker_fit"
+CV_REVIEW_REQUIRED_REASON_CODES = {
+    "provider_error",
+    "timeout",
+    "empty_output",
+    "template_contract_violation",
+    "markdown_structure_violation",
+    "post_validation_failed",
+    "persistence_failed",
+    "unknown",
+}
 PIPELINE_STAGE_SEQUENCE = (
     "normalize",
     "enrich",
@@ -1586,6 +1596,11 @@ def _build_cv_generation_debug_record(
         # Reranker blocks and fit-gate skips are expected outcomes, not generation runtime errors.
         "outcome_reason": error if status in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
         "error": error if status not in {"skipped_fit_gate", CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS} else None,
+        "review_required_reason_code": _normalize_review_required_reason_code(status=status, error=error),
+        "attempt_count": 1,
+        "failed_rule_ids": _extract_failed_rule_ids(validation_initial),
+        "first_failing_section_key": _first_failing_section_key(validation_initial),
+        "operator_note": _build_operator_note(status=status, error=error, validation_initial=validation_initial),
     }
     if isinstance(runtime_provenance, dict):
         payload["runtime_provenance"] = dict(runtime_provenance)
@@ -1603,6 +1618,83 @@ def _resolved_cv_generation_model(
         if runtime_model:
             return runtime_model
     return default_model
+
+def _normalize_review_required_reason_code(
+    *,
+    status: str,
+    error: dict[str, str] | None,
+) -> str | None:
+    if status == "persistence_failed":
+        return "persistence_failed"
+    if status == "validation_failed":
+        return "post_validation_failed"
+    if status != CV_GENERATION_REVIEW_REQUIRED_STATUS:
+        return None
+    stage = str((error or {}).get("stage") or "").strip().lower()
+    message = str((error or {}).get("message") or "").strip().lower()
+    if stage in {"provider", "provider_error", "generation"}:
+        return "provider_error"
+    if "timeout" in stage or "timeout" in message:
+        return "timeout"
+    if stage == "markdown_quality_review":
+        return "markdown_structure_violation"
+    if stage == "validation":
+        return "post_validation_failed"
+    if "template" in stage or "template" in message:
+        return "template_contract_violation"
+    if "empty" in message:
+        return "empty_output"
+    return "unknown"
+
+def _extract_failed_rule_ids(validation: dict[str, Any] | None) -> list[str]:
+    if not isinstance(validation, dict):
+        return []
+    rule_ids: list[str] = []
+    keys = (
+        "grounding_violations",
+        "deterministic_grounding_violations",
+        "semantic_grounding_violations",
+        "skill_violations",
+        "markdown_quality_blocking_issues",
+    )
+    for key in keys:
+        for item in list(validation.get(key) or []):
+            if isinstance(item, dict):
+                rule_id = str(item.get("rule_id") or item.get("code") or "").strip()
+                if rule_id:
+                    rule_ids.append(rule_id)
+            elif isinstance(item, str) and item.strip():
+                rule_ids.append(item.strip())
+    return sorted(set(rule_ids))
+
+def _first_failing_section_key(validation: dict[str, Any] | None) -> str | None:
+    if not isinstance(validation, dict):
+        return None
+    missing_sections = [str(item).strip() for item in list(validation.get("missing_sections") or []) if str(item).strip()]
+    return missing_sections[0] if missing_sections else None
+
+def _build_operator_note(
+    *,
+    status: str,
+    error: dict[str, str] | None,
+    validation_initial: dict[str, Any] | None,
+) -> str | None:
+    if status in {"validation_failed", CV_GENERATION_REVIEW_REQUIRED_STATUS}:
+        failed_rule_ids = _extract_failed_rule_ids(validation_initial)
+        if failed_rule_ids:
+            return f"Validation failed with {len(failed_rule_ids)} rule(s)."
+        failing_section = _first_failing_section_key(validation_initial)
+        if failing_section:
+            return f"Validation failed in section '{failing_section}'."
+    message = str((error or {}).get("message") or "").strip()
+    return message or None
+
+def _is_recoverable_cv_failure(*, status: str, error: dict[str, str] | None) -> bool:
+    if status == "generation_failed":
+        message = str((error or {}).get("message") or "").strip().lower()
+        return any(token in message for token in ("timeout", "tempor", "rate limit", "unavailable", "provider"))
+    reason_code = _normalize_review_required_reason_code(status=status, error=error)
+    return reason_code in {"provider_error", "timeout"}
 
 def _hitl_review_reason_for_agentic_case(
     analysis_record: dict[str, Any] | None,
@@ -4000,9 +4092,40 @@ def run_pipeline(
                 structured_cv_final = agentic_generation_result["structured_cv_final"]
                 markdown_final = agentic_generation_result["markdown_final"]
                 if agentic_generation_result["status"] != "accepted":
+                    retry_attempt_count = 1
                     generation_error = agentic_generation_result["error"]
-                    cv_generation_debug_records.append(
-                        _build_cv_generation_debug_record(
+                    if _is_recoverable_cv_failure(
+                        status=str(agentic_generation_result["status"] or ""),
+                        error=cast(dict[str, str] | None, generation_error),
+                    ):
+                        retry_attempt_count = 2
+                        retry_result = run_agentic_cv_generation(
+                            analysis_record=analysis_record,
+                            profile=profile,
+                            config=config,
+                        )
+                        if isinstance(retry_result.get("runtime_provenance"), dict):
+                            job_runtime_provenance = dict(retry_result["runtime_provenance"])
+                        if isinstance(retry_result.get("agentic_live_trace"), dict):
+                            job_agentic_live_trace = dict(retry_result["agentic_live_trace"])
+                        if retry_result.get("status") == "accepted":
+                            fit = str(retry_result["fit_classification"] or fit)
+                            structured_cv = retry_result["structured_cv_final"]
+                            cv = str(retry_result["markdown_final"] or "")
+                            validation = {"valid": True, "missing_sections": []}
+                            structured_cv_initial = retry_result["structured_cv_initial"]
+                            validation_initial = dict(retry_result["validation_initial"] or {})
+                            repair_attempt = dict(retry_result["repair_attempt"] or _EMPTY_REPAIR_ATTEMPT)
+                            structured_cv_final = structured_cv
+                            markdown_final = cv
+                            agentic_generation_result = retry_result
+                        else:
+                            generation_error = retry_result.get("error")
+                            agentic_generation_result = retry_result
+                    if agentic_generation_result["status"] == "accepted":
+                        pass
+                    else:
+                        debug_record = _build_cv_generation_debug_record(
                             job=job,
                             status=agentic_generation_result["status"],
                             fit_classification=fit,
@@ -4030,8 +4153,9 @@ def run_pipeline(
                             ),
                             agentic_live_trace=job_agentic_live_trace,
                         )
-                    )
-                    continue
+                        debug_record["attempt_count"] = retry_attempt_count
+                        cv_generation_debug_records.append(debug_record)
+                        continue
                 review_reason = _hitl_review_reason_for_agentic_case(
                     analysis_record,
                     agentic_generation_result,

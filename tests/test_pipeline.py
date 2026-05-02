@@ -28,6 +28,7 @@ from fitcv.pipeline import (
     _build_stage_transition_artifacts,
     _build_cv_analysis_record,
     _build_cv_generation_debug_record,
+    _normalize_review_required_reason_code,
     _collect_mapping_suggestions,
     _enrich_jobs_with_reuse,
     _materialize_scoring_shortlist,
@@ -401,6 +402,15 @@ def test_ready_for_generation_keeps_generation_terminal_statuses_stage_owned(
     assert record["decision_chain"]["validation"] == {
         "status": expected_validation_status,
     }
+    assert "review_required_reason_code" in record
+    assert "attempt_count" in record
+
+def test_review_required_reason_code_mapping_for_markdown_review() -> None:
+    reason_code = _normalize_review_required_reason_code(
+        status="review_required",
+        error={"stage": "markdown_quality_review", "message": "Markdown quality requires review"},
+    )
+    assert reason_code == "markdown_structure_violation"
 
 
 def test_build_ranking_features_accepts_vector_search_field_names() -> None:
