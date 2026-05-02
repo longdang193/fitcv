@@ -1152,6 +1152,7 @@ def test_admin_runs_rendered_nav():
     assert 'id="jobs_path"' in resp.text
     assert "Outbox Replay Health (Visible Runs)" in resp.text
     assert "Replay Success Ratio" in resp.text
+    assert 'href="/admin/outbox-replay-health.json?view=active"' in resp.text
 
 
 def test_admin_runs_shows_degraded_outbox_replay_health(tmp_path):
