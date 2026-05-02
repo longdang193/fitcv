@@ -114,6 +114,7 @@ from fitcv.pipeline import (
 from fitcv_cp.bq_store import (
     append_event,
     archive_run,
+    get_pipeline_runs_schema_status,
     get_events, get_run, insert_run, list_filter_results_for_run,
     list_runs, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs,
     request_run_cancel, unarchive_run, update_run_checkpoint,
@@ -3988,6 +3989,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             runs = list_runs(bq, project=project, dataset=dataset, include_archived=False)
         max_runtime_minutes = _run_max_runtime_minutes()
         runs = [_enforce_run_timeout_guard(run, max_runtime_minutes=max_runtime_minutes) for run in runs]
+        pipeline_runs_schema_status = get_pipeline_runs_schema_status(
+            bq,
+            project=project,
+            dataset=dataset,
+        )
         run_orchestration_diagnostics = {
             run.run_id: _build_orchestration_diagnostics(run)
             for run in runs
@@ -3997,6 +4003,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             context={
                 "runs": runs,
                 "view": view,
+                "pipeline_runs_schema_status": pipeline_runs_schema_status,
                 "run_orchestration_diagnostics": run_orchestration_diagnostics,
             }
         )

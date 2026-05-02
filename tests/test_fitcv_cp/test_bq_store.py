@@ -814,6 +814,38 @@ def test_update_run_orchestration_binding_uses_parameterized_query():
     assert "rq-job-2" not in sql_arg
     assert "flow-run-2" not in sql_arg
 
+def test_get_pipeline_runs_schema_status_complete() -> None:
+    from fitcv_cp.bq_store import get_pipeline_runs_schema_status
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = [
+        {"column_name": "run_id"},
+        {"column_name": "orchestration_backend"},
+        {"column_name": "orchestration_run_id"},
+    ]
+    status = get_pipeline_runs_schema_status(bq, project="p", dataset="d")
+    assert status["status"] == "complete"
+    assert status["missing_columns"] == []
+
+def test_get_pipeline_runs_schema_status_fallback_when_columns_missing() -> None:
+    from fitcv_cp.bq_store import get_pipeline_runs_schema_status
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = [
+        {"column_name": "run_id"},
+        {"column_name": "queue_job_id"},
+    ]
+    status = get_pipeline_runs_schema_status(bq, project="p", dataset="d")
+    assert status["status"] == "fallback"
+    assert "orchestration_backend" in status["missing_columns"]
+    assert "orchestration_run_id" in status["missing_columns"]
+
+def test_get_pipeline_runs_schema_status_unknown_on_query_error() -> None:
+    from fitcv_cp.bq_store import get_pipeline_runs_schema_status
+    bq = MagicMock()
+    bq.query.side_effect = RuntimeError("boom")
+    status = get_pipeline_runs_schema_status(bq, project="p", dataset="d")
+    assert status["status"] == "unknown"
+    assert status["warning"].startswith("schema_check_failed:")
+
 
 def test_update_run_checkpoint_uses_parameterized_query() -> None:
     bq = MagicMock()
