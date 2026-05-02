@@ -43,6 +43,10 @@ if ($runsBody.Contains("<code>prefect</code>")) {
 if ($runsBody.Contains("<code>default_queue</code>")) {
     [void]$backendSet.Add("default_queue")
 }
+if ($runsBody.Contains("<code>queue</code>")) {
+    [void]$backendSet.Add("queue")
+    [void]$backendSet.Add("default_queue")
+}
 if ($RequirePrefect) {
     Write-Check "prefect-backend-present" ($backendSet.Contains("prefect")) ("backends={0}" -f (($backendSet | Sort-Object) -join ","))
 }
