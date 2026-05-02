@@ -270,3 +270,20 @@ Why this split:
 python scripts/validate_repo_contracts.py --fast
 ```
 
+## Follow-Up Execution Extension
+
+After Plans A-D and E-H, Phase 2 runtime completion requires explicit execution plans for componentization and tooling adoption:
+
+1. **Plan I: Prefect Orchestration Adoption**
+   - bounded execution of orchestrator implementation behind adapter boundary
+   - preserves existing run lifecycle semantics and checkpoint behavior
+
+2. **Plan J: OpenTelemetry Export And Collector Integration**
+   - bounded execution of telemetry transport/export wiring
+   - keeps stage artifacts as evidence source of truth
+
+3. **Plan K: Component Boundaries And Interface Contracts**
+   - defines component ownership and dependency direction
+   - reduces cross-surface coupling risk for later scale migration waves
+
+These are execution plans, not roadmap-only guidance. Runtime claims for Prefect/OTel adoption should be made only after their checkpoint result packs are published.

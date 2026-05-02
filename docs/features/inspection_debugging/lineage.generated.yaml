@@ -184,6 +184,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -376,6 +378,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -562,6 +566,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -754,6 +760,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -940,6 +948,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1152,6 +1162,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1370,6 +1382,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1576,6 +1590,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1771,6 +1787,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1957,6 +1975,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2143,6 +2163,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2335,6 +2357,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2527,6 +2551,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2729,6 +2755,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2925,6 +2953,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -3121,6 +3151,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -3313,6 +3345,8 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
