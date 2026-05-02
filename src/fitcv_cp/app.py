@@ -963,6 +963,41 @@ def _run_telemetry_export_health(events: list[RunEvent]) -> dict[str, Any]:
         "last_degraded_stage": last_degraded_stage,
     }
 
+def _latest_dead_letter_replay_summary(events: list[RunEvent]) -> dict[str, Any]:
+    latest: dict[str, Any] | None = None
+    for event in events:
+        if str(getattr(event, "stage", "") or "").strip() != "event_dead_letter_replay":
+            continue
+        payload_json = str(getattr(event, "payload_json", "") or "").strip()
+        if not payload_json:
+            continue
+        try:
+            payload = _json.loads(payload_json)
+        except Exception:
+            continue
+        latest = {
+            "replay_candidates": int(payload.get("replay_candidates") or 0),
+            "replayed": int(payload.get("replayed") or 0),
+            "failed": int(payload.get("failed") or 0),
+            "replay_success_ratio": float(payload.get("replay_success_ratio") or 0.0),
+            "remaining_dead_letter_total": int(payload.get("remaining_dead_letter_total") or 0),
+            "occurred_at": (
+                event.created_at.isoformat()
+                if getattr(event, "created_at", None) is not None
+                else None
+            ),
+        }
+    if latest is not None:
+        return latest
+    return {
+        "replay_candidates": 0,
+        "replayed": 0,
+        "failed": 0,
+        "replay_success_ratio": 0.0,
+        "remaining_dead_letter_total": 0,
+        "occurred_at": None,
+    }
+
 def _event_dead_letter_path() -> Path:
     return Path(
         str(
@@ -4578,12 +4613,40 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             _persist_event_dead_letter_records(dead_letter_file, kept_records)
         except Exception as exc:
             raise HTTPException(status_code=500, detail=f"Failed to update dead-letter file: {exc}") from exc
+        replay_success_ratio = float(replayed / len(replay_candidates)) if replay_candidates else 0.0
+        append_event(
+            RunEvent(
+                run_id=run_id,
+                event_id=str(uuid.uuid4()),
+                stage="event_dead_letter_replay",
+                level="warning" if failed else "info",
+                message=(
+                    f"Dead-letter replay completed: replayed={replayed} failed={failed} "
+                    f"out_of={len(replay_candidates)}"
+                ),
+                payload_json=_json.dumps(
+                    {
+                        "replay_candidates": len(replay_candidates),
+                        "replayed": replayed,
+                        "failed": failed,
+                        "replay_success_ratio": replay_success_ratio,
+                        "remaining_dead_letter_total": len(kept_records),
+                    },
+                    ensure_ascii=False,
+                ),
+                created_at=datetime.datetime.now(datetime.timezone.utc),
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
         return {
             "status": "ok",
             "run_id": run_id,
             "replay_candidates": len(replay_candidates),
             "replayed": replayed,
             "failed": failed,
+            "replay_success_ratio": replay_success_ratio,
             "remaining_dead_letter_total": len(kept_records),
         }
 
@@ -4653,6 +4716,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         markdown_quality_summary = _build_markdown_quality_summary(run)
         event_delivery_health = _run_event_delivery_health(run_id)
         telemetry_export_health = _run_telemetry_export_health(events)
+        dead_letter_replay_summary = _latest_dead_letter_replay_summary(events)
         orchestration_diagnostics = _build_orchestration_diagnostics(run)
 
         return templates.TemplateResponse(
@@ -4689,6 +4753,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "markdown_quality_summary": markdown_quality_summary,
                 "event_delivery_health": event_delivery_health,
                 "telemetry_export_health": telemetry_export_health,
+                "dead_letter_replay_summary": dead_letter_replay_summary,
                 "orchestration_diagnostics": orchestration_diagnostics,
             }
         )

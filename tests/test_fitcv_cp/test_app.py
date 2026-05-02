@@ -7914,6 +7914,48 @@ def test_run_detail_shows_telemetry_export_healthy_when_no_degraded_events() -> 
     assert "Degraded Telemetry Events" in html
     assert ">0<" in html
 
+def test_run_detail_shows_dead_letter_replay_summary() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="replay-summary-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    replay_event = RunEvent(
+        run_id="replay-summary-1",
+        event_id="replay-summary-ev-1",
+        stage="event_dead_letter_replay",
+        level="info",
+        message="Replay completed",
+        created_at=datetime.now(timezone.utc),
+        payload_json=json.dumps(
+            {
+                "replay_candidates": 4,
+                "replayed": 3,
+                "failed": 1,
+                "replay_success_ratio": 0.75,
+                "remaining_dead_letter_total": 2,
+            }
+        ),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], patch("fitcv_cp.app.get_events", return_value=[replay_event]), p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/replay-summary-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Dead-letter Replay Summary" in html
+    assert "0.75" in html
+    assert "3 / 4" in html
+    assert ">1<" in html
+    assert ">2<" in html
+
 def test_admin_replay_dead_letter_events_replays_and_clears_run_rows(tmp_path):
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -7971,7 +8013,8 @@ def test_admin_replay_dead_letter_events_replays_and_clears_run_rows(tmp_path):
     assert body["replay_candidates"] == 1
     assert body["replayed"] == 1
     assert body["failed"] == 0
-    assert mock_append.call_count == 1
+    assert body["replay_success_ratio"] == 1.0
+    assert mock_append.call_count == 2
     content = dead_letter_file.read_text(encoding="utf-8")
     assert "event-replay-1" not in content
     assert "other-run" in content
@@ -8017,6 +8060,7 @@ def test_admin_replay_dead_letter_events_keeps_failed_rows(tmp_path):
     assert body["replay_candidates"] == 1
     assert body["replayed"] == 0
     assert body["failed"] == 1
+    assert body["replay_success_ratio"] == 0.0
     content = dead_letter_file.read_text(encoding="utf-8")
     assert "event-replay-2" in content
 
