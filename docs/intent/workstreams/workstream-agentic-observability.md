@@ -40,3 +40,11 @@ Make every approved agentic seam inspectable so operators and engineers can tell
 ## Notes
 
 This workstream owns how agentic behavior is recorded and surfaced. It does not own whether the recommendation was good, and it does not own the authoritative decision boundary that ultimately accepted, held, blocked, or rejected an outcome.
+
+## Phase 2 Alignment
+
+In Master Workstream Phase 2, this workstream remains the source of truth for trace/provenance surfaces only:
+
+- traces = OTel-compatible IDs
+
+It must not absorb policy-gate authority or redefine acceptance semantics.

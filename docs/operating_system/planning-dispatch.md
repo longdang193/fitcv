@@ -8,7 +8,14 @@ Use it after starting from the owning source layer so the planning flow stays:
 
 More precisely, execution should pass through:
 
-`intent -> master workstream roadmap -> registered workstreams -> bounded change thread files -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> plans`
+`intent -> master workstream roadmap -> registered workstreams -> bounded change thread files -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> plans -> execution passes with thread checkpoint result packs`
+
+Checkpoint rule:
+
+- bounded change threads are the checkpoint unit
+- each meaningful execution pass should publish a thread checkpoint result pack
+- use `docs/operating_system/templates/checkpoint-result-pack.md` as the pack template
+- write packs under `docs/intent/workstreams/checkpoints/<workstream-id>/<thread-slug>/`
 
 ## Purpose
 

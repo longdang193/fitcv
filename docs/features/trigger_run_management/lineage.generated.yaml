@@ -108,10 +108,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -161,6 +167,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -265,10 +279,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -318,6 +338,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -402,10 +430,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -455,6 +489,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -551,10 +593,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -604,6 +652,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -688,10 +744,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -741,6 +803,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -825,10 +895,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -878,6 +954,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -978,10 +1062,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1031,6 +1121,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1143,10 +1241,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1196,6 +1300,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1280,10 +1392,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1333,6 +1451,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1417,10 +1543,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1470,6 +1602,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1574,10 +1714,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1627,6 +1773,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1711,10 +1865,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1764,6 +1924,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1848,10 +2016,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -1901,6 +2075,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2011,10 +2193,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2064,6 +2252,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2148,10 +2344,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2201,6 +2403,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2285,10 +2495,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2338,6 +2554,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -2432,10 +2656,16 @@ capabilities:
     - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
     - docs/superpowers/specs/2026-04-30-manual-staged-synonym-proposal-checkpoint-parity-spec.md
     - docs/superpowers/specs/2026-05-01-agent-based-synonym-triage-recommendation-service-spec.md
+    - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
     - docs/superpowers/specs/2026-05-01-approved-synonym-overlay-merge-policy-clarification-spec.md
     - docs/superpowers/specs/2026-05-01-promote-selection-visibility-and-global-synonym-export-spec.md
     - docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
     - docs/superpowers/specs/2026-05-01-synonym-review-action-performance-and-approved-overlay-export-spec.md
+    - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+    - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+    - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-run-results-json-export-implementation.md
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
@@ -2485,6 +2715,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-b-thread-and-contract-consolidation.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null

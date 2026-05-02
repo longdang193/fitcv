@@ -18,7 +18,7 @@ intent
 -> detailed specs
 -> implementation execution map
 -> implementation plans
--> execution
+-> execution passes with thread checkpoint result packs
 ```
 
 Definitions:
@@ -46,6 +46,9 @@ Definitions:
 - `implementation plans`
   - bounded execution artifacts for one approved detailed spec or approved
     implementation-execution-map wave
+- `execution passes with thread checkpoint result packs`
+  - bounded-thread execution checkpoints stored under
+    `docs/intent/workstreams/checkpoints/` using the canonical pack template
 
 ## What Each Layer Tracks
 
@@ -103,7 +106,7 @@ Answers:
 - what bounded slices have been designed?
 - what approved detailed specs are ready for implementation ordering?
 - what slices have plans?
-- what has been executed?
+- what execution passes were completed and what result packs were published?
 
 ### 5. Divergence review
 
@@ -165,7 +168,8 @@ Each bounded change thread may produce:
 - a detailed spec
 - an implementation execution map
 - an implementation plan
-- direct execution when already bounded and clear
+- direct execution when already bounded and clear, with a checkpoint result
+  pack per meaningful execution pass
 
 For product workstreams, prefer expressing active threads as lightweight files
 under `docs/intent/workstreams/threads/<workstream-id>/` instead of burying the

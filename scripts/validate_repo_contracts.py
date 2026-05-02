@@ -146,10 +146,12 @@ def build_subprocess_steps(*, root: Path, python_executable: str, fast: bool) ->
     sync_script = str(root / "scripts" / "sync_architecture_docs.py")
     repo_config_script = str(root / "scripts" / "validate_repo_config.py")
     adoption_shape_script = str(root / "scripts" / "validate_adoption_shape.py")
+    checkpoint_pack_script = str(root / "scripts" / "validate_checkpoint_packs.py")
     steps: list[list[str]] = [
         [python_executable, sync_script, "--check"],
         [python_executable, repo_config_script],
         [python_executable, adoption_shape_script],
+        [python_executable, checkpoint_pack_script],
     ]
     if not fast:
         basetemp = root / pytest_basetemp(".tmp-tests/repo-contract-pytest")

@@ -1,0 +1,35 @@
+# Thread Checkpoint Result Pack Prompt
+
+Use this when a bounded change thread had an execution pass and you want a
+visible checkpoint artifact with standardized status and outputs.
+
+```text
+Create a bounded-thread checkpoint result pack for this execution pass.
+
+Context:
+- workstream id (valid ID from `docs/intent/workstreams/`):
+- thread id (valid ID from `docs/intent/workstreams/threads/`):
+- thread file path:
+- thread status (proposed | active | blocked | completed):
+- execution pass timestamp (UTC):
+- owner (person or agent):
+- key commands run:
+- files changed:
+- verification outputs:
+- artifacts produced:
+
+Please:
+1. confirm this is the right bounded change thread checkpoint unit
+2. summarize the execution intent in one concise section
+3. record concrete actions taken
+4. include visible outputs (artifacts, verification summary, and diff summary)
+5. set checkpoint status as `pass`, `partial`, or `fail`
+6. write the next decision as one of: continue, fix-forward, rollback, pause and re-scope
+7. write the checkpoint file under
+   `docs/intent/workstreams/checkpoints/<workstream-id>/<thread-slug>/`
+8. follow `docs/operating_system/templates/checkpoint-result-pack.md`
+```
+
+Expected output:
+- one checkpoint result-pack Markdown file at
+  `docs/intent/workstreams/checkpoints/<workstream-id>/<thread-slug>/`

@@ -171,6 +171,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -346,6 +347,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -517,6 +519,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -690,6 +693,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -855,6 +859,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1020,6 +1025,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1191,6 +1197,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1370,6 +1377,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+    - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null

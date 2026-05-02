@@ -57,6 +57,7 @@ can make this configurable without code changes.
 """
 
 import logging
+import hashlib
 import uuid
 from copy import deepcopy
 from typing import Any, Callable, cast
@@ -2062,10 +2063,18 @@ def _build_cv_analysis_record(
 
 
 def _stage_block_not_reached(stage: str) -> dict[str, Any]:
+    stage_result = _build_stage_result(
+        stage_id=stage,
+        status="not_reached",
+        input_counts={},
+        output_counts={},
+        decision_summary={},
+    )
     return {
         "stage_id": stage,
         "stage": stage,
         "status": "not_reached",
+        "stage_result": stage_result,
         "input_counts": {},
         "output_counts": {},
         "decision_summary": {},
@@ -2471,10 +2480,18 @@ def _stage_block(
     settings_refs: list[str] | None = None,
     late_stage_mode: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    stage_result = _build_stage_result(
+        stage_id=stage_id,
+        status=status,
+        input_counts=input_counts,
+        output_counts=output_counts,
+        decision_summary=decision_summary,
+    )
     block = {
         "stage_id": stage_id,
         "stage": stage_id,
         "status": status,
+        "stage_result": stage_result,
         "input_counts": input_counts,
         "output_counts": output_counts,
         "decision_summary": decision_summary,
@@ -2487,6 +2504,63 @@ def _stage_block(
     if late_stage_mode:
         block["late_stage_mode"] = late_stage_mode
     return cast(dict[str, Any], _truncate_stage_value(block))
+
+
+def _otel_id(seed: str, *, length: int) -> str:
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()[:length]
+
+
+def _resolve_stage_decision(
+    *,
+    status: str,
+    decision_summary: dict[str, Any],
+) -> str:
+    if status == "not_reached":
+        return "not_applicable"
+    if status != "completed":
+        return "fail"
+    review_required = int(decision_summary.get("review_required") or 0)
+    if review_required > 0:
+        return "manual_review"
+    return "pass"
+
+
+def _build_stage_result(
+    *,
+    stage_id: str,
+    status: str,
+    input_counts: dict[str, Any],
+    output_counts: dict[str, Any],
+    decision_summary: dict[str, Any],
+) -> dict[str, Any]:
+    summary = dict(decision_summary or {})
+    decision = _resolve_stage_decision(status=status, decision_summary=summary)
+    trace_seed = f"{stage_id}:{status}:{summary.get('debug_records_captured', '')}"
+    trace_id = _otel_id(trace_seed, length=32)
+    span_id = _otel_id(f"{trace_seed}:span", length=16)
+    parent_span_id = _otel_id(f"{trace_seed}:parent", length=16)
+    return {
+        "stage_id": stage_id,
+        "stage_version": "1.0.0",
+        "output": dict(output_counts or {}),
+        "evidence": {
+            "input_counts": dict(input_counts or {}),
+            "decision_summary": summary,
+        },
+        "validation": {
+            "checks": [],
+            "summary": {
+                "status": status,
+            },
+        },
+        "decision": decision,
+        "policy_version": f"policy.{stage_id}.v1",
+        "trace_context": {
+            "trace_id": trace_id,
+            "span_id": span_id,
+            "parent_span_id": parent_span_id,
+        },
+    }
 
 
 def _build_stage_transition_artifacts(

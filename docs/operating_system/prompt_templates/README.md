@@ -26,6 +26,8 @@ Lifecycle order:
 19. `provider-history-sync-prompt.md`
 20. `gitnexus-refresh-prompt.md`
 21. `parallel-bounded-change-planning-prompt.md`
+22. `thread-checkpoint-result-pack-prompt.md`
+22. `thread-checkpoint-result-pack-prompt.md`
 
 Use the smallest prompt that matches the step you actually want.
 
@@ -80,12 +82,16 @@ Review and upkeep prompts:
   of sync with the current repo
 - use a parallel bounded-change planning prompt when you already have bounded
   change candidates and want to know what can run in parallel safely
+- use a thread-checkpoint result-pack prompt when a bounded change thread needs
+  a visible execution-pass checkpoint artifact
+- use a thread-checkpoint result-pack prompt when a bounded thread execution
+  pass needs a visible, standardized checkpoint artifact
 
 These are guidance files, not required repo artifacts.
 
 The practical ladder is:
 
-`intent -> master roadmap -> registered workstream set -> bounded change thread files -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> implementation plan -> execution`
+`intent -> master roadmap -> registered workstream set -> bounded change thread files -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> implementation plan -> execution passes with thread checkpoint result packs`
 
 with `operating_system` remaining a parallel branch when the work is really
 about repo method rather than product delivery.

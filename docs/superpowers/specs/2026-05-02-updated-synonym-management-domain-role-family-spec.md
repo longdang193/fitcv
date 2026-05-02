@@ -1,3 +1,22 @@
+---
+layer: change
+artifact_type: spec
+status: proposed
+parent_thread: workstream-agentic-synonym-management.agentic-synonym-proposal-engine
+targets:
+  - src/fitcv/pipeline.py
+  - src/fitcv/ranking.py
+  - src/fitcv_cp/app.py
+  - docs/observability.md
+  - docs/api.md
+related_features:
+  - inspection_debugging
+  - trigger_run_management
+related_stages:
+  - enrich
+  - ranking
+---
+
 # 2026-05-02 Updated Synonym Management for Domain + Role Family Spec
 
 ## Metadata

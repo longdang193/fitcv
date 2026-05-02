@@ -38,3 +38,12 @@ Improve late-stage FitCV quality with selective agentic AI while preserving dete
 ## Notes
 
 This workstream improves recommendation quality and generation quality inside approved seams. It does not own the final decision contract, and it does not own the dedicated synonym-management product surface.
+
+## Phase 2 Alignment
+
+In Master Workstream Phase 2, this workstream must emit outputs that fit the canonical stage-result contract and remain subordinate to:
+
+- decisions = policy layer
+- evidence = stage artifacts
+
+Quality gains are valid only when deterministic acceptance authority and evidence truth remain intact.
