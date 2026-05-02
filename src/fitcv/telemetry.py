@@ -14,6 +14,13 @@ _INITIALIZED = False
 _DEGRADED_REASON: str | None = None
 _OTEL_ENABLED = False
 
+def reset_telemetry_runtime_for_tests() -> None:
+    global _INITIALIZED, _DEGRADED_REASON, _OTEL_ENABLED
+    with _INIT_LOCK:
+        _INITIALIZED = False
+        _DEGRADED_REASON = None
+        _OTEL_ENABLED = False
+
 
 def _otel_id(seed: str, *, length: int) -> str:
     return hashlib.sha256(seed.encode("utf-8")).hexdigest()[:length]
