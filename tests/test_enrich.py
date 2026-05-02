@@ -1397,6 +1397,37 @@ def test_apply_structured_normalization_preserves_raw_scalar_companions() -> Non
     assert result["job_family_raw"] == " Data_Engineering "
     assert result["job_family"] == "data_engineering"
 
+def test_apply_structured_normalization_emits_domain_and_role_family_mapping_suggestions() -> None:
+    output = EnrichmentOutput(
+        domain=" Telco ",
+        job_family=" BI Analyst ",
+    )
+    result = _apply_structured_normalization(
+        output,
+        config={
+            "domain_alias_map": {"telco": "telecommunications"},
+            "role_family_alias_map": {"bi analyst": "analytics"},
+        },
+    )
+    assert result["domain_mapping_suggestions"] == [
+        {
+            "field": "domain",
+            "alias": "telco",
+            "canonical": "telecommunications",
+            "confidence": 1.0,
+            "matches": True,
+        }
+    ]
+    assert result["role_family_mapping_suggestions"] == [
+        {
+            "field": "role_family",
+            "alias": "bi analyst",
+            "canonical": "analytics",
+            "confidence": 1.0,
+            "matches": True,
+        }
+    ]
+
 
 # ── enrich_job primary and fallback paths ─────────────────────────────────────
 

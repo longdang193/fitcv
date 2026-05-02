@@ -50,6 +50,7 @@ from google.cloud import bigquery
 from fitcv.pipeline import PipelineCancelled, run_pipeline
 from fitcv_cp.bq_store import (
     append_event,
+    get_events,
     get_run,
     list_runs,
     update_run_checkpoint,
@@ -880,6 +881,29 @@ def _append_synonym_suppression_summary_event(
     suppressed_count = int(trace_summary.get("suppressed_as_already_global_count") or 0)
     if suppressed_count <= 0:
         return
+    suppression_payload = {
+        "suppressed_as_already_global_count": suppressed_count,
+        "generated_for_review_count": int(trace_summary.get("generated_for_review_count") or 0),
+        "suppression_source": str(trace_summary.get("suppression_source") or "none"),
+        "suppression_examples": list(trace_payload.get("suppression_examples") or []),
+    }
+    suppression_fingerprint = hashlib.sha1(
+        json.dumps(suppression_payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    try:
+        prior_events = get_events(run_id, bq, project=project, dataset=dataset)
+    except Exception:
+        prior_events = []
+    for prior in reversed(prior_events):
+        if str(getattr(prior, "stage", "") or "") != "synonym_proposal_suppression_summary":
+            continue
+        try:
+            prior_payload = json.loads(str(getattr(prior, "payload_json", "") or "{}"))
+        except (TypeError, json.JSONDecodeError):
+            prior_payload = {}
+        if str(prior_payload.get("suppression_fingerprint") or "") == suppression_fingerprint:
+            return
+        break
     append_event(
         RunEvent(
             run_id=run_id,
@@ -892,12 +916,7 @@ def _append_synonym_suppression_summary_event(
             ),
             created_at=datetime.datetime.now(datetime.timezone.utc),
             payload_json=json.dumps(
-                {
-                    "suppressed_as_already_global_count": suppressed_count,
-                    "generated_for_review_count": int(trace_summary.get("generated_for_review_count") or 0),
-                    "suppression_source": str(trace_summary.get("suppression_source") or "none"),
-                    "suppression_examples": list(trace_payload.get("suppression_examples") or []),
-                },
+                {**suppression_payload, "suppression_fingerprint": suppression_fingerprint},
                 ensure_ascii=False,
             ),
         ),
