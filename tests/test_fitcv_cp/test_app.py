@@ -979,6 +979,106 @@ def test_admin_run_cv_review_action_regenerate_once_does_not_auto_complete_revie
     assert mock_append.call_count == 1
 
 
+def test_admin_run_cv_review_action_approve_records_terminal_resolution_status() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-approve-resolution",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-approve-resolution/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "approve", "actor": "operator"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    payload = json.loads(mock_update_debug.call_args.args[1])
+    assert payload["hitl_review_actions"][-1]["resolution_status"] == "approved_as_is"
+
+
+def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-batch-1",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {"job_url": "https://example.com/job-1", "job_title": "DE1", "status": "review_required"},
+                    {"job_url": "https://example.com/job-2", "job_title": "DE2", "status": "review_required"},
+                ],
+                "hitl_review_actions": [
+                    {"job_url": "https://example.com/job-2", "action": "reject", "resolution_status": "rejected", "created_at": "2026-05-03T00:00:00+00:00"},
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint, \
+         patch("fitcv_cp.app.append_event") as mock_append:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-batch-1/cv-review-batch-action",
+            data={
+                "action": "approve_as_is",
+                "actor": "operator",
+                "job_url": ["https://example.com/job-1", "https://example.com/job-2"],
+            },
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    assert "hitl_batch_applied=1" in resp.headers["location"]
+    assert "hitl_batch_skipped=1" in resp.headers["location"]
+    assert "hitl_batch_failed=0" in resp.headers["location"]
+    payload = json.loads(mock_update_debug.call_args.args[1])
+    assert any(
+        row.get("job_url") == "https://example.com/job-1" and row.get("resolution_status") == "approved_as_is"
+        for row in list(payload.get("hitl_review_actions") or [])
+    )
+    mock_update_status.assert_called_once()
+    mock_update_checkpoint.assert_called_once()
+    assert mock_append.call_count >= 2
+    completion_events = [
+        call.args[0]
+        for call in mock_append.call_args_list
+        if getattr(call.args[0], "stage", "") == "cv_review_completed"
+    ]
+    assert completion_events
+    completion_payload = json.loads(completion_events[0].payload_json)
+    assert completion_payload["closure_mode"] == "all_review_rows_terminal"
+
+
 def test_admin_run_detail_shows_synonym_overlay_yaml_snapshot() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -2427,6 +2527,8 @@ def test_download_hitl_review_audit_endpoint_200():
     payload = resp.json()
     assert payload["schema_version"] == "hitl_review_audit_v1"
     assert payload["summary"]["review_required_total"] == 1
+    assert payload["summary"]["closure_mode"] == "incomplete"
+    assert payload["summary"]["resolution_totals"]["pending"] == 1
 
 
 def test_download_results_json_endpoint_404_if_snapshot_missing():
@@ -4386,6 +4488,9 @@ def test_download_cv_generation_review_required_json_maps_reason_and_nullable_re
     assert resp.status_code == 200
     row = resp.json()["rows"][0]
     assert row["reason_code"] == "unsupported_requirement_gap"
+    assert row["review_target"] == "requirements_alignment"
+    assert "Review the generated CV output against required stack coverage" in row["operator_prompt"]
+    assert row["unsupported_requirements"] == ["Snowflake", "Talend"]
     assert row["request_id"] is None
 
 
