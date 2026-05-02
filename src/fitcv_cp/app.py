@@ -1538,7 +1538,10 @@ def _load_run_effective_config_snapshot(run: PipelineRun) -> dict[str, Any]:
                 return payload
         except (_json.JSONDecodeError, TypeError):
             pass
-    return load_config(run.config_path)
+    try:
+        return load_config(run.config_path)
+    except (FileNotFoundError, ValueError):
+        return {}
 
 
 def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:

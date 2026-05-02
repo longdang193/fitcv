@@ -33,3 +33,13 @@ Improve throughput, reuse, and cost control without changing FitCV stage meaning
 - performance work smuggling in semantic drift
 - hidden reuse that makes operators misread what really ran
 - aggressive skipping that reduces final output quality or trust
+
+## Phase 2 Alignment
+
+In Master Workstream Phase 2, efficiency and reuse changes must preserve source-of-truth boundaries and keep evidence legible:
+
+- flow = orchestrator
+- evidence = stage artifacts
+- decisions = policy layer
+
+Performance gains do not justify ambiguity in what ran, what was reused, or why downstream gates allowed progression.

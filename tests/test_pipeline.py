@@ -144,6 +144,7 @@ def test_stage_block_orders_outcome_samples_before_inputs() -> None:
         "stage_id",
         "stage",
         "status",
+        "stage_result",
         "input_counts",
         "output_counts",
         "decision_summary",
@@ -171,6 +172,9 @@ def test_ready_for_generation_keeps_ranking_fit_as_upstream_authority() -> None:
         gap_summary=None,
         fit_classification="skip",
         error=None,
+        requirement_coverage=None,
+        section_confidence_hints=None,
+        do_not_claim=[],
     )
 
     assert record["ranking_fit_label"] == "strong"
@@ -1455,6 +1459,8 @@ def test_run_pipeline_logs_full_validation_reasons(
         "deterministic_grounding_violations": [],
         "semantic_grounding_violations": [],
         "skill_violations": ["Skill 'Rust' in CV Skills section is not in candidate knowledge base"],
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": [],
         "warnings": [],
         "support_source_summary": {},
     }
@@ -3040,6 +3046,10 @@ def test_run_pipeline_returns_correct_schema(
     }
     for stage_id, block in stage_artifacts["stages"].items():
         assert block["stage_id"] == stage_id
+        assert block["stage_result"]["stage_id"] == stage_id
+        assert "policy_version" in block["stage_result"]
+        assert "trace_context" in block["stage_result"]
+        assert "decision" in block["stage_result"]
         assert "input_counts" in block
         assert "output_counts" in block
         assert "decision_summary" in block
@@ -4023,9 +4033,11 @@ def test_build_stage_transition_artifacts_emits_stage_quality_metrics() -> None:
     assert cv_generation_metrics == {
         "validation_fail_rate": pytest.approx(0.5),
         "accepted_rate": pytest.approx(0.5),
+        "review_required_rate": pytest.approx(0.0),
         "generation_failed_rate": pytest.approx(0.0),
         "persistence_failed_rate": pytest.approx(0.0),
         "accepted": 1,
+        "review_required": 0,
         "validation_failed": 1,
         "generation_failed": 0,
         "persistence_failed": 0,

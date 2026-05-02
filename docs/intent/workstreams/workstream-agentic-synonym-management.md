@@ -38,3 +38,12 @@ Reduce the manual synonym-maintenance burden with a review-first agentic assista
 ## Notes
 
 This workstream exists because manual synonym upkeep is a real product bottleneck. The correct upgrade is agentic assistance plus explicit review, not autonomous synonym mutation.
+
+## Phase 2 Alignment
+
+In Master Workstream Phase 2, synonym-assistance observability should align with:
+
+- traces = OTel-compatible IDs
+- operations = control plane UI
+
+while canonical mutation authority remains review-controlled under deterministic policy boundaries.

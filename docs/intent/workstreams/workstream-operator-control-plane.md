@@ -35,3 +35,11 @@ Preserve and strengthen the original FitCV control-plane experience so operators
 - UI drift away from the original control-plane shape
 - exposing stage states that do not reflect real runtime truth
 - adding convenience surfaces that hide authoritative outcomes
+
+## Phase 2 Alignment
+
+In Master Workstream Phase 2, this workstream is the source of truth for:
+
+- operations = control plane UI
+
+It should surface degraded-evidence state clearly, preserve recommendation-vs-acceptance clarity, and keep replay/approval actions aligned with policy ownership rather than UI convenience.

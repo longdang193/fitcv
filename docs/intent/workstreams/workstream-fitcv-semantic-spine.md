@@ -38,3 +38,11 @@ Keep the original FitCV pipeline meaning authoritative while the upgraded line a
 ## Notes
 
 Synonym management belongs here only at the semantic-boundary level: canonical synonym meaning and runtime matching authority stay deterministic. Agentic synonym help may exist, but only as reviewed assistance layered on top.
+
+## Phase 2 Alignment
+
+In Master Workstream Phase 2, this workstream preserves the source-of-truth boundary:
+
+- flow = orchestrator
+
+Phase 2 hardening must not redefine stage meaning, stage order, or checkpoint semantics.

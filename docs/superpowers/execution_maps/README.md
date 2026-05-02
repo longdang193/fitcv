@@ -25,7 +25,7 @@ the next question is:
 
 Execution maps sit here in the ladder:
 
-`thread set -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> implementation plans -> execution`
+`thread set -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> implementation plans -> execution passes with thread checkpoint result packs`
 
 Execution maps are:
 

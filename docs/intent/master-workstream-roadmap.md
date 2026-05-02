@@ -161,6 +161,38 @@ Recommended execution order:
 
 Operating-system threads should run in parallel only when they reduce drift or unblock product truth, not as substitutes for product delivery or as hidden product-completion gates.
 
+## Phase 2: Architecture Hardening And Portability
+
+After baseline feature delivery, run a dedicated architecture-hardening phase to make the system portable across storage and runtime backends without changing product meaning.
+
+Phase 2 source-of-truth model:
+
+- flow = orchestrator
+- traces = OTel-compatible IDs
+- decisions = policy layer
+- evidence = stage artifacts
+- operations = control plane UI
+
+Phase 2 outcomes:
+
+- canonical stage-result envelope is documented and applied consistently:
+  - `StageResult = { output, evidence, validation, decision, policy_version, trace_context }`
+- policy-versioned decisions are explicit in acceptance narratives and inspection surfaces
+- trace-context continuity (`trace_id` / `span_id` / parent linkage) is explicit across stage artifacts and timeline-compatible exports
+- portability direction is explicit for BigQuery-now and local/Postgres-later operating modes
+- failure/cancel evidence completeness expectations are documented alongside succeeded-run expectations
+
+Phase 2 documentation-order guardrail:
+
+1. master workstream roadmap
+2. complete set of registered workstreams
+3. bounded change threads
+4. complete spec set
+5. spec-authoring execution map
+6. detailed specs
+7. implementation execution map
+8. implementation plans
+
 ## Completion Criteria
 
 The roadmap is complete when:

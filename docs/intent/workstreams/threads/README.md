@@ -8,7 +8,15 @@ execution-capable slices to be visible in the worktree.
 
 The planning ladder is:
 
-`master roadmap -> registered workstreams -> bounded change thread files -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> implementation plans -> execution`
+`master roadmap -> registered workstreams -> bounded change thread files -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> implementation plans -> execution passes with thread checkpoint result packs`
+
+Checkpoint and result-pack expectations:
+
+- treat each bounded change thread as one checkpoint unit
+- each meaningful execution pass for a thread should emit a result pack
+- use `docs/operating_system/templates/checkpoint-result-pack.md`
+- store packs under
+  `docs/intent/workstreams/checkpoints/<workstream-id>/<thread-slug>/`
 
 Rules:
 

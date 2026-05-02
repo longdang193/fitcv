@@ -90,14 +90,57 @@ def build_repo(tmp_path: Path) -> Path:
         },
     )
     (repo_root / "docs" / "features" / "cv_system" / "history.md").write_text(
-        "# History\n\nManual note only.\n", encoding="utf-8"
+        "# History\n\n"
+        "<!-- GENERATED HISTORY START -->\n"
+        "<!-- GENERATED HISTORY END -->\n\n"
+        "## Human Notes\n",
+        encoding="utf-8",
+    )
+    (repo_root / "docs" / "features" / "cv_system" / "cv_system.yaml").write_text(
+        "# GENERATED FILE - do not edit directly.\n"
+        "# Source: docs/features/cv_system/feature.source.yaml\n"
+        "feature_id: cv_system\n"
+        "name: CV System\n"
+        "status: active\n"
+        "type: add\n"
+        "summary: Own the CV-writing lifecycle.\n"
+        "invariants: []\n"
+        "domains:\n"
+        "  - pipeline\n"
+        "depends_on: []\n"
+        "capabilities:\n"
+        "  - capability_id: cv_system.structured-cv-generation\n"
+        "    statement: Generate CV artifacts.\n"
+        "    state: active\n"
+        "refs:\n"
+        "  code: []\n"
+        "  tests: []\n"
+        "  specs: []\n"
+        "  plans: []\n"
+        "  docs: []\n"
+        "  configs: []\n"
+        "  components: []\n"
+        "revision: 1\n"
+        "latest_change_id: 2026-05-02-test-seed\n"
+        "last_updated_at: \"2026-05-02T11:00:00Z\"\n",
+        encoding="utf-8",
+    )
+    (repo_root / "docs" / "features" / "cv_system" / "lineage.generated.yaml").write_text(
+        "# GENERATED FILE - do not edit directly.\n"
+        "feature_id: cv_system\n"
+        "source: docs/features/cv_system/feature.source.yaml\n"
+        "invariants: {}\n"
+        "capabilities: {}\n"
+        "timeline: []\n",
+        encoding="utf-8",
     )
     write_yaml(
         repo_root / "docs" / "stages" / "cv_analysis.source.yaml",
         {
             "stage_id": "cv_analysis",
             "name": "CV Analysis",
-            "summary": "Prepare ranked jobs for writing.",
+            "status": "active",
+            "purpose": "Prepare ranked jobs for writing.",
             "depends_on": [],
             "primary_features": ["cv_system"],
             "related_features": [],
@@ -107,22 +150,65 @@ def build_repo(tmp_path: Path) -> Path:
     )
     for relative_path, content in {
         "docs/setup.md": (
+            "---\n"
+            "doc_id: setup\n"
+            "doc_type: setup-guide\n"
+            "explains:\n"
+            "  features:\n"
+            "    - cv_system\n"
+            "  stages:\n"
+            "    - cv_analysis\n"
+            "---\n\n"
             "# Setup\n\n"
             "Install dependencies, confirm tool versions, provision prerequisites, and run bootstrap in order.\n"
         ),
         "docs/configuration.md": (
+            "---\n"
+            "doc_id: configuration\n"
+            "doc_type: operator-guide\n"
+            "explains:\n"
+            "  features:\n"
+            "    - cv_system\n"
+            "---\n\n"
             "# Configuration\n\n"
             "Each environment variable and config file has profile defaults, override rules, ownership, and repo_config guidance.\n"
         ),
         "docs/usage.md": (
+            "---\n"
+            "doc_id: usage\n"
+            "doc_type: operator-guide\n"
+            "explains:\n"
+            "  features:\n"
+            "    - cv_system\n"
+            "  stages:\n"
+            "    - cv_analysis\n"
+            "---\n\n"
             "# Usage\n\n"
             "The command entrypoint supports the operator workflow, developer flow, and run loop.\n"
         ),
         "docs/pipeline.md": (
+            "---\n"
+            "doc_id: pipeline\n"
+            "doc_type: operator-guide\n"
+            "explains:\n"
+            "  features:\n"
+            "    - cv_system\n"
+            "  stages:\n"
+            "    - cv_analysis\n"
+            "---\n\n"
             "# Pipeline\n\n"
             "Each stage in the workflow documents its step sequence, handoff, and processing flow.\n"
         ),
         "docs/architecture.md": (
+            "---\n"
+            "doc_id: architecture\n"
+            "doc_type: architecture-guide\n"
+            "explains:\n"
+            "  features:\n"
+            "    - cv_system\n"
+            "  stages:\n"
+            "    - cv_analysis\n"
+            "---\n\n"
             "# Architecture\n\n"
             "The architecture captures each component boundary, integration point, information flow, and control flow.\n"
         ),
@@ -217,12 +303,28 @@ def build_repo(tmp_path: Path) -> Path:
         REPO_CONFIG_VALIDATOR_PATH.read_text(encoding="utf-8"),
         encoding="utf-8",
     )
+    (scripts_dir / "validate_checkpoint_packs.py").write_text(
+        (REPO_ROOT / "scripts" / "validate_checkpoint_packs.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     (scripts_dir / "format_contract_yaml.py").write_text(
         FORMATTER_PATH.read_text(encoding="utf-8"),
         encoding="utf-8",
     )
     (scripts_dir / "audit_architecture_linkage.py").write_text(
         AUDIT_PATH.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (scripts_dir / "generate_planning_lineage.py").write_text(
+        (REPO_ROOT / "scripts" / "generate_planning_lineage.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (scripts_dir / "planning_lineage_support.py").write_text(
+        (REPO_ROOT / "scripts" / "planning_lineage_support.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (scripts_dir / "validator_policy.py").write_text(
+        (REPO_ROOT / "scripts" / "validator_policy.py").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
     (scripts_dir / "validate_repo_contracts.py").write_text(
@@ -286,7 +388,7 @@ def test_validator_script_exists() -> None:
 def test_repo_contract_validator_fast_passes_for_current_managed_history_shape(tmp_path: Path) -> None:
     repo_root = build_repo(tmp_path)
     sync_process = subprocess.run(
-        [sys.executable, str(REPO_ROOT / "scripts" / "sync_architecture_docs.py"), "--repo-root", str(repo_root)],
+        [sys.executable, str(repo_root / "scripts" / "sync_architecture_docs.py"), "--repo-root", str(repo_root)],
         capture_output=True,
         text=True,
         check=False,

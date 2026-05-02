@@ -40,3 +40,12 @@ Make final outcomes legible and trustworthy by keeping deterministic acceptance 
 ## Notes
 
 This workstream defines what the authoritative decision and artifact contract must be. Other workstreams may improve recommendations or observability, but they must not redefine the final gate or blur the difference between recommendation and acceptance.
+
+## Phase 2 Alignment
+
+In Master Workstream Phase 2, this workstream is the source of truth for:
+
+- decisions = policy layer
+- evidence = stage artifacts
+
+It must keep policy-versioned decision authority explicit and require truthful evidence coverage for succeeded, failed, and cancelled run narratives.
