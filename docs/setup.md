@@ -94,6 +94,8 @@ Once the system starts, the next useful docs are:
 - [pipeline.md](pipeline.md) for the stage flow and runtime semantics
 - [architecture.md](architecture.md) for the control-plane, worker, storage,
   and managed-doc shape
+- [fitcv-control-plane-setup.md](fitcv-control-plane-setup.md) for recurring
+  outbox replay health scheduler setup (`scripts/check_outbox_replay_health.py`)
 
 ## Validation
 
