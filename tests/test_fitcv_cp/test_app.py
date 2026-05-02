@@ -7611,3 +7611,84 @@ tags:
   - fast
   - ci-safe
 """
+
+def test_run_detail_shows_event_delivery_degraded_when_dead_letter_exists(tmp_path):
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="event-degraded-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    dead_letter_file = tmp_path / "events-dead-letter.jsonl"
+    dead_letter_file.write_text(
+        "\n".join(
+            [
+                json.dumps(
+                    {
+                        "row": {"run_id": "event-degraded-1", "stage": "pipeline_failed"},
+                        "failed_at": "2026-05-02T14:20:00Z",
+                    }
+                ),
+                json.dumps(
+                    {
+                        "row": {"run_id": "other-run", "stage": "normalize"},
+                        "failed_at": "2026-05-02T14:21:00Z",
+                    }
+                ),
+            ]
+        ),
+        encoding="utf-8",
+    )
+    p = _run_detail_base_patches(run)
+    with patch.dict("os.environ", {"FITCV_EVENT_DEAD_LETTER_PATH": str(dead_letter_file)}), \
+         p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/event-degraded-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Event Delivery Health" in html
+    assert "degraded" in html
+    assert "Dead-lettered Events" in html
+    assert "2026-05-02T14:20:00Z" in html
+
+
+def test_run_detail_shows_event_delivery_healthy_when_no_dead_letter_for_run(tmp_path):
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="event-healthy-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    dead_letter_file = tmp_path / "events-dead-letter.jsonl"
+    dead_letter_file.write_text(
+        json.dumps(
+            {
+                "row": {"run_id": "other-run", "stage": "pipeline_failed"},
+                "failed_at": "2026-05-02T14:30:00Z",
+            }
+        ),
+        encoding="utf-8",
+    )
+    p = _run_detail_base_patches(run)
+    with patch.dict("os.environ", {"FITCV_EVENT_DEAD_LETTER_PATH": str(dead_letter_file)}), \
+         p[0], p[1], p[2], p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/event-healthy-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Event Delivery Health" in html
+    assert "healthy" in html
+    assert "Dead-lettered Events" in html
+    assert ">0<" in html

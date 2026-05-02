@@ -70,6 +70,29 @@
 
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Event Delivery Health</h3>
+    {% if event_delivery_health.status == 'degraded' %}
+      <span class="badge badge-warning">degraded</span>
+    {% elif event_delivery_health.status == 'unknown' %}
+      <span class="badge badge-info">unknown</span>
+    {% else %}
+      <span class="badge badge-success">healthy</span>
+    {% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Dead-lettered Events</span><span class="v">{{ event_delivery_health.count }}</span>
+    <span class="k">Last Dead-letter Timestamp</span><span class="v">{{ event_delivery_health.last_failed_at or '—' }}</span>
+    <span class="k">Dead-letter Path</span><span class="v"><code>{{ event_delivery_health.dead_letter_path }}</code></span>
+  </div>
+  {% if event_delivery_health.status == 'degraded' %}
+  <div class="meta" style="margin-top:0.85rem">
+    Some pipeline events for this run were dead-lettered after retry exhaustion. Inspect the dead-letter file and replay those rows to restore full event lineage.
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
     <h3 style="margin:0">Agentic Runtime Alignment</h3>
     {% if agentic_runtime_drift.status == 'aligned' %}
       <span class="badge badge-success">aligned</span>
