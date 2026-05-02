@@ -993,6 +993,41 @@ def _build_cv_generation_review_required_payload(run: PipelineRun) -> dict[str, 
     if not isinstance(payload, dict):
         return None
     records = [item for item in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or []) if isinstance(item, dict)]
+    def _map_review_required_reason_code(record: dict[str, Any]) -> str:
+        explicit_code = str(record.get("review_required_reason_code") or "").strip()
+        if explicit_code and explicit_code != "unknown":
+            return explicit_code
+        error = dict(record.get("error") or {})
+        stage = str(error.get("stage") or "").strip().lower()
+        message = str(error.get("message") or record.get("operator_note") or "").strip().lower()
+        if stage == "review_gate" and "unsupported requirements require review" in message:
+            return "unsupported_requirement_gap"
+        if stage == "markdown_quality_review" or "markdown quality" in message:
+            return "quality_gate_failed"
+        if stage == "validation" or "validation failed" in message or "guardrail" in message:
+            return "validation_guardrail_failed"
+        if "insufficient evidence" in message or "evidence coverage" in message:
+            return "evidence_coverage_insufficient"
+        if stage in {"provider", "llm"} or "provider" in message or "response unusable" in message:
+            return "provider_response_unusable"
+        return "manual_review_other"
+
+    def _extract_request_id(record: dict[str, Any]) -> str | None:
+        runtime_provenance = dict(record.get("runtime_provenance") or {})
+        for key in ("request_id", "response_id"):
+            value = str(runtime_provenance.get(key) or "").strip()
+            if value:
+                return value
+        live_trace = dict(record.get("agentic_live_trace") or {})
+        for attempt in list(live_trace.get("attempts") or []):
+            if not isinstance(attempt, dict):
+                continue
+            for key in ("request_id", "response_id"):
+                value = str(attempt.get(key) or "").strip()
+                if value:
+                    return value
+        return None
+
     rows: list[dict[str, Any]] = []
     for record in records:
         if str(record.get("status") or "").strip() != "review_required":
@@ -1001,14 +1036,14 @@ def _build_cv_generation_review_required_payload(run: PipelineRun) -> dict[str, 
             {
                 "job_url": str(record.get("job_url") or ""),
                 "job_title": str(record.get("job_title") or ""),
-                "reason_code": str(record.get("review_required_reason_code") or "unknown"),
+                "reason_code": _map_review_required_reason_code(record),
                 "attempt_count": int(record.get("attempt_count") or 1),
                 "failed_rule_ids": list(record.get("failed_rule_ids") or []),
                 "first_failing_section_key": record.get("first_failing_section_key"),
                 "operator_note": record.get("operator_note"),
                 "provider_name": str((record.get("runtime_provenance") or {}).get("provider") or ""),
                 "model_name": str(record.get("cv_generation_model") or ""),
-                "request_id": str((record.get("runtime_provenance") or {}).get("request_id") or ""),
+                "request_id": _extract_request_id(record),
             }
         )
     if not rows:
@@ -1018,6 +1053,37 @@ def _build_cv_generation_review_required_payload(run: PipelineRun) -> dict[str, 
         "schema_version": "cv_generation_review_required_v1",
         "rows": rows,
     }
+
+
+def _build_ranked_cv_outcome_summary(rows: list[dict[str, Any]]) -> dict[str, int]:
+    summary = {
+        "ranked_total": 0,
+        "ranked_cv_created_count": 0,
+        "ranked_fit_gated_count": 0,
+        "ranked_review_required_count": 0,
+        "ranked_generation_failed_count": 0,
+        "ranked_other_no_cv_count": 0,
+    }
+    for row in rows:
+        if row.get("rank") is None:
+            continue
+        summary["ranked_total"] += 1
+        pipeline_status = str(row.get("pipeline_status") or "").strip()
+        stage_owned_subreason = str(row.get("stage_owned_subreason") or "").strip()
+        cv_gen_status = str((((row.get("decision_chain") or {}).get("cv_generation") or {}).get("status")) or "").strip()
+        if pipeline_status == "ranked_with_cv":
+            summary["ranked_cv_created_count"] += 1
+        elif pipeline_status in {"ranked_blocked_by_reranker_fit", "ranked_skipped_fit_gate"}:
+            summary["ranked_fit_gated_count"] += 1
+        elif pipeline_status == "ranked_no_cv" and (
+            stage_owned_subreason == "review_required" or cv_gen_status == "review_required"
+        ):
+            summary["ranked_review_required_count"] += 1
+        elif pipeline_status == "ranked_no_cv":
+            summary["ranked_generation_failed_count"] += 1
+        else:
+            summary["ranked_other_no_cv_count"] += 1
+    return summary
 
 def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
     payload = _load_run_cv_generation_debug_payload(run)
@@ -1084,6 +1150,8 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
     payload = _load_run_synonym_proposals_payload(run)
     if not isinstance(payload, dict):
         return {"items": [], "pending_count": 0, "total_count": 0}
+    trace_payload = _load_run_synonym_proposals_trace_payload(run) or {}
+    trace_summary = dict(trace_payload.get("trace_summary") or {})
     global_synonyms = _global_synonyms_for_proposal_evaluation(run)
     items: list[dict[str, Any]] = []
     lane_keys = ("skill", "domain", "role_family")
@@ -1162,8 +1230,31 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
             triage_status = "fresh"
         elif pending_with_reco:
             triage_status = "partial"
-        elif any(str(item.get("recommended_action") or "").strip() for item in items):
+        else:
             triage_status = "stale"
+    suppressed_by_field_from_trace = {
+        str(field).strip().lower(): int(count or 0)
+        for field, count in dict(trace_summary.get("suppressed_count_by_field") or {}).items()
+        if str(field).strip()
+    }
+    for field_key, suppressed_count in suppressed_by_field_from_trace.items():
+        lane_summary.setdefault(
+            field_key,
+            {
+                "field": field_key,
+                "label": "Skills" if field_key == "skill" else ("Domain" if field_key == "domain" else "Role Family"),
+                "total": 0,
+                "pending": 0,
+                "approved": 0,
+                "suppressed": 0,
+                "generated": 0,
+                "zero_state_reason": "no_suggestions",
+            },
+        )
+        lane_summary[field_key]["suppressed"] = max(
+            int(lane_summary[field_key].get("suppressed", 0)),
+            suppressed_count,
+        )
     for field_key, lane in lane_summary.items():
         total = int(lane.get("total", 0))
         suppressed = int(lane.get("suppressed", 0))
@@ -4491,6 +4582,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             )
         cv_versions = list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
         results_rows = _results_export_rows(run)
+        ranked_cv_outcome_summary = _build_ranked_cv_outcome_summary(results_rows)
         reranker_blocked_ranked_count = sum(
             1
             for row in results_rows
@@ -4522,6 +4614,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "run_export_links": run_export_links,
                 "job_title_by_url": job_title_by_url,
                 "reranker_blocked_ranked_count": reranker_blocked_ranked_count,
+                "ranked_cv_outcome_summary": ranked_cv_outcome_summary,
                 "is_stale_cancelling": _is_stale_cancelling,
                 "can_continue_manual_run": (
                     run.run_mode == "manual_staged"

@@ -3342,6 +3342,61 @@ def test_synonym_proposal_review_queue_keeps_non_skill_fields_even_if_skill_glob
     assert lanes["domain"]["generated"] == 1
     assert lanes["domain"]["zero_state_reason"] is None
 
+def test_synonym_proposal_review_queue_uses_trace_suppression_for_non_skill_lanes() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    from fitcv_cp.app import _build_synonym_proposal_review_queue
+
+    run = PipelineRun(
+        run_id="run-proposal-trace-suppression-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-trace-suppression-1","proposals":['
+            '{"proposal_id":"proposal-skill","field":"skill","proposal_status":"proposed_unreviewed","alias":"gcpx","canonical":"google cloud platform","confidence":0.9}'
+            '],'
+            '"synonym_proposals_trace":{"trace_summary":{"suppressed_count_by_field":{"domain":3,"role_family":1}}}'
+            '}'
+        ),
+    )
+
+    queue = _build_synonym_proposal_review_queue(run)
+    lanes = {lane["field"]: lane for lane in queue["field_lanes"]}
+    assert lanes["domain"]["suppressed"] == 3
+    assert lanes["domain"]["zero_state_reason"] == "all_suppressed"
+    assert lanes["role_family"]["suppressed"] == 1
+    assert lanes["role_family"]["zero_state_reason"] == "all_suppressed"
+
+def test_synonym_proposal_review_queue_triage_stale_when_pending_without_recommendations() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    from fitcv_cp.app import _build_synonym_proposal_review_queue
+
+    run = PipelineRun(
+        run_id="run-proposal-triage-stale-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-triage-stale-1","proposals":['
+            '{"proposal_id":"proposal-skill","field":"skill","proposal_status":"proposed_unreviewed","alias":"gcpx","canonical":"google cloud platform","confidence":0.9}'
+            ']}'
+        ),
+    )
+
+    queue = _build_synonym_proposal_review_queue(run)
+    assert queue["pending_count"] == 1
+    assert queue["triage_status"] == "stale"
+
 
 def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -4211,6 +4266,44 @@ def test_download_cv_generation_review_required_json_endpoint_200() -> None:
     assert resp.status_code == 200
     assert resp.json()["schema_version"] == "cv_generation_review_required_v1"
     assert len(resp.json()["rows"]) == 1
+
+def test_download_cv_generation_review_required_json_maps_reason_and_nullable_request_id() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-required-2",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "run_id": "run-review-required-2",
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/j2",
+                        "job_title": "Data Engineer 2",
+                        "status": "review_required",
+                        "review_required_reason_code": "unknown",
+                        "error": {
+                            "stage": "review_gate",
+                            "message": "Unsupported requirements require review: Snowflake, Talend",
+                        },
+                        "runtime_provenance": {},
+                    }
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-review-required-2/cv-generation-review-required.json")
+    assert resp.status_code == 200
+    row = resp.json()["rows"][0]
+    assert row["reason_code"] == "unsupported_requirement_gap"
+    assert row["request_id"] is None
 
 
 def test_download_agentic_live_trace_json_endpoint_200() -> None:
@@ -6620,7 +6713,10 @@ def test_run_detail_zero_cvs_and_ranked_jobs_shows_post_ranking_message():
          patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-ranked-no-cv")
     assert resp.status_code == 200
-    assert "2 ranked job(s) did not produce a valid CV output." in resp.text
+    assert "Ranked outcome breakdown:" in resp.text
+    assert "fit-gated=0" in resp.text
+    assert "review-required=0" in resp.text
+    assert "generation-failed=0" in resp.text
     assert "No candidates passed the final AI ranking threshold." not in resp.text
 
 
