@@ -195,6 +195,27 @@ def continue_run_with_job_id(
         redis_url=redis_url,
     )
     return submission.run_id, submission.queue_job_id
+
+def orchestration_job_status(queue_job_id: str, redis_url: str = "redis://redis:6379/0") -> str:
+    return ORCHESTRATION_ADAPTER.status(queue_job_id=queue_job_id, redis_url=redis_url)
+
+def _build_orchestration_diagnostics(run: PipelineRun) -> dict[str, Any]:
+    backend = str(ORCHESTRATION_ADAPTER.name or "default_queue")
+    backend_run_id = str(run.queue_job_id or "").strip() or None
+    status = "not_available"
+    status_checked = False
+    if backend_run_id and run.status in {RunStatus.QUEUED, RunStatus.RUNNING, RunStatus.CANCELLING}:
+        status_checked = True
+        try:
+            status = str(orchestration_job_status(backend_run_id, redis_url=redis_url) or "unknown").strip() or "unknown"
+        except Exception:
+            status = "unknown"
+    return {
+        "backend": backend,
+        "backend_run_id": backend_run_id,
+        "status": status,
+        "status_checked": status_checked,
+    }
 PIPELINE_OUTCOME_META: dict[str, dict[str, str]] = {
     "ranked_with_cv": {
         "label": "CV created",
@@ -3916,9 +3937,17 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             runs = list_runs(bq, project=project, dataset=dataset, include_archived=False)
         max_runtime_minutes = _run_max_runtime_minutes()
         runs = [_enforce_run_timeout_guard(run, max_runtime_minutes=max_runtime_minutes) for run in runs]
+        run_orchestration_diagnostics = {
+            run.run_id: _build_orchestration_diagnostics(run)
+            for run in runs
+        }
         return templates.TemplateResponse(
             request=request, name="runs_list.html",
-            context={"runs": runs, "view": view}
+            context={
+                "runs": runs,
+                "view": view,
+                "run_orchestration_diagnostics": run_orchestration_diagnostics,
+            }
         )
 
     @app.post("/admin/runs/{run_id}/stop")
@@ -4489,6 +4518,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         synonym_management_mode = _synonym_management_mode(run)
         markdown_quality_summary = _build_markdown_quality_summary(run)
         event_delivery_health = _run_event_delivery_health(run_id)
+        orchestration_diagnostics = _build_orchestration_diagnostics(run)
 
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
@@ -4523,6 +4553,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_fingerprints": synonym_fingerprints,
                 "markdown_quality_summary": markdown_quality_summary,
                 "event_delivery_health": event_delivery_health,
+                "orchestration_diagnostics": orchestration_diagnostics,
             }
         )
 

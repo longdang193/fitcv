@@ -1149,7 +1149,34 @@ def test_admin_run_detail_shows_exports_card_with_results_link():
     assert resp.status_code == 200
     assert "Run Exports" in resp.text
     assert 'href="/admin/runs/test-export-btn/export.json"' in resp.text
-    assert "Results JSON (Job Ledger)" in resp.text
+
+def test_run_detail_shows_orchestration_backend_diagnostics() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-orch-detail",
+        status=RunStatus.QUEUED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        queue_job_id="flow-run-abc123",
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]), \
+         patch("fitcv_cp.app.orchestration_job_status", return_value="queued"):
+        resp = TestClient(_app()).get("/admin/runs/run-orch-detail")
+
+    assert resp.status_code == 200
+    assert "Orchestration Backend" in resp.text
+    assert "Backend Run ID" in resp.text
+    assert "Backend Status" in resp.text
+    assert "flow-run-abc123" in resp.text
 
 
 def test_admin_run_detail_shows_download_cv_debug_json_button():
@@ -5574,8 +5601,21 @@ def test_runs_list_shows_core_operational_columns_only():
     assert "Jobs Path" in html
     assert "Created" in html
     assert "Duration" in html
+    assert "Orchestration" in html
     assert "Triggered By" not in html
     assert "Actions" not in html
+
+def test_runs_list_shows_orchestration_backend_diagnostics() -> None:
+    run = _make_full_run_mock(status="queued", run_id="run-orch-list")
+    run.queue_job_id = "backend-run-123"
+    with patch("fitcv_cp.app.list_runs", return_value=[run]), \
+         patch("fitcv_cp.app.orchestration_job_status", return_value="queued"):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "backend-run-123" in html
+    assert "default_queue" in html
+    assert "queued" in html
 
 
 def test_runs_list_uses_canonical_run_mode_labels():

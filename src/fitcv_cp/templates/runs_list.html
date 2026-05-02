@@ -30,6 +30,7 @@
   .runs-table .col-mode { width: 6.75rem; }
   .runs-table .col-created-at { width: 6.5rem; }
   .runs-table .col-duration { width: 4.5rem; }
+  .runs-table .col-orch { width: 10rem; }
 
   .run-jobs-path {
     display: inline-block;
@@ -186,10 +187,12 @@
         <th>Jobs Path</th>
         <th class="col-created-at">Created</th>
         <th class="col-duration">Duration</th>
+        <th class="col-orch">Orchestration</th>
       </tr>
     </thead>
     <tbody>
       {% for run in runs %}
+      {% set orch = run_orchestration_diagnostics.get(run.run_id, {}) %}
       <tr>
         <td>
           <input
@@ -227,9 +230,14 @@
             {{ ((run.finished_at - run.started_at).total_seconds() | int) }}s
           {% else %}—{% endif %}
         </td>
+        <td class="meta">
+          <div><code>{{ orch.get("backend", "default_queue") }}</code></div>
+          <div><code>{{ orch.get("backend_run_id") or "—" }}</code></div>
+          <div>{{ orch.get("status", "not_available") }}</div>
+        </td>
       </tr>
       {% else %}
-      <tr class="empty-row"><td colspan="7">No runs yet</td></tr>
+      <tr class="empty-row"><td colspan="8">No runs yet</td></tr>
       {% endfor %}
     </tbody>
   </table>
