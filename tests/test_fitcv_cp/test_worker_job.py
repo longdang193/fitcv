@@ -1305,6 +1305,7 @@ def test_build_synonym_proposals_payload_groups_conflicts_for_review() -> None:
     assert proposal["proposal_scope"] == "run_scoped_overlay_candidate"
     assert proposal["proposal_status"] == "proposed_unreviewed"
     assert proposal["proposal_family"] == "conflict_bundle"
+    assert proposal["field"] == "skill"
     assert proposal["alias"] == "gcp"
     assert proposal["canonical"] == "google cloud"
     assert proposal["candidate_canonicals"] == ["google cloud", "google cloud platform"]
@@ -1393,6 +1394,79 @@ def test_build_synonym_proposals_payload_marks_not_applicable_without_mapping_su
 
 
 # ── cooperative cancellation ─────────────────────────────────────────────────
+
+def test_build_synonym_proposals_payload_skips_pairs_already_in_global_synonyms() -> None:
+    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+
+    payload = json.loads(
+        _build_synonym_proposals_payload(
+            run_id="run-synonym-proposals-global-skip",
+            summary={
+                "mapping_suggestions": [
+                    {
+                        "alias": "gcp",
+                        "canonical": "google cloud",
+                        "confidence": 0.9,
+                    }
+                ]
+            },
+            created_at=datetime.datetime(2026, 4, 28, tzinfo=datetime.timezone.utc),
+            global_synonyms={"gcp": "google cloud"},
+        )
+    )
+
+    assert payload["proposals"] == []
+    assert payload["proposal_generation_status"] == "not_applicable"
+    assert payload["synonym_proposals_trace"]["trace_summary"]["suppressed_as_already_global_count"] == 1
+    assert payload["synonym_proposals_trace"]["trace_summary"]["generated_for_review_count"] == 0
+    assert payload["synonym_proposals_trace"]["trace_summary"]["suppression_source"] == "run_effective_skill_synonyms"
+    assert payload["synonym_proposals_trace"]["suppression_examples"][0]["alias"] == "gcp"
+
+def test_build_synonym_proposals_payload_supports_domain_and_role_family_fields() -> None:
+    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+
+    payload = json.loads(
+        _build_synonym_proposals_payload(
+            run_id="run-multi-field-proposals",
+            summary={
+                "mapping_suggestions": [
+                    {"field": "domain", "alias": "fintech", "canonical": "financial services", "confidence": 0.91},
+                    {"field": "role_family", "alias": "bi analyst", "canonical": "analytics", "confidence": 0.89},
+                ]
+            },
+            created_at=datetime.datetime(2026, 4, 28, tzinfo=datetime.timezone.utc),
+            global_synonyms={"fintech": "financial services"},
+        )
+    )
+
+    proposals = list(payload["proposals"])
+    assert len(proposals) == 2
+    assert {proposal["field"] for proposal in proposals} == {"domain", "role_family"}
+
+def test_build_synonym_proposals_payload_keeps_conflicts_when_global_points_elsewhere() -> None:
+    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+
+    payload = json.loads(
+        _build_synonym_proposals_payload(
+            run_id="run-synonym-proposals-global-conflict",
+            summary={
+                "mapping_suggestions": [
+                    {
+                        "alias": "gcp",
+                        "canonical": "google cloud",
+                        "confidence": 0.9,
+                    }
+                ]
+            },
+            created_at=datetime.datetime(2026, 4, 28, tzinfo=datetime.timezone.utc),
+            global_synonyms={"gcp": "google cloud platform"},
+        )
+    )
+
+    assert len(payload["proposals"]) == 1
+    assert payload["proposals"][0]["alias"] == "gcp"
+    assert payload["proposals"][0]["canonical"] == "google cloud"
+    assert payload["synonym_proposals_trace"]["trace_summary"]["suppressed_as_already_global_count"] == 0
 
 def test_worker_marks_cancelled_when_cancel_already_requested():
     """@proves run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs

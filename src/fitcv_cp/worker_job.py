@@ -519,6 +519,7 @@ def _build_synonym_proposals_payload(
     summary: dict[str, Any],
     created_at: datetime.datetime,
     existing_payload_json: str | None = None,
+    global_synonyms: dict[str, str] | None = None,
 ) -> str:
     existing_proposals_by_id: dict[str, dict[str, Any]] = {}
     if existing_payload_json:
@@ -534,17 +535,19 @@ def _build_synonym_proposals_payload(
                 if proposal_id:
                     existing_proposals_by_id[proposal_id] = existing_proposal
 
-    grouped: dict[str, dict[str, Any]] = {}
+    grouped: dict[tuple[str, str], dict[str, Any]] = {}
     for suggestion in list(summary.get("mapping_suggestions") or []):
         if not isinstance(suggestion, dict):
             continue
+        field = str(suggestion.get("field") or "skill").strip().lower() or "skill"
         alias = str(suggestion.get("alias") or "").strip().lower()
         canonical = str(suggestion.get("canonical") or "").strip().lower()
         if not alias or not canonical:
             continue
         bucket = grouped.setdefault(
-            alias,
+            (field, alias),
             {
+                "field": field,
                 "alias": alias,
                 "candidate_canonicals": {},
                 "must_have_skills": set(),
@@ -573,7 +576,18 @@ def _build_synonym_proposals_payload(
             )
 
     proposals: list[dict[str, Any]] = []
-    for alias, bucket in grouped.items():
+    normalized_global_synonyms: dict[str, str] = {}
+    if isinstance(global_synonyms, dict):
+        normalized_global_synonyms = {
+            str(alias).strip().lower(): str(canonical).strip().lower()
+            for alias, canonical in global_synonyms.items()
+            if str(alias).strip() and str(canonical).strip()
+        }
+    suppressed_as_already_global_count = 0
+    suppressed_examples: list[dict[str, str]] = []
+    for (_field_alias_key, bucket) in grouped.items():
+        field = str(bucket.get("field") or "skill")
+        alias = str(bucket.get("alias") or "")
         ranked_canonicals = sorted(
             bucket["candidate_canonicals"].items(),
             key=lambda item: (-int(item[1]), item[0]),
@@ -586,13 +600,20 @@ def _build_synonym_proposals_payload(
         avg_confidence = (
             float(bucket["confidence_sum"]) / occurrence_count if occurrence_count else 0.0
         )
-        identity_seed = f"{run_id}:{alias}:{'|'.join(candidate_canonicals)}:{proposal_family}"
+        identity_seed = f"{run_id}:{field}:{alias}:{'|'.join(candidate_canonicals)}:{proposal_family}"
         proposal_id = f"synprop-{hashlib.sha1(identity_seed.encode('utf-8')).hexdigest()[:12]}"
         existing_proposal = existing_proposals_by_id.get(proposal_id) or {}
+        global_canonical = normalized_global_synonyms.get(alias) if field == "skill" else None
+        if global_canonical and global_canonical == primary_canonical:
+            suppressed_as_already_global_count += 1
+            if len(suppressed_examples) < 10:
+                suppressed_examples.append({"field": field, "alias": alias, "canonical": primary_canonical})
+            continue
         proposals.append(
             {
                 "proposal_id": proposal_id,
                 "run_id": run_id,
+                "field": field,
                 "alias": alias,
                 "canonical": primary_canonical,
                 "candidate_aliases": [alias],
@@ -638,8 +659,54 @@ def _build_synonym_proposals_payload(
         proposal_generation_status=str(payload["proposal_generation_status"] or ""),
         persistence_status=str(payload["persistence_status"] or ""),
         proposals=proposals,
+        suppression_summary={
+            "suppressed_as_already_global_count": suppressed_as_already_global_count,
+            "generated_for_review_count": len(proposals),
+            "suppressed_examples": suppressed_examples,
+            "suppression_source": (
+                "run_effective_skill_synonyms"
+                if normalized_global_synonyms
+                else "none"
+            ),
+        },
     )
     return json.dumps(payload, ensure_ascii=False)
+
+def _effective_skill_synonyms_from_run_record(run_record: Any) -> dict[str, str]:
+    if run_record is None:
+        return {}
+    raw_payload = getattr(run_record, "effective_settings_json", None)
+    if not raw_payload:
+        return {}
+    try:
+        settings_payload = json.loads(raw_payload)
+    except (TypeError, json.JSONDecodeError):
+        return {}
+    if not isinstance(settings_payload, dict):
+        return {}
+    raw_synonyms = settings_payload.get("skill_synonyms")
+    if not isinstance(raw_synonyms, dict):
+        return {}
+    return {
+        str(alias).strip().lower(): str(canonical).strip().lower()
+        for alias, canonical in raw_synonyms.items()
+        if str(alias).strip() and str(canonical).strip()
+    }
+
+def _synonym_propose_enabled_from_run_record(run_record: Any) -> bool:
+    if run_record is None:
+        return True
+    raw_payload = getattr(run_record, "effective_settings_json", None)
+    if not raw_payload:
+        return True
+    try:
+        settings_payload = json.loads(raw_payload)
+    except (TypeError, json.JSONDecodeError):
+        return True
+    if not isinstance(settings_payload, dict):
+        return True
+    block = dict(settings_payload.get("synonym_management") or {})
+    return bool(block.get("propose_enabled", True))
 
 
 def _build_synonym_proposals_trace_payload(
@@ -649,6 +716,7 @@ def _build_synonym_proposals_trace_payload(
     proposal_generation_status: str,
     persistence_status: str,
     proposals: list[dict[str, Any]],
+    suppression_summary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if proposal_generation_status == "not_applicable":
         return {
@@ -662,10 +730,18 @@ def _build_synonym_proposals_trace_payload(
                 "records_total": 0,
                 "present_records": 0,
                 "proposal_count": 0,
+                "suppressed_as_already_global_count": int(
+                    (suppression_summary or {}).get("suppressed_as_already_global_count") or 0
+                ),
+                "generated_for_review_count": int(
+                    (suppression_summary or {}).get("generated_for_review_count") or 0
+                ),
+                "suppression_source": str((suppression_summary or {}).get("suppression_source") or "none"),
             },
             "records": [],
             "degradation": {},
             "artifact_refs": {},
+            "suppression_examples": list((suppression_summary or {}).get("suppressed_examples") or []),
         }
 
     trace_records: list[dict[str, Any]] = []
@@ -735,6 +811,13 @@ def _build_synonym_proposals_trace_payload(
             "records_total": len(proposals),
             "present_records": len(trace_records),
             "proposal_count": len(proposals),
+            "suppressed_as_already_global_count": int(
+                (suppression_summary or {}).get("suppressed_as_already_global_count") or 0
+            ),
+            "generated_for_review_count": int(
+                (suppression_summary or {}).get("generated_for_review_count") or len(proposals)
+            ),
+            "suppression_source": str((suppression_summary or {}).get("suppression_source") or "none"),
         },
         "records": trace_records,
         "degradation": degradation,
@@ -742,6 +825,7 @@ def _build_synonym_proposals_trace_payload(
             "proposal_artifact": "synonym-proposals.json",
             "stage_artifact": "enrich.json",
         },
+        "suppression_examples": list((suppression_summary or {}).get("suppressed_examples") or []),
     }
 
 
@@ -772,6 +856,55 @@ def _summary_has_reached_stage(summary: dict[str, Any], stage_id: str) -> bool:
     if not isinstance(stage_block, dict):
         return False
     return str(stage_block.get("status") or "").strip().lower() not in {"", "not_reached"}
+
+def _append_synonym_suppression_summary_event(
+    *,
+    run_id: str,
+    synonym_payload_json: str,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> None:
+    try:
+        payload = json.loads(synonym_payload_json)
+    except (TypeError, json.JSONDecodeError):
+        return
+    if not isinstance(payload, dict):
+        return
+    trace_payload = payload.get("synonym_proposals_trace")
+    if not isinstance(trace_payload, dict):
+        return
+    trace_summary = trace_payload.get("trace_summary")
+    if not isinstance(trace_summary, dict):
+        return
+    suppressed_count = int(trace_summary.get("suppressed_as_already_global_count") or 0)
+    if suppressed_count <= 0:
+        return
+    append_event(
+        RunEvent(
+            run_id=run_id,
+            event_id=str(uuid.uuid4()),
+            stage="synonym_proposal_suppression_summary",
+            level="info",
+            message=(
+                "Suppressed synonym proposals already covered by global map: "
+                f"{suppressed_count}"
+            ),
+            created_at=datetime.datetime.now(datetime.timezone.utc),
+            payload_json=json.dumps(
+                {
+                    "suppressed_as_already_global_count": suppressed_count,
+                    "generated_for_review_count": int(trace_summary.get("generated_for_review_count") or 0),
+                    "suppression_source": str(trace_summary.get("suppression_source") or "none"),
+                    "suppression_examples": list(trace_payload.get("suppression_examples") or []),
+                },
+                ensure_ascii=False,
+            ),
+        ),
+        bq,
+        project=project,
+        dataset=dataset,
+    )
 
 
 def _persist_shared_progress_snapshot(
@@ -824,26 +957,36 @@ def _persist_shared_progress_snapshot(
             project=project,
             dataset=dataset,
         )
-        synonym_status = update_run_synonym_proposals(
-            run_id,
-            _build_synonym_proposals_payload(
+        if _synonym_propose_enabled_from_run_record(run_record):
+            synonym_payload_json = _build_synonym_proposals_payload(
                 run_id=run_id,
                 summary=summary,
                 created_at=snapshot_at,
                 existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
-            ),
-            bq,
-            project=project,
-            dataset=dataset,
-        )
-        _append_degraded_snapshot_persistence_warning(
-            run_id=run_id,
-            snapshot_name="synonym_proposals",
-            persistence_status=synonym_status,
-            bq=bq,
-            project=project,
-            dataset=dataset,
-        )
+                global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
+            )
+            synonym_status = update_run_synonym_proposals(
+                run_id,
+                synonym_payload_json,
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+            _append_synonym_suppression_summary_event(
+                run_id=run_id,
+                synonym_payload_json=synonym_payload_json,
+                bq=bq,
+                project=project,
+                dataset=dataset,
+            )
+            _append_degraded_snapshot_persistence_warning(
+                run_id=run_id,
+                snapshot_name="synonym_proposals",
+                persistence_status=synonym_status,
+                bq=bq,
+                project=project,
+                dataset=dataset,
+            )
 
 
 def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
@@ -1053,46 +1196,56 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                             run_id,
                             inner,
                         )
-                try:
-                    synonym_status = update_run_synonym_proposals(
-                        run_id,
-                        _build_synonym_proposals_payload(
+                if _synonym_propose_enabled_from_run_record(run_record):
+                    try:
+                        synonym_payload_json = _build_synonym_proposals_payload(
                             run_id=run_id,
                             summary=summary,
                             created_at=checkpoint_time,
                             existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
-                        ),
-                        bq,
-                        project=project,
-                        dataset=dataset,
-                    )
-                    _append_degraded_snapshot_persistence_warning(
-                        run_id=run_id,
-                        snapshot_name="synonym_proposals",
-                        persistence_status=synonym_status,
-                        bq=bq,
-                        project=project,
-                        dataset=dataset,
-                    )
-                except Exception as exc:
-                    logger.warning(
-                        "[run_id=%s] Failed to persist synonym proposals snapshot at checkpoint: %s",
-                        run_id,
-                        exc,
-                    )
-                    try:
-                        append_event(
-                            _snapshot_persist_failed_event(run_id, "synonym_proposals", str(exc)),
+                            global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
+                        )
+                        synonym_status = update_run_synonym_proposals(
+                            run_id,
+                            synonym_payload_json,
                             bq,
                             project=project,
                             dataset=dataset,
                         )
-                    except Exception as inner:
-                        logger.warning(
-                            "[run_id=%s] Failed to append synonym proposals persistence warning event: %s",
-                            run_id,
-                            inner,
+                        _append_synonym_suppression_summary_event(
+                            run_id=run_id,
+                            synonym_payload_json=synonym_payload_json,
+                            bq=bq,
+                            project=project,
+                            dataset=dataset,
                         )
+                        _append_degraded_snapshot_persistence_warning(
+                            run_id=run_id,
+                            snapshot_name="synonym_proposals",
+                            persistence_status=synonym_status,
+                            bq=bq,
+                            project=project,
+                            dataset=dataset,
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "[run_id=%s] Failed to persist synonym proposals snapshot at checkpoint: %s",
+                            run_id,
+                            exc,
+                        )
+                        try:
+                            append_event(
+                                _snapshot_persist_failed_event(run_id, "synonym_proposals", str(exc)),
+                                bq,
+                                project=project,
+                                dataset=dataset,
+                            )
+                        except Exception as inner:
+                            logger.warning(
+                                "[run_id=%s] Failed to append synonym proposals persistence warning event: %s",
+                                run_id,
+                                inner,
+                            )
             append_event(
                 RunEvent(
                     run_id=run_id,
@@ -1234,42 +1387,52 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                         run_id,
                         inner,
                     )
-            try:
-                synonym_status = update_run_synonym_proposals(
-                    run_id,
-                    _build_synonym_proposals_payload(
+            if _synonym_propose_enabled_from_run_record(run_record):
+                try:
+                    synonym_payload_json = _build_synonym_proposals_payload(
                         run_id=run_id,
                         summary=summary,
                         created_at=finished_at,
                         existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
-                    ),
-                    bq,
-                    project=project,
-                    dataset=dataset,
-                )
-                _append_degraded_snapshot_persistence_warning(
-                    run_id=run_id,
-                    snapshot_name="synonym_proposals",
-                    persistence_status=synonym_status,
-                    bq=bq,
-                    project=project,
-                    dataset=dataset,
-                )
-            except Exception as exc:
-                logger.warning("[run_id=%s] Failed to persist synonym proposals snapshot: %s", run_id, exc)
-                try:
-                    append_event(
-                        _snapshot_persist_failed_event(run_id, "synonym_proposals", str(exc)),
+                        global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
+                    )
+                    synonym_status = update_run_synonym_proposals(
+                        run_id,
+                        synonym_payload_json,
                         bq,
                         project=project,
                         dataset=dataset,
                     )
-                except Exception as inner:
-                    logger.warning(
-                        "[run_id=%s] Failed to append synonym proposals persistence warning event: %s",
-                        run_id,
-                        inner,
+                    _append_synonym_suppression_summary_event(
+                        run_id=run_id,
+                        synonym_payload_json=synonym_payload_json,
+                        bq=bq,
+                        project=project,
+                        dataset=dataset,
                     )
+                    _append_degraded_snapshot_persistence_warning(
+                        run_id=run_id,
+                        snapshot_name="synonym_proposals",
+                        persistence_status=synonym_status,
+                        bq=bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+                except Exception as exc:
+                    logger.warning("[run_id=%s] Failed to persist synonym proposals snapshot: %s", run_id, exc)
+                    try:
+                        append_event(
+                            _snapshot_persist_failed_event(run_id, "synonym_proposals", str(exc)),
+                            bq,
+                            project=project,
+                            dataset=dataset,
+                        )
+                    except Exception as inner:
+                        logger.warning(
+                            "[run_id=%s] Failed to append synonym proposals persistence warning event: %s",
+                            run_id,
+                            inner,
+                        )
 
     except PipelineCancelled as exc:
         # ── Step 5 (alt): Pipeline was cancelled at a checkpoint ──────────────

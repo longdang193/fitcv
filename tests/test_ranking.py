@@ -13,6 +13,7 @@ tags:
 """
 
 import pytest
+import fitcv.ranking as ranking_module
 
 from fitcv.ranking import (
     compute_feature_contributions,
@@ -22,6 +23,7 @@ from fitcv.ranking import (
     compute_final_score,
     compute_must_have_match,
     compute_preference_fit,
+    compute_preference_fit_details,
     compute_seniority_fit,
     compute_title_relevance,
     rank_jobs,
@@ -214,6 +216,23 @@ def test_get_preference_fit_weights_uses_runtime_config() -> None:
         "location_type": 0.15,
     }
 
+def test_canonicalization_helpers_resolve_domain_and_role_family_aliases() -> None:
+    config = {
+        "domain_alias_map": {"fintech": "financial services"},
+        "role_family_alias_map": {"bi analyst": "analytics"},
+    }
+    assert ranking_module._canonical_domain("FinTech", config) == "financial services"
+    assert ranking_module._canonical_role_family("BI Analyst", config) == "analytics"
+
+def test_domain_neighbors_helper_normalizes_values() -> None:
+    config = {
+        "domain_neighbors": {
+            "Financial Services": ["FinTech", "Banking"],
+        }
+    }
+    neighbors = ranking_module._domain_neighbors(config)
+    assert neighbors["financial services"] == frozenset({"fintech", "banking"})
+
 
 # ── compute_must_have_match ───────────────────────────────────────────────────
 
@@ -330,6 +349,55 @@ def test_compute_preference_fit_weights_domain_role_family_and_location_separate
         prefs,
         config,
     ) == 0.5
+
+def test_compute_preference_fit_uses_domain_and_role_family_alias_maps() -> None:
+    prefs = {
+        "domains": ["fintech"],
+        "role_families": ["bi analyst"],
+        "location_types": ["remote"],
+    }
+    config = {
+        "preference_fit_weights": {"domain": 0.5, "role_family": 0.3, "location_type": 0.2},
+        "domain_alias_map": {"fintech": "financial services"},
+        "role_family_alias_map": {"bi analyst": "analytics"},
+    }
+    score = compute_preference_fit(
+        {"domain": "Financial Services", "job_family": "analytics", "location_type": "remote"},
+        prefs,
+        config,
+    )
+    assert score == pytest.approx(1.0)
+
+def test_compute_preference_fit_applies_neighbor_score_for_domain() -> None:
+    prefs = {"domains": ["fintech"], "role_families": [], "location_types": []}
+    config = {
+        "preference_fit_weights": {"domain": 0.5, "role_family": 0.3, "location_type": 0.2},
+        "domain_alias_map": {"fintech": "financial services"},
+        "domain_neighbors": {"financial services": ["banking"]},
+        "preference_fit_neighbor_score": 0.6,
+    }
+    score = compute_preference_fit(
+        {"domain": "banking", "job_family": "", "location_type": ""},
+        prefs,
+        config,
+    )
+    assert score == pytest.approx(0.6 * 0.5 + 0.5 * 0.3 + 0.5 * 0.2)
+
+def test_compute_preference_fit_details_exposes_match_and_canonical_diagnostics() -> None:
+    prefs = {"domains": ["fintech"], "role_families": ["bi analyst"], "location_types": ["remote"]}
+    config = {
+        "domain_alias_map": {"fintech": "financial services"},
+        "role_family_alias_map": {"bi analyst": "analytics"},
+    }
+    details = compute_preference_fit_details(
+        {"domain": "financial services", "job_family": "analytics", "location_type": "remote"},
+        prefs,
+        config,
+    )
+    assert details["match_details"]["domain"] == "exact"
+    assert details["match_details"]["role_family"] == "exact"
+    assert details["canonical_values"]["job"]["domain"] == "financial services"
+    assert details["canonical_values"]["preferences"]["role_families"] == ["analytics"]
 
 
 def test_compute_feature_contributions_sum_to_final_score() -> None:

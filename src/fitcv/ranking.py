@@ -56,6 +56,37 @@ def _normalize_text(value: str | None) -> str:
         return ""
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9_]+", " ", value.lower())).strip()
 
+def _canonicalize_with_alias_map(value: str | None, alias_map: dict[str, str] | None) -> str:
+    normalized_value = _normalize_text(value)
+    if not normalized_value:
+        return ""
+    if not isinstance(alias_map, dict):
+        return normalized_value
+    canonical = alias_map.get(normalized_value)
+    return _normalize_text(canonical) if canonical else normalized_value
+
+def _canonical_domain(value: str | None, config: dict[str, Any] | None = None) -> str:
+    alias_map = (config or {}).get("domain_alias_map")
+    return _canonicalize_with_alias_map(value, alias_map if isinstance(alias_map, dict) else None)
+
+def _canonical_role_family(value: str | None, config: dict[str, Any] | None = None) -> str:
+    alias_map = (config or {}).get("role_family_alias_map")
+    return _canonicalize_with_alias_map(value, alias_map if isinstance(alias_map, dict) else None)
+
+def _domain_neighbors(config: dict[str, Any] | None = None) -> dict[str, frozenset[str]]:
+    raw_neighbors = (config or {}).get("domain_neighbors")
+    if not isinstance(raw_neighbors, dict):
+        return {}
+    return {
+        _normalize_text(str(domain)): frozenset(
+            _normalize_text(str(neighbor))
+            for neighbor in neighbors
+            if _normalize_text(str(neighbor))
+        )
+        for domain, neighbors in raw_neighbors.items()
+        if isinstance(neighbors, (list, tuple))
+    }
+
 
 def _role_family_neighbors(config: dict[str, Any] | None = None) -> dict[str, frozenset[str]]:
     raw_neighbors = ((config or {}).get("role_taxonomy") or {}).get("role_family_neighbors")
@@ -237,15 +268,50 @@ def _preference_dimension_score(job_value: str | None, preferred_values: list[st
         return 0.0
     return 1.0 if normalized_job_value in preferred_values else 0.0
 
+def _preference_neighbor_score(config: dict[str, Any] | None = None) -> float:
+    raw_score = (config or {}).get("preference_fit_neighbor_score")
+    if raw_score is None:
+        return 0.7
+    try:
+        score = float(raw_score)
+    except (TypeError, ValueError):
+        return 0.7
+    return max(0.0, min(1.0, score))
+
+def _preference_dimension_score_with_neighbors(
+    *,
+    job_value: str,
+    preferred_values: list[str],
+    neighbors: dict[str, frozenset[str]] | None = None,
+    neighbor_score: float = 0.7,
+) -> tuple[float, str]:
+    if not preferred_values:
+        return 0.5, "neutral"
+    if not job_value:
+        return 0.0, "none"
+    if job_value in preferred_values:
+        return 1.0, "exact"
+    neighbor_map = neighbors or {}
+    preferred_set = set(preferred_values)
+    for preferred in preferred_set:
+        if job_value in neighbor_map.get(preferred, frozenset()):
+            return neighbor_score, "neighbor"
+        if preferred in neighbor_map.get(job_value, frozenset()):
+            return neighbor_score, "neighbor"
+    return 0.0, "none"
+
 
 def compute_preference_fit_details(
     job: dict[str, Any],
     prefs: dict[str, Any],
     config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    pref_domains = _normalized_preferences(prefs.get("domains", []))
-    pref_role_families = _normalized_preferences(prefs.get("role_families", []))
+    pref_domains = [_canonical_domain(value, config) for value in _normalized_preferences(prefs.get("domains", []))]
+    pref_role_families = [_canonical_role_family(value, config) for value in _normalized_preferences(prefs.get("role_families", []))]
     pref_locations = _normalized_preferences(prefs.get("location_types", []))
+    domain_neighbors = _domain_neighbors(config)
+    role_family_neighbors = _role_family_neighbors(config)
+    neighbor_score = _preference_neighbor_score(config)
 
     if not (pref_domains or pref_role_families or pref_locations):
         return {
@@ -256,19 +322,61 @@ def compute_preference_fit_details(
                 "role_family": 0.5,
                 "location_type": 0.5,
             },
+            "match_details": {
+                "domain": "neutral",
+                "role_family": "neutral",
+                "location_type": "neutral",
+            },
         }
 
     weights = get_preference_fit_weights(config)
+    canonical_domain = _canonical_domain(str(job.get("domain") or ""), config)
+    canonical_role_family = _canonical_role_family(str(job.get("job_family") or ""), config)
+    domain_score, domain_match_type = _preference_dimension_score_with_neighbors(
+        job_value=canonical_domain,
+        preferred_values=[value for value in pref_domains if value],
+        neighbors=domain_neighbors,
+        neighbor_score=neighbor_score,
+    )
+    role_family_score, role_family_match_type = _preference_dimension_score_with_neighbors(
+        job_value=canonical_role_family,
+        preferred_values=[value for value in pref_role_families if value],
+        neighbors=role_family_neighbors,
+        neighbor_score=neighbor_score,
+    )
+    location_score = _preference_dimension_score(str(job.get("location_type") or ""), pref_locations)
     components = {
-        "domain": _preference_dimension_score(str(job.get("domain") or ""), pref_domains),
-        "role_family": _preference_dimension_score(str(job.get("job_family") or ""), pref_role_families),
-        "location_type": _preference_dimension_score(str(job.get("location_type") or ""), pref_locations),
+        "domain": domain_score,
+        "role_family": role_family_score,
+        "location_type": location_score,
     }
+    location_match_type = (
+        "neutral"
+        if not pref_locations
+        else ("exact" if location_score == 1.0 else "none")
+    )
     score = sum(components[key] * weights[key] for key in DEFAULT_PREFERENCE_FIT_WEIGHTS)
     return {
         "score": score,
         "weights": weights,
         "components": components,
+        "match_details": {
+            "domain": domain_match_type,
+            "role_family": role_family_match_type,
+            "location_type": location_match_type,
+        },
+        "canonical_values": {
+            "job": {
+                "domain": canonical_domain,
+                "role_family": canonical_role_family,
+                "location_type": _normalize_text(str(job.get("location_type") or "")),
+            },
+            "preferences": {
+                "domains": [value for value in pref_domains if value],
+                "role_families": [value for value in pref_role_families if value],
+                "location_types": [value for value in pref_locations if value],
+            },
+        },
     }
 
 

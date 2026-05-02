@@ -1085,6 +1085,7 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
     for proposal in list(payload.get("proposals") or []):
         if not isinstance(proposal, dict):
             continue
+        field = str(proposal.get("field") or "skill").strip().lower() or "skill"
         status = str(proposal.get("proposal_status") or "proposed_unreviewed").strip() or "proposed_unreviewed"
         pending = status in {"proposed_unreviewed", "in_review", "deferred"}
         review_history = [entry for entry in list(proposal.get("review_history") or []) if isinstance(entry, dict)]
@@ -1093,7 +1094,7 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
         ]
         alias = str(proposal.get("alias") or "").strip().lower()
         canonical = str(proposal.get("canonical") or "").strip().lower()
-        already_global = bool(alias) and bool(canonical) and global_synonyms.get(alias) == canonical
+        already_global = field == "skill" and bool(alias) and bool(canonical) and global_synonyms.get(alias) == canonical
         if already_global:
             filtered_as_already_global_count += 1
             continue
@@ -1101,6 +1102,7 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
         items.append(
             {
                 "proposal_id": str(proposal.get("proposal_id") or "").strip(),
+                "field": field,
                 "alias": str(proposal.get("alias") or "").strip() or "—",
                 "canonical": str(proposal.get("canonical") or "").strip() or "—",
                 "confidence": float(proposal.get("confidence") or 0.0),
@@ -1614,6 +1616,15 @@ def _can_regenerate_synonym_proposals(run: PipelineRun) -> bool:
         and str(run.next_stage or "").strip() == "rule_filter"
         and bool(run.mapping_suggestions_json)
     )
+
+def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
+    config = _load_run_effective_config_snapshot(run)
+    block = dict(config.get("synonym_management") or {})
+    return {
+        "propose_enabled": bool(block.get("propose_enabled", True)),
+        "apply_to_run_enabled": bool(block.get("apply_to_run_enabled", False)),
+        "promote_global_enabled": bool(block.get("promote_global_enabled", False)),
+    }
 
 def _find_synonym_proposal_index(payload: dict[str, Any], proposal_id: str) -> int | None:
     target = str(proposal_id or "").strip()
@@ -4264,6 +4275,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         synonym_proposal_review_queue = _build_synonym_proposal_review_queue(run)
         synonym_proposal_decision_ledger = _build_synonym_proposal_decision_ledger(run)
         synonym_fingerprints = _synonym_observability_fingerprints(run)
+        synonym_management_mode = _synonym_management_mode(run)
         markdown_quality_summary = _build_markdown_quality_summary(run)
 
         return templates.TemplateResponse(
@@ -4290,6 +4302,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 ),
                 "can_upload_synonym_overlay": _can_upload_synonym_overlay(run),
                 "can_regenerate_synonym_proposals": _can_regenerate_synonym_proposals(run),
+                "synonym_management_mode": synonym_management_mode,
                 "synonym_overlay_info": _extract_run_synonym_overlay_info(run),
                 "agentic_runtime_drift": agentic_runtime_drift,
                 "hitl_review_queue": hitl_review_queue,
@@ -4388,6 +4401,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
+        mode = _synonym_management_mode(run)
+        if not mode["apply_to_run_enabled"]:
+            raise HTTPException(status_code=409, detail="Synonym apply-to-run actions are disabled by rollout settings")
         form = await request.form()
         action = str(form.get("action") or "").strip()
         actor = str(form.get("acted_by") or "admin").strip() or "admin"
@@ -4424,6 +4440,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
+        mode = _synonym_management_mode(run)
+        if not mode["apply_to_run_enabled"]:
+            raise HTTPException(status_code=409, detail="Synonym apply-to-run actions are disabled by rollout settings")
         form = await request.form()
         acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
         note = str(form.get("note") or "").strip()
@@ -4527,6 +4546,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
+        mode = _synonym_management_mode(run)
+        if not mode["apply_to_run_enabled"]:
+            raise HTTPException(status_code=409, detail="Synonym apply-to-run is disabled by rollout settings")
         if run.status in {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED}:
             raise HTTPException(status_code=409, detail="Cannot apply approved overlay for terminal runs")
         payload = _load_run_synonym_proposals_payload(run)
@@ -4568,6 +4590,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
+        mode = _synonym_management_mode(run)
+        if not mode["propose_enabled"]:
+            raise HTTPException(status_code=409, detail="Synonym proposal generation is disabled by rollout settings")
         if not _can_regenerate_synonym_proposals(run):
             raise HTTPException(
                 status_code=409,
@@ -4652,6 +4677,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
+        mode = _synonym_management_mode(run)
+        if not mode["promote_global_enabled"]:
+            raise HTTPException(status_code=409, detail="Synonym global promotion is disabled by rollout settings")
         form = await request.form()
         selected_ids = [str(value or "").strip() for value in form.getlist("promote_proposal_id")]
         selected_ids = [proposal_id for proposal_id in selected_ids if proposal_id]
@@ -4683,6 +4711,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
+        mode = _synonym_management_mode(run)
+        if not mode["promote_global_enabled"]:
+            raise HTTPException(status_code=409, detail="Synonym global promotion is disabled by rollout settings")
         form = await request.form()
         selected_csv = str(form.get("selected_ids_csv") or "").strip()
         selected_ids = [value.strip() for value in selected_csv.split(",") if value and value.strip()]

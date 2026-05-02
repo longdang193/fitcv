@@ -919,7 +919,7 @@ def _canonical_resume_start_stage(
 
 def _collect_mapping_suggestions(enriched: list[dict[str, Any]], run_id: str) -> list[dict[str, Any]]:
     suggestions: list[dict[str, Any]] = []
-    seen_keys: set[tuple[str, str, str]] = set()
+    seen_keys: set[tuple[str, str, str, str]] = set()
     for job in enriched:
         job_url = _extract_job_url(job)
         job_title = _extract_job_title(job)
@@ -935,12 +935,46 @@ def _collect_mapping_suggestions(enriched: list[dict[str, Any]], run_id: str) ->
                 "confidence": float(suggestion.get("confidence") or 0.0),
                 "alias": str(suggestion.get("alias") or ""),
                 "canonical": str(suggestion.get("canonical") or ""),
+                "field": str(suggestion.get("field") or "skill"),
             }
             if record["alias"] and record["canonical"]:
                 dedupe_key = (
+                    record["field"].strip().lower(),
                     record["alias"].strip().lower(),
                     record["canonical"].strip().lower(),
                     record["must_have_skill"].strip().lower(),
+                )
+                if dedupe_key in seen_keys:
+                    continue
+                seen_keys.add(dedupe_key)
+                suggestions.append(record)
+        for field_name, source_key in (
+            ("domain", "domain_mapping_suggestions"),
+            ("role_family", "role_family_mapping_suggestions"),
+        ):
+            for suggestion in list(job.get(source_key) or []):
+                if not isinstance(suggestion, dict):
+                    continue
+                alias = str(suggestion.get("alias") or "").strip()
+                canonical = str(suggestion.get("canonical") or "").strip()
+                if not alias or not canonical:
+                    continue
+                record = {
+                    "run_id": run_id,
+                    "job_url": job_url,
+                    "job_title": job_title,
+                    "must_have_skill": "",
+                    "matches": bool(suggestion.get("matches", True)),
+                    "confidence": float(suggestion.get("confidence") or 0.0),
+                    "alias": alias,
+                    "canonical": canonical,
+                    "field": field_name,
+                }
+                dedupe_key = (
+                    field_name,
+                    alias.lower(),
+                    canonical.lower(),
+                    "",
                 )
                 if dedupe_key in seen_keys:
                     continue

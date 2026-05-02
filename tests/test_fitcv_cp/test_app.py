@@ -2692,6 +2692,57 @@ def test_admin_run_synonym_proposals_batch_action_redirects_to_run_detail() -> N
         == "/admin/runs/run-proposal-batch?synonym_batch_applied=2&synonym_batch_skipped=0&synonym_batch_failed=0"
     )
 
+def test_admin_run_synonym_proposal_action_blocked_when_apply_to_run_disabled() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-proposal-action-disabled",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps({"synonym_management": {"apply_to_run_enabled": False}}),
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-action-disabled","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-proposal-action-disabled/synonym-proposals/proposal-gcp/action",
+            data={"action": "approve", "acted_by": "operator@example.com"},
+        )
+    assert resp.status_code == 409
+
+def test_admin_run_synonym_proposals_regenerate_blocked_when_propose_disabled() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-proposal-regenerate-disabled",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="manual_staged",
+        next_stage="rule_filter",
+        last_completed_stage="enrich",
+        effective_settings_json=json.dumps({"synonym_management": {"propose_enabled": False}}),
+        mapping_suggestions_json='{"run_id":"run-proposal-regenerate-disabled","suggestions":[{"alias":"gcp","canonical":"google cloud"}]}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-proposal-regenerate-disabled/synonym-proposals/regenerate",
+        )
+    assert resp.status_code == 409
+
 
 def test_admin_run_synonym_proposals_batch_action_repeat_submit_skips_resolved_rows() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -2857,6 +2908,32 @@ def test_synonym_proposal_review_queue_filters_pairs_already_in_global_synonyms(
     queue = _build_synonym_proposal_review_queue(run)
     assert queue["total_count"] == 0
     assert queue["filtered_as_already_global_count"] == 1
+
+def test_synonym_proposal_review_queue_keeps_non_skill_fields_even_if_skill_global_has_same_alias() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    from fitcv_cp.app import _build_synonym_proposal_review_queue
+
+    run = PipelineRun(
+        run_id="run-proposal-field-aware-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps({"skill_synonyms": {"gcp": "google cloud"}}),
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-field-aware-1","proposals":['
+            '{"proposal_id":"proposal-domain-gcp","field":"domain","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+
+    queue = _build_synonym_proposal_review_queue(run)
+    assert queue["total_count"] == 1
+    assert queue["items"][0]["field"] == "domain"
 
 
 def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful() -> None:
@@ -3056,6 +3133,7 @@ def test_admin_run_synonym_promote_preview_renders_diff_summary() -> None:
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
         run_mode="run_all",
+        effective_settings_json='{"synonym_management":{"promote_global_enabled":true}}',
         synonym_proposals_json=(
             '{"run_id":"run-promote-preview","proposals":['
             '{"proposal_id":"proposal-gcp","proposal_status":"approved_for_run_overlay","alias":"gcp","canonical":"google cloud","confidence":0.9},'
@@ -3088,6 +3166,7 @@ def test_admin_run_synonym_promote_commit_updates_global_policy_and_redirects() 
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
         run_mode="run_all",
+        effective_settings_json='{"synonym_management":{"promote_global_enabled":true}}',
         synonym_proposals_json=(
             '{"run_id":"run-promote-commit","proposals":['
             '{"proposal_id":"proposal-sql","proposal_status":"approved_for_run_overlay","alias":"sql","canonical":"structured query language","confidence":0.9}'
@@ -3229,6 +3308,7 @@ def test_admin_run_synonym_apply_approved_to_run_redirects_with_summary() -> Non
         jobs_path="data/sample_jobs.json",
         config_path=".env.yaml",
         created_at=datetime.now(timezone.utc),
+        effective_settings_json='{"synonym_management":{"apply_to_run_enabled":true}}',
         synonym_proposals_json=(
             '{"run_id":"run-apply-approved-1","proposals":['
             '{"proposal_id":"proposal-gcp","proposal_status":"approved_for_run_overlay","alias":"gcp","canonical":"google cloud","confidence":0.9}'

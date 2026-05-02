@@ -705,6 +705,9 @@ def test_cv_groups_no_key_appears_twice():
 def test_cv_preset_key_registered():
     keys = {s["key"] for s in SETTINGS_SCHEMA}
     assert "cv_preset" in keys
+    assert "synonym_management.propose_enabled" in keys
+    assert "synonym_management.apply_to_run_enabled" in keys
+    assert "synonym_management.promote_global_enabled" in keys
 
 
 def test_cv_preset_default():
