@@ -1649,7 +1649,11 @@ def _can_upload_synonym_overlay(run: PipelineRun) -> bool:
     )
 
 
-def _load_run_effective_config_snapshot(run: PipelineRun) -> dict[str, Any]:
+def _load_run_effective_config_snapshot(
+    run: PipelineRun,
+    *,
+    fallback_to_runtime_config: bool = True,
+) -> dict[str, Any]:
     if run.effective_settings_json:
         try:
             payload = _json.loads(run.effective_settings_json)
@@ -1657,10 +1661,12 @@ def _load_run_effective_config_snapshot(run: PipelineRun) -> dict[str, Any]:
                 return payload
         except (_json.JSONDecodeError, TypeError):
             pass
-    try:
-        return load_config(run.config_path)
-    except (FileNotFoundError, ValueError):
-        return {}
+    if fallback_to_runtime_config:
+        try:
+            return load_config(run.config_path)
+        except (FileNotFoundError, ValueError):
+            return {}
+    return {}
 
 
 def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
@@ -1720,7 +1726,7 @@ def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
     }
 
 def _global_synonyms_for_proposal_evaluation(run: PipelineRun) -> dict[str, str]:
-    effective_config = _load_run_effective_config_snapshot(run)
+    effective_config = _load_run_effective_config_snapshot(run, fallback_to_runtime_config=False)
     runtime = dict(effective_config.get("skill_synonyms_runtime") or {})
     pre_run_global_synonyms = dict(runtime.get("pre_run_overlay_skill_synonyms") or {})
     source_map = pre_run_global_synonyms if pre_run_global_synonyms else dict(effective_config.get("skill_synonyms") or {})
@@ -1740,12 +1746,12 @@ def _can_regenerate_synonym_proposals(run: PipelineRun) -> bool:
     )
 
 def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
-    config = _load_run_effective_config_snapshot(run)
+    config = _load_run_effective_config_snapshot(run, fallback_to_runtime_config=False)
     block = dict(config.get("synonym_management") or {})
     return {
         "propose_enabled": bool(block.get("propose_enabled", True)),
-        "apply_to_run_enabled": bool(block.get("apply_to_run_enabled", False)),
-        "promote_global_enabled": bool(block.get("promote_global_enabled", False)),
+        "apply_to_run_enabled": bool(block.get("apply_to_run_enabled", True)),
+        "promote_global_enabled": bool(block.get("promote_global_enabled", True)),
     }
 
 def _find_synonym_proposal_index(payload: dict[str, Any], proposal_id: str) -> int | None:
