@@ -998,6 +998,53 @@ def _latest_dead_letter_replay_summary(events: list[RunEvent]) -> dict[str, Any]
         "occurred_at": None,
     }
 
+def _aggregate_dead_letter_replay_health(
+    runs: list[PipelineRun],
+    *,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> dict[str, Any]:
+    run_ids = {str(run.run_id or "").strip() for run in runs if str(run.run_id or "").strip()}
+    dead_letter_records = _load_event_dead_letter_records(_event_dead_letter_path())
+    dead_letter_total = 0
+    impacted_run_ids: set[str] = set()
+    for record in dead_letter_records:
+        row = dict(record.get("row") or {})
+        run_id = str(row.get("run_id") or "").strip()
+        if not run_id:
+            continue
+        if run_ids and run_id not in run_ids:
+            continue
+        dead_letter_total += 1
+        impacted_run_ids.add(run_id)
+
+    replay_candidates = 0
+    replayed = 0
+    failed = 0
+    replay_event_count = 0
+    for run_id in sorted(run_ids):
+        events = get_events(run_id, bq, project=project, dataset=dataset)
+        summary = _latest_dead_letter_replay_summary(events)
+        if summary["replay_candidates"] <= 0:
+            continue
+        replay_event_count += 1
+        replay_candidates += int(summary["replay_candidates"] or 0)
+        replayed += int(summary["replayed"] or 0)
+        failed += int(summary["failed"] or 0)
+
+    replay_success_ratio = float(replayed / replay_candidates) if replay_candidates else 0.0
+    return {
+        "dead_letter_total": dead_letter_total,
+        "impacted_runs": len(impacted_run_ids),
+        "replay_event_count": replay_event_count,
+        "replay_candidates": replay_candidates,
+        "replayed": replayed,
+        "failed": failed,
+        "replay_success_ratio": replay_success_ratio,
+        "status": "degraded" if dead_letter_total > 0 else "healthy",
+    }
+
 def _event_dead_letter_path() -> Path:
     return Path(
         str(
@@ -4099,6 +4146,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             run.run_id: _build_orchestration_diagnostics(run)
             for run in runs
         }
+        dead_letter_replay_health = _aggregate_dead_letter_replay_health(
+            runs,
+            bq=bq,
+            project=project,
+            dataset=dataset,
+        )
         return templates.TemplateResponse(
             request=request, name="runs_list.html",
             context={
@@ -4106,6 +4159,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "view": view,
                 "pipeline_runs_schema_status": pipeline_runs_schema_status,
                 "run_orchestration_diagnostics": run_orchestration_diagnostics,
+                "dead_letter_replay_health": dead_letter_replay_health,
             }
         )
 
