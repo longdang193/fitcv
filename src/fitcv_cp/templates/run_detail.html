@@ -224,7 +224,20 @@
 </div>
 {% endif %}
 
-{% if synonym_proposal_review_queue.total_count and synonym_proposal_review_queue.total_count > 0 %}
+{% if request.query_params.get("synonym_regenerated_total") is not none %}
+<div class="card">
+  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Regeneration summary:
+    generated={{ request.query_params.get("synonym_regenerated_total") }},
+    suppressed={{ request.query_params.get("synonym_regenerated_suppressed") or "0" }},
+    failed={{ request.query_params.get("synonym_regenerated_failed") or "0" }}.
+  </div>
+</div>
+{% endif %}
+
+{% if (synonym_proposal_review_queue.total_count and synonym_proposal_review_queue.total_count > 0)
+   or can_regenerate_synonym_proposals
+   or synonym_proposal_decision_ledger %}
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
     <div>
@@ -239,6 +252,44 @@
         triage: {{ synonym_proposal_review_queue.triage_status }}
       </span>
     </div>
+  </div>
+  {% if synonym_proposal_decision_ledger %}
+  <div style="margin:0.2rem 0 0.85rem 0">
+    <div class="meta" style="margin-bottom:0.35rem">Proposal Decision Ledger</div>
+    <div style="overflow:auto;max-height:14rem;border:1px solid var(--accent);border-radius:6px">
+      <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+        <thead>
+          <tr style="background:var(--panel-bg)">
+            <th style="text-align:left;padding:0.35rem 0.5rem">Alias</th>
+            <th style="text-align:left;padding:0.35rem 0.5rem">Canonical</th>
+            <th style="text-align:left;padding:0.35rem 0.5rem">Source</th>
+            <th style="text-align:left;padding:0.35rem 0.5rem">Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in synonym_proposal_decision_ledger %}
+          <tr>
+            <td style="padding:0.3rem 0.5rem"><code>{{ row.alias }}</code></td>
+            <td style="padding:0.3rem 0.5rem"><code>{{ row.canonical }}</code></td>
+            <td style="padding:0.3rem 0.5rem">{{ row.decision_source }}</td>
+            <td style="padding:0.3rem 0.5rem">{{ row.decision_reason }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% else %}
+  <div class="meta" style="margin:0.2rem 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Proposal Decision Ledger: no rows yet (all suppressed or none generated).
+  </div>
+  {% endif %}
+  <div class="meta" style="margin-bottom:0.85rem">
+    fingerprints:
+    pre_run_global={{ synonym_fingerprints.pre_run_global_map_fingerprint or 'n/a' }},
+    overlay={{ synonym_fingerprints.run_overlay_fingerprint or 'n/a' }},
+    suggestions={{ synonym_fingerprints.mapping_suggestions_fingerprint or 'n/a' }},
+    proposal_input={{ synonym_fingerprints.proposal_input_bundle_fingerprint or 'n/a' }}.
   </div>
   <form id="synonym-triage-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/triage-refresh" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
     <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
@@ -292,12 +343,22 @@
     failed={{ request.query_params.get("synonym_apply_to_run_failed") or "0" }}.
   </div>
   {% endif %}
+  {% if can_regenerate_synonym_proposals %}
+  <form id="synonym-regenerate-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/regenerate" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+    <button class="btn-secondary" type="submit">Regenerate Proposals</button>
+    <span class="meta">Use after overlay upload to refresh review list against current synonym state.</span>
+  </form>
+  {% endif %}
+  {% if synonym_proposal_review_queue.get("approved_count", 0) > 0 %}
   <form id="synonym-apply-approved-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/apply-approved-to-run" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
     <input type="hidden" name="acted_by" value="admin">
     <input type="hidden" name="note" value="ui:apply-approved-to-run">
-    <button class="btn-secondary" type="submit">Apply Approved to This Run</button>
-    <span class="meta">Applies approved pairs to this run’s downstream stages.</span>
+    <button class="btn-secondary" type="submit">Re-apply Approved to This Run</button>
+    <span class="meta">Idempotent re-apply of approved pairs for this run’s downstream stages.</span>
   </form>
+  {% else %}
+  <div class="meta" style="margin-bottom:0.85rem">No approved rows to apply.</div>
+  {% endif %}
   <form id="synonym-promote-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-preview" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
     <div id="promote-controls" style="display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
       <button class="btn-secondary" type="submit">Preview Promote to Global</button>
