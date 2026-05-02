@@ -819,6 +819,44 @@ def test_admin_run_detail_shows_agentic_review_queue_card() -> None:
     assert "Regenerate Once" in resp.text
     assert 'action="/admin/runs/run-review-queue/cv-review-action"' in resp.text
 
+def test_admin_run_detail_shows_agentic_review_queue_card_from_debug_records_key() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-queue-debug-records",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                        "error": {"stage": "review_gate", "message": "Low confidence sections: experience"},
+                    }
+                ],
+                "hitl_review_actions": [],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-review-queue-debug-records")
+    assert resp.status_code == 200
+    assert "Agentic Review Queue" in resp.text
+    assert "Regenerate Once" in resp.text
+    assert 'action="/admin/runs/run-review-queue-debug-records/cv-review-action"' in resp.text
+
 def test_admin_run_detail_shows_markdown_quality_card() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -2625,6 +2663,7 @@ def test_download_run_synonym_suppression_diff_json_endpoint_200() -> None:
                     "trace_status": "completed",
                     "trace_summary": {
                         "suppressed_as_already_global_count": 1,
+                        "suppressed_count_by_field": {"skill": 1, "domain": 2},
                         "generated_for_review_count": 0,
                         "suppression_source": "run_effective_skill_synonyms",
                     },
@@ -2637,7 +2676,7 @@ def test_download_run_synonym_suppression_diff_json_endpoint_200() -> None:
         resp = TestClient(_app()).get("/admin/runs/run-syn-suppress-diff-1/synonym-suppression-diff.json")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["suppressed_pairs_total"] == 1
+    assert body["suppressed_pairs_total"] == 3
     assert body["suppression_source"] == "run_effective_skill_synonyms"
 
 
