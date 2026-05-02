@@ -859,6 +859,45 @@ def test_worker_synonym_proposals_degradation_appends_warning_event() -> None:
     assert "missing_synonym_proposals_json_column" in event_row["message"]
 
 
+def test_worker_review_hold_uses_non_null_snapshot_timestamp_for_synonym_and_mapping() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.checkpoint_payload_json = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+    mock_run.synonym_proposals_json = None
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r-review",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 0,
+        "mapping_suggestions": [{"field": "skill", "alias": "gcp", "canonical": "google cloud", "confidence": 0.9}],
+        "completed_stages": ["normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis", "cv_generation"],
+        "cv_generation_debug_records": [{"status": "review_required", "job_url": "https://example.com/1"}],
+        "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_mapping_suggestions") as mock_mapping_update, \
+       patch("fitcv_cp.worker_job.update_run_synonym_proposals", return_value={"persistence_status": "persisted"}) as mock_syn_update, \
+       patch("fitcv_cp.worker_job.update_run_status") as mock_update:
+        execute_pipeline_run(run_id="r-review", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    final_status = mock_update.call_args_list[-1].args[1]
+    assert final_status.value == "awaiting_continue"
+    mapping_payload = json.loads(mock_mapping_update.call_args.args[1])
+    synonym_payload = json.loads(mock_syn_update.call_args.args[1])
+    assert isinstance(mapping_payload.get("created_at"), str) and mapping_payload["created_at"]
+    assert isinstance(synonym_payload.get("created_at"), str) and synonym_payload["created_at"]
+
+
 def test_worker_debug_snapshot_persistence_failure_does_not_fail_run():
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
