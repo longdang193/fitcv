@@ -579,7 +579,11 @@
       {% if reranker_blocked_ranked_count and run.ranked and reranker_blocked_ranked_count == run.ranked %}
         {{ run.ranked }} ranked job(s) were blocked by reranker-fit gating before CV generation.
       {% elif run.ranked %}
-        {{ run.ranked }} ranked job(s) did not produce a valid CV output.
+        Ranked outcome breakdown:
+        fit-gated={{ ranked_cv_outcome_summary.ranked_fit_gated_count }},
+        review-required={{ ranked_cv_outcome_summary.ranked_review_required_count }},
+        generation-failed={{ ranked_cv_outcome_summary.ranked_generation_failed_count }},
+        other={{ ranked_cv_outcome_summary.ranked_other_no_cv_count }}.
       {% else %}
         No candidates passed the final AI ranking threshold.
       {% endif %}
