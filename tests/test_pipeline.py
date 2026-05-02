@@ -3222,6 +3222,12 @@ def test_run_pipeline_passes_job_dicts_to_embeddings_and_urls_to_vector_search(
     assert vector_urls_arg == [job["job_url"]]
     cv_block = result["stage_transition_artifacts"]["stages"]["cv_generation"]
     assert cv_block["status"] == "not_reached"
+    assert cv_block["stage_result"]["status"] == "not_reached"
+    trace_context = cv_block["stage_result"]["trace_context"]
+    assert isinstance(trace_context, dict)
+    assert str(trace_context.get("trace_id") or "").strip()
+    assert str(trace_context.get("span_id") or "").strip()
+    assert str(trace_context.get("parent_span_id") or "").strip()
     assert cv_block["input_counts"] == {}
     assert cv_block["output_counts"] == {}
     assert cv_block["inputs_sample"] == []

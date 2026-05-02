@@ -59,6 +59,14 @@ class PipelineReporter:
             payload_json=json.dumps(payload) if payload else None,
         )
         try:
-            append_event(event, self._bq, project=self._project, dataset=self._dataset)
+            status = append_event(event, self._bq, project=self._project, dataset=self._dataset)
+            if status.get("persistence_status") != "persisted":
+                logger.warning(
+                    "Reporter event degraded [run_id=%s stage=%s status=%s reason=%s]",
+                    self._run_id,
+                    stage,
+                    status.get("persistence_status"),
+                    status.get("degradation_reason"),
+                )
         except Exception as exc:
             logger.warning("Reporter failed to write event: %s", exc)
