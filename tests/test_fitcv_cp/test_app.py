@@ -1303,6 +1303,98 @@ def test_admin_outbox_replay_health_json(tmp_path):
     assert aggregate["replay_success_ratio"] == 0.75
 
 
+def test_admin_outbox_replay_health_check_alert_emits_event(tmp_path):
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    runs = [
+        PipelineRun(
+            run_id="check-alert-run",
+            status=RunStatus.SUCCEEDED,
+            jobs_path="data/sample_jobs.json",
+            triggered_by="admin",
+            trigger_source="web",
+            config_path=".env.yaml",
+            created_at=datetime.now(timezone.utc),
+        )
+    ]
+    dead_letter_file = tmp_path / "events-dead-letter.jsonl"
+    dead_letter_file.write_text(json.dumps({"row": {"run_id": "check-alert-run"}}), encoding="utf-8")
+    captured = {}
+
+    def _capture_event(event, *_args, **_kwargs):
+        captured["event"] = event
+        return {"persistence_status": "persisted", "degradation_reason": ""}
+
+    with patch.dict("os.environ", {"FITCV_EVENT_DEAD_LETTER_PATH": str(dead_letter_file)}), \
+         patch("fitcv_cp.app.list_runs", return_value=runs), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.append_event", side_effect=_capture_event):
+        resp = TestClient(_app()).post("/admin/outbox-replay-health/check?view=all&min_replay_success_ratio=0.95")
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["decision"] == "alert"
+    assert "dead_letter_status_degraded" in payload["reason_code"]
+    assert payload["outbox_replay_health"]["status"] == "degraded"
+    assert captured["event"].stage == "outbox_replay_health_alert"
+    assert captured["event"].level == "warning"
+
+
+def test_admin_outbox_replay_health_check_ok_emits_info_event(tmp_path):
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    runs = [
+        PipelineRun(
+            run_id="check-ok-run",
+            status=RunStatus.SUCCEEDED,
+            jobs_path="data/sample_jobs.json",
+            triggered_by="admin",
+            trigger_source="web",
+            config_path=".env.yaml",
+            created_at=datetime.now(timezone.utc),
+        )
+    ]
+    dead_letter_file = tmp_path / "events-dead-letter.jsonl"
+    dead_letter_file.write_text("", encoding="utf-8")
+    replay_event = RunEvent(
+        run_id="check-ok-run",
+        event_id="ok-replay-1",
+        stage="event_dead_letter_replay",
+        level="info",
+        message="Replay summary",
+        created_at=datetime.now(timezone.utc),
+        payload_json=json.dumps(
+            {
+                "replay_candidates": 10,
+                "replayed": 10,
+                "failed": 0,
+                "replay_success_ratio": 1.0,
+                "remaining_dead_letter_total": 0,
+            }
+        ),
+    )
+    captured = {}
+
+    def _capture_event(event, *_args, **_kwargs):
+        captured["event"] = event
+        return {"persistence_status": "persisted", "degradation_reason": ""}
+
+    with patch.dict("os.environ", {"FITCV_EVENT_DEAD_LETTER_PATH": str(dead_letter_file)}), \
+         patch("fitcv_cp.app.list_runs", return_value=runs), \
+         patch("fitcv_cp.app.get_events", return_value=[replay_event]), \
+         patch("fitcv_cp.app.append_event", side_effect=_capture_event):
+        resp = TestClient(_app()).post("/admin/outbox-replay-health/check?view=all&min_replay_success_ratio=0.95")
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["decision"] == "ok"
+    assert payload["reason_code"] == "healthy"
+    assert captured["event"].stage == "outbox_replay_health_alert"
+    assert captured["event"].level == "info"
+
+
 def test_admin_run_detail_success_banner():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
