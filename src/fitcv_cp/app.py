@@ -3090,6 +3090,19 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     def healthz() -> dict:
         return {"status": "ok"}
 
+    @app.get("/admin/diagnostics/orchestration-schema")
+    def admin_orchestration_schema_diagnostics() -> dict[str, Any]:
+        schema_status = get_pipeline_runs_schema_status(
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        return {
+            "table": f"{project}.{dataset}.pipeline_runs",
+            "required_columns": ["orchestration_backend", "orchestration_run_id"],
+            **schema_status,
+        }
+
     def _build_settings_context(active: dict[str, Any], **extra: Any) -> dict[str, Any]:
         effective = {
             entry["key"]: active.get(entry["key"], entry["default"])
