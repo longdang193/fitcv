@@ -896,6 +896,8 @@ def _run_event_delivery_health(run_id: str) -> dict[str, Any]:
         }
     count = 0
     last_failed_at: str | None = None
+    last_degradation_reason: str | None = None
+    max_retry_attempts = 0
     try:
         with dead_letter_file.open("r", encoding="utf-8") as handle:
             for line in handle:
@@ -913,17 +915,27 @@ def _run_event_delivery_health(run_id: str) -> dict[str, Any]:
                 failed_at_candidate = str(record.get("failed_at") or "").strip() or None
                 if failed_at_candidate:
                     last_failed_at = failed_at_candidate
+                degradation_reason_candidate = str(record.get("degradation_reason") or "").strip() or None
+                if degradation_reason_candidate:
+                    last_degradation_reason = degradation_reason_candidate
+                retry_attempts_value = int(record.get("retry_attempts") or 0)
+                if retry_attempts_value > max_retry_attempts:
+                    max_retry_attempts = retry_attempts_value
     except Exception:
         return {
             "status": "unknown",
             "count": 0,
             "last_failed_at": None,
+            "last_degradation_reason": None,
+            "max_retry_attempts": 0,
             "dead_letter_path": str(dead_letter_file),
         }
     return {
         "status": "degraded" if count > 0 else "healthy",
         "count": count,
         "last_failed_at": last_failed_at,
+        "last_degradation_reason": last_degradation_reason,
+        "max_retry_attempts": max_retry_attempts,
         "dead_letter_path": str(dead_letter_file),
     }
 

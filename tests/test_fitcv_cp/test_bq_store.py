@@ -13,6 +13,7 @@ tags:
 """
 
 from unittest.mock import MagicMock
+import json
 from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, list_filter_results_for_run, update_run_results_export, update_run_cv_generation_debug, update_run_stage_transition_artifacts, update_run_settings_used, update_run_checkpoint, update_run_mapping_suggestions, update_run_synonym_proposals, update_run_effective_settings
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import datetime
@@ -68,10 +69,32 @@ def test_append_event_calls_bq():
     @proves run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
     """
     bq = MagicMock()
+    bq.insert_rows_json.return_value = []
     ev = RunEvent(run_id="rid", event_id=str(uuid.uuid4()), stage="ingest",
                   level="info", message="done", created_at=datetime.datetime.now(datetime.timezone.utc))
     append_event(ev, bq, project="p", dataset="d")
     bq.insert_rows_json.assert_called_once()
+
+def test_append_event_dead_letter_contains_retry_bookkeeping(tmp_path, monkeypatch):
+    bq = MagicMock()
+    bq.insert_rows_json.return_value = [{"message": "forced-failure"}]
+    dead_letter_file = tmp_path / "events-dead-letter.jsonl"
+    monkeypatch.setenv("FITCV_EVENT_DEAD_LETTER_PATH", str(dead_letter_file))
+    ev = RunEvent(
+        run_id="rid",
+        event_id=str(uuid.uuid4()),
+        stage="ingest",
+        level="info",
+        message="done",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    status = append_event(ev, bq, project="p", dataset="d")
+    assert status["persistence_status"] == "dead_lettered"
+    lines = dead_letter_file.read_text(encoding="utf-8").strip().splitlines()
+    assert lines
+    record = json.loads(lines[-1])
+    assert int(record.get("retry_attempts") or 0) == 3
+    assert record.get("degradation_reason") == "event_insert_failed_dead_lettered"
 
 
 def test_get_run_returns_none_when_not_found():
