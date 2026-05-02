@@ -135,3 +135,16 @@ def cancel_queued_run(queue_job_id: str, redis_url: str = "redis://redis:6379/0"
         return True
     except (NoSuchJobError, Exception):
         return False
+
+def get_queue_job_status(queue_job_id: str, redis_url: str = "redis://redis:6379/0") -> str:
+    """Return canonical queue job status for orchestration adapter usage."""
+    from rq.exceptions import NoSuchJobError
+
+    conn = redis.from_url(redis_url)
+    try:
+        job = Job.fetch(queue_job_id, connection=conn)
+        return str(job.get_status(refresh=True) or "unknown")
+    except NoSuchJobError:
+        return "missing"
+    except Exception:
+        return "unknown"

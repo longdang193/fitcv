@@ -178,6 +178,23 @@ def enqueue_run(
 
 def cancel_queued_run(queue_job_id: str, redis_url: str = "redis://redis:6379/0") -> bool:
     return ORCHESTRATION_ADAPTER.cancel_queued_run(queue_job_id=queue_job_id, redis_url=redis_url)
+
+def continue_run_with_job_id(
+    *,
+    run_id: str,
+    jobs_path: str,
+    config_path: str,
+    triggered_by: str,
+    redis_url: str = "redis://redis:6379/0",
+) -> tuple[str, str]:
+    submission = ORCHESTRATION_ADAPTER.continue_run(
+        run_id=run_id,
+        jobs_path=jobs_path,
+        config_path=config_path,
+        triggered_by=triggered_by,
+        redis_url=redis_url,
+    )
+    return submission.run_id, submission.queue_job_id
 PIPELINE_OUTCOME_META: dict[str, dict[str, str]] = {
     "ranked_with_cv": {
         "label": "CV created",
@@ -4230,12 +4247,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 status_code=409,
                 detail="Run has no canonical next stage to continue",
             )
-        _, queue_job_id = enqueue_run_with_job_id(
+        _, queue_job_id = continue_run_with_job_id(
+            run_id=run.run_id,
             jobs_path=run.jobs_path,
             config_path=run.config_path,
             triggered_by="admin",
             redis_url=redis_url,
-            run_id=run.run_id,
         )
         update_run_status(run.run_id, RunStatus.QUEUED, bq, project=project, dataset=dataset)
         update_run_queue_job_id(run.run_id, queue_job_id, bq, project=project, dataset=dataset)
