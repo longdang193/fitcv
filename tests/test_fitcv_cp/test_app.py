@@ -1142,13 +1142,88 @@ def test_admin_upload_trigger_effective_settings_includes_enrichment_parallelism
 # ── html routes ──────────────────────────────────────────────────────────────
 
 def test_admin_runs_rendered_nav():
-    with patch("fitcv_cp.app.list_runs", return_value=[]):
+    with patch("fitcv_cp.app.list_runs", return_value=[]), \
+         patch("fitcv_cp.app.get_events", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs")
     assert resp.status_code == 200
     assert 'href="/admin/settings">Settings</a>' in resp.text
     assert 'Refresh' in resp.text
     assert 'id="jobs_file"' in resp.text
     assert 'id="jobs_path"' in resp.text
+    assert "Outbox Replay Health (Visible Runs)" in resp.text
+    assert "Replay Success Ratio" in resp.text
+
+
+def test_admin_runs_shows_degraded_outbox_replay_health(tmp_path):
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    runs = [
+        PipelineRun(
+            run_id="run-a",
+            status=RunStatus.SUCCEEDED,
+            jobs_path="data/sample_jobs.json",
+            triggered_by="admin",
+            trigger_source="web",
+            config_path=".env.yaml",
+            created_at=datetime.now(timezone.utc),
+        ),
+        PipelineRun(
+            run_id="run-b",
+            status=RunStatus.SUCCEEDED,
+            jobs_path="data/sample_jobs.json",
+            triggered_by="admin",
+            trigger_source="web",
+            config_path=".env.yaml",
+            created_at=datetime.now(timezone.utc),
+        ),
+    ]
+    dead_letter_file = tmp_path / "events-dead-letter.jsonl"
+    dead_letter_file.write_text(
+        "\n".join(
+            [
+                json.dumps({"row": {"run_id": "run-a"}}),
+                json.dumps({"row": {"run_id": "run-b"}}),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    def _events_for_run(run_id: str, *_args, **_kwargs):
+        if run_id == "run-a":
+            return [
+                RunEvent(
+                    run_id="run-a",
+                    event_id="ev-a",
+                    stage="event_dead_letter_replay",
+                    level="info",
+                    message="Replay summary",
+                    created_at=datetime.now(timezone.utc),
+                    payload_json=json.dumps(
+                        {
+                            "replay_candidates": 4,
+                            "replayed": 3,
+                            "failed": 1,
+                            "replay_success_ratio": 0.75,
+                            "remaining_dead_letter_total": 1,
+                        }
+                    ),
+                )
+            ]
+        return []
+
+    with patch.dict("os.environ", {"FITCV_EVENT_DEAD_LETTER_PATH": str(dead_letter_file)}), \
+         patch("fitcv_cp.app.list_runs", return_value=runs), \
+         patch("fitcv_cp.app.get_events", side_effect=_events_for_run):
+        resp = TestClient(_app()).get("/admin/runs?view=all")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Outbox Replay Health (Visible Runs)" in html
+    assert "degraded" in html
+    assert "3 / 4" in html
+    assert "0.75" in html
+    assert ">1<" in html
 
 
 def test_admin_run_detail_success_banner():
