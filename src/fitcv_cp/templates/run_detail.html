@@ -99,11 +99,26 @@
     </div>
     <span class="badge badge-info">{{ hitl_review_queue.actions_count }} action(s) logged</span>
   </div>
+  <form id="hitl-batch-form" method="post" action="/admin/runs/{{ run.run_id }}/cv-review-batch-action" style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <select name="action">
+      <option value="approve_as_is">Batch Approve As-Is</option>
+      <option value="regenerate_once">Batch Regenerate Once</option>
+      <option value="reject">Batch Reject</option>
+    </select>
+    <input type="text" name="actor" value="admin" placeholder="actor (optional)" style="min-width:10rem">
+    <input type="text" name="note" placeholder="note (optional)" style="min-width:14rem">
+    <button class="btn-secondary" type="submit">Apply To Selected</button>
+    <span class="meta">Select one or more rows below.</span>
+  </form>
   <div style="display:flex;flex-direction:column;gap:0.85rem">
     {% for item in hitl_review_queue.queue_items %}
     <div class="sub-card" style="padding:0.8rem">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
         <div>
+          <label style="display:inline-flex;align-items:center;gap:0.35rem;margin-bottom:0.35rem">
+            <input type="checkbox" name="job_url" value="{{ item.job_url }}" form="hitl-batch-form">
+            <span class="meta">Select</span>
+          </label>
           <div style="font-weight:700">{{ item.job_title }}</div>
           <div class="meta"><code>{{ item.job_url }}</code></div>
           <div class="meta" style="margin-top:0.35rem">{{ item.reason }}</div>
@@ -121,8 +136,8 @@
       <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.65rem">
         <form method="post" action="/admin/runs/{{ run.run_id }}/cv-review-action" style="display:inline">
           <input type="hidden" name="job_url" value="{{ item.job_url }}">
-          <input type="hidden" name="action" value="approve">
-          <button class="btn-secondary" type="submit">Approve</button>
+          <input type="hidden" name="action" value="approve_as_is">
+          <button class="btn-secondary" type="submit">Approve As-Is</button>
         </form>
         <form method="post" action="/admin/runs/{{ run.run_id }}/cv-review-action" style="display:inline">
           <input type="hidden" name="job_url" value="{{ item.job_url }}">

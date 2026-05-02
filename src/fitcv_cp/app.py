@@ -1012,6 +1012,44 @@ def _map_review_required_reason_code(record: dict[str, Any]) -> str:
         return "provider_response_unusable"
     return "manual_review_other"
 
+def _extract_unsupported_requirements(record: dict[str, Any]) -> list[str]:
+    message = str((dict(record.get("error") or {})).get("message") or "").strip()
+    marker = "Unsupported requirements require review:"
+    if marker not in message:
+        return []
+    suffix = message.split(marker, 1)[1].strip()
+    if not suffix:
+        return []
+    return [item.strip() for item in suffix.split(",") if item.strip()]
+
+def _review_target_for_reason_code(reason_code: str) -> str:
+    if reason_code == "unsupported_requirement_gap":
+        return "requirements_alignment"
+    if reason_code in {"quality_gate_failed", "validation_guardrail_failed"}:
+        return "cv_output"
+    if reason_code == "evidence_coverage_insufficient":
+        return "cv_output"
+    if reason_code == "provider_response_unusable":
+        return "other"
+    return "other"
+
+def _operator_prompt_for_review_required(
+    *,
+    reason_code: str,
+    unsupported_requirements: list[str],
+) -> str:
+    if reason_code == "unsupported_requirement_gap":
+        missing = ", ".join(unsupported_requirements[:6]) if unsupported_requirements else "listed requirements"
+        return (
+            "Review the generated CV output against required stack coverage "
+            f"({missing}), then choose approve as-is, regenerate once, or reject."
+        )
+    if reason_code in {"quality_gate_failed", "validation_guardrail_failed"}:
+        return "Review CV output quality/guardrail issues, then choose approve as-is, regenerate once, or reject."
+    if reason_code == "evidence_coverage_insufficient":
+        return "Review whether evidence coverage is acceptable, then choose approve as-is, regenerate once, or reject."
+    return "Review this CV outcome and choose approve as-is, regenerate once, or reject."
+
 def _extract_review_required_request_id(record: dict[str, Any]) -> str | None:
     runtime_provenance = dict(record.get("runtime_provenance") or {})
     for key in ("request_id", "response_id"):
@@ -1060,11 +1098,19 @@ def _build_cv_generation_review_required_payload(run: PipelineRun) -> dict[str, 
     for record in records:
         if str(record.get("status") or "").strip() != "review_required":
             continue
+        reason_code = _map_review_required_reason_code(record)
+        unsupported_requirements = _extract_unsupported_requirements(record)
         rows.append(
             {
                 "job_url": str(record.get("job_url") or ""),
                 "job_title": str(record.get("job_title") or ""),
-                "reason_code": _map_review_required_reason_code(record),
+                "reason_code": reason_code,
+                "review_target": _review_target_for_reason_code(reason_code),
+                "operator_prompt": _operator_prompt_for_review_required(
+                    reason_code=reason_code,
+                    unsupported_requirements=unsupported_requirements,
+                ),
+                "unsupported_requirements": unsupported_requirements,
                 "attempt_count": int(record.get("attempt_count") or 1),
                 "failed_rule_ids": list(record.get("failed_rule_ids") or []),
                 "first_failing_section_key": record.get("first_failing_section_key"),
@@ -1113,6 +1159,28 @@ def _build_ranked_cv_outcome_summary(rows: list[dict[str, Any]]) -> dict[str, in
             summary["ranked_other_no_cv_count"] += 1
     return summary
 
+_HITL_TERMINAL_RESOLUTION_STATUSES = {
+    "approved_as_is",
+    "rejected",
+    "regenerated_and_accepted",
+    "regenerated_and_rejected",
+}
+
+
+def _normalize_hitl_resolution_status(action_name: str | None, explicit_status: str | None) -> str:
+    normalized_explicit = str(explicit_status or "").strip().lower()
+    if normalized_explicit:
+        return normalized_explicit
+    normalized_action = str(action_name or "").strip().lower()
+    if normalized_action in {"approve", "approve_as_is"}:
+        return "approved_as_is"
+    if normalized_action == "reject":
+        return "rejected"
+    if normalized_action == "regenerate_once":
+        return "regeneration_requested"
+    return "pending"
+
+
 def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
     payload = _load_run_cv_generation_debug_payload(run)
     if not isinstance(payload, dict):
@@ -1136,6 +1204,10 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
             continue
         action = latest_action_by_job.get(job_url)
         action_name = str((action or {}).get("action") or "").strip() or None
+        resolution_status = _normalize_hitl_resolution_status(
+            action_name,
+            (action or {}).get("resolution_status"),
+        )
         queue_items.append(
             {
                 "job_url": job_url,
@@ -1145,7 +1217,8 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
                 "action": action_name,
                 "action_at": str((action or {}).get("created_at") or "").strip() or None,
                 "action_by": str((action or {}).get("actor") or "").strip() or None,
-                "pending": action_name not in {"approve", "reject"},
+                "resolution_status": resolution_status,
+                "pending": resolution_status not in _HITL_TERMINAL_RESOLUTION_STATUSES,
             }
         )
     queue_items.sort(key=lambda item: (not item["pending"], item["job_title"].lower(), item["job_url"]))
@@ -1161,16 +1234,25 @@ def _build_hitl_review_audit_payload(run: PipelineRun) -> dict[str, Any]:
     queue = _build_hitl_review_queue(run)
     payload = _load_run_cv_generation_debug_payload(run)
     actions = [item for item in list((payload or {}).get("hitl_review_actions") or []) if isinstance(item, dict)]
+    queue_items = [item for item in list(queue.get("queue_items") or []) if isinstance(item, dict)]
+    resolution_totals: dict[str, int] = {}
+    for item in queue_items:
+        resolution = str(item.get("resolution_status") or "pending").strip() or "pending"
+        resolution_totals[resolution] = resolution_totals.get(resolution, 0) + 1
+    pending_total = int(queue.get("pending_count") or 0)
+    closure_mode = "all_review_rows_terminal" if queue_items and pending_total == 0 else "incomplete"
     return {
         "schema_version": "hitl_review_audit_v1",
         "run_id": run.run_id,
         "status": run.status.value,
         "summary": {
             "review_required_total": int(queue.get("total_review_required") or 0),
-            "pending_total": int(queue.get("pending_count") or 0),
+            "pending_total": pending_total,
             "actions_total": len(actions),
+            "closure_mode": closure_mode,
+            "resolution_totals": resolution_totals,
         },
-        "queue_items": list(queue.get("queue_items") or []),
+        "queue_items": queue_items,
         "actions": actions,
     }
 
@@ -4687,7 +4769,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             actor=str(form.get("actor") or "admin"),
             note=str(form.get("note") or "").strip() or None,
         )
-        allowed_actions = {"approve", "regenerate_once", "reject"}
+        allowed_actions = {"approve", "approve_as_is", "regenerate_once", "reject"}
         if payload.action not in allowed_actions:
             raise HTTPException(status_code=422, detail="Invalid review action")
 
@@ -4712,6 +4794,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "job_url": payload.job_url,
             "job_title": str(target_record.get("job_title") or "").strip() or None,
             "action": payload.action,
+            "resolution_status": _normalize_hitl_resolution_status(payload.action, None),
             "actor": payload.actor or "admin",
             "note": payload.note,
             "created_at": now.isoformat(),
@@ -4781,6 +4864,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 completed_stages=list(run.completed_stages or []),
                 checkpoint_payload_json=None,
             )
+            closure_payload = _build_hitl_review_audit_payload(
+                dataclasses.replace(
+                    updated_run,
+                    status=RunStatus.SUCCEEDED,
+                    checkpoint_status="completed",
+                )
+            )
             append_event(
                 RunEvent(
                     run_id=run_id,
@@ -4789,12 +4879,189 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     level="info",
                     message="All review-required CV items were resolved; run marked succeeded.",
                     created_at=now,
+                    payload_json=_json.dumps(
+                        {
+                            "closure_mode": closure_payload.get("summary", {}).get("closure_mode"),
+                            "review_required_total": closure_payload.get("summary", {}).get("review_required_total"),
+                            "resolution_totals": closure_payload.get("summary", {}).get("resolution_totals"),
+                        },
+                        ensure_ascii=False,
+                    ),
                 ),
                 bq,
                 project=project,
                 dataset=dataset,
             )
         return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
+
+    @app.post("/admin/runs/{run_id}/cv-review-batch-action")
+    async def admin_run_cv_review_batch_action(
+        request: Request,
+        run_id: str,
+    ) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        form = await request.form()
+        action = str(form.get("action") or "").strip()
+        actor = str(form.get("actor") or "admin").strip() or "admin"
+        note = str(form.get("note") or "").strip() or None
+        selected_urls = [str(value or "").strip() for value in form.getlist("job_url")]
+        selected_urls = [url for url in selected_urls if url]
+        allowed_actions = {"approve", "approve_as_is", "regenerate_once", "reject"}
+        if action not in allowed_actions:
+            raise HTTPException(status_code=422, detail="Invalid batch review action")
+        if not selected_urls:
+            raise HTTPException(status_code=422, detail="Select at least one review-required row")
+
+        debug_payload = _load_run_cv_generation_debug_payload(run)
+        if not isinstance(debug_payload, dict):
+            raise HTTPException(status_code=409, detail="No cv_generation_debug payload available")
+        records = [item for item in list(debug_payload.get("debug_records") or debug_payload.get("cv_generation_debug_records") or []) if isinstance(item, dict)]
+        review_required_urls = {
+            str(record.get("job_url") or "").strip()
+            for record in records
+            if str(record.get("status") or "").strip() == "review_required" and str(record.get("job_url") or "").strip()
+        }
+
+        review_actions = [item for item in list(debug_payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
+        latest_action_by_job: dict[str, dict[str, Any]] = {}
+        for item in review_actions:
+            job_url = str(item.get("job_url") or "").strip()
+            if job_url:
+                latest_action_by_job[job_url] = item
+
+        applied = 0
+        skipped = 0
+        failed = 0
+        now = datetime.datetime.now(datetime.timezone.utc)
+        for job_url in selected_urls:
+            if job_url not in review_required_urls:
+                failed += 1
+                continue
+            latest = latest_action_by_job.get(job_url) or {}
+            latest_resolution = _normalize_hitl_resolution_status(
+                str(latest.get("action") or "").strip() or None,
+                str(latest.get("resolution_status") or "").strip() or None,
+            )
+            if latest_resolution in _HITL_TERMINAL_RESOLUTION_STATUSES:
+                skipped += 1
+                continue
+            action_entry = {
+                "job_url": job_url,
+                "action": action,
+                "resolution_status": _normalize_hitl_resolution_status(action, None),
+                "actor": actor,
+                "note": note,
+                "created_at": now.isoformat(),
+            }
+            review_actions.append(action_entry)
+            latest_action_by_job[job_url] = action_entry
+            applied += 1
+
+        debug_payload["hitl_review_actions"] = review_actions
+        update_run_cv_generation_debug(
+            run_id,
+            _json.dumps(debug_payload, ensure_ascii=False),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        append_event(
+            RunEvent(
+                run_id=run_id,
+                event_id=str(uuid.uuid4()),
+                stage="cv_review_batch_action",
+                level="info",
+                message=(
+                    "CV review batch action applied: "
+                    f"action={action}, applied={applied}, skipped={skipped}, failed={failed}"
+                ),
+                created_at=now,
+                payload_json=_json.dumps(
+                    {
+                        "action": action,
+                        "applied": applied,
+                        "skipped": skipped,
+                        "failed": failed,
+                        "selected_count": len(selected_urls),
+                    },
+                    ensure_ascii=False,
+                ),
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+
+        updated_run = dataclasses.replace(
+            run,
+            cv_generation_debug_json=_json.dumps(debug_payload, ensure_ascii=False),
+        )
+        queue_state = _build_hitl_review_queue(updated_run)
+        if (
+            run.status == RunStatus.AWAITING_CONTINUE
+            and str(run.checkpoint_status or "").strip() == "awaiting_review"
+            and int(queue_state.get("total_review_required") or 0) > 0
+            and int(queue_state.get("pending_count") or 0) == 0
+        ):
+            finished_at = datetime.datetime.now(datetime.timezone.utc)
+            update_run_status(
+                run_id,
+                RunStatus.SUCCEEDED,
+                bq,
+                project=project,
+                dataset=dataset,
+                finished_at=finished_at,
+            )
+            update_run_checkpoint(
+                run_id,
+                bq,
+                project=project,
+                dataset=dataset,
+                checkpoint_status="completed",
+                next_stage=None,
+                last_completed_stage="cv_generation",
+                completed_stages=list(run.completed_stages or []),
+                checkpoint_payload_json=None,
+            )
+            closure_payload = _build_hitl_review_audit_payload(
+                dataclasses.replace(
+                    updated_run,
+                    status=RunStatus.SUCCEEDED,
+                    checkpoint_status="completed",
+                )
+            )
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="cv_review_completed",
+                    level="info",
+                    message="All review-required CV items were resolved; run marked succeeded.",
+                    created_at=finished_at,
+                    payload_json=_json.dumps(
+                        {
+                            "closure_mode": closure_payload.get("summary", {}).get("closure_mode"),
+                            "review_required_total": closure_payload.get("summary", {}).get("review_required_total"),
+                            "resolution_totals": closure_payload.get("summary", {}).get("resolution_totals"),
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+
+        query = urlencode(
+            {
+                "hitl_batch_applied": applied,
+                "hitl_batch_skipped": skipped,
+                "hitl_batch_failed": failed,
+            }
+        )
+        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
 
     @app.post("/admin/runs/{run_id}/synonym-proposals/{proposal_id}/action")
     async def admin_run_synonym_proposal_action(
