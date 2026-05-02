@@ -1420,6 +1420,11 @@ def test_build_synonym_proposals_payload_skips_pairs_already_in_global_synonyms(
     assert payload["synonym_proposals_trace"]["trace_summary"]["suppressed_as_already_global_count"] == 1
     assert payload["synonym_proposals_trace"]["trace_summary"]["generated_for_review_count"] == 0
     assert payload["synonym_proposals_trace"]["trace_summary"]["suppression_source"] == "run_effective_skill_synonyms"
+    assert payload["synonym_proposals_trace"]["trace_summary"]["suppressed_count_by_field"]["skill"] == 1
+    assert (
+        payload["synonym_proposals_trace"]["trace_summary"]["suppressed_reason_counts_by_field"]["skill"]["already_global_exact"]
+        == 1
+    )
     assert payload["synonym_proposals_trace"]["suppression_examples"][0]["alias"] == "gcp"
 
 def test_build_synonym_proposals_payload_supports_domain_and_role_family_fields() -> None:

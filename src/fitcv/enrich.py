@@ -41,6 +41,7 @@ from typing import Any, TypedDict
 
 from pydantic import BaseModel as _BaseModel, Field as _Field
 from fitcv.config import get_gemini_model
+from fitcv.candidate import infer_role_family
 from fitcv.prompts import get_prompt_definition, render_prompt
 
 logger = logging.getLogger(__name__)
@@ -460,6 +461,8 @@ def _build_field_mapping_suggestions(
             underscore_candidate = re.sub(r"\s+", "_", alias)
             if underscore_candidate in known_families:
                 canonical = underscore_candidate
+        if alias == canonical and "_" in alias:
+            alias = alias.replace("_", " ")
     if not alias or not canonical or alias == canonical:
         return []
     return [
@@ -951,6 +954,40 @@ def merge_scraped_and_enriched(
                 }
             )
         merged["domain_mapping_suggestions"] = existing
+
+    # Seed role-family suggestions from title-derived taxonomy family when it
+    # differs from the enrich-extracted job_family phrasing.
+    role_family_alias = str(merged.get("job_family_raw") or merged.get("job_family") or "").strip().lower()
+    role_family_canonical = infer_role_family(
+        str(scraped.get("title") or ""),
+        config=config,
+    )
+    if not role_family_alias and role_family_canonical:
+        role_family_alias = role_family_canonical.replace("_", " ")
+    if role_family_alias == role_family_canonical and "_" in role_family_alias:
+        role_family_alias = role_family_alias.replace("_", " ")
+    if role_family_alias and role_family_canonical and role_family_alias != role_family_canonical:
+        existing_role = list(merged.get("role_family_mapping_suggestions") or [])
+        dedupe_role_keys = {
+            (
+                str(item.get("alias") or "").strip().lower(),
+                str(item.get("canonical") or "").strip().lower(),
+            )
+            for item in existing_role
+            if isinstance(item, dict)
+        }
+        candidate_role_key = (role_family_alias, role_family_canonical)
+        if candidate_role_key not in dedupe_role_keys:
+            existing_role.append(
+                {
+                    "field": "role_family",
+                    "alias": role_family_alias,
+                    "canonical": role_family_canonical,
+                    "confidence": 1.0,
+                    "matches": True,
+                }
+            )
+        merged["role_family_mapping_suggestions"] = existing_role
     return merged
 
 

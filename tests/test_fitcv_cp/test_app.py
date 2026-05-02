@@ -869,6 +869,58 @@ def test_admin_upload_synonym_overlay_updates_run_effective_settings() -> None:
     assert payload["skill_synonyms"]["ga4"] == "google analytics"
     assert payload["skill_synonyms_runtime"]["has_run_overlay"] is True
 
+def test_admin_upload_synonym_overlay_regenerates_synonym_proposals_with_updated_overlay() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-overlay-rebuild-proposals",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="manual_staged",
+        checkpoint_status="awaiting_continue",
+        last_completed_stage="enrich",
+        next_stage="rule_filter",
+        completed_stages=["normalize", "enrich"],
+        mapping_suggestions_json='{"suggestions":[{"alias":"ga4","canonical":"google analytics","confidence":0.9}]}',
+        effective_settings_json=json.dumps({
+            "gcp_project": "p",
+            "bigquery_dataset": "d",
+            "service_account_key": "k",
+            "skill_synonyms": {"gcp": "google cloud"},
+            "skill_synonyms_runtime": {
+                "base_policy_path": "config/skill_synonyms.yaml",
+                "overlay_paths": [],
+                "has_overlay": False,
+                "entry_count": 1,
+            },
+        }),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.update_run_synonym_proposals") as mock_update_synonyms, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-overlay-rebuild-proposals/synonym-overlay",
+            files={
+                "synonym_overlay_file": (
+                    "reviewed-skill-synonyms.yaml",
+                    b"skill_synonyms:\n  ga4: google analytics\n",
+                    "application/x-yaml",
+                )
+            },
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 303
+    synonym_payload = json.loads(mock_update_synonyms.call_args.args[1])
+    assert synonym_payload["proposal_generation_status"] == "not_applicable"
+
 
 def test_admin_upload_synonym_overlay_rejects_invalid_yaml() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -2908,6 +2960,9 @@ def test_synonym_proposal_review_queue_filters_pairs_already_in_global_synonyms(
     queue = _build_synonym_proposal_review_queue(run)
     assert queue["total_count"] == 0
     assert queue["filtered_as_already_global_count"] == 1
+    lanes = {lane["field"]: lane for lane in queue["field_lanes"]}
+    assert lanes["skill"]["suppressed"] == 1
+    assert lanes["skill"]["zero_state_reason"] == "all_suppressed"
 
 def test_synonym_proposal_review_queue_keeps_non_skill_fields_even_if_skill_global_has_same_alias() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -2934,6 +2989,9 @@ def test_synonym_proposal_review_queue_keeps_non_skill_fields_even_if_skill_glob
     queue = _build_synonym_proposal_review_queue(run)
     assert queue["total_count"] == 1
     assert queue["items"][0]["field"] == "domain"
+    lanes = {lane["field"]: lane for lane in queue["field_lanes"]}
+    assert lanes["domain"]["generated"] == 1
+    assert lanes["domain"]["zero_state_reason"] is None
 
 
 def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful() -> None:

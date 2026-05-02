@@ -585,6 +585,8 @@ def _build_synonym_proposals_payload(
             if str(alias).strip() and str(canonical).strip()
         }
     suppressed_as_already_global_count = 0
+    suppressed_count_by_field: dict[str, int] = {}
+    suppressed_reason_counts_by_field: dict[str, dict[str, int]] = {}
     suppressed_examples: list[dict[str, str]] = []
     for (_field_alias_key, bucket) in grouped.items():
         field = str(bucket.get("field") or "skill")
@@ -607,6 +609,9 @@ def _build_synonym_proposals_payload(
         global_canonical = normalized_global_synonyms.get(alias) if field == "skill" else None
         if global_canonical and global_canonical == primary_canonical:
             suppressed_as_already_global_count += 1
+            suppressed_count_by_field[field] = suppressed_count_by_field.get(field, 0) + 1
+            reason_bucket = suppressed_reason_counts_by_field.setdefault(field, {})
+            reason_bucket["already_global_exact"] = reason_bucket.get("already_global_exact", 0) + 1
             if len(suppressed_examples) < 10:
                 suppressed_examples.append({"field": field, "alias": alias, "canonical": primary_canonical})
             continue
@@ -663,6 +668,8 @@ def _build_synonym_proposals_payload(
         suppression_summary={
             "suppressed_as_already_global_count": suppressed_as_already_global_count,
             "generated_for_review_count": len(proposals),
+            "suppressed_count_by_field": suppressed_count_by_field,
+            "suppressed_reason_counts_by_field": suppressed_reason_counts_by_field,
             "suppressed_examples": suppressed_examples,
             "suppression_source": (
                 "run_effective_skill_synonyms"
@@ -738,6 +745,8 @@ def _build_synonym_proposals_trace_payload(
                     (suppression_summary or {}).get("generated_for_review_count") or 0
                 ),
                 "suppression_source": str((suppression_summary or {}).get("suppression_source") or "none"),
+                "suppressed_count_by_field": dict((suppression_summary or {}).get("suppressed_count_by_field") or {}),
+                "suppressed_reason_counts_by_field": dict((suppression_summary or {}).get("suppressed_reason_counts_by_field") or {}),
             },
             "records": [],
             "degradation": {},
@@ -819,6 +828,8 @@ def _build_synonym_proposals_trace_payload(
                 (suppression_summary or {}).get("generated_for_review_count") or len(proposals)
             ),
             "suppression_source": str((suppression_summary or {}).get("suppression_source") or "none"),
+            "suppressed_count_by_field": dict((suppression_summary or {}).get("suppressed_count_by_field") or {}),
+            "suppressed_reason_counts_by_field": dict((suppression_summary or {}).get("suppressed_reason_counts_by_field") or {}),
         },
         "records": trace_records,
         "degradation": degradation,

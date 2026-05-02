@@ -1081,6 +1081,20 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
         return {"items": [], "pending_count": 0, "total_count": 0}
     global_synonyms = _global_synonyms_for_proposal_evaluation(run)
     items: list[dict[str, Any]] = []
+    lane_keys = ("skill", "domain", "role_family")
+    lane_summary: dict[str, dict[str, Any]] = {
+        key: {
+            "field": key,
+            "label": "Skills" if key == "skill" else ("Domain" if key == "domain" else "Role Family"),
+            "total": 0,
+            "pending": 0,
+            "approved": 0,
+            "suppressed": 0,
+            "generated": 0,
+            "zero_state_reason": "no_suggestions",
+        }
+        for key in lane_keys
+    }
     filtered_as_already_global_count = 0
     for proposal in list(payload.get("proposals") or []):
         if not isinstance(proposal, dict):
@@ -1097,31 +1111,39 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
         already_global = field == "skill" and bool(alias) and bool(canonical) and global_synonyms.get(alias) == canonical
         if already_global:
             filtered_as_already_global_count += 1
+            lane_summary.setdefault(field, {"field": field, "label": field, "total": 0, "pending": 0, "approved": 0, "suppressed": 0, "generated": 0, "zero_state_reason": "no_suggestions"})
+            lane_summary[field]["suppressed"] = int(lane_summary[field].get("suppressed", 0)) + 1
             continue
+        lane_summary.setdefault(field, {"field": field, "label": field, "total": 0, "pending": 0, "approved": 0, "suppressed": 0, "generated": 0, "zero_state_reason": "no_suggestions"})
+        lane_summary[field]["generated"] = int(lane_summary[field].get("generated", 0)) + 1
         latest_action = review_history[-1] if review_history else {}
-        items.append(
-            {
-                "proposal_id": str(proposal.get("proposal_id") or "").strip(),
-                "field": field,
-                "alias": str(proposal.get("alias") or "").strip() or "—",
-                "canonical": str(proposal.get("canonical") or "").strip() or "—",
-                "confidence": float(proposal.get("confidence") or 0.0),
-                "status": status,
-                "pending": pending,
-                "latest_action": str(latest_action.get("action") or "").strip() or None,
-                "latest_action_at": str(latest_action.get("acted_at") or "").strip() or None,
-                "latest_action_by": str(latest_action.get("acted_by") or "").strip() or None,
-                "recommended_action": str(proposal.get("recommended_action") or "").strip() or None,
-                "recommendation_confidence": float(proposal.get("recommendation_confidence") or 0.0),
-                "recommendation_rationale": str(proposal.get("recommendation_rationale") or "").strip() or None,
-                "recommendation_risk_flags": [
-                    str(flag).strip()
-                    for flag in list(proposal.get("recommendation_risk_flags") or [])
-                    if str(flag).strip()
-                ],
-                "globally_promoted": bool(global_promotion_history) or already_global,
-            }
-        )
+        item = {
+            "proposal_id": str(proposal.get("proposal_id") or "").strip(),
+            "field": field,
+            "alias": str(proposal.get("alias") or "").strip() or "—",
+            "canonical": str(proposal.get("canonical") or "").strip() or "—",
+            "confidence": float(proposal.get("confidence") or 0.0),
+            "status": status,
+            "pending": pending,
+            "latest_action": str(latest_action.get("action") or "").strip() or None,
+            "latest_action_at": str(latest_action.get("acted_at") or "").strip() or None,
+            "latest_action_by": str(latest_action.get("acted_by") or "").strip() or None,
+            "recommended_action": str(proposal.get("recommended_action") or "").strip() or None,
+            "recommendation_confidence": float(proposal.get("recommendation_confidence") or 0.0),
+            "recommendation_rationale": str(proposal.get("recommendation_rationale") or "").strip() or None,
+            "recommendation_risk_flags": [
+                str(flag).strip()
+                for flag in list(proposal.get("recommendation_risk_flags") or [])
+                if str(flag).strip()
+            ],
+            "globally_promoted": bool(global_promotion_history) or already_global,
+        }
+        items.append(item)
+        lane_summary[field]["total"] = int(lane_summary[field].get("total", 0)) + 1
+        if pending:
+            lane_summary[field]["pending"] = int(lane_summary[field].get("pending", 0)) + 1
+        if status == "approved_for_run_overlay":
+            lane_summary[field]["approved"] = int(lane_summary[field].get("approved", 0)) + 1
     items.sort(key=lambda item: (not item["pending"], -item["confidence"], item["alias"], item["canonical"]))
     triage_status = "not_generated"
     if items:
@@ -1137,6 +1159,18 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
             triage_status = "partial"
         elif any(str(item.get("recommended_action") or "").strip() for item in items):
             triage_status = "stale"
+    for field_key, lane in lane_summary.items():
+        total = int(lane.get("total", 0))
+        suppressed = int(lane.get("suppressed", 0))
+        generated = int(lane.get("generated", 0))
+        if total > 0:
+            lane["zero_state_reason"] = None
+        elif generated == 0 and suppressed > 0:
+            lane["zero_state_reason"] = "all_suppressed"
+        elif generated == 0:
+            lane["zero_state_reason"] = "no_suggestions"
+        else:
+            lane["zero_state_reason"] = None
     return {
         "items": items,
         "pending_count": sum(1 for item in items if item["pending"]),
@@ -1144,6 +1178,7 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
         "approved_count": sum(1 for item in items if item["status"] == "approved_for_run_overlay"),
         "filtered_as_already_global_count": filtered_as_already_global_count,
         "triage_status": triage_status,
+        "field_lanes": [lane_summary[key] for key in lane_keys if key in lane_summary],
     }
 
 def _build_markdown_quality_summary(run: PipelineRun) -> dict[str, Any]:
@@ -4062,6 +4097,28 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
+        synonym_mode = dict(updated_config.get("synonym_management") or {})
+        if bool(synonym_mode.get("propose_enabled", True)) and run.mapping_suggestions_json:
+            try:
+                mapping_payload = _json.loads(run.mapping_suggestions_json)
+            except (_json.JSONDecodeError, TypeError):
+                mapping_payload = {}
+            suggestions = list((mapping_payload or {}).get("suggestions") or [])
+            from fitcv_cp.worker_job import _build_synonym_proposals_payload
+            synonym_payload_json = _build_synonym_proposals_payload(
+                run_id=run_id,
+                summary={"mapping_suggestions": suggestions},
+                created_at=datetime.datetime.now(datetime.timezone.utc),
+                existing_payload_json=run.synonym_proposals_json,
+                global_synonyms=dict(updated_config.get("skill_synonyms") or {}),
+            )
+            update_run_synonym_proposals(
+                run_id,
+                synonym_payload_json,
+                bq,
+                project=project,
+                dataset=dataset,
+            )
         append_event(
             RunEvent(
                 run_id=run_id,
