@@ -142,6 +142,14 @@ Rules:
 2. exception must include a short rationale and removal target in the related plan/checkpoint notes.
 3. exception should be removed in the next bounded pass that can safely do so.
 
+## Enforcement Surfaces
+
+- `scripts/validate_component_boundaries.py`
+- `docs/operating_system/component_ownership_map.yaml`
+- `docs/operating_system/component_boundary_exceptions.yaml`
+
+Validation is executed through `scripts/validate_repo_contracts.py --fast`.
+
 ## Current Module Mapping
 
 - `src/fitcv_cp/app.py` -> control_plane

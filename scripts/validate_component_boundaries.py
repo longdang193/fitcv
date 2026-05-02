@@ -5,11 +5,13 @@ type: script
 domain: architecture
 responsibility:
   - Enforce lightweight component-boundary import rules for key runtime modules.
+  - Enforce package-level ownership map import rules.
   - Honor explicit, documented temporary exceptions.
 inputs:
   - src/fitcv/**/*.py
   - src/fitcv_cp/**/*.py
   - docs/operating_system/component_boundary_exceptions.yaml
+  - docs/operating_system/component_ownership_map.yaml
 outputs:
   - Exit status and human-readable component-boundary validation results.
 tags:
@@ -24,6 +26,7 @@ from __future__ import annotations
 
 import ast
 from dataclasses import dataclass
+from fnmatch import fnmatch
 from pathlib import Path
 import sys
 from typing import Any
@@ -87,6 +90,14 @@ def _load_exceptions(root: Path) -> set[tuple[str, str]]:
     return result
 
 
+def _load_component_map(root: Path) -> dict[str, Any]:
+    path = root / "docs" / "operating_system" / "component_ownership_map.yaml"
+    if not path.exists():
+        return {}
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return payload if isinstance(payload, dict) else {}
+
+
 def _imported_modules(path: Path) -> set[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     imports: set[str] = set()
@@ -100,9 +111,17 @@ def _imported_modules(path: Path) -> set[str]:
     return imports
 
 
+def _matches_any_glob(rel_path: str, globs: list[str]) -> bool:
+    for pattern in globs:
+        if fnmatch(rel_path, pattern):
+            return True
+    return False
+
+
 def main(argv: list[str] | None = None) -> int:
     root = _repo_root()
     exceptions = _load_exceptions(root)
+    component_map = _load_component_map(root)
     violations: list[str] = []
 
     for rule in RULES:
@@ -117,6 +136,28 @@ def main(argv: list[str] | None = None) -> int:
             violations.append(
                 f"{rule.source}: forbidden import `{imported}` ({rule.reason})"
             )
+
+    components = component_map.get("components")
+    if isinstance(components, dict):
+        for _, spec in components.items():
+            if not isinstance(spec, dict):
+                continue
+            source_globs = [str(item) for item in list(spec.get("source_globs") or [])]
+            forbidden_prefixes = [str(item) for item in list(spec.get("forbidden_import_prefixes") or [])]
+            if not source_globs or not forbidden_prefixes:
+                continue
+            for py_path in root.rglob("*.py"):
+                rel = py_path.resolve().relative_to(root.resolve()).as_posix()
+                if not _matches_any_glob(rel, source_globs):
+                    continue
+                for imported in sorted(_imported_modules(py_path)):
+                    for forbidden_prefix in forbidden_prefixes:
+                        if forbidden_prefix and imported.startswith(forbidden_prefix):
+                            if (rel, imported) in exceptions:
+                                continue
+                            violations.append(
+                                f"{rel}: forbidden import `{imported}` (component-map rule `{forbidden_prefix}`)"
+                            )
 
     if violations:
         print("Component-boundary validation failed:")
