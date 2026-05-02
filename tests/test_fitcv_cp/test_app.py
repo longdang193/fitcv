@@ -1224,6 +1224,34 @@ def test_run_detail_shows_orchestration_backend_diagnostics() -> None:
     assert "flow-run-abc123" in resp.text
 
 
+def test_run_detail_orchestration_diagnostics_fallback_to_queue_job_id_for_legacy_rows() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-orch-legacy",
+        status=RunStatus.QUEUED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        queue_job_id="rq-job-legacy-123",
+        orchestration_backend=None,
+        orchestration_run_id=None,
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]), \
+         patch("fitcv_cp.app.orchestration_job_status", return_value="queued"):
+        resp = TestClient(_app()).get("/admin/runs/run-orch-legacy")
+
+    assert resp.status_code == 200
+    assert "Orchestration Backend" in resp.text
+    assert "Backend Run ID" in resp.text
+    assert "rq-job-legacy-123" in resp.text
 def test_admin_run_detail_shows_download_cv_debug_json_button():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -7921,3 +7949,4 @@ def test_admin_replay_dead_letter_events_keeps_failed_rows(tmp_path):
     assert body["failed"] == 1
     content = dead_letter_file.read_text(encoding="utf-8")
     assert "event-replay-2" in content
+
