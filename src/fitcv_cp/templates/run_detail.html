@@ -119,6 +119,24 @@
 
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Dead-letter Replay Summary</h3>
+    {% if dead_letter_replay_summary.replay_candidates > 0 %}
+      <span class="badge badge-info">available</span>
+    {% else %}
+      <span class="badge badge-neutral">none</span>
+    {% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Last Replay Timestamp</span><span class="v">{{ dead_letter_replay_summary.occurred_at or '—' }}</span>
+    <span class="k">Replay Success Ratio</span><span class="v">{{ '%.2f'|format(dead_letter_replay_summary.replay_success_ratio) }}</span>
+    <span class="k">Replayed / Candidates</span><span class="v">{{ dead_letter_replay_summary.replayed }} / {{ dead_letter_replay_summary.replay_candidates }}</span>
+    <span class="k">Failed Replays</span><span class="v">{{ dead_letter_replay_summary.failed }}</span>
+    <span class="k">Remaining Dead-letter Total</span><span class="v">{{ dead_letter_replay_summary.remaining_dead_letter_total }}</span>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
     <h3 style="margin:0">Agentic Runtime Alignment</h3>
     {% if agentic_runtime_drift.status == 'aligned' %}
       <span class="badge badge-success">aligned</span>
