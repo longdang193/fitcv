@@ -1,4 +1,5 @@
 """Uvicorn entrypoint for the FitCV admin web service."""
+import logging
 import os
 import warnings
 from pathlib import Path
@@ -6,6 +7,9 @@ from pathlib import Path
 from google.cloud import bigquery
 
 from fitcv_cp.app import create_app
+from fitcv_cp.bq_store import get_pipeline_runs_schema_status
+
+logger = logging.getLogger(__name__)
 
 
 def _validate_google_credentials_path() -> None:
@@ -41,9 +45,34 @@ def _validate_google_credentials_path() -> None:
 
 _validate_google_credentials_path()
 bq = bigquery.Client()
+_project = os.environ["GCP_PROJECT"]
+_dataset = os.environ.get("BIGQUERY_DATASET", "fitcv")
+_schema_status = get_pipeline_runs_schema_status(
+    bq,
+    project=_project,
+    dataset=_dataset,
+)
+if _schema_status.get("status") == "complete":
+    logger.info(
+        "orchestration schema mode: complete (%s.%s.pipeline_runs)",
+        _project,
+        _dataset,
+    )
+elif _schema_status.get("status") == "fallback":
+    missing = ", ".join(_schema_status.get("missing_columns") or [])
+    logger.warning(
+        "orchestration schema mode: fallback (missing columns: %s). "
+        "Run migration to add orchestration_backend and orchestration_run_id.",
+        missing or "unknown",
+    )
+else:
+    logger.warning(
+        "orchestration schema mode: unknown (%s).",
+        _schema_status.get("warning") or "schema check failed",
+    )
 app = create_app(
     bq=bq,
-    project=os.environ["GCP_PROJECT"],
-    dataset=os.environ.get("BIGQUERY_DATASET", "fitcv"),
+    project=_project,
+    dataset=_dataset,
     redis_url=os.environ.get("REDIS_URL", "redis://redis:6379/0"),
 )

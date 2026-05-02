@@ -244,6 +244,17 @@ def test_healthz():
     resp = TestClient(_app()).get("/healthz")
     assert resp.status_code == 200
 
+def test_admin_orchestration_schema_diagnostics_endpoint() -> None:
+    with patch(
+        "fitcv_cp.app.get_pipeline_runs_schema_status",
+        return_value={"status": "complete", "missing_columns": [], "warning": None},
+    ):
+        resp = TestClient(_app()).get("/admin/diagnostics/orchestration-schema")
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["status"] == "complete"
+    assert payload["required_columns"] == ["orchestration_backend", "orchestration_run_id"]
+
 
 def test_timeline_stage_download_maps_cv_analysis_skip_to_cv_analysis():
     assert _timeline_stage_download_for_event("layer4_cv_analysis_skip") == "cv_analysis"

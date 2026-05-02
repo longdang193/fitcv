@@ -235,3 +235,19 @@ docker compose up -d --build redis web worker
 | `.env.yaml` | Runtime config |
 | `docker-compose.yml` | Docker services for `redis`, `web`, and `worker` |
 | `Dockerfile` | Shared image for the web and worker containers |
+
+## Orchestration Schema Migration
+
+If `/admin/runs` shows `schema: fallback mode`, the `pipeline_runs` table is missing orchestration binding columns.
+
+Dry run:
+
+```powershell
+python scripts/migrate_pipeline_runs_orchestration_columns.py --project <gcp-project> --dataset <dataset>
+```
+
+Apply migration:
+
+```powershell
+python scripts/migrate_pipeline_runs_orchestration_columns.py --project <gcp-project> --dataset <dataset> --apply
+```
