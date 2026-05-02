@@ -935,6 +935,50 @@ def test_admin_run_cv_review_action_persists_and_appends_event() -> None:
     mock_append.assert_called_once()
 
 
+def test_admin_run_cv_review_action_regenerate_once_does_not_auto_complete_review() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-regenerate",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                        "error": {"stage": "review_gate", "message": "Low confidence sections: experience"},
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint, \
+         patch("fitcv_cp.app.append_event") as mock_append:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-regenerate/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "regenerate_once", "actor": "operator"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    mock_update_debug.assert_called_once()
+    mock_update_status.assert_not_called()
+    mock_update_checkpoint.assert_not_called()
+    assert mock_append.call_count == 1
+
+
 def test_admin_run_detail_shows_synonym_overlay_yaml_snapshot() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
