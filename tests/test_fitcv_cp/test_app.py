@@ -7844,6 +7844,72 @@ def test_run_detail_shows_event_delivery_healthy_when_no_dead_letter_for_run(tmp
     assert "Dead-lettered Events" in html
     assert ">0<" in html
 
+def test_run_detail_shows_telemetry_export_degraded_health() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="telemetry-degraded-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    telemetry_event = RunEvent(
+        run_id="telemetry-degraded-1",
+        event_id="telemetry-ev-1",
+        stage="layer3_filter",
+        level="warning",
+        message="telemetry degraded",
+        created_at=datetime.now(timezone.utc),
+        payload_json=json.dumps({"telemetry_export": {"status": "degraded", "degradation_reason": "otel_dependency_missing"}}),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], patch("fitcv_cp.app.get_events", return_value=[telemetry_event]), p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/telemetry-degraded-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Telemetry Export Health" in html
+    assert "degraded" in html
+    assert "Last Degraded Stage" in html
+    assert "layer3_filter" in html
+
+def test_run_detail_shows_telemetry_export_healthy_when_no_degraded_events() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="telemetry-healthy-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    telemetry_event = RunEvent(
+        run_id="telemetry-healthy-1",
+        event_id="telemetry-ev-2",
+        stage="normalize",
+        level="info",
+        message="telemetry ok",
+        created_at=datetime.now(timezone.utc),
+        payload_json=json.dumps({"telemetry_export": {"status": "export_enabled"}}),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], patch("fitcv_cp.app.get_events", return_value=[telemetry_event]), p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/telemetry-healthy-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Telemetry Export Health" in html
+    assert "healthy" in html
+    assert "Degraded Telemetry Events" in html
+    assert ">0<" in html
+
 def test_admin_replay_dead_letter_events_replays_and_clears_run_rows(tmp_path):
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone

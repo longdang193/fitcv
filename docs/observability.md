@@ -44,8 +44,31 @@ This is the main observability surface. It combines:
 - run exports
 - stage-artifact downloads
 - synonym overlay and review-adjacent surfaces
+- telemetry export health (degraded vs healthy)
 
 For most debugging, start here before opening raw JSON exports.
+
+## OpenTelemetry Export Runtime
+
+FitCV now supports OpenTelemetry export wiring with safe fallback behavior.
+
+Runtime toggles:
+
+- `FITCV_OTEL_ENABLED` (`true`/`false`)
+- `FITCV_OTEL_EXPORTER_OTLP_ENDPOINT` (OTLP HTTP endpoint)
+- `FITCV_OTEL_SERVICE_NAME` (optional, defaults to `fitcv-control-plane`)
+
+Fallback behavior:
+
+- if OTel dependencies are unavailable, export is marked degraded
+- if exporter endpoint is missing, export is marked degraded
+- telemetry degradation does not block stage execution or artifact persistence
+- stage artifacts remain the evidence source of truth
+
+Operator signal:
+
+- run detail now shows a **Telemetry Export Health** card
+- degraded telemetry events are counted from persisted run events payloads
 
 ### Raw run events
 

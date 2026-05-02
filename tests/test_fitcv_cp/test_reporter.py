@@ -13,6 +13,7 @@ tags:
 """
 
 from unittest.mock import MagicMock
+import json
 from fitcv_cp.reporter import PipelineReporter
 
 
@@ -21,6 +22,7 @@ def test_reporter_emits_event():
     @proves run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
     """
     bq = MagicMock()
+    bq.insert_rows_json.return_value = []
     reporter = PipelineReporter(run_id="r1", bq=bq, project="p", dataset="d")
     reporter.emit("pipeline_start", "info", "Run started")
     bq.insert_rows_json.assert_called_once()
@@ -35,8 +37,16 @@ def test_reporter_noop_without_bq():
 def test_reporter_payload_serialized():
     """@proves admin_control_plane_core.pipelinereporter-integration"""
     bq = MagicMock()
+    bq.insert_rows_json.return_value = []
     reporter = PipelineReporter(run_id="r1", bq=bq, project="p", dataset="d")
     reporter.emit("layer3_filter", "error", "timeout", payload={"retries": 3})
     call_args = bq.insert_rows_json.call_args[0][1][0]
     assert call_args["level"] == "error"
     assert "retries" in call_args["payload_json"]
+    payload = json.loads(call_args["payload_json"])
+    telemetry_export = dict(payload.get("telemetry_export") or {})
+    trace_context = dict(payload.get("trace_context") or {})
+    assert telemetry_export.get("status") in {"degraded", "export_enabled"}
+    assert str(trace_context.get("trace_id") or "").strip()
+    assert str(trace_context.get("span_id") or "").strip()
+    assert str(trace_context.get("parent_span_id") or "").strip()
