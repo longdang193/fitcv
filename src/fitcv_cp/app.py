@@ -1660,8 +1660,8 @@ def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
     block = dict(config.get("synonym_management") or {})
     return {
         "propose_enabled": bool(block.get("propose_enabled", True)),
-        "apply_to_run_enabled": bool(block.get("apply_to_run_enabled", False)),
-        "promote_global_enabled": bool(block.get("promote_global_enabled", False)),
+        "apply_to_run_enabled": bool(block.get("apply_to_run_enabled", True)),
+        "promote_global_enabled": bool(block.get("promote_global_enabled", True)),
     }
 
 def _find_synonym_proposal_index(payload: dict[str, Any], proposal_id: str) -> int | None:

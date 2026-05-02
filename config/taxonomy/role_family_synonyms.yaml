@@ -1,0 +1,4 @@
+# Role-family synonym source-of-truth.
+# Loader normalizes aliases/canonicals to lowercase tokens.
+role_family_alias_map: {}
+role_family_neighbors: {}

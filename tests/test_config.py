@@ -480,6 +480,80 @@ def test_load_config_normalizes_domain_and_role_family_neighbors(tmp_path: Path)
     assert cfg["domain_neighbors"]["financial services"] == ("fintech",)
     assert cfg["role_family_neighbors"]["analytics"] == ("data_science",)
 
+def test_load_config_prefers_dedicated_non_skill_synonym_files_over_taxonomy(tmp_path: Path) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\n"
+        "bigquery_dataset: ds\n"
+        "service_account_key: /dev/null\n"
+    )
+    cfg_dir = tmp_path / "config"
+    (cfg_dir / "taxonomy").mkdir(parents=True)
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    (cfg_dir / "taxonomy" / "taxonomy.yaml").write_text(
+        "domain_alias_map:\n"
+        "  FinTech: legacy domain\n"
+        "role_family_alias_map:\n"
+        "  BI Analyst: legacy family\n"
+    )
+    (cfg_dir / "taxonomy" / "domain_synonyms.yaml").write_text(
+        "domain_alias_map:\n"
+        "  FinTech: Financial Services\n"
+    )
+    (cfg_dir / "taxonomy" / "role_family_synonyms.yaml").write_text(
+        "role_family_alias_map:\n"
+        "  BI Analyst: analytics\n"
+    )
+
+    cfg = load_config(env_yaml)
+
+    assert cfg["domain_alias_map"]["fintech"] == "financial services"
+    assert cfg["role_family_alias_map"]["bi analyst"] == "analytics"
+
+def test_load_config_falls_back_to_taxonomy_for_non_skill_synonym_maps(tmp_path: Path) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\n"
+        "bigquery_dataset: ds\n"
+        "service_account_key: /dev/null\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    (cfg_dir / "taxonomy.yaml").write_text(
+        "domain_alias_map:\n"
+        "  FinTech: Financial Services\n"
+        "role_family_alias_map:\n"
+        "  BI Analyst: analytics\n"
+    )
+
+    cfg = load_config(env_yaml)
+
+    assert cfg["domain_alias_map"]["fintech"] == "financial services"
+    assert cfg["role_family_alias_map"]["bi analyst"] == "analytics"
+
 
 def test_parse_skill_synonym_overlay_yaml_accepts_nested_skill_synonyms() -> None:
     overlay = parse_skill_synonym_overlay_yaml(

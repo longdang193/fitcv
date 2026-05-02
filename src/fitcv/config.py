@@ -52,8 +52,16 @@ _APIFY_KEYS = ["apify_dataset_id", "apify_token"]
 # The new subfolder layout is canonical; flat legacy filenames are temporary
 # fallbacks for migration compatibility.
 _POLICY_FILE_CANDIDATES = [
-    ("taxonomy", ("taxonomy/taxonomy.yaml", "taxonomy.yaml")),
     ("skill_synonyms", ("taxonomy/skill_synonyms.yaml", "skill_synonyms.yaml")),
+    (
+        "domain_synonyms",
+        ("taxonomy/domain_synonyms.yaml", "domain_synonyms.yaml"),
+    ),
+    (
+        "role_family_synonyms",
+        ("taxonomy/role_family_synonyms.yaml", "role_family_synonyms.yaml"),
+    ),
+    ("taxonomy", ("taxonomy/taxonomy.yaml", "taxonomy.yaml")),
     ("pipeline", ("runtime/pipeline.yaml", "pipeline.yaml")),
     ("ranking", ("policy/ranking.yaml", "ranking.yaml")),
     ("cv_analysis", ("policy/cv_analysis.yaml", "cv_analysis.yaml")),
