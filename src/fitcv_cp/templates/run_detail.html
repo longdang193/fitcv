@@ -253,6 +253,21 @@
       </span>
     </div>
   </div>
+  {% if synonym_proposal_review_queue.get("field_lanes") %}
+  <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin-bottom:0.85rem">
+    {% for lane in synonym_proposal_review_queue.get("field_lanes", []) %}
+    <div class="sub-card" style="padding:0.55rem 0.7rem;min-width:12rem">
+      <div style="font-weight:700">{{ lane.label }}</div>
+      <div class="meta">
+        total={{ lane.total }}, pending={{ lane.pending }}, approved={{ lane.approved }}, suppressed={{ lane.suppressed }}
+      </div>
+      {% if lane.zero_state_reason %}
+      <div class="meta">reason: {{ lane.zero_state_reason }}</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
   {% if synonym_proposal_decision_ledger %}
   <div style="margin:0.2rem 0 0.85rem 0">
     <div class="meta" style="margin-bottom:0.35rem">Proposal Decision Ledger</div>
