@@ -1,0 +1,4 @@
+# Domain synonym source-of-truth.
+# Loader normalizes aliases/canonicals to lowercase tokens.
+domain_alias_map: {}
+domain_neighbors: {}
