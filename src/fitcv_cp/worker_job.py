@@ -1446,13 +1446,14 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
         except Exception as exc:
             logger.warning("[run_id=%s] Failed to persist settings-used snapshot: %s", run_id, exc)
         if _summary_has_reached_stage(summary, "enrich"):
+            snapshot_created_at = finished_at or datetime.datetime.now(datetime.timezone.utc)
             try:
                 update_run_mapping_suggestions(
                     run_id,
                     _build_mapping_suggestions_payload(
                         run_id=run_id,
                         summary=summary,
-                        created_at=finished_at,
+                        created_at=snapshot_created_at,
                     ),
                     bq,
                     project=project,
@@ -1478,7 +1479,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     synonym_payload_json = _build_synonym_proposals_payload(
                         run_id=run_id,
                         summary=summary,
-                        created_at=finished_at,
+                        created_at=snapshot_created_at,
                         existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
                         global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
                     )
