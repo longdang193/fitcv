@@ -397,6 +397,36 @@ def list_runs(
     )
     return [_row_to_run(r) for r in bq.query(sql).result()]
 
+def get_pipeline_runs_schema_status(
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> dict[str, Any]:
+    """Report whether orchestration-binding columns exist on pipeline_runs."""
+    required_columns = {"orchestration_backend", "orchestration_run_id"}
+    sql = (
+        f"SELECT column_name FROM `{project}.{dataset}.INFORMATION_SCHEMA.COLUMNS` "
+        "WHERE table_name = 'pipeline_runs'"
+    )
+    try:
+        rows = list(bq.query(sql).result())
+        present = {str(dict(row).get("column_name") or "").strip() for row in rows}
+    except Exception as exc:
+        return {
+            "status": "unknown",
+            "missing_columns": sorted(required_columns),
+            "warning": f"schema_check_failed:{exc}",
+        }
+    missing = sorted(col for col in required_columns if col not in present)
+    if not missing:
+        return {"status": "complete", "missing_columns": [], "warning": None}
+    return {
+        "status": "fallback",
+        "missing_columns": missing,
+        "warning": "orchestration_binding_columns_missing",
+    }
+
 
 def update_run_queue_job_id(
     run_id: str,

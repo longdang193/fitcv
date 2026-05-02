@@ -5621,6 +5621,22 @@ def test_runs_list_shows_orchestration_backend_diagnostics() -> None:
     assert "prefect" in html
     assert "queued" in html
 
+def test_runs_list_shows_schema_fallback_banner_when_columns_missing() -> None:
+    run = _make_full_run_mock(status="queued", run_id="run-schema-banner")
+    with patch("fitcv_cp.app.list_runs", return_value=[run]), \
+         patch(
+             "fitcv_cp.app.get_pipeline_runs_schema_status",
+             return_value={
+                 "status": "fallback",
+                 "missing_columns": ["orchestration_backend", "orchestration_run_id"],
+                 "warning": "orchestration_binding_columns_missing",
+             },
+         ):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert resp.status_code == 200
+    assert "Orchestration Schema Fallback Mode" in resp.text
+    assert "schema: fallback mode" in resp.text
+
 
 def test_runs_list_uses_canonical_run_mode_labels():
     run_all = _make_full_run_mock(status="queued", run_id="run-all-label")
