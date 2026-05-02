@@ -30,6 +30,8 @@ related_stages:
 
 **Goal:** Establish a safe migration path from current BigQuery-first runtime to scalable multi-backend architecture without breaking current operations.
 
+This plan is migration-path design and boundary hardening only. Runtime tool cutovers are executed in dedicated follow-up plans.
+
 ## Scope
 
 - introduce storage/artifact interface boundaries (ports/adapters)
@@ -41,6 +43,10 @@ related_stages:
 
 - full cutover to Postgres in this plan
 - orchestrator migration to Dagster in this plan
+- Prefect runtime orchestration adoption in this plan
+- OpenTelemetry exporter/collector runtime integration in this plan
+- Langfuse runtime integration in this plan
+- production object-storage cutover (S3/R2/MinIO) in this plan
 
 ## Execution-Pass Checkpoint Requirement
 
@@ -86,3 +92,4 @@ python scripts/validate_checkpoint_packs.py
 2. Runtime/backend mode contracts are documented and visible to operators.
 3. Migration path to Postgres/object storage is implementation-ready.
 4. Tooling roadmap is explicitly staged (now vs later) without ambiguity.
+5. No runtime/tooling cutover is implied as complete without dedicated execution-plan delivery and checkpoint result packs.

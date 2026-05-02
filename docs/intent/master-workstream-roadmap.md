@@ -182,6 +182,12 @@ Phase 2 outcomes:
 - portability direction is explicit for BigQuery-now and local/Postgres-later operating modes
 - failure/cancel evidence completeness expectations are documented alongside succeeded-run expectations
 
+Phase 2 execution follow-up threads:
+
+- Prefect orchestration adoption is executed as a bounded implementation thread under semantic-spine flow authority.
+- OpenTelemetry exporter/collector integration is executed as a bounded implementation thread under agentic-observability trace authority.
+- migration-path planning artifacts do not count as runtime cutover completion without dedicated implementation plans and checkpoint packs.
+
 Phase 2 documentation-order guardrail:
 
 1. master workstream roadmap

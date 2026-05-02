@@ -143,6 +143,8 @@ refs:
   - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
   - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
   - docs/superpowers/plans/2026-04-23-02-10-run-lifecycle-stage-participation-plan.md
+  - docs/superpowers/plans/2026-05-02-phase-2-plan-i-prefect-orchestration-adoption.md
+  - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
   docs:
   - docs/features/run_lifecycle_controls/history.md
   configs: []
