@@ -31,6 +31,12 @@ is visible.
 Use this page to find the run, its current status, trigger mode, and whether it
 is worth drilling into immediately.
 
+The runs list includes an **Outbox Replay Health (Visible Runs)** card with:
+
+- dead-letter totals and impacted runs
+- replay success ratio
+- direct `Download JSON` link to `/admin/outbox-replay-health.json?view=...`
+
 ### Run detail
 
 `/admin/runs/{run_id}`
@@ -93,6 +99,40 @@ Quick troubleshooting:
 Use this when you want the machine-facing event stream rather than the rendered
 HTML timeline. This is especially helpful for tooling, incident review, or
 cross-run comparisons.
+
+## Outbox Replay Alert Check
+
+For active control (not just passive observation), FitCV provides:
+
+- `GET /admin/outbox-replay-health.json`
+- `POST /admin/outbox-replay-health/check`
+
+The check route evaluates:
+
+- whether outbox/dead-letter status is degraded
+- whether replay success ratio is below threshold
+
+When enabled (`emit_event=true`), the check emits an auditable event:
+
+- `stage=outbox_replay_health_alert`
+- `level=warning` on alert, `info` on healthy
+
+### Scheduler-Friendly Checker Script
+
+Use:
+
+```powershell
+python scripts/check_outbox_replay_health.py --base-url http://localhost:8010 --view active --min-replay-success-ratio 0.95
+```
+
+Exit code contract:
+
+- `0`: health check decision is `ok`
+- `2`: health check decision is `alert`
+- `3`: request/runtime failure while executing the check
+
+This makes the script safe to plug into cron, Windows Task Scheduler, CI, or
+external monitors.
 
 ## Agentic Observation By Area
 
