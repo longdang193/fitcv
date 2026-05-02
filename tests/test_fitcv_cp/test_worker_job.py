@@ -1436,7 +1436,9 @@ def test_build_synonym_proposals_payload_supports_domain_and_role_family_fields(
             summary={
                 "mapping_suggestions": [
                     {"field": "domain", "alias": "fintech", "canonical": "financial services", "confidence": 0.91},
+                    {"field": "domain", "alias": "fintech", "canonical": "financial services", "confidence": 0.9},
                     {"field": "role_family", "alias": "bi analyst", "canonical": "analytics", "confidence": 0.89},
+                    {"field": "role_family", "alias": "bi analyst", "canonical": "analytics", "confidence": 0.88},
                 ]
             },
             created_at=datetime.datetime(2026, 4, 28, tzinfo=datetime.timezone.utc),
@@ -1447,6 +1449,33 @@ def test_build_synonym_proposals_payload_supports_domain_and_role_family_fields(
     proposals = list(payload["proposals"])
     assert len(proposals) == 2
     assert {proposal["field"] for proposal in proposals} == {"domain", "role_family"}
+
+def test_build_synonym_proposals_payload_suppresses_low_support_non_skill_rows() -> None:
+    from fitcv_cp.worker_job import _build_synonym_proposals_payload
+
+    payload = json.loads(
+        _build_synonym_proposals_payload(
+            run_id="run-non-skill-low-support",
+            summary={
+                "mapping_suggestions": [
+                    {"field": "domain", "alias": "fintech", "canonical": "financial services", "confidence": 0.91},
+                    {"field": "role_family", "alias": "bi analyst", "canonical": "analytics", "confidence": 0.89},
+                ]
+            },
+            created_at=datetime.datetime(2026, 4, 28, tzinfo=datetime.timezone.utc),
+        )
+    )
+
+    assert payload["proposals"] == []
+    summary = payload["synonym_proposals_trace"]["trace_summary"]
+    assert summary["suppressed_count_by_field"]["domain"] == 1
+    assert summary["suppressed_count_by_field"]["role_family"] == 1
+    assert (
+        summary["suppressed_reason_counts_by_field"]["domain"]["insufficient_non_skill_support"] == 1
+    )
+    assert (
+        summary["suppressed_reason_counts_by_field"]["role_family"]["insufficient_non_skill_support"] == 1
+    )
 
 def test_append_synonym_suppression_summary_event_deduplicates_same_fingerprint() -> None:
     from fitcv_cp.worker_job import _append_synonym_suppression_summary_event

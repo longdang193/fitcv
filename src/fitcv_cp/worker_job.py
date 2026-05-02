@@ -92,6 +92,7 @@ _RUN_MODE_LABELS = {
     "run_all": "Run All",
     "manual_staged": "Stage by Stage",
 }
+_NON_SKILL_MIN_SUPPORT_FOR_PROPOSAL = 2
 _WINDOWS_ABSOLUTE_PATH_PATTERN = re.compile(r"^[A-Za-z]:[\\/]")
 
 
@@ -603,6 +604,21 @@ def _build_synonym_proposals_payload(
         avg_confidence = (
             float(bucket["confidence_sum"]) / occurrence_count if occurrence_count else 0.0
         )
+        if field in {"domain", "role_family"} and occurrence_count < _NON_SKILL_MIN_SUPPORT_FOR_PROPOSAL:
+            suppressed_count_by_field[field] = suppressed_count_by_field.get(field, 0) + 1
+            reason_bucket = suppressed_reason_counts_by_field.setdefault(field, {})
+            reason_bucket["insufficient_non_skill_support"] = (
+                reason_bucket.get("insufficient_non_skill_support", 0) + 1
+            )
+            if len(suppressed_examples) < 10:
+                suppressed_examples.append(
+                    {
+                        "field": field,
+                        "alias": alias,
+                        "canonical": primary_canonical,
+                    }
+                )
+            continue
         identity_seed = f"{run_id}:{field}:{alias}:{'|'.join(candidate_canonicals)}:{proposal_family}"
         proposal_id = f"synprop-{hashlib.sha1(identity_seed.encode('utf-8')).hexdigest()[:12]}"
         existing_proposal = existing_proposals_by_id.get(proposal_id) or {}
