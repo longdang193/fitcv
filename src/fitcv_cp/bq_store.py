@@ -101,7 +101,7 @@ def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None
             completed_stages_json, checkpoint_payload_json,
             jobs_input_source, jobs_input_json,
             candidate_profile_source, candidate_profile_json,
-            queue_job_id
+            queue_job_id, orchestration_backend, orchestration_run_id
         )
         VALUES (
             @run_id, @status, @triggered_by, @trigger_source,
@@ -110,7 +110,7 @@ def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None
             @completed_stages_json, @checkpoint_payload_json,
             @jobs_input_source, @jobs_input_json,
             @candidate_profile_source, @candidate_profile_json,
-            @queue_job_id
+            @queue_job_id, @orchestration_backend, @orchestration_run_id
         )
     """
     job_config = bq_module.QueryJobConfig(
@@ -142,9 +142,45 @@ def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None
             bq_module.ScalarQueryParameter("candidate_profile_source", "STRING", run.candidate_profile_source),
             bq_module.ScalarQueryParameter("candidate_profile_json", "STRING", run.candidate_profile_json),
             bq_module.ScalarQueryParameter("queue_job_id", "STRING", run.queue_job_id),
+            bq_module.ScalarQueryParameter("orchestration_backend", "STRING", run.orchestration_backend),
+            bq_module.ScalarQueryParameter("orchestration_run_id", "STRING", run.orchestration_run_id),
         ]
     )
-    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+    try:
+        _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+    except Exception as exc:
+        if not (
+            _is_unrecognized_column_error(exc, "orchestration_backend")
+            or _is_unrecognized_column_error(exc, "orchestration_run_id")
+        ):
+            raise
+        # Backward-compatible insert path before migration lands.
+        legacy_sql = f"""
+            INSERT INTO `{table}` (
+                run_id, status, triggered_by, trigger_source,
+                jobs_path, config_path, created_at, effective_settings_json,
+                run_mode, checkpoint_status, next_stage, last_completed_stage,
+                completed_stages_json, checkpoint_payload_json,
+                jobs_input_source, jobs_input_json,
+                candidate_profile_source, candidate_profile_json,
+                queue_job_id
+            )
+            VALUES (
+                @run_id, @status, @triggered_by, @trigger_source,
+                @jobs_path, @config_path, @created_at, @effective_settings_json,
+                @run_mode, @checkpoint_status, @next_stage, @last_completed_stage,
+                @completed_stages_json, @checkpoint_payload_json,
+                @jobs_input_source, @jobs_input_json,
+                @candidate_profile_source, @candidate_profile_json,
+                @queue_job_id
+            )
+        """
+        legacy_params = [
+            param for param in job_config.query_parameters
+            if param.name not in {"orchestration_backend", "orchestration_run_id"}
+        ]
+        legacy_job_config = bq_module.QueryJobConfig(query_parameters=legacy_params)
+        _execute_query_with_pipeline_runs_retry(bq, legacy_sql, job_config=legacy_job_config)
 
 
 
@@ -382,6 +418,48 @@ def update_run_queue_job_id(
         ]
     )
     _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+
+def update_run_orchestration_binding(
+    run_id: str,
+    *,
+    queue_job_id: str | None,
+    orchestration_backend: str | None,
+    orchestration_run_id: str | None,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> None:
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        "SET queue_job_id = @queue_job_id, "
+        "    orchestration_backend = @orchestration_backend, "
+        "    orchestration_run_id = @orchestration_run_id "
+        "WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter("queue_job_id", "STRING", queue_job_id),
+            bq_module.ScalarQueryParameter("orchestration_backend", "STRING", orchestration_backend),
+            bq_module.ScalarQueryParameter("orchestration_run_id", "STRING", orchestration_run_id),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    try:
+        _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+    except Exception as exc:
+        if not (
+            _is_unrecognized_column_error(exc, "orchestration_backend")
+            or _is_unrecognized_column_error(exc, "orchestration_run_id")
+        ):
+            raise
+        # Legacy compatibility before schema migration.
+        update_run_queue_job_id(
+            run_id,
+            str(queue_job_id or ""),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
 
 
 def update_run_results_export(
@@ -705,6 +783,8 @@ def _row_to_run(row: Any) -> PipelineRun:
         candidate_profile_source=r.get("candidate_profile_source"),
         candidate_profile_json=r.get("candidate_profile_json"),
         queue_job_id=r.get("queue_job_id"),
+        orchestration_backend=r.get("orchestration_backend"),
+        orchestration_run_id=r.get("orchestration_run_id"),
         cancel_requested_at=r.get("cancel_requested_at"),
         cancel_requested_by=r.get("cancel_requested_by"),
         archived_at=r.get("archived_at"),

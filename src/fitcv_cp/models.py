@@ -92,6 +92,8 @@ class PipelineRun:
     candidate_profile_json: Optional[str] = None      # canonical resolved candidate-profile snapshot for supported trigger modes in new runs
     # lifecycle controls
     queue_job_id: Optional[str] = None               # RQ job id for queued-run cancellation
+    orchestration_backend: Optional[str] = None      # orchestration backend used for this run
+    orchestration_run_id: Optional[str] = None       # backend-native execution id for this run
     cancel_requested_at: Optional[datetime.datetime] = None
     cancel_requested_by: Optional[str] = None
     archived_at: Optional[datetime.datetime] = None
