@@ -252,6 +252,24 @@ def _build_results_export_payload(
     diagnostic_support = {
         "late_stage_reuse_snapshots": _json_safe(summary.get("late_stage_reuse_snapshots") or {}),
     }
+    stage_result_summary: dict[str, Any] = {}
+    stage_transition_artifacts = dict(summary.get("stage_transition_artifacts") or {})
+    stage_blocks = dict(stage_transition_artifacts.get("stages") or {})
+    for stage_id, block in stage_blocks.items():
+        if not isinstance(block, dict):
+            continue
+        stage_result = dict(block.get("stage_result") or {})
+        trace_context = dict(stage_result.get("trace_context") or {})
+        stage_result_summary[str(stage_id)] = {
+            "status": str(block.get("status") or ""),
+            "decision": _json_safe(stage_result.get("decision") or {}),
+            "policy_version": str(stage_result.get("policy_version") or ""),
+            "trace_context": {
+                "trace_id": str(trace_context.get("trace_id") or ""),
+                "span_id": str(trace_context.get("span_id") or ""),
+                "parent_span_id": str(trace_context.get("parent_span_id") or ""),
+            },
+        }
     payload = {
         "run_id": run_id,
         "results_schema_version": "results_job_ledger_v3",
@@ -272,6 +290,7 @@ def _build_results_export_payload(
             "cvs_generated": int(summary.get("cvs_generated", 0)),
         },
         "late_stage_mode": _build_late_stage_mode_payload(summary=summary),
+        "stage_result_summary": stage_result_summary,
         "results": _json_safe(export_results),
     }
     if diagnostic_support["late_stage_reuse_snapshots"]:
@@ -1027,6 +1046,9 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
     # Import here to avoid circular deps at module load time
     from fitcv_cp.reporter import PipelineReporter
 
+    summary: dict[str, Any] = {}
+    run_record: Any | None = None
+
     try:
         current_run_record = get_run(run_id, bq, project=project, dataset=dataset)
         # ── Step 1: Mark running ──────────────────────────────────────────────
@@ -1456,10 +1478,30 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
     except PipelineCancelled as exc:
         # ── Step 5 (alt): Pipeline was cancelled at a checkpoint ──────────────
         logger.info("[run_id=%s] Pipeline cancelled at checkpoint: %s", run_id, exc)
+        cancelled_at = datetime.datetime.now(datetime.timezone.utc)
         update_run_status(
             run_id, RunStatus.CANCELLED, bq, project=project, dataset=dataset,
-            finished_at=datetime.datetime.now(datetime.timezone.utc),
+            finished_at=cancelled_at,
+            summary=summary if isinstance(summary, dict) else None,
         )
+        if isinstance(summary, dict) and summary:
+            try:
+                _persist_shared_progress_snapshot(
+                    run_id=run_id,
+                    run_record=run_record,
+                    summary=summary,
+                    snapshot_at=cancelled_at,
+                    bq=bq,
+                    project=project,
+                    dataset=dataset,
+                    run_status=RunStatus.CANCELLED,
+                )
+            except Exception as persist_exc:
+                logger.warning(
+                    "[run_id=%s] Failed to persist partial progress snapshot for cancelled run: %s",
+                    run_id,
+                    persist_exc,
+                )
         try:
             append_event(
                 _run_cancelled_event(run_id, f"Run cancelled at pipeline checkpoint: {exc}"),
@@ -1471,10 +1513,31 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
     except Exception as exc:
         # ── Step 7: Unexpected pipeline failure ───────────────────────────────
         logger.error("[run_id=%s] Pipeline failed: %s", run_id, exc)
+        failed_at = datetime.datetime.now(datetime.timezone.utc)
         update_run_status(
             run_id, RunStatus.FAILED, bq, project=project, dataset=dataset,
-            finished_at=datetime.datetime.now(datetime.timezone.utc), error_message=str(exc),
+            finished_at=failed_at,
+            summary=summary if isinstance(summary, dict) else None,
+            error_message=str(exc),
         )
+        if isinstance(summary, dict) and summary:
+            try:
+                _persist_shared_progress_snapshot(
+                    run_id=run_id,
+                    run_record=run_record,
+                    summary=summary,
+                    snapshot_at=failed_at,
+                    bq=bq,
+                    project=project,
+                    dataset=dataset,
+                    run_status=RunStatus.FAILED,
+                )
+            except Exception as persist_exc:
+                logger.warning(
+                    "[run_id=%s] Failed to persist partial progress snapshot for failed run: %s",
+                    run_id,
+                    persist_exc,
+                )
         try:
             append_event(
                 RunEvent(
@@ -1483,7 +1546,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     stage="pipeline_failed",
                     level="error",
                     message=str(exc),
-                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                    created_at=failed_at,
                 ),
                 bq,
                 project=project,

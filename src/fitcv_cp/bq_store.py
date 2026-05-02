@@ -36,6 +36,7 @@ lifecycle:
 import datetime
 import json
 import logging
+import os
 import time
 from typing import Any, Optional
 
@@ -47,6 +48,8 @@ logger = logging.getLogger(__name__)
 
 _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS = 3
 _PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS = 0.25
+_EVENT_APPEND_RETRY_ATTEMPTS = 3
+_EVENT_APPEND_RETRY_DELAY_SECONDS = 0.2
 
 
 def _is_concurrent_pipeline_runs_update_error(exc: Exception) -> bool:
@@ -262,7 +265,18 @@ def update_run_progress(
     _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
-def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> None:
+def _append_event_dead_letter(row: dict[str, Any]) -> str:
+    dead_letter_path = str(
+        os.environ.get("FITCV_EVENT_DEAD_LETTER_PATH")
+        or "tmp/fitcv_pipeline_run_events_dead_letter.jsonl"
+    )
+    dead_letter_file = os.path.abspath(dead_letter_path)
+    os.makedirs(os.path.dirname(dead_letter_file), exist_ok=True)
+    with open(dead_letter_file, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+    return dead_letter_file
+
+def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dict[str, str]:
     table = f"{project}.{dataset}.pipeline_run_events"
     row = {
         "run_id": event.run_id,
@@ -273,9 +287,40 @@ def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> Non
         "payload_json": event.payload_json,
         "created_at": event.created_at.isoformat(),
     }
-    errors = bq.insert_rows_json(table, [row])
-    if errors:
-        logger.warning("BQ append_event errors: %s", errors)
+    last_errors: Any = None
+    for attempt in range(1, _EVENT_APPEND_RETRY_ATTEMPTS + 1):
+        errors = bq.insert_rows_json(table, [row])
+        if not errors:
+            return {"persistence_status": "persisted", "degradation_reason": ""}
+        last_errors = errors
+        logger.warning(
+            "BQ append_event errors [attempt=%s/%s]: %s",
+            attempt,
+            _EVENT_APPEND_RETRY_ATTEMPTS,
+            errors,
+        )
+        if attempt < _EVENT_APPEND_RETRY_ATTEMPTS:
+            time.sleep(_EVENT_APPEND_RETRY_DELAY_SECONDS * attempt)
+    try:
+        dead_letter_file = _append_event_dead_letter(
+            {
+                "table": table,
+                "row": row,
+                "bq_errors": last_errors,
+                "failed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            }
+        )
+        logger.warning("append_event dead-lettered row to %s", dead_letter_file)
+        return {
+            "persistence_status": "dead_lettered",
+            "degradation_reason": "event_insert_failed_dead_lettered",
+        }
+    except Exception as exc:
+        logger.warning("append_event dead-letter fallback failed: %s", exc)
+        return {
+            "persistence_status": "failed",
+            "degradation_reason": "event_insert_failed_no_dead_letter",
+        }
 
 
 def get_run(run_id: str, bq: Any, *, project: str, dataset: str) -> Optional[PipelineRun]:
