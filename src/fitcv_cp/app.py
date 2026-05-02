@@ -756,6 +756,52 @@ def _build_run_health_rows(
     return rows
 
 
+def _run_event_delivery_health(run_id: str) -> dict[str, Any]:
+    dead_letter_path = str(
+        os.environ.get("FITCV_EVENT_DEAD_LETTER_PATH")
+        or "tmp/fitcv_pipeline_run_events_dead_letter.jsonl"
+    ).strip()
+    dead_letter_file = Path(dead_letter_path)
+    if not dead_letter_file.exists():
+        return {
+            "status": "healthy",
+            "count": 0,
+            "last_failed_at": None,
+            "dead_letter_path": str(dead_letter_file),
+        }
+    count = 0
+    last_failed_at: str | None = None
+    try:
+        with dead_letter_file.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                raw = line.strip()
+                if not raw:
+                    continue
+                try:
+                    record = _json.loads(raw)
+                except Exception:
+                    continue
+                row = dict(record.get("row") or {})
+                if str(row.get("run_id") or "").strip() != str(run_id):
+                    continue
+                count += 1
+                failed_at_candidate = str(record.get("failed_at") or "").strip() or None
+                if failed_at_candidate:
+                    last_failed_at = failed_at_candidate
+    except Exception:
+        return {
+            "status": "unknown",
+            "count": 0,
+            "last_failed_at": None,
+            "dead_letter_path": str(dead_letter_file),
+        }
+    return {
+        "status": "degraded" if count > 0 else "healthy",
+        "count": count,
+        "last_failed_at": last_failed_at,
+        "dead_letter_path": str(dead_letter_file),
+    }
+
 def _pretty_json_string(raw_json: str) -> str:
     return _json.dumps(_json.loads(raw_json), ensure_ascii=False, indent=2)
 
@@ -4280,6 +4326,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         synonym_fingerprints = _synonym_observability_fingerprints(run)
         synonym_management_mode = _synonym_management_mode(run)
         markdown_quality_summary = _build_markdown_quality_summary(run)
+        event_delivery_health = _run_event_delivery_health(run_id)
 
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
@@ -4313,6 +4360,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_proposal_decision_ledger": synonym_proposal_decision_ledger,
                 "synonym_fingerprints": synonym_fingerprints,
                 "markdown_quality_summary": markdown_quality_summary,
+                "event_delivery_health": event_delivery_health,
             }
         )
 
