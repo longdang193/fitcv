@@ -1307,11 +1307,26 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             )
             return
 
-        # ── Step 5: Success ───────────────────────────────────────────────────
-        finished_at = datetime.datetime.now(datetime.timezone.utc)
+        # ── Step 5: Terminalize or park for review ───────────────────────────
+        cv_debug_records = [
+            item for item in list(summary.get("cv_generation_debug_records") or [])
+            if isinstance(item, dict)
+        ]
+        pending_review_required = sum(
+            1
+            for record in cv_debug_records
+            if str(record.get("status") or "").strip() == "review_required"
+        )
+        finished_at = datetime.datetime.now(datetime.timezone.utc) if pending_review_required == 0 else None
+        terminal_status = RunStatus.SUCCEEDED if pending_review_required == 0 else RunStatus.AWAITING_CONTINUE
         update_run_status(
-            run_id, RunStatus.SUCCEEDED, bq, project=project, dataset=dataset,
-            finished_at=finished_at, summary=summary,
+            run_id,
+            terminal_status,
+            bq,
+            project=project,
+            dataset=dataset,
+            finished_at=finished_at,
+            summary=summary,
         )
         completed_stages = [
             "normalize",
@@ -1322,7 +1337,32 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             "cv_analysis",
             "cv_generation",
         ]
-        if run_mode == "manual_staged":
+        if pending_review_required > 0:
+            update_run_checkpoint(
+                run_id,
+                bq,
+                project=project,
+                dataset=dataset,
+                checkpoint_status="awaiting_review",
+                next_stage=None,
+                last_completed_stage="cv_generation",
+                completed_stages=completed_stages,
+                checkpoint_payload_json=None,
+            )
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="cv_review_required",
+                    level="warning",
+                    message=f"Run paused: {pending_review_required} review-required CV item(s) pending operator action.",
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+        elif run_mode == "manual_staged":
             update_run_checkpoint(
                 run_id,
                 bq,
@@ -1352,7 +1392,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     run_record=run_record,
                     summary=summary,
                     export_results=export_results,
-                    finished_at=finished_at,
+                    finished_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
                 ),
                 bq,
                 project=project,
@@ -1367,7 +1407,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     run_id=run_id,
                     run_record=run_record,
                     summary=summary,
-                    finished_at=finished_at,
+                    finished_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
                 ),
                 bq,
                 project=project,
@@ -1381,7 +1421,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 _build_stage_transition_artifacts_payload(
                     run_id=run_id,
                     summary=summary,
-                    finished_at=finished_at,
+                    finished_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
                 ),
                 bq,
                 project=project,
@@ -1397,7 +1437,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     run_record=run_record,
                     effective_config=effective_config,
                     config_path=config_path,
-                    finished_at=finished_at,
+                    finished_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
                 ),
                 bq,
                 project=project,

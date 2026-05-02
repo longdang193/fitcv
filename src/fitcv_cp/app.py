@@ -988,45 +988,73 @@ def _load_run_agentic_live_trace_payload(run: PipelineRun) -> dict[str, Any] | N
 def _load_run_cv_generation_debug_payload(run: PipelineRun) -> dict[str, Any] | None:
     return _load_json_object(run.cv_generation_debug_json)
 
+def _run_status_allows_export(run: PipelineRun) -> bool:
+    if run.status == RunStatus.SUCCEEDED:
+        return True
+    return run.status == RunStatus.AWAITING_CONTINUE and str(run.checkpoint_status or "").strip() == "awaiting_review"
+
+def _map_review_required_reason_code(record: dict[str, Any]) -> str:
+    explicit_code = str(record.get("review_required_reason_code") or "").strip()
+    if explicit_code and explicit_code != "unknown":
+        return explicit_code
+    error = dict(record.get("error") or {})
+    stage = str(error.get("stage") or "").strip().lower()
+    message = str(error.get("message") or record.get("operator_note") or "").strip().lower()
+    if "unsupported requirements require review" in message:
+        return "unsupported_requirement_gap"
+    if stage == "markdown_quality_review" or "markdown quality" in message:
+        return "quality_gate_failed"
+    if stage == "validation" or "validation failed" in message or "guardrail" in message:
+        return "validation_guardrail_failed"
+    if "insufficient evidence" in message or "evidence coverage" in message:
+        return "evidence_coverage_insufficient"
+    if stage in {"provider", "llm"} or "provider" in message or "response unusable" in message:
+        return "provider_response_unusable"
+    return "manual_review_other"
+
+def _extract_review_required_request_id(record: dict[str, Any]) -> str | None:
+    runtime_provenance = dict(record.get("runtime_provenance") or {})
+    for key in ("request_id", "response_id"):
+        value = str(runtime_provenance.get(key) or "").strip()
+        if value:
+            return value
+    live_trace = dict(record.get("agentic_live_trace") or {})
+    for attempt in list(live_trace.get("attempts") or []):
+        if not isinstance(attempt, dict):
+            continue
+        for key in ("request_id", "response_id"):
+            value = str(attempt.get(key) or "").strip()
+            if value:
+                return value
+    return None
+
+def _normalized_cv_debug_payload_for_export(run: PipelineRun) -> dict[str, Any] | None:
+    payload = _load_run_cv_generation_debug_payload(run)
+    if not isinstance(payload, dict):
+        return None
+    copied = dict(payload)
+    records = [item for item in list(copied.get("debug_records") or copied.get("cv_generation_debug_records") or []) if isinstance(item, dict)]
+    normalized_records: list[dict[str, Any]] = []
+    for record in records:
+        row = dict(record)
+        if str(row.get("status") or "").strip() == "review_required":
+            row["review_required_reason_code"] = _map_review_required_reason_code(row)
+            if _extract_review_required_request_id(row) is not None:
+                runtime = dict(row.get("runtime_provenance") or {})
+                runtime["request_id"] = _extract_review_required_request_id(row)
+                row["runtime_provenance"] = runtime
+        normalized_records.append(row)
+    if "debug_records" in copied:
+        copied["debug_records"] = normalized_records
+    if "cv_generation_debug_records" in copied:
+        copied["cv_generation_debug_records"] = normalized_records
+    return copied
+
 def _build_cv_generation_review_required_payload(run: PipelineRun) -> dict[str, Any] | None:
     payload = _load_run_cv_generation_debug_payload(run)
     if not isinstance(payload, dict):
         return None
     records = [item for item in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or []) if isinstance(item, dict)]
-    def _map_review_required_reason_code(record: dict[str, Any]) -> str:
-        explicit_code = str(record.get("review_required_reason_code") or "").strip()
-        if explicit_code and explicit_code != "unknown":
-            return explicit_code
-        error = dict(record.get("error") or {})
-        stage = str(error.get("stage") or "").strip().lower()
-        message = str(error.get("message") or record.get("operator_note") or "").strip().lower()
-        if stage == "review_gate" and "unsupported requirements require review" in message:
-            return "unsupported_requirement_gap"
-        if stage == "markdown_quality_review" or "markdown quality" in message:
-            return "quality_gate_failed"
-        if stage == "validation" or "validation failed" in message or "guardrail" in message:
-            return "validation_guardrail_failed"
-        if "insufficient evidence" in message or "evidence coverage" in message:
-            return "evidence_coverage_insufficient"
-        if stage in {"provider", "llm"} or "provider" in message or "response unusable" in message:
-            return "provider_response_unusable"
-        return "manual_review_other"
-
-    def _extract_request_id(record: dict[str, Any]) -> str | None:
-        runtime_provenance = dict(record.get("runtime_provenance") or {})
-        for key in ("request_id", "response_id"):
-            value = str(runtime_provenance.get(key) or "").strip()
-            if value:
-                return value
-        live_trace = dict(record.get("agentic_live_trace") or {})
-        for attempt in list(live_trace.get("attempts") or []):
-            if not isinstance(attempt, dict):
-                continue
-            for key in ("request_id", "response_id"):
-                value = str(attempt.get(key) or "").strip()
-                if value:
-                    return value
-        return None
 
     rows: list[dict[str, Any]] = []
     for record in records:
@@ -1043,7 +1071,7 @@ def _build_cv_generation_review_required_payload(run: PipelineRun) -> dict[str, 
                 "operator_note": record.get("operator_note"),
                 "provider_name": str((record.get("runtime_provenance") or {}).get("provider") or ""),
                 "model_name": str(record.get("cv_generation_model") or ""),
-                "request_id": _extract_request_id(record),
+                "request_id": _extract_review_required_request_id(record),
             }
         )
     if not rows:
@@ -1089,7 +1117,7 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
     payload = _load_run_cv_generation_debug_payload(run)
     if not isinstance(payload, dict):
         return {"queue_items": [], "pending_count": 0, "total_review_required": 0, "actions_count": 0}
-    records = list(payload.get("cv_generation_debug_records") or [])
+    records = list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or [])
     actions = [item for item in list(payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
     latest_action_by_job: dict[str, dict[str, Any]] = {}
     for action in actions:
@@ -1515,12 +1543,22 @@ def _build_synonym_suppression_diff_payload(run: PipelineRun) -> dict[str, Any]:
     generated_payload = _load_run_synonym_proposals_payload(run) or {}
     generated_proposals = [item for item in list(generated_payload.get("proposals") or []) if isinstance(item, dict)]
     fps = _synonym_observability_fingerprints(run)
+    suppressed_count_by_field = {
+        str(field).strip(): int(count or 0)
+        for field, count in dict(trace_summary.get("suppressed_count_by_field") or {}).items()
+        if str(field).strip()
+    }
+    suppressed_pairs_total = int(sum(suppressed_count_by_field.values()))
+    if suppressed_pairs_total <= 0:
+        suppressed_pairs_total = int(
+            trace_summary.get("suppressed_as_already_global_count") or len(suppressed_examples)
+        )
     return {
         "run_id": run.run_id,
         "schema_version": "synonym_suppression_diff_v1",
         "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "suggested_pairs_total": len(suggestions),
-        "suppressed_pairs_total": int(trace_summary.get("suppressed_as_already_global_count") or len(suppressed_examples)),
+        "suppressed_pairs_total": suppressed_pairs_total,
         "generated_pairs_total": int(trace_summary.get("generated_for_review_count") or len(generated_proposals)),
         "suppressed_pairs": suppressed_examples[:200],
         "generated_pairs": [
@@ -4656,7 +4694,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         debug_payload = _load_run_cv_generation_debug_payload(run)
         if not isinstance(debug_payload, dict):
             raise HTTPException(status_code=409, detail="No cv_generation_debug payload available")
-        records = list(debug_payload.get("cv_generation_debug_records") or [])
+        records = list(debug_payload.get("debug_records") or debug_payload.get("cv_generation_debug_records") or [])
         target_record = None
         for record in records:
             if not isinstance(record, dict):
@@ -4711,6 +4749,51 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
+
+        updated_run = dataclasses.replace(
+            run,
+            cv_generation_debug_json=_json.dumps(debug_payload, ensure_ascii=False),
+        )
+        queue_state = _build_hitl_review_queue(updated_run)
+        if (
+            run.status == RunStatus.AWAITING_CONTINUE
+            and str(run.checkpoint_status or "").strip() == "awaiting_review"
+            and int(queue_state.get("total_review_required") or 0) > 0
+            and int(queue_state.get("pending_count") or 0) == 0
+        ):
+            now = datetime.datetime.now(datetime.timezone.utc)
+            update_run_status(
+                run_id,
+                RunStatus.SUCCEEDED,
+                bq,
+                project=project,
+                dataset=dataset,
+                finished_at=now,
+            )
+            update_run_checkpoint(
+                run_id,
+                bq,
+                project=project,
+                dataset=dataset,
+                checkpoint_status="completed",
+                next_stage=None,
+                last_completed_stage="cv_generation",
+                completed_stages=list(run.completed_stages or []),
+                checkpoint_payload_json=None,
+            )
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="cv_review_completed",
+                    level="info",
+                    message="All review-required CV items were resolved; run marked succeeded.",
+                    created_at=now,
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
         return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
 
     @app.post("/admin/runs/{run_id}/synonym-proposals/{proposal_id}/action")
@@ -5370,8 +5453,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status != RunStatus.SUCCEEDED:
-            raise HTTPException(status_code=409, detail="Run results export is only available for succeeded runs")
+        if not _run_status_allows_export(run):
+            raise HTTPException(status_code=409, detail="Run results export is only available for completed runs")
         if not run.results_export_json:
             raise HTTPException(status_code=404, detail="Run results export is not available for this run")
         pretty_json = _json.dumps(
@@ -5393,8 +5476,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status != RunStatus.SUCCEEDED:
-            raise HTTPException(status_code=409, detail="HITL review audit export is only available for succeeded runs")
+        if not _run_status_allows_export(run):
+            raise HTTPException(status_code=409, detail="HITL review audit export is only available for completed runs")
         if not run.cv_generation_debug_json:
             raise HTTPException(status_code=404, detail="HITL review audit export is not available for this run")
         return Response(
@@ -5408,11 +5491,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status != RunStatus.SUCCEEDED:
-            raise HTTPException(status_code=409, detail="CV debug export is only available for succeeded runs")
+        if not _run_status_allows_export(run):
+            raise HTTPException(status_code=409, detail="CV debug export is only available for completed runs")
         if not run.cv_generation_debug_json:
             raise HTTPException(status_code=404, detail="CV debug export is not available for this run")
-        pretty_json = _json.dumps(_json.loads(run.cv_generation_debug_json), ensure_ascii=False, indent=2)
+        normalized_payload = _normalized_cv_debug_payload_for_export(run)
+        if not isinstance(normalized_payload, dict):
+            raise HTTPException(status_code=404, detail="CV debug export is not available for this run")
+        pretty_json = _json.dumps(normalized_payload, ensure_ascii=False, indent=2)
         return Response(
             content=pretty_json,
             media_type="application/json",
@@ -5424,8 +5510,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status != RunStatus.SUCCEEDED:
-            raise HTTPException(status_code=409, detail="Review-required export is only available for succeeded runs")
+        if not _run_status_allows_export(run):
+            raise HTTPException(status_code=409, detail="Review-required export is only available for completed runs")
         payload = _build_cv_generation_review_required_payload(run)
         if not isinstance(payload, dict):
             raise HTTPException(status_code=404, detail="Review-required export is not available for this run")
