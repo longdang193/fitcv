@@ -4184,6 +4184,64 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "outbox_replay_health": aggregate,
         }
 
+    @app.post("/admin/outbox-replay-health/check")
+    def admin_outbox_replay_health_check(
+        view: str = "active",
+        min_replay_success_ratio: float = 0.95,
+        emit_event: bool = True,
+        event_run_id: str = "system-outbox-replay-health",
+    ) -> dict[str, Any]:
+        if view == "archived":
+            runs = list_runs(bq, project=project, dataset=dataset, archived_only=True)
+        elif view == "all":
+            runs = list_runs(bq, project=project, dataset=dataset, include_archived=True)
+        else:
+            runs = list_runs(bq, project=project, dataset=dataset, include_archived=False)
+        aggregate = _aggregate_dead_letter_replay_health(
+            runs,
+            bq=bq,
+            project=project,
+            dataset=dataset,
+        )
+        ratio = float(aggregate.get("replay_success_ratio") or 0.0)
+        degraded = str(aggregate.get("status") or "") == "degraded"
+        ratio_below_threshold = ratio < float(min_replay_success_ratio)
+        alert_triggered = degraded or ratio_below_threshold
+        decision = "alert" if alert_triggered else "ok"
+        reason = []
+        if degraded:
+            reason.append("dead_letter_status_degraded")
+        if ratio_below_threshold:
+            reason.append("replay_ratio_below_threshold")
+        reason_code = ",".join(reason) if reason else "healthy"
+        payload = {
+            "view": view,
+            "run_count": len(runs),
+            "min_replay_success_ratio": float(min_replay_success_ratio),
+            "decision": decision,
+            "reason_code": reason_code,
+            "outbox_replay_health": aggregate,
+        }
+        if emit_event:
+            append_event(
+                RunEvent(
+                    run_id=str(event_run_id or "system-outbox-replay-health"),
+                    event_id=str(uuid.uuid4()),
+                    stage="outbox_replay_health_alert",
+                    level="warning" if alert_triggered else "info",
+                    message=(
+                        f"Outbox replay health check decision={decision} "
+                        f"reason={reason_code} ratio={ratio:.4f}"
+                    ),
+                    payload_json=_json.dumps(payload, ensure_ascii=False),
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+        return payload
+
     @app.post("/admin/runs/{run_id}/stop")
     def admin_stop_run(run_id: str) -> dict:
         """Stop a cancellable run. Returns JSON for fetch() callers."""

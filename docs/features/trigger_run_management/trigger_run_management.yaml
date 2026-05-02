@@ -205,6 +205,7 @@ stage_participation:
   - trigger_run_management.synonym-overlay-replacement
 refs:
   code:
+  - scripts/check_outbox_replay_health.py
   - src/fitcv_cp/app.py
   - src/fitcv_cp/bq_store.py
   - src/fitcv_cp/orchestrator.py

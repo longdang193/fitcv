@@ -1504,6 +1504,10 @@ capabilities:
     statement: Show compact run-health diagnostics that combine stage quality and late-stage reuse visibility.
     satisfies: []
     code:
+    - path: scripts/check_outbox_replay_health.py
+      confidence: high
+      source:
+      - python_meta
     - path: src/fitcv_cp/app.py
       confidence: high
       source:
