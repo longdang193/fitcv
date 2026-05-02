@@ -128,6 +128,20 @@ Forbidden:
 3. `ai_runtime` bypassing policy/validation gates.
 4. `data_plane` owning flow semantics.
 
+## Exceptions Workflow
+
+Temporary exceptions are allowed only when explicitly documented and time-bounded.
+
+Use:
+
+- `docs/operating_system/component_boundary_exceptions.yaml`
+
+Rules:
+
+1. exception must include exact `source` file and exact imported module.
+2. exception must include a short rationale and removal target in the related plan/checkpoint notes.
+3. exception should be removed in the next bounded pass that can safely do so.
+
 ## Current Module Mapping
 
 - `src/fitcv_cp/app.py` -> control_plane
