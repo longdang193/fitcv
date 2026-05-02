@@ -1226,6 +1226,82 @@ def test_admin_runs_shows_degraded_outbox_replay_health(tmp_path):
     assert ">1<" in html
 
 
+def test_admin_outbox_replay_health_json(tmp_path):
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    runs = [
+        PipelineRun(
+            run_id="json-run-a",
+            status=RunStatus.SUCCEEDED,
+            jobs_path="data/sample_jobs.json",
+            triggered_by="admin",
+            trigger_source="web",
+            config_path=".env.yaml",
+            created_at=datetime.now(timezone.utc),
+        ),
+        PipelineRun(
+            run_id="json-run-b",
+            status=RunStatus.SUCCEEDED,
+            jobs_path="data/sample_jobs.json",
+            triggered_by="admin",
+            trigger_source="web",
+            config_path=".env.yaml",
+            created_at=datetime.now(timezone.utc),
+        ),
+    ]
+    dead_letter_file = tmp_path / "events-dead-letter.jsonl"
+    dead_letter_file.write_text(
+        "\n".join(
+            [
+                json.dumps({"row": {"run_id": "json-run-a"}}),
+                json.dumps({"row": {"run_id": "json-run-b"}}),
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    def _events_for_run(run_id: str, *_args, **_kwargs):
+        if run_id == "json-run-a":
+            return [
+                RunEvent(
+                    run_id="json-run-a",
+                    event_id="json-ev-a",
+                    stage="event_dead_letter_replay",
+                    level="info",
+                    message="Replay summary",
+                    created_at=datetime.now(timezone.utc),
+                    payload_json=json.dumps(
+                        {
+                            "replay_candidates": 4,
+                            "replayed": 3,
+                            "failed": 1,
+                            "replay_success_ratio": 0.75,
+                            "remaining_dead_letter_total": 1,
+                        }
+                    ),
+                )
+            ]
+        return []
+
+    with patch.dict("os.environ", {"FITCV_EVENT_DEAD_LETTER_PATH": str(dead_letter_file)}), \
+         patch("fitcv_cp.app.list_runs", return_value=runs), \
+         patch("fitcv_cp.app.get_events", side_effect=_events_for_run):
+        resp = TestClient(_app()).get("/admin/outbox-replay-health.json?view=all")
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["view"] == "all"
+    assert payload["run_count"] == 2
+    aggregate = payload["outbox_replay_health"]
+    assert aggregate["status"] == "degraded"
+    assert aggregate["dead_letter_total"] == 2
+    assert aggregate["replay_candidates"] == 4
+    assert aggregate["replayed"] == 3
+    assert aggregate["failed"] == 1
+    assert aggregate["replay_success_ratio"] == 0.75
+
+
 def test_admin_run_detail_success_banner():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone

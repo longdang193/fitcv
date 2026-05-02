@@ -4163,6 +4163,27 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             }
         )
 
+    @app.get("/admin/outbox-replay-health.json")
+    def admin_outbox_replay_health(view: str = "active") -> dict[str, Any]:
+        if view == "archived":
+            runs = list_runs(bq, project=project, dataset=dataset, archived_only=True)
+        elif view == "all":
+            runs = list_runs(bq, project=project, dataset=dataset, include_archived=True)
+        else:
+            runs = list_runs(bq, project=project, dataset=dataset, include_archived=False)
+        aggregate = _aggregate_dead_letter_replay_health(
+            runs,
+            bq=bq,
+            project=project,
+            dataset=dataset,
+        )
+        return {
+            "view": view,
+            "run_count": len(runs),
+            "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "outbox_replay_health": aggregate,
+        }
+
     @app.post("/admin/runs/{run_id}/stop")
     def admin_stop_run(run_id: str) -> dict:
         """Stop a cancellable run. Returns JSON for fetch() callers."""
