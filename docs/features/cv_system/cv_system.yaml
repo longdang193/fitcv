@@ -214,6 +214,8 @@ refs:
   - config/policy/ranking.yaml
   - config/runtime/pipeline.yaml
   - config/runtime/prompts.yaml
+  - config/taxonomy/domain_synonyms.yaml
+  - config/taxonomy/role_family_synonyms.yaml
   - config/taxonomy/skill_synonyms.yaml
   - config/taxonomy/taxonomy.yaml
   components: []

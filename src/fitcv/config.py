@@ -70,6 +70,7 @@ _POLICY_FILE_CANDIDATES = [
 ]
 
 _DEFAULT_ENV_CANDIDATES = (".env.yaml", "config/env.yaml")
+_DEFAULT_CONTROL_PLANE_CONFIG_PATH = Path("config/runtime/control_plane.yaml")
 _DEFAULT_ENRICH_PROMPT_ID = "enrich.extraction.v1"
 _DEFAULT_RANKING_AI_SCORE_PROMPT_ID = "ranking.ai_score.v1"
 _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID = "cv_generation.structured_write.v1"
@@ -78,6 +79,17 @@ _INFRA_ENV_OVERRIDES = {
     "bigquery_dataset": "BIGQUERY_DATASET",
     "service_account_key": "GOOGLE_APPLICATION_CREDENTIALS",
 }
+_CONTROL_PLANE_ENV_OVERRIDES = {
+    "FITCV_CP_DATA_BACKEND": ("data_backend", "type"),
+}
+_CONTROL_PLANE_FORBIDDEN_KEY_TOKENS = (
+    "secret",
+    "token",
+    "password",
+    "credential",
+    "api_key",
+    "key_env",
+)
 CV_STRUCTURED_SECTION_KEYS = (
     "header",
     "summary",
@@ -114,6 +126,75 @@ def _load_yaml_file(path: Path) -> dict[str, Any]:
     with open(path) as f:
         data = yaml.safe_load(f)
     return data if isinstance(data, dict) else {}
+
+def _iter_nested_mapping_keys(payload: Any) -> list[str]:
+    if isinstance(payload, dict):
+        flattened: list[str] = []
+        for key, value in payload.items():
+            flattened.append(str(key))
+            flattened.extend(_iter_nested_mapping_keys(value))
+        return flattened
+    if isinstance(payload, list):
+        flattened: list[str] = []
+        for item in payload:
+            flattened.extend(_iter_nested_mapping_keys(item))
+        return flattened
+    return []
+
+def _validate_control_plane_secret_hygiene(control_plane: dict[str, Any]) -> None:
+    violating_keys = [
+        key_name
+        for key_name in _iter_nested_mapping_keys(control_plane)
+        if any(token in key_name.strip().lower() for token in _CONTROL_PLANE_FORBIDDEN_KEY_TOKENS)
+    ]
+    if violating_keys:
+        sample = ", ".join(sorted(set(violating_keys))[:5])
+        raise ValueError(
+            "control_plane config contains forbidden secret-oriented key names: "
+            f"{sample}"
+        )
+
+def _apply_control_plane_env_overrides(control_plane: dict[str, Any]) -> dict[str, Any]:
+    updated = dict(control_plane)
+    for env_var, key_path in _CONTROL_PLANE_ENV_OVERRIDES.items():
+        env_value = str(os.environ.get(env_var, "")).strip()
+        if not env_value:
+            continue
+        cursor: dict[str, Any] = updated
+        for key in key_path[:-1]:
+            nested = cursor.get(key)
+            if not isinstance(nested, dict):
+                nested = {}
+                cursor[key] = nested
+            cursor = nested
+        cursor[key_path[-1]] = env_value
+    return updated
+
+def load_control_plane_config(path: str | Path | None = None) -> dict[str, Any]:
+    """Load control-plane runtime config with env overrides and hygiene checks."""
+    config_path = Path(path) if path is not None else _DEFAULT_CONTROL_PLANE_CONFIG_PATH
+    if not config_path.exists():
+        raise FileNotFoundError(f"Control-plane config file not found: {config_path}")
+    payload = _load_yaml_file(config_path)
+    control_plane = dict(payload.get("control_plane") or {})
+    control_plane = _apply_control_plane_env_overrides(control_plane)
+    _validate_control_plane_secret_hygiene(control_plane)
+
+    data_backend = dict(control_plane.get("data_backend") or {})
+    backend_type = str(data_backend.get("type") or "bigquery").strip().lower() or "bigquery"
+    if backend_type not in {"bigquery", "sqlite"}:
+        raise ValueError(
+            "control_plane.data_backend.type must be one of: bigquery, sqlite"
+        )
+    data_backend["type"] = backend_type
+    control_plane["data_backend"] = data_backend
+    control_plane["providers"] = dict(control_plane.get("providers") or {})
+    model_routing = dict(control_plane.get("model_routing") or {})
+    model_routing["parts"] = dict(model_routing.get("parts") or {})
+    control_plane["model_routing"] = model_routing
+    control_plane["observability"] = dict(control_plane.get("observability") or {})
+    control_plane["feature_flags"] = dict(control_plane.get("feature_flags") or {})
+    return control_plane
 
 
 def _load_policy_file(config_dir: Path, rel_paths: tuple[str, ...]) -> tuple[dict[str, Any], Path]:

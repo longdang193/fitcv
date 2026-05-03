@@ -8156,7 +8156,7 @@ def _path_mode_patches(profile_path: str = "/tmp/dummy_profile.yaml"):
     return (
         patch("fitcv_cp.app.load_active_settings", return_value={}),
         patch("fitcv_cp.app.insert_run"),
-        patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-path-1", "rq-job-1")),
+        patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-path-1", "rq-job-1")),
         patch("fitcv_cp.app.update_run_queue_job_id"),
         patch("fitcv_cp.app.load_config", return_value=base_config),
     )

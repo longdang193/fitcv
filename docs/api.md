@@ -42,6 +42,21 @@ Typical response:
 }
 ```
 
+## Control-Plane Runtime Backend Mode
+
+The control-plane startup backend is resolved from `config/runtime/control_plane.yaml` under:
+
+- `control_plane.data_backend.type` (`bigquery` or `sqlite`)
+
+Override:
+
+- `FITCV_CP_DATA_BACKEND` (process env) overrides the backend type at runtime.
+
+Startup behavior:
+
+- `bigquery` mode initializes BigQuery dependencies and schema diagnostics.
+- `sqlite` mode skips BigQuery client initialization so local startup does not require GCP ADC.
+
 ## Run Trigger And Inspection API
 
 ### `POST /runs`
@@ -397,6 +412,10 @@ Purpose:
 - Event payloads may include JSON-encoded machine detail inside `payload_json`
 - Export routes are the preferred source for detailed agentic and stage-owned
   debugging payloads
+- Control-plane orchestration observability now emits structured diagnostics for:
+  - backend execution (`control_plane.backend_execution`)
+  - routing diagnostics (`control_plane.model_routing`)
+  - fallback binding (`control_plane.backend_fallback_binding`)
 - The API shape is closely tied to the control plane and background worker, not
   a separate public product API boundary
 
