@@ -113,6 +113,7 @@ from fitcv.pipeline import (
     _restore_pipeline_state,
     next_pipeline_stage,
 )
+from fitcv.tracker import create_cv_version_record
 from fitcv_cp.bq_store import (
     append_event,
     archive_run,
@@ -123,6 +124,7 @@ from fitcv_cp.bq_store import (
     update_run_synonym_proposals,
     update_run_queue_job_id, update_run_status,
     update_run_cv_generation_debug,
+    insert_cv_version_row,
 )
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.queue import cancel_queued_run, enqueue_run, enqueue_run_with_job_id
@@ -1284,6 +1286,73 @@ def _build_hitl_closure_summary(run: PipelineRun, queue: dict[str, Any] | None =
         "closure_mode": closure_mode,
     }
 
+def _effective_settings_dict(run: PipelineRun) -> dict[str, Any]:
+    payload = _load_json_object(run.effective_settings_json)
+    return payload if isinstance(payload, dict) else {}
+
+def _review_record_for_job(run: PipelineRun, job_url: str) -> dict[str, Any] | None:
+    payload = _load_run_cv_generation_debug_payload(run)
+    if not isinstance(payload, dict):
+        return None
+    normalized_job_url = str(job_url or "").strip()
+    for record in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or []):
+        if not isinstance(record, dict):
+            continue
+        if str(record.get("status") or "").strip() != "review_required":
+            continue
+        if str(record.get("job_url") or "").strip() == normalized_job_url:
+            return record
+    return None
+
+def _finalize_review_draft_as_cv_artifact(
+    *,
+    run: PipelineRun,
+    job_url: str,
+    record: dict[str, Any] | None,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> tuple[bool, str, str | None]:
+    if not isinstance(record, dict):
+        return (False, "not_review_required", None)
+    markdown = str(record.get("markdown_final") or "").strip()
+    if not markdown:
+        return (False, "missing_draft_for_approve", None)
+    rows = _results_export_rows(run)
+    row = next((item for item in rows if str(item.get("job_url") or "").strip() == str(job_url or "").strip()), {})
+    effective_settings = _effective_settings_dict(run)
+    fit_classification = str(record.get("fit_classification") or row.get("fit_classification") or "unknown").strip() or "unknown"
+    version_record = create_cv_version_record(
+        job_url=str(job_url),
+        run_id=str(run.run_id),
+        enrichment_version=str(row.get("enrichment_version") or record.get("enrichment_version") or "review_finalize"),
+        vector_rank=int(row.get("vector_rank") or row.get("rank") or 0),
+        ai_score=float(row.get("ai_score") or 0.0),
+        final_score=float(row.get("final_score") or 0.0),
+        evidence_ids=list(row.get("evidence_ids") or []),
+        prompt_version=str(
+            row.get("prompt_version")
+            or effective_settings.get("cv_generation_prompt_version")
+            or effective_settings.get("cv_prompt_version")
+            or "review_finalize_v1"
+        ),
+        cv_markdown=markdown,
+        gap_summary=dict(record.get("gap_summary") or {}),
+        fit_classification=fit_classification,
+        cv_structured=(dict(record.get("structured_cv_final") or {}) or None),
+        cv_generation_model=str(record.get("model") or effective_settings.get("cv_generation_model") or "") or None,
+        cv_prompt_version=str(
+            effective_settings.get("cv_generation_prompt_version")
+            or effective_settings.get("cv_prompt_version")
+            or row.get("prompt_version")
+            or ""
+        ) or None,
+    )
+    errors = insert_cv_version_row(version_record, bq, project=project, dataset=dataset)
+    if errors:
+        return (False, "persist_failed", None)
+    return (True, "finalized", str(version_record.get("version_id") or ""))
+
 def _build_hitl_review_audit_payload(run: PipelineRun) -> dict[str, Any]:
     queue = _build_hitl_review_queue(run)
     payload = _load_run_cv_generation_debug_payload(run)
@@ -1428,6 +1497,14 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
             lane["zero_state_reason"] = "no_suggestions"
         else:
             lane["zero_state_reason"] = None
+    triage_summary = {
+        "generated_total": int(trace_summary.get("triage_recommendation_generated_total") or 0),
+        "reused_total": int(trace_summary.get("triage_recommendation_reused_total") or 0),
+        "fresh_total": int(trace_summary.get("triage_recommendation_fresh_total") or 0),
+        "suppressed_total": int(trace_summary.get("triage_recommendation_suppressed_total") or 0),
+        "reuse_reason": str(trace_summary.get("triage_recommendation_reuse_reason") or "not_available"),
+        "fingerprint": str(trace_summary.get("triage_recommendation_fingerprint") or "").strip() or None,
+    }
     return {
         "items": items,
         "items_by_field": {
@@ -1440,6 +1517,7 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
         "approved_count": sum(1 for item in items if item["status"] == "approved_for_run_overlay"),
         "filtered_as_already_global_count": filtered_as_already_global_count,
         "triage_status": triage_status,
+        "triage_summary": triage_summary,
         "field_lanes": [lane_summary[key] for key in lane_keys if key in lane_summary],
     }
 
@@ -1983,6 +2061,8 @@ def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
         "propose_enabled": bool(block.get("propose_enabled", True)),
         "apply_to_run_enabled": bool(block.get("apply_to_run_enabled", True)),
         "promote_global_enabled": bool(block.get("promote_global_enabled", True)),
+        "auto_triage_recommendation_enabled": bool(block.get("auto_triage_recommendation_enabled", True)),
+        "triage_recommendation_reuse_enabled": bool(block.get("triage_recommendation_reuse_enabled", True)),
     }
 
 def _find_synonym_proposal_index(payload: dict[str, Any], proposal_id: str) -> int | None:
@@ -2369,6 +2449,7 @@ def _synonym_triage_fingerprint(
     proposal: dict[str, Any],
     *,
     runtime: dict[str, Any],
+    overlay_fingerprint: str | None = None,
 ) -> str:
     payload = {
         "proposal_id": str(proposal.get("proposal_id") or "").strip(),
@@ -2387,6 +2468,7 @@ def _synonym_triage_fingerprint(
         "model": str(runtime.get("model") or "synonym_triage_v1").strip(),
         "wire_api": str(runtime.get("wire_api") or "builtin").strip(),
         "triage_version": "synonym_triage_v1",
+        "overlay_fingerprint": str(overlay_fingerprint or "").strip() or None,
     }
     raw = _json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -4850,6 +4932,20 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 break
         if target_record is None:
             raise HTTPException(status_code=404, detail="Review-required record not found for job_url")
+        accepted_increment = 0
+        finalized_version_id: str | None = None
+        if payload.action == "approve_as_is":
+            finalized_ok, finalized_reason, finalized_version_id = _finalize_review_draft_as_cv_artifact(
+                run=run,
+                job_url=payload.job_url,
+                record=target_record,
+                bq=bq,
+                project=project,
+                dataset=dataset,
+            )
+            if not finalized_ok:
+                raise HTTPException(status_code=409, detail=f"Cannot approve as final CV: {finalized_reason}")
+            accepted_increment = 1
 
         now = datetime.datetime.now(datetime.timezone.utc)
         action_entry = {
@@ -4857,6 +4953,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "job_title": str(target_record.get("job_title") or "").strip() or None,
             "action": payload.action,
             "resolution_status": _normalize_hitl_resolution_status(payload.action, None),
+            "artifact_finalized": bool(accepted_increment),
+            "artifact_version_id": finalized_version_id,
             "actor": payload.actor or "admin",
             "note": payload.note,
             "created_at": now.isoformat(),
@@ -4884,6 +4982,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "job_url": payload.job_url,
                         "job_title": target_record.get("job_title"),
                         "action": payload.action,
+                        "artifact_finalized": bool(accepted_increment),
+                        "artifact_version_id": finalized_version_id,
                         "actor": payload.actor,
                         "note": payload.note,
                     },
@@ -4898,7 +4998,17 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         updated_run = dataclasses.replace(
             run,
             cv_generation_debug_json=_json.dumps(debug_payload, ensure_ascii=False),
+            cvs_generated=int(run.cvs_generated or 0) + accepted_increment,
         )
+        if accepted_increment:
+            update_run_status(
+                run_id,
+                run.status,
+                bq,
+                project=project,
+                dataset=dataset,
+                summary={"cvs_generated": int(updated_run.cvs_generated or 0)},
+            )
         queue_state = _build_hitl_review_queue(updated_run)
         if (
             run.status == RunStatus.AWAITING_CONTINUE
@@ -5014,6 +5124,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         applied = 0
         skipped = 0
         failed = 0
+        finalized = 0
+        failed_missing_draft = 0
+        failed_persist = 0
         now = datetime.datetime.now(datetime.timezone.utc)
         for job_url in selected_urls:
             if job_url not in review_required_urls:
@@ -5027,10 +5140,39 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             if latest_resolution in _HITL_TERMINAL_RESOLUTION_STATUSES:
                 skipped += 1
                 continue
+            finalized_version_id: str | None = None
+            if action == "approve_as_is":
+                target_record = next(
+                    (
+                        record
+                        for record in records
+                        if str(record.get("job_url") or "").strip() == job_url
+                        and str(record.get("status") or "").strip() == "review_required"
+                    ),
+                    None,
+                )
+                finalized_ok, finalized_reason, finalized_version_id = _finalize_review_draft_as_cv_artifact(
+                    run=run,
+                    job_url=job_url,
+                    record=target_record,
+                    bq=bq,
+                    project=project,
+                    dataset=dataset,
+                )
+                if not finalized_ok:
+                    failed += 1
+                    if finalized_reason == "missing_draft_for_approve":
+                        failed_missing_draft += 1
+                    elif finalized_reason == "persist_failed":
+                        failed_persist += 1
+                    continue
+                finalized += 1
             action_entry = {
                 "job_url": job_url,
                 "action": action,
                 "resolution_status": _normalize_hitl_resolution_status(action, None),
+                "artifact_finalized": bool(finalized_version_id),
+                "artifact_version_id": finalized_version_id,
                 "actor": actor,
                 "note": note,
                 "created_at": now.isoformat(),
@@ -5055,7 +5197,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 level="info",
                 message=(
                     "CV review batch action applied: "
-                    f"action={action}, applied={applied}, skipped={skipped}, failed={failed}"
+                    f"action={action}, applied={applied}, skipped={skipped}, failed={failed}, finalized={finalized}, missing_draft={failed_missing_draft}, persist_failed={failed_persist}"
                 ),
                 created_at=now,
                 payload_json=_json.dumps(
@@ -5064,6 +5206,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "applied": applied,
                         "skipped": skipped,
                         "failed": failed,
+                        "finalized": finalized,
+                        "failed_missing_draft": failed_missing_draft,
+                        "failed_persist": failed_persist,
                         "selected_count": len(selected_urls),
                     },
                     ensure_ascii=False,
@@ -5077,7 +5222,17 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         updated_run = dataclasses.replace(
             run,
             cv_generation_debug_json=_json.dumps(debug_payload, ensure_ascii=False),
+            cvs_generated=int(run.cvs_generated or 0) + finalized,
         )
+        if finalized:
+            update_run_status(
+                run_id,
+                run.status,
+                bq,
+                project=project,
+                dataset=dataset,
+                summary={"cvs_generated": int(updated_run.cvs_generated or 0)},
+            )
         queue_state = _build_hitl_review_queue(updated_run)
         if (
             run.status == RunStatus.AWAITING_CONTINUE
@@ -5107,6 +5262,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "hitl_batch_applied": applied,
                         "hitl_batch_skipped": skipped,
                         "hitl_batch_failed": failed,
+                        "hitl_batch_finalized": finalized,
                         "hitl_closure_blocked": 1,
                     }
                 )
@@ -5164,6 +5320,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "hitl_batch_applied": applied,
                 "hitl_batch_skipped": skipped,
                 "hitl_batch_failed": failed,
+                "hitl_batch_finalized": finalized,
             }
         )
         return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
@@ -5627,17 +5784,27 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         payload = _load_run_synonym_proposals_payload(run)
         if not isinstance(payload, dict):
             raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
+        mode = _synonym_management_mode(run)
         form = await request.form()
         acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
         note = str(form.get("note") or "").strip()
         now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
         triage_runtime = _resolve_synonym_triage_runtime(run)
+        fingerprints = _synonym_observability_fingerprints(run)
+        overlay_fp = str(fingerprints.get("run_overlay_fingerprint") or "").strip() or None
         proposals = list(payload.get("proposals") or [])
         triaged_count = 0
         reused_count = 0
         skipped_count = 0
         failed_count = 0
         fallback_count = 0
+        fresh_count = 0
+        generated_total = 0
+        reuse_reason = "fingerprint_match"
+        if not bool(mode.get("auto_triage_recommendation_enabled")):
+            reuse_reason = "auto_disabled"
+        elif not bool(mode.get("triage_recommendation_reuse_enabled")):
+            reuse_reason = "reuse_disabled"
         for idx, proposal in enumerate(proposals):
             if not isinstance(proposal, dict):
                 skipped_count += 1
@@ -5646,11 +5813,22 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             if status not in {"proposed_unreviewed", "in_review", "deferred"}:
                 skipped_count += 1
                 continue
-            triage_fp = _synonym_triage_fingerprint(proposal, runtime=triage_runtime)
+            generated_total += 1
+            if not bool(mode.get("auto_triage_recommendation_enabled")):
+                skipped_count += 1
+                continue
+            triage_fp = _synonym_triage_fingerprint(
+                proposal,
+                runtime=triage_runtime,
+                overlay_fingerprint=overlay_fp,
+            )
             runtime_meta = dict(proposal.get("recommendation_runtime") or {})
-            if str(runtime_meta.get("triage_fingerprint") or "").strip() == triage_fp:
+            reuse_enabled = bool(mode.get("triage_recommendation_reuse_enabled"))
+            if reuse_enabled and str(runtime_meta.get("triage_fingerprint") or "").strip() == triage_fp:
                 reused_count += 1
                 continue
+            if reuse_enabled:
+                reuse_reason = "fingerprint_mismatch"
             try:
                 recommendation = _triage_synonym_proposal_recommendation(
                     proposal,
@@ -5674,6 +5852,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 except Exception:
                     failed_count += 1
                     continue
+            fresh_count += 1
             updated = dict(proposal)
             # Advisory-only: never mutate proposal_status during triage refresh.
             updated.update(recommendation)
@@ -5697,19 +5876,49 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             event_payload={
                 "triaged_count": triaged_count,
                 "reused_count": reused_count,
+                "fresh_count": fresh_count,
+                "generated_total": generated_total,
                 "fallback_count": fallback_count,
                 "skipped_count": skipped_count,
                 "failed_count": failed_count,
+                "reuse_reason": reuse_reason,
+                "auto_triage_recommendation_enabled": bool(mode.get("auto_triage_recommendation_enabled")),
+                "triage_recommendation_reuse_enabled": bool(mode.get("triage_recommendation_reuse_enabled")),
                 "provider": str(triage_runtime.get("provider") or "fitcv_builtin"),
                 "model": str(triage_runtime.get("model") or "synonym_triage_v1"),
                 "wire_api": str(triage_runtime.get("wire_api") or "builtin"),
                 "base_url": str(triage_runtime.get("base_url") or "") or None,
             },
         )
+        trace_payload = dict(payload.get("synonym_proposals_trace") or {})
+        trace_summary = dict(trace_payload.get("trace_summary") or {})
+        trace_summary["triage_recommendation_generated_total"] = int(generated_total)
+        trace_summary["triage_recommendation_reused_total"] = int(reused_count)
+        trace_summary["triage_recommendation_fresh_total"] = int(fresh_count)
+        trace_summary["triage_recommendation_suppressed_total"] = 0
+        trace_summary["triage_recommendation_reuse_reason"] = reuse_reason
+        trace_summary["triage_recommendation_fingerprint"] = _stable_sha256_json(
+            {
+                "provider": str(triage_runtime.get("provider") or "fitcv_builtin"),
+                "model": str(triage_runtime.get("model") or "synonym_triage_v1"),
+                "wire_api": str(triage_runtime.get("wire_api") or "builtin"),
+                "overlay_fingerprint": overlay_fp,
+            }
+        )
+        trace_payload["trace_summary"] = trace_summary
+        payload["synonym_proposals_trace"] = trace_payload
+        update_run_synonym_proposals(
+            run_id=run.run_id,
+            synonym_proposals_json=_json.dumps(payload, ensure_ascii=False),
+            bq=bq,
+            project=project,
+            dataset=dataset,
+        )
         query = urlencode(
             {
                 "synonym_triage_triaged": triaged_count,
                 "synonym_triage_reused": reused_count,
+                "synonym_triage_fresh": fresh_count,
                 "synonym_triage_skipped": skipped_count,
                 "synonym_triage_failed": failed_count,
                 "synonym_triage_fallback": fallback_count,

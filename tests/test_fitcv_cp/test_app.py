@@ -1017,6 +1017,81 @@ def test_admin_run_cv_review_action_approve_records_terminal_resolution_status()
     payload = json.loads(mock_update_debug.call_args.args[1])
     assert payload["hitl_review_actions"][-1]["resolution_status"] == "approved_as_is"
 
+def test_admin_run_cv_review_action_approve_as_is_finalizes_cv_artifact() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-approve-finalize",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cvs_generated=0,
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                        "markdown_final": "# Candidate\n\nDraft",
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.insert_cv_version_row", return_value=[]) as mock_insert_cv, \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-approve-finalize/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "approve_as_is", "actor": "operator"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    mock_insert_cv.assert_called_once()
+    payload = json.loads(mock_update_debug.call_args.args[1])
+    assert payload["hitl_review_actions"][-1]["artifact_finalized"] is True
+
+def test_admin_run_cv_review_action_approve_as_is_missing_draft_returns_409() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-approve-missing",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-approve-missing/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "approve_as_is", "actor": "operator"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 409
+
 
 def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -1034,7 +1109,12 @@ def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> N
         cv_generation_debug_json=json.dumps(
             {
                 "cv_generation_debug_records": [
-                    {"job_url": "https://example.com/job-1", "job_title": "DE1", "status": "review_required"},
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "DE1",
+                        "status": "review_required",
+                        "markdown_final": "# DE1\n\nAccepted draft",
+                    },
                     {"job_url": "https://example.com/job-2", "job_title": "DE2", "status": "review_required"},
                 ],
                 "hitl_review_actions": [
@@ -1044,6 +1124,7 @@ def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> N
         ),
     )
     with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.insert_cv_version_row", return_value=[]), \
          patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
          patch("fitcv_cp.app.update_run_status") as mock_update_status, \
          patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint, \
@@ -1067,7 +1148,7 @@ def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> N
         row.get("job_url") == "https://example.com/job-1" and row.get("resolution_status") == "approved_as_is"
         for row in list(payload.get("hitl_review_actions") or [])
     )
-    mock_update_status.assert_called_once()
+    assert mock_update_status.call_count == 2
     mock_update_checkpoint.assert_called_once()
     assert mock_append.call_count >= 2
     completion_events = [
@@ -1079,7 +1160,7 @@ def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> N
     completion_payload = json.loads(completion_events[0].payload_json)
     assert completion_payload["closure_mode"] in {"all_review_rows_terminal", "all_review_rows_terminal_no_accepted_cv"}
 
-def test_admin_run_cv_review_batch_action_blocks_closure_without_zero_cv_confirmation() -> None:
+def test_admin_run_cv_review_batch_action_finalize_path_no_longer_needs_zero_cv_confirmation() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
 
@@ -1096,12 +1177,18 @@ def test_admin_run_cv_review_batch_action_blocks_closure_without_zero_cv_confirm
         cv_generation_debug_json=json.dumps(
             {
                 "cv_generation_debug_records": [
-                    {"job_url": "https://example.com/job-1", "job_title": "DE1", "status": "review_required"},
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "DE1",
+                        "status": "review_required",
+                        "markdown_final": "# DE1\n\nAccepted draft",
+                    },
                 ],
             }
         ),
     )
     with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.insert_cv_version_row", return_value=[]), \
          patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
          patch("fitcv_cp.app.update_run_status") as mock_update_status, \
          patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint, \
@@ -1116,16 +1203,50 @@ def test_admin_run_cv_review_batch_action_blocks_closure_without_zero_cv_confirm
             follow_redirects=False,
         )
     assert resp.status_code == 303
-    assert "hitl_closure_blocked=1" in resp.headers["location"]
+    assert "hitl_batch_finalized=1" in resp.headers["location"]
+    mock_update_debug.assert_called_once()
+    assert mock_update_status.call_count == 2
+    mock_update_checkpoint.assert_called_once()
+
+def test_admin_run_cv_review_batch_action_approve_as_is_missing_draft_is_safe_failure() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-batch-missing-draft",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {"job_url": "https://example.com/job-1", "job_title": "DE1", "status": "review_required"},
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-batch-missing-draft/cv-review-batch-action",
+            data={
+                "action": "approve_as_is",
+                "actor": "operator",
+                "job_url": ["https://example.com/job-1"],
+            },
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    assert "hitl_batch_failed=1" in resp.headers["location"]
     mock_update_debug.assert_called_once()
     mock_update_status.assert_not_called()
     mock_update_checkpoint.assert_not_called()
-    blocked_events = [
-        call.args[0]
-        for call in mock_append.call_args_list
-        if getattr(call.args[0], "stage", "") == "cv_review_closure_blocked"
-    ]
-    assert blocked_events
 
 
 def test_admin_run_detail_shows_synonym_overlay_yaml_snapshot() -> None:
@@ -3504,7 +3625,7 @@ def test_admin_run_synonym_proposals_triage_refresh_redirects_with_summary() -> 
     assert resp.status_code == 303
     assert (
         resp.headers["location"]
-        == "/admin/runs/run-triage-refresh?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_skipped=1&synonym_triage_failed=0&synonym_triage_fallback=0"
+        == "/admin/runs/run-triage-refresh?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_fresh=1&synonym_triage_skipped=1&synonym_triage_failed=0&synonym_triage_fallback=0"
     )
     assert persisted_payloads
     proposals = persisted_payloads[-1]["proposals"]
@@ -3552,7 +3673,8 @@ def test_admin_run_synonym_proposals_triage_refresh_does_not_mutate_status() -> 
         )
 
     assert resp.status_code == 303
-    assert captured_statuses == ["in_review"]
+    assert captured_statuses
+    assert all(status == "in_review" for status in captured_statuses)
 
 def test_synonym_proposal_review_queue_filters_pairs_already_in_global_synonyms() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -3707,7 +3829,7 @@ def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful
     assert resp.status_code == 303
     assert (
         resp.headers["location"]
-        == "/admin/runs/run-triage-provider-fail?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=1"
+        == "/admin/runs/run-triage-provider-fail?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_fresh=1&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=1"
     )
 
 
@@ -3760,7 +3882,7 @@ def test_admin_run_synonym_proposals_triage_refresh_provider_success_persists_re
     assert resp.status_code == 303
     assert (
         resp.headers["location"]
-        == "/admin/runs/run-triage-provider-success?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=0"
+        == "/admin/runs/run-triage-provider-success?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_fresh=1&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=0"
     )
     assert persisted_payloads
     proposal = persisted_payloads[-1]["proposals"][0]
@@ -3819,8 +3941,74 @@ def test_admin_run_synonym_proposals_triage_refresh_reuses_unchanged_recommendat
     assert resp.status_code == 303
     assert (
         resp.headers["location"]
-        == "/admin/runs/run-triage-reuse?synonym_triage_triaged=0&synonym_triage_reused=1&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=0"
+        == "/admin/runs/run-triage-reuse?synonym_triage_triaged=0&synonym_triage_reused=1&synonym_triage_fresh=0&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=0"
     )
+
+def test_admin_run_synonym_proposals_triage_refresh_auto_disabled_skips_generation() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-triage-auto-disabled",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps({"synonym_management": {"auto_triage_recommendation_enabled": False}}),
+        synonym_proposals_json=(
+            '{"run_id":"run-triage-auto-disabled","proposals":['
+            '{"proposal_id":"proposal-a","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={"persistence_status": "persisted", "degradation_reason": ""}), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-auto-disabled/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+    assert resp.status_code == 303
+    assert "synonym_triage_triaged=0" in resp.headers["location"]
+    assert "synonym_triage_reused=0" in resp.headers["location"]
+    assert "synonym_triage_fresh=0" in resp.headers["location"]
+
+def test_admin_run_synonym_proposals_triage_refresh_reuse_disabled_forces_fresh() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-triage-reuse-disabled",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps({"synonym_management": {"triage_recommendation_reuse_enabled": False}}),
+        synonym_proposals_json=(
+            '{"run_id":"run-triage-reuse-disabled","proposals":['
+            '{"proposal_id":"proposal-a","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9,'
+            '"recommended_action":"approve","recommendation_confidence":0.9,"recommendation_rationale":"ok"}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={"persistence_status": "persisted", "degradation_reason": ""}), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-reuse-disabled/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+    assert resp.status_code == 303
+    assert "synonym_triage_reused=0" in resp.headers["location"]
+    assert "synonym_triage_fresh=1" in resp.headers["location"]
 
 def test_download_run_approved_synonym_overlay_yaml() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
