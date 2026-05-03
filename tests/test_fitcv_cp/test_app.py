@@ -1402,6 +1402,61 @@ def test_admin_outbox_replay_health_check_ok_emits_info_event(tmp_path):
     assert emitted_payload["reason_code"] == "healthy"
 
 
+def test_admin_outbox_replay_health_check_uses_config_default_threshold(tmp_path):
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    runs = [
+        PipelineRun(
+            run_id="check-default-threshold-run",
+            status=RunStatus.SUCCEEDED,
+            jobs_path="data/sample_jobs.json",
+            triggered_by="admin",
+            trigger_source="web",
+            config_path=".env.yaml",
+            created_at=datetime.now(timezone.utc),
+        )
+    ]
+    dead_letter_file = tmp_path / "events-dead-letter.jsonl"
+    dead_letter_file.write_text("", encoding="utf-8")
+    replay_event = RunEvent(
+        run_id="check-default-threshold-run",
+        event_id="default-threshold-ev-1",
+        stage="event_dead_letter_replay",
+        level="info",
+        message="Replay summary",
+        created_at=datetime.now(timezone.utc),
+        payload_json=json.dumps(
+            {
+                "replay_candidates": 10,
+                "replayed": 9,
+                "failed": 1,
+                "replay_success_ratio": 0.9,
+                "remaining_dead_letter_total": 0,
+            }
+        ),
+    )
+    captured = {}
+
+    def _capture_event(event, *_args, **_kwargs):
+        captured["event"] = event
+        return {"persistence_status": "persisted", "degradation_reason": ""}
+
+    with patch.dict("os.environ", {"FITCV_EVENT_DEAD_LETTER_PATH": str(dead_letter_file)}), \
+         patch("fitcv_cp.app.list_runs", return_value=runs), \
+         patch("fitcv_cp.app.get_events", return_value=[replay_event]), \
+         patch("fitcv_cp.app.load_config", return_value={"outbox_replay_health": {"min_replay_success_ratio": 0.85}}), \
+         patch("fitcv_cp.app.append_event", side_effect=_capture_event):
+        resp = TestClient(_app()).post("/admin/outbox-replay-health/check?view=all")
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert payload["min_replay_success_ratio"] == 0.85
+    assert payload["decision"] == "ok"
+    emitted_payload = json.loads(str(captured["event"].payload_json or "{}"))
+    assert emitted_payload["min_replay_success_ratio"] == 0.85
+
+
 def test_admin_run_detail_success_banner():
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone

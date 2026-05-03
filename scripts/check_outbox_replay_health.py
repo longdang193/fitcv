@@ -25,16 +25,32 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 
 import httpx
+from fitcv.config import load_config
+
+
+def _resolve_min_replay_success_ratio(*, config_path: str, cli_override: float | None) -> float:
+    if cli_override is not None:
+        return float(cli_override)
+    try:
+        cfg = load_config(config_path)
+    except Exception:
+        return 0.95
+    replay_cfg = dict(cfg.get("outbox_replay_health") or {})
+    raw = replay_cfg.get("min_replay_success_ratio")
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return 0.95
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check outbox replay health and trigger alert decision.")
     parser.add_argument("--base-url", default="http://localhost:8010", help="Control-plane base URL.")
+    parser.add_argument("--config-path", default=".env.yaml", help="Path to FitCV runtime env YAML.")
     parser.add_argument("--view", default="active", choices=["active", "all", "archived"])
-    parser.add_argument("--min-replay-success-ratio", type=float, default=0.95)
+    parser.add_argument("--min-replay-success-ratio", type=float, default=None)
     parser.add_argument("--event-run-id", default="system-outbox-replay-health")
     parser.add_argument(
         "--emit-event",
@@ -44,11 +60,16 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    min_replay_success_ratio = _resolve_min_replay_success_ratio(
+        config_path=str(args.config_path),
+        cli_override=args.min_replay_success_ratio,
+    )
+
     base_url = str(args.base_url).rstrip("/")
     endpoint = f"{base_url}/admin/outbox-replay-health/check"
     params = {
         "view": args.view,
-        "min_replay_success_ratio": args.min_replay_success_ratio,
+        "min_replay_success_ratio": min_replay_success_ratio,
         "emit_event": args.emit_event,
         "event_run_id": args.event_run_id,
     }
@@ -68,4 +89,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

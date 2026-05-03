@@ -1045,6 +1045,18 @@ def _aggregate_dead_letter_replay_health(
         "status": "degraded" if dead_letter_total > 0 else "healthy",
     }
 
+def _default_outbox_replay_min_success_ratio() -> float:
+    try:
+        cfg = load_config()
+    except Exception:
+        return 0.95
+    replay_cfg = dict(cfg.get("outbox_replay_health") or {})
+    raw = replay_cfg.get("min_replay_success_ratio")
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return 0.95
+
 def _event_dead_letter_path() -> Path:
     return Path(
         str(
@@ -4187,7 +4199,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     @app.post("/admin/outbox-replay-health/check")
     def admin_outbox_replay_health_check(
         view: str = "active",
-        min_replay_success_ratio: float = 0.95,
+        min_replay_success_ratio: float | None = None,
         emit_event: bool = True,
         event_run_id: str = "system-outbox-replay-health",
     ) -> dict[str, Any]:
@@ -4203,9 +4215,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
+        effective_min_ratio = (
+            float(min_replay_success_ratio)
+            if min_replay_success_ratio is not None
+            else _default_outbox_replay_min_success_ratio()
+        )
         ratio = float(aggregate.get("replay_success_ratio") or 0.0)
         degraded = str(aggregate.get("status") or "") == "degraded"
-        ratio_below_threshold = ratio < float(min_replay_success_ratio)
+        ratio_below_threshold = ratio < effective_min_ratio
         alert_triggered = degraded or ratio_below_threshold
         decision = "alert" if alert_triggered else "ok"
         reason = []
@@ -4217,7 +4234,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         payload = {
             "view": view,
             "run_count": len(runs),
-            "min_replay_success_ratio": float(min_replay_success_ratio),
+            "min_replay_success_ratio": effective_min_ratio,
             "decision": decision,
             "reason_code": reason_code,
             "outbox_replay_health": aggregate,
