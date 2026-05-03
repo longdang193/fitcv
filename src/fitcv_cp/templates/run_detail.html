@@ -78,6 +78,42 @@
   {% endif %}
 </div>
 
+{% if stage_result_summary_rows %}
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Stage Result Policy + Trace Summary</h3>
+    <span class="badge badge-info">{{ stage_result_summary_rows|length }} stage(s)</span>
+  </div>
+  <div class="meta" style="margin-bottom:0.75rem">
+    Run-level summary of stage-owned decision policy and trace continuity from the canonical StageResult envelope.
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Stage</th>
+        <th>Status</th>
+        <th>Policy Version</th>
+        <th>Trace ID</th>
+        <th>Span ID</th>
+        <th>Parent Span ID</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in stage_result_summary_rows %}
+      <tr>
+        <td><code>{{ row.stage_id or '—' }}</code></td>
+        <td><code>{{ row.status or '—' }}</code></td>
+        <td><code>{{ row.policy_version or '—' }}</code></td>
+        <td><code>{{ row.trace_id or '—' }}</code></td>
+        <td><code>{{ row.span_id or '—' }}</code></td>
+        <td><code>{{ row.parent_span_id or '—' }}</code></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
     <h3 style="margin:0">Event Delivery Health</h3>

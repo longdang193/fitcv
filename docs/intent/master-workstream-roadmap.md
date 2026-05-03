@@ -1,3 +1,16 @@
+---
+roadmap_id: fitcv-master-workstream-roadmap
+status: active
+registered_workstreams:
+  - workstream-fitcv-semantic-spine
+  - workstream-operator-control-plane
+  - workstream-deterministic-acceptance-and-artifact-truth
+  - workstream-bounded-agentic-cv-quality
+  - workstream-agentic-observability
+  - workstream-agentic-synonym-management
+  - workstream-pipeline-efficiency-and-reuse
+---
+
 # Master Workstream Roadmap
 
 ## Purpose

@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-agentic-gate-integration
-status: proposed
+status: active
 ---
 
 # deterministic-truth-agentic-gate-integration
@@ -23,11 +23,11 @@ cv_analysis/cv_generation handoffs; validator integration
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-05-03-deterministic-truth-agentic-gate-integration-bootstrap-spec.md
 
 ## Linked Plan
 
-- none yet
+- docs/superpowers/plans/2026-05-03-deterministic-truth-agentic-gate-integration-bootstrap-plan.md
 
 ## Notes
 

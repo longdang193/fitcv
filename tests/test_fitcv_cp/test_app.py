@@ -797,6 +797,59 @@ def test_admin_run_detail_shows_replay_context_metadata() -> None:
     assert "full" in resp.text
     assert "bigquery" in resp.text
 
+
+def test_admin_run_detail_shows_stage_result_policy_and_trace_summary() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-stage-result-summary",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        results_export_json=json.dumps(
+            {
+                "results": [],
+                "stage_result_summary": {
+                    "normalize": {
+                        "status": "completed",
+                        "policy_version": "policy.normalize.v1",
+                        "trace_context": {
+                            "trace_id": "trace-normalize-1",
+                            "span_id": "span-normalize-1",
+                            "parent_span_id": "",
+                        },
+                    },
+                    "cv_generation": {
+                        "status": "completed",
+                        "policy_version": "policy.cv_generation.v1",
+                        "trace_context": {
+                            "trace_id": "trace-cv-1",
+                            "span_id": "span-cv-1",
+                            "parent_span_id": "span-analysis-1",
+                        },
+                    },
+                },
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-stage-result-summary")
+
+    assert resp.status_code == 200
+    assert "Stage Result Policy + Trace Summary" in resp.text
+    assert "policy.normalize.v1" in resp.text
+    assert "trace-normalize-1" in resp.text
+    assert "policy.cv_generation.v1" in resp.text
+    assert "span-analysis-1" in resp.text
+
 def test_admin_run_detail_shows_markdown_quality_card() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone

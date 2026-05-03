@@ -1677,3 +1677,76 @@ def test_worker_pipeline_cancelled_exception_marks_cancelled():
     from fitcv_cp.models import RunStatus
     final_status = mock_update.call_args_list[-1].args[1]
     assert final_status == RunStatus.CANCELLED
+
+def test_worker_results_export_includes_deterministic_stage_summary_fields() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "path"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.run_mode = "run_all"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r1",
+        "total_jobs": 5,
+        "passed_filter": 3,
+        "ranked": 2,
+        "cvs_generated": 1,
+        "stage_transition_artifacts": {
+            "stages": {
+                "cv_analysis": {
+                    "status": "completed",
+                    "output_counts": {
+                        "ready_for_generation": 1,
+                        "blocked_by_reranker_fit": 1,
+                        "skipped_fit_gate": 0,
+                        "analysis_failed": 0,
+                    },
+                    "stage_result": {
+                        "policy_version": "policy.cv_analysis.v1",
+                        "decision": "pass",
+                        "trace_context": {"trace_id": "t1", "span_id": "s1", "parent_span_id": "p1"},
+                    },
+                },
+                "cv_generation": {
+                    "status": "completed",
+                    "output_counts": {
+                        "accepted": 1,
+                        "review_required": 0,
+                        "validation_failed": 1,
+                        "generation_failed": 0,
+                        "persistence_failed": 0,
+                    },
+                    "stage_result": {
+                        "policy_version": "policy.cv_generation.v1",
+                        "decision": "manual_review",
+                        "trace_context": {"trace_id": "t2", "span_id": "s2", "parent_span_id": "p2"},
+                    },
+                },
+            }
+        },
+        "export_results": [{"job_url": "https://example.com/1", "pipeline_status": "ranked_no_cv"}],
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    payload = json.loads(mock_store_export.call_args.args[1])
+    cv_analysis_summary = payload["stage_result_summary"]["cv_analysis"]
+    assert cv_analysis_summary["source_stage"] == "cv_analysis"
+    assert cv_analysis_summary["stage_owned_subreason"] == "stage_summary"
+    assert cv_analysis_summary["deterministic_outcome"] is None
+    assert cv_analysis_summary["outcome_counts"]["ready_for_generation"] == 1
+    assert cv_analysis_summary["outcome_counts"]["blocked_by_reranker_fit"] == 1
+
+    cv_generation_summary = payload["stage_result_summary"]["cv_generation"]
+    assert cv_generation_summary["source_stage"] == "cv_generation"
+    assert cv_generation_summary["stage_owned_subreason"] == "stage_summary"
+    assert cv_generation_summary["deterministic_outcome"] is None
+    assert cv_generation_summary["outcome_counts"]["accepted"] == 1
+    assert cv_generation_summary["outcome_counts"]["validation_failed"] == 1

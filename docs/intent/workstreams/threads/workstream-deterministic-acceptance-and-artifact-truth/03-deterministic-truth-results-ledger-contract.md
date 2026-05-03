@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-results-ledger-contract
-status: proposed
+status: active
 ---
 
 # deterministic-truth-results-ledger-contract
@@ -23,11 +23,11 @@ results.json exports; inspection surfaces
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-05-03-deterministic-truth-results-ledger-contract-bootstrap-spec.md
 
 ## Linked Plan
 
-- none yet
+- docs/superpowers/plans/2026-05-03-deterministic-truth-results-ledger-contract-bootstrap-plan.md
 
 ## Notes
 

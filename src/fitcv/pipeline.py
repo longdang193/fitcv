@@ -1459,6 +1459,7 @@ def _bounded_event_payload(
     job_url: str | None = None,
     deterministic_outcome: str | None = None,
     stage_owned_subreason: str | None = None,
+    confidence: float | None = None,
     fallback_used: bool = False,
     provenance: dict[str, Any] | None = None,
     input_snapshot: dict[str, Any] | None = None,
@@ -1477,6 +1478,8 @@ def _bounded_event_payload(
         payload["job_url"] = job_url
     if stage_owned_subreason is not None:
         payload["stage_owned_subreason"] = stage_owned_subreason
+    if confidence is not None:
+        payload["confidence"] = float(confidence)
     if provenance:
         payload["provenance"] = _json_safe_pipeline_value(provenance)
     if input_snapshot:
@@ -3744,6 +3747,26 @@ def run_pipeline(
     enabled_cv_sections = _cv_generation_enabled_sections(config)
     agentic_late_stage_enabled = _agentic_late_stage_enabled(config)
     if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("cv_analysis"):
+        if reporter is not None:
+            reporter.emit(
+                "layer4_cv_analysis_invoked",
+                "info",
+                f"CV analysis invoked for {len(ranked_jobs_for_cv)} ranked job(s)",
+                _bounded_event_payload(
+                    event_name="cv_analysis_invoked",
+                    event_family="invocation",
+                    source_stage="cv_analysis",
+                    event_status="started",
+                    fallback_used=False,
+                    provenance={
+                        "late_stage_mode": "agentic" if agentic_late_stage_enabled else "non_agentic",
+                    },
+                    input_snapshot={
+                        "ranked_jobs": len(ranked_jobs_for_cv),
+                    },
+                    artifact_refs={"stage_id": "cv_analysis"},
+                ),
+            )  # type: ignore[union-attr]
         if cancellation_check and cancellation_check():
             raise PipelineCancelled("Cancelled before CV analysis")
         cv_analysis_results = []
@@ -4161,6 +4184,28 @@ def run_pipeline(
         )
         gap = analysis_record.get("gap_summary")
         fit = str(analysis_record.get("fit_classification") or "skip")
+        if reporter is not None:
+            reporter.emit(
+                "layer4_cv_generation_invoked",
+                "info",
+                f"CV generation invoked for {job.get('job_url')}",
+                _bounded_event_payload(
+                    event_name="cv_generation_invoked",
+                    event_family="invocation",
+                    source_stage="cv_generation",
+                    event_status="started",
+                    job_url=str(job.get("job_url") or ""),
+                    fallback_used=False,
+                    provenance={
+                        "cv_generation_model": cv_generation_model_value,
+                    },
+                    input_snapshot={
+                        "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
+                        "fit_classification": fit,
+                    },
+                    artifact_refs={"stage_id": "cv_generation"},
+                ),
+            )  # type: ignore[union-attr]
         structured_cv_initial: dict[str, Any] | None = None
         validation_initial: dict[str, Any] | None = None
         repair_attempt = dict(_EMPTY_REPAIR_ATTEMPT)

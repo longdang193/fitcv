@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-agentic-observability.agentic-observability-event-contract
-status: proposed
+status: active
 ---
 
 # agentic-observability-event-contract
@@ -23,11 +23,11 @@ stage artifacts; persisted diagnostics
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-04-28-agentic-observability-event-contract-spec.md
 
 ## Linked Plan
 
-- none yet
+- docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
 
 ## Notes
 

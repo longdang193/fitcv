@@ -1,6 +1,6 @@
 ---
 thread_id: workstream-fitcv-semantic-spine.semantic-spine-prefect-orchestration-adoption
-status: proposed
+status: completed
 ---
 
 # semantic-spine-prefect-orchestration-adoption

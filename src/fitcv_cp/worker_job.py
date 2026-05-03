@@ -95,6 +95,45 @@ _RUN_MODE_LABELS = {
 }
 _WINDOWS_ABSOLUTE_PATH_PATTERN = re.compile(r"^[A-Za-z]:[\\/]")
 
+
+def _stage_deterministic_summary(
+    *,
+    stage_id: str,
+    output_counts: dict[str, Any] | None,
+) -> dict[str, Any]:
+    counts = dict(output_counts or {})
+    if stage_id == "cv_analysis":
+        return {
+            "source_stage": "cv_analysis",
+            "stage_owned_subreason": "stage_summary",
+            "deterministic_outcome": None,
+            "outcome_counts": {
+                "ready_for_generation": int(counts.get("ready_for_generation") or 0),
+                "blocked_by_reranker_fit": int(counts.get("blocked_by_reranker_fit") or 0),
+                "skipped_fit_gate": int(counts.get("skipped_fit_gate") or 0),
+                "analysis_failed": int(counts.get("analysis_failed") or 0),
+            },
+        }
+    if stage_id == "cv_generation":
+        return {
+            "source_stage": "cv_generation",
+            "stage_owned_subreason": "stage_summary",
+            "deterministic_outcome": None,
+            "outcome_counts": {
+                "accepted": int(counts.get("accepted") or 0),
+                "review_required": int(counts.get("review_required") or 0),
+                "validation_failed": int(counts.get("validation_failed") or 0),
+                "generation_failed": int(counts.get("generation_failed") or 0),
+                "persistence_failed": int(counts.get("persistence_failed") or 0),
+            },
+        }
+    return {
+        "source_stage": None,
+        "stage_owned_subreason": None,
+        "deterministic_outcome": None,
+        "outcome_counts": {},
+    }
+
 def _policy_registry_version(config_payload: dict[str, Any] | None) -> str:
     cfg = dict(config_payload or {})
     block = dict(cfg.get("policy_registry") or {})
@@ -300,6 +339,10 @@ def _build_results_export_payload(
             continue
         stage_result = dict(block.get("stage_result") or {})
         trace_context = dict(stage_result.get("trace_context") or {})
+        deterministic_summary = _stage_deterministic_summary(
+            stage_id=str(stage_id),
+            output_counts=dict(block.get("output_counts") or {}),
+        )
         stage_result_summary[str(stage_id)] = {
             "status": str(block.get("status") or ""),
             "decision": _json_safe(stage_result.get("decision") or {}),
@@ -309,6 +352,10 @@ def _build_results_export_payload(
                 "span_id": str(trace_context.get("span_id") or ""),
                 "parent_span_id": str(trace_context.get("parent_span_id") or ""),
             },
+            "source_stage": deterministic_summary["source_stage"],
+            "deterministic_outcome": deterministic_summary["deterministic_outcome"],
+            "stage_owned_subreason": deterministic_summary["stage_owned_subreason"],
+            "outcome_counts": deterministic_summary["outcome_counts"],
         }
     payload = {
         "run_id": run_id,
