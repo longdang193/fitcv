@@ -2227,6 +2227,64 @@ def test_run_detail_paused_after_normalize_shows_normalize_download_on_timeline_
     assert "Normalize complete: kept 10 of 10 jobs, removed 0 duplicate(s)" in resp.text
 
 
+def test_run_detail_timeline_prefers_enrich_stage_artifact_counts_over_stale_event_message() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-enrich-summary-truth",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        checkpoint_status="awaiting_continue",
+        last_completed_stage="enrich",
+        next_stage="rule_filter",
+        completed_stages=["normalize", "enrich"],
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "enrich": {
+                            "status": "completed",
+                            "output_counts": {
+                                "enriched_jobs": 10,
+                                "pre_enrichment_rejected_jobs": 0,
+                            },
+                            "decision_summary": {
+                                "fresh_rows": 0,
+                                "reused_rows": 10,
+                                "total_enriched_rows": 10,
+                            },
+                        }
+                    }
+                }
+            }
+        ),
+    )
+    events = [
+        RunEvent(
+            run_id="run-enrich-summary-truth",
+            event_id="e1",
+            stage="layer1_jobs",
+            level="info",
+            message="Enrich complete: 0 enriched, 0 rejected before enrich, fresh=0, reused=0",
+            created_at=datetime.now(timezone.utc),
+        ),
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-enrich-summary-truth")
+
+    assert resp.status_code == 200
+    assert "Enrich complete: 10 enriched, 0 rejected before enrich, fresh=0, reused=10" in resp.text
+    assert "Enrich complete: 0 enriched, 0 rejected before enrich, fresh=0, reused=0" not in resp.text
+
 def test_run_detail_timeline_shows_cv_analysis_download_only_on_aggregate_row():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
@@ -3373,6 +3431,7 @@ def test_admin_run_detail_shows_synonym_triage_refresh_action_and_status() -> No
     assert "/admin/runs/run-proposal-ui-triage-action/synonym-proposals/triage-refresh" in resp.text
     assert "Refresh Triage Recommendations" in resp.text
     assert "triage: fresh" in resp.text
+    assert "triage_state:" in resp.text
 
 
 def test_admin_run_detail_shows_triage_summary_banner_from_query_params() -> None:

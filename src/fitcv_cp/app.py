@@ -1383,6 +1383,9 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
     trace_payload = _load_run_synonym_proposals_trace_payload(run) or {}
     trace_summary = dict(trace_payload.get("trace_summary") or {})
     global_synonyms = _global_synonyms_for_proposal_evaluation(run)
+    mode = _synonym_management_mode(run)
+    triage_runtime = _resolve_synonym_triage_runtime(run)
+    overlay_fp = str(_synonym_observability_fingerprints(run).get("run_overlay_fingerprint") or "").strip() or None
     items: list[dict[str, Any]] = []
     lane_keys = ("skill", "domain", "role_family")
     lane_summary: dict[str, dict[str, Any]] = {
@@ -1409,6 +1412,26 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
         global_promotion_history = [
             entry for entry in list(proposal.get("global_promotion_history") or []) if isinstance(entry, dict)
         ]
+        triage_state = "not_available"
+        if not bool(mode.get("auto_triage_recommendation_enabled")):
+            triage_state = "auto_off"
+        else:
+            has_recommendation = bool(str(proposal.get("recommended_action") or "").strip())
+            if not has_recommendation:
+                triage_state = "stale_no_recommendation"
+            else:
+                triage_fp = _synonym_triage_fingerprint(
+                    proposal,
+                    runtime=triage_runtime,
+                    overlay_fingerprint=overlay_fp,
+                )
+                runtime_meta = dict(proposal.get("recommendation_runtime") or {})
+                if not bool(mode.get("triage_recommendation_reuse_enabled")):
+                    triage_state = "fresh_reuse_off"
+                elif str(runtime_meta.get("triage_fingerprint") or "").strip() == triage_fp:
+                    triage_state = "reused"
+                else:
+                    triage_state = "fresh"
         alias = str(proposal.get("alias") or "").strip().lower()
         canonical = str(proposal.get("canonical") or "").strip().lower()
         already_global = field == "skill" and bool(alias) and bool(canonical) and global_synonyms.get(alias) == canonical
@@ -1432,6 +1455,7 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
             "latest_action_at": str(latest_action.get("acted_at") or "").strip() or None,
             "latest_action_by": str(latest_action.get("acted_by") or "").strip() or None,
             "recommended_action": str(proposal.get("recommended_action") or "").strip() or None,
+            "triage_recommendation_state": triage_state,
             "recommendation_confidence": float(proposal.get("recommendation_confidence") or 0.0),
             "recommendation_rationale": str(proposal.get("recommendation_rationale") or "").strip() or None,
             "recommendation_risk_flags": [
@@ -2914,6 +2938,15 @@ def _timeline_stage_summary_message(
         rejected = outputs.get("pre_enrichment_rejected_jobs")
         fresh = decision.get("fresh_rows")
         reused = decision.get("reused_rows")
+        # Prefer enrich stage-artifact truth when legacy event payload/message drifts.
+        if enriched in (None, 0):
+            enriched = decision.get("total_enriched_rows")
+        if rejected is None:
+            rejected = decision.get("pre_enrichment_rejected_jobs")
+        if fresh is None:
+            fresh = payload_output.get("fresh_count")
+        if reused is None:
+            reused = payload_output.get("reused_count")
         details = []
         if enriched is not None:
             details.append(f"{enriched} enriched")
