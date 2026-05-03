@@ -101,7 +101,7 @@
   </div>
   <form id="hitl-batch-form" method="post" action="/admin/runs/{{ run.run_id }}/cv-review-batch-action" style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.85rem">
     <select name="action">
-      <option value="approve_as_is">Batch Approve As-Is</option>
+      <option value="approve_as_is">Batch Accept Draft As Final CV</option>
       <option value="regenerate_once">Batch Regenerate Once</option>
       <option value="reject">Batch Reject</option>
     </select>
@@ -157,7 +157,7 @@
         <form method="post" action="/admin/runs/{{ run.run_id }}/cv-review-action" style="display:inline">
           <input type="hidden" name="job_url" value="{{ item.job_url }}">
           <input type="hidden" name="action" value="approve_as_is">
-          <button class="btn-secondary" type="submit">Approve As-Is</button>
+          <button class="btn-secondary" type="submit">Accept Draft As Final CV</button>
         </form>
         <form method="post" action="/admin/runs/{{ run.run_id }}/cv-review-action" style="display:inline">
           <input type="hidden" name="job_url" value="{{ item.job_url }}">
@@ -294,10 +294,29 @@
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
       <span class="badge badge-info">run-scoped HITL</span>
+      <span class="badge badge-info">
+        mode:
+        {% if not synonym_management_mode.auto_triage_recommendation_enabled %}
+          auto_off
+        {% elif not synonym_management_mode.triage_recommendation_reuse_enabled %}
+          fresh_only
+        {% else %}
+          reuse_smart
+        {% endif %}
+      </span>
       <span class="badge badge-{{ 'success' if synonym_proposal_review_queue.triage_status == 'fresh' else ('warning' if synonym_proposal_review_queue.triage_status in ('partial', 'stale') else 'neutral') }}">
         triage: {{ synonym_proposal_review_queue.triage_status }}
       </span>
     </div>
+  </div>
+  {% set triage_summary = synonym_proposal_review_queue.get("triage_summary", {}) %}
+  <div class="meta" style="margin-bottom:0.65rem">
+    triage summary:
+    generated={{ triage_summary.get("generated_total", 0) }},
+    fresh={{ triage_summary.get("fresh_total", 0) }},
+    reused={{ triage_summary.get("reused_total", 0) }},
+    suppressed={{ triage_summary.get("suppressed_total", 0) }},
+    reason={{ triage_summary.get("reuse_reason", "n/a") }}.
   </div>
   {% if synonym_proposal_review_queue.get("field_lanes") %}
   <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin-bottom:0.85rem">
