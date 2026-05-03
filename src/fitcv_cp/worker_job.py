@@ -93,6 +93,7 @@ _RUN_MODE_LABELS = {
     "run_all": "Run All",
     "manual_staged": "Stage by Stage",
 }
+_NON_SKILL_MIN_SUPPORT_FOR_PROPOSAL = 2
 _WINDOWS_ABSOLUTE_PATH_PATTERN = re.compile(r"^[A-Za-z]:[\\/]")
 
 
@@ -721,6 +722,8 @@ def _build_synonym_proposals_payload(
             if str(alias).strip() and str(canonical).strip()
         }
     suppressed_as_already_global_count = 0
+    suppressed_count_by_field: dict[str, int] = {}
+    suppressed_reason_counts_by_field: dict[str, dict[str, int]] = {}
     suppressed_examples: list[dict[str, str]] = []
     for (_field_alias_key, bucket) in grouped.items():
         field = str(bucket.get("field") or "skill")
@@ -737,12 +740,30 @@ def _build_synonym_proposals_payload(
         avg_confidence = (
             float(bucket["confidence_sum"]) / occurrence_count if occurrence_count else 0.0
         )
+        if field in {"domain", "role_family"} and occurrence_count < _NON_SKILL_MIN_SUPPORT_FOR_PROPOSAL:
+            suppressed_count_by_field[field] = suppressed_count_by_field.get(field, 0) + 1
+            reason_bucket = suppressed_reason_counts_by_field.setdefault(field, {})
+            reason_bucket["insufficient_non_skill_support"] = (
+                reason_bucket.get("insufficient_non_skill_support", 0) + 1
+            )
+            if len(suppressed_examples) < 10:
+                suppressed_examples.append(
+                    {
+                        "field": field,
+                        "alias": alias,
+                        "canonical": primary_canonical,
+                    }
+                )
+            continue
         identity_seed = f"{run_id}:{field}:{alias}:{'|'.join(candidate_canonicals)}:{proposal_family}"
         proposal_id = f"synprop-{hashlib.sha1(identity_seed.encode('utf-8')).hexdigest()[:12]}"
         existing_proposal = existing_proposals_by_id.get(proposal_id) or {}
         global_canonical = normalized_global_synonyms.get(alias) if field == "skill" else None
         if global_canonical and global_canonical == primary_canonical:
             suppressed_as_already_global_count += 1
+            suppressed_count_by_field[field] = suppressed_count_by_field.get(field, 0) + 1
+            reason_bucket = suppressed_reason_counts_by_field.setdefault(field, {})
+            reason_bucket["already_global_exact"] = reason_bucket.get("already_global_exact", 0) + 1
             if len(suppressed_examples) < 10:
                 suppressed_examples.append({"field": field, "alias": alias, "canonical": primary_canonical})
             continue
@@ -799,6 +820,8 @@ def _build_synonym_proposals_payload(
         suppression_summary={
             "suppressed_as_already_global_count": suppressed_as_already_global_count,
             "generated_for_review_count": len(proposals),
+            "suppressed_count_by_field": suppressed_count_by_field,
+            "suppressed_reason_counts_by_field": suppressed_reason_counts_by_field,
             "suppressed_examples": suppressed_examples,
             "suppression_source": (
                 "run_effective_skill_synonyms"
@@ -874,6 +897,8 @@ def _build_synonym_proposals_trace_payload(
                     (suppression_summary or {}).get("generated_for_review_count") or 0
                 ),
                 "suppression_source": str((suppression_summary or {}).get("suppression_source") or "none"),
+                "suppressed_count_by_field": dict((suppression_summary or {}).get("suppressed_count_by_field") or {}),
+                "suppressed_reason_counts_by_field": dict((suppression_summary or {}).get("suppressed_reason_counts_by_field") or {}),
             },
             "records": [],
             "degradation": {},
@@ -955,6 +980,8 @@ def _build_synonym_proposals_trace_payload(
                 (suppression_summary or {}).get("generated_for_review_count") or len(proposals)
             ),
             "suppression_source": str((suppression_summary or {}).get("suppression_source") or "none"),
+            "suppressed_count_by_field": dict((suppression_summary or {}).get("suppressed_count_by_field") or {}),
+            "suppressed_reason_counts_by_field": dict((suppression_summary or {}).get("suppressed_reason_counts_by_field") or {}),
         },
         "records": trace_records,
         "degradation": degradation,
@@ -1428,11 +1455,26 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             )
             return
 
-        # ── Step 5: Success ───────────────────────────────────────────────────
-        finished_at = datetime.datetime.now(datetime.timezone.utc)
+        # ── Step 5: Terminalize or park for review ───────────────────────────
+        cv_debug_records = [
+            item for item in list(summary.get("cv_generation_debug_records") or [])
+            if isinstance(item, dict)
+        ]
+        pending_review_required = sum(
+            1
+            for record in cv_debug_records
+            if str(record.get("status") or "").strip() == "review_required"
+        )
+        finished_at = datetime.datetime.now(datetime.timezone.utc) if pending_review_required == 0 else None
+        terminal_status = RunStatus.SUCCEEDED if pending_review_required == 0 else RunStatus.AWAITING_CONTINUE
         update_run_status(
-            run_id, RunStatus.SUCCEEDED, bq, project=project, dataset=dataset,
-            finished_at=finished_at, summary=summary,
+            run_id,
+            terminal_status,
+            bq,
+            project=project,
+            dataset=dataset,
+            finished_at=finished_at,
+            summary=summary,
         )
         completed_stages = [
             "normalize",
@@ -1443,7 +1485,32 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             "cv_analysis",
             "cv_generation",
         ]
-        if run_mode == "manual_staged":
+        if pending_review_required > 0:
+            update_run_checkpoint(
+                run_id,
+                bq,
+                project=project,
+                dataset=dataset,
+                checkpoint_status="awaiting_review",
+                next_stage=None,
+                last_completed_stage="cv_generation",
+                completed_stages=completed_stages,
+                checkpoint_payload_json=None,
+            )
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="cv_review_required",
+                    level="warning",
+                    message=f"Run paused: {pending_review_required} review-required CV item(s) pending operator action.",
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+        elif run_mode == "manual_staged":
             update_run_checkpoint(
                 run_id,
                 bq,
@@ -1466,20 +1533,20 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             )
         export_results = list(summary.get("export_results") or [])
         try:
-            update_run_results_export(
-                run_id,
-                _build_results_export_payload(
-                    run_id=run_id,
-                    run_record=run_record,
-                    effective_config=effective_config,
-                    summary=summary,
-                    export_results=export_results,
-                    finished_at=finished_at,
-                    replay_context=replay_context,
-                ),
-                bq,
-                project=project,
-                dataset=dataset,
+                update_run_results_export(
+                    run_id,
+                    _build_results_export_payload(
+                        run_id=run_id,
+                        run_record=run_record,
+                        effective_config=effective_config,
+                        summary=summary,
+                        export_results=export_results,
+                        finished_at=finished_at,
+                        replay_context=replay_context,
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
             )
         except Exception as exc:
             logger.warning("[run_id=%s] Failed to persist results export snapshot: %s", run_id, exc)
@@ -1490,7 +1557,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     run_id=run_id,
                     run_record=run_record,
                     summary=summary,
-                    finished_at=finished_at,
+                    finished_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
                 ),
                 bq,
                 project=project,
@@ -1531,13 +1598,14 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
         except Exception as exc:
             logger.warning("[run_id=%s] Failed to persist settings-used snapshot: %s", run_id, exc)
         if _summary_has_reached_stage(summary, "enrich"):
+            snapshot_created_at = finished_at or datetime.datetime.now(datetime.timezone.utc)
             try:
                 update_run_mapping_suggestions(
                     run_id,
                     _build_mapping_suggestions_payload(
                         run_id=run_id,
                         summary=summary,
-                        created_at=finished_at,
+                        created_at=snapshot_created_at,
                     ),
                     bq,
                     project=project,
@@ -1563,7 +1631,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     synonym_payload_json = _build_synonym_proposals_payload(
                         run_id=run_id,
                         summary=summary,
-                        created_at=finished_at,
+                        created_at=snapshot_created_at,
                         existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
                         global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
                     )

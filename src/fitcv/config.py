@@ -52,8 +52,16 @@ _APIFY_KEYS = ["apify_dataset_id", "apify_token"]
 # The new subfolder layout is canonical; flat legacy filenames are temporary
 # fallbacks for migration compatibility.
 _POLICY_FILE_CANDIDATES = [
-    ("taxonomy", ("taxonomy/taxonomy.yaml", "taxonomy.yaml")),
     ("skill_synonyms", ("taxonomy/skill_synonyms.yaml", "skill_synonyms.yaml")),
+    (
+        "domain_synonyms",
+        ("taxonomy/domain_synonyms.yaml", "domain_synonyms.yaml"),
+    ),
+    (
+        "role_family_synonyms",
+        ("taxonomy/role_family_synonyms.yaml", "role_family_synonyms.yaml"),
+    ),
+    ("taxonomy", ("taxonomy/taxonomy.yaml", "taxonomy.yaml")),
     ("pipeline", ("runtime/pipeline.yaml", "pipeline.yaml")),
     ("ranking", ("policy/ranking.yaml", "ranking.yaml")),
     ("cv_analysis", ("policy/cv_analysis.yaml", "cv_analysis.yaml")),
@@ -180,7 +188,7 @@ def _normalize_neighbor_map(raw_map: Any) -> dict[str, tuple[str, ...]]:
     normalized: dict[str, tuple[str, ...]] = {}
     for key, values in raw_map.items():
         normalized_key = _normalize_role_text(key)
-        if not normalized_key or not isinstance(values, list):
+        if not normalized_key or not isinstance(values, (list, tuple)):
             continue
         normalized_values = tuple(
             candidate
@@ -251,8 +259,20 @@ def _normalize_role_taxonomy(raw_taxonomy: Any) -> dict[str, Any]:
     }
 
 
-def parse_skill_synonym_overlay_yaml(raw_yaml: str) -> dict[str, str]:
-    """Parse and validate a run-scoped synonym overlay YAML payload."""
+
+def _normalize_runtime_synonym_overlay_payload(raw_payload: Any) -> dict[str, Any]:
+    if not isinstance(raw_payload, dict):
+        return {}
+    return {
+        "skill_synonyms": _normalize_skill_synonyms(raw_payload.get("skill_synonyms")),
+        "domain_alias_map": _normalize_alias_map(raw_payload.get("domain_alias_map")),
+        "role_family_alias_map": _normalize_alias_map(raw_payload.get("role_family_alias_map")),
+        "domain_neighbors": _normalize_neighbor_map(raw_payload.get("domain_neighbors")),
+        "role_family_neighbors": _normalize_neighbor_map(raw_payload.get("role_family_neighbors")),
+    }
+
+def parse_runtime_synonym_overlay_yaml(raw_yaml: str) -> dict[str, Any]:
+    """Parse and validate a run-scoped multi-field synonym overlay YAML payload."""
     try:
         payload = yaml.safe_load(raw_yaml)
     except yaml.YAMLError as exc:
@@ -261,21 +281,103 @@ def parse_skill_synonym_overlay_yaml(raw_yaml: str) -> dict[str, str]:
         raise ValueError("Synonym overlay must define at least one mapping")
     if not isinstance(payload, dict):
         raise ValueError("Synonym overlay must be a mapping")
-    candidate = payload.get("skill_synonyms") if "skill_synonyms" in payload else payload
-    if not isinstance(candidate, dict):
-        raise ValueError("Synonym overlay entries must be provided as a mapping")
-
-    normalized: dict[str, str] = {}
-    for alias, canonical in candidate.items():
-        alias_normalized = str(alias).strip().lower()
-        canonical_normalized = str(canonical).strip().lower()
-        if not alias_normalized or not canonical_normalized:
-            raise ValueError("Synonym overlay aliases and canonicals must be non-empty strings")
-        normalized[alias_normalized] = canonical_normalized
-    if not normalized:
+    supported_keys = {
+        "skill_synonyms",
+        "domain_alias_map",
+        "role_family_alias_map",
+        "domain_neighbors",
+        "role_family_neighbors",
+    }
+    if not any(key in payload for key in supported_keys):
+        payload = {"skill_synonyms": payload}
+    normalized = _normalize_runtime_synonym_overlay_payload(payload)
+    if not any(bool(section) for section in normalized.values()):
         raise ValueError("Synonym overlay must define at least one mapping")
     return normalized
 
+def parse_skill_synonym_overlay_yaml(raw_yaml: str) -> dict[str, str]:
+    """Backward-compatible parser for skill-only run overlays."""
+    try:
+        payload = yaml.safe_load(raw_yaml)
+    except yaml.YAMLError as exc:
+        raise ValueError("Synonym overlay must be valid YAML") from exc
+    if isinstance(payload, dict):
+        candidate = payload.get("skill_synonyms") if "skill_synonyms" in payload else payload
+        if isinstance(candidate, dict):
+            for alias, canonical in candidate.items():
+                if not str(alias).strip() or not str(canonical).strip():
+                    raise ValueError("Synonym overlay aliases and canonicals must be non-empty strings")
+    return dict(parse_runtime_synonym_overlay_yaml(raw_yaml).get("skill_synonyms") or {})
+
+def apply_runtime_synonym_overlay(
+    cfg: dict[str, Any],
+    overlay_payload: dict[str, Any],
+    *,
+    source: str,
+    filename: str,
+    uploaded_at: str,
+    raw_yaml: str | None = None,
+) -> dict[str, Any]:
+    """Return cfg with a run-scoped multi-field synonym overlay merged in."""
+    updated_cfg = dict(cfg)
+    normalized_overlay = _normalize_runtime_synonym_overlay_payload(overlay_payload)
+    overlay_skill_synonyms = dict(normalized_overlay.get("skill_synonyms") or {})
+    overlay_domain_alias_map = dict(normalized_overlay.get("domain_alias_map") or {})
+    overlay_role_family_alias_map = dict(normalized_overlay.get("role_family_alias_map") or {})
+    overlay_domain_neighbors = dict(normalized_overlay.get("domain_neighbors") or {})
+    overlay_role_family_neighbors = dict(normalized_overlay.get("role_family_neighbors") or {})
+
+    runtime = dict(updated_cfg.get("skill_synonyms_runtime") or {})
+    base_effective_synonyms = runtime.get("pre_run_overlay_skill_synonyms")
+    if not isinstance(base_effective_synonyms, dict):
+        base_effective_synonyms = _normalize_skill_synonyms(updated_cfg.get("skill_synonyms"))
+    base_effective_synonyms = _normalize_skill_synonyms(base_effective_synonyms)
+    merged_synonyms = dict(base_effective_synonyms)
+    merged_synonyms.update(overlay_skill_synonyms)
+
+    base_domain_alias_map = _normalize_alias_map(updated_cfg.get("domain_alias_map"))
+    merged_domain_alias_map = dict(base_domain_alias_map)
+    merged_domain_alias_map.update(overlay_domain_alias_map)
+    base_role_family_alias_map = _normalize_alias_map(updated_cfg.get("role_family_alias_map"))
+    merged_role_family_alias_map = dict(base_role_family_alias_map)
+    merged_role_family_alias_map.update(overlay_role_family_alias_map)
+    base_domain_neighbors = _normalize_neighbor_map(updated_cfg.get("domain_neighbors"))
+    merged_domain_neighbors = dict(base_domain_neighbors)
+    merged_domain_neighbors.update(overlay_domain_neighbors)
+    base_role_family_neighbors = _normalize_neighbor_map(updated_cfg.get("role_family_neighbors"))
+    merged_role_family_neighbors = dict(base_role_family_neighbors)
+    merged_role_family_neighbors.update(overlay_role_family_neighbors)
+
+    runtime["pre_run_overlay_skill_synonyms"] = dict(base_effective_synonyms)
+    runtime["has_overlay"] = bool(runtime.get("overlay_paths") or overlay_skill_synonyms)
+    runtime["entry_count"] = len(merged_synonyms)
+    runtime["has_run_overlay"] = bool(
+        overlay_skill_synonyms
+        or overlay_domain_alias_map
+        or overlay_role_family_alias_map
+        or overlay_domain_neighbors
+        or overlay_role_family_neighbors
+    )
+    runtime["run_overlay_source"] = source
+    runtime["run_overlay_filename"] = filename
+    runtime["run_overlay_uploaded_at"] = uploaded_at
+    runtime["run_overlay_entry_count"] = len(overlay_skill_synonyms)
+    runtime["run_overlay_section_counts"] = {
+        "skill_synonyms": len(overlay_skill_synonyms),
+        "domain_alias_map": len(overlay_domain_alias_map),
+        "role_family_alias_map": len(overlay_role_family_alias_map),
+        "domain_neighbors": len(overlay_domain_neighbors),
+        "role_family_neighbors": len(overlay_role_family_neighbors),
+    }
+    if raw_yaml is not None:
+        runtime["run_overlay_yaml"] = str(raw_yaml)
+    updated_cfg["skill_synonyms"] = merged_synonyms
+    updated_cfg["domain_alias_map"] = merged_domain_alias_map
+    updated_cfg["role_family_alias_map"] = merged_role_family_alias_map
+    updated_cfg["domain_neighbors"] = merged_domain_neighbors
+    updated_cfg["role_family_neighbors"] = merged_role_family_neighbors
+    updated_cfg["skill_synonyms_runtime"] = runtime
+    return updated_cfg
 
 def apply_runtime_skill_synonym_overlay(
     cfg: dict[str, Any],
@@ -286,30 +388,15 @@ def apply_runtime_skill_synonym_overlay(
     uploaded_at: str,
     raw_yaml: str | None = None,
 ) -> dict[str, Any]:
-    """Return cfg with a run-scoped synonym overlay merged in."""
-    updated_cfg = dict(cfg)
-    runtime = dict(updated_cfg.get("skill_synonyms_runtime") or {})
-    base_effective_synonyms = runtime.get("pre_run_overlay_skill_synonyms")
-    if not isinstance(base_effective_synonyms, dict):
-        base_effective_synonyms = _normalize_skill_synonyms(updated_cfg.get("skill_synonyms"))
-    base_effective_synonyms = _normalize_skill_synonyms(base_effective_synonyms)
-    merged_synonyms = dict(base_effective_synonyms)
-    merged_synonyms.update(_normalize_skill_synonyms(overlay_synonyms))
-    runtime["pre_run_overlay_skill_synonyms"] = dict(base_effective_synonyms)
-    runtime["has_overlay"] = bool(runtime.get("overlay_paths") or overlay_synonyms)
-    runtime["entry_count"] = len(merged_synonyms)
-    runtime["has_run_overlay"] = bool(overlay_synonyms)
-    runtime["run_overlay_source"] = source
-    runtime["run_overlay_filename"] = filename
-    runtime["run_overlay_uploaded_at"] = uploaded_at
-    runtime["run_overlay_entry_count"] = len(overlay_synonyms)
-    if raw_yaml is not None:
-        runtime["run_overlay_yaml"] = str(raw_yaml)
-    updated_cfg["skill_synonyms"] = merged_synonyms
-    updated_cfg["skill_synonyms_runtime"] = runtime
-    return updated_cfg
-
-
+    """Backward-compatible wrapper for skill-only run overlays."""
+    return apply_runtime_synonym_overlay(
+        cfg,
+        {"skill_synonyms": _normalize_skill_synonyms(overlay_synonyms)},
+        source=source,
+        filename=filename,
+        uploaded_at=uploaded_at,
+        raw_yaml=raw_yaml,
+    )
 def _apply_prompt_defaults(cfg: dict[str, Any]) -> dict[str, Any]:
     prompts = cfg.get("prompts")
     if not isinstance(prompts, dict):
@@ -760,3 +847,4 @@ def get_cv_generation_model(config: dict[str, Any]) -> str:
 
 def get_cv_generation_prompt_version(config: dict[str, Any]) -> str:
     return str((((config.get("cv") or {}).get("generation") or {}).get("prompt_version")) or config.get("prompt_version") or "v1")
+

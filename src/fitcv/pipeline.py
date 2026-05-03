@@ -1765,7 +1765,11 @@ def _hitl_review_reason_for_agentic_case(
                 if requirement:
                     unsupported_requirements.append(requirement)
         if unsupported_requirements:
-            return "Unsupported requirements require review: " + ", ".join(sorted(set(unsupported_requirements))[:6])
+            return (
+                "Unsupported requirements require review: "
+                + ", ".join(sorted(set(unsupported_requirements))[:6])
+                + ". Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject."
+            )
     markdown_review_flags = list((validation_snapshot or {}).get("markdown_quality_review_flags") or [])
     if markdown_review_flags:
         return "Markdown quality requires review: " + str(markdown_review_flags[0])

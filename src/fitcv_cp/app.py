@@ -103,7 +103,9 @@ from pydantic import BaseModel, field_validator
 from fitcv.config import (
     apply_cv_compatibility_projection,
     apply_runtime_skill_synonym_overlay,
+    apply_runtime_synonym_overlay,
     load_config,
+    parse_runtime_synonym_overlay_yaml,
     parse_skill_synonym_overlay_yaml,
 )
 from fitcv.pipeline import (
@@ -111,6 +113,7 @@ from fitcv.pipeline import (
     _restore_pipeline_state,
     next_pipeline_stage,
 )
+from fitcv.tracker import create_cv_version_record
 from fitcv_cp.bq_store import (
     append_event,
     archive_run,
@@ -122,9 +125,14 @@ from fitcv_cp.bq_store import (
     update_run_synonym_proposals,
     update_run_orchestration_binding, update_run_queue_job_id, update_run_status,
     update_run_cv_generation_debug,
+    insert_cv_version_row,
 )
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission, get_orchestration_adapter
+from fitcv_cp.queue import cancel_queued_run, enqueue_run, enqueue_run_with_job_id
+import redis
+from rq.exceptions import NoSuchJobError
+from rq.job import Job
 from fitcv_cp.settings_schema import (
     AGENTIC_SETTINGS_SECTIONS,
     ALL_GROUP_REGISTRIES,
@@ -1382,27 +1390,158 @@ def _load_run_agentic_live_trace_payload(run: PipelineRun) -> dict[str, Any] | N
 def _load_run_cv_generation_debug_payload(run: PipelineRun) -> dict[str, Any] | None:
     return _load_json_object(run.cv_generation_debug_json)
 
+def _run_status_allows_export(run: PipelineRun) -> bool:
+    if run.status == RunStatus.SUCCEEDED:
+        return True
+    return run.status == RunStatus.AWAITING_CONTINUE and str(run.checkpoint_status or "").strip() == "awaiting_review"
+
+def _map_review_required_reason_code(record: dict[str, Any]) -> str:
+    explicit_code = str(record.get("review_required_reason_code") or "").strip()
+    if explicit_code and explicit_code != "unknown":
+        return explicit_code
+    error = dict(record.get("error") or {})
+    stage = str(error.get("stage") or "").strip().lower()
+    message = str(error.get("message") or record.get("operator_note") or "").strip().lower()
+    if "unsupported requirements require review" in message:
+        return "unsupported_requirement_gap"
+    if stage == "markdown_quality_review" or "markdown quality" in message:
+        return "quality_gate_failed"
+    if stage == "validation" or "validation failed" in message or "guardrail" in message:
+        return "validation_guardrail_failed"
+    if "insufficient evidence" in message or "evidence coverage" in message:
+        return "evidence_coverage_insufficient"
+    if stage in {"provider", "llm"} or "provider" in message or "response unusable" in message:
+        return "provider_response_unusable"
+    return "manual_review_other"
+
+def _extract_unsupported_requirements(record: dict[str, Any]) -> list[str]:
+    gap_summary = dict(record.get("gap_summary") or {})
+    structured_missing = [
+        str(item).strip()
+        for item in list(gap_summary.get("missing") or [])
+        if str(item).strip()
+    ]
+    if structured_missing:
+        return structured_missing
+
+    message = str((dict(record.get("error") or {})).get("message") or "").strip()
+    marker = "Unsupported requirements require review:"
+    if marker not in message:
+        return []
+    suffix = message.split(marker, 1)[1].strip()
+    if not suffix:
+        return []
+    guidance_marker = ". Review the generated CV output"
+    if guidance_marker in suffix:
+        suffix = suffix.split(guidance_marker, 1)[0].strip()
+    parsed = [item.strip() for item in suffix.split(",") if item.strip()]
+    banned_tokens = ("approve", "regenerate", "reject", "review the generated cv output")
+    cleaned: list[str] = []
+    for token in parsed:
+        lowered = token.lower()
+        if any(banned in lowered for banned in banned_tokens):
+            continue
+        cleaned.append(token)
+    return cleaned
+
+def _review_target_for_reason_code(reason_code: str) -> str:
+    if reason_code == "unsupported_requirement_gap":
+        return "requirements_alignment"
+    if reason_code in {"quality_gate_failed", "validation_guardrail_failed"}:
+        return "cv_output"
+    if reason_code == "evidence_coverage_insufficient":
+        return "cv_output"
+    if reason_code == "provider_response_unusable":
+        return "other"
+    return "other"
+
+def _operator_prompt_for_review_required(
+    *,
+    reason_code: str,
+    unsupported_requirements: list[str],
+) -> str:
+    if reason_code == "unsupported_requirement_gap":
+        missing = ", ".join(unsupported_requirements[:6]) if unsupported_requirements else "listed requirements"
+        return (
+            "Review the generated CV output against required stack coverage "
+            f"({missing}), then choose approve as-is, regenerate once, or reject."
+        )
+    if reason_code in {"quality_gate_failed", "validation_guardrail_failed"}:
+        return "Review CV output quality/guardrail issues, then choose approve as-is, regenerate once, or reject."
+    if reason_code == "evidence_coverage_insufficient":
+        return "Review whether evidence coverage is acceptable, then choose approve as-is, regenerate once, or reject."
+    return "Review this CV outcome and choose approve as-is, regenerate once, or reject."
+
+def _extract_review_required_request_id(record: dict[str, Any]) -> str | None:
+    runtime_provenance = dict(record.get("runtime_provenance") or {})
+    for key in ("request_id", "response_id"):
+        value = str(runtime_provenance.get(key) or "").strip()
+        if value:
+            return value
+    live_trace = dict(record.get("agentic_live_trace") or {})
+    for attempt in list(live_trace.get("attempts") or []):
+        if not isinstance(attempt, dict):
+            continue
+        for key in ("request_id", "response_id"):
+            value = str(attempt.get(key) or "").strip()
+            if value:
+                return value
+    return None
+
+def _normalized_cv_debug_payload_for_export(run: PipelineRun) -> dict[str, Any] | None:
+    payload = _load_run_cv_generation_debug_payload(run)
+    if not isinstance(payload, dict):
+        return None
+    copied = dict(payload)
+    records = [item for item in list(copied.get("debug_records") or copied.get("cv_generation_debug_records") or []) if isinstance(item, dict)]
+    normalized_records: list[dict[str, Any]] = []
+    for record in records:
+        row = dict(record)
+        if str(row.get("status") or "").strip() == "review_required":
+            row["review_required_reason_code"] = _map_review_required_reason_code(row)
+            if _extract_review_required_request_id(row) is not None:
+                runtime = dict(row.get("runtime_provenance") or {})
+                runtime["request_id"] = _extract_review_required_request_id(row)
+                row["runtime_provenance"] = runtime
+        normalized_records.append(row)
+    if "debug_records" in copied:
+        copied["debug_records"] = normalized_records
+    if "cv_generation_debug_records" in copied:
+        copied["cv_generation_debug_records"] = normalized_records
+    return copied
+
 def _build_cv_generation_review_required_payload(run: PipelineRun) -> dict[str, Any] | None:
     payload = _load_run_cv_generation_debug_payload(run)
     if not isinstance(payload, dict):
         return None
     records = [item for item in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or []) if isinstance(item, dict)]
+
     rows: list[dict[str, Any]] = []
     for record in records:
         if str(record.get("status") or "").strip() != "review_required":
             continue
+        reason_code = _map_review_required_reason_code(record)
+        unsupported_requirements = _extract_unsupported_requirements(record)
         rows.append(
             {
                 "job_url": str(record.get("job_url") or ""),
                 "job_title": str(record.get("job_title") or ""),
-                "reason_code": str(record.get("review_required_reason_code") or "unknown"),
+                "reason_code": reason_code,
+                "review_target": _review_target_for_reason_code(reason_code),
+                "operator_prompt": _operator_prompt_for_review_required(
+                    reason_code=reason_code,
+                    unsupported_requirements=unsupported_requirements,
+                ),
+                "unsupported_requirements": unsupported_requirements,
+                "generated_draft_present": bool(str(record.get("markdown_final") or "").strip()),
+                "accepted_cv_artifact_present": False,
                 "attempt_count": int(record.get("attempt_count") or 1),
                 "failed_rule_ids": list(record.get("failed_rule_ids") or []),
                 "first_failing_section_key": record.get("first_failing_section_key"),
                 "operator_note": record.get("operator_note"),
                 "provider_name": str((record.get("runtime_provenance") or {}).get("provider") or ""),
                 "model_name": str(record.get("cv_generation_model") or ""),
-                "request_id": str((record.get("runtime_provenance") or {}).get("request_id") or ""),
+                "request_id": _extract_review_required_request_id(record),
             }
         )
     if not rows:
@@ -1413,11 +1552,64 @@ def _build_cv_generation_review_required_payload(run: PipelineRun) -> dict[str, 
         "rows": rows,
     }
 
+
+def _build_ranked_cv_outcome_summary(rows: list[dict[str, Any]]) -> dict[str, int]:
+    summary = {
+        "ranked_total": 0,
+        "ranked_cv_created_count": 0,
+        "ranked_fit_gated_count": 0,
+        "ranked_review_required_count": 0,
+        "ranked_generation_failed_count": 0,
+        "ranked_other_no_cv_count": 0,
+    }
+    for row in rows:
+        if row.get("rank") is None:
+            continue
+        summary["ranked_total"] += 1
+        pipeline_status = str(row.get("pipeline_status") or "").strip()
+        stage_owned_subreason = str(row.get("stage_owned_subreason") or "").strip()
+        cv_gen_status = str((((row.get("decision_chain") or {}).get("cv_generation") or {}).get("status")) or "").strip()
+        if pipeline_status == "ranked_with_cv":
+            summary["ranked_cv_created_count"] += 1
+        elif pipeline_status in {"ranked_blocked_by_reranker_fit", "ranked_skipped_fit_gate"}:
+            summary["ranked_fit_gated_count"] += 1
+        elif pipeline_status == "ranked_no_cv" and (
+            stage_owned_subreason == "review_required" or cv_gen_status == "review_required"
+        ):
+            summary["ranked_review_required_count"] += 1
+        elif pipeline_status == "ranked_no_cv":
+            summary["ranked_generation_failed_count"] += 1
+        else:
+            summary["ranked_other_no_cv_count"] += 1
+    return summary
+
+_HITL_TERMINAL_RESOLUTION_STATUSES = {
+    "approved_as_is",
+    "rejected",
+    "regenerated_and_accepted",
+    "regenerated_and_rejected",
+}
+
+
+def _normalize_hitl_resolution_status(action_name: str | None, explicit_status: str | None) -> str:
+    normalized_explicit = str(explicit_status or "").strip().lower()
+    if normalized_explicit:
+        return normalized_explicit
+    normalized_action = str(action_name or "").strip().lower()
+    if normalized_action in {"approve", "approve_as_is"}:
+        return "approved_as_is"
+    if normalized_action == "reject":
+        return "rejected"
+    if normalized_action == "regenerate_once":
+        return "regeneration_requested"
+    return "pending"
+
+
 def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
     payload = _load_run_cv_generation_debug_payload(run)
     if not isinstance(payload, dict):
         return {"queue_items": [], "pending_count": 0, "total_review_required": 0, "actions_count": 0}
-    records = list(payload.get("cv_generation_debug_records") or [])
+    records = list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or [])
     actions = [item for item in list(payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
     latest_action_by_job: dict[str, dict[str, Any]] = {}
     for action in actions:
@@ -1436,6 +1628,13 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
             continue
         action = latest_action_by_job.get(job_url)
         action_name = str((action or {}).get("action") or "").strip() or None
+        resolution_status = _normalize_hitl_resolution_status(
+            action_name,
+            (action or {}).get("resolution_status"),
+        )
+        markdown_preview = str(record.get("markdown_final") or "").strip()
+        if markdown_preview and len(markdown_preview) > 2400:
+            markdown_preview = markdown_preview[:2400] + "\n...[truncated in review queue]"
         queue_items.append(
             {
                 "job_url": job_url,
@@ -1445,7 +1644,10 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
                 "action": action_name,
                 "action_at": str((action or {}).get("created_at") or "").strip() or None,
                 "action_by": str((action or {}).get("actor") or "").strip() or None,
-                "pending": action_name not in {"approve", "regenerate_once", "reject"},
+                "resolution_status": resolution_status,
+                "pending": resolution_status not in _HITL_TERMINAL_RESOLUTION_STATUSES,
+                "cv_markdown_preview": markdown_preview or None,
+                "cv_preview_available": bool(markdown_preview),
             }
         )
     queue_items.sort(key=lambda item: (not item["pending"], item["job_title"].lower(), item["job_url"]))
@@ -1457,20 +1659,120 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
         "actions_count": len(actions),
     }
 
+def _build_hitl_closure_summary(run: PipelineRun, queue: dict[str, Any] | None = None) -> dict[str, Any]:
+    queue_payload = queue or _build_hitl_review_queue(run)
+    queue_items = [item for item in list(queue_payload.get("queue_items") or []) if isinstance(item, dict)]
+    resolution_totals: dict[str, int] = {}
+    for item in queue_items:
+        resolution = str(item.get("resolution_status") or "pending").strip() or "pending"
+        resolution_totals[resolution] = resolution_totals.get(resolution, 0) + 1
+    pending_total = int(queue_payload.get("pending_count") or 0)
+    review_required_total = int(queue_payload.get("total_review_required") or 0)
+    all_terminal = bool(queue_items) and pending_total == 0
+    accepted_cv_total = int(run.cvs_generated or 0)
+    requires_no_accepted_ack = all_terminal and accepted_cv_total <= 0
+    closure_mode = "incomplete"
+    if all_terminal:
+        closure_mode = "all_review_rows_terminal"
+        if accepted_cv_total <= 0:
+            closure_mode = "all_review_rows_terminal_no_accepted_cv"
+    return {
+        "review_required_total": review_required_total,
+        "pending_total": pending_total,
+        "resolution_totals": resolution_totals,
+        "all_terminal": all_terminal,
+        "accepted_cv_total": accepted_cv_total,
+        "requires_no_accepted_ack": requires_no_accepted_ack,
+        "closure_mode": closure_mode,
+    }
+
+def _effective_settings_dict(run: PipelineRun) -> dict[str, Any]:
+    payload = _load_json_object(run.effective_settings_json)
+    return payload if isinstance(payload, dict) else {}
+
+def _review_record_for_job(run: PipelineRun, job_url: str) -> dict[str, Any] | None:
+    payload = _load_run_cv_generation_debug_payload(run)
+    if not isinstance(payload, dict):
+        return None
+    normalized_job_url = str(job_url or "").strip()
+    for record in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or []):
+        if not isinstance(record, dict):
+            continue
+        if str(record.get("status") or "").strip() != "review_required":
+            continue
+        if str(record.get("job_url") or "").strip() == normalized_job_url:
+            return record
+    return None
+
+def _finalize_review_draft_as_cv_artifact(
+    *,
+    run: PipelineRun,
+    job_url: str,
+    record: dict[str, Any] | None,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> tuple[bool, str, str | None]:
+    if not isinstance(record, dict):
+        return (False, "not_review_required", None)
+    markdown = str(record.get("markdown_final") or "").strip()
+    if not markdown:
+        return (False, "missing_draft_for_approve", None)
+    rows = _results_export_rows(run)
+    row = next((item for item in rows if str(item.get("job_url") or "").strip() == str(job_url or "").strip()), {})
+    effective_settings = _effective_settings_dict(run)
+    fit_classification = str(record.get("fit_classification") or row.get("fit_classification") or "unknown").strip() or "unknown"
+    version_record = create_cv_version_record(
+        job_url=str(job_url),
+        run_id=str(run.run_id),
+        enrichment_version=str(row.get("enrichment_version") or record.get("enrichment_version") or "review_finalize"),
+        vector_rank=int(row.get("vector_rank") or row.get("rank") or 0),
+        ai_score=float(row.get("ai_score") or 0.0),
+        final_score=float(row.get("final_score") or 0.0),
+        evidence_ids=list(row.get("evidence_ids") or []),
+        prompt_version=str(
+            row.get("prompt_version")
+            or effective_settings.get("cv_generation_prompt_version")
+            or effective_settings.get("cv_prompt_version")
+            or "review_finalize_v1"
+        ),
+        cv_markdown=markdown,
+        gap_summary=dict(record.get("gap_summary") or {}),
+        fit_classification=fit_classification,
+        cv_structured=(dict(record.get("structured_cv_final") or {}) or None),
+        cv_generation_model=str(record.get("model") or effective_settings.get("cv_generation_model") or "") or None,
+        cv_prompt_version=str(
+            effective_settings.get("cv_generation_prompt_version")
+            or effective_settings.get("cv_prompt_version")
+            or row.get("prompt_version")
+            or ""
+        ) or None,
+    )
+    errors = insert_cv_version_row(version_record, bq, project=project, dataset=dataset)
+    if errors:
+        return (False, "persist_failed", None)
+    return (True, "finalized", str(version_record.get("version_id") or ""))
+
 def _build_hitl_review_audit_payload(run: PipelineRun) -> dict[str, Any]:
     queue = _build_hitl_review_queue(run)
     payload = _load_run_cv_generation_debug_payload(run)
     actions = [item for item in list((payload or {}).get("hitl_review_actions") or []) if isinstance(item, dict)]
+    queue_items = [item for item in list(queue.get("queue_items") or []) if isinstance(item, dict)]
+    closure_summary = _build_hitl_closure_summary(run, queue=queue)
     return {
         "schema_version": "hitl_review_audit_v1",
         "run_id": run.run_id,
         "status": run.status.value,
         "summary": {
-            "review_required_total": int(queue.get("total_review_required") or 0),
-            "pending_total": int(queue.get("pending_count") or 0),
+            "review_required_total": closure_summary.get("review_required_total"),
+            "pending_total": closure_summary.get("pending_total"),
             "actions_total": len(actions),
+            "closure_mode": closure_summary.get("closure_mode"),
+            "resolution_totals": closure_summary.get("resolution_totals"),
+            "accepted_cv_total": closure_summary.get("accepted_cv_total"),
+            "requires_no_accepted_ack": closure_summary.get("requires_no_accepted_ack"),
         },
-        "queue_items": list(queue.get("queue_items") or []),
+        "queue_items": queue_items,
         "actions": actions,
     }
 
@@ -1478,8 +1780,24 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
     payload = _load_run_synonym_proposals_payload(run)
     if not isinstance(payload, dict):
         return {"items": [], "pending_count": 0, "total_count": 0}
+    trace_payload = _load_run_synonym_proposals_trace_payload(run) or {}
+    trace_summary = dict(trace_payload.get("trace_summary") or {})
     global_synonyms = _global_synonyms_for_proposal_evaluation(run)
     items: list[dict[str, Any]] = []
+    lane_keys = ("skill", "domain", "role_family")
+    lane_summary: dict[str, dict[str, Any]] = {
+        key: {
+            "field": key,
+            "label": "Skills" if key == "skill" else ("Domain" if key == "domain" else "Role Family"),
+            "total": 0,
+            "pending": 0,
+            "approved": 0,
+            "suppressed": 0,
+            "generated": 0,
+            "zero_state_reason": "no_suggestions",
+        }
+        for key in lane_keys
+    }
     filtered_as_already_global_count = 0
     for proposal in list(payload.get("proposals") or []):
         if not isinstance(proposal, dict):
@@ -1496,31 +1814,39 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
         already_global = field == "skill" and bool(alias) and bool(canonical) and global_synonyms.get(alias) == canonical
         if already_global:
             filtered_as_already_global_count += 1
+            lane_summary.setdefault(field, {"field": field, "label": field, "total": 0, "pending": 0, "approved": 0, "suppressed": 0, "generated": 0, "zero_state_reason": "no_suggestions"})
+            lane_summary[field]["suppressed"] = int(lane_summary[field].get("suppressed", 0)) + 1
             continue
+        lane_summary.setdefault(field, {"field": field, "label": field, "total": 0, "pending": 0, "approved": 0, "suppressed": 0, "generated": 0, "zero_state_reason": "no_suggestions"})
+        lane_summary[field]["generated"] = int(lane_summary[field].get("generated", 0)) + 1
         latest_action = review_history[-1] if review_history else {}
-        items.append(
-            {
-                "proposal_id": str(proposal.get("proposal_id") or "").strip(),
-                "field": field,
-                "alias": str(proposal.get("alias") or "").strip() or "—",
-                "canonical": str(proposal.get("canonical") or "").strip() or "—",
-                "confidence": float(proposal.get("confidence") or 0.0),
-                "status": status,
-                "pending": pending,
-                "latest_action": str(latest_action.get("action") or "").strip() or None,
-                "latest_action_at": str(latest_action.get("acted_at") or "").strip() or None,
-                "latest_action_by": str(latest_action.get("acted_by") or "").strip() or None,
-                "recommended_action": str(proposal.get("recommended_action") or "").strip() or None,
-                "recommendation_confidence": float(proposal.get("recommendation_confidence") or 0.0),
-                "recommendation_rationale": str(proposal.get("recommendation_rationale") or "").strip() or None,
-                "recommendation_risk_flags": [
-                    str(flag).strip()
-                    for flag in list(proposal.get("recommendation_risk_flags") or [])
-                    if str(flag).strip()
-                ],
-                "globally_promoted": bool(global_promotion_history) or already_global,
-            }
-        )
+        item = {
+            "proposal_id": str(proposal.get("proposal_id") or "").strip(),
+            "field": field,
+            "alias": str(proposal.get("alias") or "").strip() or "—",
+            "canonical": str(proposal.get("canonical") or "").strip() or "—",
+            "confidence": float(proposal.get("confidence") or 0.0),
+            "status": status,
+            "pending": pending,
+            "latest_action": str(latest_action.get("action") or "").strip() or None,
+            "latest_action_at": str(latest_action.get("acted_at") or "").strip() or None,
+            "latest_action_by": str(latest_action.get("acted_by") or "").strip() or None,
+            "recommended_action": str(proposal.get("recommended_action") or "").strip() or None,
+            "recommendation_confidence": float(proposal.get("recommendation_confidence") or 0.0),
+            "recommendation_rationale": str(proposal.get("recommendation_rationale") or "").strip() or None,
+            "recommendation_risk_flags": [
+                str(flag).strip()
+                for flag in list(proposal.get("recommendation_risk_flags") or [])
+                if str(flag).strip()
+            ],
+            "globally_promoted": bool(global_promotion_history) or already_global,
+        }
+        items.append(item)
+        lane_summary[field]["total"] = int(lane_summary[field].get("total", 0)) + 1
+        if pending:
+            lane_summary[field]["pending"] = int(lane_summary[field].get("pending", 0)) + 1
+        if status == "approved_for_run_overlay":
+            lane_summary[field]["approved"] = int(lane_summary[field].get("approved", 0)) + 1
     items.sort(key=lambda item: (not item["pending"], -item["confidence"], item["alias"], item["canonical"]))
     triage_status = "not_generated"
     if items:
@@ -1534,15 +1860,65 @@ def _build_synonym_proposal_review_queue(run: PipelineRun) -> dict[str, Any]:
             triage_status = "fresh"
         elif pending_with_reco:
             triage_status = "partial"
-        elif any(str(item.get("recommended_action") or "").strip() for item in items):
+        else:
             triage_status = "stale"
+    suppressed_by_field_from_trace = {
+        str(field).strip().lower(): int(count or 0)
+        for field, count in dict(trace_summary.get("suppressed_count_by_field") or {}).items()
+        if str(field).strip()
+    }
+    for field_key, suppressed_count in suppressed_by_field_from_trace.items():
+        lane_summary.setdefault(
+            field_key,
+            {
+                "field": field_key,
+                "label": "Skills" if field_key == "skill" else ("Domain" if field_key == "domain" else "Role Family"),
+                "total": 0,
+                "pending": 0,
+                "approved": 0,
+                "suppressed": 0,
+                "generated": 0,
+                "zero_state_reason": "no_suggestions",
+            },
+        )
+        lane_summary[field_key]["suppressed"] = max(
+            int(lane_summary[field_key].get("suppressed", 0)),
+            suppressed_count,
+        )
+    for field_key, lane in lane_summary.items():
+        total = int(lane.get("total", 0))
+        suppressed = int(lane.get("suppressed", 0))
+        generated = int(lane.get("generated", 0))
+        if total > 0:
+            lane["zero_state_reason"] = None
+        elif generated == 0 and suppressed > 0:
+            lane["zero_state_reason"] = "all_suppressed"
+        elif generated == 0:
+            lane["zero_state_reason"] = "no_suggestions"
+        else:
+            lane["zero_state_reason"] = None
+    triage_summary = {
+        "generated_total": int(trace_summary.get("triage_recommendation_generated_total") or 0),
+        "reused_total": int(trace_summary.get("triage_recommendation_reused_total") or 0),
+        "fresh_total": int(trace_summary.get("triage_recommendation_fresh_total") or 0),
+        "suppressed_total": int(trace_summary.get("triage_recommendation_suppressed_total") or 0),
+        "reuse_reason": str(trace_summary.get("triage_recommendation_reuse_reason") or "not_available"),
+        "fingerprint": str(trace_summary.get("triage_recommendation_fingerprint") or "").strip() or None,
+    }
     return {
         "items": items,
+        "items_by_field": {
+            "skill": [item for item in items if str(item.get("field") or "").strip() == "skill"],
+            "domain": [item for item in items if str(item.get("field") or "").strip() == "domain"],
+            "role_family": [item for item in items if str(item.get("field") or "").strip() == "role_family"],
+        },
         "pending_count": sum(1 for item in items if item["pending"]),
         "total_count": len(items),
         "approved_count": sum(1 for item in items if item["status"] == "approved_for_run_overlay"),
         "filtered_as_already_global_count": filtered_as_already_global_count,
         "triage_status": triage_status,
+        "triage_summary": triage_summary,
+        "field_lanes": [lane_summary[key] for key in lane_keys if key in lane_summary],
     }
 
 def _build_markdown_quality_summary(run: PipelineRun) -> dict[str, Any]:
@@ -1609,16 +1985,24 @@ def _results_export_rows_with_hitl_audit(run: PipelineRun) -> list[dict[str, Any
         for item in list(queue.get("queue_items") or [])
         if isinstance(item, dict) and str(item.get("job_url") or "").strip()
     }
+    debug_records_by_job = {
+        str(item.get("job_url") or "").strip(): item
+        for item in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or [])
+        if isinstance(item, dict) and str(item.get("job_url") or "").strip()
+    }
     enriched_rows: list[dict[str, Any]] = []
     for row in rows:
         row_copy = dict(row)
         job_url = str(row_copy.get("job_url") or "").strip()
         review_item = review_item_by_job.get(job_url)
         latest_action = latest_action_by_job.get(job_url)
+        debug_record = debug_records_by_job.get(job_url)
         if review_item is not None:
             row_copy["hitl_review_required"] = True
             row_copy["hitl_review_reason"] = str(review_item.get("reason") or "").strip() or None
             row_copy["hitl_review_pending"] = bool(review_item.get("pending"))
+            row_copy["generated_draft_present"] = bool(str((debug_record or {}).get("markdown_final") or "").strip())
+            row_copy["accepted_cv_artifact_present"] = bool(row_copy.get("cv"))
             row_copy["hitl_review_category"] = (
                 "markdown_quality"
                 if "markdown quality" in str(review_item.get("reason") or "").strip().lower()
@@ -1778,12 +2162,22 @@ def _build_synonym_suppression_diff_payload(run: PipelineRun) -> dict[str, Any]:
     generated_payload = _load_run_synonym_proposals_payload(run) or {}
     generated_proposals = [item for item in list(generated_payload.get("proposals") or []) if isinstance(item, dict)]
     fps = _synonym_observability_fingerprints(run)
+    suppressed_count_by_field = {
+        str(field).strip(): int(count or 0)
+        for field, count in dict(trace_summary.get("suppressed_count_by_field") or {}).items()
+        if str(field).strip()
+    }
+    suppressed_pairs_total = int(sum(suppressed_count_by_field.values()))
+    if suppressed_pairs_total <= 0:
+        suppressed_pairs_total = int(
+            trace_summary.get("suppressed_as_already_global_count") or len(suppressed_examples)
+        )
     return {
         "run_id": run.run_id,
         "schema_version": "synonym_suppression_diff_v1",
         "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "suggested_pairs_total": len(suggestions),
-        "suppressed_pairs_total": int(trace_summary.get("suppressed_as_already_global_count") or len(suppressed_examples)),
+        "suppressed_pairs_total": suppressed_pairs_total,
         "generated_pairs_total": int(trace_summary.get("generated_for_review_count") or len(generated_proposals)),
         "suppressed_pairs": suppressed_examples[:200],
         "generated_pairs": [
@@ -1961,6 +2355,14 @@ def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
     runtime = payload.get("skill_synonyms_runtime")
     if not isinstance(runtime, dict):
         return {"has_run_overlay": False}
+    section_counts = dict(runtime.get("run_overlay_section_counts") or {})
+    normalized_section_counts = {
+        "skill_synonyms": int(section_counts.get("skill_synonyms") or 0),
+        "domain_alias_map": int(section_counts.get("domain_alias_map") or 0),
+        "role_family_alias_map": int(section_counts.get("role_family_alias_map") or 0),
+        "domain_neighbors": int(section_counts.get("domain_neighbors") or 0),
+        "role_family_neighbors": int(section_counts.get("role_family_neighbors") or 0),
+    }
     source = str(runtime.get("run_overlay_source") or "").strip().lower()
     source_labels = {
         "trigger_upload": "Trigger Upload",
@@ -1999,6 +2401,7 @@ def _extract_run_synonym_overlay_info(run: PipelineRun) -> dict[str, Any]:
         "entry_count": int(runtime.get("run_overlay_entry_count") or 0),
         "uploaded_at": str(runtime.get("run_overlay_uploaded_at") or ""),
         "effective_entry_count": int(runtime.get("entry_count") or 0),
+        "section_counts": normalized_section_counts,
         "has_default_overlay": bool(runtime.get("has_overlay")),
         "snapshot_yaml": snapshot_yaml,
         "snapshot_label": snapshot_label,
@@ -2025,6 +2428,41 @@ def _can_regenerate_synonym_proposals(run: PipelineRun) -> bool:
         and bool(run.mapping_suggestions_json)
     )
 
+def _validate_overlay_scope(overlay_payload: dict[str, Any], scope: str) -> None:
+    normalized_scope = str(scope or "combined").strip().lower() or "combined"
+    if normalized_scope not in {"combined", "skill", "domain", "role_family"}:
+        raise HTTPException(status_code=422, detail=f"Unknown overlay upload scope: {normalized_scope!r}")
+    if normalized_scope == "combined":
+        return
+
+    section_keys = {
+        "skill_synonyms",
+        "domain_alias_map",
+        "role_family_alias_map",
+        "domain_neighbors",
+        "role_family_neighbors",
+    }
+    present_sections = {
+        key
+        for key in section_keys
+        if isinstance((overlay_payload or {}).get(key), dict) and bool((overlay_payload or {}).get(key))
+    }
+    allowed_by_scope = {
+        "skill": {"skill_synonyms"},
+        "domain": {"domain_alias_map", "domain_neighbors"},
+        "role_family": {"role_family_alias_map", "role_family_neighbors"},
+    }
+    allowed_sections = allowed_by_scope[normalized_scope]
+    invalid_sections = sorted(section for section in present_sections if section not in allowed_sections)
+    if invalid_sections:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Overlay scope '{normalized_scope}' allows sections {sorted(allowed_sections)}; "
+                f"found disallowed sections {invalid_sections}"
+            ),
+        )
+
 def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
     config = _load_run_effective_config_snapshot(run, fallback_to_runtime_config=False)
     block = dict(config.get("synonym_management") or {})
@@ -2032,6 +2470,8 @@ def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
         "propose_enabled": bool(block.get("propose_enabled", True)),
         "apply_to_run_enabled": bool(block.get("apply_to_run_enabled", True)),
         "promote_global_enabled": bool(block.get("promote_global_enabled", True)),
+        "auto_triage_recommendation_enabled": bool(block.get("auto_triage_recommendation_enabled", True)),
+        "triage_recommendation_reuse_enabled": bool(block.get("triage_recommendation_reuse_enabled", True)),
     }
 
 def _find_synonym_proposal_index(payload: dict[str, Any], proposal_id: str) -> int | None:
@@ -2418,6 +2858,7 @@ def _synonym_triage_fingerprint(
     proposal: dict[str, Any],
     *,
     runtime: dict[str, Any],
+    overlay_fingerprint: str | None = None,
 ) -> str:
     payload = {
         "proposal_id": str(proposal.get("proposal_id") or "").strip(),
@@ -2436,6 +2877,7 @@ def _synonym_triage_fingerprint(
         "model": str(runtime.get("model") or "synonym_triage_v1").strip(),
         "wire_api": str(runtime.get("wire_api") or "builtin").strip(),
         "triage_version": "synonym_triage_v1",
+        "overlay_fingerprint": str(overlay_fingerprint or "").strip() or None,
     }
     raw = _json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
@@ -3064,6 +3506,107 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
     metadata_only_keys = metadata_only_settings_keys()
     editable_keys = editable_settings_keys()
+
+    def _reconcile_orphaned_running_run(run: PipelineRun) -> PipelineRun:
+        """Repair RUNNING rows if their RQ job disappeared or already terminated."""
+        if run.status != RunStatus.RUNNING:
+            return run
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        started_at = getattr(run, "started_at", None)
+        run_age_seconds = 0.0
+        if isinstance(started_at, datetime.datetime):
+            started_at_utc = started_at if started_at.tzinfo else started_at.replace(tzinfo=datetime.timezone.utc)
+            run_age_seconds = max(0.0, (now_utc - started_at_utc).total_seconds())
+        completed_stages = list(getattr(run, "completed_stages", None) or [])
+        if run_age_seconds >= 300 and not completed_stages:
+            events = get_events(run.run_id, bq, project=project, dataset=dataset)
+            if not events:
+                update_run_status(
+                    run.run_id,
+                    RunStatus.FAILED,
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                    finished_at=now_utc,
+                    error_message="Run remained RUNNING without progress/events for >5 minutes (orphaned startup).",
+                )
+                append_event(
+                    RunEvent(
+                        run_id=run.run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="run_reconciled",
+                        level="warning",
+                        message="Run reconciled from orphaned startup (no progress/events >5 minutes)",
+                        created_at=now_utc,
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+                return get_run(run.run_id, bq, project=project, dataset=dataset) or run
+        queue_job_id = str(getattr(run, "queue_job_id", "") or "").strip()
+        if not queue_job_id:
+            return run
+        try:
+            conn = redis.from_url(redis_url)
+            job = Job.fetch(queue_job_id, connection=conn)
+            rq_status = str(job.get_status(refresh=True) or "").strip().lower()
+            if rq_status in {"queued", "started", "deferred"}:
+                return run
+            if rq_status in {"finished", "failed", "stopped", "canceled", "cancelled"}:
+                update_run_status(
+                    run.run_id,
+                    RunStatus.FAILED if rq_status != "finished" else RunStatus.SUCCEEDED,
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                    finished_at=datetime.datetime.now(datetime.timezone.utc),
+                    error_message=(
+                        None if rq_status == "finished"
+                        else f"Queue job {queue_job_id} ended with status={rq_status} before lifecycle finalization"
+                    ),
+                )
+                append_event(
+                    RunEvent(
+                        run_id=run.run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="run_reconciled",
+                        level="warning" if rq_status != "finished" else "info",
+                        message=f"Run reconciled from orphaned running state (queue status={rq_status})",
+                        created_at=datetime.datetime.now(datetime.timezone.utc),
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+                return get_run(run.run_id, bq, project=project, dataset=dataset) or run
+            return run
+        except NoSuchJobError:
+            update_run_status(
+                run.run_id,
+                RunStatus.FAILED,
+                bq,
+                project=project,
+                dataset=dataset,
+                finished_at=datetime.datetime.now(datetime.timezone.utc),
+                error_message=f"Queue job {queue_job_id} missing while run remained RUNNING",
+            )
+            append_event(
+                RunEvent(
+                    run_id=run.run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="run_reconciled",
+                    level="warning",
+                    message="Run reconciled from orphaned running state (queue job missing)",
+                    created_at=datetime.datetime.now(datetime.timezone.utc),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+            return get_run(run.run_id, bq, project=project, dataset=dataset) or run
+        except Exception:
+            return run
     all_settings_sections = {
         **SETTINGS_SECTIONS,
         **AGENTIC_SETTINGS_SECTIONS,
@@ -3719,7 +4262,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         jobs_input_json: str | None = None,
         candidate_profile_source: str | None = None,
         candidate_profile_json: str | None = None,
-        run_synonym_overlay: dict[str, str] | None = None,
+        run_synonym_overlay: dict[str, Any] | None = None,
         run_synonym_overlay_filename: str | None = None,
         run_synonym_overlay_raw_yaml: str | None = None,
         run_synonym_overlay_source: str = "trigger_upload",
@@ -3756,7 +4299,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         )
 
         if run_synonym_overlay:
-            effective_config = apply_runtime_skill_synonym_overlay(
+            effective_config = apply_runtime_synonym_overlay(
                 effective_config,
                 run_synonym_overlay,
                 source=run_synonym_overlay_source,
@@ -3828,6 +4371,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         candidate_profile_file: UploadFile | None = File(None),
         candidate_profile_text: str = Form(""),
         synonym_overlay_mode: str = Form("default_config"),
+        overlay_upload_scope: str = Form("combined"),
         synonym_overlay_file: UploadFile | None = File(None),
     ) -> dict:
         from fitcv.candidate import load_profile_json_text as _load_json_profile
@@ -3962,7 +4506,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             raise HTTPException(status_code=422, detail=f"Unknown candidate_profile_mode: {candidate_profile_mode!r}")
 
         # ── Run-scoped synonym overlay resolution ───────────────────────
-        synonym_overlay_payload: dict[str, str] | None = None
+        synonym_overlay_payload: dict[str, Any] | None = None
         synonym_overlay_filename: str | None = None
         synonym_overlay_raw_yaml: str | None = None
         if synonym_overlay_mode == "default_config":
@@ -3979,9 +4523,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             except UnicodeDecodeError as exc:
                 raise HTTPException(status_code=422, detail="Synonym overlay must be UTF-8 encoded text") from exc
             try:
-                synonym_overlay_payload = parse_skill_synonym_overlay_yaml(raw_text)
+                synonym_overlay_payload = parse_runtime_synonym_overlay_yaml(raw_text)
             except ValueError as exc:
                 raise HTTPException(status_code=422, detail=str(exc)) from exc
+            _validate_overlay_scope(synonym_overlay_payload, overlay_upload_scope)
             synonym_overlay_raw_yaml = raw_text
         else:
             raise HTTPException(status_code=422, detail=f"Unknown synonym_overlay_mode: {synonym_overlay_mode!r}")
@@ -4011,6 +4556,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
+        run = _reconcile_orphaned_running_run(run)
         return _run_to_dict(run)
 
     @app.get("/runs/{run_id}/events")
@@ -4599,6 +5145,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     @app.post("/admin/runs/{run_id}/synonym-overlay")
     async def admin_upload_run_synonym_overlay(
         run_id: str,
+        overlay_upload_scope: str = Form("combined"),
         synonym_overlay_file: UploadFile = File(...),
     ) -> RedirectResponse:
         run = get_run(run_id, bq, project=project, dataset=dataset)
@@ -4620,15 +5167,16 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         except UnicodeDecodeError as exc:
             raise HTTPException(status_code=422, detail="Synonym overlay must be UTF-8 encoded text") from exc
         try:
-            overlay_synonyms = parse_skill_synonym_overlay_yaml(raw_text)
+            overlay_payload = parse_runtime_synonym_overlay_yaml(raw_text)
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+        _validate_overlay_scope(overlay_payload, overlay_upload_scope)
 
         effective_config = _load_run_effective_config_snapshot(run)
         uploaded_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        updated_config = apply_runtime_skill_synonym_overlay(
+        updated_config = apply_runtime_synonym_overlay(
             effective_config,
-            overlay_synonyms,
+            overlay_payload,
             source="staged_override",
             filename=filename,
             uploaded_at=uploaded_at,
@@ -4641,18 +5189,49 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
+        synonym_mode = dict(updated_config.get("synonym_management") or {})
+        if bool(synonym_mode.get("propose_enabled", True)) and run.mapping_suggestions_json:
+            try:
+                mapping_payload = _json.loads(run.mapping_suggestions_json)
+            except (_json.JSONDecodeError, TypeError):
+                mapping_payload = {}
+            suggestions = list((mapping_payload or {}).get("suggestions") or [])
+            synonym_payload_json = build_synonym_proposals_payload(
+                run_id=run_id,
+                summary={"mapping_suggestions": suggestions},
+                created_at=datetime.datetime.now(datetime.timezone.utc),
+                existing_payload_json=run.synonym_proposals_json,
+                global_synonyms=dict(updated_config.get("skill_synonyms") or {}),
+            )
+            update_run_synonym_proposals(
+                run_id,
+                synonym_payload_json,
+                bq,
+                project=project,
+                dataset=dataset,
+            )
         append_event(
             RunEvent(
                 run_id=run_id,
                 event_id=str(uuid.uuid4()),
                 stage="synonym_overlay_uploaded",
                 level="info",
-                message=f"Run-scoped synonym overlay uploaded ({len(overlay_synonyms)} entries)",
+                message=(
+                    "Run-scoped synonym overlay uploaded "
+                    f"[scope={str(overlay_upload_scope or 'combined').strip().lower() or 'combined'}] "
+                    f"({int(((updated_config.get('skill_synonyms_runtime') or {}).get('run_overlay_entry_count') or 0))} skill entries)"
+                ),
                 created_at=datetime.datetime.now(datetime.timezone.utc),
                 payload_json=_json.dumps(
                     {
+                        "scope": str(overlay_upload_scope or "combined").strip().lower() or "combined",
                         "filename": filename,
-                        "entry_count": len(overlay_synonyms),
+                        "entry_count": int(
+                            ((updated_config.get("skill_synonyms_runtime") or {}).get("run_overlay_entry_count") or 0)
+                        ),
+                        "section_counts": dict(
+                            ((updated_config.get("skill_synonyms_runtime") or {}).get("run_overlay_section_counts") or {})
+                        ),
                     },
                     ensure_ascii=False,
                 ),
@@ -4939,6 +5518,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404)
+        run = _reconcile_orphaned_running_run(run)
         run = _enforce_run_timeout_guard(run, max_runtime_minutes=_run_max_runtime_minutes())
         timeline_limit = _coerce_positive_int(
             request.query_params.get("timeline_limit"),
@@ -4984,6 +5564,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             )
         cv_versions = list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
         results_rows = _results_export_rows(run)
+        ranked_cv_outcome_summary = _build_ranked_cv_outcome_summary(results_rows)
         reranker_blocked_ranked_count = sum(
             1
             for row in results_rows
@@ -5005,6 +5586,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         replay_context_summary = _run_replay_context_summary(run)
         data_plane_summary = _run_data_plane_summary(run)
         stage_result_summary_rows = _stage_result_summary_rows(run)
+        hitl_closure_summary = _build_hitl_closure_summary(run, queue=hitl_review_queue)
 
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
@@ -5022,6 +5604,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "run_export_links": run_export_links,
                 "job_title_by_url": job_title_by_url,
                 "reranker_blocked_ranked_count": reranker_blocked_ranked_count,
+                "ranked_cv_outcome_summary": ranked_cv_outcome_summary,
                 "is_stale_cancelling": _is_stale_cancelling,
                 "can_continue_manual_run": (
                     run.run_mode == "manual_staged"
@@ -5034,6 +5617,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_overlay_info": _extract_run_synonym_overlay_info(run),
                 "agentic_runtime_drift": agentic_runtime_drift,
                 "hitl_review_queue": hitl_review_queue,
+                "hitl_closure_summary": hitl_closure_summary,
                 "synonym_proposal_review_queue": synonym_proposal_review_queue,
                 "synonym_proposal_decision_ledger": synonym_proposal_decision_ledger,
                 "synonym_fingerprints": synonym_fingerprints,
@@ -5063,14 +5647,15 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             actor=str(form.get("actor") or "admin"),
             note=str(form.get("note") or "").strip() or None,
         )
-        allowed_actions = {"approve", "regenerate_once", "reject"}
+        allow_no_accepted_closure = str(form.get("confirm_no_accepted_cv_closure") or "").strip().lower() in {"1", "true", "yes", "on"}
+        allowed_actions = {"approve", "approve_as_is", "regenerate_once", "reject"}
         if payload.action not in allowed_actions:
             raise HTTPException(status_code=422, detail="Invalid review action")
 
         debug_payload = _load_run_cv_generation_debug_payload(run)
         if not isinstance(debug_payload, dict):
             raise HTTPException(status_code=409, detail="No cv_generation_debug payload available")
-        records = list(debug_payload.get("cv_generation_debug_records") or [])
+        records = list(debug_payload.get("debug_records") or debug_payload.get("cv_generation_debug_records") or [])
         target_record = None
         for record in records:
             if not isinstance(record, dict):
@@ -5082,12 +5667,29 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 break
         if target_record is None:
             raise HTTPException(status_code=404, detail="Review-required record not found for job_url")
+        accepted_increment = 0
+        finalized_version_id: str | None = None
+        if payload.action == "approve_as_is":
+            finalized_ok, finalized_reason, finalized_version_id = _finalize_review_draft_as_cv_artifact(
+                run=run,
+                job_url=payload.job_url,
+                record=target_record,
+                bq=bq,
+                project=project,
+                dataset=dataset,
+            )
+            if not finalized_ok:
+                raise HTTPException(status_code=409, detail=f"Cannot approve as final CV: {finalized_reason}")
+            accepted_increment = 1
 
         now = datetime.datetime.now(datetime.timezone.utc)
         action_entry = {
             "job_url": payload.job_url,
             "job_title": str(target_record.get("job_title") or "").strip() or None,
             "action": payload.action,
+            "resolution_status": _normalize_hitl_resolution_status(payload.action, None),
+            "artifact_finalized": bool(accepted_increment),
+            "artifact_version_id": finalized_version_id,
             "actor": payload.actor or "admin",
             "note": payload.note,
             "created_at": now.isoformat(),
@@ -5115,6 +5717,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "job_url": payload.job_url,
                         "job_title": target_record.get("job_title"),
                         "action": payload.action,
+                        "artifact_finalized": bool(accepted_increment),
+                        "artifact_version_id": finalized_version_id,
                         "actor": payload.actor,
                         "note": payload.note,
                     },
@@ -5125,7 +5729,336 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
+
+        updated_run = dataclasses.replace(
+            run,
+            cv_generation_debug_json=_json.dumps(debug_payload, ensure_ascii=False),
+            cvs_generated=int(run.cvs_generated or 0) + accepted_increment,
+        )
+        if accepted_increment:
+            update_run_status(
+                run_id,
+                run.status,
+                bq,
+                project=project,
+                dataset=dataset,
+                summary={"cvs_generated": int(updated_run.cvs_generated or 0)},
+            )
+        queue_state = _build_hitl_review_queue(updated_run)
+        if (
+            run.status == RunStatus.AWAITING_CONTINUE
+            and str(run.checkpoint_status or "").strip() == "awaiting_review"
+            and int(queue_state.get("total_review_required") or 0) > 0
+            and int(queue_state.get("pending_count") or 0) == 0
+        ):
+            closure_summary = _build_hitl_closure_summary(updated_run, queue=queue_state)
+            now = datetime.datetime.now(datetime.timezone.utc)
+            if bool(closure_summary.get("requires_no_accepted_ack")) and not allow_no_accepted_closure:
+                append_event(
+                    RunEvent(
+                        run_id=run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="cv_review_closure_blocked",
+                        level="warning",
+                        message="Review closure blocked: zero accepted CV artifacts. Confirm explicit closure to continue.",
+                        created_at=now,
+                        payload_json=_json.dumps(closure_summary, ensure_ascii=False),
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+                return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
+            update_run_status(
+                run_id,
+                RunStatus.SUCCEEDED,
+                bq,
+                project=project,
+                dataset=dataset,
+                finished_at=now,
+            )
+            update_run_checkpoint(
+                run_id,
+                bq,
+                project=project,
+                dataset=dataset,
+                checkpoint_status="completed",
+                next_stage=None,
+                last_completed_stage="cv_generation",
+                completed_stages=list(run.completed_stages or []),
+                checkpoint_payload_json=None,
+            )
+            closure_payload = _build_hitl_review_audit_payload(
+                dataclasses.replace(
+                    updated_run,
+                    status=RunStatus.SUCCEEDED,
+                    checkpoint_status="completed",
+                )
+            )
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="cv_review_completed",
+                    level="info",
+                    message="All review-required CV items were resolved; run marked succeeded.",
+                    created_at=now,
+                    payload_json=_json.dumps(
+                        {
+                            "closure_mode": closure_payload.get("summary", {}).get("closure_mode"),
+                            "review_required_total": closure_payload.get("summary", {}).get("review_required_total"),
+                            "resolution_totals": closure_payload.get("summary", {}).get("resolution_totals"),
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
         return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
+
+    @app.post("/admin/runs/{run_id}/cv-review-batch-action")
+    async def admin_run_cv_review_batch_action(
+        request: Request,
+        run_id: str,
+    ) -> Response:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        form = await request.form()
+        action = str(form.get("action") or "").strip()
+        actor = str(form.get("actor") or "admin").strip() or "admin"
+        note = str(form.get("note") or "").strip() or None
+        allow_no_accepted_closure = str(form.get("confirm_no_accepted_cv_closure") or "").strip().lower() in {"1", "true", "yes", "on"}
+        selected_urls = [str(value or "").strip() for value in form.getlist("job_url")]
+        selected_urls = [url for url in selected_urls if url]
+        allowed_actions = {"approve", "approve_as_is", "regenerate_once", "reject"}
+        if action not in allowed_actions:
+            raise HTTPException(status_code=422, detail="Invalid batch review action")
+        if not selected_urls:
+            raise HTTPException(status_code=422, detail="Select at least one review-required row")
+
+        debug_payload = _load_run_cv_generation_debug_payload(run)
+        if not isinstance(debug_payload, dict):
+            raise HTTPException(status_code=409, detail="No cv_generation_debug payload available")
+        records = [item for item in list(debug_payload.get("debug_records") or debug_payload.get("cv_generation_debug_records") or []) if isinstance(item, dict)]
+        review_required_urls = {
+            str(record.get("job_url") or "").strip()
+            for record in records
+            if str(record.get("status") or "").strip() == "review_required" and str(record.get("job_url") or "").strip()
+        }
+
+        review_actions = [item for item in list(debug_payload.get("hitl_review_actions") or []) if isinstance(item, dict)]
+        latest_action_by_job: dict[str, dict[str, Any]] = {}
+        for item in review_actions:
+            job_url = str(item.get("job_url") or "").strip()
+            if job_url:
+                latest_action_by_job[job_url] = item
+
+        applied = 0
+        skipped = 0
+        failed = 0
+        finalized = 0
+        failed_missing_draft = 0
+        failed_persist = 0
+        now = datetime.datetime.now(datetime.timezone.utc)
+        for job_url in selected_urls:
+            if job_url not in review_required_urls:
+                failed += 1
+                continue
+            latest = latest_action_by_job.get(job_url) or {}
+            latest_resolution = _normalize_hitl_resolution_status(
+                str(latest.get("action") or "").strip() or None,
+                str(latest.get("resolution_status") or "").strip() or None,
+            )
+            if latest_resolution in _HITL_TERMINAL_RESOLUTION_STATUSES:
+                skipped += 1
+                continue
+            finalized_version_id: str | None = None
+            if action == "approve_as_is":
+                target_record = next(
+                    (
+                        record
+                        for record in records
+                        if str(record.get("job_url") or "").strip() == job_url
+                        and str(record.get("status") or "").strip() == "review_required"
+                    ),
+                    None,
+                )
+                finalized_ok, finalized_reason, finalized_version_id = _finalize_review_draft_as_cv_artifact(
+                    run=run,
+                    job_url=job_url,
+                    record=target_record,
+                    bq=bq,
+                    project=project,
+                    dataset=dataset,
+                )
+                if not finalized_ok:
+                    failed += 1
+                    if finalized_reason == "missing_draft_for_approve":
+                        failed_missing_draft += 1
+                    elif finalized_reason == "persist_failed":
+                        failed_persist += 1
+                    continue
+                finalized += 1
+            action_entry = {
+                "job_url": job_url,
+                "action": action,
+                "resolution_status": _normalize_hitl_resolution_status(action, None),
+                "artifact_finalized": bool(finalized_version_id),
+                "artifact_version_id": finalized_version_id,
+                "actor": actor,
+                "note": note,
+                "created_at": now.isoformat(),
+            }
+            review_actions.append(action_entry)
+            latest_action_by_job[job_url] = action_entry
+            applied += 1
+
+        debug_payload["hitl_review_actions"] = review_actions
+        update_run_cv_generation_debug(
+            run_id,
+            _json.dumps(debug_payload, ensure_ascii=False),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+        append_event(
+            RunEvent(
+                run_id=run_id,
+                event_id=str(uuid.uuid4()),
+                stage="cv_review_batch_action",
+                level="info",
+                message=(
+                    "CV review batch action applied: "
+                    f"action={action}, applied={applied}, skipped={skipped}, failed={failed}, finalized={finalized}, missing_draft={failed_missing_draft}, persist_failed={failed_persist}"
+                ),
+                created_at=now,
+                payload_json=_json.dumps(
+                    {
+                        "action": action,
+                        "applied": applied,
+                        "skipped": skipped,
+                        "failed": failed,
+                        "finalized": finalized,
+                        "failed_missing_draft": failed_missing_draft,
+                        "failed_persist": failed_persist,
+                        "selected_count": len(selected_urls),
+                    },
+                    ensure_ascii=False,
+                ),
+            ),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+
+        updated_run = dataclasses.replace(
+            run,
+            cv_generation_debug_json=_json.dumps(debug_payload, ensure_ascii=False),
+            cvs_generated=int(run.cvs_generated or 0) + finalized,
+        )
+        if finalized:
+            update_run_status(
+                run_id,
+                run.status,
+                bq,
+                project=project,
+                dataset=dataset,
+                summary={"cvs_generated": int(updated_run.cvs_generated or 0)},
+            )
+        queue_state = _build_hitl_review_queue(updated_run)
+        if (
+            run.status == RunStatus.AWAITING_CONTINUE
+            and str(run.checkpoint_status or "").strip() == "awaiting_review"
+            and int(queue_state.get("total_review_required") or 0) > 0
+            and int(queue_state.get("pending_count") or 0) == 0
+        ):
+            closure_summary = _build_hitl_closure_summary(updated_run, queue=queue_state)
+            finished_at = datetime.datetime.now(datetime.timezone.utc)
+            if bool(closure_summary.get("requires_no_accepted_ack")) and not allow_no_accepted_closure:
+                append_event(
+                    RunEvent(
+                        run_id=run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="cv_review_closure_blocked",
+                        level="warning",
+                        message="Review closure blocked: zero accepted CV artifacts. Confirm explicit closure to continue.",
+                        created_at=finished_at,
+                        payload_json=_json.dumps(closure_summary, ensure_ascii=False),
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+                query = urlencode(
+                    {
+                        "hitl_batch_applied": applied,
+                        "hitl_batch_skipped": skipped,
+                        "hitl_batch_failed": failed,
+                        "hitl_batch_finalized": finalized,
+                        "hitl_closure_blocked": 1,
+                    }
+                )
+                return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+            update_run_status(
+                run_id,
+                RunStatus.SUCCEEDED,
+                bq,
+                project=project,
+                dataset=dataset,
+                finished_at=finished_at,
+            )
+            update_run_checkpoint(
+                run_id,
+                bq,
+                project=project,
+                dataset=dataset,
+                checkpoint_status="completed",
+                next_stage=None,
+                last_completed_stage="cv_generation",
+                completed_stages=list(run.completed_stages or []),
+                checkpoint_payload_json=None,
+            )
+            closure_payload = _build_hitl_review_audit_payload(
+                dataclasses.replace(
+                    updated_run,
+                    status=RunStatus.SUCCEEDED,
+                    checkpoint_status="completed",
+                )
+            )
+            append_event(
+                RunEvent(
+                    run_id=run_id,
+                    event_id=str(uuid.uuid4()),
+                    stage="cv_review_completed",
+                    level="info",
+                    message="All review-required CV items were resolved; run marked succeeded.",
+                    created_at=finished_at,
+                    payload_json=_json.dumps(
+                        {
+                            "closure_mode": closure_payload.get("summary", {}).get("closure_mode"),
+                            "review_required_total": closure_payload.get("summary", {}).get("review_required_total"),
+                            "resolution_totals": closure_payload.get("summary", {}).get("resolution_totals"),
+                        },
+                        ensure_ascii=False,
+                    ),
+                ),
+                bq,
+                project=project,
+                dataset=dataset,
+            )
+
+        query = urlencode(
+            {
+                "hitl_batch_applied": applied,
+                "hitl_batch_skipped": skipped,
+                "hitl_batch_failed": failed,
+                "hitl_batch_finalized": finalized,
+            }
+        )
+        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
 
     @app.post("/admin/runs/{run_id}/synonym-proposals/{proposal_id}/action")
     async def admin_run_synonym_proposal_action(
@@ -5584,17 +6517,27 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         payload = _load_run_synonym_proposals_payload(run)
         if not isinstance(payload, dict):
             raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
+        mode = _synonym_management_mode(run)
         form = await request.form()
         acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
         note = str(form.get("note") or "").strip()
         now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
         triage_runtime = _resolve_synonym_triage_runtime(run)
+        fingerprints = _synonym_observability_fingerprints(run)
+        overlay_fp = str(fingerprints.get("run_overlay_fingerprint") or "").strip() or None
         proposals = list(payload.get("proposals") or [])
         triaged_count = 0
         reused_count = 0
         skipped_count = 0
         failed_count = 0
         fallback_count = 0
+        fresh_count = 0
+        generated_total = 0
+        reuse_reason = "fingerprint_match"
+        if not bool(mode.get("auto_triage_recommendation_enabled")):
+            reuse_reason = "auto_disabled"
+        elif not bool(mode.get("triage_recommendation_reuse_enabled")):
+            reuse_reason = "reuse_disabled"
         for idx, proposal in enumerate(proposals):
             if not isinstance(proposal, dict):
                 skipped_count += 1
@@ -5603,11 +6546,22 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             if status not in {"proposed_unreviewed", "in_review", "deferred"}:
                 skipped_count += 1
                 continue
-            triage_fp = _synonym_triage_fingerprint(proposal, runtime=triage_runtime)
+            generated_total += 1
+            if not bool(mode.get("auto_triage_recommendation_enabled")):
+                skipped_count += 1
+                continue
+            triage_fp = _synonym_triage_fingerprint(
+                proposal,
+                runtime=triage_runtime,
+                overlay_fingerprint=overlay_fp,
+            )
             runtime_meta = dict(proposal.get("recommendation_runtime") or {})
-            if str(runtime_meta.get("triage_fingerprint") or "").strip() == triage_fp:
+            reuse_enabled = bool(mode.get("triage_recommendation_reuse_enabled"))
+            if reuse_enabled and str(runtime_meta.get("triage_fingerprint") or "").strip() == triage_fp:
                 reused_count += 1
                 continue
+            if reuse_enabled:
+                reuse_reason = "fingerprint_mismatch"
             try:
                 recommendation = _triage_synonym_proposal_recommendation(
                     proposal,
@@ -5631,6 +6585,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 except Exception:
                     failed_count += 1
                     continue
+            fresh_count += 1
             updated = dict(proposal)
             # Advisory-only: never mutate proposal_status during triage refresh.
             updated.update(recommendation)
@@ -5654,19 +6609,49 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             event_payload={
                 "triaged_count": triaged_count,
                 "reused_count": reused_count,
+                "fresh_count": fresh_count,
+                "generated_total": generated_total,
                 "fallback_count": fallback_count,
                 "skipped_count": skipped_count,
                 "failed_count": failed_count,
+                "reuse_reason": reuse_reason,
+                "auto_triage_recommendation_enabled": bool(mode.get("auto_triage_recommendation_enabled")),
+                "triage_recommendation_reuse_enabled": bool(mode.get("triage_recommendation_reuse_enabled")),
                 "provider": str(triage_runtime.get("provider") or "fitcv_builtin"),
                 "model": str(triage_runtime.get("model") or "synonym_triage_v1"),
                 "wire_api": str(triage_runtime.get("wire_api") or "builtin"),
                 "base_url": str(triage_runtime.get("base_url") or "") or None,
             },
         )
+        trace_payload = dict(payload.get("synonym_proposals_trace") or {})
+        trace_summary = dict(trace_payload.get("trace_summary") or {})
+        trace_summary["triage_recommendation_generated_total"] = int(generated_total)
+        trace_summary["triage_recommendation_reused_total"] = int(reused_count)
+        trace_summary["triage_recommendation_fresh_total"] = int(fresh_count)
+        trace_summary["triage_recommendation_suppressed_total"] = 0
+        trace_summary["triage_recommendation_reuse_reason"] = reuse_reason
+        trace_summary["triage_recommendation_fingerprint"] = _stable_sha256_json(
+            {
+                "provider": str(triage_runtime.get("provider") or "fitcv_builtin"),
+                "model": str(triage_runtime.get("model") or "synonym_triage_v1"),
+                "wire_api": str(triage_runtime.get("wire_api") or "builtin"),
+                "overlay_fingerprint": overlay_fp,
+            }
+        )
+        trace_payload["trace_summary"] = trace_summary
+        payload["synonym_proposals_trace"] = trace_payload
+        update_run_synonym_proposals(
+            run_id=run.run_id,
+            synonym_proposals_json=_json.dumps(payload, ensure_ascii=False),
+            bq=bq,
+            project=project,
+            dataset=dataset,
+        )
         query = urlencode(
             {
                 "synonym_triage_triaged": triaged_count,
                 "synonym_triage_reused": reused_count,
+                "synonym_triage_fresh": fresh_count,
                 "synonym_triage_skipped": skipped_count,
                 "synonym_triage_failed": failed_count,
                 "synonym_triage_fallback": fallback_count,
@@ -5782,8 +6767,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status != RunStatus.SUCCEEDED:
-            raise HTTPException(status_code=409, detail="Run results export is only available for succeeded runs")
+        if not _run_status_allows_export(run):
+            raise HTTPException(status_code=409, detail="Run results export is only available for completed runs")
         if not run.results_export_json:
             raise HTTPException(status_code=404, detail="Run results export is not available for this run")
         pretty_json = _json.dumps(
@@ -5805,8 +6790,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status != RunStatus.SUCCEEDED:
-            raise HTTPException(status_code=409, detail="HITL review audit export is only available for succeeded runs")
+        if not _run_status_allows_export(run):
+            raise HTTPException(status_code=409, detail="HITL review audit export is only available for completed runs")
         if not run.cv_generation_debug_json:
             raise HTTPException(status_code=404, detail="HITL review audit export is not available for this run")
         return Response(
@@ -5820,11 +6805,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status != RunStatus.SUCCEEDED:
-            raise HTTPException(status_code=409, detail="CV debug export is only available for succeeded runs")
+        if not _run_status_allows_export(run):
+            raise HTTPException(status_code=409, detail="CV debug export is only available for completed runs")
         if not run.cv_generation_debug_json:
             raise HTTPException(status_code=404, detail="CV debug export is not available for this run")
-        pretty_json = _json.dumps(_json.loads(run.cv_generation_debug_json), ensure_ascii=False, indent=2)
+        normalized_payload = _normalized_cv_debug_payload_for_export(run)
+        if not isinstance(normalized_payload, dict):
+            raise HTTPException(status_code=404, detail="CV debug export is not available for this run")
+        pretty_json = _json.dumps(normalized_payload, ensure_ascii=False, indent=2)
         return Response(
             content=pretty_json,
             media_type="application/json",
@@ -5836,8 +6824,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
-        if run.status != RunStatus.SUCCEEDED:
-            raise HTTPException(status_code=409, detail="Review-required export is only available for succeeded runs")
+        if not _run_status_allows_export(run):
+            raise HTTPException(status_code=409, detail="Review-required export is only available for completed runs")
         payload = _build_cv_generation_review_required_payload(run)
         if not isinstance(payload, dict):
             raise HTTPException(status_code=404, detail="Review-required export is not available for this run")

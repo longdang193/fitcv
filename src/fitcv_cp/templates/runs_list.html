@@ -178,11 +178,18 @@
   </div>
 
   <div id="synonym-pane-default" style="margin-bottom:1rem">
-    <span class="meta">Uses the shared synonym config for this run. Stage by Stage runs can later replace it after <code>enrich</code> and before <code>rule_filter</code>.</span>
+    <span class="meta">Uses shared synonym config for <code>skill_synonyms</code>, <code>domain_alias_map</code>, and <code>role_family_alias_map</code>. Stage by Stage runs can later replace it after <code>enrich</code> and before <code>rule_filter</code>.</span>
   </div>
   <div id="synonym-pane-upload" style="display:none;margin-bottom:1rem">
     <input type="file" id="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml">
-    <span class="meta" style="display:block;margin-top:0.25rem">Applies to this run only. <code>Run All</code> uses this trigger-time overlay; <code>Stage by Stage</code> can replace it later before Rule Filter.</span>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.55rem">
+      <button type="button" class="btn-secondary" id="synonym-scope-combined" data-active="true" onclick="setSynonymOverlayScope('combined')">Combined Upload</button>
+      <button type="button" class="btn-secondary" id="synonym-scope-skill" data-active="false" onclick="setSynonymOverlayScope('skill')">Skills Upload</button>
+      <button type="button" class="btn-secondary" id="synonym-scope-domain" data-active="false" onclick="setSynonymOverlayScope('domain')">Domain Upload</button>
+      <button type="button" class="btn-secondary" id="synonym-scope-role_family" data-active="false" onclick="setSynonymOverlayScope('role_family')">Role Family Upload</button>
+    </div>
+    <span class="meta" style="display:block;margin-top:0.25rem">Run-scoped YAML can include <code>skill_synonyms</code>, <code>domain_alias_map</code>, <code>role_family_alias_map</code>, and optional neighbor maps. <code>Run All</code> uses this trigger-time overlay; <code>Stage by Stage</code> can replace it later before Rule Filter.</span>
+    <span class="meta" style="display:block;margin-top:0.2rem">Field-specific scopes reject mixed sections to prevent accidental cross-field updates.</span>
   </div>
 
   <hr>
@@ -286,6 +293,7 @@
 let _jobsMode = 'path';
 let _profMode = 'default_config';
 let _synonymOverlayMode = 'default_config';
+let _synonymOverlayScope = 'combined';
 let _runMode = 'run_all';
 
 function setJobsMode(m) {
@@ -311,6 +319,15 @@ function setSynonymOverlayMode(m) {
     const key = k === 'default' ? 'default_config' : k;
     document.getElementById('synonym-pane-' + k).style.display = key === m ? '' : 'none';
     document.getElementById('synonym-tab-' + k).dataset.active = String(key === m);
+  });
+}
+
+function setSynonymOverlayScope(scope) {
+  _synonymOverlayScope = scope;
+  ['combined', 'skill', 'domain', 'role_family'].forEach((key) => {
+    const el = document.getElementById('synonym-scope-' + key);
+    if (!el) return;
+    el.dataset.active = String(key === scope);
   });
 }
 
@@ -357,6 +374,7 @@ async function triggerRun() {
     if (_synonymOverlayMode === 'upload') {
       const sf = document.getElementById('synonym_overlay_file').files[0];
       if (!sf) { alert('Please select a synonym overlay YAML file.'); return; }
+      fd.append('overlay_upload_scope', _synonymOverlayScope);
       fd.append('synonym_overlay_file', sf);
     }
 

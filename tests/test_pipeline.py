@@ -28,6 +28,7 @@ from fitcv.pipeline import (
     _build_stage_transition_artifacts,
     _build_cv_analysis_record,
     _build_cv_generation_debug_record,
+    _hitl_review_reason_for_agentic_case,
     _normalize_review_required_reason_code,
     _collect_mapping_suggestions,
     _enrich_jobs_with_reuse,
@@ -415,6 +416,22 @@ def test_review_required_reason_code_mapping_for_markdown_review() -> None:
         error={"stage": "markdown_quality_review", "message": "Markdown quality requires review"},
     )
     assert reason_code == "markdown_structure_violation"
+
+def test_hitl_review_reason_for_unsupported_requirements_is_actionable() -> None:
+    reason = _hitl_review_reason_for_agentic_case(
+        analysis_record={
+            "do_not_claim": ["snowflake"],
+            "requirement_coverage": [
+                {"requirement": "Snowflake", "support_strength": "unsupported"},
+                {"requirement": "Talend", "support_strength": "insufficient"},
+            ],
+        },
+        generation_result={"status": "accepted"},
+        validation_snapshot=None,
+    )
+    assert reason is not None
+    assert "Unsupported requirements require review:" in reason
+    assert "Review the generated CV output against these requirements" in reason
 
 
 def test_build_ranking_features_accepts_vector_search_field_names() -> None:

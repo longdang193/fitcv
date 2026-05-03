@@ -1024,3 +1024,8 @@ def list_filter_results_for_run(
             row_dict["marks"] = []
         results.append(row_dict)
     return results
+
+
+def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset: str) -> list[Any]:
+    table = f"{project}.{dataset}.cv_versions"
+    return bq.insert_rows_json(table, [row])
