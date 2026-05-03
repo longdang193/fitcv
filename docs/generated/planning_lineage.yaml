@@ -151,7 +151,7 @@ workstreams:
     plans: []
     derived_completion: in_progress
 - workstream_id: workstream-deterministic-acceptance-and-artifact-truth
-  status: active
+  status: completed
   path: docs/intent/workstreams/workstream-deterministic-acceptance-and-artifact-truth.md
   thread_count: 5
   completed_thread_count: 0

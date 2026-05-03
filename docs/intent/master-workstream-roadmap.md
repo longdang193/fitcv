@@ -165,6 +165,13 @@ Operating-system threads should run in parallel only when they reduce drift or u
 
 After baseline feature delivery, run a dedicated architecture-hardening phase to make the system portable across storage and runtime backends without changing product meaning.
 
+Phase 2 status:
+
+- `complete` as of `2026-05-03`
+- closure references:
+  - `docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md`
+  - `docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md`
+
 Phase 2 source-of-truth model:
 
 - flow = orchestrator
