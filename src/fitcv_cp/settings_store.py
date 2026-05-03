@@ -28,6 +28,7 @@ from typing import Any
 from fitcv_cp.settings_schema import coerce_value, editable_settings_keys
 
 logger = logging.getLogger(__name__)
+_LOCAL_SETTINGS: dict[str, Any] = {}
 
 
 def save_setting(
@@ -40,6 +41,9 @@ def save_setting(
     dataset: str,
 ) -> None:
     """Append a new row for this key. Current value = latest row per key."""
+    if bq is None:
+        _LOCAL_SETTINGS[key] = value
+        return
     table = f"{project}.{dataset}.pipeline_settings"
     row = {
         "setting_key": key,
@@ -70,6 +74,9 @@ def save_settings_group(
     always be completed before calling this function. Partial writes on BQ-level
     partial failures are possible but accepted for this admin tool.
     """
+    if bq is None:
+        _LOCAL_SETTINGS.update(keys_values)
+        return
     table = f"{project}.{dataset}.pipeline_settings"
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     rows = [
@@ -92,6 +99,8 @@ def load_active_settings(*, bq: Any, project: str, dataset: str) -> dict[str, An
 
     Returns an empty dict if no settings have been saved yet.
     """
+    if bq is None:
+        return dict(_LOCAL_SETTINGS)
     sql = (
         f"SELECT setting_key, setting_value_json "
         f"FROM `{project}.{dataset}.pipeline_settings` "
