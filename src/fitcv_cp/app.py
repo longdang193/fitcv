@@ -167,6 +167,51 @@ def _observability_toggles() -> tuple[bool, bool]:
     )
 
 
+def _persist_run_initial(run: PipelineRun, *, bq: Any, project: str, dataset: str) -> None:
+    if bq is None:
+        logger.info("sqlite mode: skipping BigQuery insert_run persistence for run_id=%s", run.run_id)
+        return
+    insert_run(run, bq, project=project, dataset=dataset)
+
+
+def _persist_run_orchestration_binding(
+    run_id: str,
+    *,
+    queue_job_id: str,
+    orchestration_backend: str,
+    orchestration_run_id: str | None,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> None:
+    if bq is None:
+        logger.info("sqlite mode: skipping BigQuery update_run_orchestration_binding for run_id=%s", run_id)
+        return
+    update_run_orchestration_binding(
+        run_id,
+        queue_job_id=queue_job_id,
+        orchestration_backend=orchestration_backend,
+        orchestration_run_id=orchestration_run_id,
+        bq=bq,
+        project=project,
+        dataset=dataset,
+    )
+
+
+def _persist_run_queue_job_id(
+    run_id: str,
+    queue_job_id: str,
+    *,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> None:
+    if bq is None:
+        logger.info("sqlite mode: skipping BigQuery update_run_queue_job_id for run_id=%s", run_id)
+        return
+    update_run_queue_job_id(run_id, queue_job_id, bq, project=project, dataset=dataset)
+
+
 def enqueue_run_with_job_id(
     jobs_path: str,
     config_path: str,
@@ -4285,7 +4330,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             next_stage="normalize" if run_mode == "manual_staged" else None,
             completed_stages=[],
         )
-        insert_run(run, bq, project=project, dataset=dataset)
+        _persist_run_initial(run, bq=bq, project=project, dataset=dataset)
         _, queue_job_id = enqueue_run_with_job_id(
             jobs_path=actual_jobs_path,
             config_path=config_path,
@@ -4294,7 +4339,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             run_id=run_id,
         )
         submission = _resolve_submission_binding(run_id, queue_job_id)
-        update_run_orchestration_binding(
+        _persist_run_orchestration_binding(
             run_id,
             queue_job_id=submission.queue_job_id,
             orchestration_backend=submission.backend,
@@ -4303,7 +4348,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
-        update_run_queue_job_id(run_id, submission.queue_job_id, bq, project=project, dataset=dataset)
+        _persist_run_queue_job_id(
+            run_id,
+            submission.queue_job_id,
+            bq=bq,
+            project=project,
+            dataset=dataset,
+        )
         return {"run_id": run_id}
 
     def _execute_trigger_with_inputs(
@@ -4381,7 +4432,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             next_stage="normalize" if run_mode == "manual_staged" else None,
             completed_stages=[],
         )
-        insert_run(run, bq, project=project, dataset=dataset)
+        _persist_run_initial(run, bq=bq, project=project, dataset=dataset)
         _, queue_job_id = enqueue_run_with_job_id(
             jobs_path=jobs_path,
             config_path=config_path,
@@ -4390,7 +4441,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             run_id=run_id,
         )
         submission = _resolve_submission_binding(run_id, queue_job_id)
-        update_run_orchestration_binding(
+        _persist_run_orchestration_binding(
             run_id,
             queue_job_id=submission.queue_job_id,
             orchestration_backend=submission.backend,
@@ -4399,7 +4450,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
-        update_run_queue_job_id(run_id, submission.queue_job_id, bq, project=project, dataset=dataset)
+        _persist_run_queue_job_id(
+            run_id,
+            submission.queue_job_id,
+            bq=bq,
+            project=project,
+            dataset=dataset,
+        )
         return {"run_id": run_id}
 
     @app.post("/runs", status_code=201)
