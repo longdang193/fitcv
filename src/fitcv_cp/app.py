@@ -1013,6 +1013,15 @@ def _map_review_required_reason_code(record: dict[str, Any]) -> str:
     return "manual_review_other"
 
 def _extract_unsupported_requirements(record: dict[str, Any]) -> list[str]:
+    gap_summary = dict(record.get("gap_summary") or {})
+    structured_missing = [
+        str(item).strip()
+        for item in list(gap_summary.get("missing") or [])
+        if str(item).strip()
+    ]
+    if structured_missing:
+        return structured_missing
+
     message = str((dict(record.get("error") or {})).get("message") or "").strip()
     marker = "Unsupported requirements require review:"
     if marker not in message:
@@ -1020,7 +1029,18 @@ def _extract_unsupported_requirements(record: dict[str, Any]) -> list[str]:
     suffix = message.split(marker, 1)[1].strip()
     if not suffix:
         return []
-    return [item.strip() for item in suffix.split(",") if item.strip()]
+    guidance_marker = ". Review the generated CV output"
+    if guidance_marker in suffix:
+        suffix = suffix.split(guidance_marker, 1)[0].strip()
+    parsed = [item.strip() for item in suffix.split(",") if item.strip()]
+    banned_tokens = ("approve", "regenerate", "reject", "review the generated cv output")
+    cleaned: list[str] = []
+    for token in parsed:
+        lowered = token.lower()
+        if any(banned in lowered for banned in banned_tokens):
+            continue
+        cleaned.append(token)
+    return cleaned
 
 def _review_target_for_reason_code(reason_code: str) -> str:
     if reason_code == "unsupported_requirement_gap":
@@ -1111,6 +1131,8 @@ def _build_cv_generation_review_required_payload(run: PipelineRun) -> dict[str, 
                     unsupported_requirements=unsupported_requirements,
                 ),
                 "unsupported_requirements": unsupported_requirements,
+                "generated_draft_present": bool(str(record.get("markdown_final") or "").strip()),
+                "accepted_cv_artifact_present": False,
                 "attempt_count": int(record.get("attempt_count") or 1),
                 "failed_rule_ids": list(record.get("failed_rule_ids") or []),
                 "first_failing_section_key": record.get("first_failing_section_key"),
@@ -1208,6 +1230,9 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
             action_name,
             (action or {}).get("resolution_status"),
         )
+        markdown_preview = str(record.get("markdown_final") or "").strip()
+        if markdown_preview and len(markdown_preview) > 2400:
+            markdown_preview = markdown_preview[:2400] + "\n...[truncated in review queue]"
         queue_items.append(
             {
                 "job_url": job_url,
@@ -1219,6 +1244,8 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
                 "action_by": str((action or {}).get("actor") or "").strip() or None,
                 "resolution_status": resolution_status,
                 "pending": resolution_status not in _HITL_TERMINAL_RESOLUTION_STATUSES,
+                "cv_markdown_preview": markdown_preview or None,
+                "cv_preview_available": bool(markdown_preview),
             }
         )
     queue_items.sort(key=lambda item: (not item["pending"], item["job_title"].lower(), item["job_url"]))
@@ -1230,27 +1257,51 @@ def _build_hitl_review_queue(run: PipelineRun) -> dict[str, Any]:
         "actions_count": len(actions),
     }
 
+def _build_hitl_closure_summary(run: PipelineRun, queue: dict[str, Any] | None = None) -> dict[str, Any]:
+    queue_payload = queue or _build_hitl_review_queue(run)
+    queue_items = [item for item in list(queue_payload.get("queue_items") or []) if isinstance(item, dict)]
+    resolution_totals: dict[str, int] = {}
+    for item in queue_items:
+        resolution = str(item.get("resolution_status") or "pending").strip() or "pending"
+        resolution_totals[resolution] = resolution_totals.get(resolution, 0) + 1
+    pending_total = int(queue_payload.get("pending_count") or 0)
+    review_required_total = int(queue_payload.get("total_review_required") or 0)
+    all_terminal = bool(queue_items) and pending_total == 0
+    accepted_cv_total = int(run.cvs_generated or 0)
+    requires_no_accepted_ack = all_terminal and accepted_cv_total <= 0
+    closure_mode = "incomplete"
+    if all_terminal:
+        closure_mode = "all_review_rows_terminal"
+        if accepted_cv_total <= 0:
+            closure_mode = "all_review_rows_terminal_no_accepted_cv"
+    return {
+        "review_required_total": review_required_total,
+        "pending_total": pending_total,
+        "resolution_totals": resolution_totals,
+        "all_terminal": all_terminal,
+        "accepted_cv_total": accepted_cv_total,
+        "requires_no_accepted_ack": requires_no_accepted_ack,
+        "closure_mode": closure_mode,
+    }
+
 def _build_hitl_review_audit_payload(run: PipelineRun) -> dict[str, Any]:
     queue = _build_hitl_review_queue(run)
     payload = _load_run_cv_generation_debug_payload(run)
     actions = [item for item in list((payload or {}).get("hitl_review_actions") or []) if isinstance(item, dict)]
     queue_items = [item for item in list(queue.get("queue_items") or []) if isinstance(item, dict)]
-    resolution_totals: dict[str, int] = {}
-    for item in queue_items:
-        resolution = str(item.get("resolution_status") or "pending").strip() or "pending"
-        resolution_totals[resolution] = resolution_totals.get(resolution, 0) + 1
-    pending_total = int(queue.get("pending_count") or 0)
-    closure_mode = "all_review_rows_terminal" if queue_items and pending_total == 0 else "incomplete"
+    closure_summary = _build_hitl_closure_summary(run, queue=queue)
     return {
         "schema_version": "hitl_review_audit_v1",
         "run_id": run.run_id,
         "status": run.status.value,
         "summary": {
-            "review_required_total": int(queue.get("total_review_required") or 0),
-            "pending_total": pending_total,
+            "review_required_total": closure_summary.get("review_required_total"),
+            "pending_total": closure_summary.get("pending_total"),
             "actions_total": len(actions),
-            "closure_mode": closure_mode,
-            "resolution_totals": resolution_totals,
+            "closure_mode": closure_summary.get("closure_mode"),
+            "resolution_totals": closure_summary.get("resolution_totals"),
+            "accepted_cv_total": closure_summary.get("accepted_cv_total"),
+            "requires_no_accepted_ack": closure_summary.get("requires_no_accepted_ack"),
         },
         "queue_items": queue_items,
         "actions": actions,
@@ -1456,16 +1507,24 @@ def _results_export_rows_with_hitl_audit(run: PipelineRun) -> list[dict[str, Any
         for item in list(queue.get("queue_items") or [])
         if isinstance(item, dict) and str(item.get("job_url") or "").strip()
     }
+    debug_records_by_job = {
+        str(item.get("job_url") or "").strip(): item
+        for item in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or [])
+        if isinstance(item, dict) and str(item.get("job_url") or "").strip()
+    }
     enriched_rows: list[dict[str, Any]] = []
     for row in rows:
         row_copy = dict(row)
         job_url = str(row_copy.get("job_url") or "").strip()
         review_item = review_item_by_job.get(job_url)
         latest_action = latest_action_by_job.get(job_url)
+        debug_record = debug_records_by_job.get(job_url)
         if review_item is not None:
             row_copy["hitl_review_required"] = True
             row_copy["hitl_review_reason"] = str(review_item.get("reason") or "").strip() or None
             row_copy["hitl_review_pending"] = bool(review_item.get("pending"))
+            row_copy["generated_draft_present"] = bool(str((debug_record or {}).get("markdown_final") or "").strip())
+            row_copy["accepted_cv_artifact_present"] = bool(row_copy.get("cv"))
             row_copy["hitl_review_category"] = (
                 "markdown_quality"
                 if "markdown quality" in str(review_item.get("reason") or "").strip().lower()
@@ -4717,6 +4776,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         synonym_fingerprints = _synonym_observability_fingerprints(run)
         synonym_management_mode = _synonym_management_mode(run)
         markdown_quality_summary = _build_markdown_quality_summary(run)
+        hitl_closure_summary = _build_hitl_closure_summary(run, queue=hitl_review_queue)
 
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
@@ -4747,6 +4807,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_overlay_info": _extract_run_synonym_overlay_info(run),
                 "agentic_runtime_drift": agentic_runtime_drift,
                 "hitl_review_queue": hitl_review_queue,
+                "hitl_closure_summary": hitl_closure_summary,
                 "synonym_proposal_review_queue": synonym_proposal_review_queue,
                 "synonym_proposal_decision_ledger": synonym_proposal_decision_ledger,
                 "synonym_fingerprints": synonym_fingerprints,
@@ -4769,6 +4830,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             actor=str(form.get("actor") or "admin"),
             note=str(form.get("note") or "").strip() or None,
         )
+        allow_no_accepted_closure = str(form.get("confirm_no_accepted_cv_closure") or "").strip().lower() in {"1", "true", "yes", "on"}
         allowed_actions = {"approve", "approve_as_is", "regenerate_once", "reject"}
         if payload.action not in allowed_actions:
             raise HTTPException(status_code=422, detail="Invalid review action")
@@ -4844,7 +4906,24 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             and int(queue_state.get("total_review_required") or 0) > 0
             and int(queue_state.get("pending_count") or 0) == 0
         ):
+            closure_summary = _build_hitl_closure_summary(updated_run, queue=queue_state)
             now = datetime.datetime.now(datetime.timezone.utc)
+            if bool(closure_summary.get("requires_no_accepted_ack")) and not allow_no_accepted_closure:
+                append_event(
+                    RunEvent(
+                        run_id=run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="cv_review_closure_blocked",
+                        level="warning",
+                        message="Review closure blocked: zero accepted CV artifacts. Confirm explicit closure to continue.",
+                        created_at=now,
+                        payload_json=_json.dumps(closure_summary, ensure_ascii=False),
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+                return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
             update_run_status(
                 run_id,
                 RunStatus.SUCCEEDED,
@@ -4906,6 +4985,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         action = str(form.get("action") or "").strip()
         actor = str(form.get("actor") or "admin").strip() or "admin"
         note = str(form.get("note") or "").strip() or None
+        allow_no_accepted_closure = str(form.get("confirm_no_accepted_cv_closure") or "").strip().lower() in {"1", "true", "yes", "on"}
         selected_urls = [str(value or "").strip() for value in form.getlist("job_url")]
         selected_urls = [url for url in selected_urls if url]
         allowed_actions = {"approve", "approve_as_is", "regenerate_once", "reject"}
@@ -5005,7 +5085,32 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             and int(queue_state.get("total_review_required") or 0) > 0
             and int(queue_state.get("pending_count") or 0) == 0
         ):
+            closure_summary = _build_hitl_closure_summary(updated_run, queue=queue_state)
             finished_at = datetime.datetime.now(datetime.timezone.utc)
+            if bool(closure_summary.get("requires_no_accepted_ack")) and not allow_no_accepted_closure:
+                append_event(
+                    RunEvent(
+                        run_id=run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="cv_review_closure_blocked",
+                        level="warning",
+                        message="Review closure blocked: zero accepted CV artifacts. Confirm explicit closure to continue.",
+                        created_at=finished_at,
+                        payload_json=_json.dumps(closure_summary, ensure_ascii=False),
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+                query = urlencode(
+                    {
+                        "hitl_batch_applied": applied,
+                        "hitl_batch_skipped": skipped,
+                        "hitl_batch_failed": failed,
+                        "hitl_closure_blocked": 1,
+                    }
+                )
+                return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
             update_run_status(
                 run_id,
                 RunStatus.SUCCEEDED,
