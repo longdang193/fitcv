@@ -45,7 +45,13 @@ def make_test_root() -> Path:
     return root
 
 
-def seed_minimum_workstream(root: Path, *, workstream_status: str, thread_status: str) -> None:
+def seed_minimum_workstream(
+    root: Path,
+    *,
+    workstream_status: str,
+    thread_status: str,
+    thread_extra_frontmatter: str = "",
+) -> None:
     write_text(root / "docs" / "intent" / "master-workstream-roadmap.md", "# Roadmap\n")
     write_text(
         root / "docs" / "intent" / "workstreams" / "sample-workstream.md",
@@ -62,6 +68,7 @@ status: {workstream_status}
         f"""---
 thread_id: sample-workstream.sample-thread
 status: {thread_status}
+{thread_extra_frontmatter}
 ---
 
 # Sample Thread
@@ -99,5 +106,27 @@ def test_warning_only_without_strict_passes_but_strict_fails() -> None:
         result_strict = run_validator(root, "--strict")
         assert result_normal.returncode == 0
         assert result_strict.returncode == 1
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_completed_thread_without_checkpoint_fails_even_when_workstream_is_active() -> None:
+    root = make_test_root()
+    try:
+        seed_minimum_workstream(root, workstream_status="active", thread_status="completed")
+        result = run_validator(root)
+        assert result.returncode == 1
+        assert "completed thread is missing checkpoint evidence" in result.stdout
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_dropped_thread_requires_closure_metadata() -> None:
+    root = make_test_root()
+    try:
+        seed_minimum_workstream(root, workstream_status="active", thread_status="dropped")
+        result = run_validator(root)
+        assert result.returncode == 1
+        assert "dropped thread is missing required closure metadata" in result.stdout
     finally:
         rmtree(root, ignore_errors=True)

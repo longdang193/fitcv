@@ -42,9 +42,22 @@ Suggested thread frontmatter:
 ```yaml
 ---
 thread_id: <workstream-id>.<thread-slug>
-status: proposed | active | blocked | completed
+status: proposed | active | blocked | completed | dropped
+# Required when status: dropped
+drop_reason: <why this thread was dropped>
+drop_approved_by: <owner/approver>
+dropped_at: YYYY-MM-DD
 ---
 ```
+
+Lifecycle guardrails:
+
+- a workstream can be `completed` only when all child threads are terminal
+  (`completed` or `dropped`)
+- a `completed` thread must have checkpoint result-pack evidence under
+  `docs/intent/workstreams/checkpoints/<workstream-id>/<thread-slug>/`
+- a `dropped` thread must include `drop_reason`, `drop_approved_by`, and
+  `dropped_at`
 
 Suggested thread body:
 

@@ -1,6 +1,6 @@
 ﻿---
 workstream_id: workstream-deterministic-acceptance-and-artifact-truth
-status: completed
+status: active
 ---
 
 # Workstream: Deterministic Acceptance And Artifact Truth
