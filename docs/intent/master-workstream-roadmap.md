@@ -13,221 +13,124 @@ registered_workstreams:
 
 # Master Workstream Roadmap
 
-## Purpose
-
-This roadmap translates the current intent layer into the major delivery threads required to finish the FitCV-first agentic upgrade.
-
-The end goal is:
-
-- FitCV remains the authoritative end-to-end pipeline
-- the original pipeline semantics, stage boundaries, and checkpoint meaning remain intact
-- selective agentic AI improves bounded late-stage quality without replacing deterministic acceptance discipline
-- operators can trigger, inspect, and trust the full run lifecycle without needing to infer hidden state
-
-This roadmap separates product work from operating-system work so repo-method cleanup does not get mistaken for product completion.
-
-Product completion is defined by the product workstreams in this roadmap.
-
-`operating_system` completion is required for repo maturity, maintainability, and publication discipline, but it is not part of the product-complete gate.
-
-## Product Workstreams
-
-### 1. FitCV Semantic Spine
-
-Keep the original FitCV pipeline meaning authoritative from input ingestion through final CV outcome.
-
-This workstream owns:
-
-- preserving original stage order and stage-owned boundaries
-- keeping reranker and deterministic fit authority explicit
-- preserving checkpoint and continue semantics
-- aligning direct-input and manual-input paths to the same stage meaning as the original pipeline
-- preventing replay-first or shadow-runtime behavior from becoming a second product identity
-
-This is the primary spine. All other product workstreams depend on it.
-
-### 2. Operator Control Plane
-
-Preserve and strengthen the original control-plane experience so operators can run the system without terminal-first workflows.
-
-This workstream owns:
-
-- trigger inputs, run modes, and checkpoint continuation
-- runs list and run detail as the authoritative operator surfaces
-- stage progress, status truth, and lifecycle actions
-- settings access, run controls, and download paths that match actual runtime ownership
-
-This is product work, not operating-system work.
-
-### 3. Deterministic Acceptance And Artifact Truth
-
-Make every major decision legible and stage-owned so accepted, blocked, and rejected outcomes are explainable.
-
-This workstream owns:
-
-- stage-owned diagnostics and transition artifacts
-- truthful results ledgers and decision chains
-- accepted, held, blocked, and rejected late-stage narration
-- inspection exports, settings-used exports, and provenance surfaces
-- stable distinction between authoritative runtime decisions and supporting explanation
-
-This workstream protects trust in the upgraded system.
-
-### 4. Bounded Agentic CV Quality
-
-Add selective agentic intelligence only where it improves late-stage FitCV behavior without breaking deterministic gates.
-
-This workstream owns:
-
-- grounded `cv_analysis` evidence selection and fit-readiness reasoning
-- stronger `cv_generation` rewrite and repair behavior from analysis signals
-- explicit pre-writing hold reasons
-- bounded live-provider integration for agentic late-stage seams
-- preservation of deterministic validation as the final acceptance gate
-
-This is the main upgrade workstream, but it must stay subordinate to the semantic spine and deterministic acceptance workstreams.
-
-### 5. Agentic Observability
-
-Make every bounded agentic seam inspectable so operators and engineers can see what the agentic layer did, why it did it, and how deterministic gates responded.
-
-This workstream owns:
-
-- explicit invocation records for agentic analysis, generation, and future synonym-assistance seams
-- bounded input and output snapshots for agentic steps
-- evidence refs, hold reasons, confidence or uncertainty signals, and fallback-path visibility
-- structured provenance for provider, model, prompt, repair, retry, and reuse behavior
-- operator-facing views that distinguish agentic recommendation from deterministic acceptance or rejection
-
-This workstream is required for trustworthy agentic upgrades and should ship alongside each agentic seam, not after it.
-
-### 6. Agentic Synonym Management
-
-Replace purely manual synonym maintenance with a review-first agentic assistance flow while preserving deterministic runtime authority for canonical matching.
-
-This workstream owns:
-
-- unmatched-term detection and low-confidence synonym review queues
-- candidate canonical mappings, clustering, confidence, and rationale
-- run-scoped overlay proposals and approval flows
-- explicit operator review and promotion paths for synonym changes
-- clear separation between proposal surfaces and authoritative runtime synonym state
-
-This workstream must remain subordinate to the semantic spine and deterministic acceptance workstreams.
-
-### 7. Pipeline Efficiency And Reuse
-
-Improve throughput and repeatability without weakening stage truth.
-
-This workstream owns:
-
-- exact-match reuse where stage-owned inputs still match
-- bounded performance improvements before expensive late-stage work
-- reuse diagnostics that stay truthful for operators
-- keeping expensive CV work gated behind earlier narrowing and fit decisions
-
-This workstream is valuable, but it is not allowed to distort product semantics.
-
-## Operating-System Workstreams
-
-These are necessary repo-enablement threads, but they are not the product itself.
-
-### A. Docs And Contract Hygiene
-
-Own the intent layer, stage source docs, feature source docs, generated discovery sync, and source-of-truth placement rules.
-
-### B. Repo Governance And Publication Boundary
-
-Own private-vs-public repo behavior, curated publication, and the rule that private operating-system material must not leak into the public mirror.
-
-### C. Starter Shared-Surface Sync
-
-Keep shared repo-control surfaces aligned with the adopted starter baseline without overwriting project-specific product meaning.
-
-### D. Agent Workflow Reliability
-
-Own skills, agent memory, adapter sync, validation scripts, and guardrails learned from repeated failure patterns.
-
-## Missing Or Vague Top-Level Threads
-
-The current intent docs were too thin in a few places. The main missing or vague threads were:
-
-- no explicit semantic-spine thread to guard the original FitCV meaning
-- no separate product thread for deterministic acceptance and artifact truth
-- no clear distinction between operator product work and repo operating-system work
-- no explicit bounded-agentic thread saying where agentic AI is allowed and where it is not
-- no dedicated observability thread for agentic decisions, fallbacks, and provenance
-- no explicit synonym-management thread for the manual-review bottleneck
-- no efficiency-and-reuse thread to keep performance work from being smuggled into semantic changes
-
-## Sequencing
-
-Recommended execution order:
-
-1. FitCV Semantic Spine
-2. Operator Control Plane
-3. Deterministic Acceptance And Artifact Truth
-4. Bounded Agentic CV Quality
-5. Agentic Observability
-6. Agentic Synonym Management
-7. Pipeline Efficiency And Reuse
-
-Operating-system threads should run in parallel only when they reduce drift or unblock product truth, not as substitutes for product delivery or as hidden product-completion gates.
-
-## Phase 2: Architecture Hardening And Portability
-
-After baseline feature delivery, run a dedicated architecture-hardening phase to make the system portable across storage and runtime backends without changing product meaning.
-
-Phase 2 status:
-
-- `complete` as of `2026-05-03`
-- closure references:
-  - `docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md`
-  - `docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md`
-
-Phase 2 source-of-truth model:
-
-- flow = orchestrator
-- traces = OTel-compatible IDs
-- decisions = policy layer
-- evidence = stage artifacts
-- operations = control plane UI
-
-Phase 2 outcomes:
-
-- canonical stage-result envelope is documented and applied consistently:
+## Goal
+
+Deliver a FitCV-first platform where stage semantics and deterministic acceptance remain authoritative while portability, orchestration, and observability hardening are expanded by phase without feature drift.
+
+## Key Deliverables
+
+- Preserve FitCV semantic spine, deterministic acceptance, and operator control-plane truth.
+- Complete Phase 2 portability/hardening outcomes with evidence-backed parity and observability.
+- Keep one canonical roadmap and route details through downstream planning artifacts.
+
+## Phase Structure
+
+### Phase 1
+
+### Goal
+- Deliver the baseline FitCV product line with stable stage meaning, bounded agentic quality upgrades, deterministic acceptance truth, and operator-facing lifecycle control.
+
+### Key Deliverables
+- Semantic-spine stage authority from ingest through final CV outcome.
+- Operator control-plane trigger, status, timeline, and run-detail truth surfaces.
+- Deterministic acceptance and artifact-truth diagnostics/export surfaces.
+- Bounded agentic quality seams with deterministic final gates.
+
+### Phase 2
+
+### Goal
+- Harden architecture and portability without changing product meaning.
+
+### Key Deliverables
+- SQLite portability:
+  - no feature drift vs BigQuery for equivalent behaviors.
+  - behavior verification against BigQuery-backed implementation where relevant.
+- Prefect orchestration:
+  - implemented or verified end-to-end in this phase.
+  - end-to-end verified means submit, status progression, cancellation path, and run-detail/timeline visibility are all validated.
+- OpenTelemetry observability:
+  - telemetry pipeline verified end-to-end.
+  - trace propagation plus stage/event compatibility are validated.
+- Langfuse integration:
+  - implemented or verified.
+  - evidence includes successful instrumented runs with trace linkage back to FitCV run/stage context.
+- Universal stage contract across every deterministic and agentic stage:
   - `StageResult = { output, evidence, validation, decision, policy_version, trace_context }`
-- policy-versioned decisions are explicit in acceptance narratives and inspection surfaces
-- trace-context continuity (`trace_id` / `span_id` / parent linkage) is explicit across stage artifacts and timeline-compatible exports
-- portability direction is explicit for BigQuery-now and local/Postgres-later operating modes
-- failure/cancel evidence completeness expectations are documented alongside succeeded-run expectations
+- FitCV control-plane reliability hardening:
+  - preserve existing control-plane behavior.
+  - persist partial artifacts for failed and cancelled runs (not only successful runs).
+  - add outbox, retry, and dead-letter handling for `pipeline_run_events`.
+- Standardized observability IDs:
+  - include `trace_id`, `span_id`, `parent_span_id` across stage artifacts and events.
+  - keep existing trace JSON surfaces while making them OpenTelemetry-compatible.
+- Independent policy versioning:
+  - policy versioned separately from application code.
+  - every gate decision stores `policy_version`.
+  - replay supports `strict` (same config + same policy) and `policy_replay` (new policy on old run).
+- Data-plane split for growth:
+  - operational run metadata/state on Postgres path.
+  - analytical or warehouse-style storage explicitly separated.
 
-Phase 2 execution follow-up threads:
+### Phase 2 Deliverables Completed In This Branch
 
-- Prefect orchestration adoption is executed as a bounded implementation thread under semantic-spine flow authority.
-- OpenTelemetry exporter/collector integration is executed as a bounded implementation thread under agentic-observability trace authority.
-- migration-path planning artifacts do not count as runtime cutover completion without dedicated implementation plans and checkpoint packs.
+- SQLite portability and runtime backend resolution hardening:
+  - shared backend runtime contract implemented and wired through control-plane startup/worker paths.
+  - explicit env override support for backend mode (`FITCV_CP_DATA_BACKEND`) now respected by backend resolution.
+  - SQLite mode startup path avoids BigQuery client requirement.
+- Provider-agnostic adapter architecture:
+  - `LLMClient` and `EmbeddingClient` protocol surface added under control-plane adapters.
+  - routing-selection contract added to support provider scaling without stage-semantic drift.
+- Observability tooling layer contract and diagnostics:
+  - control-plane observability event emitter surface present and wired for orchestration/backend/model-routing diagnostics.
+  - stage/result traces expose standardized trace fields and `trace_status` handling across run artifacts.
+- Multi-file configuration strategy and settings-used evidence surface:
+  - runtime configuration surfaces use split config ownership (`config/runtime/control_plane.yaml`, `config/runtime/pipeline.yaml`, plus env).
+  - run-scoped `settings-used.json` remains the canonical execution snapshot for operator/debug evidence.
+- SQLite E2E stabilization work completed for no-crash parity path:
+  - run-detail/runtime paths hardened for SQLite (including null-safe BigQuery dependencies in control-plane store/read paths).
+  - run execution reaches terminal success in SQLite mode with artifacts and trace exports available.
+  - shortlist persistence now invoked in pipeline flow and persisted in SQLite local store.
+  - non-applicable trace artifacts (`cv-analysis-trace.json`, `agentic-live-trace.json`) are exportable as explicit `trace_status=not_applicable` payloads for stable artifact surface.
+- Secret-hygiene improvements in SQLite settings export:
+  - `service_account_key` removed from SQLite-mode `settings-used` effective snapshot/compatibility projection exports.
+  - backend data-plane metadata in settings-used now records SQLite backend in SQLite mode.
 
-Phase 2 documentation-order guardrail:
+### Phase 2 Remaining/Not Yet Closed In This Branch
 
-1. master workstream roadmap
-2. complete set of registered workstreams
-3. bounded change threads
-4. complete spec set
-5. spec-authoring execution map
-6. detailed specs
-7. implementation execution map
-8. implementation plans
+- Prefect orchestration is not yet fully implemented and verified end-to-end in this branch.
+- OpenTelemetry collector-export pipeline is not yet fully verified end-to-end in this branch.
+- Langfuse integration is not yet implemented/verified end-to-end in this branch.
+- Full no-drift SQLite parity remains open for event persistence durability:
+  - local run events are not yet durably persisted with SQLite parity equivalent to BigQuery-backed event history.
+
+Current Phase 2 completion references:
+- `docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md`
+- `docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md`
+- `docs/superpowers/plans/2026-05-03-14-20-phase-2-architecture-hardening-and-portability-plan.md`
+
+## Workstream Index
+
+- `workstream-fitcv-semantic-spine` - preserve FitCV stage-owned meaning and acceptance authority.
+- `workstream-operator-control-plane` - preserve and harden trigger/run/replay/inspection operator surfaces.
+- `workstream-deterministic-acceptance-and-artifact-truth` - keep decisions and evidence legible, stage-owned, and exportable.
+- `workstream-bounded-agentic-cv-quality` - improve late-stage quality with bounded agentic behavior under deterministic gates.
+- `workstream-agentic-observability` - make agentic behavior and deterministic gate interaction observable.
+- `workstream-agentic-synonym-management` - review-first synonym assistance with deterministic runtime authority.
+- `workstream-pipeline-efficiency-and-reuse` - improve throughput/reuse without semantic drift.
+- `operating_system.docs-and-contract-hygiene` - maintain docs/contracts/source-of-truth hygiene.
+- `operating_system.repo-governance-and-publication-boundary` - enforce private/public publication boundary.
+- `operating_system.starter-shared-surface-sync` - keep shared-starter surfaces aligned without overwriting product truth.
+- `operating_system.agent-workflow-reliability` - maintain validator/skill/agent reliability surfaces.
 
 ## Completion Criteria
 
-The roadmap is complete when:
+A roadmap item is considered complete when:
 
-- the upgraded line still behaves like FitCV in its stage meaning and acceptance rules
-- operators can run and inspect the system through the original control-plane shape
-- late-stage agentic behavior improves quality without becoming an unbounded second runtime
-- the agentic layer is observable enough that operators can tell what ran, what it proposed, and what deterministic gates decided
-- synonym management no longer depends on purely manual list maintenance for every meaningful update, while canonical runtime authority remains review-controlled
-- artifacts, diagnostics, and exports tell the truth about what happened
+1. all Key Deliverables are satisfied
+2. all downstream/child items are terminal
+3. every child item is `completed` or `dropped`
 
-Repo maturity goes further and additionally requires the operating-system threads to be in good shape, but that is a separate standard from product completion.
+Canonical source-of-truth:
+
+- `docs/operating_system/repo-governance.md`
+- `scripts/validate_planning_lifecycle.py`

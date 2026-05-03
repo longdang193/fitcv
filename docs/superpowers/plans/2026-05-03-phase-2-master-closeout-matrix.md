@@ -29,17 +29,19 @@ Status vocabulary:
 | F reliability hardening | done | outbox retry/dead-letter/replay/health/alerts + tests | Completed and verified. |
 | G replay modes/policy registry | done | strict/policy_replay runtime behavior + replay context persistence + tests | Replay-mode and policy provenance closure delivered. |
 | H data-plane/tooling migration path | done | explicit data-plane boundary contract + persisted metadata + UI/tests | BigQuery-default path retained with portable contract surfaces. |
-| I Prefect orchestration adoption | done | Prefect integration + diagnostics checkpoints | Completed in bounded scope. |
-| J OTel export/collector integration | done | OTel export/collector checkpoints | Completed in bounded scope. |
+| I Prefect orchestration adoption | partial | Prefect integration + diagnostics checkpoints | End-to-end verification remains open per updated roadmap model. |
+| J OTel export/collector integration | partial | OTel export/collector checkpoints | End-to-end collector/export verification remains open per updated roadmap model. |
 | K component boundaries/interface contracts | done | explicit component boundary extraction + contract-routed surfaces + tests | Final interface-contract closure delivered. |
+| Langfuse integration (roadmap deliverable) | partial | roadmap alignment references | End-to-end trace-link evidence is still open. |
+| SQLite event durability parity (roadmap deliverable) | partial | SQLite run-flow/artifact stabilization references | Durable event persistence parity vs BigQuery remains open. |
 
 ## Aggregate Verdict
 
-- Done: `A`, `B`, `C`, `D`, `E`, `F`, `G`, `H`, `I`, `J`, `K`
-- Partial: none
+- Done: `A`, `B`, `C`, `D`, `E`, `F`, `G`, `H`, `K`
+- Partial: `I`, `J`, `Langfuse integration`, `SQLite event durability parity`
 - Waived: none
 
-Current master status from this matrix: **complete**.
+Current master status from this matrix: **partial**.
 
 ## Post-Close Follow-up
 

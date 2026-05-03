@@ -1,0 +1,53 @@
+---
+template_id: spec-authoring-map
+document_type: spec_authoring_map
+target_globs:
+  - docs/superpowers/execution_maps/*.md
+required_sections:
+  - Goal
+  - Key Deliverables
+  - Authoring Waves
+  - Parallel Lanes
+  - Completion Criteria
+required_frontmatter:
+  artifact_type: execution_map
+  map_type: spec_authoring
+---
+
+# Spec-Authoring Map Template
+
+## Goal
+
+<what this authoring map must orchestrate>
+
+## Key Deliverables
+
+- <deliverable 1>
+- <deliverable 2>
+
+## Authoring Waves
+
+- wave 1:
+  - <spec>
+- wave 2:
+  - <spec>
+
+## Parallel Lanes
+
+- lane A:
+  - <spec>
+- lane B:
+  - <spec>
+
+## Completion Criteria
+
+A spec-authoring-map item is considered complete when:
+
+1. all Key Deliverables are satisfied
+2. all downstream/child items are terminal
+3. every child item is `completed` or `dropped`
+
+Canonical source-of-truth:
+
+- `docs/operating_system/repo-governance.md`
+- `scripts/validate_planning_lifecycle.py`

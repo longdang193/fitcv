@@ -4,6 +4,8 @@ Use this when a long-running workstream may have drifted and you want a clear
 completion verdict against original intent.
 If you mainly want a divergence map without a completion verdict, use
 `roadmap-vs-execution-divergence-prompt.md` instead.
+If you mainly want a closure-eligibility decision, use
+`workstream-closeout-readiness-prompt.md` instead.
 
 ```text
 Evaluate whether this workstream is complete and still aligned with intent.

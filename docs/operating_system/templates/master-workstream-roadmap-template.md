@@ -1,0 +1,75 @@
+---
+template_id: master-workstream-roadmap
+document_type: master_workstream_roadmap
+target_globs:
+  - docs/intent/master-workstream-roadmap.md
+required_sections:
+  - Goal
+  - Key Deliverables
+  - Phase Structure
+  - Workstream Index
+  - Completion Criteria
+---
+
+# Master Workstream Roadmap Template
+
+## Goal
+
+<what this roadmap is trying to achieve>
+
+## Key Deliverables
+
+- <deliverable 1>
+- <deliverable 2>
+
+## Phase Structure
+
+### Phase 1
+
+#### Goal
+
+<phase-1 outcome>
+
+#### Key Deliverables
+
+- <phase-1 deliverable 1>
+- <phase-1 deliverable 2>
+
+### Phase 2
+
+#### Goal
+
+<phase-2 outcome>
+
+#### Key Deliverables
+
+- <phase-2 deliverable 1>
+- <phase-2 deliverable 2>
+
+### Phase 3
+
+#### Goal
+
+<phase-3 outcome>
+
+#### Key Deliverables
+
+- <phase-3 deliverable 1>
+- <phase-3 deliverable 2>
+
+## Workstream Index
+
+- <workstream-id> - <summary>
+
+## Completion Criteria
+
+A roadmap item is considered complete when:
+
+1. all Key Deliverables are satisfied
+2. all downstream/child items are terminal
+3. every child item is `completed` or `dropped`
+
+Canonical source-of-truth:
+
+- `docs/operating_system/repo-governance.md`
+- `scripts/validate_planning_lifecycle.py`

@@ -2,6 +2,9 @@
 
 Use this when you want to compare the master roadmap or a named workstream
 against the specs, plans, and execution completed so far.
+If you need an explicit completion verdict and close/continue/re-scope
+decision for one workstream, use
+`workstream-completion-and-intent-check-prompt.md`.
 
 ```text
 Review divergence between the roadmap/workstream intent and execution so far.

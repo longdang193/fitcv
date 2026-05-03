@@ -34,6 +34,7 @@ lifecycle:
   status: active
 """
 import datetime
+import dataclasses
 import json
 import logging
 import os
@@ -45,6 +46,8 @@ from google.cloud import bigquery as bq_module
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 
 logger = logging.getLogger(__name__)
+_LOCAL_RUNS: dict[str, PipelineRun] = {}
+_LOCAL_EVENTS: dict[str, list[RunEvent]] = {}
 
 _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS = 3
 _PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS = 0.25
@@ -92,6 +95,9 @@ def _execute_query_with_pipeline_runs_retry(
 
 
 def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None:
+    if bq is None:
+        _LOCAL_RUNS[run.run_id] = dataclasses.replace(run)
+        return
     table = f"{project}.{dataset}.pipeline_runs"
     sql = f"""
         INSERT INTO `{table}` (
@@ -197,6 +203,26 @@ def update_run_status(
     error_message: Optional[str] = None,
     error_stage: Optional[str] = None,
 ) -> None:
+    if bq is None:
+        existing = _LOCAL_RUNS.get(run_id)
+        if existing is None:
+            return
+        updated = dataclasses.replace(existing, status=status)
+        if started_at:
+            updated.started_at = started_at
+        if finished_at:
+            updated.finished_at = finished_at
+        if error_message:
+            updated.error_message = error_message
+        if error_stage:
+            updated.error_stage = error_stage
+        if summary:
+            updated.total_jobs = int(summary.get("total_jobs")) if summary.get("total_jobs") is not None else updated.total_jobs
+            updated.passed_filter = int(summary.get("passed_filter")) if summary.get("passed_filter") is not None else updated.passed_filter
+            updated.ranked = int(summary.get("ranked")) if summary.get("ranked") is not None else updated.ranked
+            updated.cvs_generated = int(summary.get("cvs_generated")) if summary.get("cvs_generated") is not None else updated.cvs_generated
+        _LOCAL_RUNS[run_id] = updated
+        return
     set_clauses = ["status = @status"]
     params: list[bq_module.ScalarQueryParameter] = [
         bq_module.ScalarQueryParameter("status", "STRING", status.value),
@@ -278,6 +304,19 @@ def update_run_progress(
     completed_stages: Optional[list[str]] = None,
 ) -> None:
     """Persist shared stage progress without implying resumability."""
+    if bq is None:
+        existing = _LOCAL_RUNS.get(run_id)
+        if existing is None:
+            return
+        _LOCAL_RUNS[run_id] = dataclasses.replace(
+            existing,
+            checkpoint_status=None,
+            next_stage=None,
+            last_completed_stage=last_completed_stage,
+            completed_stages=completed_stages,
+            checkpoint_payload_json=None,
+        )
+        return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         "SET checkpoint_status = NULL, "
@@ -313,6 +352,9 @@ def _append_event_dead_letter(row: dict[str, Any]) -> str:
     return dead_letter_file
 
 def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dict[str, str]:
+    if bq is None:
+        _LOCAL_EVENTS.setdefault(event.run_id, []).append(dataclasses.replace(event))
+        return {"persistence_status": "persisted", "degradation_reason": "none"}
     table = f"{project}.{dataset}.pipeline_run_events"
     row = {
         "run_id": event.run_id,
@@ -362,6 +404,9 @@ def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dic
 
 
 def get_run(run_id: str, bq: Any, *, project: str, dataset: str) -> Optional[PipelineRun]:
+    if bq is None:
+        run = _LOCAL_RUNS.get(run_id)
+        return dataclasses.replace(run) if run is not None else None
     sql = f"SELECT * FROM `{project}.{dataset}.pipeline_runs` WHERE run_id = @run_id LIMIT 1"
     job_config = bq_module.QueryJobConfig(
         query_parameters=[bq_module.ScalarQueryParameter("run_id", "STRING", run_id)]
@@ -387,6 +432,14 @@ def list_runs(
 
     DEPLOY NOTE: migration must be applied before this code is deployed.
     """
+    if bq is None:
+        runs = list(_LOCAL_RUNS.values())
+        if archived_only:
+            runs = [r for r in runs if r.archived_at is not None]
+        elif not include_archived:
+            runs = [r for r in runs if r.archived_at is None]
+        runs.sort(key=lambda r: r.created_at, reverse=True)
+        return [dataclasses.replace(r) for r in runs[: int(limit)]]
     if archived_only:
         where = "WHERE archived_at IS NOT NULL"
     elif not include_archived:
@@ -406,6 +459,12 @@ def get_pipeline_runs_schema_status(
     dataset: str,
 ) -> dict[str, Any]:
     """Report whether orchestration-binding columns exist on pipeline_runs."""
+    if bq is None:
+        return {
+            "status": "unknown",
+            "missing_columns": [],
+            "warning": "sqlite_mode_no_bigquery_schema_check",
+        }
     required_columns = {"orchestration_backend", "orchestration_run_id"}
     sql = (
         f"SELECT column_name FROM `{project}.{dataset}.INFORMATION_SCHEMA.COLUMNS` "
@@ -439,6 +498,12 @@ def update_run_queue_job_id(
     dataset: str,
 ) -> None:
     """Persist the RQ job id onto the run row immediately after enqueue."""
+    if bq is None:
+        existing = _LOCAL_RUNS.get(run_id)
+        if existing is None:
+            return
+        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, queue_job_id=queue_job_id)
+        return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         f"SET queue_job_id = @queue_job_id WHERE run_id = @run_id"
@@ -461,6 +526,17 @@ def update_run_orchestration_binding(
     project: str,
     dataset: str,
 ) -> None:
+    if bq is None:
+        existing = _LOCAL_RUNS.get(run_id)
+        if existing is None:
+            return
+        _LOCAL_RUNS[run_id] = dataclasses.replace(
+            existing,
+            queue_job_id=queue_job_id,
+            orchestration_backend=orchestration_backend,
+            orchestration_run_id=orchestration_run_id,
+        )
+        return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         "SET queue_job_id = @queue_job_id, "
@@ -503,6 +579,12 @@ def update_run_results_export(
     dataset: str,
 ) -> None:
     """Persist the immutable run-results export snapshot for a completed run."""
+    if bq is None:
+        existing = _LOCAL_RUNS.get(run_id)
+        if existing is None:
+            return
+        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, results_export_json=results_export_json)
+        return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         f"SET results_export_json = @results_export_json WHERE run_id = @run_id"
@@ -525,6 +607,12 @@ def update_run_cv_generation_debug(
     dataset: str,
 ) -> None:
     """Persist the immutable run-scoped CV-generation debug snapshot."""
+    if bq is None:
+        existing = _LOCAL_RUNS.get(run_id)
+        if existing is None:
+            return
+        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, cv_generation_debug_json=cv_generation_debug_json)
+        return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         f"SET cv_generation_debug_json = @cv_generation_debug_json WHERE run_id = @run_id"
@@ -549,6 +637,12 @@ def update_run_stage_transition_artifacts(
     dataset: str,
 ) -> None:
     """Persist the immutable run-scoped stage transition artifacts snapshot."""
+    if bq is None:
+        existing = _LOCAL_RUNS.get(run_id)
+        if existing is None:
+            return
+        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, stage_transition_artifacts_json=stage_transition_artifacts_json)
+        return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         f"SET stage_transition_artifacts_json = @stage_transition_artifacts_json WHERE run_id = @run_id"
@@ -573,6 +667,12 @@ def update_run_settings_used(
     dataset: str,
 ) -> None:
     """Persist the immutable run-scoped settings-used snapshot."""
+    if bq is None:
+        existing = _LOCAL_RUNS.get(run_id)
+        if existing is None:
+            return
+        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, settings_used_json=settings_used_json)
+        return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         f"SET settings_used_json = @settings_used_json WHERE run_id = @run_id"
@@ -595,6 +695,12 @@ def update_run_mapping_suggestions(
     dataset: str,
 ) -> None:
     """Persist the immutable run-scoped mapping suggestions snapshot."""
+    if bq is None:
+        existing = _LOCAL_RUNS.get(run_id)
+        if existing is None:
+            return
+        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, mapping_suggestions_json=mapping_suggestions_json)
+        return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         f"SET mapping_suggestions_json = @mapping_suggestions_json WHERE run_id = @run_id"
@@ -619,6 +725,12 @@ def update_run_synonym_proposals(
     dataset: str,
 ) -> dict[str, str]:
     """Persist the mutable run-scoped synonym proposal review snapshot."""
+    if bq is None:
+        existing = _LOCAL_RUNS.get(run_id)
+        if existing is None:
+            return {"persistence_status": "degraded", "degradation_reason": "run_not_found"}
+        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, synonym_proposals_json=synonym_proposals_json)
+        return {"persistence_status": "persisted", "degradation_reason": "none"}
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         f"SET synonym_proposals_json = @synonym_proposals_json WHERE run_id = @run_id"
@@ -748,6 +860,9 @@ def unarchive_run(
 
 
 def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunEvent]:
+    if bq is None:
+        events = _LOCAL_EVENTS.get(run_id) or []
+        return [dataclasses.replace(event) for event in events]
     sql = (
         f"SELECT * FROM `{project}.{dataset}.pipeline_run_events` "
         f"WHERE run_id = @run_id ORDER BY created_at ASC"
@@ -838,6 +953,8 @@ def _row_to_event(row: Any) -> RunEvent:
 
 
 def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> list[dict[str, Any]]:
+    if bq is None:
+        return []
     table = f"{project}.{dataset}.cv_versions"
     sql = f"""
         SELECT
@@ -903,6 +1020,8 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
 
 
 def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> Optional[str]:
+    if bq is None:
+        return None
     table = f"{project}.{dataset}.cv_versions"
     sql = f"""
         SELECT cv_markdown
@@ -934,6 +1053,8 @@ def list_run_structured_jobs(
     Rows are returned as plain dicts and ordered by title, job_url for
     deterministic display. Uses parameterized SQL to avoid injection.
     """
+    if bq is None:
+        return []
     table = f"{project}.{dataset}.run_structured_jobs"
     sql = f"""
         SELECT *
@@ -982,6 +1103,8 @@ def list_filter_results_for_run(
     Rows include job_url, passed (bool), reasons, marks, and run_id.
     Ordered by job_url for deterministic display. Uses parameterized SQL.
     """
+    if bq is None:
+        return []
     table = f"{project}.{dataset}.rule_filter_results"
     sql = f"""
         SELECT job_url, passed, reasons, marks_json, run_id, filtered_at

@@ -19,6 +19,7 @@ import sys
 from typing import Any
 
 import pytest
+from fitcv_cp.backend_runtime import BackendRuntime
 
 
 def _reload_main_module(monkeypatch: pytest.MonkeyPatch, *, backend: str) -> Any:
@@ -51,18 +52,16 @@ def test_build_app_sqlite_mode_skips_bigquery_client(monkeypatch: pytest.MonkeyP
 def test_build_app_bigquery_mode_requires_project(monkeypatch: pytest.MonkeyPatch) -> None:
     module = _reload_main_module(monkeypatch, backend="sqlite")
 
-    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
-    monkeypatch.delenv("GCP_PROJECT", raising=False)
-
-    def _fake_load_cp() -> dict[str, Any]:
-        return {
-            "data_backend": {
-                "type": "bigquery",
-                "bigquery": {"project": "", "dataset": "fitcv"},
-            }
-        }
-
-    monkeypatch.setattr(module, "load_control_plane_config", _fake_load_cp)
+    monkeypatch.setattr(
+        module,
+        "resolve_backend_runtime",
+        lambda: BackendRuntime(
+            backend_type="bigquery",
+            project="",
+            dataset="fitcv",
+            sqlite_path="data/fitcv_cp.sqlite3",
+        ),
+    )
 
     with pytest.raises(ValueError, match="GCP_PROJECT must be set"):
         module.build_app()

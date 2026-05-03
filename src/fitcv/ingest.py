@@ -10,6 +10,7 @@ load_to_bigquery      : insert rows into fitcv.raw_jobs (requires credentials)
 """
 
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -143,6 +144,9 @@ def load_to_bigquery(rows: list[dict[str, Any]], config: dict[str, Any]) -> int:
     Returns:
         Number of rows successfully inserted.
     """
+    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+        return len(rows)
+
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
 
@@ -150,8 +154,11 @@ def load_to_bigquery(rows: list[dict[str, Any]], config: dict[str, Any]) -> int:
     project: str = str(config["gcp_project"])
     dataset: str = str(config["bigquery_dataset"])
 
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path and Path(key_path).exists():
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
 
     table_ref = f"{project}.{dataset}.raw_jobs"
     errors = client.insert_rows_json(table_ref, rows)

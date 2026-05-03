@@ -38,7 +38,6 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-from typing import Any
 
 import yaml
 from validator_policy import (
@@ -97,27 +96,6 @@ def pytest_basetemp(default_relative: str) -> str:
         return override
     return default_relative
 
-def venv_site_packages(root: Path) -> Path | None:
-    site_packages = root / ".venv" / "Lib" / "site-packages"
-    if site_packages.exists():
-        return site_packages
-    return None
-
-def resolve_python_executable(root: Path) -> str:
-    pyvenv_cfg = root / ".venv" / "pyvenv.cfg"
-    if pyvenv_cfg.exists():
-        for line in pyvenv_cfg.read_text(encoding="utf-8").splitlines():
-            if not line.startswith("home = "):
-                continue
-            home = line.split("=", 1)[1].strip()
-            candidate = Path(home) / "python.exe"
-            try:
-                if candidate.exists():
-                    return str(candidate)
-            except PermissionError:
-                continue
-    return sys.executable
-
 
 def managed_architecture_metadata_enabled(root: Path) -> bool:
     adoption_mode_path = root / "repo_config" / "adoption-mode.yaml"
@@ -145,16 +123,7 @@ def read_adoption_mode(root: Path) -> str | None:
 def run_step(command: list[str], *, cwd: Path) -> int:
     rendered = " ".join(command)
     print(f"> {rendered}")
-    env = os.environ.copy()
-    site_packages = venv_site_packages(cwd)
-    if site_packages is not None and command and command[0].lower().endswith("python.exe"):
-        existing = env.get("PYTHONPATH")
-        env["PYTHONPATH"] = (
-            str(site_packages)
-            if not existing
-            else os.pathsep.join([str(site_packages), existing])
-        )
-    completed = subprocess.run(command, cwd=cwd, check=False, env=env)
+    completed = subprocess.run(command, cwd=cwd, check=False)
     return completed.returncode
 
 
@@ -162,13 +131,13 @@ def build_subprocess_steps(*, root: Path, python_executable: str, fast: bool) ->
     adoption_shape_script = str(root / "scripts" / "validate_adoption_shape.py")
     checkpoint_pack_script = str(root / "scripts" / "validate_checkpoint_packs.py")
     planning_lifecycle_script = str(root / "scripts" / "validate_planning_lifecycle.py")
-    component_boundary_script = str(root / "scripts" / "validate_component_boundaries.py")
+    template_sections_script = str(root / "scripts" / "validate_template_required_sections.py")
     repo_config_script = str(root / "scripts" / "validate_repo_config.py")
     steps: list[list[str]] = [
         [python_executable, adoption_shape_script],
         [python_executable, checkpoint_pack_script],
         [python_executable, planning_lifecycle_script],
-        [python_executable, component_boundary_script],
+        [python_executable, template_sections_script],
     ]
     if read_adoption_mode(root) != "starter_method_only":
         sync_script = str(root / "scripts" / "sync_architecture_docs.py")
@@ -189,7 +158,7 @@ def build_subprocess_steps(*, root: Path, python_executable: str, fast: bool) ->
                 "-m",
                 "pytest",
                 "--basetemp",
-                str(root / pytest_basetemp(".tmp-tests/repo-contract-pytest")),
+                pytest_basetemp(".tmp-tests/repo-contract-pytest"),
                 *pytest_targets,
                 "-q",
             ]
@@ -309,10 +278,23 @@ def validate_required_metadata_coverage(root: Path) -> list[ValidationIssue]:
     if not managed_architecture_metadata_enabled(root):
         return issues
 
-    for configs_root in (root / "config", root / "configs"):
-        if not configs_root.exists():
-            continue
-        for path in sorted(configs_root.rglob("*.yaml")):
+    components_root = root / "aml" / "components"
+    if components_root.exists():
+        for path in sorted(components_root.glob("*.yaml")):
+            if not path.is_file():
+                continue
+            if not _starts_with_architecture_block(path.read_text(encoding="utf-8")):
+                issues.append(
+                    ValidationIssue(
+                        category="missing_required_metadata",
+                        path=relative_path(path, root),
+                        message="AML component is missing required top-of-file `# @architecture` metadata",
+                    )
+                )
+
+    configs_root = root / "configs"
+    if configs_root.exists():
+        for path in sorted(configs_root.glob("*.yaml")):
             if not path.is_file():
                 continue
             if not _starts_with_architecture_block(path.read_text(encoding="utf-8")):
@@ -364,7 +346,7 @@ def main(argv: list[str] | None = None) -> int:
 
     for step in build_subprocess_steps(
         root=root,
-        python_executable=resolve_python_executable(root),
+        python_executable=sys.executable,
         fast=args.fast,
     ):
         status = run_step(step, cwd=root)

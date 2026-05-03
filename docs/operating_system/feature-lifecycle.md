@@ -13,14 +13,48 @@ Feature lifecycle sits below the repo's intent and operating-system layers:
 Features remain the primary lifecycle units for product behavior, but they do
 not replace project intent or repo method.
 
-A real managed feature should have a human-owned source at
-`docs/features/<feature_id>/feature.source.yaml` and a generated current-state
-contract at `docs/features/<feature_id>/<feature_id>.yaml`.
+A real managed feature should have a current-state contract named after the
+concrete feature id, for example
+`docs/features/model-training-pipeline/model-training-pipeline.yaml`.
 
 Stages help with architecture and planning, but features remain the primary lifecycle units.
 
 Feature YAML is a contract layer, not a general runtime configuration store.
-Workflow defaults and environment-tuned settings still belong under `config/`.
+Workflow defaults and environment-tuned settings still belong under `configs/`.
+
+For features that opt into architecture metadata generation, the human-owned
+source lives at `docs/features/<feature_id>/feature.source.yaml` and the stable
+concrete feature-id contract is generated. Generated contracts keep the same
+reader-facing path while reducing manual drift. `<feature_id>` is a placeholder
+in docs, not a literal filename to create.
+
+Detailed generated evidence for opted-in features lives beside the feature at
+`docs/features/<feature_id>/lineage.generated.yaml`. Feature history is now a
+hybrid surface: the generator owns a bounded timeline section fed from
+completed-plan metadata, while humans keep narrative notes below that block.
+That timeline is not just a flat list of spec and plan paths. The current
+managed target is a richer completed-change record list like the one used in
+`customer-churn-prediction-azureml/docs/features/model-training-pipeline/lineage.generated.yaml`,
+with entries such as:
+
+- `completed_at`
+- `source_plan`
+- `change_id`
+- `summary`
+- `capabilities`
+- `verification`
+- `outcome`
+
+Older timeline entries shaped only like `{kind, path}` are legacy migration
+debt, not the current starter-aligned target.
+
+Reading rule of thumb for agents and reviewers:
+
+- start with `feature.source.yaml`
+- read the generated contract only when the assembled current-state view is needed
+- read `lineage.generated.yaml` only for evidence, ownership, or drift questions
+- read `history.md` only when human narrative context is required
+- do not read the full feature folder by default
 
 ## Classification
 
@@ -41,19 +75,11 @@ If a change is only a defect correction with no meaningful contract change, upda
 planned -> draft -> building -> rollout -> active -> deprecated
 ```
 
-Use `feature.source.yaml` to track human-owned feature meaning and the
-generated feature contract to inspect the assembled current state.
+Use the feature YAML to track the current state.
 
 ## Required Feature Contract Shape
 
-Each managed feature should use this folder shape:
-
-- `docs/features/<feature_id>/feature.source.yaml`
-- `docs/features/<feature_id>/<feature_id>.yaml`
-- `docs/features/<feature_id>/lineage.generated.yaml`
-- `docs/features/<feature_id>/history.md`
-
-The source layer should define:
+Each managed feature should define:
 
 - `feature_id`
 - `name`
@@ -64,188 +90,187 @@ The source layer should define:
 - `domains`
 - `depends_on`
 - `capabilities`
-- `stage_participation`
+- `refs`
 
-Naming and shape policy for this repo:
+Opted-in generated features should also assign stable IDs inside
+`feature.source.yaml`:
 
-- `feature_id` uses lowercase underscore format such as `cv_system`
-- `capability_id` uses `<feature_id>.<kebab-suffix>`
-- managed features should use structured capability entries with at least:
-  - `capability_id`
-  - `statement`
-  - `state`
-- capability IDs should name durable product or domain behavior, not sentence-level change notes
-- long implementation details belong in capability `statement`, linked evidence surfaces, or feature history rather than inside the ID itself
-- string-only capability entries are not accepted in steady-state Mode B
+- `invariant_id` for each invariant
+- `capability_id` for each capability
+- optional `satisfies` links from capabilities to invariants
 
-Ownership split:
+Capability IDs are downstream of features. Use feature-qualified IDs such as
+`<feature_id>.<capability_slug>` so downstream metadata can derive feature
+ownership from the capability ID instead of re-entering it.
 
-- `feature.source.yaml` remains the minimal human-owned semantic source
-- `<feature_id>.yaml` is the generated assembled current-state contract
-- `lineage.generated.yaml` is the generated evidence-oriented lineage surface
-- `history.md` remains feature-local history and human context; partial-generated starter history alignment is still a follow-up step for this repo
+Do not add `manual_refs` to `feature.source.yaml`. Feature refs are generated
+from owning metadata on code, tests, docs, specs, plans, configs, and AML
+components. If a generated ref is missing, patch the metadata at the owning
+source instead of adding a feature-local manual list.
 
-## File Metadata And Proof
+Generated `refs.code` should stay canonical and readable. Supporting files may
+carry awareness metadata, but primary feature refs should point to entrypoints
+or canonical `@capability` nodes.
 
-Files with behavioral weight should use explicit source metadata at the owning
-surface:
+Generated feature contracts should expose freshness metadata:
 
-- top-of-file `@meta` docstrings for Python files under repo-controlled code,
-  script, and test surfaces
-- bounded function-level `@capability <feature_id.capability-slug>` markers in
-  Python function or method docstrings when a smaller canonical owner node is
-  more truthful than broad file-level ownership
-- leading `{# @architecture ... #}` blocks for Jinja/HTML templates when a
-  shared template materially owns capability behavior in this repo
-- leading `# @architecture` comment blocks for material YAML config surfaces
-  under `config/`
-- lightweight frontmatter only for docs that materially explain feature,
-  capability, stage, config, or component behavior
+- `last_updated_at`
+- `latest_change_id`
+- `revision`
+
+This is the current managed migration target, matching richer generated
+contracts such as
+`customer-churn-prediction-azureml/docs/features/notebook-hpo/notebook-hpo.yaml`.
+An empty `timeline: []` does not exempt a managed generated contract from this
+freshness schema.
+
+Do not keep a manual `version` field in `feature.source.yaml`; feature
+freshness belongs to generated metadata in `<feature_id>.yaml`, not the
+human-owned semantic source.
+
+When a feature participates in generated stage contracts, keep that linkage in
+`feature.source.yaml` under `stage_participation`:
+
+```yaml
+stage_participation:
+  - stage_id: data_validate
+    role: supporting
+    capability_ids:
+      - fixed-train.share-validation-prep-contracts
+```
 
 Rules:
 
-- file-level `capabilities` metadata is selective, not blanket
-- function-level `@capability` is additive and selective, not mandatory on
-  every owner file
-- only add capability references when the file materially participates in
-  lineage
-- use test-level `@proves <capability_id>` as proof evidence when a test exists
-  to verify a capability
-- for YAML config metadata:
-  - `configs` should remain path-backed evidence
-  - `components` should be stable component ids rather than file paths
-  - `component_evidence` should preserve both the component id and its source
-    config path
-  - `satisfies` should stay optional until a truthful upstream requirement or
-    contract id exists
-- prefer repo-local template metadata only for shared UI ownership that cannot
-  be truthfully attached to a Python owner file
-- do not treat tests, helper wrappers, or passive docs as semantic capability
-  owners just because they mention a feature
+- `stage_id` must reference a real stage source under `docs/stages/*.source.yaml`
+- `role` must match the role declared by the stage source
+- `capability_ids` should contain only the feature-qualified capability IDs
+  from this feature that are truly stage-relevant
+- use an empty `capability_ids: []` list only when the feature is stage-aware as
+  context or downstream consumer but has no canonical capability node to expose
+  in the stage contract
 
-The generated contract and lineage files are outputs, not hand-edited sources.
-The current lineage target is the evidence-oriented Phase 5 shape:
+The required opted-in feature folder shape is:
 
-- `feature_id`
-- `source`
-- `invariants`
-- `capabilities`
-- `timeline`
-
-Timeline contract rule:
-
-- the older `{kind, path}` timeline entry shape is retired migration debt and
-  should not be emitted by the generator or accepted by the validator
-- the current target is a richer completed-change record list with fields such
-  as:
-  - `completed_at`
-  - `source_plan`
-  - `change_id`
-  - `summary`
-  - `capabilities`
-  - `verification`
-  - `outcome`
-- when completed-plan metadata is not yet available, `timeline: []` is the
-  truthful migration-safe output
-
-Phase 6 hydration rules:
-
-- generated lineage should stay human-readable and must not emit YAML alias
-  anchors such as `&id001` or `*id001`
-- direct capability evidence should come from explicit file metadata and
-  `@proves` when available
-- feature-level specs and plans may be included as conservative fallback
-  evidence, but they do not replace direct implementation or proof evidence
-- `completeness_status` should stay conservative:
-  - `complete` requires direct code or test evidence
-  - `partial` means some real evidence exists but not enough for full coverage
-  - `missing_evidence` means only weak or no evidence has been found
-
-Phase 7 direct-evidence pilot rules:
-
-- direct evidence backfill should start with a bounded pilot, not repo-wide
-  blanket tagging
-- Phase 8 extends the same pilot model to selected `settings_system` and
-  `pipeline_performance` capabilities, but it is still not a requirement that
-  every managed capability be complete
-- Phase 9 extends the pilot to selected `trigger_run_management` and
-  `inspection_debugging` capabilities and also treats noisy source-level YAML
-  anchors in human-owned feature sources as readability drift to clean up during
-  targeted evidence batches
-- Phase 10 closes the residual `settings_system` and `pipeline_performance`
-  pilot set by mapping UI/schema/config/runtime settings controls and stage
-  performance behavior to direct code and proof evidence
-- Phase 11 extends the same direct-evidence pilot to
-  `run_lifecycle_controls` and `admin_control_plane_core` by mapping control
-  plane runtime, persistence, queue, reporter, and templated admin surfaces to
-  direct code and proof evidence
-- Phase 12 extends the pilot to `multi_file_job_input` plus the currently
-  well-proven `ui_consistency_theming` structural capabilities, while leaving
-  broader theme-token and bootstrap behavior deferred until direct proof tests
-  exist
-- Phase 13 closes the remaining `ui_consistency_theming` set by adding
-  repo-local template ownership metadata for `base.html` plus direct tests for
-  theme bootstrap, design tokens, shared classes, attached-tab composition, and
-  responsive wrapping
-- pilot capability-to-file mappings should stay sparse and materially true
-- pilot proof should use truthful `@proves <capability_id>` only in tests that
-  actually verify the named behavior
-- repo-level pilot requirements may be declared in
-  `repo_config/adoption-mode.yaml` and enforced by
-  `scripts/validate_adoption_shape.py`
-- if a capability still lacks truthful direct proof, prefer leaving it
-  `partial` over inventing noisy ownership
-- every managed feature source must now declare `stage_participation`
-  explicitly:
-  - use a real list for stage-aware features
-  - use `[]` only for intentionally stage-agnostic features
-- `stage_participation.stage_id` must resolve to a real
-  `docs/stages/*.source.yaml` file
-- `stage_participation.capability_ids` must stay within the owning feature
-
-Current generated discovery targets:
-
-- `docs/generated/architecture_dag.yaml`
-- `docs/generated/capability_lineage.yaml`
-
-Retired generated discovery targets that should not be recreated:
-
-- `docs/generated/features_index.yaml`
-- `docs/generated/feature_dependency_graph.yaml`
-- `docs/generated/feature_capabilities_index.yaml`
-- `docs/generated/feature_overview.md`
-- `docs/generated/features_by_status.yaml`
-- `docs/generated/stages_index.yaml`
-- `docs/generated/stage_overview.md`
-
-Canonical generation workflow:
-
-```powershell
-python tools/docs/generate_architecture_metadata.py
-python tools/docs/generate_architecture_metadata.py --check
-python scripts/sync_architecture_docs.py
-python scripts/sync_architecture_docs.py --check
+```text
+docs/features/<feature_id>/
+  feature.source.yaml
+  <feature_id>.yaml          # replace with the concrete id, e.g. model-training-pipeline.yaml
+  lineage.generated.yaml
+  history.md
+  README.md
 ```
 
-Canonical repo-contract validation workflow:
+`README.md` is optional and should explain current behavior only when prose adds
+value; it should not repeat generated contracts or lineage.
+
+Validation in `managed_architecture_metadata` mode enforces the required set:
+
+- `feature.source.yaml`
+- `<feature_id>.yaml`
+- `lineage.generated.yaml`
+- `history.md`
+
+It also treats the generated artifacts as schema-enforced managed contracts:
+
+- `<feature_id>.yaml` must keep the canonical generated feature-contract shape
+- `lineage.generated.yaml` must keep the canonical evidence-oriented schema
+- `history.md` must keep the generated history boundaries plus `## Human Notes`
+
+`history.md` is required for opted-in features and should follow this steady-state
+shape:
+
+- one generated block between `<!-- GENERATED HISTORY START -->` and
+  `<!-- GENERATED HISTORY END -->`
+- one human-owned `## Human Notes` section below the generated block
+- no manual edits inside the generated markers
+
+Generated feature contracts should also keep the canonical contract structure:
+
+- top-level feature fields such as `feature_id`, `name`, `status`, `type`,
+  `summary`, `invariants`, `domains`, `depends_on`, `capabilities`, and `refs`
+- `refs` grouped by canonical families like `code`, `tests`, `specs`, `plans`,
+  `docs`, `configs`, and `components`
+- freshness metadata such as `revision`, `latest_change_id`, and
+  `last_updated_at`
+
+## Feature And Stage YAML Formatting
+
+Feature and stage contract YAML should follow one visible formatting rule:
+
+- quote strings only when YAML requires it or literal preservation depends on it
+- avoid unnecessary quotes on ordinary prose entries
+- preserve field order and contract meaning during formatting cleanup
+- keep formatting changes separate from semantic contract changes when practical
+- never manually edit generated feature contracts; edit `feature.source.yaml`
+  and rerun the generator instead
+
+Canonical formatter/check path:
+
+```powershell
+.\scripts\format_contract_yaml.py --check
+.\scripts\format_contract_yaml.py
+```
+
+The first command reports drift without rewriting. The second normalizes the
+targeted contract YAML files.
+
+Canonical architecture metadata generation/check path for opted-in features:
+
+```powershell
+.\tools\docs\generate_architecture_metadata.py --check
+.\tools\docs\generate_architecture_metadata.py
+```
+
+YAML artifacts can participate in generated feature and stage refs through
+comment metadata:
+
+```yaml
+# @architecture
+# owner: model-training-pipeline
+# features:
+#   - model-training-pipeline
+# stages:
+#   - fixed_train
+# role: config
+# canonical: true
+```
+
+Use comment metadata for AML components and configs so runtime YAML schemas stay
+unchanged.
+
+Canonical full sync/check workflow:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/sync_architecture_docs.py
+.\.venv\Scripts\python.exe scripts/sync_architecture_docs.py --check
+```
+
+Canonical repo-wide validation workflow:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts/validate_repo_contracts.py --fast
 .\.venv\Scripts\python.exe scripts/validate_repo_contracts.py
 ```
 
-Use `tools/docs/generate_architecture_metadata.py` as the owning generator and
-`scripts/sync_architecture_docs.py` as the stable wrapper entrypoint. `--fast`
-still includes the architecture sync check path. It skips only the extra
-validator-specific pytest pass.
+Use the sync command when feature/source/spec/plan/code/test/doc metadata has
+changed and generated feature outputs need refresh. Use the repo-contract
+validator when you need the broader gate across generated files, metadata
+coverage, mixed-boundary feature histories, adoption-shape rules, and repo-config
+surfaces.
 
-The wrapper now includes the starter-aligned helper sequence for this repo:
+In that command pair, `--fast` means the hook-facing subset. It still runs the
+architecture sync check path and skips only the extra validator-specific pytest
+pass.
 
-- adoption-shape validation
-- generator validate-only and check passes
-- architecture linkage awareness audit
-- contract YAML formatting check
-- focused architecture metadata pytest coverage
+Lineage completeness rule for opted-in generated features:
+
+- active capabilities should resolve to `complete` whenever possible
+- temporary rollout gaps must be declared in `feature.source.yaml` under
+  `lineage_exceptions`
+- generated lineage may show `excepted`, but `incomplete` active capabilities
+  are treated as validation failures
+- if a capability cannot be owned cleanly, narrow or split the capability
+  instead of weakening the enforcement rule
 
 ## Planning Gate
 
@@ -254,6 +279,12 @@ Before writing a spec or plan, determine:
 - whether an affected feature already exists
 - whether the change is `ADD`, `MODIFY`, or `REPLACE`
 - which feature docs and generated surfaces must be updated
+- which capability IDs, invariant IDs, source metadata, code markers, and test
+  proof markers are affected
+- whether detailed evidence belongs in feature-local lineage or a human note
+  belongs in history
+- whether a completed plan should create or update generated history entries for
+  the affected feature
 
 Cross-cutting operating-system changes may use `Affected features: none`.
 
@@ -262,6 +293,23 @@ Cross-cutting operating-system changes may use `Affected features: none`.
 A managed feature is not truly complete until:
 
 - code is updated
-- the owning feature source is updated
+- the feature source and generated feature contract are updated when the feature
+  has opted into generation
 - supporting docs are updated as needed
 - generated discovery is refreshed when source layers changed
+- feature-local lineage is refreshed when capability evidence or plan metadata
+  changes
+- generated feature history is refreshed when completed implementation-plan
+  metadata changes for the feature
+- stage participation metadata stays in sync with any stage source that lists
+  the feature
+- active capability lineage is either complete or explicitly excepted in the
+  feature source; silent unresolved gaps are not an acceptable finished state
+
+Human authors should update `history.md` notes only when the generated section is
+not enough on its own, for example:
+
+- operator context matters
+- rollout or migration nuance matters
+- cloud-proof or validation meaning matters
+- a manual explanation is needed to interpret the generated entries

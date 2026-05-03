@@ -25,25 +25,32 @@ Purpose:
 | F reliability hardening | done | outbox retry/dead-letter/replay/health/alerts/tests commits + checkpoints | Reliability hardening scope completed and test-backed. |
 | G replay modes/policy registry | done | strict/policy_replay runtime behavior + replay context persistence + UI/test coverage | Replay-mode semantics and policy provenance are explicit and enforced. |
 | H data-plane/tooling migration path | done | data-plane contract module + persisted backend-mode metadata + UI/test coverage | Backend/mode contract is explicit while BigQuery-default runtime remains intact. |
-| I Prefect orchestration adoption | done | Prefect adapter/diagnostics commits + checkpoints | Orchestration backend adoption thread is delivered in bounded scope. |
-| J OTel export/collector integration | done | exporter + collector integration commits + checkpoints | OTel integration and degraded surfaces are delivered and tested. |
+| I Prefect orchestration adoption | partial | Prefect adapter/diagnostics commits + checkpoints | Implementation surfaces exist, but full end-to-end verification (submit/status/cancel/run-detail timeline) is still open in current roadmap state. |
+| J OTel export/collector integration | partial | exporter + collector integration commits + checkpoints | Integration surfaces exist, but end-to-end collector/export verification remains open in current roadmap state. |
 | K component boundaries/interface contracts | done | explicit data-plane boundary extraction + contract-routed artifacts/UI + tests | Shared-surface contract ownership is explicit in implementation paths. |
+| Langfuse integration (roadmap Phase 2 deliverable) | partial | roadmap deliverable reference + provider/runtime contract surfaces | Langfuse end-to-end trace-link evidence is still open in current roadmap state. |
+| SQLite no-drift parity for durable event history (roadmap Phase 2 deliverable) | partial | SQLite run-flow/artifact stabilization commits | SQLite event persistence durability parity vs BigQuery event history is still open. |
 
 ## Completion Verdict
 
-`complete`
+`partial`
 
 ## Decision
 
-`close`
+`continue_with_gaps`
 
 ## Minimum Follow-up Actions
 
-1. Publish the final phase-close checkpoint pack and mark phase status in roadmap/workstream progress surfaces.
+1. Publish a checkpoint pack that explicitly records remaining Phase 2 gaps and ownership.
 2. Re-run:
    - `python scripts/validate_checkpoint_packs.py`
    - `python scripts/validate_repo_contracts.py --fast`
-3. Continue checkpoint-per-pass discipline for post-phase follow-up work.
+3. Close remaining gaps before any final `complete/close` verdict:
+   - Prefect end-to-end verification path
+   - OTel end-to-end collector/export verification path
+   - Langfuse trace-link verification path
+   - SQLite durable event persistence parity
+4. Continue checkpoint-per-pass discipline for post-phase follow-up work.
 
 ## One Source Of Truth Per Concern
 

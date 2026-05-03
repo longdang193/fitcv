@@ -13,6 +13,7 @@ rank_jobs                : sort jobs by final_score (then ai_score, then vector 
 store_final_ranking      : persist ranked list to BigQuery (integration)
 """
 
+import os
 import re
 from datetime import datetime, timezone
 from typing import Any
@@ -472,6 +473,8 @@ def store_final_ranking(
     """
     if not ranked_jobs:
         return
+    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+        return
 
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
@@ -480,8 +483,11 @@ def store_final_ranking(
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
 
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path and os.path.exists(key_path):
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
     table_ref = f"{project}.{dataset}.final_ranking"
     now = datetime.now(tz=timezone.utc).isoformat()
 

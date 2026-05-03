@@ -320,6 +320,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-03-14-20-phase-2-architecture-hardening-and-portability-plan.md
+    - docs/superpowers/plans/2026-05-03-16-50-sqlite-e2e-backend-runtime-plan.md
     derived_completion: completed
 - workstream_id: workstream-pipeline-efficiency-and-reuse
   status: active

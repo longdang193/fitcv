@@ -11,6 +11,7 @@ load_candidate_to_bigquery : insert into all candidate BQ tables (integration)
 """
 
 import re
+import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -606,6 +607,9 @@ def load_candidate_to_bigquery(
     Requires GOOGLE_APPLICATION_CREDENTIALS.
     Decorated with @pytest.mark.integration in tests.
     """
+    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+        return
+
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
 

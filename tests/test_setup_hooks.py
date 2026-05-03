@@ -29,8 +29,6 @@ SYNC_SCRIPT_PATH = REPO_ROOT / "scripts" / "sync_architecture_docs.py"
 
 def test_hook_setup_scripts_install_architecture_metadata_checks() -> None:
     for script_path in HOOK_SCRIPT_PATHS:
-        if not script_path.exists():
-            continue
         script_text = script_path.read_text(encoding="utf-8")
 
         assert "validate_repo_contracts.py --fast" in script_text

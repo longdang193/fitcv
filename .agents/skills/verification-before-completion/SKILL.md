@@ -13,6 +13,13 @@ Claiming work is complete without verification is dishonesty, not efficiency.
 
 **Violating the letter of this rule is violating the spirit of this rule.**
 
+## Mandatory Read
+
+Before final completion claims, read:
+
+- `docs/operating_system/repo-governance.md`
+- `docs/operating_system/agent_memory/failure-ledger.md` when the task involved meaningful retries/debugging
+
 ## The Iron Law
 
 ```

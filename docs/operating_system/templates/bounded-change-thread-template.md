@@ -1,0 +1,47 @@
+---
+template_id: bounded-change-thread
+document_type: bounded_change_thread
+target_globs:
+  - docs/intent/workstreams/threads/*/*.md
+required_sections:
+  - Goal
+  - Key Deliverables
+  - Scope
+  - Dependencies
+  - Completion Criteria
+---
+
+# Bounded Change Thread Template
+
+## Goal
+
+<what this bounded thread must achieve>
+
+## Key Deliverables
+
+- <deliverable 1>
+- <deliverable 2>
+
+## Scope
+
+- in scope:
+  - <item>
+- out of scope:
+  - <item>
+
+## Dependencies
+
+- <dependency>
+
+## Completion Criteria
+
+A thread item is considered complete when:
+
+1. all Key Deliverables are satisfied
+2. all downstream/child items are terminal
+3. every child item is `completed` or `dropped`
+
+Canonical source-of-truth:
+
+- `docs/operating_system/repo-governance.md`
+- `scripts/validate_planning_lifecycle.py`

@@ -123,6 +123,11 @@ These root docs are cross-cutting project docs, not replacements for
 generated discovery. The normal validation and hook path should fail when the
 required set is missing.
 
+When those required root docs drift from current repo reality, use the prompt
+pack entry at
+`docs/operating_system/prompt_templates/required-root-doc-update-prompt.md`
+rather than improvising a root-doc rewrite from scratch.
+
 Required root-doc validation is intentionally light but real. That contract is
 owned by `scripts/validate_adoption_shape.py`, and the normal repo-contract
 gate runs that validator directly. The normal validation path now checks:
@@ -144,6 +149,11 @@ Optional root docs remain optional when absent. When a managed repo creates
 `docs/dataset.md`, `docs/api.md`, `docs/observability.md`, or `docs/testing.md`,
 that file also becomes a validator-enforced metadata-linked doc with canonical
 `doc_id`, non-empty `doc_type`, and doc-appropriate `explains.*` links.
+
+The dedicated required-root-doc update prompt should keep that distinction
+explicit: required root docs must be refreshed as contract surfaces, while
+optional root docs should only be recommended or updated when the repo shape
+actually needs them.
 
 Outside managed mode, required root docs still do not need frontmatter by
 default. Frontmatter remains optional for other Markdown docs unless they are
@@ -245,7 +255,7 @@ Planning classification should stay explicit:
 
 The precise execution ladder is:
 
-`intent -> master workstream roadmap -> registered workstreams -> bounded change thread files -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> implementation plans -> execution`
+`intent -> master workstream roadmap -> registered workstreams -> bounded change thread files -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> implementation plans -> execution passes with thread checkpoint result packs`
 
 Use that model to keep responsibilities separate:
 
@@ -257,6 +267,20 @@ Use that model to keep responsibilities separate:
 - detailed specs = bounded design artifacts
 - implementation execution maps = orchestration artifacts across approved detailed specs
 - plans = bounded execution artifacts
+
+Checkpoint policy for this ladder:
+
+- the checkpoint unit is the bounded change thread (not the full workstream and
+  not each downstream artifact)
+- each execution pass for a bounded change thread should publish a visible
+  result pack
+- result packs should use
+  `docs/operating_system/templates/checkpoint-result-pack.md` as the canonical
+  shape
+- store thread checkpoint packs under
+  `docs/intent/workstreams/checkpoints/<workstream-id>/<thread-slug>/`
+- at minimum, active and completed bounded change threads should always have a
+  latest checkpoint result pack
 
 Lineage should stay minimal:
 
@@ -551,3 +575,4 @@ When hooks expose repeated or important failures:
   - a script check
   - a test
   - or an explicit follow-up plan
+
