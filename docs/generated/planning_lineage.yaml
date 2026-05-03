@@ -192,6 +192,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-f-reliability-hardening-failed-cancelled-and-event-outbox.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
+    - docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md
     - docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md
     derived_completion: in_progress
 - workstream_id: workstream-fitcv-semantic-spine
