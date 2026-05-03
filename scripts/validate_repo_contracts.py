@@ -4,15 +4,19 @@ name: validate_repo_contracts
 type: script
 domain: docs
 responsibility:
-  - Validate the repo contract graph across generated outputs, metadata-bearing sources, and repo-wide validation entrypoints.
-  - Orchestrate architecture sync checks, repo-config validation, and adoption-shape validation through one canonical command.
-  - Enforce required metadata coverage for config and setup surfaces plus mixed-ownership feature-history boundaries.
+  - Validate the repo contract graph across source-owned, generated, and partially generated surfaces.
+  - Orchestrate architecture checks, adoption-shape validation, repo-config validation, and governed metadata coverage checks through one canonical command.
+  - Enforce mixed-ownership boundary rules for feature history files before commit or CI completion.
 inputs:
   - docs/features/*/feature.source.yaml
   - docs/features/*/history.md
   - docs/stages/*.source.yaml
+  - docs/superpowers/specs/*.md
+  - docs/superpowers/plans/*.md
   - repo_config/adoption-mode.yaml
-  - config/**/*.yaml
+  - repo_config/*.json
+  - configs/*.yaml
+  - aml/components/*.yaml
   - setup/*.ps1
   - setup/*.sh
 outputs:
@@ -37,11 +41,14 @@ import sys
 from typing import Any
 
 import yaml
-
-
-GENERATED_HISTORY_START = "<!-- GENERATED HISTORY START -->"
-GENERATED_HISTORY_END = "<!-- GENERATED HISTORY END -->"
-HUMAN_HISTORY_HEADING = "## Human Notes"
+from validator_policy import (
+    ALLOWED_MODES,
+    ARCHITECTURE_METADATA_MARKER_LINE,
+    GENERATED_HISTORY_END_MARKER,
+    GENERATED_HISTORY_START_MARKER,
+    HUMAN_NOTES_HEADING,
+    SETUP_META_MARKER,
+)
 
 
 @dataclass(frozen=True)
@@ -63,7 +70,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Validate the repo contract graph across generated outputs, "
-            "metadata-bearing sources, mixed-ownership docs, and adoption shape."
+            "metadata-bearing sources, mixed-ownership docs, adoption shape, "
+            "and repo config."
         )
     )
     parser.add_argument(
@@ -89,13 +97,11 @@ def pytest_basetemp(default_relative: str) -> str:
         return override
     return default_relative
 
-
 def venv_site_packages(root: Path) -> Path | None:
     site_packages = root / ".venv" / "Lib" / "site-packages"
     if site_packages.exists():
         return site_packages
     return None
-
 
 def resolve_python_executable(root: Path) -> str:
     pyvenv_cfg = root / ".venv" / "pyvenv.cfg"
@@ -113,17 +119,27 @@ def resolve_python_executable(root: Path) -> str:
     return sys.executable
 
 
-def read_adoption_mode(root: Path) -> dict[str, Any]:
+def managed_architecture_metadata_enabled(root: Path) -> bool:
     adoption_mode_path = root / "repo_config" / "adoption-mode.yaml"
     if not adoption_mode_path.exists():
-        return {}
+        return True
     payload = yaml.safe_load(adoption_mode_path.read_text(encoding="utf-8"))
-    return payload if isinstance(payload, dict) else {}
-
-
-def managed_architecture_metadata_enabled(root: Path) -> bool:
-    payload = read_adoption_mode(root)
+    if not isinstance(payload, dict):
+        return True
     return bool(payload.get("managed_architecture_metadata", False))
+
+
+def read_adoption_mode(root: Path) -> str | None:
+    adoption_mode_path = root / "repo_config" / "adoption-mode.yaml"
+    if not adoption_mode_path.exists():
+        return None
+    payload = yaml.safe_load(adoption_mode_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        return None
+    mode = payload.get("adoption_mode")
+    if mode not in ALLOWED_MODES:
+        return None
+    return mode
 
 
 def run_step(command: list[str], *, cwd: Path) -> int:
@@ -143,31 +159,38 @@ def run_step(command: list[str], *, cwd: Path) -> int:
 
 
 def build_subprocess_steps(*, root: Path, python_executable: str, fast: bool) -> list[list[str]]:
-    sync_script = str(root / "scripts" / "sync_architecture_docs.py")
-    repo_config_script = str(root / "scripts" / "validate_repo_config.py")
     adoption_shape_script = str(root / "scripts" / "validate_adoption_shape.py")
     checkpoint_pack_script = str(root / "scripts" / "validate_checkpoint_packs.py")
+    planning_lifecycle_script = str(root / "scripts" / "validate_planning_lifecycle.py")
     component_boundary_script = str(root / "scripts" / "validate_component_boundaries.py")
+    repo_config_script = str(root / "scripts" / "validate_repo_config.py")
     steps: list[list[str]] = [
-        [python_executable, sync_script, "--check"],
-        [python_executable, repo_config_script],
         [python_executable, adoption_shape_script],
         [python_executable, checkpoint_pack_script],
+        [python_executable, planning_lifecycle_script],
         [python_executable, component_boundary_script],
     ]
+    if read_adoption_mode(root) != "starter_method_only":
+        sync_script = str(root / "scripts" / "sync_architecture_docs.py")
+        steps.append([python_executable, sync_script, "--check"])
+    steps.append([python_executable, repo_config_script])
     if not fast:
-        basetemp = root / pytest_basetemp(".tmp-tests/repo-contract-pytest")
-        basetemp.parent.mkdir(parents=True, exist_ok=True)
+        pytest_targets = [
+            "tests/test_validate_repo_config.py",
+            "tests/test_validate_planning_lifecycle.py",
+            "tests/test_validate_repo_contracts.py",
+        ]
+        adoption_test = root / "tests" / "test_validate_adoption_shape.py"
+        if adoption_test.exists():
+            pytest_targets.insert(1, "tests/test_validate_adoption_shape.py")
         steps.append(
             [
                 python_executable,
                 "-m",
                 "pytest",
                 "--basetemp",
-                str(basetemp),
-                "tests/test_validate_repo_config.py",
-                "tests/test_validate_adoption_shape.py",
-                "tests/test_validate_repo_contracts.py",
+                str(root / pytest_basetemp(".tmp-tests/repo-contract-pytest")),
+                *pytest_targets,
                 "-q",
             ]
         )
@@ -176,7 +199,6 @@ def build_subprocess_steps(*, root: Path, python_executable: str, fast: bool) ->
 
 def validate_history_boundaries(root: Path) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
-
     for source_path in sorted((root / "docs" / "features").glob("*/feature.source.yaml")):
         history_path = source_path.parent / "history.md"
         rel_path = relative_path(history_path, root)
@@ -191,18 +213,19 @@ def validate_history_boundaries(root: Path) -> list[ValidationIssue]:
             continue
 
         text = history_path.read_text(encoding="utf-8")
-        start_count = text.count(GENERATED_HISTORY_START)
-        end_count = text.count(GENERATED_HISTORY_END)
-        human_count = text.count(HUMAN_HISTORY_HEADING)
+        start_count = text.count(GENERATED_HISTORY_START_MARKER)
+        end_count = text.count(GENERATED_HISTORY_END_MARKER)
+        human_count = text.count(HUMAN_NOTES_HEADING)
 
-        if start_count == 0 and end_count == 0 and human_count == 0:
-            continue
         if start_count != 1:
             issues.append(
                 ValidationIssue(
                     category="partial_generated_boundary_error",
                     path=rel_path,
-                    message=f"expected exactly one generated history start marker, found {start_count}",
+                    message=(
+                        "expected exactly one generated history start marker, "
+                        f"found {start_count}"
+                    ),
                 )
             )
         if end_count != 1:
@@ -210,14 +233,17 @@ def validate_history_boundaries(root: Path) -> list[ValidationIssue]:
                 ValidationIssue(
                     category="partial_generated_boundary_error",
                     path=rel_path,
-                    message=f"expected exactly one generated history end marker, found {end_count}",
+                    message=(
+                        "expected exactly one generated history end marker, "
+                        f"found {end_count}"
+                    ),
                 )
             )
         if start_count != 1 or end_count != 1:
             continue
 
-        start_index = text.index(GENERATED_HISTORY_START)
-        end_index = text.index(GENERATED_HISTORY_END)
+        start_index = text.index(GENERATED_HISTORY_START_MARKER)
+        end_index = text.index(GENERATED_HISTORY_END_MARKER)
         if start_index > end_index:
             issues.append(
                 ValidationIssue(
@@ -228,8 +254,8 @@ def validate_history_boundaries(root: Path) -> list[ValidationIssue]:
             )
             continue
 
-        after_end = text[end_index + len(GENERATED_HISTORY_END) :].lstrip("\n")
-        if not after_end.startswith(HUMAN_HISTORY_HEADING):
+        after_end = text[end_index + len(GENERATED_HISTORY_END_MARKER) :].lstrip("\n")
+        if not after_end.startswith(HUMAN_NOTES_HEADING):
             issues.append(
                 ValidationIssue(
                     category="partial_generated_boundary_error",
@@ -242,7 +268,10 @@ def validate_history_boundaries(root: Path) -> list[ValidationIssue]:
                 ValidationIssue(
                     category="partial_generated_boundary_error",
                     path=rel_path,
-                    message=f"expected exactly one `## Human Notes` heading, found {human_count}",
+                    message=(
+                        "expected exactly one `## Human Notes` heading, "
+                        f"found {human_count}"
+                    ),
                 )
             )
     return issues
@@ -253,7 +282,7 @@ def _starts_with_architecture_block(text: str) -> bool:
         stripped = line.strip()
         if not stripped:
             continue
-        if stripped == "# @architecture":
+        if stripped == ARCHITECTURE_METADATA_MARKER_LINE:
             return True
         if stripped.startswith("#"):
             continue
@@ -271,7 +300,7 @@ def _has_setup_meta(text: str, suffix: str) -> bool:
             continue
         if not stripped.startswith("#"):
             return False
-        return stripped[1:].lstrip() == "@meta"
+        return stripped[1:].lstrip() == SETUP_META_MARKER
     return False
 
 
@@ -280,8 +309,9 @@ def validate_required_metadata_coverage(root: Path) -> list[ValidationIssue]:
     if not managed_architecture_metadata_enabled(root):
         return issues
 
-    configs_root = root / "config"
-    if configs_root.exists():
+    for configs_root in (root / "config", root / "configs"):
+        if not configs_root.exists():
+            continue
         for path in sorted(configs_root.rglob("*.yaml")):
             if not path.is_file():
                 continue
