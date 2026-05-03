@@ -48,11 +48,23 @@ def make_test_root() -> Path:
 def seed_minimum_workstream(
     root: Path,
     *,
+    roadmap_status: str | None = None,
     workstream_status: str,
     thread_status: str,
     thread_extra_frontmatter: str = "",
 ) -> None:
-    write_text(root / "docs" / "intent" / "master-workstream-roadmap.md", "# Roadmap\n")
+    if roadmap_status is None:
+        write_text(root / "docs" / "intent" / "master-workstream-roadmap.md", "# Roadmap\n")
+    else:
+        write_text(
+            root / "docs" / "intent" / "master-workstream-roadmap.md",
+            f"""---
+status: {roadmap_status}
+---
+
+# Roadmap
+""",
+        )
     write_text(
         root / "docs" / "intent" / "workstreams" / "sample-workstream.md",
         f"""---
@@ -128,5 +140,21 @@ def test_dropped_thread_requires_closure_metadata() -> None:
         result = run_validator(root)
         assert result.returncode == 1
         assert "dropped thread is missing required closure metadata" in result.stdout
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_completed_roadmap_with_non_terminal_workstream_fails() -> None:
+    root = make_test_root()
+    try:
+        seed_minimum_workstream(
+            root,
+            roadmap_status="completed",
+            workstream_status="active",
+            thread_status="proposed",
+        )
+        result = run_validator(root)
+        assert result.returncode == 1
+        assert "completed master roadmap cannot contain non-terminal workstream status" in result.stdout
     finally:
         rmtree(root, ignore_errors=True)
