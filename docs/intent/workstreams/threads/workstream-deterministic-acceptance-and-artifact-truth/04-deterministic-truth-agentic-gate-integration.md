@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-agentic-gate-integration
-status: dropped
+status: proposed
 ---
 
 # deterministic-truth-agentic-gate-integration

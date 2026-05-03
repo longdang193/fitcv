@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-results-ledger-contract
-status: dropped
+status: proposed
 ---
 
 # deterministic-truth-results-ledger-contract
