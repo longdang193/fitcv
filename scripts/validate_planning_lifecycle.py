@@ -37,6 +37,7 @@ import yaml
 ACTIVE_STATUSES = {"active", "completed"}
 ALLOWED_MAP_TYPES = {"complete_spec_set", "spec_authoring", "implementation_execution"}
 TERMINAL_THREAD_STATUSES = {"completed", "dropped"}
+TERMINAL_WORKSTREAM_STATUSES = {"completed", "dropped"}
 
 
 @dataclass(frozen=True)
@@ -385,6 +386,30 @@ def validate_lifecycle_coverage(
             )
         )
         return findings
+    roadmap_payload = extract_frontmatter(roadmap_path) or {}
+    roadmap_status = (
+        roadmap_payload.get("status").strip().lower()
+        if isinstance(roadmap_payload.get("status"), str)
+        else None
+    )
+    if roadmap_status == "completed":
+        non_terminal_workstreams = [
+            workstream
+            for workstream in workstreams.values()
+            if workstream.status not in TERMINAL_WORKSTREAM_STATUSES
+        ]
+        for workstream in non_terminal_workstreams:
+            findings.append(
+                Finding(
+                    level="ERROR",
+                    category="planning_lifecycle_error",
+                    path=relative_path(workstream.path, root),
+                    message=(
+                        "completed master roadmap cannot contain non-terminal workstream status "
+                        f"`{workstream.status}`; use `completed` or `dropped`."
+                    ),
+                )
+            )
 
     specs_by_thread = {spec.parent_thread for spec in specs if spec.parent_thread}
     plans_by_thread = {plan.parent_thread for plan in plans if plan.parent_thread}
