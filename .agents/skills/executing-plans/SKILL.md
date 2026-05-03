@@ -15,6 +15,14 @@ Load the plan, review it critically, execute task by task, update source-of-trut
 
 ---
 
+## Mandatory Read
+
+Before execution starts, read:
+
+- the specific implementation plan file being executed
+- `docs/operating_system/repo-governance.md`
+- `docs/operating_system/prompt_templates/implementation-next-action-gate-prompt.md`
+
 ## Source-of-Truth Rule
 
 During execution, keep these layers in sync:
@@ -63,7 +71,9 @@ For each task:
 
 1. Mark it `in_progress`
 2. Follow plan steps exactly
-3. Run required verifications
+3. Select the next action using `docs/operating_system/prompt_templates/implementation-next-action-gate-prompt.md`.
+4. Do not invent unrelated next steps; choose only from approved roadmap/workstream/thread/spec/map/plan artifacts.
+5. Run required verifications
 4. Update affected source layers as part of the task:
 
 - code
