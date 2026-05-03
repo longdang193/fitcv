@@ -129,7 +129,8 @@ workstreams:
     specs:
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
     - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
-    plans: []
+    plans:
+    - docs/superpowers/plans/2026-05-03-bounded-cv-quality-analysis-grounding-bootstrap-plan.md
     derived_completion: in_progress
   - thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-generation-repair
     status: proposed
@@ -151,39 +152,39 @@ workstreams:
     plans: []
     derived_completion: in_progress
 - workstream_id: workstream-deterministic-acceptance-and-artifact-truth
-  status: completed
+  status: active
   path: docs/intent/workstreams/workstream-deterministic-acceptance-and-artifact-truth.md
   thread_count: 5
-  completed_thread_count: 0
+  completed_thread_count: 1
   derived_completion: in_progress
   threads:
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-outcome-contract
-    status: dropped
+    status: proposed
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/01-deterministic-truth-outcome-contract.md
     specs:
     - docs/superpowers/specs/2026-04-28-deterministic-truth-outcome-contract-spec.md
     plans: []
     derived_completion: in_progress
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-stage-artifact-contract
-    status: dropped
+    status: proposed
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/02-deterministic-truth-stage-artifact-contract.md
     specs: []
     plans: []
     derived_completion: not_started
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-results-ledger-contract
-    status: dropped
+    status: proposed
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/03-deterministic-truth-results-ledger-contract.md
     specs: []
     plans: []
     derived_completion: not_started
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-agentic-gate-integration
-    status: dropped
+    status: proposed
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/04-deterministic-truth-agentic-gate-integration.md
     specs: []
     plans: []
     derived_completion: not_started
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-policy-versioned-stage-result-envelope
-    status: dropped
+    status: completed
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/05-deterministic-truth-policy-versioned-stage-result-envelope.md
     specs:
     - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
@@ -194,7 +195,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-g-replay-modes-and-policy-registry.md
     - docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md
     - docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md
-    derived_completion: in_progress
+    derived_completion: completed
 - workstream_id: workstream-fitcv-semantic-spine
   status: active
   path: docs/intent/workstreams/workstream-fitcv-semantic-spine.md
@@ -311,14 +312,16 @@ workstreams:
   path: docs/intent/workstreams/workstream-pipeline-efficiency-and-reuse.md
   thread_count: 4
   completed_thread_count: 0
-  derived_completion: not_started
+  derived_completion: in_progress
   threads:
   - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract
     status: proposed
     path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/01-efficiency-reuse-exact-match-contract.md
-    specs: []
-    plans: []
-    derived_completion: not_started
+    specs:
+    - docs/superpowers/specs/2026-05-03-pipeline-efficiency-exact-match-contract-bootstrap-spec.md
+    plans:
+    - docs/superpowers/plans/2026-05-03-pipeline-efficiency-exact-match-bootstrap-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
     status: proposed
     path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/02-efficiency-reuse-late-stage-gating.md
