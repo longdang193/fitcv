@@ -1508,6 +1508,10 @@ capabilities:
       confidence: high
       source:
       - python_meta
+    - path: scripts/route_outbox_replay_health_alert.py
+      confidence: high
+      source:
+      - python_meta
     - path: src/fitcv_cp/app.py
       confidence: high
       source:

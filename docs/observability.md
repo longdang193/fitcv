@@ -134,6 +134,11 @@ Exit code contract:
 This makes the script safe to plug into cron, Windows Task Scheduler, CI, or
 external monitors.
 
+Webhook routing option:
+
+- `scripts/route_outbox_replay_health_alert.py` wraps the checker and sends
+  alert/error outcomes to a webhook endpoint while preserving non-zero exits.
+
 ## Agentic Observation By Area
 
 ### CV analysis and generation

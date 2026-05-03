@@ -355,3 +355,27 @@ schtasks /Delete /TN "FitCV-Outbox-Replay-Health" /F
 
 The checker prints JSON payloads; use your scheduler or wrapper to route non-zero
 exit codes into alert channels.
+
+## Alert Routing Wrapper (Webhook)
+
+Use the wrapper when you want direct webhook delivery for alert/error outcomes:
+
+```powershell
+python scripts/route_outbox_replay_health_alert.py `
+  --base-url http://localhost:8000 `
+  --view active `
+  --min-replay-success-ratio 0.95 `
+  --webhook-url https://example-alert-endpoint.local/hooks/fitcv
+```
+
+Wrapper behavior:
+
+- runs `scripts/check_outbox_replay_health.py`
+- forwards checker payload and exit code to webhook on:
+  - `2` (alert decision)
+  - `3` (checker request/runtime error)
+- keeps scheduler-compatible non-zero exits for alert/error handling
+
+Optional:
+
+- add `--notify-on-ok` if you also want healthy heartbeat notifications
