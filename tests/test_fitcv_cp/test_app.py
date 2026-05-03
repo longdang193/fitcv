@@ -1339,6 +1339,10 @@ def test_admin_outbox_replay_health_check_alert_emits_event(tmp_path):
     assert payload["outbox_replay_health"]["status"] == "degraded"
     assert captured["event"].stage == "outbox_replay_health_alert"
     assert captured["event"].level == "warning"
+    emitted_payload = json.loads(str(captured["event"].payload_json or "{}"))
+    assert emitted_payload["decision"] == "alert"
+    assert "dead_letter_status_degraded" in emitted_payload["reason_code"]
+    assert emitted_payload["outbox_replay_health"]["status"] == "degraded"
 
 
 def test_admin_outbox_replay_health_check_ok_emits_info_event(tmp_path):
@@ -1393,6 +1397,9 @@ def test_admin_outbox_replay_health_check_ok_emits_info_event(tmp_path):
     assert payload["reason_code"] == "healthy"
     assert captured["event"].stage == "outbox_replay_health_alert"
     assert captured["event"].level == "info"
+    emitted_payload = json.loads(str(captured["event"].payload_json or "{}"))
+    assert emitted_payload["decision"] == "ok"
+    assert emitted_payload["reason_code"] == "healthy"
 
 
 def test_admin_run_detail_success_banner():
