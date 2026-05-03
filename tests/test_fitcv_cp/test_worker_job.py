@@ -103,6 +103,11 @@ def test_worker_persists_results_export_json_on_success():
     assert payload["results_schema_version"] == "results_job_ledger_v3"
     assert payload["run_mode"] == "run_all"
     assert payload["run_mode_label"] == "Run All"
+    assert payload["data_plane"]["runtime_mode"] == "full"
+    assert payload["data_plane"]["state_backend"] == "bigquery"
+    assert payload["replay_context"]["replay_mode"] == "strict"
+    assert payload["replay_context"]["replay_source_run_id"] == "r1"
+    assert payload["replay_context"]["policy_registry_version"] == "policy_registry.v1"
     assert payload["summary"]["ranked"] == 2
     assert payload["late_stage_mode"]["late_stage_mode"] == "non_agentic"
     assert payload["late_stage_mode"]["agentic_late_stage_enabled"] is False
@@ -733,6 +738,11 @@ def test_worker_persists_settings_used_json_on_success():
     payload = json.loads(mock_store_settings.call_args.args[1])
     assert payload["run_id"] == "r1"
     assert payload["settings_schema_version"] == "settings_used_v2"
+    assert payload["data_plane"]["runtime_mode"] == "full"
+    assert payload["data_plane"]["artifact_backend"] == "bigquery_json"
+    assert payload["replay_context"]["replay_mode"] == "strict"
+    assert payload["replay_context"]["replay_source_run_id"] == "r1"
+    assert payload["replay_context"]["policy_registry_version"] == "policy_registry.v1"
     assert payload["late_stage_mode"]["late_stage_mode"] == "non_agentic"
     assert payload["late_stage_mode"]["agentic_late_stage_enabled"] is False
     assert payload["late_stage_mode"]["agentic_status"] == "not_applicable"

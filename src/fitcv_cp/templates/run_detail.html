@@ -62,6 +62,13 @@
     <span class="k">Orchestration Backend</span><span class="v"><code>{{ orchestration_diagnostics.backend }}</code></span>
     <span class="k">Backend Run ID</span><span class="v"><code>{{ orchestration_diagnostics.backend_run_id or '—' }}</code></span>
     <span class="k">Backend Status</span><span class="v"><code>{{ orchestration_diagnostics.status }}</code>{% if not orchestration_diagnostics.status_checked %} <span class="meta">(not polled)</span>{% endif %}</span>
+    <span class="k">Replay Mode</span><span class="v"><code>{{ replay_context_summary.replay_mode or 'strict' }}</code></span>
+    <span class="k">Replay Source Run</span><span class="v"><code>{{ replay_context_summary.replay_source_run_id or run.run_id }}</code></span>
+    <span class="k">Policy Registry</span><span class="v"><code>{{ replay_context_summary.policy_registry_version or 'policy_registry.v1' }}</code></span>
+    <span class="k">Runtime Mode</span><span class="v"><code>{{ data_plane_summary.runtime_mode or 'full' }}</code></span>
+    <span class="k">State Backend</span><span class="v"><code>{{ data_plane_summary.state_backend or 'bigquery' }}</code></span>
+    <span class="k">Artifact Backend</span><span class="v"><code>{{ data_plane_summary.artifact_backend or 'bigquery_json' }}</code></span>
+    <span class="k">Telemetry Backend</span><span class="v"><code>{{ data_plane_summary.telemetry_backend or 'otel_json' }}</code></span>
     <span class="k">Total Jobs</span><span class="v">{{ run.total_jobs if run.total_jobs is not none else '—' }}</span>
     <span class="k">Passed Filter</span><span class="v">{{ run.passed_filter if run.passed_filter is not none else '—' }}</span>
     <span class="k">Ranked</span><span class="v">{{ run.ranked if run.ranked is not none else '—' }}</span>
