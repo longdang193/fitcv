@@ -1,9 +1,10 @@
 [CmdletBinding()]
 param(
-    [string]$ExportRoot = (Join-Path $env:TEMP "fitcv-public-export"),
+    [string]$ExportRoot = (Join-Path $env:TEMP "project-public-export"),
     [string]$PublicRemote = "public",
     [string]$PublicBranch = "main",
     [string]$CommitMessage = "Publish curated public mirror",
+    [string]$ConfigPath = 'repo_config/publication-config.json',
     [switch]$Push
 )
 
@@ -18,23 +19,18 @@ function Get-RepoRoot {
     return $root.Trim()
 }
 
-function Load-PublicationConfig {
+function Get-PublicationConfig {
     param(
-        [Parameter(Mandatory = $true)]
-        [string]$RepoRoot
+        [string]$RepoRoot,
+        [string]$ConfigPath
     )
 
-    $configPath = Join-Path $RepoRoot 'repo_config/publication-config.json'
-    if (-not (Test-Path -LiteralPath $configPath)) {
-        throw "Missing publication config: $configPath"
+    $configFullPath = Join-Path $RepoRoot $ConfigPath
+    if (-not (Test-Path -LiteralPath $configFullPath)) {
+        throw "Publication config not found: $configFullPath"
     }
 
-    $payload = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json
-    if (-not $payload) {
-        throw "Publication config is empty: $configPath"
-    }
-
-    return $payload
+    return Get-Content -Raw -LiteralPath $configFullPath | ConvertFrom-Json
 }
 
 function Ensure-CleanDirectory {
@@ -119,9 +115,9 @@ function Assert-NoPrivateReferences {
     $patterns = @(
         'AGENTS\.md',
         '\.agents/',
+        '\.codex/',
         '\.cursor/',
         'agent-core/',
-        'codex/rules/',
         'docs/operating_system/',
         'docs/superpowers/',
         '/[A-Za-z]:/',
@@ -167,7 +163,6 @@ function Remove-UnlistedGeneratedDocs {
     param(
         [Parameter(Mandatory = $true)]
         [string]$DestinationRoot,
-        [Parameter(Mandatory = $true)]
         [string[]]$AllowedGeneratedPaths
     )
 
@@ -202,26 +197,6 @@ function Remove-PrivateAdapterFiles {
     }
 }
 
-function Remove-OmittedPublicPaths {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$DestinationRoot,
-        [Parameter(Mandatory = $true)]
-        [string[]]$Patterns
-    )
-
-    $files = Get-ChildItem -LiteralPath $DestinationRoot -Recurse -File -ErrorAction SilentlyContinue
-    foreach ($file in $files) {
-        $relativePath = [System.IO.Path]::GetRelativePath($DestinationRoot, $file.FullName).Replace('\', '/')
-        foreach ($pattern in $Patterns) {
-            if ($relativePath -like $pattern) {
-                Remove-Item -LiteralPath $file.FullName -Force
-                break
-            }
-        }
-    }
-}
-
 function Remove-PrivateReferenceLines {
     param(
         [Parameter(Mandatory = $true)]
@@ -235,7 +210,7 @@ function Remove-PrivateReferenceLines {
         'docs/superpowers/',
         'docs/operating_system/',
         'agent-core/',
-        'codex/rules/',
+        '\.codex/',
         '\.agents/',
         '\.cursor/'
     )
@@ -267,13 +242,12 @@ function Remove-PrivateReferenceLines {
 }
 
 $repoRoot = Get-RepoRoot
-$publicationConfig = Load-PublicationConfig -RepoRoot $repoRoot
-$publicPaths = @($publicationConfig.publicPaths)
-$forbiddenPaths = @($publicationConfig.forbiddenPaths)
-$requiredPaths = @($publicationConfig.requiredPaths)
-$omittedPublicPaths = @($publicationConfig.omittedPublicPaths)
-$allowedGeneratedPaths = @($publicationConfig.allowedGeneratedPaths)
-$scrubPrivateReferencePaths = @($publicationConfig.scrubPrivateReferencePaths)
+$config = Get-PublicationConfig -RepoRoot $repoRoot -ConfigPath $ConfigPath
+$publicPaths = @($config.publicPaths)
+$forbiddenPaths = @($config.forbiddenPaths)
+$requiredPaths = @($config.requiredPaths)
+$allowedGeneratedPaths = @($config.allowedGeneratedPaths)
+$scrubPrivateReferencePaths = @($config.scrubPrivateReferencePaths)
 
 $remoteUrl = $null
 if ($Push) {
@@ -303,14 +277,8 @@ foreach ($relativePath in $publicPaths) {
     Copy-PublicPath -SourceRoot $repoRoot -DestinationRoot $ExportRoot -RelativePath $relativePath
 }
 
-Remove-UnlistedGeneratedDocs -DestinationRoot $ExportRoot -AllowedGeneratedPaths @(
-    $allowedGeneratedPaths
-)
-
+Remove-UnlistedGeneratedDocs -DestinationRoot $ExportRoot -AllowedGeneratedPaths $allowedGeneratedPaths
 Remove-PrivateAdapterFiles -DestinationRoot $ExportRoot
-Remove-OmittedPublicPaths -DestinationRoot $ExportRoot -Patterns @(
-    $omittedPublicPaths
-)
 
 foreach ($relativePath in $scrubPrivateReferencePaths) {
     Remove-PrivateReferenceLines -DestinationRoot $ExportRoot -RelativePath $relativePath

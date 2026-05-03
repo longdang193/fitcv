@@ -1,0 +1,57 @@
+# Task Start Routing Guide
+
+Use this guide to choose the correct starting point before writing specs, plans,
+or code.
+
+## Decision Order
+
+Start at the lowest valid layer and move upward only when required evidence is
+missing:
+
+`detailed spec -> bounded change thread -> registered workstream -> master roadmap`
+
+## Safe To Start From Detailed Spec When
+
+- the detailed spec exists and is in scope
+- lineage is valid for the task context
+- dependencies are clear and bounded
+- the task is implementation-level, not reprioritization
+
+## Start From Master Roadmap When
+
+- priorities, phases, or major outcomes may change
+- no existing workstream clearly owns the request
+- cross-workstream sequencing or ownership is unclear
+
+## Start From Registered Workstream When
+
+- the work is durable and spans multiple bounded threads
+- roadmap intent exists but workstream-level ownership is missing or weak
+
+## Start From Bounded Change Thread When
+
+- workstream is known but next executable slice is unclear
+- a safe parallelization boundary is needed before spec/plan execution
+
+## Required Evidence Check Before Choosing Start Point
+
+1. roadmap context exists
+2. workstream fit exists
+3. bounded thread exists or should be created
+4. actionable spec exists (if implementation-level start)
+5. dependency/blocker/shared-surface risks are known
+6. status/evidence are coherent with current validator rules
+
+## Ambiguity Handling
+
+If ambiguous:
+
+1. pause implementation
+2. choose safer higher-level planning start (usually thread/workstream)
+3. record assumptions
+4. request confirmation only for non-obvious tradeoffs
+
+Canonical lifecycle enforcement remains in:
+
+- `docs/operating_system/repo-governance.md`
+- `scripts/validate_planning_lifecycle.py`

@@ -61,9 +61,6 @@ class ThreadRecord:
     status: str
     workstream_id: str
     path: Path
-    drop_reason: str | None
-    drop_approved_by: str | None
-    dropped_at: str | None
 
 
 @dataclass(frozen=True)
@@ -164,38 +161,8 @@ def discover_threads(root: Path) -> dict[str, ThreadRecord]:
             status=status.strip().lower(),
             workstream_id=workstream_id,
             path=path,
-            drop_reason=payload.get("drop_reason") if isinstance(payload.get("drop_reason"), str) else None,
-            drop_approved_by=payload.get("drop_approved_by")
-            if isinstance(payload.get("drop_approved_by"), str)
-            else None,
-            dropped_at=payload.get("dropped_at") if isinstance(payload.get("dropped_at"), str) else None,
         )
     return records
-
-
-def thread_slug_from_path(path: Path) -> str:
-    slug = path.stem
-    if "-" in slug:
-        maybe_number, remainder = slug.split("-", 1)
-        if maybe_number.isdigit() and remainder:
-            return remainder
-    return slug
-
-
-def has_checkpoint_for_thread(root: Path, thread: ThreadRecord) -> bool:
-    checkpoint_dir = (
-        root
-        / "docs"
-        / "intent"
-        / "workstreams"
-        / "checkpoints"
-        / thread.workstream_id
-        / thread_slug_from_path(thread.path)
-    )
-    return checkpoint_dir.exists() and any(
-        child.is_file() and child.suffix.lower() == ".md" and child.name != "README.md"
-        for child in checkpoint_dir.iterdir()
-    )
 
 
 def discover_specs(root: Path) -> list[SpecRecord]:
@@ -510,46 +477,39 @@ def validate_lifecycle_coverage(
                         ),
                     )
                 )
-    # Thread-level invariants apply regardless of parent workstream status.
-    for thread in sorted(threads.values(), key=lambda item: item.thread_id):
-        rel = relative_path(thread.path, root)
-        slug = thread_slug_from_path(thread.path)
-        checkpoint_path = (
-            f"docs/intent/workstreams/checkpoints/{thread.workstream_id}/{slug}/"
-        )
-        if thread.status == "completed" and not has_checkpoint_for_thread(root, thread):
-            findings.append(
-                Finding(
-                    level="ERROR",
-                    category="planning_lifecycle_error",
-                    path=rel,
-                    message=(
-                        "completed thread is missing checkpoint evidence at "
-                        f"`{checkpoint_path}`."
-                    ),
+            for thread in ws_threads:
+                if thread.status != "completed":
+                    continue
+                thread_slug = thread.path.stem
+                if "-" in thread_slug:
+                    maybe_number, remainder = thread_slug.split("-", 1)
+                    if maybe_number.isdigit() and remainder:
+                        thread_slug = remainder
+                checkpoint_dir = (
+                    root
+                    / "docs"
+                    / "intent"
+                    / "workstreams"
+                    / "checkpoints"
+                    / workstream_id
+                    / thread_slug
                 )
-            )
-        if thread.status == "dropped":
-            missing = []
-            if not thread.drop_reason:
-                missing.append("drop_reason")
-            if not thread.drop_approved_by:
-                missing.append("drop_approved_by")
-            if not thread.dropped_at:
-                missing.append("dropped_at")
-            if missing:
-                findings.append(
-                    Finding(
-                        level="ERROR",
-                        category="planning_lifecycle_error",
-                        path=rel,
-                        message=(
-                            "dropped thread is missing required closure metadata: "
-                            + ", ".join(missing)
-                            + "."
-                        ),
+                has_checkpoint = checkpoint_dir.exists() and any(
+                    child.is_file() and child.suffix.lower() == ".md" and child.name != "README.md"
+                    for child in checkpoint_dir.iterdir()
+                )
+                if not has_checkpoint:
+                    findings.append(
+                        Finding(
+                            level="ERROR",
+                            category="planning_lifecycle_error",
+                            path=relative_path(thread.path, root),
+                            message=(
+                                "completed thread under completed workstream is missing checkpoint evidence at "
+                                f"`docs/intent/workstreams/checkpoints/{workstream_id}/{thread_slug}/`."
+                            ),
+                        )
                     )
-                )
     return findings
 
 

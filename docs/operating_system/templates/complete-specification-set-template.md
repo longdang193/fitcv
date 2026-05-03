@@ -1,0 +1,50 @@
+---
+template_id: complete-specification-set
+document_type: complete_specification_set
+target_globs:
+  - docs/superpowers/execution_maps/*.md
+required_sections:
+  - Goal
+  - Key Deliverables
+  - Spec Inventory
+  - Coverage Check
+  - Completion Criteria
+required_frontmatter:
+  artifact_type: execution_map
+  map_type: complete_spec_set
+---
+
+# Complete Specification Set Template
+
+## Goal
+
+<what this full spec set enables>
+
+## Key Deliverables
+
+- <deliverable 1>
+- <deliverable 2>
+
+## Spec Inventory
+
+- `docs/superpowers/specs/<spec-file>.md` - <purpose>
+
+## Coverage Check
+
+- covered threads:
+  - <thread-id>
+- uncovered threads:
+  - <thread-id> | none
+
+## Completion Criteria
+
+A complete-spec-set item is considered complete when:
+
+1. all Key Deliverables are satisfied
+2. all downstream/child items are terminal
+3. every child item is `completed` or `dropped`
+
+Canonical source-of-truth:
+
+- `docs/operating_system/repo-governance.md`
+- `scripts/validate_planning_lifecycle.py`

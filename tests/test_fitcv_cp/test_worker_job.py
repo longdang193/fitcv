@@ -15,6 +15,7 @@ tags:
 from unittest.mock import MagicMock, patch
 import datetime
 import json
+from fitcv_cp.backend_runtime import BackendRuntime
 from fitcv_cp.worker_job import execute_pipeline_run
 from fitcv_cp.models import RunStatus
 
@@ -31,6 +32,30 @@ def test_worker_marks_succeeded_on_success():
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
                              config_path=".env.yaml")
     assert bq.query.call_count >= 2  # running + succeeded
+
+
+def test_worker_sqlite_mode_skips_bigquery_client_bootstrap():
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    with patch(
+        "fitcv_cp.worker_job.resolve_backend_runtime",
+        return_value=BackendRuntime(
+            backend_type="sqlite",
+            project="local",
+            dataset="fitcv",
+            sqlite_path="data/fitcv_cp.sqlite3",
+        ),
+    ), patch(
+        "fitcv_cp.worker_job._get_bq",
+        side_effect=RuntimeError("should not build bigquery client in sqlite mode"),
+    ), patch(
+        "fitcv_cp.worker_job.get_run",
+        return_value=mock_run,
+    ), patch(
+        "fitcv_cp.worker_job.run_pipeline",
+        return_value={"run_id": "r1", "total_jobs": 0, "passed_filter": 0, "ranked": 0, "cvs_generated": 0},
+    ):
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
 
 def test_worker_normalizes_windows_service_account_key_in_non_windows_runtime():

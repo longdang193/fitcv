@@ -26,8 +26,16 @@ Lifecycle order:
 19. `provider-history-sync-prompt.md`
 20. `gitnexus-refresh-prompt.md`
 21. `parallel-bounded-change-planning-prompt.md`
-22. `thread-checkpoint-result-pack-prompt.md`
-22. `thread-checkpoint-result-pack-prompt.md`
+22. `required-root-doc-update-prompt.md`
+23. `thread-checkpoint-result-pack-prompt.md`
+24. `workstream-completion-and-intent-check-prompt.md`
+25. `starter-baseline-sync-prompt.md`
+26. `parent-complete-only-when-children-terminal-prompt.md`
+27. `lifecycle-readiness-and-proceed-prompt.md`
+28. `roadmap-closeout-readiness-prompt.md`
+29. `workstream-closeout-readiness-prompt.md`
+30. `thread-closeout-readiness-prompt.md`
+31. `implementation-next-action-gate-prompt.md`
 
 Use the smallest prompt that matches the step you actually want.
 
@@ -82,16 +90,39 @@ Review and upkeep prompts:
   of sync with the current repo
 - use a parallel bounded-change planning prompt when you already have bounded
   change candidates and want to know what can run in parallel safely
+- use a required-root-doc update prompt when the validator-enforced root docs
+  under `docs/` have drifted from current repo shape and need a cross-cutting
+  refresh
 - use a thread-checkpoint result-pack prompt when a bounded change thread needs
   a visible execution-pass checkpoint artifact
-- use a thread-checkpoint result-pack prompt when a bounded thread execution
-  pass needs a visible, standardized checkpoint artifact
+- use a workstream-completion and intent-check prompt when long-running work
+  may have drifted and you need a completion verdict plus next decision
+- use a starter-baseline sync prompt when updating another repo/worktree from
+  the latest `project-OS-starter` baseline
+- use a parent-complete-only-when-children-terminal prompt only for ad hoc
+  checks outside the normal scoped closeout prompts
+- use a lifecycle-readiness-and-proceed prompt when you need incomplete-state
+  diagnosis plus a concrete next execution path
+- use a roadmap-closeout readiness prompt when deciding whether roadmap closure
+  is allowed now
+- use a workstream-closeout readiness prompt when deciding whether workstream
+  closure is allowed now
+- use a thread-closeout readiness prompt when deciding whether thread closure
+  should be `completed`, `dropped`, or deferred
+- use an implementation-next-action gate prompt after a partial plan execution
+  to choose the next allowed action from existing planning artifacts
 
 These are guidance files, not required repo artifacts.
 
 The practical ladder is:
 
-`intent -> master roadmap -> registered workstream set -> bounded change thread files -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> implementation plan -> execution passes with thread checkpoint result packs`
+`intent -> master roadmap -> registered workstream set -> bounded change thread files -> complete spec set -> spec-authoring map -> detailed specs -> implementation execution map -> implementation plans -> execution passes with thread checkpoint result packs`
+
+Closeout sequence (use in this order):
+
+1. `thread-closeout-readiness-prompt.md`
+2. `workstream-closeout-readiness-prompt.md`
+3. `roadmap-closeout-readiness-prompt.md`
 
 with `operating_system` remaining a parallel branch when the work is really
 about repo method rather than product delivery.

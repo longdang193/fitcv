@@ -1,0 +1,49 @@
+---
+template_id: implementation-plan
+document_type: implementation_plan
+target_globs:
+  - docs/superpowers/plans/*.md
+required_sections:
+  - Goal
+  - Key Deliverables
+  - Task Breakdown
+  - Verification
+  - Completion Criteria
+required_frontmatter:
+  artifact_type: plan
+---
+
+# Implementation Plan Template
+
+## Goal
+
+<what this plan must deliver>
+
+## Key Deliverables
+
+- <deliverable 1>
+- <deliverable 2>
+
+## Task Breakdown
+
+- task 1:
+  - <step>
+- task 2:
+  - <step>
+
+## Verification
+
+- <command>
+
+## Completion Criteria
+
+A plan item is considered complete when:
+
+1. all Key Deliverables are satisfied
+2. all downstream/child items are terminal
+3. every child item is `completed` or `dropped`
+
+Canonical source-of-truth:
+
+- `docs/operating_system/repo-governance.md`
+- `scripts/validate_planning_lifecycle.py`

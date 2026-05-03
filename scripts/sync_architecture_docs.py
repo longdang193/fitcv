@@ -6,20 +6,22 @@ domain: docs
 responsibility:
   - Run the canonical architecture metadata sync and verification workflow.
   - Provide one stable entrypoint for contributors to refresh generated architecture docs before repo-wide validation.
-  - Keep the wrapper shape aligned with the starter model while delegating generation to the repo-local helper.
+  - Enforce metadata-derived refs for generated feature and stage contracts.
 inputs:
   - docs/features/*/feature.source.yaml
   - docs/stages/*.source.yaml
   - docs/superpowers/specs/*.md
   - docs/superpowers/plans/*.md
-  - config/**/*.yaml
+  - YAML # @architecture metadata in configs and AML components
   - Python @meta, @capability, and @proves markers
 outputs:
   - docs/features/<feature_id>/<feature_id>.yaml
   - docs/features/<feature_id>/lineage.generated.yaml
+  - docs/features/<feature_id>/history.md
   - docs/stages/<stage_id>.yaml
   - docs/generated/capability_lineage.yaml
   - docs/generated/architecture_dag.yaml
+  - Awareness report for disallowed feature-source manual_refs
 tags:
   - docs
   - lineage
@@ -35,12 +37,9 @@ import os
 from pathlib import Path
 import subprocess
 import sys
-import tempfile
 
 
-def repo_root(default_root: Path | None = None) -> Path:
-    if default_root is not None:
-        return default_root
+def repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
@@ -48,54 +47,24 @@ def pytest_basetemp(default_relative: str) -> str:
     override = os.environ.get("REPO_VALIDATOR_PYTEST_BASETEMP")
     if override:
         return override
-    normalized = default_relative.replace("/", "-").replace("\\", "-").strip(".-")
-    return str(Path(tempfile.gettempdir()) / f"codex-{normalized}-{os.getpid()}")
+    return default_relative
 
 
-def venv_site_packages(root: Path) -> Path | None:
-    site_packages = root / ".venv" / "Lib" / "site-packages"
-    if site_packages.exists():
-        return site_packages
-    return None
-
-
-def resolve_python_executable(root: Path) -> str:
-    pyvenv_cfg = root / ".venv" / "pyvenv.cfg"
-    if pyvenv_cfg.exists():
-        for line in pyvenv_cfg.read_text(encoding="utf-8").splitlines():
-            if not line.startswith("home = "):
-                continue
-            home = line.split("=", 1)[1].strip()
-            candidate = Path(home) / "python.exe"
-            try:
-                if candidate.exists():
-                    return str(candidate)
-            except PermissionError:
-                continue
-    return sys.executable
-
-
-def build_steps(*, root: Path, check_only: bool, python_executable: str) -> list[list[str]]:
+def build_steps(*, check_only: bool, python_executable: str) -> list[list[str]]:
+    root = repo_root()
     generator = str(root / "tools" / "docs" / "generate_architecture_metadata.py")
     awareness_audit = str(root / "scripts" / "audit_architecture_linkage.py")
     formatter = str(root / "scripts" / "format_contract_yaml.py")
     adoption_validator = str(root / "scripts" / "validate_adoption_shape.py")
     steps: list[list[str]] = []
     if not check_only:
-        steps.append([python_executable, generator, "--repo-root", str(root)])
+        steps.append([python_executable, generator])
     steps.extend(
         [
-            [python_executable, adoption_validator, "--repo-root", str(root)],
-            [python_executable, generator, "--repo-root", str(root), "--validate-only"],
-            [python_executable, generator, "--repo-root", str(root), "--check"],
-            [
-                python_executable,
-                awareness_audit,
-                "--repo-root",
-                str(root),
-                "--strict-awareness",
-                "--report-awareness",
-            ],
+            [python_executable, adoption_validator],
+            [python_executable, generator, "--validate-only"],
+            [python_executable, generator, "--check"],
+            [python_executable, awareness_audit, "--strict-awareness", "--report-awareness"],
             [python_executable, formatter, "--check"],
             [
                 python_executable,
@@ -118,16 +87,7 @@ def build_steps(*, root: Path, check_only: bool, python_executable: str) -> list
 def run_step(command: list[str], *, cwd: Path) -> int:
     rendered = " ".join(command)
     print(f"> {rendered}")
-    env = os.environ.copy()
-    site_packages = venv_site_packages(cwd)
-    if site_packages is not None and command and command[0].lower().endswith("python.exe"):
-        existing = env.get("PYTHONPATH")
-        env["PYTHONPATH"] = (
-            str(site_packages)
-            if not existing
-            else os.pathsep.join([str(site_packages), existing])
-        )
-    completed = subprocess.run(command, cwd=cwd, check=False, env=env)
+    completed = subprocess.run(command, cwd=cwd, check=False)
     return completed.returncode
 
 
@@ -136,24 +96,17 @@ def build_parser() -> argparse.ArgumentParser:
         description="Run the canonical architecture metadata sync and verification workflow."
     )
     parser.add_argument(
-        "--repo-root",
-        type=Path,
-        default=repo_root(),
-        help="Repository root. Defaults to this script's repository.",
-    )
-    parser.add_argument(
         "--check",
         action="store_true",
-        help="Run validation and generation checks without rewriting outputs first.",
+        help="Run validation and verification without rewriting generated outputs first.",
     )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    root = repo_root(args.repo_root).resolve()
-    python_executable = resolve_python_executable(root)
-    for step in build_steps(root=root, check_only=args.check, python_executable=python_executable):
+    root = repo_root()
+    for step in build_steps(check_only=args.check, python_executable=sys.executable):
         status = run_step(step, cwd=root)
         if status != 0:
             return status

@@ -26,6 +26,8 @@ config["retrieval_strategy"]        : stored in vector_shortlist (default "job_s
 import hashlib
 import json
 import logging
+import os
+import sqlite3
 from datetime import datetime, timezone
 from typing import Any
 
@@ -40,6 +42,61 @@ REUSED_CACHED_QUERY_EMBEDDING_STATUS = "reused_cached_query_embedding"
 FRESH_QUERY_EMBEDDING_STATUS = "fresh_query_embedding"
 
 logger = logging.getLogger(__name__)
+
+
+def _sqlite_path() -> str:
+    return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+
+
+def _ensure_sqlite_vector_tables(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS candidate_query_embeddings (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          candidate_query_signature TEXT NOT NULL,
+          candidate_query_contract_fingerprint TEXT NOT NULL,
+          candidate_query_text TEXT NOT NULL,
+          candidate_query_components_json TEXT NOT NULL,
+          embedding_json TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS vector_shortlist (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          job_url TEXT NOT NULL,
+          vector_rank INTEGER NOT NULL,
+          vector_similarity REAL NOT NULL,
+          retrieval_strategy TEXT NOT NULL,
+          retrieved_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_candidate_query_embeddings_sig_created ON candidate_query_embeddings(candidate_query_signature, created_at DESC)"
+    )
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    if not a or not b:
+        return 0.0
+    dim = min(len(a), len(b))
+    if dim <= 0:
+        return 0.0
+    dot = 0.0
+    na = 0.0
+    nb = 0.0
+    for i in range(dim):
+        av = float(a[i])
+        bv = float(b[i])
+        dot += av * bv
+        na += av * av
+        nb += bv * bv
+    if na <= 0.0 or nb <= 0.0:
+        return 0.0
+    return dot / ((na ** 0.5) * (nb ** 0.5))
 
 
 def _dedupe_shortlist_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -323,13 +380,69 @@ def resolve_candidate_query_embedding(
     config: dict[str, Any],
 ) -> dict[str, Any]:
     """Return the shortlist candidate query plus a reused or fresh embedding vector."""
-    from google.cloud import bigquery  # type: ignore[import-untyped]
-    from google.oauth2 import service_account  # type: ignore[import-untyped]
-
     components = build_candidate_query_components(profile, config)
     query_text = build_candidate_query_text(profile, config)
     signature_record = build_candidate_query_signature_record(components)
     contract_record = build_candidate_query_embedding_contract_fingerprint(config)
+    sqlite_mode = str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite"
+    if sqlite_mode:
+        with sqlite3.connect(_sqlite_path()) as conn:
+            _ensure_sqlite_vector_tables(conn)
+            row = conn.execute(
+                """
+                SELECT embedding_json
+                FROM candidate_query_embeddings
+                WHERE candidate_query_signature = ?
+                  AND candidate_query_contract_fingerprint = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (signature_record["signature"], contract_record["fingerprint"]),
+            ).fetchone()
+            if row and row[0]:
+                try:
+                    cached_embedding = list(json.loads(str(row[0])) or [])
+                except Exception:
+                    cached_embedding = []
+                if cached_embedding:
+                    return {
+                        "text": query_text,
+                        "components": components,
+                        "embedding": cached_embedding,
+                        "candidate_query_signature": signature_record["signature"],
+                        "candidate_query_contract_fingerprint": contract_record["fingerprint"],
+                        "candidate_query_reuse_status": REUSED_CACHED_QUERY_EMBEDDING_STATUS,
+                    }
+            embedding_vector = generate_embedding(query_text, config)
+            now = datetime.now(tz=timezone.utc).isoformat()
+            conn.execute(
+                """
+                INSERT INTO candidate_query_embeddings(
+                  candidate_query_signature, candidate_query_contract_fingerprint,
+                  candidate_query_text, candidate_query_components_json, embedding_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    signature_record["signature"],
+                    contract_record["fingerprint"],
+                    query_text,
+                    signature_record["payload_json"],
+                    json.dumps(embedding_vector),
+                    now,
+                ),
+            )
+            conn.commit()
+        return {
+            "text": query_text,
+            "components": components,
+            "embedding": embedding_vector,
+            "candidate_query_signature": signature_record["signature"],
+            "candidate_query_contract_fingerprint": contract_record["fingerprint"],
+            "candidate_query_reuse_status": FRESH_QUERY_EMBEDDING_STATUS,
+        }
+
+    from google.cloud import bigquery  # type: ignore[import-untyped]
+    from google.oauth2 import service_account  # type: ignore[import-untyped]
 
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
@@ -505,12 +618,60 @@ def run_vector_search(
     """
     if not passed_job_urls:
         return []
-
+    sqlite_mode = str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite"
     effective_top_n = (
         top_n
         if top_n is not None
         else int((config.get("pipeline") or {}).get("vector_search_top_n") or config.get("vector_top_n", 50))
     )
+    if sqlite_mode:
+        candidate_query_record = resolve_candidate_query_embedding(profile, config)
+        candidate_embedding = list(candidate_query_record.get("embedding") or [])
+        placeholders = ",".join(["?"] * len(passed_job_urls))
+        rows: list[tuple[Any, ...]] = []
+        with sqlite3.connect(_sqlite_path()) as conn:
+            query = f"""
+            SELECT je.job_url, je.embedding_json
+            FROM job_embeddings je
+            JOIN (
+              SELECT job_url, MAX(created_at) AS max_created
+              FROM job_embeddings
+              WHERE chunk_type = 'job_summary' AND job_url IN ({placeholders})
+              GROUP BY job_url
+            ) latest
+              ON latest.job_url = je.job_url AND latest.max_created = je.created_at
+            WHERE je.chunk_type = 'job_summary'
+            """
+            rows = list(conn.execute(query, tuple(passed_job_urls)).fetchall())
+        scored = []
+        for job_url, embedding_json in rows:
+            try:
+                job_embedding = list(json.loads(str(embedding_json)) or [])
+            except Exception:
+                job_embedding = []
+            scored.append(
+                {
+                    "job_url": str(job_url),
+                    "vector_similarity": _cosine_similarity(candidate_embedding, job_embedding),
+                }
+            )
+        scored.sort(key=lambda item: float(item.get("vector_similarity") or 0.0), reverse=True)
+        deduped = _dedupe_shortlist_rows(
+            [
+                {"job_url": row["job_url"], "vector_similarity": row["vector_similarity"], "vector_rank": idx + 1}
+                for idx, row in enumerate(scored[:effective_top_n])
+            ]
+        )
+        if include_debug:
+            return {
+                "rows": deduped,
+                "candidate_query": {
+                    key: value
+                    for key, value in candidate_query_record.items()
+                    if key != "embedding"
+                },
+            }
+        return deduped
 
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
@@ -571,6 +732,29 @@ def store_shortlist(
     Decorated with @pytest.mark.integration in tests.
     """
     if not shortlist:
+        return
+    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+        effective_strategy = retrieval_strategy or str(config.get("retrieval_strategy", "job_summary_v1"))
+        now = datetime.now(tz=timezone.utc).isoformat()
+        with sqlite3.connect(_sqlite_path()) as conn:
+            _ensure_sqlite_vector_tables(conn)
+            conn.executemany(
+                """
+                INSERT INTO vector_shortlist(job_url, vector_rank, vector_similarity, retrieval_strategy, retrieved_at)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        str(item["job_url"]),
+                        int(item["vector_rank"]),
+                        float(item["vector_similarity"]),
+                        effective_strategy,
+                        now,
+                    )
+                    for item in shortlist
+                ],
+            )
+            conn.commit()
         return
 
     effective_strategy = retrieval_strategy or str(config.get("retrieval_strategy", "job_summary_v1"))

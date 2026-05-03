@@ -6,8 +6,8 @@ import warnings
 from pathlib import Path
 from typing import Any
 
-from fitcv.config import load_control_plane_config
 from fitcv_cp.app import create_app
+from fitcv_cp.backend_runtime import resolve_backend_runtime
 from fitcv_cp.bq_store import get_pipeline_runs_schema_status
 
 logger = logging.getLogger(__name__)
@@ -43,22 +43,6 @@ def _validate_google_credentials_path() -> None:
         os.environ.pop("GOOGLE_APPLICATION_CREDENTIALS", None)
 
 
-def _resolve_backend_type() -> str:
-    cfg = load_control_plane_config()
-    backend_type = str(((cfg.get("data_backend") or {}).get("type") or "bigquery")).strip().lower()
-    if backend_type not in {"bigquery", "sqlite"}:
-        raise ValueError(f"Unsupported backend type: {backend_type}")
-    return backend_type
-
-
-def _resolve_project_dataset() -> tuple[str, str]:
-    cfg = load_control_plane_config()
-    bq_cfg = dict(((cfg.get("data_backend") or {}).get("bigquery") or {}))
-    project = str(os.environ.get("GCP_PROJECT") or bq_cfg.get("project") or "").strip()
-    dataset = str(os.environ.get("BIGQUERY_DATASET") or bq_cfg.get("dataset") or "fitcv").strip() or "fitcv"
-    return project, dataset
-
-
 def _build_bigquery_client() -> Any:
     _validate_google_credentials_path()
     from google.cloud import bigquery
@@ -67,33 +51,32 @@ def _build_bigquery_client() -> Any:
 
 
 def build_app() -> Any:
-    backend_type = _resolve_backend_type()
-    project, dataset = _resolve_project_dataset()
+    runtime = resolve_backend_runtime()
     redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 
-    if backend_type == "sqlite":
+    if runtime.backend_type == "sqlite":
         logger.info("control-plane backend mode: sqlite")
         return create_app(
             bq=None,
-            project=project or "local",
-            dataset=dataset,
+            project=runtime.project or "local",
+            dataset=runtime.dataset,
             redis_url=redis_url,
         )
 
-    if not project:
+    if not runtime.project:
         raise ValueError("GCP_PROJECT must be set for bigquery backend mode")
 
     bq = _build_bigquery_client()
     schema_status = get_pipeline_runs_schema_status(
         bq,
-        project=project,
-        dataset=dataset,
+        project=runtime.project,
+        dataset=runtime.dataset,
     )
     if schema_status.get("status") == "complete":
         logger.info(
             "orchestration schema mode: complete (%s.%s.pipeline_runs)",
-            project,
-            dataset,
+            runtime.project,
+            runtime.dataset,
         )
     elif schema_status.get("status") == "fallback":
         missing = ", ".join(schema_status.get("missing_columns") or [])
@@ -110,8 +93,8 @@ def build_app() -> Any:
 
     return create_app(
         bq=bq,
-        project=project,
-        dataset=dataset,
+        project=runtime.project,
+        dataset=runtime.dataset,
         redis_url=redis_url,
     )
 

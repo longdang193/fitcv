@@ -124,6 +124,7 @@ from fitcv.tracker import create_cv_version_record, store_cv_version
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
 from fitcv.telemetry import build_trace_context
 from fitcv.vector_search import run_vector_search
+from fitcv.vector_search import store_shortlist
 
 logger = logging.getLogger(__name__)
 _REPAIRABLE_VALIDATION_FIELDS = ("grounding_violations", "skill_violations")
@@ -3575,6 +3576,7 @@ def run_pipeline(
             ),
         }
         shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_top_n)
+        store_shortlist(shortlist, config)
         raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
         raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
         backfilled_job_urls = [

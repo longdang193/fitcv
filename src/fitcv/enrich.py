@@ -38,9 +38,11 @@ import re
 import threading
 from datetime import datetime, timezone
 from typing import Any, TypedDict
+from types import SimpleNamespace
 
 from pydantic import BaseModel as _BaseModel, Field as _Field
 from fitcv.config import get_gemini_model
+from fitcv.config import load_control_plane_config
 from fitcv.candidate import infer_role_family
 from fitcv.prompts import get_prompt_definition, render_prompt
 
@@ -548,7 +550,7 @@ class EnrichmentOutput(_BaseModel):
 
 
 def _apply_structured_normalization(
-    output: EnrichmentOutput,
+    output: EnrichmentOutput | dict[str, Any],
     config: dict | None,
 ) -> dict[str, Any]:
     """Convert EnrichmentOutput to a normalized dict preserving existing field semantics.
@@ -558,6 +560,9 @@ def _apply_structured_normalization(
     - domain, job_family: lowercased and stripped
     - list fields: None values removed, items coerced to str
     """
+    if isinstance(output, dict):
+        output = EnrichmentOutput.model_validate(output)
+
     required_skills = _normalize_array_values(output.required_skills)
     preferred_skills = _normalize_array_values(output.preferred_skills)
     responsibilities = _normalize_array_values(output.responsibilities)
@@ -1056,6 +1061,8 @@ def lookup_reusable_structured_jobs(
     project = str(config.get("gcp_project") or "").strip()
     dataset = str(config.get("bigquery_dataset") or "").strip()
     key_path = str(config.get("service_account_key") or "").strip()
+    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+        return {}
     if not project or not dataset or not key_path:
         logger.info(
             "Skipping enrich reuse lookup because BigQuery reuse config is incomplete",
@@ -1070,8 +1077,11 @@ def lookup_reusable_structured_jobs(
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
 
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path and os.path.exists(key_path):
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
 
     job_urls = [
         str(job.get("job_url") or "")
@@ -1132,7 +1142,124 @@ def lookup_reusable_structured_jobs(
 
 # ── integration: LLM call ─────────────────────────────────────────────────────
 
+def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
+    """Return an OpenAI-compatible shim client when configured via control-plane routing."""
+    try:
+        cp_cfg = load_control_plane_config()
+        model_routing = dict(cp_cfg.get("model_routing") or {})
+        parts = dict(model_routing.get("parts") or {})
+        enrich_part = dict(parts.get("enrich_extraction") or {})
+        provider_name = str(enrich_part.get("provider") or "").strip().lower()
+        routed_model = str(enrich_part.get("model") or "").strip()
+        providers = dict(cp_cfg.get("providers") or {})
+        provider_cfg = dict(providers.get(provider_name) or {})
+    except Exception:
+        return None
+
+    env_provider = str(os.environ.get("FITCV_LANGGRAPH_PROVIDER") or "").strip().lower()
+    effective_provider = env_provider or provider_name
+    if effective_provider not in {"openai", "openai_compatible", "9router"}:
+        return None
+
+    base_url = (
+        str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL") or "").strip()
+        or str(os.environ.get("OPENAI_BASE_URL") or "").strip()
+        or str(provider_cfg.get("base_url") or "").strip()
+        or "https://api.openai.com/v1"
+    )
+    api_key_candidates = (
+        "FITCV_LANGGRAPH_OPENAI_API_KEY",
+        "OPENAI_API_KEY",
+        "OPENAI_COMPATIBLE_API_KEY",
+    )
+    api_key = ""
+    for env_name in api_key_candidates:
+        candidate = str(os.environ.get(env_name, "")).strip()
+        if candidate:
+            api_key = candidate
+            break
+    if not api_key:
+        return None
+    wire_api = str(os.environ.get("FITCV_LANGGRAPH_WIRE_API") or "").strip().lower() or "responses"
+    timeout_seconds = float(
+        str(os.environ.get("FITCV_LANGGRAPH_TIMEOUT_SECONDS") or "").strip() or "120"
+    )
+    model_override = (
+        str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
+        or routed_model
+        or get_gemini_model(config)
+    )
+
+    import httpx
+
+    def _generate_content(*, model: str, contents: str, config: Any = None) -> Any:
+        resolved_model = str(model or "").strip() or model_override
+        with httpx.Client(timeout=timeout_seconds) as client:
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            body: dict[str, Any]
+            text = ""
+            if wire_api == "responses":
+                responses_payload = {
+                    "model": resolved_model,
+                    "input": contents,
+                    "text": {"format": {"type": "json_object"}},
+                }
+                resp = client.post(
+                    f"{base_url.rstrip('/')}/responses",
+                    headers=headers,
+                    json=responses_payload,
+                )
+                resp.raise_for_status()
+                body = dict(resp.json() or {})
+                text = str(body.get("output_text") or "").strip()
+                if not text:
+                    output = body.get("output") or []
+                    if isinstance(output, list):
+                        for item in output:
+                            for content_item in list((item or {}).get("content") or []):
+                                candidate = str(content_item.get("text") or "").strip()
+                                if candidate:
+                                    text = candidate
+                                    break
+                            if text:
+                                break
+            else:
+                chat_payload = {
+                    "model": resolved_model,
+                    "messages": [{"role": "user", "content": contents}],
+                    "temperature": 0.0,
+                    "response_format": {"type": "json_object"},
+                }
+                resp = client.post(
+                    f"{base_url.rstrip('/')}/chat/completions",
+                    headers=headers,
+                    json=chat_payload,
+                )
+                resp.raise_for_status()
+                body = dict(resp.json() or {})
+                text = str((((body.get("choices") or [{}])[0]).get("message") or {}).get("content") or "").strip()
+        parsed: Any = None
+        if text:
+            try:
+                parsed = json.loads(text)
+            except Exception:
+                parsed = None
+        return SimpleNamespace(parsed=parsed, text=text)
+
+    shim = SimpleNamespace(models=SimpleNamespace(generate_content=_generate_content))
+    shim._fitcv_model_override = model_override
+    return shim
+
+
 def _make_genai_client(config: dict[str, Any]) -> Any:
+    """Return configured enrich client: OpenAI-compatible env-key path first, then Gemini."""
+    openai_client = _build_openai_compat_client(config)
+    if openai_client is not None:
+        return openai_client
+
     """Return a google.genai client using API key first, then Vertex AI."""
     import google.auth  # type: ignore[import-untyped]
     from google import genai  # type: ignore[import-untyped]
@@ -1184,6 +1311,7 @@ def enrich_job(job: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
 
     model_name = get_gemini_model(config)
     client = _make_genai_client(config)
+    model_name = str(getattr(client, "_fitcv_model_override", model_name) or model_name)
     title_for_log = job.get("title") or job.get("job_url")
 
     prompt = build_extraction_prompt(
@@ -1427,6 +1555,8 @@ def load_structured_jobs(
     Returns:
         Number of rows upserted.
     """
+    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+        return len(enriched)
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
 
@@ -1434,8 +1564,11 @@ def load_structured_jobs(
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
 
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path and os.path.exists(key_path):
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
 
     target = f"`{project}.{dataset}.structured_jobs`"
     update_set = ",\n    ".join(
@@ -1556,6 +1689,8 @@ def load_run_structured_jobs(
     Returns:
         Number of rows appended.
     """
+    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+        return len(enriched)
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
 
@@ -1563,8 +1698,11 @@ def load_run_structured_jobs(
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
 
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path and os.path.exists(key_path):
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
 
     rows = [_map_to_run_structured_jobs_row(row, run_id) for row in enriched]
 

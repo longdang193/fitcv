@@ -48,6 +48,7 @@ from typing import Any
 from google.cloud import bigquery
 
 from fitcv.pipeline import PipelineCancelled, run_pipeline
+from fitcv_cp.backend_runtime import resolve_backend_runtime
 from fitcv_cp.bq_store import (
     append_event,
     get_events,
@@ -267,6 +268,20 @@ def _append_degraded_snapshot_persistence_warning(
         project=project,
         dataset=dataset,
     )
+
+
+def _estimate_jobs_count_from_input(jobs_path: str) -> int:
+    try:
+        payload = json.loads(Path(jobs_path).read_text(encoding="utf-8"))
+    except Exception:
+        return 0
+    if isinstance(payload, list):
+        return len(payload)
+    if isinstance(payload, dict):
+        jobs = payload.get("jobs")
+        if isinstance(jobs, list):
+            return len(jobs)
+    return 0
 
 
 def _config_agentic_late_stage_enabled(config: dict[str, Any] | None) -> bool:
@@ -593,11 +608,16 @@ def _build_settings_used_payload(
     replay_context: dict[str, Any],
 ) -> str:
     effective_settings = dict(effective_config or {})
+    sqlite_mode = resolve_backend_runtime().backend_type == "sqlite"
+    if sqlite_mode:
+        effective_settings.pop("service_account_key", None)
     compatibility_projection = {
         key: effective_settings.pop(key)
         for key in list(effective_settings.keys())
         if key in _SETTINGS_COMPATIBILITY_KEYS
     }
+    if sqlite_mode and isinstance(compatibility_projection, dict):
+        compatibility_projection.pop("service_account_key", None)
     payload = {
         "run_id": run_id,
         "settings_schema_version": "settings_used_v2",
@@ -631,6 +651,12 @@ def _build_settings_used_payload(
             "policy_envelope_signature": str(replay_context.get("policy_envelope_signature") or ""),
         },
     }
+    if sqlite_mode:
+        data_plane = dict(payload.get("data_plane") or {})
+        data_plane["state_backend"] = "sqlite"
+        if str(data_plane.get("artifact_backend") or "").strip().lower() in {"", "bigquery_json"}:
+            data_plane["artifact_backend"] = "sqlite_json"
+        payload["data_plane"] = data_plane
     if compatibility_projection:
         payload["compatibility_projection"] = compatibility_projection
     return json.dumps(payload, ensure_ascii=False)
@@ -1174,20 +1200,10 @@ def _persist_shared_progress_snapshot(
 
 
 def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
-    project = os.environ.get("GCP_PROJECT", "")
-    dataset = os.environ.get("BIGQUERY_DATASET", "fitcv")
-    bq = _get_bq()
-
-    # Fall back to config file if GCP_PROJECT env var is not set — the worker
-    # may be started without env vars even though the config file is always present.
-    if not project:
-        try:
-            from fitcv.config import load_config as _load_config
-            _cfg = _load_config(config_path)
-            project = str(_cfg.get("gcp_project", ""))
-            dataset = str(_cfg.get("bigquery_dataset", dataset))
-        except Exception as exc:
-            logger.warning("Could not load config for project/dataset fallback: %s", exc)
+    runtime = resolve_backend_runtime()
+    project = runtime.project
+    dataset = runtime.dataset
+    bq = _get_bq() if runtime.backend_type == "bigquery" else None
 
     # Import here to avoid circular deps at module load time
     from fitcv_cp.reporter import PipelineReporter
@@ -1710,7 +1726,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
 
     except Exception as exc:
         # ── Step 7: Unexpected pipeline failure ───────────────────────────────
-        logger.error("[run_id=%s] Pipeline failed: %s", run_id, exc)
+        logger.exception("[run_id=%s] Pipeline failed: %s", run_id, exc)
         failed_at = datetime.datetime.now(datetime.timezone.utc)
         update_run_status(
             run_id, RunStatus.FAILED, bq, project=project, dataset=dataset,
@@ -1752,3 +1768,4 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             )
         except Exception as inner:
             logger.warning("[run_id=%s] Failed to write failure event: %s", run_id, inner)
+

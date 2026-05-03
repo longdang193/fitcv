@@ -1,26 +1,12 @@
 [CmdletBinding()]
-param()
+param(
+    [string]$ConfigPath = 'repo_config/agent-adapter-mappings.json'
+)
 
 $ErrorActionPreference = "Stop"
 
 function Get-RepoRoot {
     (git rev-parse --show-toplevel).Trim()
-}
-
-function Load-AdapterMappings {
-    param([string]$RepoRoot)
-
-    $configPath = Join-Path $RepoRoot 'repo_config/agent-adapter-mappings.json'
-    if (-not (Test-Path -LiteralPath $configPath)) {
-        throw "Missing adapter mapping config: $configPath"
-    }
-
-    $payload = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json
-    if (-not $payload) {
-        throw "Adapter mapping config is empty: $configPath"
-    }
-
-    return @($payload)
 }
 
 function Get-RepoRelativePath {
@@ -56,20 +42,33 @@ function Normalize-Content {
     return ($Content -replace "`r`n", "`n").TrimEnd("`r", "`n")
 }
 
+function Get-AdapterMappings {
+    param(
+        [string]$RepoRoot,
+        [string]$ConfigPath
+    )
+
+    $configFullPath = Join-Path $RepoRoot $ConfigPath
+    if (-not (Test-Path -LiteralPath $configFullPath)) {
+        throw "Adapter config not found: $configFullPath"
+    }
+
+    $mappings = Get-Content -Raw -LiteralPath $configFullPath | ConvertFrom-Json
+    if (-not $mappings) {
+        throw "Adapter config is empty: $configFullPath"
+    }
+
+    return @($mappings)
+}
+
 $repoRoot = Get-RepoRoot
-$mappings = Load-AdapterMappings -RepoRoot $repoRoot
+$mappings = Get-AdapterMappings -RepoRoot $repoRoot -ConfigPath $ConfigPath
 
 $driftFound = $false
 foreach ($mapping in $mappings) {
-    if (-not $mapping.source -or -not $mapping.destination) {
-        Write-Error "Each adapter mapping must define source and destination."
-        $driftFound = $true
-        continue
-    }
-
-    $prefix = if ($mapping.prefix) { $mapping.prefix } else { '#' }
     $sourcePath = Join-Path $repoRoot $mapping.source
     $destinationPath = Join-Path $repoRoot $mapping.destination
+    $prefix = if ($mapping.prefix) { [string]$mapping.prefix } else { '#' }
 
     if (-not (Test-Path -LiteralPath $destinationPath)) {
         Write-Error "Missing generated adapter: $destinationPath"

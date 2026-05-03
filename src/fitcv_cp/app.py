@@ -168,9 +168,6 @@ def _observability_toggles() -> tuple[bool, bool]:
 
 
 def _persist_run_initial(run: PipelineRun, *, bq: Any, project: str, dataset: str) -> None:
-    if bq is None:
-        logger.info("sqlite mode: skipping BigQuery insert_run persistence for run_id=%s", run.run_id)
-        return
     insert_run(run, bq, project=project, dataset=dataset)
 
 
@@ -184,9 +181,6 @@ def _persist_run_orchestration_binding(
     project: str,
     dataset: str,
 ) -> None:
-    if bq is None:
-        logger.info("sqlite mode: skipping BigQuery update_run_orchestration_binding for run_id=%s", run_id)
-        return
     update_run_orchestration_binding(
         run_id,
         queue_job_id=queue_job_id,
@@ -206,9 +200,6 @@ def _persist_run_queue_job_id(
     project: str,
     dataset: str,
 ) -> None:
-    if bq is None:
-        logger.info("sqlite mode: skipping BigQuery update_run_queue_job_id for run_id=%s", run_id)
-        return
     update_run_queue_job_id(run_id, queue_job_id, bq, project=project, dataset=dataset)
 
 
@@ -1333,11 +1324,12 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
                 )
             )
     cv_analysis_trace_payload = _load_run_cv_analysis_trace_payload(run)
-    if (
-        run.status == RunStatus.SUCCEEDED
-        and isinstance(cv_analysis_trace_payload, dict)
-        and str(cv_analysis_trace_payload.get("trace_status") or "").strip() != "not_applicable"
-    ):
+    if run.status == RunStatus.SUCCEEDED:
+        if not isinstance(cv_analysis_trace_payload, dict):
+            cv_analysis_trace_payload = _default_not_applicable_trace_payload(
+                run=run,
+                trace_name="cv_analysis_trace",
+            )
         files.append(
             RunArtifactFile(
                 filename="cv-analysis-trace.json",
@@ -1347,11 +1339,12 @@ def _build_available_run_artifact_files(run: PipelineRun) -> list[RunArtifactFil
             )
         )
     agentic_live_trace_payload = _load_run_agentic_live_trace_payload(run)
-    if (
-        run.status == RunStatus.SUCCEEDED
-        and isinstance(agentic_live_trace_payload, dict)
-        and str(agentic_live_trace_payload.get("trace_status") or "").strip() != "not_applicable"
-    ):
+    if run.status == RunStatus.SUCCEEDED:
+        if not isinstance(agentic_live_trace_payload, dict):
+            agentic_live_trace_payload = _default_not_applicable_trace_payload(
+                run=run,
+                trace_name="agentic_live_trace",
+            )
         files.append(
             RunArtifactFile(
                 filename="agentic-live-trace.json",
@@ -2190,6 +2183,18 @@ def _load_run_cv_analysis_trace_payload(run: PipelineRun) -> dict[str, Any] | No
     if isinstance(trace_payload, dict):
         return dict(trace_payload)
     return None
+
+
+def _default_not_applicable_trace_payload(*, run: PipelineRun, trace_name: str) -> dict[str, Any]:
+    return {
+        "run_id": run.run_id,
+        "trace_schema_version": f"{trace_name}_run_v1",
+        "trace_family": trace_name,
+        "created_at": (run.finished_at or run.created_at).isoformat() if (run.finished_at or run.created_at) else None,
+        "trace_status": "not_applicable",
+        "trace_summary": {},
+        "records": [],
+    }
 
 
 def _load_run_synonym_proposals_trace_payload(run: PipelineRun) -> dict[str, Any] | None:
@@ -6958,9 +6963,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             )
         trace_payload = _load_run_agentic_live_trace_payload(run)
         if not isinstance(trace_payload, dict):
-            raise HTTPException(status_code=404, detail="Agentic live trace export is not available for this run")
-        if str(trace_payload.get("trace_status") or "").strip() == "not_applicable":
-            raise HTTPException(status_code=404, detail="Agentic live trace export is not applicable for this run")
+            trace_payload = _default_not_applicable_trace_payload(
+                run=run,
+                trace_name="agentic_live_trace",
+            )
         return Response(
             content=_json.dumps(trace_payload, ensure_ascii=False, indent=2),
             media_type="application/json",
@@ -6979,9 +6985,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             )
         trace_payload = _load_run_cv_analysis_trace_payload(run)
         if not isinstance(trace_payload, dict):
-            raise HTTPException(status_code=404, detail="CV analysis trace export is not available for this run")
-        if str(trace_payload.get("trace_status") or "").strip() == "not_applicable":
-            raise HTTPException(status_code=404, detail="CV analysis trace export is not applicable for this run")
+            trace_payload = _default_not_applicable_trace_payload(
+                run=run,
+                trace_name="cv_analysis_trace",
+            )
         return Response(
             content=_json.dumps(trace_payload, ensure_ascii=False, indent=2),
             media_type="application/json",
@@ -7440,4 +7447,7 @@ def _run_to_dict(run: PipelineRun) -> dict:
         "cvs_generated": run.cvs_generated,
         "error_message": run.error_message,
         "error_stage": run.error_stage,
+        "queue_job_id": run.queue_job_id,
+        "orchestration_backend": run.orchestration_backend,
+        "orchestration_run_id": run.orchestration_run_id,
     }

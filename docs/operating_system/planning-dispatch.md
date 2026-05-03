@@ -12,10 +12,11 @@ More precisely, execution should pass through:
 
 Checkpoint rule:
 
-- bounded change threads are the checkpoint unit
-- each meaningful execution pass should publish a thread checkpoint result pack
-- use `docs/operating_system/templates/checkpoint-result-pack.md` as the pack template
-- write packs under `docs/intent/workstreams/checkpoints/<workstream-id>/<thread-slug>/`
+- treat each bounded change thread as the visible checkpoint unit
+- for each meaningful execution pass on that thread, emit a standard result
+  pack with visible outputs
+- use `docs/operating_system/templates/checkpoint-result-pack.md` for that pack
+  shape
 
 ## Purpose
 
