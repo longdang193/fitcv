@@ -217,6 +217,7 @@ def build_repo(tmp_path: Path) -> Path:
         "docs/intent/stakeholders.md": "# Stakeholders\n",
         "docs/intent/success-outcomes.md": "# Success Outcomes\n",
         "docs/intent/constraints-and-non-goals.md": "# Constraints And Non-Goals\n",
+        "docs/intent/master-workstream-roadmap.md": "# Master Workstream Roadmap\n",
     }.items():
         target = repo_root / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -307,6 +308,14 @@ def build_repo(tmp_path: Path) -> Path:
         (REPO_ROOT / "scripts" / "validate_checkpoint_packs.py").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
+    (scripts_dir / "validate_component_boundaries.py").write_text(
+        (REPO_ROOT / "scripts" / "validate_component_boundaries.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (scripts_dir / "validate_planning_lifecycle.py").write_text(
+        (REPO_ROOT / "scripts" / "validate_planning_lifecycle.py").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     (scripts_dir / "format_contract_yaml.py").write_text(
         FORMATTER_PATH.read_text(encoding="utf-8"),
         encoding="utf-8",
@@ -367,6 +376,16 @@ def build_repo(tmp_path: Path) -> Path:
         "def test_placeholder():\n    assert True\n",
         encoding="utf-8",
     )
+    (tests_dir / "test_validate_planning_lifecycle.py").write_text(
+        '"""\n'
+        "@meta\n"
+        "type: test\n"
+        "scope: unit\n"
+        "domain: docs\n"
+        '"""\n\n'
+        "def test_placeholder():\n    assert True\n",
+        encoding="utf-8",
+    )
     for test_name in (
         "test_architecture_metadata_generation.py",
         "test_architecture_linkage_audit.py",
@@ -387,16 +406,13 @@ def test_validator_script_exists() -> None:
 
 def test_repo_contract_validator_fast_passes_for_current_managed_history_shape(tmp_path: Path) -> None:
     repo_root = build_repo(tmp_path)
-    sync_process = subprocess.run(
-        [sys.executable, str(repo_root / "scripts" / "sync_architecture_docs.py"), "--repo-root", str(repo_root)],
+    process = subprocess.run(
+        [sys.executable, str(VALIDATOR_PATH), "--repo-root", str(repo_root), "--fast"],
         capture_output=True,
         text=True,
         check=False,
     )
-    assert sync_process.returncode == 0
-    validator_module = load_module(VALIDATOR_PATH, "validate_repo_contracts")
-
-    assert validator_module.main(["--repo-root", str(repo_root), "--fast"]) == 0
+    assert process.returncode == 0, process.stdout
 
 
 def test_repo_contract_validator_fails_when_config_metadata_is_missing(tmp_path: Path) -> None:

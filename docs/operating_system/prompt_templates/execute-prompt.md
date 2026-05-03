@@ -20,7 +20,11 @@ Please:
 3. implement it task by task
 4. keep source-of-truth docs in sync as changes land
 5. run the relevant verification commands
-6. summarize what changed and what still needs follow-up
+6. if this execution closes a plan/workstream, run the closeout gate checks:
+   - `python scripts/validate_planning_lifecycle.py --strict`
+   - `python scripts/validate_checkpoint_packs.py`
+   - `python scripts/validate_repo_contracts.py --fast`
+7. summarize what changed and what still needs follow-up
 ```
 
 Expected output:

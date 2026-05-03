@@ -3,7 +3,7 @@ managed_architecture_metadata: true
 legacy_feature_contracts: false
 architecture_generator: scripts/sync_architecture_docs.py
 starter_sync:
-  starter_baseline_ref: d6763b8d11d4e6cbf258eaeb47a5e1f584205b7c
+  starter_baseline_ref: 15b231a670637e7ffbcb2ca80df6ef6aa815c0a1
   last_shared_surface_review_at: 2026-05-03
   reviewed_surface_classes:
     - repo_config
