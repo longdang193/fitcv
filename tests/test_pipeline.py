@@ -1945,11 +1945,19 @@ def test_run_pipeline_reuses_exact_match_ai_scores() -> None:
 
     mock_ai_scoring.assert_not_called()
     ranking_block = result["stage_transition_artifacts"]["stages"]["ranking"]
-    assert ranking_block["decision_summary"]["reuse_metrics"] == {
+    reuse_metrics = ranking_block["decision_summary"]["reuse_metrics"]
+    assert reuse_metrics == {
         "reused_ai_scores": 1,
         "fresh_ai_scores": 0,
         "total_ai_scores": 1,
+        "reuse_enabled": True,
+        "reuse_attempted": True,
+        "reused_count": 1,
+        "fresh_count": 0,
+        "reuse_reason": "fingerprint_match",
+        "reuse_fingerprint": reuse_metrics["reuse_fingerprint"],
     }
+    assert isinstance(reuse_metrics["reuse_fingerprint"], str) and reuse_metrics["reuse_fingerprint"]
     assert ranking_block["inputs_sample"][0]["ai_score_reuse_status"] == "reused_exact_match"
     assert ranking_block["inputs_sample"][0]["ai_score_input_fingerprint"] == ai_score_fingerprint
 
@@ -3522,6 +3530,39 @@ def test_enrich_jobs_with_reuse_preserves_order_and_separates_shared_upserts(
     assert all(row["enrich_contract_fingerprint"] == "contract-1" for row in enriched_rows)
     assert [row["job_url"] for row in fresh_rows] == ["https://example.com/2"]
     mock_enrich_batch.assert_called_once_with([jobs[1]], {"gemini_model": "gemini-2.5-flash"})
+
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.lookup_reusable_structured_jobs")
+@patch("fitcv.pipeline.build_enrich_contract_fingerprint")
+@patch("fitcv.pipeline.build_raw_job_fingerprint")
+def test_enrich_jobs_with_reuse_disabled_skips_lookup_and_forces_fresh(
+    mock_raw_job_fingerprint: MagicMock,
+    mock_contract_fingerprint: MagicMock,
+    mock_lookup_reusable: MagicMock,
+    mock_enrich_batch: MagicMock,
+) -> None:
+    jobs = [
+        {"job_url": "https://example.com/1", "title": "Role 1"},
+        {"job_url": "https://example.com/2", "title": "Role 2"},
+    ]
+    mock_raw_job_fingerprint.side_effect = [
+        {"payload": {"job_url": jobs[0]["job_url"]}, "fingerprint": "raw-1"},
+        {"payload": {"job_url": jobs[1]["job_url"]}, "fingerprint": "raw-2"},
+    ]
+    mock_contract_fingerprint.return_value = {"payload": {}, "fingerprint": "contract-1"}
+    mock_enrich_batch.return_value = [dict(jobs[0]), dict(jobs[1])]
+
+    enriched_rows, fresh_rows = _enrich_jobs_with_reuse(
+        jobs,
+        {"gemini_model": "gemini-2.5-flash"},
+        reuse_enabled=False,
+    )
+
+    mock_lookup_reusable.assert_not_called()
+    mock_enrich_batch.assert_called_once_with(jobs, {"gemini_model": "gemini-2.5-flash"})
+    assert [row["job_url"] for row in enriched_rows] == [jobs[0]["job_url"], jobs[1]["job_url"]]
+    assert all(row["enrich_reuse_status"] == "fresh_enrichment" for row in enriched_rows)
+    assert [row["job_url"] for row in fresh_rows] == [jobs[0]["job_url"], jobs[1]["job_url"]]
 
 
 def test_collect_mapping_suggestions_deduplicates_per_run_by_alias_canonical_and_must_have_skill() -> None:

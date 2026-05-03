@@ -61,7 +61,11 @@ import uuid
 from copy import deepcopy
 from typing import Any, Callable, cast
 
-from fitcv.ai_score import build_ai_score_input_fingerprint, run_ai_scoring
+from fitcv.ai_score import (
+    build_ai_score_contract_fingerprint,
+    build_ai_score_input_fingerprint,
+    run_ai_scoring,
+)
 from fitcv.agentic_cv_analysis import analyze_ranked_job as run_agentic_cv_analysis
 from fitcv.agentic_cv_generation import generate_from_analysis as run_agentic_cv_generation
 from fitcv.candidate import (
@@ -93,6 +97,7 @@ from fitcv.enrich import (
     lookup_reusable_structured_jobs,
 )
 from fitcv.evidence import (
+    build_cv_analysis_contract_fingerprint,
     build_cv_analysis_input_fingerprint,
     retrieve_evidence,
     retrieve_evidence_bundle,
@@ -327,6 +332,8 @@ def _materialize_scoring_shortlist(
 def _enrich_jobs_with_reuse(
     normalized_jobs: list[dict[str, Any]],
     config: dict[str, Any],
+    *,
+    reuse_enabled: bool = True,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     if not normalized_jobs:
         return [], []
@@ -339,12 +346,14 @@ def _enrich_jobs_with_reuse(
         raw_job_fingerprints[job_url] = build_raw_job_fingerprint(job)["fingerprint"]
 
     enrich_contract_fingerprint = build_enrich_contract_fingerprint(config)["fingerprint"]
-    reused_rows_by_url = lookup_reusable_structured_jobs(
-        normalized_jobs,
-        config,
-        raw_job_fingerprints=raw_job_fingerprints,
-        enrich_contract_fingerprint=enrich_contract_fingerprint,
-    )
+    reused_rows_by_url: dict[str, dict[str, Any]] = {}
+    if reuse_enabled:
+        reused_rows_by_url = lookup_reusable_structured_jobs(
+            normalized_jobs,
+            config,
+            raw_job_fingerprints=raw_job_fingerprints,
+            enrich_contract_fingerprint=enrich_contract_fingerprint,
+        )
 
     fresh_jobs = [
         job for job in normalized_jobs
@@ -2124,6 +2133,34 @@ def _safe_rate(numerator: int, denominator: int) -> float:
         return 0.0
     return float(numerator) / float(denominator)
 
+def _reuse_policy_enabled(config: dict[str, Any], key: str) -> bool:
+    policy = dict(config.get("reuse_policy") or {})
+    return bool(policy.get(key, True))
+
+def _standard_reuse_observability(
+    *,
+    enabled: bool,
+    reused_count: int,
+    fresh_count: int,
+    fingerprint: str | None,
+) -> dict[str, Any]:
+    attempted = enabled and (reused_count + fresh_count) > 0
+    reason = "not_applicable"
+    if not enabled:
+        reason = "reuse_disabled"
+    elif reused_count > 0:
+        reason = "fingerprint_match"
+    elif fresh_count > 0:
+        reason = "fingerprint_mismatch"
+    return {
+        "reuse_enabled": bool(enabled),
+        "reuse_attempted": bool(attempted),
+        "reused_count": int(reused_count),
+        "fresh_count": int(fresh_count),
+        "reuse_reason": reason,
+        "reuse_fingerprint": str(fingerprint or "").strip() or None,
+    }
+
 
 def _build_shortlist_quality_metrics(
     *,
@@ -2647,16 +2684,24 @@ def _build_stage_transition_artifacts(
         stage_id="cv_generation",
         prompt_key="structured_write",
     )
+    enrich_reused_rows = sum(
+        1 for job in enriched
+        if str(job.get("enrich_reuse_status") or "") == REUSED_CACHED_ENRICHMENT_STATUS
+    )
+    enrich_fresh_rows = sum(
+        1 for job in enriched
+        if str(job.get("enrich_reuse_status") or "") == FRESH_ENRICHMENT_STATUS
+    )
     enrich_reuse_counts = {
-        "reused_rows": sum(
-            1 for job in enriched
-            if str(job.get("enrich_reuse_status") or "") == REUSED_CACHED_ENRICHMENT_STATUS
-        ),
-        "fresh_rows": sum(
-            1 for job in enriched
-            if str(job.get("enrich_reuse_status") or "") == FRESH_ENRICHMENT_STATUS
-        ),
+        "reused_rows": enrich_reused_rows,
+        "fresh_rows": enrich_fresh_rows,
         "total_enriched_rows": len(enriched),
+        **_standard_reuse_observability(
+            enabled=_reuse_policy_enabled(config, "enrich_reuse_enabled"),
+            reused_count=enrich_reused_rows,
+            fresh_count=enrich_fresh_rows,
+            fingerprint=build_enrich_contract_fingerprint(config)["fingerprint"],
+        ),
     }
     shortlist_embedding_reuse_counts = {
         "embedding_reused_jobs": sum(
@@ -2674,16 +2719,24 @@ def _build_stage_transition_artifacts(
         scoring_shortlisted_jobs_total=len(shortlist),
     )
     ranking_quality_metrics = _build_ranking_quality_metrics(ranking_inputs)
+    ranking_reused_ai_scores = sum(
+        1 for row in ai_scores
+        if str(row.get("ai_score_reuse_status") or "") == "reused_exact_match"
+    )
+    ranking_fresh_ai_scores = sum(
+        1 for row in ai_scores
+        if str(row.get("ai_score_reuse_status") or "") == "fresh_compute"
+    )
     ranking_reuse_metrics = {
-        "reused_ai_scores": sum(
-            1 for row in ai_scores
-            if str(row.get("ai_score_reuse_status") or "") == "reused_exact_match"
-        ),
-        "fresh_ai_scores": sum(
-            1 for row in ai_scores
-            if str(row.get("ai_score_reuse_status") or "") == "fresh_compute"
-        ),
+        "reused_ai_scores": ranking_reused_ai_scores,
+        "fresh_ai_scores": ranking_fresh_ai_scores,
         "total_ai_scores": len(ai_scores),
+        **_standard_reuse_observability(
+            enabled=_reuse_policy_enabled(config, "ai_score_reuse_enabled"),
+            reused_count=ranking_reused_ai_scores,
+            fresh_count=ranking_fresh_ai_scores,
+            fingerprint=build_ai_score_contract_fingerprint(config)["fingerprint"],
+        ),
     }
     cv_analysis_quality_metrics = _build_cv_analysis_quality_metrics(cv_analysis_results)
     cv_analysis_executed_rows = [
@@ -2709,6 +2762,32 @@ def _build_stage_transition_artifacts(
         int(cv_analysis_reuse_metrics["reused_analysis_rows"]),
         int(cv_analysis_reuse_metrics["analysis_rows_executed"]),
     )
+    evidence_candidate_fresh = 0
+    evidence_candidate_reused = 0
+    evidence_job_fresh = 0
+    evidence_job_reused = 0
+    for record in cv_analysis_results:
+        selection = dict(record.get("evidence_selection_summary") or {})
+        semantic_alignment = dict(selection.get("semantic_alignment") or {})
+        embedding_counts = dict(semantic_alignment.get("embedding_counts") or {})
+        candidate_counts = dict(embedding_counts.get("candidate_evidence") or {})
+        job_counts = dict(embedding_counts.get("job_context") or {})
+        evidence_candidate_fresh += int(candidate_counts.get("fresh") or 0)
+        evidence_candidate_reused += int(candidate_counts.get("reused") or 0)
+        evidence_job_fresh += int(job_counts.get("fresh") or 0)
+        evidence_job_reused += int(job_counts.get("reused") or 0)
+    evidence_reuse_metrics = {
+        "candidate_embedding_fresh_count": evidence_candidate_fresh,
+        "candidate_embedding_reused_count": evidence_candidate_reused,
+        "job_embedding_fresh_count": evidence_job_fresh,
+        "job_embedding_reused_count": evidence_job_reused,
+        **_standard_reuse_observability(
+            enabled=_reuse_policy_enabled(config, "evidence_reuse_enabled"),
+            reused_count=evidence_candidate_reused + evidence_job_reused,
+            fresh_count=evidence_candidate_fresh + evidence_job_fresh,
+            fingerprint=build_cv_analysis_contract_fingerprint(config)["fingerprint"],
+        ),
+    }
     cv_generation_quality_metrics = _build_cv_generation_quality_metrics(cv_generation_debug_records)
     agentic_late_stage_enabled = _agentic_late_stage_enabled(config)
 
@@ -2974,6 +3053,7 @@ def _build_stage_transition_artifacts(
                     "analysis_records_captured": len(cv_analysis_results),
                     "quality_metrics": cv_analysis_quality_metrics,
                     "reuse_metrics": cv_analysis_reuse_metrics,
+                    "evidence_reuse_metrics": evidence_reuse_metrics,
                     "evidence_top_k": int(config.get("pipeline", {}).get("evidence_top_k", 0) or 0),
                     "effective_channel_pool_size": int(
                         config.get("cv_analysis", {}).get("semantic_alignment", {}).get("channel_pool_size", 0) or 0
@@ -3317,7 +3397,12 @@ def run_pipeline(
 
         if cancellation_check and cancellation_check():
             raise PipelineCancelled("Cancelled before enrichment")
-        enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(surviving_normalized, config)
+        enrich_reuse_enabled = _reuse_policy_enabled(config, "enrich_reuse_enabled")
+        enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(
+            surviving_normalized,
+            config,
+            reuse_enabled=enrich_reuse_enabled,
+        )
         if fresh_enriched_rows:
             load_structured_jobs(fresh_enriched_rows, config)
         load_run_structured_jobs(enriched, run_id, config)
@@ -3569,6 +3654,7 @@ def run_pipeline(
         ai_score_candidates = shortlist[:ai_top_n]
         fresh_scoring_jobs: list[dict[str, Any]] = []
         fresh_ai_score_fingerprints: dict[str, str] = {}
+        ai_score_reuse_enabled = _reuse_policy_enabled(config, "ai_score_reuse_enabled")
         reused_ai_scores_by_url: dict[str, dict[str, Any]] = {}
         for shortlisted_job in ai_score_candidates:
             top_evidence = list(shortlisted_job.get("top_evidence") or [])[:2]
@@ -3579,7 +3665,11 @@ def run_pipeline(
                 config,
             )
             job_url = _extract_job_url(shortlisted_job)
-            reused_ai_row = ranking_ai_score_reuse_index.get(fingerprint_record["fingerprint"])
+            reused_ai_row = (
+                ranking_ai_score_reuse_index.get(fingerprint_record["fingerprint"])
+                if ai_score_reuse_enabled
+                else None
+            )
             if reused_ai_row is not None and job_url:
                 reused_ai_scores_by_url[job_url] = {
                     **deepcopy(reused_ai_row),

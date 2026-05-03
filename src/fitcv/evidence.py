@@ -246,9 +246,11 @@ def _cosine_similarity(lhs: list[float], rhs: list[float]) -> float:
 
 def _semantic_alignment_settings(config: dict[str, Any] | None) -> dict[str, Any]:
     semantic_alignment: dict[str, Any] = {}
+    reuse_policy: dict[str, Any] = {}
     if isinstance(config, dict):
         cv_analysis_config = dict(config.get("cv_analysis") or {})
         semantic_alignment = dict(cv_analysis_config.get("semantic_alignment") or {})
+        reuse_policy = dict(config.get("reuse_policy") or {})
     return {
         "enabled": bool(
             semantic_alignment.get("enabled", DEFAULT_SEMANTIC_ALIGNMENT_ENABLED)
@@ -301,6 +303,7 @@ def _semantic_alignment_settings(config: dict[str, Any] | None) -> dict[str, Any
         "channel_pool_size": int(
             semantic_alignment.get("channel_pool_size", DEFAULT_CHANNEL_POOL_SIZE)
         ),
+        "evidence_reuse_enabled": bool(reuse_policy.get("evidence_reuse_enabled", True)),
     }
 
 
@@ -430,14 +433,15 @@ def _embed_text_cached(
     model_name: str,
     runtime_state: dict[str, Any],
     cache_namespace: str,
+    reuse_enabled: bool = True,
 ) -> list[float]:
     normalized_text = " ".join(str(text).split()).strip()
     if not normalized_text:
         return []
     cache_key = f"{cache_namespace}:{normalized_text.casefold()}"
     embedding_cache = runtime_state["embedding_cache"]
-    cached = embedding_cache.get(cache_key)
-    if cached is not None:
+    cached = embedding_cache.get(cache_key) if reuse_enabled else None
+    if reuse_enabled and cached is not None:
         if cache_namespace == "candidate":
             runtime_state["candidate_embedding_reused_count"] = int(
                 runtime_state.get("candidate_embedding_reused_count") or 0
@@ -448,7 +452,8 @@ def _embed_text_cached(
             ) + 1
         return list(cached)
     vector = list(generate_embedding(normalized_text, config, model_name=model_name))
-    embedding_cache[cache_key] = vector
+    if reuse_enabled:
+        embedding_cache[cache_key] = vector
     if cache_namespace == "candidate":
         runtime_state["candidate_embedding_fresh_count"] = int(
             runtime_state.get("candidate_embedding_fresh_count") or 0
@@ -611,6 +616,7 @@ def _semantic_similarity(
     config: dict[str, Any],
     model_name: str,
     runtime_state: dict[str, Any],
+    reuse_enabled: bool,
 ) -> float:
     if not item_text or not job_texts:
         return 0.0
@@ -620,6 +626,7 @@ def _semantic_similarity(
         model_name=model_name,
         runtime_state=runtime_state,
         cache_namespace="candidate",
+        reuse_enabled=reuse_enabled,
     )
     if not item_vector:
         return 0.0
@@ -633,6 +640,7 @@ def _semantic_similarity(
             model_name=model_name,
             runtime_state=runtime_state,
             cache_namespace="job",
+            reuse_enabled=reuse_enabled,
         )
         if not job_vector:
             continue
@@ -1064,6 +1072,7 @@ def _score_required_skill_support_components(
             config=config,
             model_name=str(semantic_settings["model"]),
             runtime_state=runtime_state,
+            reuse_enabled=bool(semantic_settings.get("evidence_reuse_enabled", True)),
         )
     return {
         "lexical": round(lexical_score, 6),
@@ -1116,6 +1125,7 @@ def _score_role_alignment_components(
             config=config,
             model_name=str(semantic_settings["model"]),
             runtime_state=runtime_state,
+            reuse_enabled=bool(semantic_settings.get("evidence_reuse_enabled", True)),
         )
     return {
         "lexical": round(lexical_score, 6),
@@ -1186,6 +1196,7 @@ def _score_domain_alignment_components(
             config=config,
             model_name=str(semantic_settings["model"]),
             runtime_state=runtime_state,
+            reuse_enabled=bool(semantic_settings.get("evidence_reuse_enabled", True)),
         )
     return {
         "lexical": round(lexical_score, 6),
@@ -1219,6 +1230,7 @@ def _score_responsibility_alignment_components(
             config=config,
             model_name=str(semantic_settings["model"]),
             runtime_state=runtime_state,
+            reuse_enabled=bool(semantic_settings.get("evidence_reuse_enabled", True)),
         )
     return {
         "lexical": round(lexical_score, 6),
@@ -1249,9 +1261,9 @@ def _channel_score_components(
             item,
             job_context,
             config=config,
-            semantic_settings=semantic_settings,
-            runtime_state=runtime_state,
-        )
+                semantic_settings=semantic_settings,
+                runtime_state=runtime_state,
+            )
     if channel == ROLE_ALIGNMENT_CHANNEL:
         return _score_role_alignment_components(
             item,
