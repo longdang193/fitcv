@@ -2,7 +2,7 @@
 layer: operating_system
 artifact_type: spec
 status: active
-parent_workstream: workstream-fitcv-semantic-spine
+parent_workstream: none
 targets:
   - docs/intent/
   - scripts/validate_planning_lifecycle.py

@@ -1428,6 +1428,142 @@ def test_apply_structured_normalization_emits_domain_and_role_family_mapping_sug
         }
     ]
 
+def test_apply_structured_normalization_maps_role_family_alias_to_taxonomy_family() -> None:
+    output = EnrichmentOutput(job_family="Data Science")
+    result = _apply_structured_normalization(
+        output,
+        config={
+            "role_taxonomy": {
+                "role_family_neighbors": {
+                    "data_science": ["analytics"],
+                    "analytics": ["data_science"],
+                }
+            }
+        },
+    )
+    assert result["role_family_mapping_suggestions"] == [
+        {
+            "field": "role_family",
+            "alias": "data science",
+            "canonical": "data_science",
+            "confidence": 1.0,
+            "matches": True,
+        }
+    ]
+
+def test_merge_scraped_and_enriched_seeds_domain_suggestion_from_sector() -> None:
+    scraped = {
+        "job_url": "url1",
+        "title": "DA",
+        "sector": "Retail Banking",
+    }
+    enriched = {
+        "domain": "banking",
+        "domain_mapping_suggestions": [],
+    }
+    merged = merge_scraped_and_enriched(scraped, enriched)
+    assert merged["domain_mapping_suggestions"] == [
+        {
+            "field": "domain",
+            "alias": "retail banking",
+            "canonical": "banking",
+            "confidence": 1.0,
+            "matches": True,
+        }
+    ]
+
+def test_merge_scraped_and_enriched_seeds_role_family_from_title_taxonomy() -> None:
+    scraped = {
+        "job_url": "url2",
+        "title": "Senior Data Scientist",
+    }
+    enriched = {
+        "job_family_raw": "data science",
+        "job_family": "data science",
+        "role_family_mapping_suggestions": [],
+    }
+    merged = merge_scraped_and_enriched(
+        scraped,
+        enriched,
+        config={
+            "role_taxonomy": {
+                "canonical_role_by_alias": {
+                    "senior data scientist": "data scientist",
+                    "data scientist": "data scientist",
+                },
+                "role_family_by_role": {
+                    "data scientist": "data_science",
+                },
+            }
+        },
+    )
+    assert merged["role_family_mapping_suggestions"] == [
+        {
+            "field": "role_family",
+            "alias": "data science",
+            "canonical": "data_science",
+            "confidence": 1.0,
+            "matches": True,
+        }
+    ]
+
+def test_merge_scraped_and_enriched_seeds_role_family_when_job_family_missing() -> None:
+    scraped = {
+        "job_url": "url3",
+        "title": "Business Intelligence Analyst",
+    }
+    enriched = {
+        "job_family_raw": None,
+        "job_family": None,
+        "role_family_mapping_suggestions": [],
+    }
+    merged = merge_scraped_and_enriched(
+        scraped,
+        enriched,
+        config={
+            "role_taxonomy": {
+                "canonical_role_by_alias": {
+                    "business intelligence analyst": "data analyst",
+                    "data analyst": "data analyst",
+                },
+                "role_family_by_role": {
+                    "data analyst": "data_science",
+                },
+            }
+        },
+    )
+    assert merged["role_family_mapping_suggestions"] == [
+        {
+            "field": "role_family",
+            "alias": "data science",
+            "canonical": "data_science",
+            "confidence": 1.0,
+            "matches": True,
+        }
+    ]
+
+def test_apply_structured_normalization_emits_role_family_when_alias_is_underscore_canonical() -> None:
+    output = EnrichmentOutput(job_family="data_science")
+    result = _apply_structured_normalization(
+        output,
+        config={
+            "role_taxonomy": {
+                "role_family_neighbors": {
+                    "data_science": ["analytics"],
+                }
+            }
+        },
+    )
+    assert result["role_family_mapping_suggestions"] == [
+        {
+            "field": "role_family",
+            "alias": "data science",
+            "canonical": "data_science",
+            "confidence": 1.0,
+            "matches": True,
+        }
+    ]
+
 
 # ── enrich_job primary and fallback paths ─────────────────────────────────────
 

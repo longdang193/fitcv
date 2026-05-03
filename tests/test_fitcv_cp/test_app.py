@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 from fitcv_cp.app import _timeline_stage_download_for_event, create_app
 from fitcv_cp.models import RunStatus
 from fitcv_cp.orchestrator import RunSubmission
+from rq.exceptions import NoSuchJobError
 
 
 def _app():
@@ -97,6 +98,48 @@ def test_post_runs_persists_backend_binding_from_submission(tmp_path):
     assert kwargs["queue_job_id"] == "rq-job-abc"
     assert kwargs["orchestration_backend"] == "prefect"
     assert kwargs["orchestration_run_id"] == "flow-run-xyz"
+
+
+def test_get_run_detail_reconciles_orphaned_running_run_when_queue_job_missing() -> None:
+    from fitcv_cp.models import PipelineRun
+    from datetime import datetime, timezone
+
+    running = PipelineRun(
+        run_id="run-orphaned-1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        started_at=datetime.now(timezone.utc),
+        queue_job_id="rq-missing-1",
+        run_mode="run_all",
+    )
+    failed = PipelineRun(
+        run_id="run-orphaned-1",
+        status=RunStatus.FAILED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=running.created_at,
+        started_at=running.started_at,
+        finished_at=datetime.now(timezone.utc),
+        error_message="Queue job rq-missing-1 missing while run remained RUNNING",
+        run_mode="run_all",
+    )
+
+    with patch("fitcv_cp.app.get_run", side_effect=[running, failed]), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event"), \
+         patch("fitcv_cp.app.redis.from_url"), \
+         patch("fitcv_cp.app.Job.fetch", side_effect=NoSuchJobError("missing")):
+        resp = TestClient(_app()).get("/runs/run-orphaned-1")
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "failed"
+    assert mock_update_status.called
 
 
 def test_post_runs_rejects_empty_jobs_path():
@@ -442,6 +485,97 @@ def test_admin_upload_trigger_persists_run_scoped_synonym_overlay() -> None:
     assert effective["skill_synonyms_runtime"]["has_run_overlay"] is True
     assert effective["skill_synonyms_runtime"]["run_overlay_source"] == "trigger_upload"
 
+def test_admin_upload_trigger_persists_multi_field_synonym_overlay() -> None:
+    captured = {}
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p",
+             "bigquery_dataset": "d",
+             "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": "data/candidate_profile.yaml"},
+             "skill_synonyms": {"gcp": "google cloud"},
+             "domain_alias_map": {},
+             "role_family_alias_map": {},
+             "skill_synonyms_runtime": {
+                 "base_policy_path": "config/taxonomy/skill_synonyms.yaml",
+                 "overlay_paths": [],
+                 "has_overlay": False,
+                 "entry_count": 1,
+             },
+         }):
+        files = {
+            "jobs_file": ("custom_jobs.json", b'[{"title": "Engineer", "job_url": "http://x.com"}]', "application/json"),
+            "synonym_overlay_file": (
+                "custom_overlay.yaml",
+                (
+                    b"skill_synonyms:\n  ga4: google analytics\n"
+                    b"domain_alias_map:\n  fintech: financial services\n"
+                    b"role_family_alias_map:\n  bi analyst: analytics\n"
+                ),
+                "application/x-yaml",
+            ),
+        }
+        data = {
+            "config_path": ".env.yaml",
+            "jobs_input_mode": "upload",
+            "candidate_profile_mode": "default_config",
+            "synonym_overlay_mode": "upload",
+        }
+        resp = TestClient(_app()).post("/admin/upload-trigger", data=data, files=files)
+
+    assert resp.status_code == 201, resp.text
+    effective = json.loads(captured["run"].effective_settings_json)
+    assert effective["skill_synonyms"]["ga4"] == "google analytics"
+    assert effective["domain_alias_map"]["fintech"] == "financial services"
+    assert effective["role_family_alias_map"]["bi analyst"] == "analytics"
+
+def test_admin_upload_trigger_honors_explicit_overlay_upload_scope() -> None:
+    captured = {}
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p",
+             "bigquery_dataset": "d",
+             "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": "data/candidate_profile.yaml"},
+             "domain_alias_map": {},
+         }):
+        files = {
+            "jobs_file": ("custom_jobs.json", b'[{"title":"Engineer","job_url":"http://x.com"}]', "application/json"),
+            "synonym_overlay_file": (
+                "custom_overlay.yaml",
+                b"domain_alias_map:\n  fintech: financial services\n",
+                "application/x-yaml",
+            ),
+        }
+        data = {
+            "config_path": ".env.yaml",
+            "jobs_input_mode": "upload",
+            "candidate_profile_mode": "default_config",
+            "synonym_overlay_mode": "upload",
+            "overlay_upload_scope": "domain",
+        }
+        resp = TestClient(_app()).post("/admin/upload-trigger", data=data, files=files)
+
+    assert resp.status_code == 201
+    effective = json.loads(captured["run"].effective_settings_json)
+    assert effective["domain_alias_map"]["fintech"] == "financial services"
+
 
 def test_admin_continue_run_requeues_manual_paused_run() -> None:
     """@proves trigger_run_management.manual-checkpoints-and-continue"""
@@ -677,6 +811,33 @@ def test_admin_run_detail_shows_synonym_overlay_card_for_manual_enrich_checkpoin
     assert "Synonym Overlay" in resp.text
     assert "Replace Run Overlay YAML" in resp.text
     assert 'action="/admin/runs/run-overlay-btn/synonym-overlay"' in resp.text
+    assert 'name="overlay_upload_scope"' in resp.text
+    assert "Combined Upload" in resp.text
+    assert "Skills Upload" in resp.text
+    assert "Domain Upload" in resp.text
+    assert "Role Family Upload" in resp.text
+
+def test_runs_list_shows_split_synonym_upload_scope_controls() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-scope-controls",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+    )
+    with patch("fitcv_cp.app.list_runs", return_value=[run]):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert resp.status_code == 200
+    assert "Combined Upload" in resp.text
+    assert "Skills Upload" in resp.text
+    assert "Domain Upload" in resp.text
+    assert "Role Family Upload" in resp.text
 
 
 def test_admin_run_detail_shows_trigger_uploaded_synonym_overlay_state() -> None:
@@ -705,6 +866,13 @@ def test_admin_run_detail_shows_trigger_uploaded_synonym_overlay_state() -> None
                     "run_overlay_filename": "custom_overlay.yaml",
                     "run_overlay_uploaded_at": "2026-04-05T23:30:00Z",
                     "run_overlay_entry_count": 1,
+                    "run_overlay_section_counts": {
+                        "skill_synonyms": 1,
+                        "domain_alias_map": 2,
+                        "role_family_alias_map": 1,
+                        "domain_neighbors": 1,
+                        "role_family_neighbors": 1,
+                    },
                 },
             }
         ),
@@ -721,6 +889,10 @@ def test_admin_run_detail_shows_trigger_uploaded_synonym_overlay_state() -> None
     assert "Synonym Overlay" in resp.text
     assert "Trigger Upload" in resp.text
     assert "custom_overlay.yaml" in resp.text
+    assert "Domain Entries" in resp.text
+    assert "Role Family Entries" in resp.text
+    assert "Domain Neighbors" in resp.text
+    assert "Role Family Neighbors" in resp.text
 
 def test_admin_run_detail_shows_agentic_review_queue_card() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -850,6 +1022,44 @@ def test_admin_run_detail_shows_stage_result_policy_and_trace_summary() -> None:
     assert "policy.cv_generation.v1" in resp.text
     assert "span-analysis-1" in resp.text
 
+def test_admin_run_detail_shows_agentic_review_queue_card_from_debug_records_key() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-queue-debug-records",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                        "error": {"stage": "review_gate", "message": "Low confidence sections: experience"},
+                    }
+                ],
+                "hitl_review_actions": [],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-review-queue-debug-records")
+    assert resp.status_code == 200
+    assert "Agentic Review Queue" in resp.text
+    assert "Regenerate Once" in resp.text
+    assert 'action="/admin/runs/run-review-queue-debug-records/cv-review-action"' in resp.text
+
 def test_admin_run_detail_shows_markdown_quality_card() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -926,6 +1136,320 @@ def test_admin_run_cv_review_action_persists_and_appends_event() -> None:
     assert saved_payload["hitl_review_actions"][-1]["action"] == "approve"
     assert saved_payload["hitl_review_actions"][-1]["job_url"] == "https://example.com/job-1"
     mock_append.assert_called_once()
+
+
+def test_admin_run_cv_review_action_regenerate_once_does_not_auto_complete_review() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-regenerate",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                        "error": {"stage": "review_gate", "message": "Low confidence sections: experience"},
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint, \
+         patch("fitcv_cp.app.append_event") as mock_append:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-regenerate/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "regenerate_once", "actor": "operator"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    mock_update_debug.assert_called_once()
+    mock_update_status.assert_not_called()
+    mock_update_checkpoint.assert_not_called()
+    assert mock_append.call_count == 1
+
+
+def test_admin_run_cv_review_action_approve_records_terminal_resolution_status() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-approve-resolution",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-approve-resolution/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "approve", "actor": "operator"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    payload = json.loads(mock_update_debug.call_args.args[1])
+    assert payload["hitl_review_actions"][-1]["resolution_status"] == "approved_as_is"
+
+def test_admin_run_cv_review_action_approve_as_is_finalizes_cv_artifact() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-approve-finalize",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cvs_generated=0,
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                        "fit_classification": "stretch",
+                        "markdown_final": "# Candidate\n\nDraft",
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.insert_cv_version_row", return_value=[]) as mock_insert_cv, \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-approve-finalize/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "approve_as_is", "actor": "operator"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    mock_insert_cv.assert_called_once()
+    payload = json.loads(mock_update_debug.call_args.args[1])
+    assert payload["hitl_review_actions"][-1]["artifact_finalized"] is True
+
+def test_admin_run_cv_review_action_approve_as_is_missing_draft_returns_409() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-approve-missing",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Senior Data Engineer",
+                        "status": "review_required",
+                    }
+                ]
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-approve-missing/cv-review-action",
+            data={"job_url": "https://example.com/job-1", "action": "approve_as_is", "actor": "operator"},
+            follow_redirects=False,
+        )
+    assert resp.status_code == 409
+
+
+def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-batch-1",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "DE1",
+                        "status": "review_required",
+                        "markdown_final": "# DE1\n\nAccepted draft",
+                    },
+                    {"job_url": "https://example.com/job-2", "job_title": "DE2", "status": "review_required"},
+                ],
+                "hitl_review_actions": [
+                    {"job_url": "https://example.com/job-2", "action": "reject", "resolution_status": "rejected", "created_at": "2026-05-03T00:00:00+00:00"},
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.insert_cv_version_row", return_value=[]), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint, \
+         patch("fitcv_cp.app.append_event") as mock_append:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-batch-1/cv-review-batch-action",
+            data={
+                "action": "approve_as_is",
+                "actor": "operator",
+                "confirm_no_accepted_cv_closure": "true",
+                "job_url": ["https://example.com/job-1", "https://example.com/job-2"],
+            },
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    assert "hitl_batch_applied=1" in resp.headers["location"]
+    assert "hitl_batch_skipped=1" in resp.headers["location"]
+    assert "hitl_batch_failed=0" in resp.headers["location"]
+    payload = json.loads(mock_update_debug.call_args.args[1])
+    assert any(
+        row.get("job_url") == "https://example.com/job-1" and row.get("resolution_status") == "approved_as_is"
+        for row in list(payload.get("hitl_review_actions") or [])
+    )
+    assert mock_update_status.call_count == 2
+    mock_update_checkpoint.assert_called_once()
+    assert mock_append.call_count >= 2
+    completion_events = [
+        call.args[0]
+        for call in mock_append.call_args_list
+        if getattr(call.args[0], "stage", "") == "cv_review_completed"
+    ]
+    assert completion_events
+    completion_payload = json.loads(completion_events[0].payload_json)
+    assert completion_payload["closure_mode"] in {"all_review_rows_terminal", "all_review_rows_terminal_no_accepted_cv"}
+
+def test_admin_run_cv_review_batch_action_finalize_path_no_longer_needs_zero_cv_confirmation() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-batch-blocked",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cvs_generated=0,
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "DE1",
+                        "status": "review_required",
+                        "markdown_final": "# DE1\n\nAccepted draft",
+                    },
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.insert_cv_version_row", return_value=[]), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint, \
+         patch("fitcv_cp.app.append_event") as mock_append:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-batch-blocked/cv-review-batch-action",
+            data={
+                "action": "approve_as_is",
+                "actor": "operator",
+                "job_url": ["https://example.com/job-1"],
+            },
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    assert "hitl_batch_finalized=1" in resp.headers["location"]
+    mock_update_debug.assert_called_once()
+    assert mock_update_status.call_count == 2
+    mock_update_checkpoint.assert_called_once()
+
+def test_admin_run_cv_review_batch_action_approve_as_is_missing_draft_is_safe_failure() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-batch-missing-draft",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {"job_url": "https://example.com/job-1", "job_title": "DE1", "status": "review_required"},
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_cv_generation_debug") as mock_update_debug, \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.update_run_checkpoint") as mock_update_checkpoint:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-review-batch-missing-draft/cv-review-batch-action",
+            data={
+                "action": "approve_as_is",
+                "actor": "operator",
+                "job_url": ["https://example.com/job-1"],
+            },
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    assert "hitl_batch_failed=1" in resp.headers["location"]
+    mock_update_debug.assert_called_once()
+    mock_update_status.assert_not_called()
+    mock_update_checkpoint.assert_not_called()
 
 
 def test_admin_run_detail_shows_synonym_overlay_yaml_snapshot() -> None:
@@ -1052,9 +1576,10 @@ def test_admin_upload_synonym_overlay_updates_run_effective_settings() -> None:
 
     with patch("fitcv_cp.app.get_run", return_value=run), \
          patch("fitcv_cp.app.update_run_effective_settings") as mock_update, \
-         patch("fitcv_cp.app.append_event"):
+         patch("fitcv_cp.app.append_event") as mock_event:
         resp = TestClient(_app()).post(
             "/admin/runs/run-overlay-upload/synonym-overlay",
+            data={"overlay_upload_scope": "skill"},
             files={
                 "synonym_overlay_file": (
                     "reviewed-skill-synonyms.yaml",
@@ -1070,6 +1595,116 @@ def test_admin_upload_synonym_overlay_updates_run_effective_settings() -> None:
     payload = json.loads(stored_json)
     assert payload["skill_synonyms"]["ga4"] == "google analytics"
     assert payload["skill_synonyms_runtime"]["has_run_overlay"] is True
+    event_payload = json.loads(mock_event.call_args.args[0].payload_json or "{}")
+    assert event_payload["scope"] == "skill"
+
+def test_admin_upload_synonym_overlay_updates_non_skill_effective_maps() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-overlay-upload-nonskill",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="manual_staged",
+        checkpoint_status="awaiting_continue",
+        last_completed_stage="enrich",
+        next_stage="rule_filter",
+        completed_stages=["normalize", "enrich"],
+        effective_settings_json=json.dumps({
+            "gcp_project": "p",
+            "bigquery_dataset": "d",
+            "service_account_key": "k",
+            "skill_synonyms": {"gcp": "google cloud"},
+            "domain_alias_map": {},
+            "role_family_alias_map": {},
+            "skill_synonyms_runtime": {
+                "base_policy_path": "config/skill_synonyms.yaml",
+                "overlay_paths": [],
+                "has_overlay": False,
+                "entry_count": 1,
+            },
+        }),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_effective_settings") as mock_update, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-overlay-upload-nonskill/synonym-overlay",
+            files={
+                "synonym_overlay_file": (
+                    "reviewed-synonyms.yaml",
+                    (
+                        b"domain_alias_map:\n  fintech: financial services\n"
+                        b"role_family_alias_map:\n  bi analyst: analytics\n"
+                    ),
+                    "application/x-yaml",
+                )
+            },
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 303
+    payload = json.loads(mock_update.call_args.args[1])
+    assert payload["domain_alias_map"]["fintech"] == "financial services"
+    assert payload["role_family_alias_map"]["bi analyst"] == "analytics"
+
+def test_admin_upload_synonym_overlay_regenerates_synonym_proposals_with_updated_overlay() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-overlay-rebuild-proposals",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="manual_staged",
+        checkpoint_status="awaiting_continue",
+        last_completed_stage="enrich",
+        next_stage="rule_filter",
+        completed_stages=["normalize", "enrich"],
+        mapping_suggestions_json='{"suggestions":[{"alias":"ga4","canonical":"google analytics","confidence":0.9}]}',
+        effective_settings_json=json.dumps({
+            "gcp_project": "p",
+            "bigquery_dataset": "d",
+            "service_account_key": "k",
+            "skill_synonyms": {"gcp": "google cloud"},
+            "skill_synonyms_runtime": {
+                "base_policy_path": "config/skill_synonyms.yaml",
+                "overlay_paths": [],
+                "has_overlay": False,
+                "entry_count": 1,
+            },
+        }),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.update_run_synonym_proposals") as mock_update_synonyms, \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-overlay-rebuild-proposals/synonym-overlay",
+            files={
+                "synonym_overlay_file": (
+                    "reviewed-skill-synonyms.yaml",
+                    b"skill_synonyms:\n  ga4: google analytics\n",
+                    "application/x-yaml",
+                )
+            },
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == 303
+    synonym_payload = json.loads(mock_update_synonyms.call_args.args[1])
+    assert synonym_payload["proposal_generation_status"] == "not_applicable"
 
 
 def test_admin_upload_synonym_overlay_rejects_invalid_yaml() -> None:
@@ -1106,6 +1741,116 @@ def test_admin_upload_synonym_overlay_rejects_invalid_yaml() -> None:
         )
 
     assert resp.status_code == 422
+    mock_update.assert_not_called()
+
+def test_admin_upload_trigger_rejects_scope_mismatch_for_skill_scope() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run") as mock_insert, \
+         patch("fitcv_cp.app.enqueue_run_with_job_id"), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p",
+             "bigquery_dataset": "d",
+             "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": "data/candidate_profile.yaml"},
+             "skill_synonyms": {"gcp": "google cloud"},
+         }):
+        files = {
+            "jobs_file": ("custom_jobs.json", b'[{"title":"Engineer","job_url":"http://x.com"}]', "application/json"),
+            "synonym_overlay_file": (
+                "custom_overlay.yaml",
+                b"domain_alias_map:\n  fintech: financial services\n",
+                "application/x-yaml",
+            ),
+        }
+        data = {
+            "config_path": ".env.yaml",
+            "jobs_input_mode": "upload",
+            "candidate_profile_mode": "default_config",
+            "synonym_overlay_mode": "upload",
+            "overlay_upload_scope": "skill",
+        }
+        resp = TestClient(_app()).post("/admin/upload-trigger", data=data, files=files)
+
+    assert resp.status_code == 422
+    assert "allows sections" in resp.text
+    mock_insert.assert_not_called()
+
+def test_admin_upload_trigger_accepts_domain_scope_with_domain_sections_only() -> None:
+    captured = {}
+
+    def _capture_insert(run, *args, **kwargs):
+        captured["run"] = run
+
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.update_run_queue_job_id"), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p",
+             "bigquery_dataset": "d",
+             "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": "data/candidate_profile.yaml"},
+             "skill_synonyms": {"gcp": "google cloud"},
+             "domain_alias_map": {},
+         }):
+        files = {
+            "jobs_file": ("custom_jobs.json", b'[{"title":"Engineer","job_url":"http://x.com"}]', "application/json"),
+            "synonym_overlay_file": (
+                "custom_overlay.yaml",
+                b"domain_alias_map:\n  fintech: financial services\n",
+                "application/x-yaml",
+            ),
+        }
+        data = {
+            "config_path": ".env.yaml",
+            "jobs_input_mode": "upload",
+            "candidate_profile_mode": "default_config",
+            "synonym_overlay_mode": "upload",
+            "overlay_upload_scope": "domain",
+        }
+        resp = TestClient(_app()).post("/admin/upload-trigger", data=data, files=files)
+
+    assert resp.status_code == 201
+    effective = json.loads(captured["run"].effective_settings_json)
+    assert effective["domain_alias_map"]["fintech"] == "financial services"
+
+def test_admin_upload_run_synonym_overlay_rejects_scope_mismatch_for_domain_scope() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-overlay-scope-mismatch",
+        status=RunStatus.AWAITING_CONTINUE,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="manual_staged",
+        checkpoint_status="awaiting_continue",
+        last_completed_stage="enrich",
+        next_stage="rule_filter",
+        completed_stages=["normalize", "enrich"],
+        effective_settings_json='{"skill_synonyms":{"gcp":"google cloud"}}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_effective_settings") as mock_update:
+        resp = TestClient(_app()).post(
+            "/admin/runs/run-overlay-scope-mismatch/synonym-overlay",
+            data={"overlay_upload_scope": "domain"},
+            files={
+                "synonym_overlay_file": (
+                    "bad-mixed.yaml",
+                    b"skill_synonyms:\n  ga4: google analytics\n",
+                    "application/x-yaml",
+                )
+            },
+        )
+    assert resp.status_code == 422
+    assert "allows sections" in resp.text
     mock_update.assert_not_called()
 
 
@@ -2485,6 +3230,8 @@ def test_download_results_json_endpoint_includes_hitl_audit_fields_when_present(
     assert row["hitl_review_required"] is True
     assert row["hitl_review_action"] == "approve"
     assert row["hitl_review_actor"] == "operator"
+    assert row["generated_draft_present"] is False
+    assert row["accepted_cv_artifact_present"] is False
 
 def test_download_hitl_review_audit_endpoint_200():
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -2518,6 +3265,48 @@ def test_download_hitl_review_audit_endpoint_200():
     payload = resp.json()
     assert payload["schema_version"] == "hitl_review_audit_v1"
     assert payload["summary"]["review_required_total"] == 1
+    assert payload["summary"]["closure_mode"] == "incomplete"
+    assert payload["summary"]["resolution_totals"]["pending"] == 1
+
+
+def test_admin_run_detail_shows_cv_preview_in_hitl_review_queue() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-hitl-preview-1",
+        status=RunStatus.AWAITING_CONTINUE,
+        checkpoint_status="awaiting_review",
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "cv_generation_debug_records": [
+                    {
+                        "job_url": "https://example.com/job-1",
+                        "job_title": "Test Role",
+                        "status": "review_required",
+                        "markdown_final": "# Candidate Name\\n## Experience\\n- Built pipelines",
+                        "error": {"stage": "review_gate", "message": "Unsupported requirements require review: Snowflake"},
+                    }
+                ],
+                "hitl_review_actions": [],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-hitl-preview-1")
+    assert resp.status_code == 200
+    assert "CV Draft Preview" in resp.text
+    assert "Show generated CV markdown" in resp.text
+    assert "Built pipelines" in resp.text
 
 
 def test_download_results_json_endpoint_404_if_snapshot_missing():
@@ -2798,6 +3587,7 @@ def test_download_run_synonym_suppression_diff_json_endpoint_200() -> None:
                     "trace_status": "completed",
                     "trace_summary": {
                         "suppressed_as_already_global_count": 1,
+                        "suppressed_count_by_field": {"skill": 1, "domain": 2},
                         "generated_for_review_count": 0,
                         "suppression_source": "run_effective_skill_synonyms",
                     },
@@ -2810,7 +3600,7 @@ def test_download_run_synonym_suppression_diff_json_endpoint_200() -> None:
         resp = TestClient(_app()).get("/admin/runs/run-syn-suppress-diff-1/synonym-suppression-diff.json")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["suppressed_pairs_total"] == 1
+    assert body["suppressed_pairs_total"] == 3
     assert body["suppression_source"] == "run_effective_skill_synonyms"
 
 
@@ -3049,8 +3839,12 @@ def test_admin_run_detail_shows_synonym_proposal_review_actions() -> None:
         run_mode="run_all",
         synonym_proposals_json=(
             '{"run_id":"run-proposal-ui","proposals":['
-            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed",'
-            '"alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            '{"proposal_id":"proposal-gcpx","proposal_status":"proposed_unreviewed",'
+            '"field":"skill","alias":"gcpx","canonical":"google cloud platform","confidence":0.9},'
+            '{"proposal_id":"proposal-fintech","proposal_status":"proposed_unreviewed",'
+            '"field":"domain","alias":"it services and it consulting","canonical":"fintech","confidence":0.8},'
+            '{"proposal_id":"proposal-ml","proposal_status":"proposed_unreviewed",'
+            '"field":"role_family","alias":"ml engineering","canonical":"data_science","confidence":0.85}'
             ']}'
         ),
     )
@@ -3064,9 +3858,14 @@ def test_admin_run_detail_shows_synonym_proposal_review_actions() -> None:
 
     assert resp.status_code == 200
     assert "Synonym Proposal Review" in resp.text
-    assert "/admin/runs/run-proposal-ui/synonym-proposals/proposal-gcp/action" in resp.text
+    assert "/admin/runs/run-proposal-ui/synonym-proposals/proposal-gcpx/action" in resp.text
     assert "/admin/runs/run-proposal-ui/synonym-proposals/batch-action" in resp.text
-    assert "proposal_action__proposal-gcp" in resp.text
+    assert "proposal_action__proposal-gcpx" in resp.text
+    assert "Skills" in resp.text
+    assert "Domain" in resp.text
+    assert "Role Family" in resp.text
+    assert "proposal_action__proposal-fintech" in resp.text
+    assert "proposal_action__proposal-ml" in resp.text
 
 
 def test_admin_run_detail_shows_synonym_recommendation_advisory_fields() -> None:
@@ -3084,8 +3883,8 @@ def test_admin_run_detail_shows_synonym_recommendation_advisory_fields() -> None
         run_mode="run_all",
         synonym_proposals_json=(
             '{"run_id":"run-proposal-ui-reco","proposals":['
-            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed",'
-            '"alias":"gcp","canonical":"google cloud","confidence":0.9,'
+            '{"proposal_id":"proposal-gcpx","proposal_status":"proposed_unreviewed",'
+            '"alias":"gcpx","canonical":"google cloud platform","confidence":0.9,'
             '"recommended_action":"approve","recommendation_confidence":0.86,'
             '"recommendation_rationale":"Alias is standard in data engineering profiles.",'
             '"recommendation_risk_flags":["global_drift_check"]}'
@@ -3122,8 +3921,8 @@ def test_admin_run_detail_shows_synonym_triage_refresh_action_and_status() -> No
         run_mode="run_all",
         synonym_proposals_json=(
             '{"run_id":"run-proposal-ui-triage-action","proposals":['
-            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed",'
-            '"alias":"gcp","canonical":"google cloud","confidence":0.9,'
+            '{"proposal_id":"proposal-gcpx","proposal_status":"proposed_unreviewed",'
+            '"alias":"gcpx","canonical":"google cloud platform","confidence":0.9,'
             '"recommended_action":"approve"}'
             ']}'
         ),
@@ -3392,7 +4191,7 @@ def test_admin_run_synonym_proposals_triage_refresh_redirects_with_summary() -> 
     assert resp.status_code == 303
     assert (
         resp.headers["location"]
-        == "/admin/runs/run-triage-refresh?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_skipped=1&synonym_triage_failed=0&synonym_triage_fallback=0"
+        == "/admin/runs/run-triage-refresh?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_fresh=1&synonym_triage_skipped=1&synonym_triage_failed=0&synonym_triage_fallback=0"
     )
     assert persisted_payloads
     proposals = persisted_payloads[-1]["proposals"]
@@ -3440,7 +4239,8 @@ def test_admin_run_synonym_proposals_triage_refresh_does_not_mutate_status() -> 
         )
 
     assert resp.status_code == 303
-    assert captured_statuses == ["in_review"]
+    assert captured_statuses
+    assert all(status == "in_review" for status in captured_statuses)
 
 def test_synonym_proposal_review_queue_filters_pairs_already_in_global_synonyms() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -3473,6 +4273,9 @@ def test_synonym_proposal_review_queue_filters_pairs_already_in_global_synonyms(
     queue = _build_synonym_proposal_review_queue(run)
     assert queue["total_count"] == 0
     assert queue["filtered_as_already_global_count"] == 1
+    lanes = {lane["field"]: lane for lane in queue["field_lanes"]}
+    assert lanes["skill"]["suppressed"] == 1
+    assert lanes["skill"]["zero_state_reason"] == "all_suppressed"
 
 def test_synonym_proposal_review_queue_keeps_non_skill_fields_even_if_skill_global_has_same_alias() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -3499,6 +4302,64 @@ def test_synonym_proposal_review_queue_keeps_non_skill_fields_even_if_skill_glob
     queue = _build_synonym_proposal_review_queue(run)
     assert queue["total_count"] == 1
     assert queue["items"][0]["field"] == "domain"
+    lanes = {lane["field"]: lane for lane in queue["field_lanes"]}
+    assert lanes["domain"]["generated"] == 1
+    assert lanes["domain"]["zero_state_reason"] is None
+
+def test_synonym_proposal_review_queue_uses_trace_suppression_for_non_skill_lanes() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    from fitcv_cp.app import _build_synonym_proposal_review_queue
+
+    run = PipelineRun(
+        run_id="run-proposal-trace-suppression-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-trace-suppression-1","proposals":['
+            '{"proposal_id":"proposal-skill","field":"skill","proposal_status":"proposed_unreviewed","alias":"gcpx","canonical":"google cloud platform","confidence":0.9}'
+            '],'
+            '"synonym_proposals_trace":{"trace_summary":{"suppressed_count_by_field":{"domain":3,"role_family":1}}}'
+            '}'
+        ),
+    )
+
+    queue = _build_synonym_proposal_review_queue(run)
+    lanes = {lane["field"]: lane for lane in queue["field_lanes"]}
+    assert lanes["domain"]["suppressed"] == 3
+    assert lanes["domain"]["zero_state_reason"] == "all_suppressed"
+    assert lanes["role_family"]["suppressed"] == 1
+    assert lanes["role_family"]["zero_state_reason"] == "all_suppressed"
+
+def test_synonym_proposal_review_queue_triage_stale_when_pending_without_recommendations() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    from fitcv_cp.app import _build_synonym_proposal_review_queue
+
+    run = PipelineRun(
+        run_id="run-proposal-triage-stale-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        synonym_proposals_json=(
+            '{"run_id":"run-proposal-triage-stale-1","proposals":['
+            '{"proposal_id":"proposal-skill","field":"skill","proposal_status":"proposed_unreviewed","alias":"gcpx","canonical":"google cloud platform","confidence":0.9}'
+            ']}'
+        ),
+    )
+
+    queue = _build_synonym_proposal_review_queue(run)
+    assert queue["pending_count"] == 1
+    assert queue["triage_status"] == "stale"
 
 
 def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful() -> None:
@@ -3534,7 +4395,7 @@ def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful
     assert resp.status_code == 303
     assert (
         resp.headers["location"]
-        == "/admin/runs/run-triage-provider-fail?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=1"
+        == "/admin/runs/run-triage-provider-fail?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_fresh=1&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=1"
     )
 
 
@@ -3587,7 +4448,7 @@ def test_admin_run_synonym_proposals_triage_refresh_provider_success_persists_re
     assert resp.status_code == 303
     assert (
         resp.headers["location"]
-        == "/admin/runs/run-triage-provider-success?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=0"
+        == "/admin/runs/run-triage-provider-success?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_fresh=1&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=0"
     )
     assert persisted_payloads
     proposal = persisted_payloads[-1]["proposals"][0]
@@ -3646,8 +4507,74 @@ def test_admin_run_synonym_proposals_triage_refresh_reuses_unchanged_recommendat
     assert resp.status_code == 303
     assert (
         resp.headers["location"]
-        == "/admin/runs/run-triage-reuse?synonym_triage_triaged=0&synonym_triage_reused=1&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=0"
+        == "/admin/runs/run-triage-reuse?synonym_triage_triaged=0&synonym_triage_reused=1&synonym_triage_fresh=0&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=0"
     )
+
+def test_admin_run_synonym_proposals_triage_refresh_auto_disabled_skips_generation() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-triage-auto-disabled",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps({"synonym_management": {"auto_triage_recommendation_enabled": False}}),
+        synonym_proposals_json=(
+            '{"run_id":"run-triage-auto-disabled","proposals":['
+            '{"proposal_id":"proposal-a","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={"persistence_status": "persisted", "degradation_reason": ""}), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-auto-disabled/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+    assert resp.status_code == 303
+    assert "synonym_triage_triaged=0" in resp.headers["location"]
+    assert "synonym_triage_reused=0" in resp.headers["location"]
+    assert "synonym_triage_fresh=0" in resp.headers["location"]
+
+def test_admin_run_synonym_proposals_triage_refresh_reuse_disabled_forces_fresh() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-triage-reuse-disabled",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps({"synonym_management": {"triage_recommendation_reuse_enabled": False}}),
+        synonym_proposals_json=(
+            '{"run_id":"run-triage-reuse-disabled","proposals":['
+            '{"proposal_id":"proposal-a","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9,'
+            '"recommended_action":"approve","recommendation_confidence":0.9,"recommendation_rationale":"ok"}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={"persistence_status": "persisted", "degradation_reason": ""}), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-reuse-disabled/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+    assert resp.status_code == 303
+    assert "synonym_triage_reused=0" in resp.headers["location"]
+    assert "synonym_triage_fresh=1" in resp.headers["location"]
 
 def test_download_run_approved_synonym_overlay_yaml() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -4369,6 +5296,86 @@ def test_download_cv_generation_review_required_json_endpoint_200() -> None:
     assert resp.status_code == 200
     assert resp.json()["schema_version"] == "cv_generation_review_required_v1"
     assert len(resp.json()["rows"]) == 1
+
+def test_download_cv_generation_review_required_json_maps_reason_and_nullable_request_id() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-required-2",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "run_id": "run-review-required-2",
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/j2",
+                        "job_title": "Data Engineer 2",
+                        "status": "review_required",
+                        "review_required_reason_code": "unknown",
+                        "error": {
+                            "stage": "review_gate",
+                            "message": "Unsupported requirements require review: Snowflake, Talend",
+                        },
+                        "runtime_provenance": {},
+                    }
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-review-required-2/cv-generation-review-required.json")
+    assert resp.status_code == 200
+    row = resp.json()["rows"][0]
+    assert row["reason_code"] == "unsupported_requirement_gap"
+    assert row["review_target"] == "requirements_alignment"
+    assert "Review the generated CV output against required stack coverage" in row["operator_prompt"]
+    assert row["unsupported_requirements"] == ["Snowflake", "Talend"]
+    assert row["generated_draft_present"] is False
+    assert row["accepted_cv_artifact_present"] is False
+    assert row["request_id"] is None
+
+def test_download_cv_generation_review_required_json_uses_structured_missing_requirements() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-review-required-structured-missing",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        cv_generation_debug_json=json.dumps(
+            {
+                "run_id": "run-review-required-structured-missing",
+                "debug_records": [
+                    {
+                        "job_url": "https://example.com/j3",
+                        "job_title": "Data Engineer 3",
+                        "status": "review_required",
+                        "review_required_reason_code": "unsupported_requirement_gap",
+                        "gap_summary": {"missing": ["Snowflake", "Talend"]},
+                        "error": {
+                            "stage": "review_gate",
+                            "message": "Unsupported requirements require review: Snowflake, Talend. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+                        },
+                    }
+                ],
+            }
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get("/admin/runs/run-review-required-structured-missing/cv-generation-review-required.json")
+    assert resp.status_code == 200
+    row = resp.json()["rows"][0]
+    assert row["unsupported_requirements"] == ["Snowflake", "Talend"]
 
 
 def test_download_agentic_live_trace_json_endpoint_200() -> None:
@@ -6827,7 +7834,10 @@ def test_run_detail_zero_cvs_and_ranked_jobs_shows_post_ranking_message():
          patches[1], patches[2], patches[3], patches[4]:
         resp = TestClient(_app()).get("/admin/runs/run-detail-ranked-no-cv")
     assert resp.status_code == 200
-    assert "2 ranked job(s) did not produce a valid CV output." in resp.text
+    assert "Ranked outcome breakdown:" in resp.text
+    assert "fit-gated=0" in resp.text
+    assert "review-required=0" in resp.text
+    assert "generation-failed=0" in resp.text
     assert "No candidates passed the final AI ranking threshold." not in resp.text
 
 
