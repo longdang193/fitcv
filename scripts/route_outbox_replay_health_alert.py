@@ -48,8 +48,9 @@ def main() -> int:
         description="Run outbox replay health checker and route alert/error outcomes to webhook."
     )
     parser.add_argument("--base-url", default="http://localhost:8010")
+    parser.add_argument("--config-path", default=".env.yaml")
     parser.add_argument("--view", default="active", choices=["active", "all", "archived"])
-    parser.add_argument("--min-replay-success-ratio", type=float, default=0.95)
+    parser.add_argument("--min-replay-success-ratio", type=float, default=None)
     parser.add_argument("--event-run-id", default="system-outbox-replay-health")
     parser.add_argument(
         "--emit-event",
@@ -77,13 +78,15 @@ def main() -> int:
         str(checker_script),
         "--base-url",
         str(args.base_url),
+        "--config-path",
+        str(args.config_path),
         "--view",
         str(args.view),
-        "--min-replay-success-ratio",
-        str(args.min_replay_success_ratio),
         "--event-run-id",
         str(args.event_run_id),
     ]
+    if args.min_replay_success_ratio is not None:
+        cmd.extend(["--min-replay-success-ratio", str(args.min_replay_success_ratio)])
     cmd.append("--emit-event" if args.emit_event else "--no-emit-event")
 
     result = subprocess.run(
@@ -134,4 +137,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

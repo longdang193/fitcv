@@ -105,3 +105,35 @@ def test_wrapper_healthy_without_notify_on_ok_skips_webhook(monkeypatch, capsys)
     assert payload["webhook_status"] == "skipped"
     assert payload["payload"]["decision"] == "ok"
 
+
+def test_wrapper_passes_config_path_and_optional_threshold_override(monkeypatch):
+    module = _load_wrapper_module()
+    captured = {}
+
+    def _fake_run(cmd, *_args, **_kwargs):
+        captured["cmd"] = list(cmd)
+        return CompletedProcess(
+            args=cmd,
+            returncode=0,
+            stdout=json.dumps({"decision": "ok"}),
+            stderr="",
+        )
+
+    monkeypatch.setattr(module.subprocess, "run", _fake_run)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "route_outbox_replay_health_alert.py",
+            "--config-path",
+            "config/env.yaml",
+            "--min-replay-success-ratio",
+            "0.91",
+        ],
+    )
+    exit_code = module.main()
+    assert exit_code == 0
+    cmd = captured["cmd"]
+    assert "--config-path" in cmd
+    assert "config/env.yaml" in cmd
+    assert "--min-replay-success-ratio" in cmd
+    assert "0.91" in cmd
