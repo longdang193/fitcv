@@ -1,6 +1,6 @@
 ---
 thread_id: workstream-agentic-observability.agentic-observability-otel-export-and-collector-integration
-status: proposed
+status: completed
 ---
 
 # agentic-observability-otel-export-and-collector-integration

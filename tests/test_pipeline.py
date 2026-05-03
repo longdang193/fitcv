@@ -5509,6 +5509,24 @@ def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
             "stage_id": "cv_analysis",
         },
     }
+    cv_analysis_invoked_event = next(event for event in reporter.events if event[0] == "layer4_cv_analysis_invoked")
+    assert cv_analysis_invoked_event[3] == {
+        "event_name": "cv_analysis_invoked",
+        "event_family": "invocation",
+        "source_stage": "cv_analysis",
+        "event_status": "started",
+        "deterministic_outcome": None,
+        "fallback_used": False,
+        "provenance": {
+            "late_stage_mode": "non_agentic",
+        },
+        "input_snapshot": {
+            "ranked_jobs": 1,
+        },
+        "artifact_refs": {
+            "stage_id": "cv_analysis",
+        },
+    }
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -5624,6 +5642,26 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
         "output_snapshot": {
             "validation_status": "failed",
             "missing_sections": ["experience"],
+        },
+        "artifact_refs": {
+            "stage_id": "cv_generation",
+        },
+    }
+    cv_generation_invoked_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_invoked")
+    assert cv_generation_invoked_event[3] == {
+        "event_name": "cv_generation_invoked",
+        "event_family": "invocation",
+        "source_stage": "cv_generation",
+        "job_url": job["job_url"],
+        "event_status": "started",
+        "deterministic_outcome": None,
+        "fallback_used": False,
+        "provenance": {
+            "cv_generation_model": _minimal_config()["cv_generation_model"],
+        },
+        "input_snapshot": {
+            "ranking_fit_label": "strong",
+            "fit_classification": "strong",
         },
         "artifact_refs": {
             "stage_id": "cv_generation",

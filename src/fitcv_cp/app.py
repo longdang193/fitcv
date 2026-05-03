@@ -553,8 +553,10 @@ TIMELINE_STAGE_LABELS: dict[str, str] = {
     "layer3_ai_score": "Ranking",
     "layer3_ranking": "Ranking",
     "layer4_cv_analysis": "CV Analysis",
+    "layer4_cv_analysis_invoked": "CV Analysis",
     "layer4_cv_analysis_skip": "CV Analysis",
     "layer4_cv_skip": "CV Analysis",
+    "layer4_cv_generation_invoked": "CV Generation",
     "layer4_cv_validation_failed": "CV Generation",
     "pipeline_complete": "CV Generation",
     "stage_checkpoint": "Checkpoint",
@@ -2648,6 +2650,39 @@ def _results_export_rows(run: PipelineRun) -> list[dict[str, Any]]:
     if not isinstance(rows, list):
         return []
     return [dict(row) for row in rows if isinstance(row, dict)]
+
+
+def _stage_result_summary_rows(run: PipelineRun) -> list[dict[str, str]]:
+    if not run.results_export_json:
+        return []
+    try:
+        payload = _json.loads(run.results_export_json)
+    except (_json.JSONDecodeError, TypeError, AttributeError):
+        return []
+    raw_summary = payload.get("stage_result_summary")
+    if not isinstance(raw_summary, dict):
+        return []
+
+    stage_position = {stage_id: index for index, stage_id in enumerate(STAGE_SEQUENCE)}
+    rows: list[dict[str, str]] = []
+    for stage_id, raw_row in raw_summary.items():
+        if not isinstance(raw_row, dict):
+            continue
+        trace_context = raw_row.get("trace_context")
+        trace_block = trace_context if isinstance(trace_context, dict) else {}
+        normalized_stage_id = str(stage_id or "").strip()
+        rows.append(
+            {
+                "stage_id": normalized_stage_id,
+                "status": str(raw_row.get("status") or ""),
+                "policy_version": str(raw_row.get("policy_version") or ""),
+                "trace_id": str(trace_block.get("trace_id") or ""),
+                "span_id": str(trace_block.get("span_id") or ""),
+                "parent_span_id": str(trace_block.get("parent_span_id") or ""),
+            }
+        )
+    rows.sort(key=lambda row: (stage_position.get(row["stage_id"], 999), row["stage_id"]))
+    return rows
 
 
 def _event_payload(event: RunEvent) -> dict[str, Any]:
@@ -4969,6 +5004,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         orchestration_diagnostics = _build_orchestration_diagnostics(run)
         replay_context_summary = _run_replay_context_summary(run)
         data_plane_summary = _run_data_plane_summary(run)
+        stage_result_summary_rows = _stage_result_summary_rows(run)
 
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
@@ -5008,6 +5044,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "orchestration_diagnostics": orchestration_diagnostics,
                 "replay_context_summary": replay_context_summary,
                 "data_plane_summary": data_plane_summary,
+                "stage_result_summary_rows": stage_result_summary_rows,
             }
         )
 

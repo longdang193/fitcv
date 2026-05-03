@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-stage-artifact-contract
-status: proposed
+status: active
 ---
 
 # deterministic-truth-stage-artifact-contract
@@ -23,11 +23,11 @@ stage artifact files; docs/stages/*
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-05-03-deterministic-truth-stage-artifact-contract-bootstrap-spec.md
 
 ## Linked Plan
 
-- none yet
+- docs/superpowers/plans/2026-05-03-deterministic-truth-stage-artifact-contract-bootstrap-plan.md
 
 ## Notes
 

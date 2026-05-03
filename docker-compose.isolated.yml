@@ -1,0 +1,7 @@
+services:
+  redis:
+    ports:
+      - "6380:6379"
+  web:
+    ports:
+      - "8010:8000"

@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-analysis-grounding
-status: proposed
+status: active
 ---
 
 # agentic-cv-quality-analysis-grounding
@@ -23,11 +23,11 @@ src/fitcv/agentic_cv_analysis.py; cv_analysis artifacts
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
 
 ## Linked Plan
 
-- none yet
+- docs/superpowers/plans/2026-05-03-bounded-cv-quality-analysis-grounding-bootstrap-plan.md
 
 ## Notes
 

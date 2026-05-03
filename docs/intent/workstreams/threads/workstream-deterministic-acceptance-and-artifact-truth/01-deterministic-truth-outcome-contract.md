@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-outcome-contract
-status: proposed
+status: active
 ---
 
 # deterministic-truth-outcome-contract
@@ -23,11 +23,11 @@ results.json; pipeline statuses; UI outcome labels
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-04-28-deterministic-truth-outcome-contract-spec.md
 
 ## Linked Plan
 
-- none yet
+- docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
 
 ## Notes
 

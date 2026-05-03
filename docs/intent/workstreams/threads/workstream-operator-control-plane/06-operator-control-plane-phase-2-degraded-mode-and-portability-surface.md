@@ -1,6 +1,6 @@
 ---
 thread_id: workstream-operator-control-plane.operator-control-plane-phase-2-degraded-mode-and-portability-surface
-status: proposed
+status: completed
 ---
 
 # operator-control-plane-phase-2-degraded-mode-and-portability-surface
@@ -28,4 +28,3 @@ run detail; settings-used narrative; lifecycle/replay/approval messaging
 ## Notes
 
 This thread does not change acceptance authority. It clarifies how authority and degraded evidence state are shown to operators.
-

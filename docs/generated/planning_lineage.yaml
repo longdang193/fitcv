@@ -7,11 +7,11 @@ workstreams:
   status: active
   path: docs/intent/workstreams/workstream-agentic-observability.md
   thread_count: 7
-  completed_thread_count: 0
+  completed_thread_count: 2
   derived_completion: in_progress
   threads:
   - thread_id: workstream-agentic-observability.agentic-observability-event-contract
-    status: proposed
+    status: active
     path: docs/intent/workstreams/threads/workstream-agentic-observability/01-agentic-observability-event-contract.md
     specs:
     - docs/superpowers/specs/2026-04-28-agentic-observability-event-contract-spec.md
@@ -53,20 +53,20 @@ workstreams:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     derived_completion: in_progress
   - thread_id: workstream-agentic-observability.agentic-observability-otel-id-and-trace-context-alignment
-    status: proposed
+    status: completed
     path: docs/intent/workstreams/threads/workstream-agentic-observability/06-agentic-observability-otel-id-and-trace-context-alignment.md
     specs:
     - docs/superpowers/specs/2026-05-02-phase-2-observability-otel-trace-context-spec.md
     plans: []
-    derived_completion: in_progress
+    derived_completion: completed
   - thread_id: workstream-agentic-observability.agentic-observability-otel-export-and-collector-integration
-    status: proposed
+    status: completed
     path: docs/intent/workstreams/threads/workstream-agentic-observability/07-agentic-observability-otel-export-and-collector-integration.md
     specs:
     - docs/superpowers/specs/2026-05-02-phase-2-opentelemetry-export-collector-integration-spec.md
     plans:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
-    derived_completion: in_progress
+    derived_completion: completed
 - workstream_id: workstream-agentic-synonym-management
   status: active
   path: docs/intent/workstreams/workstream-agentic-synonym-management.md
@@ -124,7 +124,7 @@ workstreams:
   derived_completion: in_progress
   threads:
   - thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-analysis-grounding
-    status: proposed
+    status: active
     path: docs/intent/workstreams/threads/workstream-bounded-agentic-cv-quality/01-agentic-cv-quality-analysis-grounding.md
     specs:
     - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
@@ -159,30 +159,36 @@ workstreams:
   derived_completion: in_progress
   threads:
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-outcome-contract
-    status: proposed
+    status: active
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/01-deterministic-truth-outcome-contract.md
     specs:
     - docs/superpowers/specs/2026-04-28-deterministic-truth-outcome-contract-spec.md
     plans: []
     derived_completion: in_progress
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-stage-artifact-contract
-    status: proposed
+    status: active
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/02-deterministic-truth-stage-artifact-contract.md
-    specs: []
-    plans: []
-    derived_completion: not_started
+    specs:
+    - docs/superpowers/specs/2026-05-03-deterministic-truth-stage-artifact-contract-bootstrap-spec.md
+    plans:
+    - docs/superpowers/plans/2026-05-03-deterministic-truth-stage-artifact-contract-bootstrap-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-results-ledger-contract
-    status: proposed
+    status: active
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/03-deterministic-truth-results-ledger-contract.md
-    specs: []
-    plans: []
-    derived_completion: not_started
+    specs:
+    - docs/superpowers/specs/2026-05-03-deterministic-truth-results-ledger-contract-bootstrap-spec.md
+    plans:
+    - docs/superpowers/plans/2026-05-03-deterministic-truth-results-ledger-contract-bootstrap-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-agentic-gate-integration
-    status: proposed
+    status: active
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/04-deterministic-truth-agentic-gate-integration.md
-    specs: []
-    plans: []
-    derived_completion: not_started
+    specs:
+    - docs/superpowers/specs/2026-05-03-deterministic-truth-agentic-gate-integration-bootstrap-spec.md
+    plans:
+    - docs/superpowers/plans/2026-05-03-deterministic-truth-agentic-gate-integration-bootstrap-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-policy-versioned-stage-result-envelope
     status: completed
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/05-deterministic-truth-policy-versioned-stage-result-envelope.md
@@ -200,7 +206,7 @@ workstreams:
   status: active
   path: docs/intent/workstreams/workstream-fitcv-semantic-spine.md
   thread_count: 7
-  completed_thread_count: 0
+  completed_thread_count: 3
   derived_completion: in_progress
   threads:
   - thread_id: workstream-fitcv-semantic-spine.semantic-spine-input-mode-parity
@@ -232,33 +238,33 @@ workstreams:
     plans: []
     derived_completion: not_started
   - thread_id: workstream-fitcv-semantic-spine.semantic-spine-phase-2-source-of-truth-boundary
-    status: proposed
+    status: completed
     path: docs/intent/workstreams/threads/workstream-fitcv-semantic-spine/05-semantic-spine-phase-2-source-of-truth-boundary.md
     specs:
     - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
     plans: []
-    derived_completion: in_progress
+    derived_completion: completed
   - thread_id: workstream-fitcv-semantic-spine.semantic-spine-prefect-orchestration-adoption
-    status: proposed
+    status: completed
     path: docs/intent/workstreams/threads/workstream-fitcv-semantic-spine/06-semantic-spine-prefect-orchestration-adoption.md
     specs:
     - docs/superpowers/specs/2026-05-02-phase-2-prefect-orchestration-adoption-spec.md
     plans:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-i-prefect-orchestration-adoption.md
-    derived_completion: in_progress
+    derived_completion: completed
   - thread_id: workstream-fitcv-semantic-spine.semantic-spine-component-boundary-and-interface-contract
-    status: proposed
+    status: completed
     path: docs/intent/workstreams/threads/workstream-fitcv-semantic-spine/07-semantic-spine-component-boundary-and-interface-contract.md
     specs:
     - docs/superpowers/specs/2026-05-02-phase-2-component-boundary-interface-contract-spec.md
     plans:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
-    derived_completion: in_progress
+    derived_completion: completed
 - workstream_id: workstream-operator-control-plane
   status: active
   path: docs/intent/workstreams/workstream-operator-control-plane.md
   thread_count: 6
-  completed_thread_count: 0
+  completed_thread_count: 1
   derived_completion: in_progress
   threads:
   - thread_id: workstream-operator-control-plane.operator-control-plane-trigger-and-mode-contract
@@ -268,11 +274,12 @@ workstreams:
     plans: []
     derived_completion: not_started
   - thread_id: workstream-operator-control-plane.operator-control-plane-run-detail-truth
-    status: proposed
+    status: active
     path: docs/intent/workstreams/threads/workstream-operator-control-plane/02-operator-control-plane-run-detail-truth.md
     specs:
     - docs/superpowers/specs/2026-04-28-operator-control-plane-run-detail-truth-spec.md
-    plans: []
+    plans:
+    - docs/superpowers/plans/2026-05-03-operator-control-plane-run-detail-truth-bootstrap-plan.md
     derived_completion: in_progress
   - thread_id: workstream-operator-control-plane.operator-control-plane-settings-surface-alignment
     status: proposed
@@ -299,14 +306,14 @@ workstreams:
     - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
     derived_completion: in_progress
   - thread_id: workstream-operator-control-plane.operator-control-plane-phase-2-degraded-mode-and-portability-surface
-    status: proposed
+    status: completed
     path: docs/intent/workstreams/threads/workstream-operator-control-plane/06-operator-control-plane-phase-2-degraded-mode-and-portability-surface.md
     specs:
     - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
     plans:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    derived_completion: in_progress
+    derived_completion: completed
 - workstream_id: workstream-pipeline-efficiency-and-reuse
   status: active
   path: docs/intent/workstreams/workstream-pipeline-efficiency-and-reuse.md

@@ -1,6 +1,6 @@
 ---
 thread_id: workstream-fitcv-semantic-spine.semantic-spine-component-boundary-and-interface-contract
-status: proposed
+status: completed
 ---
 
 # semantic-spine-component-boundary-and-interface-contract
