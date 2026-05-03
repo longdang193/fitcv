@@ -1,6 +1,6 @@
 ﻿---
 workstream_id: workstream-deterministic-acceptance-and-artifact-truth
-status: active
+status: completed
 ---
 
 # Workstream: Deterministic Acceptance And Artifact Truth
@@ -49,3 +49,8 @@ In Master Workstream Phase 2, this workstream is the source of truth for:
 - evidence = stage artifacts
 
 It must keep policy-versioned decision authority explicit and require truthful evidence coverage for succeeded, failed, and cancelled run narratives.
+
+Phase 2 closure references:
+
+- `docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md`
+- `docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md`
