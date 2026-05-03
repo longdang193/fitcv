@@ -141,6 +141,7 @@ from fitcv_cp.settings_schema import (
 )
 from fitcv_cp.settings_store import load_active_settings, save_setting, save_settings_group
 from fitcv_cp.synonym_proposals import build_synonym_proposals_payload
+from fitcv_cp.data_plane import data_plane_contract_payload
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 ORCHESTRATION_ADAPTER = get_orchestration_adapter()
 _RUN_SUBMISSION_CACHE: dict[str, RunSubmission] = {}
@@ -348,6 +349,66 @@ RUN_MODE_LABELS = {
     "run_all": "Run All",
     "manual_staged": "Stage by Stage",
 }
+REPLAY_MODES = {"strict", "policy_replay"}
+
+def _policy_registry_version_from_config(config_payload: dict[str, Any] | None) -> str:
+    cfg = dict(config_payload or {})
+    block = dict(cfg.get("policy_registry") or {})
+    return str(block.get("version") or "policy_registry.v1")
+
+def _policy_envelope_signature(config_payload: dict[str, Any] | None) -> str:
+    cfg = dict(config_payload or {})
+    envelope = {
+        "ranking_weights": dict(cfg.get("ranking_weights") or {}),
+        "preference_fit_weights": dict(cfg.get("preference_fit_weights") or {}),
+        "missing_value_defaults": dict(cfg.get("missing_value_defaults") or {}),
+        "fit_label_thresholds": dict(cfg.get("fit_label_thresholds") or {}),
+        "cv": dict(cfg.get("cv") or {}),
+        "pipeline": dict(cfg.get("pipeline") or {}),
+        "prompts_runtime": dict(cfg.get("prompts_runtime") or {}),
+    }
+    payload = _json.dumps(envelope, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+def _checkpoint_replay_context(run: PipelineRun) -> dict[str, Any]:
+    payload = _load_json_object(run.checkpoint_payload_json) or {}
+    replay = payload.get("replay_context")
+    if isinstance(replay, dict):
+        return dict(replay)
+    return {}
+
+def _run_replay_context_summary(run: PipelineRun) -> dict[str, Any]:
+    for raw_payload, source in (
+        (run.results_export_json, "results_export"),
+        (run.settings_used_json, "settings_used"),
+        (run.checkpoint_payload_json, "checkpoint"),
+    ):
+        payload = _load_json_object(raw_payload)
+        if not isinstance(payload, dict):
+            continue
+        replay_context = payload.get("replay_context")
+        if isinstance(replay_context, dict):
+            summary = dict(replay_context)
+            summary["source"] = source
+            return summary
+    return {"replay_mode": "strict", "source": "default"}
+
+def _run_data_plane_summary(run: PipelineRun) -> dict[str, Any]:
+    for raw_payload in (run.settings_used_json, run.results_export_json):
+        payload = _load_json_object(raw_payload)
+        if not isinstance(payload, dict):
+            continue
+        block = payload.get("data_plane")
+        if isinstance(block, dict):
+            return dict(block)
+    effective = _load_run_effective_config_snapshot(run, fallback_to_runtime_config=False)
+    return data_plane_contract_payload(effective)
+
+def _resolve_replay_mode(request: Request) -> str:
+    candidate = str(request.query_params.get("replay_mode") or "").strip().lower()
+    if candidate in REPLAY_MODES:
+        return candidate
+    return "strict"
 
 
 def _apply_trigger_runtime_envelope(
@@ -4568,7 +4629,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         return RedirectResponse(f"/admin/runs/{run_id}", status_code=303)
 
     @app.post("/admin/runs/{run_id}/continue")
-    def admin_continue_run(run_id: str) -> dict:
+    def admin_continue_run(request: Request, run_id: str) -> dict:
         run = get_run(run_id, bq, project=project, dataset=dataset)
         if run is None:
             raise HTTPException(status_code=404, detail="Run not found")
@@ -4585,6 +4646,35 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 status_code=409,
                 detail="Run has no canonical next stage to continue",
             )
+        replay_mode = _resolve_replay_mode(request)
+        effective_config = _load_run_effective_config_snapshot(run)
+        checkpoint_replay = _checkpoint_replay_context(run)
+        prior_policy_signature = str(checkpoint_replay.get("policy_envelope_signature") or "").strip()
+        policy_signature = _policy_envelope_signature(effective_config)
+        policy_registry_version = _policy_registry_version_from_config(effective_config)
+        replay_source_run_id = str(checkpoint_replay.get("replay_source_run_id") or run.run_id)
+        if replay_mode == "strict" and prior_policy_signature and prior_policy_signature != policy_signature:
+            raise HTTPException(
+                status_code=409,
+                detail="Strict replay rejected: policy envelope drift detected",
+            )
+        runtime_inputs = dict(effective_config.get("runtime_inputs") or {})
+        runtime_inputs["replay_context"] = {
+            "replay_mode": replay_mode,
+            "replay_source_run_id": replay_source_run_id,
+            "policy_registry_version": policy_registry_version,
+            "policy_envelope_signature": policy_signature,
+            "requested_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "requested_by": "admin",
+        }
+        effective_config["runtime_inputs"] = runtime_inputs
+        update_run_effective_settings(
+            run_id,
+            _json.dumps(effective_config, ensure_ascii=False),
+            bq,
+            project=project,
+            dataset=dataset,
+        )
         _, queue_job_id = continue_run_with_job_id(
             run_id=run.run_id,
             jobs_path=run.jobs_path,
@@ -4621,14 +4711,23 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 event_id=str(uuid.uuid4()),
                 stage="manual_continue_requested",
                 level="info",
-                message=f"Manual run queued to continue from {canonical_next_stage}",
+                message=f"Manual run queued to continue from {canonical_next_stage} ({replay_mode})",
                 created_at=datetime.datetime.now(datetime.timezone.utc),
+                payload_json=_json.dumps(
+                    {
+                        "replay_mode": replay_mode,
+                        "replay_source_run_id": replay_source_run_id,
+                        "policy_registry_version": policy_registry_version,
+                        "policy_envelope_signature": policy_signature,
+                    },
+                    ensure_ascii=False,
+                ),
             ),
             bq,
             project=project,
             dataset=dataset,
         )
-        return {"status": "queued", "run_id": run.run_id}
+        return {"status": "queued", "run_id": run.run_id, "replay_mode": replay_mode}
 
     @app.post("/admin/runs/{run_id}/archive")
     def admin_archive_run(run_id: str) -> dict:
@@ -4868,6 +4967,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         telemetry_export_health = _run_telemetry_export_health(events)
         dead_letter_replay_summary = _latest_dead_letter_replay_summary(events)
         orchestration_diagnostics = _build_orchestration_diagnostics(run)
+        replay_context_summary = _run_replay_context_summary(run)
+        data_plane_summary = _run_data_plane_summary(run)
 
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
@@ -4905,6 +5006,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "telemetry_export_health": telemetry_export_health,
                 "dead_letter_replay_summary": dead_letter_replay_summary,
                 "orchestration_diagnostics": orchestration_diagnostics,
+                "replay_context_summary": replay_context_summary,
+                "data_plane_summary": data_plane_summary,
             }
         )
 

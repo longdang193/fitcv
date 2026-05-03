@@ -64,6 +64,7 @@ from fitcv_cp.bq_store import (
     update_run_status,
 )
 from fitcv_cp.models import RunEvent, RunStatus
+from fitcv_cp.data_plane import data_plane_contract_payload
 
 logger = logging.getLogger(__name__)
 _MAX_DEBUG_MARKDOWN_CHARS = 4000
@@ -93,6 +94,43 @@ _RUN_MODE_LABELS = {
     "manual_staged": "Stage by Stage",
 }
 _WINDOWS_ABSOLUTE_PATH_PATTERN = re.compile(r"^[A-Za-z]:[\\/]")
+
+def _policy_registry_version(config_payload: dict[str, Any] | None) -> str:
+    cfg = dict(config_payload or {})
+    block = dict(cfg.get("policy_registry") or {})
+    return str(block.get("version") or "policy_registry.v1")
+
+def _policy_envelope_signature(config_payload: dict[str, Any] | None) -> str:
+    cfg = dict(config_payload or {})
+    envelope = {
+        "ranking_weights": dict(cfg.get("ranking_weights") or {}),
+        "preference_fit_weights": dict(cfg.get("preference_fit_weights") or {}),
+        "missing_value_defaults": dict(cfg.get("missing_value_defaults") or {}),
+        "fit_label_thresholds": dict(cfg.get("fit_label_thresholds") or {}),
+        "cv": dict(cfg.get("cv") or {}),
+        "pipeline": dict(cfg.get("pipeline") or {}),
+        "prompts_runtime": dict(cfg.get("prompts_runtime") or {}),
+    }
+    raw = json.dumps(envelope, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+def _resolve_run_replay_context(
+    *,
+    effective_config: dict[str, Any] | None,
+    run_id: str,
+) -> dict[str, Any]:
+    cfg = dict(effective_config or {})
+    runtime_inputs = dict(cfg.get("runtime_inputs") or {})
+    replay = dict(runtime_inputs.get("replay_context") or {})
+    replay_mode = str(replay.get("replay_mode") or "strict").strip().lower() or "strict"
+    if replay_mode not in {"strict", "policy_replay"}:
+        replay_mode = "strict"
+    return {
+        "replay_mode": replay_mode,
+        "replay_source_run_id": str(replay.get("replay_source_run_id") or run_id),
+        "policy_registry_version": str(replay.get("policy_registry_version") or _policy_registry_version(cfg)),
+        "policy_envelope_signature": str(replay.get("policy_envelope_signature") or _policy_envelope_signature(cfg)),
+    }
 
 
 def _get_bq() -> bigquery.Client:
@@ -218,9 +256,11 @@ def _build_results_export_payload(
     *,
     run_id: str,
     run_record: Any,
+    effective_config: dict[str, Any] | None,
     summary: dict[str, Any],
     export_results: list[dict[str, Any]],
     finished_at: datetime.datetime,
+    replay_context: dict[str, Any],
 ) -> str:
     def _json_safe(value: Any) -> Any:
         if isinstance(value, datetime.datetime):
@@ -291,6 +331,13 @@ def _build_results_export_payload(
         },
         "late_stage_mode": _build_late_stage_mode_payload(summary=summary),
         "stage_result_summary": stage_result_summary,
+        "data_plane": data_plane_contract_payload(effective_config),
+        "replay_context": {
+            "replay_mode": str(replay_context.get("replay_mode") or "strict"),
+            "replay_source_run_id": str(replay_context.get("replay_source_run_id") or run_id),
+            "policy_registry_version": str(replay_context.get("policy_registry_version") or "policy_registry.v1"),
+            "policy_envelope_signature": str(replay_context.get("policy_envelope_signature") or ""),
+        },
         "results": _json_safe(export_results),
     }
     if diagnostic_support["late_stage_reuse_snapshots"]:
@@ -468,6 +515,7 @@ def _build_manual_checkpoint_payload(
     run_id: str,
     summary: dict[str, Any],
     created_at: datetime.datetime,
+    replay_context: dict[str, Any],
 ) -> str:
     payload = {
         "run_id": run_id,
@@ -477,6 +525,12 @@ def _build_manual_checkpoint_payload(
         "next_stage": summary.get("next_stage"),
         "completed_stages": list(summary.get("completed_stages") or []),
         "checkpoint_payload": summary.get("checkpoint_payload") or {},
+        "replay_context": {
+            "replay_mode": str(replay_context.get("replay_mode") or "strict"),
+            "replay_source_run_id": str(replay_context.get("replay_source_run_id") or run_id),
+            "policy_registry_version": str(replay_context.get("policy_registry_version") or "policy_registry.v1"),
+            "policy_envelope_signature": str(replay_context.get("policy_envelope_signature") or ""),
+        },
     }
     return json.dumps(payload, ensure_ascii=False)
 
@@ -488,6 +542,7 @@ def _build_settings_used_payload(
     effective_config: dict[str, Any] | None,
     config_path: str,
     finished_at: datetime.datetime,
+    replay_context: dict[str, Any],
 ) -> str:
     effective_settings = dict(effective_config or {})
     compatibility_projection = {
@@ -519,6 +574,13 @@ def _build_settings_used_payload(
                 if isinstance((effective_config or {}).get("prompts_runtime"), dict)
                 else None
             ),
+        },
+        "data_plane": data_plane_contract_payload(effective_config),
+        "replay_context": {
+            "replay_mode": str(replay_context.get("replay_mode") or "strict"),
+            "replay_source_run_id": str(replay_context.get("replay_source_run_id") or run_id),
+            "policy_registry_version": str(replay_context.get("policy_registry_version") or "policy_registry.v1"),
+            "policy_envelope_signature": str(replay_context.get("policy_envelope_signature") or ""),
         },
     }
     if compatibility_projection:
@@ -1080,6 +1142,10 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             except Exception as exc:
                 logger.warning("[run_id=%s] Failed to parse effective_settings_json: %s", run_id, exc)
         effective_config = _normalize_runtime_service_account_key(effective_config, run_id=run_id)
+        replay_context = _resolve_run_replay_context(
+            effective_config=effective_config,
+            run_id=run_id,
+        )
         run_mode = str(getattr(run_record, "run_mode", "run_all") or "run_all")
         next_stage = getattr(run_record, "next_stage", None) or "normalize"
         checkpoint_payload: dict[str, Any] | None = None
@@ -1195,6 +1261,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     run_id=run_id,
                     summary=summary,
                     created_at=checkpoint_time,
+                    replay_context=replay_context,
                 ),
             )
             try:
@@ -1357,9 +1424,11 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 _build_results_export_payload(
                     run_id=run_id,
                     run_record=run_record,
+                    effective_config=effective_config,
                     summary=summary,
                     export_results=export_results,
                     finished_at=finished_at,
+                    replay_context=replay_context,
                 ),
                 bq,
                 project=project,
@@ -1406,6 +1475,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     effective_config=effective_config,
                     config_path=config_path,
                     finished_at=finished_at,
+                    replay_context=replay_context,
                 ),
                 bq,
                 project=project,
