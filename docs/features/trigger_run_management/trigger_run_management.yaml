@@ -206,6 +206,7 @@ stage_participation:
 refs:
   code:
   - scripts/check_outbox_replay_health.py
+  - scripts/route_outbox_replay_health_alert.py
   - src/fitcv_cp/app.py
   - src/fitcv_cp/bq_store.py
   - src/fitcv_cp/orchestrator.py
