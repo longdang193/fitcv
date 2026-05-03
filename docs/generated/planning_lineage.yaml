@@ -158,32 +158,32 @@ workstreams:
   derived_completion: in_progress
   threads:
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-outcome-contract
-    status: proposed
+    status: dropped
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/01-deterministic-truth-outcome-contract.md
     specs:
     - docs/superpowers/specs/2026-04-28-deterministic-truth-outcome-contract-spec.md
     plans: []
     derived_completion: in_progress
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-stage-artifact-contract
-    status: proposed
+    status: dropped
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/02-deterministic-truth-stage-artifact-contract.md
     specs: []
     plans: []
     derived_completion: not_started
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-results-ledger-contract
-    status: proposed
+    status: dropped
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/03-deterministic-truth-results-ledger-contract.md
     specs: []
     plans: []
     derived_completion: not_started
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-agentic-gate-integration
-    status: proposed
+    status: dropped
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/04-deterministic-truth-agentic-gate-integration.md
     specs: []
     plans: []
     derived_completion: not_started
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-policy-versioned-stage-result-envelope
-    status: proposed
+    status: dropped
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/05-deterministic-truth-policy-versioned-stage-result-envelope.md
     specs:
     - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md

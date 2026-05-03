@@ -1,10 +1,14 @@
 ---
 layer: change
-artifact_type: implementation_execution_map
+artifact_type: execution_map
 status: proposed
 source_spec:
   - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
 parent_thread: workstream-agentic-synonym-management.agentic-synonym-review-queue-and-approval
+threads:
+  - workstream-agentic-synonym-management.agentic-synonym-review-queue-and-approval
+specs:
+  - docs/superpowers/specs/2026-05-01-apply-approved-to-run-and-synonym-review-drift-remediation-spec.md
 targets:
   - src/fitcv_cp/app.py
   - src/fitcv_cp/templates/run_detail.html
@@ -12,8 +16,9 @@ targets:
   - docs/usage.md
   - docs/observability.md
   - tests/test_fitcv_cp/test_app.py
+map_type: implementation_execution
+parent_workstream: workstream-agentic-synonym-management
 ---
-
 # Apply Approved To Run And Synonym Review Drift Remediation — Implementation Execution Map
 
 ## Execution Goal

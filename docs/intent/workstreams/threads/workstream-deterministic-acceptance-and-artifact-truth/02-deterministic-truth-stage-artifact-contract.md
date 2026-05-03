@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-stage-artifact-contract
-status: proposed
+status: dropped
 ---
 
 # deterministic-truth-stage-artifact-contract

@@ -8,13 +8,14 @@ threads:
   - workstream-agentic-observability.agentic-observability-shared-trace-standard
   - workstream-agentic-observability.agentic-observability-provider-provenance
   - workstream-agentic-observability.agentic-observability-synonym-proposal-trace
+  - workstream-agentic-observability.agentic-observability-operator-surface
+  - workstream-agentic-observability.agentic-observability-event-contract
 specs:
   - docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
   - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
   - docs/superpowers/specs/2026-04-28-agentic-run-mode-and-synonym-proposal-observability-spec.md
   - docs/superpowers/specs/2026-04-28-agentic-observability-event-contract-spec.md
 ---
-
 # Agentic Shared Trace Standard Implementation Execution Map
 
 ## Scope

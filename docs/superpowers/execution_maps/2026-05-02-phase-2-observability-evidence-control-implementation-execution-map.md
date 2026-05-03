@@ -1,6 +1,6 @@
 ---
 layer: workstream
-artifact_type: implementation_execution_map
+artifact_type: execution_map
 status: proposed
 source_spec:
   - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
@@ -9,6 +9,18 @@ source_spec:
   - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
   - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
 parent_thread: workstream-agentic-observability.agentic-observability-otel-id-and-trace-context-alignment
+threads:
+  - workstream-agentic-observability.agentic-observability-otel-id-and-trace-context-alignment
+  - workstream-agentic-observability.agentic-observability-shared-trace-standard
+  - workstream-fitcv-semantic-spine.semantic-spine-phase-2-source-of-truth-boundary
+  - workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-policy-versioned-stage-result-envelope
+  - workstream-operator-control-plane.operator-control-plane-phase-2-degraded-mode-and-portability-surface
+specs:
+  - docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+  - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
+  - docs/superpowers/specs/2026-05-02-phase-2-observability-otel-trace-context-spec.md
+  - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
+  - docs/superpowers/specs/2026-05-02-phase-2-control-plane-degraded-mode-portability-spec.md
 targets:
   - docs/intent/master-workstream-roadmap.md
   - docs/intent/workstreams/workstream-fitcv-semantic-spine.md
@@ -27,8 +39,9 @@ targets:
   - docs/configuration.md
   - docs/api.md
   - docs/usage.md
+map_type: implementation_execution
+parent_workstream: none
 ---
-
 # Phase 2 Observability Evidence Control — Implementation Execution Map
 
 ## Execution Goal
