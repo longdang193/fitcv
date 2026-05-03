@@ -1,3 +1,15 @@
+---
+layer: change
+artifact_type: execution_map
+status: proposed
+parent_workstream: workstream-agentic-synonym-management
+map_type: implementation_execution
+threads:
+  - workstream-agentic-synonym-management.agentic-synonym-proposal-engine
+specs:
+  - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
+---
+
 # 2026-05-02 Updated Synonym Management (Domain + Role Family) Implementation Execution Map
 
 ## Metadata

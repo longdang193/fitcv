@@ -2,7 +2,7 @@
 layer: change
 artifact_type: execution_map
 status: proposed
-parent_workstream: workstream-agentic-synonym-management
+parent_workstream: none
 map_type: implementation_execution
 threads:
   - workstream-agentic-synonym-management.agentic-synonym-review-queue-and-approval
@@ -10,7 +10,6 @@ threads:
 specs:
   - docs/superpowers/specs/2026-04-30-hitl-first-agentic-assisted-synonym-review-policy-spec.md
 ---
-
 # HITL-First Agentic-Assisted Synonym Review Policy Implementation Execution Map
 
 ## Scope

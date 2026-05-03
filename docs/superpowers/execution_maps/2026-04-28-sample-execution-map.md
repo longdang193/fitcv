@@ -2,15 +2,13 @@
 layer: change
 artifact_type: execution_map
 status: proposed
-parent_workstream: starter-adoption-experience
+parent_workstream: none
 threads:
-  - starter-adoption-experience.prompt-template-metadata-and-validation
-  - starter-adoption-experience.adoption-prompt-discoverability-without-duplication
+  - workstream-agentic-observability.agentic-observability-event-contract
 specs:
-  - docs/superpowers/specs/2026-04-28-planning-lineage-minimal-metadata-and-validator-spec.md
-  - docs/superpowers/specs/2026-04-28-derived-thread-linkage-via-planning-lineage-spec.md
+  - docs/superpowers/specs/2026-04-28-agentic-observability-event-contract-spec.md
+map_type: implementation_execution
 ---
-
 # Sample Execution Map
 
 ## Scope

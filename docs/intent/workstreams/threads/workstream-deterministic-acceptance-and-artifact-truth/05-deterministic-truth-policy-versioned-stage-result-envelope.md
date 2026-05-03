@@ -1,6 +1,6 @@
 ---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-policy-versioned-stage-result-envelope
-status: proposed
+status: dropped
 ---
 
 # deterministic-truth-policy-versioned-stage-result-envelope

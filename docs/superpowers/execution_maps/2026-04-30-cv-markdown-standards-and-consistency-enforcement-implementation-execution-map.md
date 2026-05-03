@@ -1,7 +1,8 @@
+---
 layer: change
 artifact_type: execution_map
 status: proposed
-parent_workstream: workstream-bounded-agentic-cv-quality
+parent_workstream: none
 map_type: implementation_execution
 threads:
   - workstream-bounded-agentic-cv-quality.agentic-cv-quality-analysis-grounding

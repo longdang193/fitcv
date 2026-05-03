@@ -2,7 +2,7 @@
 layer: change
 artifact_type: execution_map
 status: proposed
-parent_workstream: workstream-operator-control-plane
+parent_workstream: none
 map_type: implementation_execution
 threads:
   - workstream-operator-control-plane.operator-control-plane-agentic-review-actions
@@ -10,7 +10,6 @@ threads:
 specs:
   - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
 ---
-
 # HITL + Extended Agentic CV Analysis Implementation Execution Map
 
 ## Scope
