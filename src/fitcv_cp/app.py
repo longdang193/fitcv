@@ -87,6 +87,7 @@ import datetime
 import hashlib
 import io
 import json as _json
+import logging
 import os
 import uuid
 import zipfile
@@ -105,6 +106,7 @@ from fitcv.config import (
     apply_runtime_skill_synonym_overlay,
     apply_runtime_synonym_overlay,
     load_config,
+    load_control_plane_config,
     parse_runtime_synonym_overlay_yaml,
     parse_skill_synonym_overlay_yaml,
 )
@@ -150,9 +152,19 @@ from fitcv_cp.settings_schema import (
 from fitcv_cp.settings_store import load_active_settings, save_setting, save_settings_group
 from fitcv_cp.synonym_proposals import build_synonym_proposals_payload
 from fitcv_cp.data_plane import data_plane_contract_payload
+from fitcv_cp.observability import emit_observability_event
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 ORCHESTRATION_ADAPTER = get_orchestration_adapter()
 _RUN_SUBMISSION_CACHE: dict[str, RunSubmission] = {}
+logger = logging.getLogger(__name__)
+
+
+def _observability_toggles() -> tuple[bool, bool]:
+    cfg = load_control_plane_config()
+    obs = dict(cfg.get("observability") or {})
+    return bool(obs.get("emit_model_routing_diagnostics", False)), bool(
+        obs.get("emit_backend_capability_diagnostics", False)
+    )
 
 
 def enqueue_run_with_job_id(
@@ -180,13 +192,40 @@ def submit_run(
     redis_url: str = "redis://redis:6379/0",
     run_id: str | None = None,
 ) -> RunSubmission:
-    return ORCHESTRATION_ADAPTER.submit(
+    submission = ORCHESTRATION_ADAPTER.submit(
         jobs_path=jobs_path,
         config_path=config_path,
         triggered_by=triggered_by,
         redis_url=redis_url,
         run_id=run_id,
     )
+    emit_routing, emit_backend = _observability_toggles()
+    if emit_backend:
+        emit_observability_event(
+            "control_plane.backend_execution",
+            {
+                "run_id": submission.run_id,
+                "trace_id": submission.run_id,
+                "stage": "submit_run",
+                "task_part": "enqueue_run",
+                "backend": submission.backend,
+                "backend_run_id": submission.backend_run_id or submission.queue_job_id,
+                "queue_job_id": submission.queue_job_id,
+            },
+        )
+    if emit_routing:
+        emit_observability_event(
+            "control_plane.model_routing",
+            {
+                "run_id": submission.run_id,
+                "trace_id": submission.run_id,
+                "stage": "submit_run",
+                "task_part": "enqueue_run",
+                "provider": "orchestration_adapter",
+                "model": str(ORCHESTRATION_ADAPTER.name or "default_queue"),
+            },
+        )
+    return submission
 
 
 def enqueue_run(
@@ -231,12 +270,27 @@ def _resolve_submission_binding(run_id: str, queue_job_id: str) -> RunSubmission
     if submission is not None:
         return submission
     backend = str(ORCHESTRATION_ADAPTER.name or "default_queue")
-    return RunSubmission(
+    submission = RunSubmission(
         run_id=run_id,
         queue_job_id=queue_job_id,
         backend_run_id=queue_job_id,
         backend=backend,
     )
+    _, emit_backend = _observability_toggles()
+    if emit_backend:
+        emit_observability_event(
+            "control_plane.backend_fallback_binding",
+            {
+                "run_id": submission.run_id,
+                "trace_id": submission.run_id,
+                "stage": "resolve_submission_binding",
+                "task_part": "binding_fallback",
+                "backend": submission.backend,
+                "backend_run_id": submission.backend_run_id,
+                "queue_job_id": submission.queue_job_id,
+            },
+        )
+    return submission
 
 def continue_run_submission(
     *,

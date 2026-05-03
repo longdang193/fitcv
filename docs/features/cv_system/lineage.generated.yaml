@@ -549,9 +549,19 @@ capabilities:
       source:
       - docs_frontmatter
     configs:
+    - config/taxonomy/domain_synonyms.yaml
+    - config/taxonomy/role_family_synonyms.yaml
     - config/taxonomy/skill_synonyms.yaml
     - config/taxonomy/taxonomy.yaml
     config_evidence:
+    - path: config/taxonomy/domain_synonyms.yaml
+      confidence: high
+      source:
+      - yaml_architecture
+    - path: config/taxonomy/role_family_synonyms.yaml
+      confidence: high
+      source:
+      - yaml_architecture
     - path: config/taxonomy/skill_synonyms.yaml
       confidence: high
       source:

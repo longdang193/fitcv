@@ -63,6 +63,8 @@ Runtime toggles:
 - `FITCV_OTEL_ENABLED` (`true`/`false`)
 - `FITCV_OTEL_EXPORTER_OTLP_ENDPOINT` (OTLP HTTP endpoint)
 - `FITCV_OTEL_SERVICE_NAME` (optional, defaults to `fitcv-control-plane`)
+- `control_plane.observability.emit_model_routing_diagnostics` (runtime routing event toggle)
+- `control_plane.observability.emit_backend_capability_diagnostics` (backend diagnostics event toggle)
 
 Collector example:
 
@@ -91,6 +93,19 @@ Quick troubleshooting:
   - install OpenTelemetry SDK/exporter dependencies in runtime image/venv
 - `status=degraded`, `degradation_reason=otel_exporter_init_failed`
   - verify endpoint reachability, protocol path, and collector health
+
+### Control-Plane Structured Diagnostics
+
+Control-plane enqueue and backend-binding paths now emit structured diagnostics:
+
+- `control_plane.backend_execution`
+- `control_plane.model_routing`
+- `control_plane.backend_fallback_binding`
+
+Current required fields include:
+
+- request identity: `run_id`, `trace_id`, `stage`, `task_part`
+- backend/routing facts: backend identifiers, queue/backend run ids, provider/model labels
 
 ### Raw run events
 
