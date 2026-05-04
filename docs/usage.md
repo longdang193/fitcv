@@ -14,101 +14,47 @@ explains:
 
 # Usage
 
-FitCV has two main usage tracks:
+FitCV usage splits into operator usage (UI/API) and engineering usage (runtime/tests/docs sync).
 
-- **operator usage** through the admin UI and run-detail surfaces
-- **engineering usage** through local runtime, tests, and managed-doc workflows
+## Operator Flow
 
-This page is a current-state summary, not the detailed contract for every
-screen or stage.
+Entry point: `/admin/runs`
 
-## Operator Workflow
+1. trigger a run (path/upload/paste)
+2. choose run mode (`Run All` or `Stage by Stage`)
+3. monitor events, stage progress, and lifecycle state
+4. inspect run detail tabs and stage artifacts
+5. export evidence (`export.json`, `cv-debug.json`, `settings-used.json`, stage artifacts, artifacts zip)
 
-The main entrypoint is:
+## Lifecycle Actions
 
-```text
-http://localhost:8000/admin/runs
-```
+- stop/cancel
+- continue from checkpoints
+- archive/unarchive
+- reconciliation and repair actions when needed
 
-A typical operator flow is:
+## Settings Workflow
 
-1. trigger a run from uploaded files, pasted JSON, or path-based input
-2. choose `Run All` or `Stage by Stage`
-3. inspect stage progress, run health, and timeline events
-4. open run detail to review job outcomes and stage-owned artifacts
-5. download exports such as:
-   - run results
-   - CV debug data
-   - settings used
-   - mapping suggestions
-   - approved synonym overlay YAML (run-approved delta only)
-   - global synonym YAML (full canonical map)
-   - stage artifacts
-   - artifact bundles
-6. continue, cancel, archive, or repair a run when lifecycle action is needed
-
-The settings surface at `/admin/settings` is part of normal operator use when
-runtime tuning is required.
-
-When using `/admin/settings`, keep the truth hierarchy in mind:
-
-1. the page edits future-run defaults, not past runs
-2. fixed runtime-owned fields may appear as metadata instead of editable inputs
-3. per-run overrides are captured at trigger time
-4. `settings-used.json` on a completed run is the historical source of truth
-
-Within `/admin/settings`, the `Agentic` section is where operators adjust the
-bounded agentic defaults that actually affect future runs. Use that section for
-late-stage agentic enablement and semantic-alignment tuning, then use run
-detail plus `settings-used.json` on completed runs to confirm what a specific
-run actually used and did.
-
-For synonym review flows:
-
-1. review run-scoped proposals in run detail
-2. approve/defer/reject (single or batch)
-3. apply approved pairs to this run for downstream stages
-4. optionally export approved overlay YAML (delta-only)
-5. promote approved rows to global with preview/confirm
-
-Promotion is merge/overlay behavior, not full replacement of the canonical
-global synonym file.
+Use `/admin/settings` to tune future-run defaults. Use run-level `settings-used.json` for what a specific run actually used.
 
 ## Engineering Workflow
 
-The everyday engineering loop is:
+1. run app/worker in sqlite or bigquery mode
+2. reproduce/verify via live run
+3. run focused tests
+4. run contract/validator checks before merge
 
-1. update code, config, or docs
-2. run the web and worker locally or through Docker
-3. use the admin UI and API surfaces to validate behavior
-4. run targeted tests
-5. run repo contract checks before merging
-
-For doc and metadata work, the standard checks are:
-
-```powershell
-python scripts/sync_architecture_docs.py --check
-python scripts/validate_repo_contracts.py --fast
-```
-
-## Useful Runtime Surfaces
-
-Primary API and UI surfaces include:
+## Key Surfaces
 
 - `GET /healthz`
 - `POST /runs`
-- `GET /runs`
 - `GET /runs/{run_id}`
-- `GET /admin/runs`
-- `GET /admin/runs/{run_id}`
-- `GET /admin/settings`
+- `/admin/runs`
+- `/admin/runs/{run_id}`
+- `/admin/settings`
 
-The admin run-detail page is the most important inspection surface because it
-pulls together stage progress, artifacts, exports, and lifecycle actions.
+## Related Docs
 
-## What To Read Next
-
-- [setup.md](setup.md) for startup and environment expectations
-- [pipeline.md](pipeline.md) for stage flow and checkpoint model
-- [architecture.md](architecture.md) for the runtime and managed-doc layout
-- [FitCV-pipeline.md](FitCV-pipeline.md) for the fuller pipeline explainer
+- [setup.md](setup.md)
+- [pipeline.md](pipeline.md)
+- [architecture.md](architecture.md)

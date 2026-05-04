@@ -217,13 +217,13 @@ capabilities:
       source:
       - python_proves
       symbols:
-      - test_reporter_noop_without_bq
+      - test_reporter_payload_serialized
     - path: tests/test_fitcv_cp/test_reporter.py
       confidence: high
       source:
       - python_proves
       symbols:
-      - test_reporter_payload_serialized
+      - test_reporter_persists_local_event_without_bq
     docs:
     - docs/features/admin_control_plane_core/history.md
     docs_evidence:
