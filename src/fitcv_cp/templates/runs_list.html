@@ -12,7 +12,7 @@
   </div>
 </div>
 
-{% if pipeline_runs_schema_status and pipeline_runs_schema_status.status != 'complete' %}
+{% if pipeline_runs_schema_status and pipeline_runs_schema_status.status == 'fallback' %}
 <div class="card" style="border:1px solid var(--badge-warning-fg);margin-bottom:0.9rem">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.8rem;flex-wrap:wrap">
     <div>
