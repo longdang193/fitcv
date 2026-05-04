@@ -216,7 +216,6 @@ refs:
   - config/runtime/prompts.yaml
   - config/taxonomy/domain_synonyms.yaml
   - config/taxonomy/role_family_synonyms.yaml
-  - config/taxonomy/skill_synonyms.yaml
   - config/taxonomy/taxonomy.yaml
   components: []
 revision: 7

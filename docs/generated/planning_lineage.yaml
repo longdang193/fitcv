@@ -1,23 +1,23 @@
 roadmap:
   path: docs/intent/master-workstream-roadmap.md
   workstream_count: 7
-  completed_workstream_count: 0
+  completed_workstream_count: 1
 workstreams:
 - workstream_id: workstream-agentic-observability
   status: active
   path: docs/intent/workstreams/workstream-agentic-observability.md
   thread_count: 7
-  completed_thread_count: 2
+  completed_thread_count: 4
   derived_completion: in_progress
   threads:
   - thread_id: workstream-agentic-observability.agentic-observability-event-contract
-    status: active
+    status: completed
     path: docs/intent/workstreams/threads/workstream-agentic-observability/01-agentic-observability-event-contract.md
     specs:
     - docs/superpowers/specs/2026-04-28-agentic-observability-event-contract-spec.md
     plans:
     - docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
-    derived_completion: in_progress
+    derived_completion: completed
   - thread_id: workstream-agentic-observability.agentic-observability-operator-surface
     status: proposed
     path: docs/intent/workstreams/threads/workstream-agentic-observability/02-agentic-observability-operator-surface.md
@@ -27,14 +27,14 @@ workstreams:
     - docs/superpowers/plans/2026-04-28-agentic-run-mode-and-synonym-proposal-observability-plan.md
     derived_completion: in_progress
   - thread_id: workstream-agentic-observability.agentic-observability-provider-provenance
-    status: proposed
+    status: completed
     path: docs/intent/workstreams/threads/workstream-agentic-observability/03-agentic-observability-provider-provenance.md
     specs:
     - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
     - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
     plans:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
-    derived_completion: in_progress
+    derived_completion: completed
   - thread_id: workstream-agentic-observability.agentic-observability-synonym-proposal-trace
     status: proposed
     path: docs/intent/workstreams/threads/workstream-agentic-observability/04-agentic-observability-synonym-proposal-trace.md
@@ -158,43 +158,43 @@ workstreams:
     plans: []
     derived_completion: in_progress
 - workstream_id: workstream-deterministic-acceptance-and-artifact-truth
-  status: active
+  status: completed
   path: docs/intent/workstreams/workstream-deterministic-acceptance-and-artifact-truth.md
   thread_count: 5
-  completed_thread_count: 1
-  derived_completion: in_progress
+  completed_thread_count: 5
+  derived_completion: completed
   threads:
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-outcome-contract
-    status: active
+    status: completed
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/01-deterministic-truth-outcome-contract.md
     specs:
     - docs/superpowers/specs/2026-04-28-deterministic-truth-outcome-contract-spec.md
     plans: []
-    derived_completion: in_progress
+    derived_completion: completed
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-stage-artifact-contract
-    status: active
+    status: completed
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/02-deterministic-truth-stage-artifact-contract.md
     specs:
     - docs/superpowers/specs/2026-05-03-deterministic-truth-stage-artifact-contract-bootstrap-spec.md
     plans:
     - docs/superpowers/plans/2026-05-03-deterministic-truth-stage-artifact-contract-bootstrap-plan.md
-    derived_completion: in_progress
+    derived_completion: completed
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-results-ledger-contract
-    status: active
+    status: completed
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/03-deterministic-truth-results-ledger-contract.md
     specs:
     - docs/superpowers/specs/2026-05-03-deterministic-truth-results-ledger-contract-bootstrap-spec.md
     plans:
     - docs/superpowers/plans/2026-05-03-deterministic-truth-results-ledger-contract-bootstrap-plan.md
-    derived_completion: in_progress
+    derived_completion: completed
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-agentic-gate-integration
-    status: active
+    status: completed
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/04-deterministic-truth-agentic-gate-integration.md
     specs:
     - docs/superpowers/specs/2026-05-03-deterministic-truth-agentic-gate-integration-bootstrap-spec.md
     plans:
     - docs/superpowers/plans/2026-05-03-deterministic-truth-agentic-gate-integration-bootstrap-plan.md
-    derived_completion: in_progress
+    derived_completion: completed
   - thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-policy-versioned-stage-result-envelope
     status: completed
     path: docs/intent/workstreams/threads/workstream-deterministic-acceptance-and-artifact-truth/05-deterministic-truth-policy-versioned-stage-result-envelope.md
@@ -322,6 +322,8 @@ workstreams:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     - docs/superpowers/plans/2026-05-03-14-20-phase-2-architecture-hardening-and-portability-plan.md
     - docs/superpowers/plans/2026-05-03-16-50-sqlite-e2e-backend-runtime-plan.md
+    - docs/superpowers/plans/2026-05-04-14-40-ranking-and-cv-provider-routing-hardening-plan.md
+    - docs/superpowers/plans/2026-05-04-provider-storage-agnostic-parity-implementation-plan.md
     derived_completion: completed
 - workstream_id: workstream-pipeline-efficiency-and-reuse
   status: active

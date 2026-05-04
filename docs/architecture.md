@@ -14,88 +14,47 @@ explains:
 
 # Architecture
 
-FitCV combines a control plane, a staged background pipeline, shared runtime
-configuration, and a managed architecture-metadata documentation layer.
+FitCV architecture has four cross-cutting layers:
 
-## Runtime Components
+1. control plane (`src/fitcv_cp`)
+2. pipeline runtime (`src/fitcv`)
+3. backend/provider adapters and runtime routing
+4. managed architecture metadata + generated contract outputs
 
-### Control plane
+## Runtime Surfaces
 
-`src/fitcv_cp/` owns:
+### Control Plane
 
-- the FastAPI app and HTML admin surfaces
-- run triggering and lifecycle actions
-- settings management
-- run-detail inspection and exports
-- queue handoff and worker integration
-- BigQuery-backed persistence adapters for run state and events
+Owns trigger/lifecycle APIs, admin UI, run-detail inspection, settings surfaces, orchestration binding, and run/event persistence adapters.
 
-### Pipeline runtime
+### Pipeline Runtime
 
-`src/fitcv/` owns:
+Owns stage execution, ranking and CV lanes, validation, artifact emission, and stage-level truth.
 
-- stage execution logic
-- candidate/job normalization and enrichment
-- deterministic filtering, shortlist retrieval, and ranking
-- CV analysis and CV generation
-- contracts, evidence handling, validation, and repair behavior
+## Portability and Routing
 
-### Supporting services
+- backend portability: sqlite and bigquery supported behind shared runtime/store surfaces
+- provider portability: model-routing parts + provider registry resolve runtime clients
+- secrets: env-only
 
-- Redis provides the queue backend
-- RQ provides background execution
-- BigQuery persists run rows, events, structured intermediate data, and CV
-  outputs
+## Orchestration and Observability
 
-## System Boundaries
+- queue/default orchestration and optional alternate orchestration integration
+- structured run events, stage artifacts, and trace-context surfaces
+- operator-facing exports are primary evidence boundaries
 
-The main runtime boundary is between:
+## Managed Documentation Model
 
-1. the operator-facing control plane that captures inputs, snapshots settings,
-   and exposes inspection
-2. the worker-driven pipeline that executes staged processing and emits
-   artifacts and events
+Human-owned architecture metadata lives in source docs (`docs/features/*.source.yaml`, `docs/stages/*.source.yaml`, root docs). Generated docs in `docs/generated/` and generated feature/stage contracts are output artifacts.
 
-Control flow moves through trigger -> enqueue -> worker -> checkpoint/continue
--> terminal run state. Data flow moves through input capture -> staged job
-artifacts -> persisted results -> operator inspection and export.
+## Validation Path
 
-## Managed Documentation Architecture
+- `python scripts/sync_architecture_docs.py --check`
+- `python scripts/validate_repo_contracts.py --fast`
 
-This repo uses `managed_architecture_metadata`, not a docs-as-freeform model.
+## Related Docs
 
-The important ownership split is:
-
-- human-owned:
-  - `docs/features/<feature_id>/feature.source.yaml`
-  - `docs/stages/<stage_id>.source.yaml`
-  - root and operating-system docs that describe repo-wide behavior
-- generated:
-  - `docs/features/<feature_id>/<feature_id>.yaml`
-  - `docs/features/<feature_id>/lineage.generated.yaml`
-  - `docs/stages/<stage_id>.yaml`
-  - `docs/generated/*.yaml`
-
-That means generated YAML should be refreshed through the wrapper, not edited by
-hand.
-
-## Canonical Sync And Validation
-
-Refresh and validate managed architecture surfaces with:
-
-```powershell
-python scripts/sync_architecture_docs.py
-python scripts/sync_architecture_docs.py --check
-python scripts/validate_repo_contracts.py --fast
-```
-
-## Where To Go Deeper
-
-- [pipeline.md](pipeline.md) for the stage flow
-- [configuration.md](configuration.md) for runtime config and override layering
-- [setup.md](setup.md) for local and Docker startup
-- [component_boundaries.md](component_boundaries.md) for Phase 2 component ownership and dependency contracts
-- [docs/generated/architecture_dag.yaml](generated/architecture_dag.yaml) for
-  generated topology
-- [docs/generated/capability_lineage.yaml](generated/capability_lineage.yaml)
-  for generated capability evidence
+- [setup.md](setup.md)
+- [configuration.md](configuration.md)
+- [pipeline.md](pipeline.md)
+- [component_boundaries.md](component_boundaries.md)

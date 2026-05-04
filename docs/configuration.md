@@ -6,102 +6,54 @@ explains:
     - settings_system
     - trigger_run_management
   configs:
-    - config/env.yaml
+    - .env
+    - config/runtime/control_plane.yaml
     - config/runtime/pipeline.yaml
-    - config/runtime/prompts.yaml
 ---
 
 # Configuration
 
-FitCV separates configuration by **runtime purpose** and by **ownership layer**.
-This page is the cross-cutting map; the detailed semantics still live in the
-config files, settings schemas, and managed architecture sources.
+FitCV uses layered configuration with clear ownership boundaries.
 
-## Runtime Configuration Layers
+## Primary Runtime Inputs
 
-### Repo-managed config files
-
-The checked-in `config/` tree owns stable runtime defaults:
-
-- `config/env.yaml`
-  - environment-facing runtime values used by the app and worker
+- `config/runtime/control_plane.yaml`
+  - backend type (`sqlite` or `bigquery`)
+  - provider registry
+  - model-routing parts
+  - observability flags
 - `config/runtime/pipeline.yaml`
-  - pipeline defaults and runtime behavior
-- `config/runtime/prompts.yaml`
-  - prompt selection and prompt registry inputs
-- `config/policy/*.yaml`
-  - policy-level CV, ranking, and analysis behavior
-- `config/taxonomy/*.yaml`
-  - taxonomy and synonym inputs such as `skill_synonyms.yaml`
+  - stage/runtime defaults
+- `.env` / process env
+  - secrets and env overrides
 
-### Persisted operator settings
+## Config Invariants
 
-The control plane also supports BigQuery-backed settings overrides. Those are
-operator-facing runtime adjustments, not replacements for checked-in config
-ownership.
+- secrets are env-only
+- no secret values in YAML
+- no secret key-name indirection in YAML
+- `settings-used.json` is the run-time evidence snapshot
 
-In practice, effective run configuration resolves in this order:
+## Effective Settings Resolution
 
-1. checked-in YAML defaults
-2. persisted active settings from the control plane
-3. per-run overrides captured at trigger time
-4. run-scoped `settings-used.json` exports as the historical record of what a finished run actually used
+1. checked-in runtime YAML defaults
+2. persisted control-plane settings overrides
+3. run trigger-time overrides
+4. runtime env overrides
+5. run-scoped `settings-used.json` captures final effective view
 
-That layering matters because each run stores its own effective settings
-snapshot and later inspection should reflect what the run actually used.
+## Backend and Provider Routing
 
-On `/admin/settings`, operators edit future-run defaults only. The page now
-keeps fixed runtime-owned fields as metadata, keeps editable controls aligned
-with real schema-backed persistence keys, and treats per-run overrides plus
-`settings-used.json` as run-detail concerns rather than live settings-form
-state.
+- backend routing: resolved by control-plane runtime config + env override
+- model/provider routing: resolved by `control_plane.model_routing.parts`
+- provider credentials: read from process env only
 
-The settings surface now includes a bounded `Agentic` section for schema-backed
-future-run defaults. That section owns the late-stage agentic enablement flag
-and the semantic-alignment controls that shape agentic retrieval and analysis
-behavior. Advanced agentic tuning stays behind disclosure, while fixed runtime
-metadata such as the current semantic-alignment model remains explanatory rather
-than editable.
+## Managed Docs Note
 
-## Environment Variables And Services
-
-Important runtime values include:
-
-- `GCP_PROJECT`
-- `BIGQUERY_DATASET`
-- `REDIS_URL`
-- `GOOGLE_APPLICATION_CREDENTIALS`
-
-Local startup helpers and Docker both provide these, but through slightly
-different paths.
-
-## Managed Architecture Metadata Configuration
-
-This repo is in `managed_architecture_metadata` mode. The human-owned metadata
-inputs are not the generated YAML files; they are:
-
-- `docs/features/<feature_id>/feature.source.yaml`
-- `docs/stages/<stage_id>.source.yaml`
-- selected root and operating-system docs that describe repo-wide behavior
-
-Generated contracts and lineage outputs should be refreshed through the wrapper:
-
-```powershell
-python scripts/sync_architecture_docs.py
-```
-
-## What Belongs Where
-
-- change `config/` when product/runtime defaults change
-- change control-plane settings code when the editable settings surface changes
-- change `docs/features/*` or `docs/stages/*` when managed architecture
-  ownership or evidence changes
-- avoid hand-editing generated docs in `docs/generated/`, generated feature
-  contracts, or generated stage contracts
+Treat `docs/generated/`, generated feature contracts, and generated stage contracts as outputs. Refresh via sync scripts; do not hand-edit generated outputs.
 
 ## Related Docs
 
 - [setup.md](setup.md)
 - [usage.md](usage.md)
 - [architecture.md](architecture.md)
-- [fitcv-control-plane-setup.md](fitcv-control-plane-setup.md)

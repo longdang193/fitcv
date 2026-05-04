@@ -2,7 +2,6 @@
 layer: change
 artifact_type: plan
 status: proposed
-parent_workstream: none
 parent_thread: workstream-operator-control-plane.operator-control-plane-phase-2-degraded-mode-and-portability-surface
 parent_spec: docs/superpowers/specs/2026-05-03-phase-2-architecture-hardening-and-portability-spec.md
 targets:
