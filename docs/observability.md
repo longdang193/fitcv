@@ -82,6 +82,10 @@ Operator signal:
 
 - run detail now shows a **Telemetry Export Health** card
 - degraded telemetry events are counted from persisted run events payloads
+- Langfuse trace-link health uses truth-preserving statuses:
+  - `disabled`: Langfuse integration is disabled
+  - `degraded`: required link inputs are missing
+  - `unverified`: trace URL is constructible, but ingestion is not confirmed by this signal alone
 
 Quick troubleshooting:
 

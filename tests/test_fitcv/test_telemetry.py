@@ -31,6 +31,17 @@ def test_telemetry_enabled_without_endpoint_reports_endpoint_missing(monkeypatch
     assert status["degradation_reason"] in {"otel_dependency_missing", "otel_exporter_endpoint_missing"}
 
 
+
+def test_telemetry_does_not_report_enabled_after_failed_init(monkeypatch) -> None:
+    telemetry.reset_telemetry_runtime_for_tests()
+    monkeypatch.setenv("FITCV_OTEL_ENABLED", "true")
+    monkeypatch.setenv("FITCV_OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:3000/api/public/otel/v1/traces")
+    monkeypatch.setattr(telemetry, "_parse_otlp_headers", lambda _value: "bad")
+    first = telemetry.telemetry_export_status()
+    second = telemetry.telemetry_export_status()
+    assert first["status"] == "degraded"
+    assert second["status"] == "degraded"
+
 def test_trace_context_always_has_otel_compatible_ids() -> None:
     telemetry.reset_telemetry_runtime_for_tests()
     trace_context = telemetry.build_trace_context("seed-value")
@@ -59,6 +70,6 @@ def test_langfuse_link_status_returns_trace_url_when_configured(monkeypatch) -> 
     monkeypatch.setenv("FITCV_LANGFUSE_ENABLED", "true")
     monkeypatch.setenv("FITCV_LANGFUSE_BASE_URL", "http://localhost:3000")
     status = telemetry.langfuse_link_status("trace-123")
-    assert status["status"] == "linked"
-    assert status["degradation_reason"] is None
+    assert status["status"] == "unverified"
+    assert status["degradation_reason"] == "langfuse_ingestion_unverified"
     assert status["trace_url"] == "http://localhost:3000/trace/trace-123"

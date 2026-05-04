@@ -52,3 +52,81 @@ def test_reporter_payload_serialized():
     assert str(trace_context.get("trace_id") or "").strip()
     assert str(trace_context.get("span_id") or "").strip()
     assert str(trace_context.get("parent_span_id") or "").strip()
+
+
+def test_reporter_langfuse_rich_io_disabled_by_default():
+    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    with patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
+        reporter.emit("pipeline_start", "info", "ok")
+    event = append_mock.call_args[0][0]
+    payload = json.loads(str(event.payload_json or "{}"))
+    rich = dict(payload.get("langfuse_rich_io") or {})
+    native = dict(payload.get("langfuse_rich_io_native") or {})
+    assert rich.get("status") == "disabled"
+    assert rich.get("degradation_reason") == "langfuse_rich_io_disabled"
+    assert native.get("status") == "disabled"
+
+
+def test_reporter_langfuse_rich_io_redacts_and_truncates(monkeypatch):
+    monkeypatch.setenv("FITCV_LANGFUSE_RICH_IO_ENABLED", "true")
+    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    long_text = "x" * 700
+    payload = {
+        "api_key": "abc-123",
+        "nested": {
+            "password": "super-secret",
+            "notes": long_text,
+        },
+    }
+    with patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
+        reporter.emit("cv_analysis", "info", long_text, payload=payload)
+    event = append_mock.call_args[0][0]
+    emitted = json.loads(str(event.payload_json or "{}"))
+    rich = dict(emitted.get("langfuse_rich_io") or {})
+    assert rich.get("status") == "ready"
+    rich_input = dict(rich.get("input") or {})
+    rich_payload = dict(rich_input.get("payload") or {})
+    assert rich_payload.get("api_key") == "[REDACTED]"
+    nested = dict(rich_payload.get("nested") or {})
+    assert nested.get("password") == "[REDACTED]"
+    assert str(nested.get("notes") or "").endswith("...[truncated]")
+
+
+def test_reporter_langfuse_rich_io_stage_specific_snapshots(monkeypatch):
+    monkeypatch.setenv("FITCV_LANGFUSE_RICH_IO_ENABLED", "true")
+    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    payload = {
+        "input_snapshot": {"total_jobs": 7, "token": "abc"},
+        "output_snapshot": {"passed_filter": 2},
+    }
+    with patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
+        reporter.emit("layer4_cv_analysis", "info", "cv analysis complete", payload=payload)
+    event = append_mock.call_args[0][0]
+    emitted = json.loads(str(event.payload_json or "{}"))
+    rich = dict(emitted.get("langfuse_rich_io") or {})
+    native = dict(emitted.get("langfuse_rich_io_native") or {})
+    rich_input = dict(rich.get("input") or {})
+    rich_output = dict(rich.get("output") or {})
+    assert rich_input.get("stage_family") == "cv_analysis"
+    snapshot_in = dict(rich_input.get("input_snapshot") or {})
+    assert snapshot_in.get("token") == "[REDACTED]"
+    snapshot_out = dict(rich_output.get("output_snapshot") or {})
+    assert snapshot_out.get("passed_filter") == 2
+    assert native.get("status") in {"degraded", "sent"}
+
+
+def test_reporter_langfuse_rich_io_native_sent(monkeypatch):
+    monkeypatch.setenv("FITCV_LANGFUSE_RICH_IO_ENABLED", "true")
+    monkeypatch.setenv("FITCV_LANGFUSE_PROJECT_PUBLIC_KEY", "pk-local")
+    monkeypatch.setenv("FITCV_LANGFUSE_PROJECT_SECRET_KEY", "sk-local")
+    monkeypatch.setenv("FITCV_LANGFUSE_BASE_URL", "http://localhost:3000")
+    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    payload = {"input_snapshot": {"total_jobs": 3}, "output_snapshot": {"passed_filter": 1}}
+    with patch("fitcv_cp.reporter.httpx.post") as post_mock, \
+         patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
+        post_mock.return_value.status_code = 200
+        reporter.emit("layer1_normalize", "info", "normalize done", payload=payload)
+    event = append_mock.call_args[0][0]
+    emitted = json.loads(str(event.payload_json or "{}"))
+    native = dict(emitted.get("langfuse_rich_io_native") or {})
+    assert str(native.get("status") or "").startswith("sent:")

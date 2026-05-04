@@ -16,9 +16,10 @@ from unittest.mock import MagicMock, patch
 import io
 import json
 import zipfile
+import datetime
 from fastapi.testclient import TestClient
 from fitcv_cp.app import _timeline_stage_download_for_event, create_app
-from fitcv_cp.models import RunStatus
+from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission
 
 
@@ -429,10 +430,56 @@ def test_get_run_detail_not_found():
 
 
 def test_get_run_events():
+    event = RunEvent(
+        run_id="some-id",
+        event_id="evt-1",
+        stage="pipeline_start",
+        level="info",
+        message="Run started",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        payload_json='{"telemetry_export":{"status":"degraded"}}',
+    )
     with patch("fitcv_cp.app.get_run", return_value=MagicMock()), \
-         patch("fitcv_cp.app.get_events", return_value=[]):
+         patch("fitcv_cp.app.get_events", return_value=[event]):
         resp = TestClient(_app()).get("/runs/some-id/events")
     assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 1
+    assert body[0]["payload_json"] == '{"telemetry_export":{"status":"degraded"}}'
+
+
+def test_get_run_events_preserves_langfuse_rich_payload_json() -> None:
+    payload_json = json.dumps(
+        {
+            "telemetry_export": {"status": "export_enabled"},
+            "langfuse_link": {"status": "unverified"},
+            "langfuse_rich_io": {
+                "status": "ready",
+                "degradation_reason": None,
+                "input": {"stage_family": "cv_analysis", "message": "ok"},
+                "output": {"event_status": "emitted"},
+            },
+            "langfuse_rich_io_native": {"status": "sent:abc123", "degradation_reason": None},
+        }
+    )
+    event = RunEvent(
+        run_id="some-id",
+        event_id="evt-2",
+        stage="layer4_cv_analysis",
+        level="info",
+        message="Rich payload event",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        payload_json=payload_json,
+    )
+    with patch("fitcv_cp.app.get_run", return_value=MagicMock()), \
+         patch("fitcv_cp.app.get_events", return_value=[event]):
+        resp = TestClient(_app()).get("/runs/some-id/events")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert len(body) == 1
+    parsed = json.loads(str(body[0]["payload_json"]))
+    assert parsed["langfuse_rich_io"]["status"] == "ready"
+    assert parsed["langfuse_rich_io_native"]["status"] == "sent:abc123"
 
 
 def test_healthz():
@@ -7589,6 +7636,7 @@ def _run_detail_patches(
     enriched_jobs=None,
     filter_results=None,
     results_export_json=None,
+    stage_transition_artifacts_json=None,
 ):
     import datetime
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -7601,6 +7649,7 @@ def _run_detail_patches(
         config_path=".env.yaml",
         created_at=datetime.datetime(2026, 3, 27, 9, 0, 0, tzinfo=datetime.timezone.utc),
         results_export_json=results_export_json,
+        stage_transition_artifacts_json=stage_transition_artifacts_json,
     )
     return (
         patch("fitcv_cp.app.get_run", return_value=run),
@@ -7635,6 +7684,45 @@ def test_run_detail_shows_deduplicated_before_enrichment_section():
     assert "Post-dedupe enriched jobs" in resp.text
     assert "Deduplicated before enrichment: 1" in resp.text
     assert "Duplicated Analyst" in resp.text
+
+def test_run_detail_enriched_tab_uses_stage_artifacts_sample_for_running_run() -> None:
+    import json as _json
+
+    stage_artifacts = _json.dumps(
+        {
+            "artifacts": {
+                "stages": {
+                    "enrich": {
+                        "status": "completed",
+                        "outputs_sample": [
+                            {
+                                "job_url": "https://jobs.example.com/live-1",
+                                "job_title": "Live Enriched Role",
+                                "location_type": "remote",
+                                "seniority": "senior",
+                                "job_family": "data_engineering",
+                                "domain": "data",
+                                "required_skills": ["python", "sql"],
+                            }
+                        ],
+                    }
+                }
+            }
+        }
+    )
+    patches = _run_detail_patches(
+        status="running",
+        enriched_jobs=[],
+        filter_results=[],
+        results_export_json=None,
+        stage_transition_artifacts_json=stage_artifacts,
+    )
+    with patches[0], patches[1], patches[2], patches[3], patches[4]:
+        resp = TestClient(_app()).get("/admin/runs/run-detail-test/tabs/enriched")
+    assert resp.status_code == 200
+    assert "No enrichment data available for this run." not in resp.text
+    assert "Post-dedupe enriched jobs" in resp.text
+    assert "Live Enriched Role" in resp.text
 
 
 def test_run_detail_shows_marks_for_passed_jobs() -> None:
@@ -9588,15 +9676,15 @@ def test_run_detail_ignores_otel_disabled_for_telemetry_degradation() -> None:
     assert "Telemetry Export Health" in html
     assert "healthy" in html
     assert "Degraded Telemetry Events" in html
-    assert ">0<" in html
+    assert 'Degraded Telemetry Events</span><span class="v">0</span>' in html
 
 
-def test_run_detail_shows_langfuse_linked_health_when_trace_url_present() -> None:
+def test_run_detail_shows_langfuse_unverified_health_when_trace_url_present() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
 
     run = PipelineRun(
-        run_id="langfuse-linked-1",
+        run_id="langfuse-unverified-1",
         status=RunStatus.SUCCEEDED,
         jobs_path="data/sample_jobs.json",
         triggered_by="admin",
@@ -9605,16 +9693,16 @@ def test_run_detail_shows_langfuse_linked_health_when_trace_url_present() -> Non
         created_at=datetime.now(timezone.utc),
     )
     telemetry_event = RunEvent(
-        run_id="langfuse-linked-1",
+        run_id="langfuse-unverified-1",
         event_id="langfuse-ev-1",
         stage="cv_generation",
         level="info",
-        message="langfuse linked",
+        message="langfuse trace url available",
         created_at=datetime.now(timezone.utc),
         payload_json=json.dumps(
             {
                 "langfuse_link": {
-                    "status": "linked",
+                    "status": "unverified",
                     "trace_url": "http://localhost:3000/trace/trace-abc",
                 }
             }
@@ -9622,13 +9710,13 @@ def test_run_detail_shows_langfuse_linked_health_when_trace_url_present() -> Non
     )
     p = _run_detail_base_patches(run)
     with p[0], p[1], patch("fitcv_cp.app.get_events", return_value=[telemetry_event]), p[3], p[4]:
-        resp = TestClient(_app()).get("/admin/runs/langfuse-linked-1")
+        resp = TestClient(_app()).get("/admin/runs/langfuse-unverified-1")
 
     assert resp.status_code == 200
     html = resp.text
     assert "Langfuse Trace-Link Health" in html
-    assert "linked" in html
-    assert "Linked Events" in html
+    assert "unverified" in html
+    assert "Unverified Link Events" in html
     assert "trace/trace-abc" in html
 
 
