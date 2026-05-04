@@ -17,6 +17,7 @@ import sys
 import types
 
 import pytest
+import fitcv.enrich as enrich_module
 
 from fitcv.enrich import (
     EnrichmentOutput,
@@ -217,6 +218,25 @@ def test_lookup_reusable_structured_jobs_returns_exact_fingerprint_and_contract_
     ]
     assert reusable["https://example.com/jobs/1"]["mapping_suggestions"][0]["canonical"] == "sql"
 
+def test_make_genai_client_openai_compatible_requires_env_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        enrich_module,
+        "resolve_model_routing_part",
+        lambda part, model_fallback=None: {
+            "provider": "openai_compatible",
+            "model": "kimi-k2-instruct",
+            "base_url": "http://localhost:20128/v1",
+        },
+    )
+    monkeypatch.delenv("FITCV_LANGGRAPH_OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_COMPATIBLE_API_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="Config-routed HTTP provider.*requires API key in env"):
+        enrich_module._make_genai_client({"gemini_model": "gemini-2.5-flash"})
+
 
 def test_lookup_reusable_structured_jobs_normalises_datetime_enriched_at(
     monkeypatch: pytest.MonkeyPatch,
@@ -287,6 +307,86 @@ def test_lookup_reusable_structured_jobs_normalises_datetime_enriched_at(
     )
 
     assert reusable["https://example.com/jobs/1"]["enriched_at"] == "2026-04-03T12:00:00+00:00"
+
+
+def test_sqlite_reuse_lookup_uses_cached_structured_jobs(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    sqlite_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+
+    load_structured_jobs(
+        enriched=[
+            {
+                "job_url": "https://example.com/jobs/1",
+                "title": "Data Analyst",
+                "company_name": "Acme",
+                "description_cleaned": "SQL dashboards",
+                "required_skills": ["SQL"],
+                "required_skills_canonical": ["sql"],
+                "required_skill_entities": [{"raw_text": "SQL", "canonical": "sql"}],
+                "mapping_suggestions": [],
+                "raw_job_fingerprint": "raw-fingerprint-match",
+                "enrich_contract_fingerprint": "contract-fingerprint-match",
+                "enrich_reuse_status": "fresh_enrichment",
+                "enrichment_version": "v1",
+                "enrichment_model": "model-x",
+                "enriched_at": "2026-05-04T00:00:00+00:00",
+            }
+        ],
+        config={},
+    )
+
+    reusable = lookup_reusable_structured_jobs(
+        normalized_jobs=[
+            {
+                "job_url": "https://example.com/jobs/1",
+                "title": "Data Analyst",
+                "company_name": "Acme",
+                "description": "SQL dashboards",
+            }
+        ],
+        config={},
+        raw_job_fingerprints={"https://example.com/jobs/1": "raw-fingerprint-match"},
+        enrich_contract_fingerprint="contract-fingerprint-match",
+    )
+
+    assert list(reusable.keys()) == ["https://example.com/jobs/1"]
+    reused = reusable["https://example.com/jobs/1"]
+    assert reused["enrich_reuse_status"] == "reused_cached_enrichment"
+    assert reused["required_skills_canonical"] == ["sql"]
+
+
+def test_sqlite_reuse_lookup_rejects_contract_or_fingerprint_mismatch(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    sqlite_path = tmp_path / "fitcv.sqlite3"
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+
+    load_structured_jobs(
+        enriched=[
+            {
+                "job_url": "https://example.com/jobs/1",
+                "required_skills": ["SQL"],
+                "raw_job_fingerprint": "raw-fingerprint-a",
+                "enrich_contract_fingerprint": "contract-a",
+            }
+        ],
+        config={},
+    )
+
+    reusable = lookup_reusable_structured_jobs(
+        normalized_jobs=[{"job_url": "https://example.com/jobs/1", "description": "SQL"}],
+        config={},
+        raw_job_fingerprints={"https://example.com/jobs/1": "raw-fingerprint-b"},
+        enrich_contract_fingerprint="contract-b",
+    )
+
+    assert reusable == {}
 
 
 # ── parse_extraction_response — valid JSON ────────────────────────────────────

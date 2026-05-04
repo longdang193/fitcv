@@ -1,3 +1,18 @@
+﻿---
+prompt_id: lifecycle-readiness-and-proceed-prompt
+type: prompt
+stage: drift
+owner_layer: operating_system
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Lifecycle Readiness And Proceed Prompt
 
 Use this when you need to check incomplete lifecycle state and decide concrete
@@ -47,3 +62,4 @@ Required output:
 
 Expected output:
 - a concrete readiness assessment and next-action execution path
+

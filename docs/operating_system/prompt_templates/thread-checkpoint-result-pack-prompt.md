@@ -1,3 +1,18 @@
+﻿---
+prompt_id: thread-checkpoint-result-pack-prompt
+type: prompt
+stage: execution
+owner_layer: change
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Thread Checkpoint Result Pack Prompt
 
 Use this when a bounded change thread had an execution pass and you want a
@@ -33,3 +48,4 @@ Please:
 Expected output:
 - one checkpoint result-pack Markdown file at
   `docs/intent/workstreams/checkpoints/<workstream-id>/<thread-slug>/`
+

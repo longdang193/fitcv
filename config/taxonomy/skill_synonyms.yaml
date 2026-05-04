@@ -1,48 +1,45 @@
-# @architecture
-# owner: cv_system
-# features:
-#   - cv_system
-# stages:
-#   - cv_analysis
-#   - cv_generation
-# capabilities:
-#   - cv_system.analysis-grounded-validation
-# role: config
-# canonical: true
-
-# Skill synonym map: alias (lowercase) → canonical form (lowercase).
-# Consumed by: rule_filter.py (check_must_have_skills), ranking.py (compute_must_have_match).
-# Both alias and canonical are normalised to lowercase at load time.
-# Add new entries here; no code changes required.
-
 skill_synonyms:
-  gcp: google cloud
-  google cloud platform: google cloud
-  ga4: google analytics
-  google analytics (ga4): google analytics
-  bigquery: google bigquery
-  big query: google bigquery
-  k8s: kubernetes
+  advanced proficiency in sql: sql
+  airflow: apache airflow
   aws: amazon web services
   azure: microsoft azure
-  ml: machine learning
+  backend-anwendungen: backend development
+  big query: google bigquery
+  bigquery: google bigquery
   bigquery ml: machine learning
-  nlp: natural language processing
+  building and maintaining dashboards: dashboarding
+  ci/cd pipelines: ci/cd
+  dbt core: dbt
+  familiarity with data modeling: data modeling
+  flatfiles: flat files
+  ga4: google analytics
+  gcp: google cloud
   gemini: genai
-  vertex ai: genai
+  git / github: git
+  github: git
+  google analytics (ga4): google analytics
+  google cloud platform: google cloud
+  k8s: kubernetes
+  kafka: apache kafka
+  large language models: genai
   llm: genai
   llms: genai
-  large language models: genai
-  rag: genai
-  prompt engineering: genai
-  vector databases: genai
-  postgres: postgresql
-  pg: postgresql
-  airflow: apache airflow
   looker studio: looker
+  ml: machine learning
+  nlp: natural language processing
+  nosql-datenbanksystemen: nosql databases
+  partitioning strategies: data partitioning
+  pg: postgresql
+  postgres: postgresql
   powerbi: power bi
-  github: git
-  git / github: git
-  dbt core: dbt
+  prompt engineering: genai
+  quality assurance: quality assurance (qa)
+  rag: genai
+  relationalen ... datenbanksystemen: relational databases
+  sap idocs: sap idoc
   spark: apache spark
-  kafka: apache kafka
+  strong command of sql: sql
+  support change management processes: change management
+  vector databases: genai
+  vertex ai: genai
+  von rest-apis: rest apis

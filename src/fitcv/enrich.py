@@ -35,18 +35,20 @@ import hashlib
 import logging
 import os
 import re
+import sqlite3
 import threading
 from datetime import datetime, timezone
 from typing import Any, TypedDict
 from types import SimpleNamespace
 
 from pydantic import BaseModel as _BaseModel, Field as _Field
-from fitcv.config import get_gemini_model
-from fitcv.config import load_control_plane_config
+from fitcv.config import get_gemini_model, resolve_model_routing_part
 from fitcv.candidate import infer_role_family
 from fitcv.prompts import get_prompt_definition, render_prompt
 
 logger = logging.getLogger(__name__)
+
+_SQLITE_STRUCTURED_JOBS_TABLE = "structured_jobs_cache"
 
 # ── global rate limiter ──────────────────────────────────────────────────────
 # Acquired around every enrich_job call so that concurrent chunks cannot
@@ -1062,7 +1064,56 @@ def lookup_reusable_structured_jobs(
     dataset = str(config.get("bigquery_dataset") or "").strip()
     key_path = str(config.get("service_account_key") or "").strip()
     if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
-        return {}
+        job_urls = [
+            str(job.get("job_url") or "")
+            for job in normalized_jobs
+            if str(job.get("job_url") or "")
+        ]
+        if not job_urls:
+            return {}
+        normalized_by_url = {
+            str(job.get("job_url") or ""): job
+            for job in normalized_jobs
+            if str(job.get("job_url") or "")
+        }
+        placeholders = ",".join("?" for _ in job_urls)
+        sql = (
+            "SELECT job_url, raw_job_fingerprint, enrich_contract_fingerprint, payload_json "
+            f"FROM {_SQLITE_STRUCTURED_JOBS_TABLE} "
+            f"WHERE job_url IN ({placeholders})"
+        )
+        reusable_rows: dict[str, dict[str, Any]] = {}
+        with sqlite3.connect(_sqlite_path()) as conn:
+            _ensure_sqlite_structured_jobs_table(conn)
+            for job_url, raw_fingerprint, contract_fingerprint, payload_json in conn.execute(sql, job_urls).fetchall():
+                if not isinstance(job_url, str) or not job_url:
+                    continue
+                if job_url in reusable_rows:
+                    continue
+                if str(raw_fingerprint or "") != str(raw_job_fingerprints.get(job_url) or ""):
+                    continue
+                if str(contract_fingerprint or "") != str(enrich_contract_fingerprint or ""):
+                    continue
+                normalized_job = normalized_by_url.get(job_url)
+                if normalized_job is None:
+                    continue
+                try:
+                    cached_payload = json.loads(str(payload_json or "{}"))
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(cached_payload, dict):
+                    continue
+                reusable_rows[job_url] = merge_scraped_and_enriched(
+                    normalized_job,
+                    {
+                        **cached_payload,
+                        "raw_job_fingerprint": raw_job_fingerprints[job_url],
+                        "enrich_contract_fingerprint": enrich_contract_fingerprint,
+                        "enrich_reuse_status": REUSED_CACHED_ENRICHMENT_STATUS,
+                    },
+                    config,
+                )
+        return reusable_rows
     if not project or not dataset or not key_path:
         logger.info(
             "Skipping enrich reuse lookup because BigQuery reuse config is incomplete",
@@ -1143,31 +1194,25 @@ def lookup_reusable_structured_jobs(
 # ── integration: LLM call ─────────────────────────────────────────────────────
 
 def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
-    """Return an OpenAI-compatible shim client when configured via control-plane routing."""
+    """Return an HTTP LLM shim client when configured via control-plane routing."""
     try:
-        cp_cfg = load_control_plane_config()
-        model_routing = dict(cp_cfg.get("model_routing") or {})
-        parts = dict(model_routing.get("parts") or {})
-        enrich_part = dict(parts.get("enrich_extraction") or {})
-        provider_name = str(enrich_part.get("provider") or "").strip().lower()
-        routed_model = str(enrich_part.get("model") or "").strip()
-        providers = dict(cp_cfg.get("providers") or {})
-        provider_cfg = dict(providers.get(provider_name) or {})
+        routing = resolve_model_routing_part("enrich_extraction", model_fallback=get_gemini_model(config or {}))
     except Exception:
         return None
 
-    env_provider = str(os.environ.get("FITCV_LANGGRAPH_PROVIDER") or "").strip().lower()
-    effective_provider = env_provider or provider_name
-    if effective_provider not in {"openai", "openai_compatible", "9router"}:
+    provider_name = str(routing.get("provider") or "").strip().lower()
+    if not provider_name:
         return None
 
     base_url = (
         str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL") or "").strip()
-        or str(os.environ.get("OPENAI_BASE_URL") or "").strip()
-        or str(provider_cfg.get("base_url") or "").strip()
-        or "https://api.openai.com/v1"
+        or str(routing.get("base_url") or "").strip()
     )
+    if not base_url:
+        # No HTTP base_url configured for this routed provider; defer to Gemini path.
+        return None
     api_key_candidates = (
+        "FITCV_LLM_API_KEY",
         "FITCV_LANGGRAPH_OPENAI_API_KEY",
         "OPENAI_API_KEY",
         "OPENAI_COMPATIBLE_API_KEY",
@@ -1179,14 +1224,17 @@ def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
             api_key = candidate
             break
     if not api_key:
-        return None
+        raise RuntimeError(
+            "Config-routed HTTP provider for enrich_extraction requires API key in env "
+            "(FITCV_LLM_API_KEY or FITCV_LANGGRAPH_OPENAI_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY)."
+        )
     wire_api = str(os.environ.get("FITCV_LANGGRAPH_WIRE_API") or "").strip().lower() or "responses"
     timeout_seconds = float(
         str(os.environ.get("FITCV_LANGGRAPH_TIMEOUT_SECONDS") or "").strip() or "120"
     )
     model_override = (
         str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
-        or routed_model
+        or str(routing.get("model") or "").strip()
         or get_gemini_model(config)
     )
 
@@ -1556,6 +1604,36 @@ def load_structured_jobs(
         Number of rows upserted.
     """
     if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+        with sqlite3.connect(_sqlite_path()) as conn:
+            _ensure_sqlite_structured_jobs_table(conn)
+            rows = []
+            for row in enriched:
+                job_url = str(row.get("job_url") or "").strip()
+                if not job_url:
+                    continue
+                rows.append(
+                    (
+                        job_url,
+                        str(row.get("raw_job_fingerprint") or ""),
+                        str(row.get("enrich_contract_fingerprint") or ""),
+                        json.dumps(row, ensure_ascii=False),
+                        _normalise_enriched_at(row.get("enriched_at")) or datetime.now(tz=timezone.utc).isoformat(),
+                    )
+                )
+            conn.executemany(
+                f"""
+                INSERT INTO {_SQLITE_STRUCTURED_JOBS_TABLE}
+                    (job_url, raw_job_fingerprint, enrich_contract_fingerprint, payload_json, enriched_at)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(job_url) DO UPDATE SET
+                    raw_job_fingerprint=excluded.raw_job_fingerprint,
+                    enrich_contract_fingerprint=excluded.enrich_contract_fingerprint,
+                    payload_json=excluded.payload_json,
+                    enriched_at=excluded.enriched_at
+                """,
+                rows,
+            )
+            conn.commit()
         return len(enriched)
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
@@ -1719,3 +1797,21 @@ def load_run_structured_jobs(
     load_job = client.load_table_from_json(rows, table_ref, job_config=job_config)
     load_job.result()
     return len(rows)
+
+
+def _sqlite_path() -> str:
+    return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+
+
+def _ensure_sqlite_structured_jobs_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        f"""
+        CREATE TABLE IF NOT EXISTS {_SQLITE_STRUCTURED_JOBS_TABLE} (
+            job_url TEXT PRIMARY KEY,
+            raw_job_fingerprint TEXT,
+            enrich_contract_fingerprint TEXT,
+            payload_json TEXT NOT NULL,
+            enriched_at TEXT
+        )
+        """
+    )

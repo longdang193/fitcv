@@ -31,7 +31,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Any
 
-from fitcv.config import get_embedding_model
+from fitcv.config import get_embedding_model, load_control_plane_config
 
 JOB_SUMMARY_CHUNK_TYPE = "job_summary"
 SHORTLIST_SUMMARY_SCHEMA_VERSION = "shortlist_job_summary_v2"
@@ -39,6 +39,24 @@ SHORTLIST_DEFAULT_EMBEDDING_MODEL = "text-embedding-005"
 REUSED_CACHED_EMBEDDING_STATUS = "reused_cached_embedding"
 FRESH_EMBEDDING_STATUS = "fresh_embedding"
 SQLITE_EMBED_DIM = 256
+
+
+def _sqlite_mode_enabled(config: dict[str, Any] | None = None) -> bool:
+    cfg = config or {}
+    explicit_mode = str(((cfg.get("data_plane") or {}).get("state_backend") or "")).strip().lower()
+    if explicit_mode:
+        return explicit_mode == "sqlite"
+    env_mode = str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower()
+    if env_mode:
+        return env_mode == "sqlite"
+    # Preserve explicit BigQuery-style configs used by legacy callers/tests.
+    if cfg.get("gcp_project") and cfg.get("bigquery_dataset"):
+        return False
+    try:
+        cp_cfg = load_control_plane_config()
+        return str(((cp_cfg.get("data_backend") or {}).get("type")) or "").strip().lower() == "sqlite"
+    except Exception:
+        return False
 
 
 def _normalize_summary_scalar(value: Any) -> str:
@@ -415,7 +433,7 @@ def embed_and_store_jobs(
     """
     if not structured_jobs:
         return 0
-    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+    if _sqlite_mode_enabled(config):
         now = datetime.now(tz=timezone.utc).isoformat()
         embedding_contract = build_embedding_contract_fingerprint(config)
         rows: list[dict[str, Any]] = []
@@ -537,7 +555,7 @@ def embed_and_store_candidate(
     Returns:
         Number of rows inserted.
     """
-    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+    if _sqlite_mode_enabled(config):
         now = datetime.now(tz=timezone.utc).isoformat()
         candidate_chunks = build_candidate_chunks(profile)
         rows = []

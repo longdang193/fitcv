@@ -1,3 +1,18 @@
+﻿---
+prompt_id: mode-migration-prompt
+type: prompt
+stage: maintenance
+owner_layer: operating_system
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Mode Migration Prompt
 
 Use this when you want to assess or plan migration from
@@ -32,3 +47,4 @@ Please:
 
 Expected output:
 - migration assessment, spec, or plan
+

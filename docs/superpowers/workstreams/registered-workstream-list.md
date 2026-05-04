@@ -24,7 +24,7 @@ Keep one canonical registry of active roadmap-owned workstreams and their lifecy
   - status: active
   - summary: Preserve and harden trigger/run/inspection operator truth surfaces.
 - `workstream-deterministic-acceptance-and-artifact-truth`:
-  - status: active
+  - status: completed
   - summary: Keep deterministic acceptance contracts and artifact diagnostics authoritative.
 - `workstream-bounded-agentic-cv-quality`:
   - status: active

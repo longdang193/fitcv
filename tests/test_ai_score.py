@@ -189,7 +189,8 @@ def test_parse_score_response_malformed_json_returns_defaults() -> None:
     result = parse_score_response("not json at all")
     assert result["ai_score"] == 0.0
     assert result["fit_label"] == "skip"
-    assert result["score_reasoning"] == ""
+    assert result["score_reasoning"] == "Scoring response parse failure: malformed_json"
+    assert result["parser_status"] == "malformed_json"
     assert result["matched_strengths"] == []
     assert result["key_risks"] == []
 
@@ -214,36 +215,142 @@ def test_parse_score_response_fit_label_derived_from_score_if_missing() -> None:
     assert result["fit_label"] == "strong"
 
 
-def test_make_genai_client_uses_vertex_location(
+def test_make_genai_client_requires_supported_routing_provider(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from fitcv.ai_score import _make_genai_client
 
-    captured: dict[str, object] = {}
-
-    class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            captured.update(kwargs)
-
-    fake_genai = types.SimpleNamespace(Client=FakeClient)
-    fake_google = types.SimpleNamespace(
-        auth=types.SimpleNamespace(default=lambda scopes=None: ("creds", "project"))
+    monkeypatch.setattr(
+        "fitcv.ai_score.resolve_model_routing_part",
+        lambda part, model_fallback=None: {
+            "provider": "",
+            "model": "",
+            "base_url": "",
+        },
     )
+    with pytest.raises(RuntimeError, match="ranking_ai_score provider must be configured"):
+        _make_genai_client({"gemini_model": "gemini-2.5-flash"})
 
-    monkeypatch.setenv("GEMINI_API_KEY", "")
-    monkeypatch.setitem(sys.modules, "google", fake_google)
-    monkeypatch.setitem(sys.modules, "google.auth", fake_google.auth)
-    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
-    setattr(fake_google, "genai", fake_genai)
 
-    _make_genai_client({
-        "gcp_project": "fitcv-491123",
-        "location": "US",
-        "vertex_location": "us-central1",
-    })
+def test_make_genai_client_openai_compatible_requires_env_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv.ai_score import _make_genai_client
 
-    assert captured["vertexai"] is True
-    assert captured["location"] == "us-central1"
+    monkeypatch.setattr(
+        "fitcv.ai_score.resolve_model_routing_part",
+        lambda part, model_fallback=None: {
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+            "base_url": "http://localhost:20128/v1",
+        },
+    )
+    monkeypatch.delenv("FITCV_LANGGRAPH_OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_COMPATIBLE_API_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="requires API key in env"):
+        _make_genai_client({"gemini_model": "gemini-2.5-flash"})
+
+
+def test_make_genai_client_openai_compatible_falls_back_to_chat_completions_on_responses_404(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv.ai_score import _make_genai_client
+
+    class FakeHTTPError(Exception):
+        def __init__(self, status_code: int) -> None:
+            self.response = types.SimpleNamespace(status_code=status_code)
+
+    calls: list[str] = []
+
+    class FakeResponse:
+        def __init__(self, endpoint: str) -> None:
+            self._endpoint = endpoint
+
+        def raise_for_status(self) -> None:
+            if self._endpoint.endswith("/responses"):
+                raise FakeHTTPError(404)
+
+        def json(self) -> dict[str, object]:
+            if self._endpoint.endswith("/chat/completions"):
+                return {"choices": [{"message": {"content": '{"ai_score":0.9,"fit_label":"strong"}'}}]}
+            return {}
+
+    class FakeHTTPClient:
+        def __enter__(self) -> "FakeHTTPClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
+            calls.append(url)
+            return FakeResponse(url)
+
+    fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient(), HTTPStatusError=FakeHTTPError)
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
+    monkeypatch.setattr(
+        "fitcv.ai_score.resolve_model_routing_part",
+        lambda part, model_fallback=None: {
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+            "base_url": "http://localhost:20128/v1",
+        },
+    )
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("FITCV_LANGGRAPH_WIRE_API", "responses")
+
+    client = _make_genai_client({"gemini_model": "gemini-2.5-flash"})
+    result = client.models.generate_content(model="any", contents="hello")
+
+    assert '"fit_label":"strong"' in result.text
+    assert calls[0].endswith("/responses")
+    assert calls[1].endswith("/chat/completions")
+
+
+def test_make_genai_client_openai_compatible_uses_routed_model_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv.ai_score import _make_genai_client
+
+    captured_models: list[str] = []
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return {"output_text": '{"ai_score":0.8,"fit_label":"strong"}'}
+
+    class FakeHTTPClient:
+        def __enter__(self) -> "FakeHTTPClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
+            captured_models.append(str(json.get("model")))
+            return FakeResponse()
+
+    fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient(), HTTPStatusError=Exception)
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
+    monkeypatch.setattr(
+        "fitcv.ai_score.resolve_model_routing_part",
+        lambda part, model_fallback=None: {
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+            "base_url": "http://localhost:20128/v1",
+        },
+    )
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("FITCV_LANGGRAPH_WIRE_API", "responses")
+    monkeypatch.setenv("FITCV_LANGGRAPH_MODEL", "cx/gpt-5.2")
+
+    client = _make_genai_client({"gemini_model": "gemini-2.5-flash"})
+    _ = client.models.generate_content(model="gemini-2.5-flash", contents="hello")
+    assert captured_models == ["cx/gpt-5.2"]
 
 
 def test_score_job_uses_versioned_default_model(

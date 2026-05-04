@@ -27,7 +27,7 @@ import logging
 import uuid
 from typing import Any, Optional
 
-from fitcv.telemetry import build_trace_context, telemetry_export_status
+from fitcv.telemetry import build_trace_context, langfuse_link_status, telemetry_export_status
 from fitcv_cp.bq_store import append_event
 from fitcv_cp.models import RunEvent
 
@@ -48,13 +48,14 @@ class PipelineReporter:
         message: str,
         payload: Optional[dict[str, Any]] = None,
     ) -> None:
-        if self._bq is None:
-            return
         payload_value = dict(payload or {})
         payload_value["trace_context"] = build_trace_context(
             f"run:{self._run_id}:stage:{stage}:message:{message}"
         )
         payload_value["telemetry_export"] = telemetry_export_status()
+        payload_value["langfuse_link"] = langfuse_link_status(
+            str(payload_value["trace_context"].get("trace_id") or "")
+        )
         event = RunEvent(
             run_id=self._run_id,
             event_id=str(uuid.uuid4()),

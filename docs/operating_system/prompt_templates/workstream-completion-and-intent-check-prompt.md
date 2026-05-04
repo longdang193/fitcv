@@ -1,3 +1,18 @@
+﻿---
+prompt_id: workstream-completion-and-intent-check-prompt
+type: prompt
+stage: planning
+owner_layer: intent
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Workstream Completion And Intent Check Prompt
 
 Use this when a long-running workstream may have drifted and you want a clear
@@ -26,11 +41,12 @@ Please:
 2. compare intent/workstream promises against specs, plans, checkpoint packs, and merged outcomes
 3. separate complete, partial, missing, and drifted scope
 4. reconcile each bounded thread status with the latest checkpoint result-pack evidence
-5. call out misclassified `operating_system` work if present
-6. decide completion verdict: `complete` | `partial` | `not_complete`
-7. recommend next decision: `close` | `continue` | `re-scope`
-8. list the minimum concrete follow-up actions
-9. before recommending `close`, confirm these checks are expected to pass:
+5. evaluate workstream Goal and each Key Deliverable as satisfied | unsatisfied with evidence
+6. call out misclassified `operating_system` work if present
+7. decide completion verdict: `complete` | `partial` | `not_complete`
+8. recommend next decision: `close` | `continue` | `re-scope`
+9. list the minimum concrete follow-up actions
+10. before recommending `close`, confirm these checks are expected to pass:
    - `python scripts/validate_planning_lifecycle.py --strict`
    - `python scripts/validate_checkpoint_packs.py`
    - `python scripts/validate_repo_contracts.py --fast`
@@ -40,3 +56,4 @@ Expected output:
 - completion verdict against intent
 - explicit done/missing/drifted breakdown
 - next decision and concrete follow-up actions
+

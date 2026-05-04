@@ -1,3 +1,18 @@
+﻿---
+prompt_id: downstream-reconciliation-after-roadmap-format-change
+type: prompt
+stage: planning
+owner_layer: intent
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Downstream Reconciliation After Roadmap Format Change
 
 Use this prompt when `docs/intent/master-workstream-roadmap.md` has been updated to a new required format and downstream artifacts must be reconciled for both structure and content.
@@ -39,7 +54,7 @@ This is not a cosmetic formatting pass.
 ### Execution Steps
 
 1. Read the updated roadmap first.
-2. Extract the roadmap’s current model:
+2. Extract the roadmapâ€™s current model:
    - phases and ordering rules
    - per-phase Goal and per-phase Key Deliverables boundaries
    - workstream registry expectations
@@ -151,3 +166,4 @@ Return a reconciliation report in this structure:
   - impact:
   - mitigation:
 ```
+

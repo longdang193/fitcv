@@ -682,10 +682,18 @@ def test_render_cv_markdown_applies_normalization(tmp_path: Path) -> None:
     assert "\r" not in rendered
 
 
-def test_generate_cv_uses_google_genai_client(
+def test_generate_cv_uses_openai_compatible_routed_client(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
+    monkeypatch.setattr(
+        "fitcv.cv_generator.resolve_model_routing_part",
+        lambda *args, **kwargs: {
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+            "base_url": "http://localhost:20128/v1",
+        },
+    )
     template_path = tmp_path / "cv_template.md"
     template_path.write_text(
         "# {{ candidate.name }}\n"
@@ -698,35 +706,38 @@ def test_generate_cv_uses_google_genai_client(
     captured: dict[str, object] = {}
 
     class FakeResponse:
-        text = json.dumps(
-            {
-                "sections": {
-                    "header": {"name": "Jane Doe", "title": "Senior Data Engineer"},
-                    "summary": {"text": "Designs reliable data platforms."},
-                }
-            }
-        )
+        def raise_for_status(self) -> None:
+            return None
 
-    class FakeModels:
-        def generate_content(self, *, model: str, contents: str) -> FakeResponse:
-            captured["model"] = model
-            captured["contents"] = contents
+        def json(self) -> dict[str, object]:
+            return {
+                "output_text": json.dumps(
+                    {
+                        "sections": {
+                            "header": {"name": "Jane Doe", "title": "Senior Data Engineer"},
+                            "summary": {"text": "Designs reliable data platforms."},
+                        }
+                    }
+                )
+            }
+
+    class FakeHTTPClient:
+        def __enter__(self) -> "FakeHTTPClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
+            captured["url"] = url
+            captured["model"] = json.get("model")
             return FakeResponse()
 
-    class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            captured["client_kwargs"] = kwargs
-            self.models = FakeModels()
-
-    fake_genai = types.SimpleNamespace(Client=FakeClient)
-    fake_google = types.SimpleNamespace(
-        auth=types.SimpleNamespace(default=lambda scopes=None: ("creds", "project"))
-    )
-
-    monkeypatch.setitem(sys.modules, "google", fake_google)
-    monkeypatch.setitem(sys.modules, "google.auth", fake_google.auth)
-    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
-    setattr(fake_google, "genai", fake_genai)
+    fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient(), HTTPStatusError=Exception)
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("FITCV_LANGGRAPH_WIRE_API", "responses")
+    monkeypatch.setenv("FITCV_LANGGRAPH_MODEL", "cx/gpt-5.2")
 
     result = generate_cv(
         jd={"title": "Data Engineer", "required_skills": ["SQL"]},
@@ -754,11 +765,8 @@ def test_generate_cv_uses_google_genai_client(
     assert result["structured_cv"]["schema_version"] == "cv_doc_v1"
     assert result["structured_cv"]["sections"]["header"]["name"] == "Jane Doe"
     assert "Designs reliable data platforms." in result["markdown"]
-    assert captured["model"] == "gemini-2.5-flash"
-    client_kwargs = captured["client_kwargs"]
-    assert isinstance(client_kwargs, dict)
-    assert client_kwargs["vertexai"] is True
-    assert client_kwargs["location"] == "us-central1"
+    assert captured["model"] == "cx/gpt-5.2"
+    assert str(captured["url"]).endswith("/responses")
 
 
 # ── preset-based config reads ──────────────────────────────────────────────────
@@ -768,38 +776,50 @@ def test_generate_cv_reads_model_from_nested_cv_config(
     tmp_path: Path,
 ) -> None:
     """generate_cv must read cv.generation.model, not flat cv_generation_model."""
+    monkeypatch.setattr(
+        "fitcv.cv_generator.resolve_model_routing_part",
+        lambda *args, **kwargs: {
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+            "base_url": "http://localhost:20128/v1",
+        },
+    )
 
     template_path_str = "templates/cv_template.md"
     captured_model: list[str] = []
 
     class FakeResponse:
-        text = json.dumps(
-            {
-                "sections": {
-                    "header": {"name": "Jane Doe", "title": "Data Engineer"},
-                    "summary": {"text": "Grounded summary."},
-                }
-            }
-        )
+        def raise_for_status(self) -> None:
+            return None
 
-    class FakeModels:
-        def generate_content(self, *, model: str, contents: str) -> FakeResponse:
-            captured_model.append(model)
+        def json(self) -> dict[str, object]:
+            return {
+                "output_text": json.dumps(
+                    {
+                        "sections": {
+                            "header": {"name": "Jane Doe", "title": "Data Engineer"},
+                            "summary": {"text": "Grounded summary."},
+                        }
+                    }
+                )
+            }
+
+    class FakeHTTPClient:
+        def __enter__(self) -> "FakeHTTPClient":
+            return self
+
+        def __exit__(self, exc_type, exc, tb) -> bool:
+            return False
+
+        def post(self, url: str, headers: dict[str, str], json: dict[str, object]) -> FakeResponse:
+            captured_model.append(str(json.get("model") or ""))
             return FakeResponse()
 
-    class FakeClient:
-        def __init__(self, **kwargs: object) -> None:
-            self.models = FakeModels()
-
-    fake_genai = types.SimpleNamespace(Client=FakeClient)
-    fake_google = types.SimpleNamespace(
-        auth=types.SimpleNamespace(default=lambda scopes=None: ("creds", "project"))
-    )
-
-    monkeypatch.setitem(sys.modules, "google", fake_google)
-    monkeypatch.setitem(sys.modules, "google.auth", fake_google.auth)
-    monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
-    setattr(fake_google, "genai", fake_genai)
+    fake_httpx = types.SimpleNamespace(Client=lambda timeout=None: FakeHTTPClient(), HTTPStatusError=Exception)
+    monkeypatch.setitem(sys.modules, "httpx", fake_httpx)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("FITCV_LANGGRAPH_WIRE_API", "responses")
+    monkeypatch.setenv("FITCV_LANGGRAPH_MODEL", "cx/gpt-5.2")
 
     nested_config = {
         "gcp_project": "fitcv-491123",
@@ -838,7 +858,7 @@ def test_generate_cv_reads_model_from_nested_cv_config(
         fit_classification="strong",
     )
 
-    assert captured_model == ["gemini-3-pro"]
+    assert captured_model == ["cx/gpt-5.2"]
 
 
 def test_get_template_path_for_preset() -> None:

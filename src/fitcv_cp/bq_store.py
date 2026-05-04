@@ -38,7 +38,9 @@ import dataclasses
 import json
 import logging
 import os
+import sqlite3
 import time
+from pathlib import Path
 from typing import Any, Optional
 
 from google.cloud import bigquery as bq_module
@@ -53,6 +55,195 @@ _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS = 3
 _PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS = 0.25
 _EVENT_APPEND_RETRY_ATTEMPTS = 3
 _EVENT_APPEND_RETRY_DELAY_SECONDS = 0.2
+
+def _local_sqlite_path() -> str:
+    return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+
+def _sqlite_mode_enabled() -> bool:
+    return str(os.environ.get("FITCV_CP_DATA_BACKEND") or "").strip().lower() == "sqlite"
+
+def _ensure_local_cv_versions_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS cv_versions (
+            version_id TEXT PRIMARY KEY,
+            run_id TEXT,
+            job_url TEXT,
+            fit_classification TEXT,
+            generated_at TEXT,
+            cv_generation_model TEXT,
+            cv_prompt_version TEXT,
+            cv_schema_version TEXT,
+            cv_structured_json TEXT,
+            cv_markdown TEXT
+        )
+        """
+    )
+    conn.commit()
+
+def _ensure_local_pipeline_runs_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS local_pipeline_runs (
+            run_id TEXT PRIMARY KEY,
+            run_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.commit()
+
+def _pipeline_run_to_json(run: PipelineRun) -> str:
+    payload = dataclasses.asdict(run)
+    payload["status"] = run.status.value
+    for field_name in (
+        "created_at",
+        "started_at",
+        "finished_at",
+        "cancel_requested_at",
+        "archived_at",
+    ):
+        value = payload.get(field_name)
+        if isinstance(value, datetime.datetime):
+            payload[field_name] = value.isoformat()
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
+def _parse_dt(value: Any) -> Optional[datetime.datetime]:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return datetime.datetime.fromisoformat(text)
+    except ValueError:
+        return None
+
+def _pipeline_run_from_json(run_json: str) -> Optional[PipelineRun]:
+    try:
+        payload = json.loads(run_json)
+    except Exception:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    try:
+        status = RunStatus(str(payload.get("status") or "").strip().lower())
+    except ValueError:
+        status = RunStatus.FAILED
+    return PipelineRun(
+        run_id=str(payload.get("run_id") or ""),
+        status=status,
+        triggered_by=str(payload.get("triggered_by") or ""),
+        trigger_source=str(payload.get("trigger_source") or ""),
+        jobs_path=str(payload.get("jobs_path") or ""),
+        config_path=str(payload.get("config_path") or ""),
+        created_at=_parse_dt(payload.get("created_at")) or datetime.datetime.now(datetime.timezone.utc),
+        started_at=_parse_dt(payload.get("started_at")),
+        finished_at=_parse_dt(payload.get("finished_at")),
+        total_jobs=payload.get("total_jobs"),
+        passed_filter=payload.get("passed_filter"),
+        ranked=payload.get("ranked"),
+        cvs_generated=payload.get("cvs_generated"),
+        error_message=payload.get("error_message"),
+        error_stage=payload.get("error_stage"),
+        effective_settings_json=payload.get("effective_settings_json"),
+        results_export_json=payload.get("results_export_json"),
+        cv_generation_debug_json=payload.get("cv_generation_debug_json"),
+        stage_transition_artifacts_json=payload.get("stage_transition_artifacts_json"),
+        settings_used_json=payload.get("settings_used_json"),
+        mapping_suggestions_json=payload.get("mapping_suggestions_json"),
+        synonym_proposals_json=payload.get("synonym_proposals_json"),
+        run_mode=str(payload.get("run_mode") or "run_all"),
+        checkpoint_status=payload.get("checkpoint_status"),
+        next_stage=payload.get("next_stage"),
+        last_completed_stage=payload.get("last_completed_stage"),
+        completed_stages=list(payload.get("completed_stages") or []) or None,
+        checkpoint_payload_json=payload.get("checkpoint_payload_json"),
+        jobs_input_source=payload.get("jobs_input_source"),
+        jobs_input_json=payload.get("jobs_input_json"),
+        candidate_profile_source=payload.get("candidate_profile_source"),
+        candidate_profile_json=payload.get("candidate_profile_json"),
+        queue_job_id=payload.get("queue_job_id"),
+        orchestration_backend=payload.get("orchestration_backend"),
+        orchestration_run_id=payload.get("orchestration_run_id"),
+        cancel_requested_at=_parse_dt(payload.get("cancel_requested_at")),
+        cancel_requested_by=payload.get("cancel_requested_by"),
+        archived_at=_parse_dt(payload.get("archived_at")),
+        archived_by=payload.get("archived_by"),
+    )
+
+def _upsert_local_pipeline_run(run: PipelineRun) -> None:
+    db_path = Path(_local_sqlite_path())
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path) as conn:
+        _ensure_local_pipeline_runs_table(conn)
+        conn.execute(
+            """
+            INSERT INTO local_pipeline_runs(run_id, run_json, created_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(run_id) DO UPDATE SET
+              run_json = excluded.run_json,
+              created_at = excluded.created_at
+            """,
+            (run.run_id, _pipeline_run_to_json(run), run.created_at.isoformat()),
+        )
+        conn.commit()
+
+def _load_local_pipeline_run(run_id: str) -> Optional[PipelineRun]:
+    db_path = Path(_local_sqlite_path())
+    if not db_path.exists():
+        return None
+    with sqlite3.connect(db_path) as conn:
+        _ensure_local_pipeline_runs_table(conn)
+        row = conn.execute(
+            "SELECT run_json FROM local_pipeline_runs WHERE run_id = ? LIMIT 1",
+            (run_id,),
+        ).fetchone()
+    if not row:
+        return None
+    run = _pipeline_run_from_json(str(row[0] or ""))
+    if run is not None and run.run_id:
+        _LOCAL_RUNS[run.run_id] = dataclasses.replace(run)
+    return run
+
+def _list_local_pipeline_runs() -> list[PipelineRun]:
+    db_path = Path(_local_sqlite_path())
+    if not db_path.exists():
+        return []
+    with sqlite3.connect(db_path) as conn:
+        _ensure_local_pipeline_runs_table(conn)
+        rows = conn.execute(
+            "SELECT run_json FROM local_pipeline_runs ORDER BY created_at DESC"
+        ).fetchall()
+    runs: list[PipelineRun] = []
+    for row in rows:
+        run = _pipeline_run_from_json(str(row[0] or ""))
+        if run is not None and run.run_id:
+            _LOCAL_RUNS[run.run_id] = dataclasses.replace(run)
+            runs.append(run)
+    return runs
+
+def _local_get_run(run_id: str) -> Optional[PipelineRun]:
+    cached = _LOCAL_RUNS.get(run_id)
+    if cached is not None:
+        return dataclasses.replace(cached)
+    run = _load_local_pipeline_run(run_id)
+    return dataclasses.replace(run) if run is not None else None
+
+def _local_save_run(run: PipelineRun) -> None:
+    _LOCAL_RUNS[run.run_id] = dataclasses.replace(run)
+    _upsert_local_pipeline_run(run)
+
+
+def _local_event_history_dir() -> Path:
+    raw = str(
+        os.environ.get("FITCV_CP_LOCAL_EVENT_HISTORY_DIR")
+        or "data/fitcv_cp_event_history"
+    ).strip()
+    return Path(raw)
+
+
+def _local_event_history_file(run_id: str) -> Path:
+    safe_run_id = "".join(ch for ch in str(run_id) if ch.isalnum() or ch in {"-", "_"})
+    return _local_event_history_dir() / f"{safe_run_id}.jsonl"
 
 
 def _is_concurrent_pipeline_runs_update_error(exc: Exception) -> bool:
@@ -96,7 +287,7 @@ def _execute_query_with_pipeline_runs_retry(
 
 def insert_run(run: PipelineRun, bq: Any, *, project: str, dataset: str) -> None:
     if bq is None:
-        _LOCAL_RUNS[run.run_id] = dataclasses.replace(run)
+        _local_save_run(dataclasses.replace(run))
         return
     table = f"{project}.{dataset}.pipeline_runs"
     sql = f"""
@@ -204,7 +395,7 @@ def update_run_status(
     error_stage: Optional[str] = None,
 ) -> None:
     if bq is None:
-        existing = _LOCAL_RUNS.get(run_id)
+        existing = _local_get_run(run_id)
         if existing is None:
             return
         updated = dataclasses.replace(existing, status=status)
@@ -221,7 +412,7 @@ def update_run_status(
             updated.passed_filter = int(summary.get("passed_filter")) if summary.get("passed_filter") is not None else updated.passed_filter
             updated.ranked = int(summary.get("ranked")) if summary.get("ranked") is not None else updated.ranked
             updated.cvs_generated = int(summary.get("cvs_generated")) if summary.get("cvs_generated") is not None else updated.cvs_generated
-        _LOCAL_RUNS[run_id] = updated
+        _local_save_run(updated)
         return
     set_clauses = ["status = @status"]
     params: list[bq_module.ScalarQueryParameter] = [
@@ -266,6 +457,19 @@ def update_run_checkpoint(
     completed_stages: Optional[list[str]] = None,
     checkpoint_payload_json: Optional[str] = None,
 ) -> None:
+    if bq is None:
+        existing = _local_get_run(run_id)
+        if existing is None:
+            return
+        _local_save_run(dataclasses.replace(
+            existing,
+            checkpoint_status=checkpoint_status,
+            next_stage=next_stage,
+            last_completed_stage=last_completed_stage,
+            completed_stages=completed_stages,
+            checkpoint_payload_json=checkpoint_payload_json,
+        ))
+        return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         "SET checkpoint_status = @checkpoint_status, "
@@ -305,17 +509,17 @@ def update_run_progress(
 ) -> None:
     """Persist shared stage progress without implying resumability."""
     if bq is None:
-        existing = _LOCAL_RUNS.get(run_id)
+        existing = _local_get_run(run_id)
         if existing is None:
             return
-        _LOCAL_RUNS[run_id] = dataclasses.replace(
+        _local_save_run(dataclasses.replace(
             existing,
             checkpoint_status=None,
             next_stage=None,
             last_completed_stage=last_completed_stage,
             completed_stages=completed_stages,
             checkpoint_payload_json=None,
-        )
+        ))
         return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
@@ -354,6 +558,26 @@ def _append_event_dead_letter(row: dict[str, Any]) -> str:
 def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dict[str, str]:
     if bq is None:
         _LOCAL_EVENTS.setdefault(event.run_id, []).append(dataclasses.replace(event))
+        try:
+            event_file = _local_event_history_file(event.run_id)
+            event_file.parent.mkdir(parents=True, exist_ok=True)
+            record = {
+                "run_id": event.run_id,
+                "event_id": event.event_id,
+                "stage": event.stage,
+                "level": event.level,
+                "message": event.message,
+                "payload_json": event.payload_json,
+                "created_at": event.created_at.isoformat(),
+            }
+            with event_file.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+        except Exception as exc:
+            logger.warning(
+                "local append_event file persistence degraded for run_id=%s: %s",
+                event.run_id,
+                exc,
+            )
         return {"persistence_status": "persisted", "degradation_reason": "none"}
     table = f"{project}.{dataset}.pipeline_run_events"
     row = {
@@ -405,8 +629,7 @@ def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dic
 
 def get_run(run_id: str, bq: Any, *, project: str, dataset: str) -> Optional[PipelineRun]:
     if bq is None:
-        run = _LOCAL_RUNS.get(run_id)
-        return dataclasses.replace(run) if run is not None else None
+        return _local_get_run(run_id)
     sql = f"SELECT * FROM `{project}.{dataset}.pipeline_runs` WHERE run_id = @run_id LIMIT 1"
     job_config = bq_module.QueryJobConfig(
         query_parameters=[bq_module.ScalarQueryParameter("run_id", "STRING", run_id)]
@@ -433,7 +656,7 @@ def list_runs(
     DEPLOY NOTE: migration must be applied before this code is deployed.
     """
     if bq is None:
-        runs = list(_LOCAL_RUNS.values())
+        runs = _list_local_pipeline_runs()
         if archived_only:
             runs = [r for r in runs if r.archived_at is not None]
         elif not include_archived:
@@ -499,10 +722,10 @@ def update_run_queue_job_id(
 ) -> None:
     """Persist the RQ job id onto the run row immediately after enqueue."""
     if bq is None:
-        existing = _LOCAL_RUNS.get(run_id)
+        existing = _local_get_run(run_id)
         if existing is None:
             return
-        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, queue_job_id=queue_job_id)
+        _local_save_run(dataclasses.replace(existing, queue_job_id=queue_job_id))
         return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
@@ -527,15 +750,15 @@ def update_run_orchestration_binding(
     dataset: str,
 ) -> None:
     if bq is None:
-        existing = _LOCAL_RUNS.get(run_id)
+        existing = _local_get_run(run_id)
         if existing is None:
             return
-        _LOCAL_RUNS[run_id] = dataclasses.replace(
+        _local_save_run(dataclasses.replace(
             existing,
             queue_job_id=queue_job_id,
             orchestration_backend=orchestration_backend,
             orchestration_run_id=orchestration_run_id,
-        )
+        ))
         return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
@@ -580,10 +803,10 @@ def update_run_results_export(
 ) -> None:
     """Persist the immutable run-results export snapshot for a completed run."""
     if bq is None:
-        existing = _LOCAL_RUNS.get(run_id)
+        existing = _local_get_run(run_id)
         if existing is None:
             return
-        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, results_export_json=results_export_json)
+        _local_save_run(dataclasses.replace(existing, results_export_json=results_export_json))
         return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
@@ -608,10 +831,10 @@ def update_run_cv_generation_debug(
 ) -> None:
     """Persist the immutable run-scoped CV-generation debug snapshot."""
     if bq is None:
-        existing = _LOCAL_RUNS.get(run_id)
+        existing = _local_get_run(run_id)
         if existing is None:
             return
-        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, cv_generation_debug_json=cv_generation_debug_json)
+        _local_save_run(dataclasses.replace(existing, cv_generation_debug_json=cv_generation_debug_json))
         return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
@@ -638,10 +861,10 @@ def update_run_stage_transition_artifacts(
 ) -> None:
     """Persist the immutable run-scoped stage transition artifacts snapshot."""
     if bq is None:
-        existing = _LOCAL_RUNS.get(run_id)
+        existing = _local_get_run(run_id)
         if existing is None:
             return
-        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, stage_transition_artifacts_json=stage_transition_artifacts_json)
+        _local_save_run(dataclasses.replace(existing, stage_transition_artifacts_json=stage_transition_artifacts_json))
         return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
@@ -668,10 +891,10 @@ def update_run_settings_used(
 ) -> None:
     """Persist the immutable run-scoped settings-used snapshot."""
     if bq is None:
-        existing = _LOCAL_RUNS.get(run_id)
+        existing = _local_get_run(run_id)
         if existing is None:
             return
-        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, settings_used_json=settings_used_json)
+        _local_save_run(dataclasses.replace(existing, settings_used_json=settings_used_json))
         return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
@@ -696,10 +919,10 @@ def update_run_mapping_suggestions(
 ) -> None:
     """Persist the immutable run-scoped mapping suggestions snapshot."""
     if bq is None:
-        existing = _LOCAL_RUNS.get(run_id)
+        existing = _local_get_run(run_id)
         if existing is None:
             return
-        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, mapping_suggestions_json=mapping_suggestions_json)
+        _local_save_run(dataclasses.replace(existing, mapping_suggestions_json=mapping_suggestions_json))
         return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
@@ -726,10 +949,10 @@ def update_run_synonym_proposals(
 ) -> dict[str, str]:
     """Persist the mutable run-scoped synonym proposal review snapshot."""
     if bq is None:
-        existing = _LOCAL_RUNS.get(run_id)
+        existing = _local_get_run(run_id)
         if existing is None:
             return {"persistence_status": "degraded", "degradation_reason": "run_not_found"}
-        _LOCAL_RUNS[run_id] = dataclasses.replace(existing, synonym_proposals_json=synonym_proposals_json)
+        _local_save_run(dataclasses.replace(existing, synonym_proposals_json=synonym_proposals_json))
         return {"persistence_status": "persisted", "degradation_reason": "none"}
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
@@ -769,6 +992,12 @@ def update_run_effective_settings(
     dataset: str,
 ) -> None:
     """Persist the mutable run-scoped effective settings snapshot."""
+    if bq is None:
+        existing = _local_get_run(run_id)
+        if existing is None:
+            return
+        _local_save_run(dataclasses.replace(existing, effective_settings_json=effective_settings_json))
+        return
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         f"SET effective_settings_json = @effective_settings_json WHERE run_id = @run_id"
@@ -792,9 +1021,21 @@ def request_run_cancel(
     *,
     project: str,
     dataset: str,
-) -> None:
+) -> bool:
     """Set cancel_requested_at/by and update status (running→cancelling, queued→cancelled)."""
     now = datetime.datetime.now(datetime.timezone.utc)
+    if bq is None:
+        existing = _local_get_run(run_id)
+        if existing is None:
+            return False
+        updated = dataclasses.replace(
+            existing,
+            cancel_requested_at=now,
+            cancel_requested_by=requested_by,
+            status=RunStatus(new_status),
+        )
+        _local_save_run(updated)
+        return True
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         f"SET cancel_requested_at = @cancel_requested_at, "
@@ -811,6 +1052,7 @@ def request_run_cancel(
         ]
     )
     _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
+    return True
 
 
 def archive_run(
@@ -861,6 +1103,44 @@ def unarchive_run(
 
 def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunEvent]:
     if bq is None:
+        event_file = _local_event_history_file(run_id)
+        if event_file.exists():
+            file_events: list[RunEvent] = []
+            try:
+                with event_file.open("r", encoding="utf-8") as handle:
+                    for line in handle:
+                        raw = line.strip()
+                        if not raw:
+                            continue
+                        try:
+                            record = json.loads(raw)
+                            created_raw = str(record.get("created_at") or "").strip()
+                            created_at = (
+                                datetime.datetime.fromisoformat(created_raw)
+                                if created_raw
+                                else datetime.datetime.now(datetime.timezone.utc)
+                            )
+                            file_events.append(
+                                RunEvent(
+                                    run_id=str(record.get("run_id") or run_id),
+                                    event_id=str(record.get("event_id") or ""),
+                                    stage=str(record.get("stage") or ""),
+                                    level=str(record.get("level") or ""),
+                                    message=str(record.get("message") or ""),
+                                    created_at=created_at,
+                                    payload_json=record.get("payload_json"),
+                                )
+                            )
+                        except Exception:
+                            continue
+            except Exception as exc:
+                logger.warning(
+                    "local get_events file read degraded for run_id=%s: %s",
+                    run_id,
+                    exc,
+                )
+            file_events.sort(key=lambda ev: ev.created_at)
+            return file_events
         events = _LOCAL_EVENTS.get(run_id) or []
         return [dataclasses.replace(event) for event in events]
     sql = (
@@ -953,6 +1233,43 @@ def _row_to_event(row: Any) -> RunEvent:
 
 
 def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> list[dict[str, Any]]:
+    if _sqlite_mode_enabled():
+        db_path = Path(_local_sqlite_path())
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(db_path) as conn:
+            _ensure_local_cv_versions_table(conn)
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT
+                    version_id,
+                    job_url,
+                    fit_classification,
+                    generated_at,
+                    cv_generation_model,
+                    cv_prompt_version,
+                    cv_schema_version,
+                    cv_structured_json
+                FROM cv_versions
+                WHERE run_id = ?
+                ORDER BY generated_at DESC
+                """,
+                (run_id,),
+            ).fetchall()
+        results: list[dict[str, Any]] = []
+        for row in rows:
+            row_dict = dict(row)
+            structured_raw = row_dict.get("cv_structured_json")
+            if isinstance(structured_raw, str) and structured_raw.strip():
+                try:
+                    row_dict["cv_structured"] = json.loads(structured_raw)
+                except json.JSONDecodeError:
+                    row_dict["cv_structured"] = None
+            else:
+                row_dict["cv_structured"] = None
+            results.append(row_dict)
+        return results
+
     if bq is None:
         return []
     table = f"{project}.{dataset}.cv_versions"
@@ -1020,6 +1337,19 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
 
 
 def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> Optional[str]:
+    if _sqlite_mode_enabled():
+        db_path = Path(_local_sqlite_path())
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(db_path) as conn:
+            _ensure_local_cv_versions_table(conn)
+            row = conn.execute(
+                "SELECT cv_markdown FROM cv_versions WHERE version_id = ? LIMIT 1",
+                (version_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return str(row[0] or "")
+
     if bq is None:
         return None
     table = f"{project}.{dataset}.cv_versions"
@@ -1150,5 +1480,41 @@ def list_filter_results_for_run(
 
 
 def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset: str) -> list[Any]:
+    if _sqlite_mode_enabled():
+        db_path = Path(_local_sqlite_path())
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(db_path) as conn:
+            _ensure_local_cv_versions_table(conn)
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO cv_versions (
+                    version_id,
+                    run_id,
+                    job_url,
+                    fit_classification,
+                    generated_at,
+                    cv_generation_model,
+                    cv_prompt_version,
+                    cv_schema_version,
+                    cv_structured_json,
+                    cv_markdown
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(row.get("version_id") or ""),
+                    str(row.get("run_id") or ""),
+                    str(row.get("job_url") or ""),
+                    str(row.get("fit_classification") or ""),
+                    str(row.get("generated_at") or ""),
+                    str(row.get("cv_generation_model") or ""),
+                    str(row.get("cv_prompt_version") or ""),
+                    str(row.get("cv_schema_version") or ""),
+                    str(row.get("cv_structured_json") or ""),
+                    str(row.get("cv_markdown") or ""),
+                ),
+            )
+            conn.commit()
+        return []
+
     table = f"{project}.{dataset}.cv_versions"
     return bq.insert_rows_json(table, [row])

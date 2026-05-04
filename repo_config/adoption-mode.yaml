@@ -3,8 +3,8 @@ managed_architecture_metadata: true
 legacy_feature_contracts: false
 architecture_generator: scripts/sync_architecture_docs.py
 starter_sync:
-  starter_baseline_ref: 15b231a670637e7ffbcb2ca80df6ef6aa815c0a1
-  last_shared_surface_review_at: 2026-05-03
+  starter_baseline_ref: 523835a1bc704aa7a6c7d8c0256d8d2b662f5fd0
+  last_shared_surface_review_at: 2026-05-04
   reviewed_surface_classes:
     - repo_config
     - operating_system_docs
@@ -45,6 +45,14 @@ starter_sync:
       class: validation_and_sync_scripts
       status: customized
       rationale: JOB-PROJECT now includes a starter-style repo-config validator layer, but the contract gate still keeps the additional local adoption-shape validator on top of that narrower starter check.
+    - path: scripts/validate_planning_lifecycle.py
+      class: validation_and_sync_scripts
+      status: customized
+      rationale: JOB-PROJECT intentionally keeps stricter lifecycle coverage checks for completed roadmap, workstream, and thread deliverables while Phase 2 hardening remains in progress.
+    - path: scripts/validate_prompt_ladder.py
+      class: validation_and_sync_scripts
+      status: customized
+      rationale: The latest starter prompt-ladder validator has not been adopted yet because this repo still relies on the narrower repo-contract and template-section validation path during the current portability pass.
     - path: scripts/validate_adoption_shape.py
       class: validation_and_sync_scripts
       status: customized

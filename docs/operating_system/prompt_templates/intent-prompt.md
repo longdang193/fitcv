@@ -1,5 +1,42 @@
+﻿---
+prompt_id: intent-prompt
+type: prompt
+stage: planning
+owner_layer: intent
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Intent Prompt
 
+## Use When
+
+project purpose or direction is still unclear and intent must be clarified before planning artifacts
+
+## Prerequisites
+
+### Required
+
+- current problem context available
+
+### Optional
+
+- existing intent docs
+
+## Next Prompts
+
+- master-workstream-roadmap-build-prompt.md
+- roadmap-to-workstream-prompt.md
+
+## Not For
+
+detailed spec, plan, or closeout decisions
 Use this when you want the agent to help define project purpose before specs or
 plans exist.
 
@@ -23,4 +60,5 @@ Please:
 
 Expected output:
 - intent direction or `docs/intent/*.md` updates
+
 

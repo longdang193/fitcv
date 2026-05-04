@@ -1,5 +1,41 @@
+﻿---
+prompt_id: spec-set-execution-map-prompt
+type: prompt
+stage: planning
+owner_layer: change
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Spec Set To Implementation Execution Map Prompt
 
+## Use When
+
+approved detailed specs exist and implementation sequencing/waves are needed
+
+## Prerequisites
+
+### Required
+
+- approved detailed specs identified
+
+### Optional
+
+- resource/parallel constraints
+
+## Next Prompts
+
+- plan-prompt.md
+
+## Not For
+
+thread creation or roadmap closeout
 Use this when the approved detailed specs already exist and you want a distinct
 implementation execution map that decides ordering, waves, and parallel lanes.
 
@@ -29,3 +65,4 @@ Expected output:
 - execution waves
 - parallel lanes
 - recommended plan breakdown
+

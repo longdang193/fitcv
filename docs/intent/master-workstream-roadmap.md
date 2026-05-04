@@ -95,18 +95,34 @@ Deliver a FitCV-first platform where stage semantics and deterministic acceptanc
   - `service_account_key` removed from SQLite-mode `settings-used` effective snapshot/compatibility projection exports.
   - backend data-plane metadata in settings-used now records SQLite backend in SQLite mode.
 
-### Phase 2 Remaining/Not Yet Closed In This Branch
+### Phase 2 Closure Status In This Branch
 
-- Prefect orchestration is not yet fully implemented and verified end-to-end in this branch.
-- OpenTelemetry collector-export pipeline is not yet fully verified end-to-end in this branch.
-- Langfuse integration is not yet implemented/verified end-to-end in this branch.
-- Full no-drift SQLite parity remains open for event persistence durability:
-  - local run events are not yet durably persisted with SQLite parity equivalent to BigQuery-backed event history.
+- Phase 2 deliverables are closed as done in this branch, including:
+  - Prefect orchestration end-to-end verification.
+  - OpenTelemetry exporter/collector integration verification.
+  - Langfuse trace-link integration verification.
+  - SQLite durable event-history no-drift parity verification.
 
 Current Phase 2 completion references:
 - `docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md`
 - `docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md`
 - `docs/superpowers/plans/2026-05-03-14-20-phase-2-architecture-hardening-and-portability-plan.md`
+
+### Phase 3
+
+### Goal
+- Sustain roadmap-delivered behavior through governance, lifecycle discipline, and no-drift change control across product and operating-system planning surfaces.
+
+### Key Deliverables
+- Lifecycle hygiene:
+  - roadmap/workstream/thread/spec/plan statuses remain coherent with validator rules.
+  - closure decisions remain evidence-backed and checkpoint-linked.
+- Contract preservation:
+  - Phase 1 and Phase 2 semantic, policy, orchestration, and observability contracts stay stable unless explicitly re-scoped.
+  - portability and observability no-drift claims remain protected by regression validation.
+- Operating-system governance:
+  - registered workstream/thread/spec/execution-map/plan lineage stays synchronized with canonical templates and governance.
+  - roadmap and downstream planning artifacts remain continuously reconcilable without contradictory state.
 
 ## Workstream Index
 

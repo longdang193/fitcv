@@ -11,7 +11,7 @@
 
 control_plane:
   data_backend:
-    type: bigquery
+    type: sqlite
     bigquery:
       project: fitcv-491123
       dataset: fitcv
@@ -20,7 +20,7 @@ control_plane:
 
   providers:
     openai_compatible:
-      base_url: https://api.moonshot.ai/v1
+      base_url: http://localhost:20128/v1
     openai:
       base_url: https://api.openai.com/v1
 
@@ -28,10 +28,13 @@ control_plane:
     parts:
       enrich_extraction:
         provider: openai_compatible
-        model: kimi-k2-instruct
+        model: cx/gpt-5.2
+      ranking_ai_score:
+        provider: openai_compatible
+        model: cx/gpt-5.2
       cv_generation_structured_write:
         provider: openai_compatible
-        model: kimi-k2-thinking
+        model: cx/gpt-5.2
       cv_analysis_semantic_alignment:
         provider: openai
         model: text-embedding-3-large

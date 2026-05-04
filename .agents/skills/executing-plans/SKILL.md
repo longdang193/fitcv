@@ -22,6 +22,8 @@ Before execution starts, read:
 - the specific implementation plan file being executed
 - `docs/operating_system/repo-governance.md`
 - `docs/operating_system/prompt_templates/implementation-next-action-gate-prompt.md`
+- `docs/operating_system/workflows/spec-to-plan-to-execution-workflow.md`
+- `docs/operating_system/workflows/drift-detection-and-reconciliation-workflow.md`
 
 ## Source-of-Truth Rule
 

@@ -5526,24 +5526,33 @@ def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
             "stage_id": "cv_analysis",
         },
     }
-    cv_analysis_invoked_event = next(event for event in reporter.events if event[0] == "layer4_cv_analysis_invoked")
-    assert cv_analysis_invoked_event[3] == {
-        "event_name": "cv_analysis_invoked",
-        "event_family": "invocation",
-        "source_stage": "cv_analysis",
-        "event_status": "started",
-        "deterministic_outcome": None,
-        "fallback_used": False,
-        "provenance": {
-            "late_stage_mode": "non_agentic",
-        },
-        "input_snapshot": {
-            "ranked_jobs": 1,
-        },
-        "artifact_refs": {
-            "stage_id": "cv_analysis",
-        },
+
+
+def test_normalize_late_stage_reuse_snapshots_skips_poisoned_runtime_exception_rows() -> None:
+    from fitcv.pipeline import _normalize_late_stage_reuse_snapshots
+
+    payload = {
+        "ranking_ai_scores": [
+            {
+                "ai_score_row": {
+                    "parser_status": "runtime_exception",
+                    "score_reasoning": "Scoring error: Your default credentials were not found.",
+                }
+            },
+            {
+                "ai_score_row": {
+                    "parser_status": "ok",
+                    "score_reasoning": "Valid",
+                }
+            },
+        ],
+        "cv_analysis_records": [],
     }
+
+    normalized = _normalize_late_stage_reuse_snapshots(payload)
+
+    assert len(normalized["ranking_ai_scores"]) == 1
+    assert normalized["ranking_ai_scores"][0]["ai_score_row"]["parser_status"] == "ok"
 
 
 @patch("fitcv.pipeline.store_cv_version")

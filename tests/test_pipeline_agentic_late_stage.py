@@ -789,41 +789,21 @@ def test_generate_from_analysis_does_not_silently_fallback_when_live_runtime_ret
     assert result["agentic_live_trace"]["error_summary"]["error_stage"] == "agentic_live_provider"
 
 
-def test_build_fitcv_langgraph_env_values_prefers_current_repo_env(tmp_path) -> None:
-    current_repo_root = tmp_path / "job-project"
-    current_repo_root.mkdir()
-    (current_repo_root / ".env").write_text(
-        "OPENAI_API_KEY=current-key\nFITCV_LANGGRAPH_MODEL=cx/gpt-5.5\n",
-        encoding="utf-8",
-    )
-    langgraph_root = tmp_path / "fitcv-langgraph"
-    langgraph_root.mkdir()
-    (langgraph_root / ".env").write_text(
-        "OPENAI_API_KEY=langgraph-key\nFITCV_LANGGRAPH_MODEL=gpt-5.4-mini\n",
-        encoding="utf-8",
-    )
-
-    with patch("fitcv.agentic_cv_generation._repo_root", return_value=current_repo_root):
-        env_values = _build_fitcv_langgraph_env_values(langgraph_root)
-
-    assert env_values["OPENAI_API_KEY"] == "current-key"
-    assert env_values["FITCV_LANGGRAPH_MODEL"] == "cx/gpt-5.5"
-
-
-def test_build_fitcv_langgraph_env_values_works_without_repo_root(tmp_path) -> None:
-    current_repo_root = tmp_path / "job-project"
-    current_repo_root.mkdir()
-    (current_repo_root / ".env").write_text(
-        "OPENAI_API_KEY=current-key\nFITCV_LANGGRAPH_MODEL=cx/gpt-5.4\n",
-        encoding="utf-8",
-    )
-
-    with patch("fitcv.agentic_cv_generation._repo_root", return_value=current_repo_root):
+def test_build_fitcv_langgraph_env_values_uses_process_env_only() -> None:
+    with patch.dict(
+        "fitcv.agentic_cv_generation.os.environ",
+        {
+            "OPENAI_API_KEY": "process-key",
+            "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.2",
+            "FITCV_LANGGRAPH_OPENAI_BASE_URL": "http://localhost:20128/v1",
+        },
+        clear=True,
+    ):
         env_values = _build_fitcv_langgraph_env_values(None)
 
-    assert env_values["OPENAI_API_KEY"] == "current-key"
-    assert env_values["FITCV_LANGGRAPH_MODEL"] == "cx/gpt-5.4"
-
+    assert env_values["OPENAI_API_KEY"] == "process-key"
+    assert env_values["FITCV_LANGGRAPH_MODEL"] == "cx/gpt-5.2"
+    assert env_values["FITCV_LANGGRAPH_OPENAI_BASE_URL"] == "http://localhost:20128/v1"
 
 def test_generate_from_analysis_live_provider_uses_template_rendering_and_full_validation(tmp_path: Path) -> None:
     analysis_record = _minimal_analysis_record()

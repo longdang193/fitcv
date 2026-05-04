@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-outcome-contract
-status: active
+status: completed
 ---
 
 # deterministic-truth-outcome-contract

@@ -1,3 +1,18 @@
+﻿---
+prompt_id: parent-complete-only-when-children-terminal-prompt
+type: prompt
+stage: planning
+owner_layer: operating_system
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Parent Complete Only When Children Terminal Prompt
 
 Deprecated: prefer scoped closeout prompts instead:
@@ -33,3 +48,4 @@ Expected output:
 - invariant pass/fail result
 - exact remediation actions
 - `can_close` decision
+

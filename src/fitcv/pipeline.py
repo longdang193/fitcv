@@ -729,12 +729,33 @@ def _json_safe_pipeline_value(value: Any) -> Any:
 
 def _normalize_late_stage_reuse_snapshots(reuse_snapshots: dict[str, Any] | None) -> dict[str, list[dict[str, Any]]]:
     payload = dict(reuse_snapshots or {})
+    ranking_rows: list[dict[str, Any]] = []
+    for item in list(payload.get("ranking_ai_scores") or []):
+        if not isinstance(item, dict):
+            continue
+        ai_score_row = item.get("ai_score_row")
+        if isinstance(ai_score_row, dict):
+            parser_status = str(
+                ai_score_row.get("parser_status")
+                or ai_score_row.get("reranker_parser_status")
+                or ""
+            ).strip().lower()
+            score_reasoning = str(
+                ai_score_row.get("score_reasoning")
+                or ai_score_row.get("reranker_score_reasoning")
+                or ""
+            ).strip().lower()
+            # Do not reuse poisoned reranker cache rows produced by parse failures.
+            if (
+                parser_status in {"malformed_json", "runtime_exception"}
+                or "parse failure" in score_reasoning
+                or "default credentials were not found" in score_reasoning
+                or "application default credentials" in score_reasoning
+            ):
+                continue
+        ranking_rows.append(dict(item))
     return {
-        "ranking_ai_scores": [
-            dict(item)
-            for item in list(payload.get("ranking_ai_scores") or [])
-            if isinstance(item, dict)
-        ],
+        "ranking_ai_scores": ranking_rows,
         "cv_analysis_records": [
             dict(item)
             for item in list(payload.get("cv_analysis_records") or [])
@@ -3613,6 +3634,11 @@ def run_pipeline(
                 or contract_record["fingerprint"]
             ),
         }
+        shortlist_fail_fast = bool((config.get("pipeline", {}) or {}).get("shortlist_fail_fast_empty_raw_hits", False))
+        if shortlist_fail_fast and passed_jobs and not raw_shortlist:
+            raise RuntimeError(
+                "Vector shortlist returned zero raw hits for non-empty passed jobs; fail-fast guard active"
+            )
         shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_top_n)
         pipeline_store.store_shortlist(shortlist, config)
         raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
@@ -4135,6 +4161,17 @@ def run_pipeline(
                     )  # type: ignore[union-attr]
                 continue
         if reporter is not None:
+            blocked_by_reranker_diagnostics = [
+                {
+                    "job_url": str(record.get("job_url") or ""),
+                    "ranking_fit_label": str(record.get("ranking_fit_label") or ""),
+                    "fit_classification": str(record.get("fit_classification") or ""),
+                    "ai_score": (record.get("job_snapshot") or {}).get("ai_score"),
+                    "fit_label_source": str(((record.get("job_snapshot") or {}).get("fit_label_source")) or ""),
+                }
+                for record in cv_analysis_results
+                if str(record.get("status") or "") == CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS
+            ][:10]
             reporter.emit(
                 "layer4_cv_analysis",
                 "info",
@@ -4176,6 +4213,27 @@ def run_pipeline(
                     artifact_refs={"stage_id": "cv_analysis"},
                 ),
             )  # type: ignore[union-attr]
+            if blocked_by_reranker_diagnostics:
+                reporter.emit(
+                    "layer4_cv_analysis_blocked_details",
+                    "info",
+                    f"Blocked by reranker diagnostics: {len(blocked_by_reranker_diagnostics)} job(s)",
+                    _bounded_event_payload(
+                        event_name="cv_analysis_blocked_diagnostics",
+                        event_family="debug",
+                        source_stage="cv_analysis",
+                        event_status="completed",
+                        deterministic_outcome="rejected",
+                        stage_owned_subreason=CV_ANALYSIS_BLOCKED_BY_RERANKER_STATUS,
+                        input_snapshot={
+                            "fit_label_thresholds": dict(config.get("fit_label_thresholds") or {}),
+                        },
+                        output_snapshot={
+                            "blocked_jobs": blocked_by_reranker_diagnostics,
+                        },
+                        artifact_refs={"stage_id": "cv_analysis"},
+                    ),
+                )  # type: ignore[union-attr]
         state["cv_analysis_results"] = cv_analysis_results
         state["cv_generation_debug_records"] = cv_generation_debug_records
         if stage_progress_callback is not None:

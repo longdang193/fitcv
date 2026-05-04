@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-agentic-observability.agentic-observability-event-contract
-status: active
+status: completed
 ---
 
 # agentic-observability-event-contract

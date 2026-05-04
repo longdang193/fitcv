@@ -1,3 +1,18 @@
+﻿---
+prompt_id: roadmap-vs-execution-divergence-prompt
+type: prompt
+stage: drift
+owner_layer: intent
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Roadmap Vs Execution Divergence Prompt
 
 Use this when you want to compare the master roadmap or a named workstream
@@ -30,3 +45,4 @@ Expected output:
 - divergence findings
 - explicit alignment vs misalignment calls
 - recommended next moves such as refining roadmap/workstream docs, retiring stale artifacts, reclassifying work, or drafting the next bounded spec/plan
+

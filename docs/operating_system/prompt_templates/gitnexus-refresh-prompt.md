@@ -1,3 +1,18 @@
+﻿---
+prompt_id: gitnexus-refresh-prompt
+type: prompt
+stage: planning
+owner_layer: operating_system
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # GitNexus Refresh Prompt
 
 Use this when GitNexus is stale, partially broken, or returning results that no
@@ -29,3 +44,4 @@ Expected output:
 - status after refresh
 - remaining issues, if any
 - source-first fallback guidance when refresh does not fully recover GitNexus
+

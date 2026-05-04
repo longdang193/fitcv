@@ -1,3 +1,18 @@
+﻿---
+prompt_id: roadmap-to-workstream-prompt
+type: prompt
+stage: planning
+owner_layer: intent
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Roadmap To Workstream Prompt
 
 Use this when you have a roadmap thread, intent note, or fuzzy delivery idea
@@ -25,3 +40,4 @@ Please:
 Expected output:
 - recommended workstream routing, or `operating_system` routing, plus the next
   artifact to create
+
