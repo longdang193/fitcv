@@ -497,6 +497,15 @@ def _build_cv_generation_debug_payload(
         _truncate_large_fields(record)
         for record in list(summary.get("cv_generation_debug_records") or [])
     ]
+    for record in debug_records:
+        if not isinstance(record, dict):
+            continue
+        ranking_fit_label = record.get("ranking_fit_label")
+        reranker_fit_label = record.get("reranker_fit_label")
+        if ranking_fit_label is None and reranker_fit_label is not None:
+            record["ranking_fit_label"] = reranker_fit_label
+        if reranker_fit_label is None and ranking_fit_label is not None:
+            record["reranker_fit_label"] = ranking_fit_label
     ranked_jobs_total = int(summary.get("ranked", 0))
     attempted_generation_jobs_total = sum(
         1
