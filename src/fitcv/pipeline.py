@@ -125,6 +125,7 @@ from fitcv.validator import AnalysisGroundingPayload, run_all_validations
 from fitcv.telemetry import build_trace_context
 from fitcv.vector_search import run_vector_search
 from fitcv.vector_search import store_shortlist
+from fitcv.pipeline_store import PipelineStore
 
 logger = logging.getLogger(__name__)
 _REPAIRABLE_VALIDATION_FIELDS = ("grounding_violations", "skill_violations")
@@ -330,9 +331,24 @@ def _materialize_scoring_shortlist(
 def _enrich_jobs_with_reuse(
     normalized_jobs: list[dict[str, Any]],
     config: dict[str, Any],
+    *,
+    pipeline_store: PipelineStore | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     if not normalized_jobs:
         return [], []
+    if pipeline_store is None:
+        pipeline_store = PipelineStore(
+            load_raw_jobs_fn=load_to_bigquery,
+            load_candidate_profile_fn=load_candidate_to_bigquery,
+            lookup_reusable_structured_jobs_fn=lookup_reusable_structured_jobs,
+            load_structured_jobs_fn=load_structured_jobs,
+            load_run_structured_jobs_fn=load_run_structured_jobs,
+            store_filter_results_fn=store_filter_results,
+            embed_and_store_jobs_fn=embed_and_store_jobs,
+            store_shortlist_fn=store_shortlist,
+            store_final_ranking_fn=store_final_ranking,
+            store_cv_version_fn=store_cv_version,
+        )
 
     raw_job_fingerprints: dict[str, str] = {}
     for job in normalized_jobs:
@@ -342,7 +358,7 @@ def _enrich_jobs_with_reuse(
         raw_job_fingerprints[job_url] = build_raw_job_fingerprint(job)["fingerprint"]
 
     enrich_contract_fingerprint = build_enrich_contract_fingerprint(config)["fingerprint"]
-    reused_rows_by_url = lookup_reusable_structured_jobs(
+    reused_rows_by_url = pipeline_store.lookup_reusable_structured_jobs(
         normalized_jobs,
         config,
         raw_job_fingerprints=raw_job_fingerprints,
@@ -1618,6 +1634,8 @@ def _build_cv_generation_debug_record(
         "job_title": _extract_job_title(job),
         "status": status,
         "ranking_fit_label": ranking_fit_label,
+        # Backward-compatible alias for downstream consumers still reading reranker_fit_label.
+        "reranker_fit_label": ranking_fit_label,
         "fit_classification": fit_classification,
         "decision_chain": decision_chain,
         "analysis_input_summary": dict(analysis_input_summary or {}),
@@ -2347,6 +2365,10 @@ def _ranking_row_sample(row: dict[str, Any]) -> dict[str, Any] | None:
         "ai_score": row.get("ai_score"),
         "ai_score_reuse_status": row.get("ai_score_reuse_status"),
         "ai_score_input_fingerprint": row.get("ai_score_input_fingerprint"),
+        "reranker_parser_status": row.get("parser_status"),
+        "reranker_score_reasoning": row.get("score_reasoning"),
+        "reranker_key_risks": row.get("key_risks"),
+        "reranker_matched_strengths": row.get("matched_strengths"),
         "must_have_match": row.get("must_have_match"),
         "vector_similarity": row.get("vector_similarity"),
         "title_relevance": row.get("title_relevance"),
@@ -3271,6 +3293,18 @@ def run_pipeline(
     """
     if config is None:
         config = load_config(config_path)
+    pipeline_store = PipelineStore(
+        load_raw_jobs_fn=load_to_bigquery,
+        load_candidate_profile_fn=load_candidate_to_bigquery,
+        lookup_reusable_structured_jobs_fn=lookup_reusable_structured_jobs,
+        load_structured_jobs_fn=load_structured_jobs,
+        load_run_structured_jobs_fn=load_run_structured_jobs,
+        store_filter_results_fn=store_filter_results,
+        embed_and_store_jobs_fn=embed_and_store_jobs,
+        store_shortlist_fn=store_shortlist,
+        store_final_ranking_fn=store_final_ranking,
+        store_cv_version_fn=store_cv_version,
+    )
     run_id = run_id or create_run_id()
     start_stage = _canonical_resume_start_stage(
         requested_start_stage=start_stage,
@@ -3334,7 +3368,7 @@ def run_pipeline(
             )
 
         raw_rows = prepare_raw_rows(raw_jobs)
-        load_to_bigquery(raw_rows, config)
+        pipeline_store.load_raw_jobs(raw_rows, config)
         state["raw_jobs"] = raw_jobs
         state["normalized"] = normalized
         state["deduplicated_jobs"] = deduplicated_jobs
@@ -3391,10 +3425,14 @@ def run_pipeline(
 
         if cancellation_check and cancellation_check():
             raise PipelineCancelled("Cancelled before enrichment")
-        enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(surviving_normalized, config)
+        enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(
+            surviving_normalized,
+            config,
+            pipeline_store=pipeline_store,
+        )
         if fresh_enriched_rows:
-            load_structured_jobs(fresh_enriched_rows, config)
-        load_run_structured_jobs(enriched, run_id, config)
+            pipeline_store.load_structured_jobs(fresh_enriched_rows, config)
+        pipeline_store.load_run_structured_jobs(enriched, run_id, config)
         if reporter is not None:
             reused_count = sum(
                 1 for row in enriched
@@ -3454,7 +3492,7 @@ def run_pipeline(
         else:
             profile_path: str = str(config["paths"]["candidate_profile"])
             profile = load_profile_yaml(profile_path)
-        load_candidate_to_bigquery(profile, config)
+        pipeline_store.load_candidate_profile(profile, config)
         candidate_skill_names = flatten_skills(profile)
         if reporter is not None:
             reporter.emit("layer2_candidate", "info", "Candidate profile loaded")  # type: ignore[union-attr]
@@ -3484,7 +3522,7 @@ def run_pipeline(
             if url in enriched_by_url
         ]
         candidate_filter_rejected_jobs = list(filter_result["rejected"])
-        store_filter_results(combined_filter_result, run_id, config)
+        pipeline_store.store_filter_results(combined_filter_result, run_id, config)
         if reporter is not None:
             reporter.emit("layer3_filter", "info", f"{len(passed_jobs)} passed rule filter")  # type: ignore[union-attr]
         state["passed_jobs"] = passed_jobs
@@ -3534,7 +3572,7 @@ def run_pipeline(
         # Active shortlist runtime only prepares reusable job embeddings here.
         # The candidate-side vector actually used for retrieval is generated
         # inside run_vector_search() from the deterministic candidate query text.
-        embed_and_store_jobs(passed_jobs, config)
+        pipeline_store.embed_and_store_jobs(passed_jobs, config)
         raw_shortlist_result = run_vector_search(
             profile,
             [str(job.get("job_url") or "") for job in passed_jobs],
@@ -3576,7 +3614,7 @@ def run_pipeline(
             ),
         }
         shortlist = _materialize_scoring_shortlist(raw_shortlist, passed_jobs, vector_top_n)
-        store_shortlist(shortlist, config)
+        pipeline_store.store_shortlist(shortlist, config)
         raw_shortlist_urls = set(_unique_job_urls(raw_shortlist))
         raw_shortlist_anomaly_urls = _raw_shortlist_anomaly_urls(raw_shortlist, passed_jobs)
         backfilled_job_urls = [
@@ -3693,7 +3731,7 @@ def run_pipeline(
 
         ranking_inputs = build_ranking_features(shortlist, ai_scores, profile, config)
         ranked = rank_jobs(ranking_inputs, top_n=final_top_n)
-        store_final_ranking(ranked, config)
+        pipeline_store.store_final_ranking(ranked, config)
         if reporter is not None:
             reporter.emit("layer3_ranking", "info", f"Final ranking: top {len(ranked)} jobs")  # type: ignore[union-attr]
         state["ai_scores"] = ai_scores
@@ -4539,7 +4577,7 @@ def run_pipeline(
                 cv_generation_model=job_cv_generation_model_value,
                 cv_prompt_version=cv_prompt_version_value,
             )
-            store_cv_version(version, config)
+            pipeline_store.store_cv_version(version, config)
             results.append({
                 "job_url": str(job.get("job_url") or ""),
                 "fit": fit,

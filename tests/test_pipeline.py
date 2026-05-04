@@ -5964,6 +5964,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
     assert len(debug_records) == 2
     debug_by_status = {record["status"]: record for record in debug_records}
     assert debug_by_status["accepted"]["ranking_fit_label"] == "strong"
+    assert debug_by_status["accepted"]["reranker_fit_label"] == "strong"
     assert debug_by_status["accepted"]["decision_chain"] == {
         "shortlist": {
             "status": "returned_by_vector_search",
@@ -5986,6 +5987,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
         },
     }
     assert debug_by_status["blocked_by_reranker_fit"]["ranking_fit_label"] == "skip"
+    assert debug_by_status["blocked_by_reranker_fit"]["reranker_fit_label"] == "skip"
     assert debug_by_status["blocked_by_reranker_fit"]["decision_chain"] == {
         "shortlist": {
             "status": "returned_by_vector_search",

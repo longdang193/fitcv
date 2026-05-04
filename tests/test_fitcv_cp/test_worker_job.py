@@ -499,6 +499,7 @@ def test_worker_persists_cv_generation_debug_json_on_success():
     assert payload["agentic_live_trace"]["records"][0]["attempts"][0]["provider_status"] == "accepted"
     assert payload["debug_records"][0]["job_url"] == "https://example.com/1"
     assert payload["debug_records"][0]["ranking_fit_label"] == "strong"
+    assert payload["debug_records"][0]["reranker_fit_label"] == "strong"
     assert payload["debug_records"][0]["decision_chain"]["primary_fit"]["source"] == "reranker"
 
 

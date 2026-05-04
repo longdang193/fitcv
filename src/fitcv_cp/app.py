@@ -117,9 +117,7 @@ from fitcv.pipeline import (
 )
 from fitcv.tracker import create_cv_version_record
 from fitcv_cp.bq_store import (
-    append_event,
     archive_run,
-    get_pipeline_runs_schema_status,
     get_events, get_run, insert_run, list_filter_results_for_run,
     list_runs, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs,
     request_run_cancel, unarchive_run, update_run_checkpoint,
@@ -129,6 +127,7 @@ from fitcv_cp.bq_store import (
     update_run_cv_generation_debug,
     insert_cv_version_row,
 )
+import fitcv_cp.bq_store as bq_store_module
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission, get_orchestration_adapter
 from fitcv_cp.queue import cancel_queued_run, enqueue_run, enqueue_run_with_job_id
@@ -153,10 +152,190 @@ from fitcv_cp.settings_store import load_active_settings, save_setting, save_set
 from fitcv_cp.synonym_proposals import build_synonym_proposals_payload
 from fitcv_cp.data_plane import data_plane_contract_payload
 from fitcv_cp.observability import emit_observability_event
+from fitcv_cp.store import ControlPlaneStore
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 ORCHESTRATION_ADAPTER = get_orchestration_adapter()
 _RUN_SUBMISSION_CACHE: dict[str, RunSubmission] = {}
+_CP_STORE: ControlPlaneStore | None = None
 logger = logging.getLogger(__name__)
+
+
+def get_run(run_id: str, bq: Any, *, project: str, dataset: str) -> PipelineRun | None:
+    if _CP_STORE is not None:
+        return _CP_STORE.get_run(run_id)
+    return bq_store_module.get_run(run_id, bq, project=project, dataset=dataset)
+
+
+def list_runs(
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+    limit: int = 50,
+    include_archived: bool = False,
+    archived_only: bool = False,
+) -> list[PipelineRun]:
+    if _CP_STORE is not None:
+        return _CP_STORE.list_runs(
+            limit=limit,
+            include_archived=include_archived,
+            archived_only=archived_only,
+        )
+    return bq_store_module.list_runs(
+        bq,
+        project=project,
+        dataset=dataset,
+        limit=limit,
+        include_archived=include_archived,
+        archived_only=archived_only,
+    )
+
+
+def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunEvent]:
+    if _CP_STORE is not None:
+        return _CP_STORE.get_events(run_id)
+    return bq_store_module.get_events(run_id, bq, project=project, dataset=dataset)
+
+
+def update_run_status(run_id: str, status: RunStatus, bq: Any, *, project: str, dataset: str, **kwargs: Any) -> None:
+    if _CP_STORE is not None:
+        _CP_STORE.update_run_status(run_id, status, **kwargs)
+        return
+    bq_store_module.update_run_status(run_id, status, bq, project=project, dataset=dataset, **kwargs)
+
+
+def update_run_checkpoint(run_id: str, bq: Any, *, project: str, dataset: str, **kwargs: Any) -> None:
+    if _CP_STORE is not None:
+        _CP_STORE.update_run_checkpoint(run_id, **kwargs)
+        return
+    bq_store_module.update_run_checkpoint(run_id, bq, project=project, dataset=dataset, **kwargs)
+
+
+def request_run_cancel(
+    run_id: str,
+    requested_by: str,
+    target_status: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> bool:
+    if _CP_STORE is not None:
+        return _CP_STORE.request_run_cancel(run_id, requested_by, target_status)
+    return bool(
+        bq_store_module.request_run_cancel(
+            run_id,
+            requested_by,
+            target_status,
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+    )
+
+
+def archive_run(run_id: str, archived_by: str, bq: Any, *, project: str, dataset: str) -> None:
+    if _CP_STORE is not None:
+        _CP_STORE.archive_run(run_id, archived_by)
+        return
+    bq_store_module.archive_run(run_id, archived_by, bq, project=project, dataset=dataset)
+
+
+def unarchive_run(run_id: str, bq: Any, *, project: str, dataset: str) -> None:
+    if _CP_STORE is not None:
+        _CP_STORE.unarchive_run(run_id)
+        return
+    bq_store_module.unarchive_run(run_id, bq, project=project, dataset=dataset)
+
+
+def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> list[dict[str, Any]]:
+    if _CP_STORE is not None:
+        return _CP_STORE.list_cvs_for_run(run_id)
+    return bq_store_module.list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
+
+
+def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> str | None:
+    if _CP_STORE is not None:
+        return _CP_STORE.get_cv_markdown(version_id)
+    return bq_store_module.get_cv_markdown(version_id, bq, project=project, dataset=dataset)
+
+
+def list_run_structured_jobs(run_id: str, bq: Any, *, project: str, dataset: str) -> list[dict[str, Any]]:
+    if _CP_STORE is not None:
+        return _CP_STORE.list_run_structured_jobs(run_id)
+    return bq_store_module.list_run_structured_jobs(run_id, bq, project=project, dataset=dataset)
+
+
+def list_filter_results_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> list[dict[str, Any]]:
+    if _CP_STORE is not None:
+        return _CP_STORE.list_filter_results_for_run(run_id)
+    return bq_store_module.list_filter_results_for_run(run_id, bq, project=project, dataset=dataset)
+
+def get_pipeline_runs_schema_status(bq: Any, *, project: str, dataset: str) -> dict[str, Any]:
+    if _CP_STORE is not None:
+        return _CP_STORE.get_pipeline_runs_schema_status()
+    return dict(bq_store_module.get_pipeline_runs_schema_status(bq, project=project, dataset=dataset))
+
+def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dict[str, str]:
+    if _CP_STORE is not None:
+        return _CP_STORE.append_event(event)
+    return dict(bq_store_module.append_event(event, bq, project=project, dataset=dataset))
+
+def update_run_effective_settings(run_id: str, effective_settings_json: str, bq: Any, *, project: str, dataset: str) -> None:
+    if _CP_STORE is not None:
+        _CP_STORE.update_run_effective_settings(run_id, effective_settings_json)
+        return
+    bq_store_module.update_run_effective_settings(
+        run_id,
+        effective_settings_json,
+        bq,
+        project=project,
+        dataset=dataset,
+    )
+
+def update_run_synonym_proposals(
+    run_id: str,
+    synonym_proposals_json: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> dict[str, str]:
+    if _CP_STORE is not None:
+        return _CP_STORE.update_run_synonym_proposals(run_id, synonym_proposals_json)
+    return dict(
+        bq_store_module.update_run_synonym_proposals(
+            run_id,
+            synonym_proposals_json,
+            bq,
+            project=project,
+            dataset=dataset,
+        )
+    )
+
+def update_run_cv_generation_debug(
+    run_id: str,
+    cv_generation_debug_json: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    if _CP_STORE is not None:
+        _CP_STORE.update_run_cv_generation_debug(run_id, cv_generation_debug_json)
+        return
+    bq_store_module.update_run_cv_generation_debug(
+        run_id,
+        cv_generation_debug_json,
+        bq,
+        project=project,
+        dataset=dataset,
+    )
+
+def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset: str) -> list[Any]:
+    if _CP_STORE is not None:
+        return _CP_STORE.insert_cv_version_row(row)
+    return list(bq_store_module.insert_cv_version_row(row, bq, project=project, dataset=dataset))
 
 
 def _observability_toggles() -> tuple[bool, bool]:
@@ -168,6 +347,9 @@ def _observability_toggles() -> tuple[bool, bool]:
 
 
 def _persist_run_initial(run: PipelineRun, *, bq: Any, project: str, dataset: str) -> None:
+    if _CP_STORE is not None:
+        _CP_STORE.insert_run(run)
+        return
     insert_run(run, bq, project=project, dataset=dataset)
 
 
@@ -181,6 +363,14 @@ def _persist_run_orchestration_binding(
     project: str,
     dataset: str,
 ) -> None:
+    if _CP_STORE is not None:
+        _CP_STORE.update_run_orchestration_binding(
+            run_id,
+            queue_job_id=queue_job_id,
+            orchestration_backend=orchestration_backend,
+            orchestration_run_id=orchestration_run_id,
+        )
+        return
     update_run_orchestration_binding(
         run_id,
         queue_job_id=queue_job_id,
@@ -200,6 +390,9 @@ def _persist_run_queue_job_id(
     project: str,
     dataset: str,
 ) -> None:
+    if _CP_STORE is not None:
+        _CP_STORE.update_run_queue_job_id(run_id, queue_job_id)
+        return
     update_run_queue_job_id(run_id, queue_job_id, bq, project=project, dataset=dataset)
 
 
@@ -1124,6 +1317,52 @@ def _run_telemetry_export_health(events: list[RunEvent]) -> dict[str, Any]:
         "last_degraded_stage": last_degraded_stage,
     }
 
+
+def _run_langfuse_link_health(events: list[RunEvent]) -> dict[str, Any]:
+    linked_count = 0
+    degraded_count = 0
+    disabled_count = 0
+    last_degraded_stage: str | None = None
+    last_trace_url: str | None = None
+    for ev in events:
+        payload_json = str(getattr(ev, "payload_json", "") or "").strip()
+        if not payload_json:
+            continue
+        try:
+            payload = _json.loads(payload_json)
+        except Exception:
+            continue
+        stage = str(ev.stage or "")
+        langfuse = dict(payload.get("langfuse_link") or {})
+        status = str(langfuse.get("status") or "")
+        if status == "linked":
+            linked_count += 1
+            trace_url = str(langfuse.get("trace_url") or "").strip()
+            if trace_url:
+                last_trace_url = trace_url
+            continue
+        if status == "degraded":
+            degraded_count += 1
+            if stage:
+                last_degraded_stage = stage
+            continue
+        if status == "disabled":
+            disabled_count += 1
+    if degraded_count > 0:
+        overall = "degraded"
+    elif linked_count > 0:
+        overall = "linked"
+    else:
+        overall = "disabled"
+    return {
+        "status": overall,
+        "linked_count": linked_count,
+        "degraded_count": degraded_count,
+        "disabled_count": disabled_count,
+        "last_degraded_stage": last_degraded_stage,
+        "last_trace_url": last_trace_url,
+    }
+
 def _latest_dead_letter_replay_summary(events: list[RunEvent]) -> dict[str, Any]:
     latest: dict[str, Any] | None = None
     for event in events:
@@ -1480,7 +1719,30 @@ def _load_run_agentic_live_trace_payload(run: PipelineRun) -> dict[str, Any] | N
     return None
 
 def _load_run_cv_generation_debug_payload(run: PipelineRun) -> dict[str, Any] | None:
-    return _load_json_object(run.cv_generation_debug_json)
+    payload = _load_json_object(run.cv_generation_debug_json)
+    if not isinstance(payload, dict):
+        return None
+    copied = dict(payload)
+    records = [
+        item
+        for item in list(copied.get("debug_records") or copied.get("cv_generation_debug_records") or [])
+        if isinstance(item, dict)
+    ]
+    normalized_records: list[dict[str, Any]] = []
+    for record in records:
+        row = dict(record)
+        ranking_fit_label = row.get("ranking_fit_label")
+        reranker_fit_label = row.get("reranker_fit_label")
+        if ranking_fit_label is None and reranker_fit_label is not None:
+            row["ranking_fit_label"] = reranker_fit_label
+        if reranker_fit_label is None and ranking_fit_label is not None:
+            row["reranker_fit_label"] = ranking_fit_label
+        normalized_records.append(row)
+    if "debug_records" in copied:
+        copied["debug_records"] = normalized_records
+    if "cv_generation_debug_records" in copied:
+        copied["cv_generation_debug_records"] = normalized_records
+    return copied
 
 def _run_status_allows_export(run: PipelineRun) -> bool:
     if run.status == RunStatus.SUCCEEDED:
@@ -1589,6 +1851,12 @@ def _normalized_cv_debug_payload_for_export(run: PipelineRun) -> dict[str, Any] 
     normalized_records: list[dict[str, Any]] = []
     for record in records:
         row = dict(record)
+        ranking_fit_label = row.get("ranking_fit_label")
+        reranker_fit_label = row.get("reranker_fit_label")
+        if ranking_fit_label is None and reranker_fit_label is not None:
+            row["ranking_fit_label"] = reranker_fit_label
+        if reranker_fit_label is None and ranking_fit_label is not None:
+            row["reranker_fit_label"] = ranking_fit_label
         if str(row.get("status") or "").strip() == "review_required":
             row["review_required_reason_code"] = _map_review_required_reason_code(row)
             if _extract_review_required_request_id(row) is not None:
@@ -3197,6 +3465,26 @@ def _results_export_rows(run: PipelineRun) -> list[dict[str, Any]]:
         return []
     return [dict(row) for row in rows if isinstance(row, dict)]
 
+def _fallback_enriched_rows_from_results_export(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Derive enriched-tab rows from results export when run_structured_jobs is unavailable."""
+    fallback_rows: list[dict[str, Any]] = []
+    for row in rows:
+        job_url = str(row.get("job_url") or "").strip()
+        if not job_url:
+            continue
+        fallback_rows.append(
+            {
+                "job_url": job_url,
+                "title": str(row.get("title") or row.get("job_title") or job_url),
+                "location_type": row.get("location_type"),
+                "seniority": row.get("seniority"),
+                "job_family": row.get("job_family"),
+                "domain": row.get("domain"),
+                "required_skills": row.get("required_skills") if isinstance(row.get("required_skills"), list) else [],
+            }
+        )
+    return fallback_rows
+
 
 def _stage_result_summary_rows(run: PipelineRun) -> list[dict[str, str]]:
     if not run.results_export_json:
@@ -3322,7 +3610,10 @@ def _build_enriched_tab_context(
     page: int,
     page_size: int,
 ) -> dict[str, Any]:
+    results_rows = _results_export_rows(run)
     enriched_jobs = list_run_structured_jobs(run_id, bq, project=project, dataset=dataset)
+    if not enriched_jobs:
+        enriched_jobs = _fallback_enriched_rows_from_results_export(results_rows)
     filter_results = list_filter_results_for_run(run_id, bq, project=project, dataset=dataset)
     filter_results_by_job_url: dict[str, dict[str, Any]] = {
         str(row.get("job_url") or ""): row for row in filter_results if row.get("job_url")
@@ -3332,7 +3623,6 @@ def _build_enriched_tab_context(
         row for row in filter_results
         if str(row.get("job_url") or "") not in enriched_job_urls and row.get("reasons")
     ]
-    results_rows = _results_export_rows(run)
     pipeline_outcomes_by_job_url: dict[str, dict[str, str | None]] = {
         str(row.get("job_url") or ""): {
             "status": str(row.get("pipeline_status") or ""),
@@ -3605,6 +3895,33 @@ def _can_unarchive_run(run: PipelineRun) -> bool:
 
 
 def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
+    global _CP_STORE
+    _CP_STORE = ControlPlaneStore(
+        bq=bq,
+        project=project,
+        dataset=dataset,
+        insert_run_fn=insert_run,
+        update_run_queue_job_id_fn=update_run_queue_job_id,
+        update_run_orchestration_binding_fn=update_run_orchestration_binding,
+        get_run_fn=bq_store_module.get_run,
+        list_runs_fn=bq_store_module.list_runs,
+        get_events_fn=bq_store_module.get_events,
+        update_run_status_fn=bq_store_module.update_run_status,
+        update_run_checkpoint_fn=bq_store_module.update_run_checkpoint,
+        request_run_cancel_fn=bq_store_module.request_run_cancel,
+        archive_run_fn=bq_store_module.archive_run,
+        unarchive_run_fn=bq_store_module.unarchive_run,
+        list_cvs_for_run_fn=bq_store_module.list_cvs_for_run,
+        get_cv_markdown_fn=bq_store_module.get_cv_markdown,
+        list_run_structured_jobs_fn=bq_store_module.list_run_structured_jobs,
+        list_filter_results_for_run_fn=bq_store_module.list_filter_results_for_run,
+        get_pipeline_runs_schema_status_fn=bq_store_module.get_pipeline_runs_schema_status,
+        append_event_fn=bq_store_module.append_event,
+        update_run_effective_settings_fn=bq_store_module.update_run_effective_settings,
+        update_run_synonym_proposals_fn=bq_store_module.update_run_synonym_proposals,
+        update_run_cv_generation_debug_fn=bq_store_module.update_run_cv_generation_debug,
+        insert_cv_version_row_fn=bq_store_module.insert_cv_version_row,
+    )
     app = FastAPI(title="FitCV Admin Control Plane")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
     schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
@@ -5697,6 +6014,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         markdown_quality_summary = _build_markdown_quality_summary(run)
         event_delivery_health = _run_event_delivery_health(run_id)
         telemetry_export_health = _run_telemetry_export_health(events)
+        langfuse_link_health = _run_langfuse_link_health(events)
         dead_letter_replay_summary = _latest_dead_letter_replay_summary(events)
         orchestration_diagnostics = _build_orchestration_diagnostics(run)
         replay_context_summary = _run_replay_context_summary(run)
@@ -5740,6 +6058,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "markdown_quality_summary": markdown_quality_summary,
                 "event_delivery_health": event_delivery_health,
                 "telemetry_export_health": telemetry_export_health,
+                "langfuse_link_health": langfuse_link_health,
                 "dead_letter_replay_summary": dead_letter_replay_summary,
                 "orchestration_diagnostics": orchestration_diagnostics,
                 "replay_context_summary": replay_context_summary,
