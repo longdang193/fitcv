@@ -34,6 +34,22 @@ def _normalized_env(value: str | None) -> str:
     return str(value or "").strip()
 
 
+def _parse_otlp_headers(value: str | None) -> dict[str, str]:
+    raw = _normalized_env(value)
+    if not raw:
+        return {}
+    headers: dict[str, str] = {}
+    for part in raw.split(","):
+        segment = part.strip()
+        if not segment or "=" not in segment:
+            continue
+        key, val = segment.split("=", 1)
+        key_clean = key.strip()
+        val_clean = val.strip()
+        if key_clean and val_clean:
+            headers[key_clean] = val_clean
+    return headers
+
 def setup_telemetry_runtime() -> dict[str, Any]:
     global _INITIALIZED, _DEGRADED_REASON, _OTEL_ENABLED
     with _INIT_LOCK:
@@ -53,17 +69,20 @@ def setup_telemetry_runtime() -> dict[str, Any]:
             from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter  # type: ignore
         except Exception:
             _DEGRADED_REASON = "otel_dependency_missing"
+            _OTEL_ENABLED = False
             return {"enabled": False, "degraded_reason": _DEGRADED_REASON}
 
         endpoint = str(os.environ.get("FITCV_OTEL_EXPORTER_OTLP_ENDPOINT", "") or "").strip()
         if not endpoint:
             _DEGRADED_REASON = "otel_exporter_endpoint_missing"
+            _OTEL_ENABLED = False
             return {"enabled": False, "degraded_reason": _DEGRADED_REASON}
 
         try:
             service_name = str(os.environ.get("FITCV_OTEL_SERVICE_NAME", "fitcv-control-plane") or "fitcv-control-plane")
             provider = TracerProvider(resource=Resource.create({"service.name": service_name}))
-            exporter = OTLPSpanExporter(endpoint=endpoint)
+            exporter_headers = _parse_otlp_headers(os.environ.get("FITCV_OTEL_EXPORTER_OTLP_HEADERS"))
+            exporter = OTLPSpanExporter(endpoint=endpoint, headers=exporter_headers or None)
             provider.add_span_processor(BatchSpanProcessor(exporter))
             trace.set_tracer_provider(provider)
             _OTEL_ENABLED = True
@@ -133,8 +152,8 @@ def langfuse_link_status(trace_id: str | None) -> dict[str, Any]:
             "trace_url": None,
         }
     return {
-        "status": "linked",
-        "degradation_reason": None,
+        "status": "unverified",
+        "degradation_reason": "langfuse_ingestion_unverified",
         "trace_url": f"{base_url.rstrip('/')}/trace/{normalized_trace_id}",
     }
 

@@ -165,20 +165,20 @@
     <h3 style="margin:0">Langfuse Trace-Link Health</h3>
     {% if langfuse_link_health.status == 'degraded' %}
       <span class="badge badge-warning">degraded</span>
-    {% elif langfuse_link_health.status == 'linked' %}
-      <span class="badge badge-success">linked</span>
+    {% elif langfuse_link_health.status == 'unverified' %}
+      <span class="badge badge-info">unverified</span>
     {% else %}
       <span class="badge badge-neutral">disabled</span>
     {% endif %}
   </div>
   <div class="kv">
-    <span class="k">Linked Events</span><span class="v">{{ langfuse_link_health.linked_count }}</span>
+    <span class="k">Unverified Link Events</span><span class="v">{{ langfuse_link_health.unverified_count }}</span>
     <span class="k">Degraded Link Events</span><span class="v">{{ langfuse_link_health.degraded_count }}</span>
     <span class="k">Last Degraded Stage</span><span class="v">{{ langfuse_link_health.last_degraded_stage or '—' }}</span>
     <span class="k">Latest Trace URL</span><span class="v">{% if langfuse_link_health.last_trace_url %}<code>{{ langfuse_link_health.last_trace_url }}</code>{% else %}—{% endif %}</span>
   </div>
   <div class="meta" style="margin-top:0.85rem">
-    Langfuse linkage augments observability only. Stage artifacts remain authoritative for runtime decisions.
+    Trace URLs are navigation links only and do not confirm ingestion. Stage artifacts remain authoritative for runtime decisions.
   </div>
 </div>
 

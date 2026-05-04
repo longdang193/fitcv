@@ -350,6 +350,7 @@ def test_worker_reporter_event_includes_telemetry_degraded_payload() -> None:
     mock_run.created_at = None
     mock_run.started_at = None
     mock_run.finished_at = None
+    mock_run.checkpoint_payload_json = None
 
     def _run_pipeline_stub(*args, **kwargs):
         reporter = kwargs.get("reporter")
@@ -363,21 +364,54 @@ def test_worker_reporter_event_includes_telemetry_degraded_payload() -> None:
             "cvs_generated": 0,
         }
 
-    with patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
-       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
-       patch("fitcv_cp.worker_job.list_runs", return_value=[]), \
-       patch("fitcv_cp.worker_job.run_pipeline", side_effect=_run_pipeline_stub):
+    with patch("fitcv_cp.worker_job._get_bq", return_value=bq),        patch("fitcv_cp.worker_job.get_run", return_value=mock_run),        patch("fitcv_cp.worker_job.list_runs", return_value=[]),        patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock,        patch("fitcv_cp.worker_job.run_pipeline", side_effect=_run_pipeline_stub):
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
-    rows = bq.insert_rows_json.call_args_list
-    payload_rows = [call.args[1][0] for call in rows if call.args and len(call.args) > 1 and call.args[1]]
-    assert payload_rows, "expected at least one event row"
-    matching = [row for row in payload_rows if row.get("stage") == "pipeline_start"]
+    events = [call.args[0] for call in append_mock.call_args_list if call.args]
+    matching = [ev for ev in events if str(getattr(ev, "stage", "")) == "pipeline_start"]
     assert matching, "expected pipeline_start event row"
-    payload = json.loads(str(matching[0].get("payload_json") or "{}"))
+    payload = json.loads(str(getattr(matching[0], "payload_json", "") or "{}"))
     telemetry_export = dict(payload.get("telemetry_export") or {})
     assert telemetry_export.get("status") == "degraded"
 
+def test_worker_reporter_event_includes_langfuse_rich_contract_disabled_by_default() -> None:
+    bq = MagicMock()
+    bq.insert_rows_json.return_value = []
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "path"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.run_mode = "run_all"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+    mock_run.checkpoint_payload_json = None
+
+    def _run_pipeline_stub(*args, **kwargs):
+        reporter = kwargs.get("reporter")
+        if reporter is not None:
+            reporter.emit("pipeline_start", "info", "Run started")
+        return {
+            "run_id": "r1",
+            "total_jobs": 0,
+            "passed_filter": 0,
+            "ranked": 0,
+            "cvs_generated": 0,
+        }
+
+    with patch("fitcv_cp.worker_job._get_bq", return_value=bq),        patch("fitcv_cp.worker_job.get_run", return_value=mock_run),        patch("fitcv_cp.worker_job.list_runs", return_value=[]),        patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock,        patch("fitcv_cp.worker_job.run_pipeline", side_effect=_run_pipeline_stub):
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    events = [call.args[0] for call in append_mock.call_args_list if call.args]
+    matching = [ev for ev in events if str(getattr(ev, "stage", "")) == "pipeline_start"]
+    assert matching
+    payload = json.loads(str(getattr(matching[0], "payload_json", "") or "{}"))
+    rich = dict(payload.get("langfuse_rich_io") or {})
+    native = dict(payload.get("langfuse_rich_io_native") or {})
+    assert rich.get("status") == "disabled"
+    assert native.get("status") == "disabled"
 
 def test_worker_persists_cv_generation_debug_json_on_success():
     bq = MagicMock()
@@ -1789,6 +1823,7 @@ def test_worker_results_export_includes_deterministic_stage_summary_fields() -> 
     mock_run.created_at = None
     mock_run.started_at = None
     mock_run.finished_at = None
+    mock_run.checkpoint_payload_json = None
 
     with patch("fitcv_cp.worker_job.run_pipeline", return_value={
         "run_id": "r1",

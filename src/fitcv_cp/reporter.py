@@ -22,16 +22,191 @@ lifecycle:
   status: active
 """
 import datetime
+import hashlib
 import json
 import logging
+import os
 import uuid
 from typing import Any, Optional
 
+import httpx
 from fitcv.telemetry import build_trace_context, langfuse_link_status, telemetry_export_status
 from fitcv_cp.bq_store import append_event
 from fitcv_cp.models import RunEvent
 
 logger = logging.getLogger(__name__)
+
+_MAX_STRING_LENGTH = 500
+_MAX_LIST_ITEMS = 20
+_MAX_OBJECT_KEYS = 30
+_SENSITIVE_KEY_PARTS = {
+    "password",
+    "secret",
+    "token",
+    "authorization",
+    "api_key",
+    "private_key",
+    "access_key",
+    "cookie",
+}
+
+
+def _is_truthy(value: str | None) -> bool:
+    normalized = str(value or "").strip().lower()
+    return normalized in {"1", "true", "yes", "on"}
+
+
+def _truncate_string(value: str) -> str:
+    if len(value) <= _MAX_STRING_LENGTH:
+        return value
+    return f"{value[:_MAX_STRING_LENGTH]}...[truncated]"
+
+
+def _redact_and_bound(value: Any, *, depth: int = 0) -> Any:
+    if depth > 4:
+        return "[truncated_depth]"
+    if isinstance(value, dict):
+        reduced: dict[str, Any] = {}
+        for idx, (key, val) in enumerate(value.items()):
+            if idx >= _MAX_OBJECT_KEYS:
+                reduced["__truncated_keys__"] = True
+                break
+            key_text = str(key)
+            key_lower = key_text.lower()
+            if any(part in key_lower for part in _SENSITIVE_KEY_PARTS):
+                reduced[key_text] = "[REDACTED]"
+                continue
+            reduced[key_text] = _redact_and_bound(val, depth=depth + 1)
+        return reduced
+    if isinstance(value, list):
+        items = [_redact_and_bound(item, depth=depth + 1) for item in value[:_MAX_LIST_ITEMS]]
+        if len(value) > _MAX_LIST_ITEMS:
+            items.append("[truncated_items]")
+        return items
+    if isinstance(value, str):
+        return _truncate_string(value)
+    if isinstance(value, (int, float, bool)) or value is None:
+        return value
+    return _truncate_string(str(value))
+
+
+def _build_langfuse_rich_io_contract(
+    *,
+    stage: str,
+    level: str,
+    message: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    if not _is_truthy(os.environ.get("FITCV_LANGFUSE_RICH_IO_ENABLED")):
+        return {
+            "status": "disabled",
+            "degradation_reason": "langfuse_rich_io_disabled",
+            "input": None,
+            "output": None,
+        }
+    stage_lower = stage.lower()
+    stage_family = "generic"
+    if "normalize" in stage_lower:
+        stage_family = "normalize"
+    elif "cv_analysis" in stage_lower:
+        stage_family = "cv_analysis"
+    elif "cv_generation" in stage_lower:
+        stage_family = "cv_generation"
+
+    bounded_payload = _redact_and_bound(payload)
+    rich_input: dict[str, Any] = {
+        "stage": stage,
+        "stage_family": stage_family,
+        "message": _truncate_string(message),
+        "payload": bounded_payload,
+    }
+    rich_output: dict[str, Any] = {
+        "level": level,
+        "event_status": "emitted",
+        "stage_family": stage_family,
+    }
+
+    if stage_family in {"normalize", "cv_analysis", "cv_generation"}:
+        input_snapshot = payload.get("input_snapshot")
+        output_snapshot = payload.get("output_snapshot")
+        if isinstance(input_snapshot, (dict, list)):
+            rich_input["input_snapshot"] = _redact_and_bound(input_snapshot)
+        if isinstance(output_snapshot, (dict, list)):
+            rich_output["output_snapshot"] = _redact_and_bound(output_snapshot)
+
+    return {
+        "status": "ready",
+        "degradation_reason": None,
+        "input": rich_input,
+        "output": rich_output,
+    }
+
+
+def _langfuse_ingestion_enabled() -> bool:
+    return _is_truthy(os.environ.get("FITCV_LANGFUSE_RICH_IO_ENABLED"))
+
+
+def _build_langfuse_ingestion_headers() -> dict[str, str] | None:
+    public_key = str(os.environ.get("FITCV_LANGFUSE_PROJECT_PUBLIC_KEY") or "").strip()
+    secret_key = str(os.environ.get("FITCV_LANGFUSE_PROJECT_SECRET_KEY") or "").strip()
+    if not public_key or not secret_key:
+        return None
+    import base64
+
+    token = base64.b64encode(f"{public_key}:{secret_key}".encode("utf-8")).decode("utf-8")
+    return {
+        "Authorization": f"Basic {token}",
+        "Content-Type": "application/json",
+    }
+
+
+def _emit_langfuse_native_io(
+    *,
+    stage: str,
+    trace_id: str,
+    rich_contract: dict[str, Any],
+) -> tuple[str, str | None]:
+    if not _langfuse_ingestion_enabled():
+        return "disabled", "langfuse_rich_io_disabled"
+    headers = _build_langfuse_ingestion_headers()
+    if headers is None:
+        return "degraded", "langfuse_credentials_missing"
+    stage_family = str((rich_contract.get("input") or {}).get("stage_family") or "")
+    if stage_family not in {"normalize", "cv_analysis", "cv_generation"}:
+        return "not_applicable", None
+    base_url = str(os.environ.get("FITCV_LANGFUSE_BASE_URL") or "").strip().rstrip("/")
+    if not base_url:
+        return "degraded", "langfuse_base_url_missing"
+    ingestion_url = f"{base_url}/api/public/ingestion"
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+    rich_trace_id = hashlib.sha256(f"{trace_id}:{stage}:rich".encode("utf-8")).hexdigest()[:32]
+    body = {
+        "batch": [
+            {
+                "id": str(uuid.uuid4()),
+                "timestamp": now,
+                "type": "trace-create",
+                "body": {
+                    "id": rich_trace_id,
+                    "name": f"{stage}:rich_io",
+                    "input": json.dumps((rich_contract.get("input") or {}), ensure_ascii=False),
+                    "output": json.dumps((rich_contract.get("output") or {}), ensure_ascii=False),
+                    "metadata": {
+                        "source_trace_id": trace_id,
+                        "stage": stage,
+                    },
+                },
+            }
+        ],
+        "metadata": {"source": "fitcv-control-plane"},
+    }
+    try:
+        resp = httpx.post(ingestion_url, headers=headers, json=body, timeout=5.0)
+        if 200 <= resp.status_code < 300:
+            return f"sent:{rich_trace_id}", None
+        return "degraded", f"langfuse_ingestion_http_{resp.status_code}"
+    except Exception:
+        return "degraded", "langfuse_ingestion_failed"
 
 
 class PipelineReporter:
@@ -48,7 +223,8 @@ class PipelineReporter:
         message: str,
         payload: Optional[dict[str, Any]] = None,
     ) -> None:
-        payload_value = dict(payload or {})
+        source_payload = dict(payload or {})
+        payload_value = dict(source_payload)
         payload_value["trace_context"] = build_trace_context(
             f"run:{self._run_id}:stage:{stage}:message:{message}"
         )
@@ -56,6 +232,22 @@ class PipelineReporter:
         payload_value["langfuse_link"] = langfuse_link_status(
             str(payload_value["trace_context"].get("trace_id") or "")
         )
+        payload_value["langfuse_rich_io"] = _build_langfuse_rich_io_contract(
+            stage=stage,
+            level=level,
+            message=message,
+            payload=source_payload,
+        )
+        trace_id = str(payload_value["trace_context"].get("trace_id") or "")
+        native_status, native_reason = _emit_langfuse_native_io(
+            stage=stage,
+            trace_id=trace_id,
+            rich_contract=dict(payload_value["langfuse_rich_io"] or {}),
+        )
+        payload_value["langfuse_rich_io_native"] = {
+            "status": native_status,
+            "degradation_reason": native_reason,
+        }
         event = RunEvent(
             run_id=self._run_id,
             event_id=str(uuid.uuid4()),
