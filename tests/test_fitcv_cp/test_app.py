@@ -7331,6 +7331,22 @@ def test_runs_list_shows_schema_fallback_banner_when_columns_missing() -> None:
     assert "Orchestration Schema Fallback Mode" in resp.text
     assert "schema: fallback mode" in resp.text
 
+def test_runs_list_hides_schema_fallback_banner_for_unknown_schema_status() -> None:
+    run = _make_full_run_mock(status="queued", run_id="run-schema-unknown")
+    with patch("fitcv_cp.app.list_runs", return_value=[run]), \
+         patch(
+             "fitcv_cp.app.get_pipeline_runs_schema_status",
+             return_value={
+                 "status": "unknown",
+                 "missing_columns": [],
+                 "warning": "sqlite_mode_no_bigquery_schema_check",
+             },
+         ):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert resp.status_code == 200
+    assert "Orchestration Schema Fallback Mode" not in resp.text
+    assert "schema: fallback mode" not in resp.text
+
 def test_runs_list_uses_persisted_backend_identity_per_run() -> None:
     run_prefect = _make_full_run_mock(status="queued", run_id="run-prefect")
     run_prefect.queue_job_id = "rq-job-prefect"
