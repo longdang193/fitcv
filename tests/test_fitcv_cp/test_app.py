@@ -20,7 +20,6 @@ from fastapi.testclient import TestClient
 from fitcv_cp.app import _timeline_stage_download_for_event, create_app
 from fitcv_cp.models import RunStatus
 from fitcv_cp.orchestrator import RunSubmission
-from rq.exceptions import NoSuchJobError
 
 
 def _app():
@@ -133,12 +132,125 @@ def test_get_run_detail_reconciles_orphaned_running_run_when_queue_job_missing()
     with patch("fitcv_cp.app.get_run", side_effect=[running, failed]), \
          patch("fitcv_cp.app.update_run_status") as mock_update_status, \
          patch("fitcv_cp.app.append_event"), \
-         patch("fitcv_cp.app.redis.from_url"), \
-         patch("fitcv_cp.app.Job.fetch", side_effect=NoSuchJobError("missing")):
+         patch("fitcv_cp.app.get_queue_job_status", return_value="missing"):
         resp = TestClient(_app()).get("/runs/run-orphaned-1")
 
     assert resp.status_code == 200
     assert resp.json()["status"] == "failed"
+    assert mock_update_status.called
+
+def test_get_run_detail_keeps_running_for_inline_started_job_status() -> None:
+    from fitcv_cp.models import PipelineRun
+    from datetime import datetime, timezone
+
+    running = PipelineRun(
+        run_id="run-inline-1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        started_at=datetime.now(timezone.utc),
+        queue_job_id="inline-job-1",
+        run_mode="run_all",
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=running), \
+         patch("fitcv_cp.app.get_queue_job_status", return_value="started"), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event") as mock_append_event:
+        resp = TestClient(_app()).get("/runs/run-inline-1")
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "running"
+    assert not mock_update_status.called
+    assert not mock_append_event.called
+
+def test_get_runs_list_reconciles_orphaned_running_run_when_queue_job_missing() -> None:
+    from fitcv_cp.models import PipelineRun
+    from datetime import datetime, timezone
+
+    running = PipelineRun(
+        run_id="run-orphaned-list-1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        started_at=datetime.now(timezone.utc),
+        queue_job_id="rq-missing-list-1",
+        run_mode="run_all",
+    )
+    failed = PipelineRun(
+        run_id="run-orphaned-list-1",
+        status=RunStatus.FAILED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=running.created_at,
+        started_at=running.started_at,
+        finished_at=datetime.now(timezone.utc),
+        error_message="Queue job rq-missing-list-1 missing while run remained RUNNING",
+        run_mode="run_all",
+    )
+
+    with patch("fitcv_cp.app.list_runs", return_value=[running]), \
+         patch("fitcv_cp.app.get_run", return_value=failed), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event"), \
+         patch("fitcv_cp.app.get_queue_job_status", return_value="missing"):
+        resp = TestClient(_app()).get("/runs")
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert isinstance(payload, list) and payload
+    assert payload[0]["status"] == "failed"
+    assert mock_update_status.called
+
+def test_admin_runs_reconciles_orphaned_running_run_when_queue_job_missing() -> None:
+    from fitcv_cp.models import PipelineRun
+    from datetime import datetime, timezone
+
+    running = PipelineRun(
+        run_id="run-orphaned-admin-1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        started_at=datetime.now(timezone.utc),
+        queue_job_id="rq-missing-admin-1",
+        run_mode="run_all",
+    )
+    failed = PipelineRun(
+        run_id="run-orphaned-admin-1",
+        status=RunStatus.FAILED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=running.created_at,
+        started_at=running.started_at,
+        finished_at=datetime.now(timezone.utc),
+        error_message="Queue job rq-missing-admin-1 missing while run remained RUNNING",
+        run_mode="run_all",
+    )
+
+    with patch("fitcv_cp.app.list_runs", return_value=[running]), \
+         patch("fitcv_cp.app.get_run", return_value=failed), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event"), \
+         patch("fitcv_cp.app.get_queue_job_status", return_value="missing"), \
+         patch("fitcv_cp.app.get_pipeline_runs_schema_status", return_value={"status": "complete", "missing_columns": [], "warning": None}):
+        resp = TestClient(_app()).get("/admin/runs")
+
+    assert resp.status_code == 200
+    assert "run-orphaned-admin-1" in resp.text
+    assert "failed" in resp.text.lower()
     assert mock_update_status.called
 
 

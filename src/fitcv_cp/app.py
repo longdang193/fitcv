@@ -131,9 +131,6 @@ import fitcv_cp.bq_store as bq_store_module
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission, get_orchestration_adapter
 from fitcv_cp.queue import cancel_queued_run, enqueue_run, enqueue_run_with_job_id
-import redis
-from rq.exceptions import NoSuchJobError
-from rq.job import Job
 from fitcv_cp.settings_schema import (
     AGENTIC_SETTINGS_SECTIONS,
     ALL_GROUP_REGISTRIES,
@@ -475,6 +472,9 @@ def enqueue_run(
 
 def cancel_queued_run(queue_job_id: str, redis_url: str = "redis://redis:6379/0") -> bool:
     return ORCHESTRATION_ADAPTER.cancel_queued_run(queue_job_id=queue_job_id, redis_url=redis_url)
+
+def get_queue_job_status(queue_job_id: str, redis_url: str = "redis://redis:6379/0") -> str:
+    return ORCHESTRATION_ADAPTER.status(queue_job_id=queue_job_id, redis_url=redis_url)
 
 def continue_run_with_job_id(
     *,
@@ -3969,9 +3969,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if not queue_job_id:
             return run
         try:
-            conn = redis.from_url(redis_url)
-            job = Job.fetch(queue_job_id, connection=conn)
-            rq_status = str(job.get_status(refresh=True) or "").strip().lower()
+            rq_status = str(get_queue_job_status(queue_job_id, redis_url=redis_url) or "").strip().lower()
             if rq_status in {"queued", "started", "deferred"}:
                 return run
             if rq_status in {"finished", "failed", "stopped", "canceled", "cancelled"}:
@@ -4001,8 +3999,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     dataset=dataset,
                 )
                 return get_run(run.run_id, bq, project=project, dataset=dataset) or run
+            if rq_status == "missing":
+                raise LookupError("queue job missing")
             return run
-        except NoSuchJobError:
+        except LookupError:
             update_run_status(
                 run.run_id,
                 RunStatus.FAILED,
@@ -4982,7 +4982,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
     @app.get("/runs")
     def get_runs_list() -> list:
-        return [_run_to_dict(r) for r in list_runs(bq, project=project, dataset=dataset)]
+        runs = list_runs(bq, project=project, dataset=dataset)
+        runs = [_reconcile_orphaned_running_run(run) for run in runs]
+        return [_run_to_dict(r) for r in runs]
 
     @app.get("/runs/{run_id}")
     def get_run_detail(run_id: str) -> dict:
@@ -5222,6 +5224,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             runs = list_runs(bq, project=project, dataset=dataset, include_archived=True)
         else:  # default: active
             runs = list_runs(bq, project=project, dataset=dataset, include_archived=False)
+        runs = [_reconcile_orphaned_running_run(run) for run in runs]
         max_runtime_minutes = _run_max_runtime_minutes()
         runs = [_enforce_run_timeout_guard(run, max_runtime_minutes=max_runtime_minutes) for run in runs]
         pipeline_runs_schema_status = get_pipeline_runs_schema_status(
