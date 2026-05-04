@@ -1307,6 +1307,8 @@ def _run_telemetry_export_health(events: list[RunEvent]) -> dict[str, Any]:
         telemetry = dict(payload.get("telemetry_export") or {})
         if str(telemetry.get("status") or "") != "degraded":
             continue
+        if str(telemetry.get("degradation_reason") or "").strip() == "otel_disabled":
+            continue
         degraded_count += 1
         stage = str(getattr(event, "stage", "") or "").strip()
         if stage:

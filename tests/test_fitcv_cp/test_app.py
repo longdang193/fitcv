@@ -9557,6 +9557,40 @@ def test_run_detail_shows_telemetry_export_healthy_when_no_degraded_events() -> 
     assert ">0<" in html
 
 
+def test_run_detail_ignores_otel_disabled_for_telemetry_degradation() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="telemetry-disabled-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    telemetry_event = RunEvent(
+        run_id="telemetry-disabled-1",
+        event_id="telemetry-ev-3",
+        stage="pipeline_start",
+        level="info",
+        message="telemetry disabled",
+        created_at=datetime.now(timezone.utc),
+        payload_json=json.dumps({"telemetry_export": {"status": "degraded", "degradation_reason": "otel_disabled"}}),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], patch("fitcv_cp.app.get_events", return_value=[telemetry_event]), p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/telemetry-disabled-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Telemetry Export Health" in html
+    assert "healthy" in html
+    assert "Degraded Telemetry Events" in html
+    assert ">0<" in html
+
+
 def test_run_detail_shows_langfuse_linked_health_when_trace_url_present() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone

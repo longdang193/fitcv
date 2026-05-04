@@ -143,7 +143,10 @@ def telemetry_export_status() -> dict[str, Any]:
     setup = setup_telemetry_runtime()
     if bool(setup.get("enabled")):
         return {"status": "export_enabled", "degradation_reason": None}
+    degraded_reason = str(setup.get("degraded_reason") or "otel_disabled")
+    if degraded_reason == "otel_disabled":
+        return {"status": "disabled", "degradation_reason": degraded_reason}
     return {
         "status": "degraded",
-        "degradation_reason": str(setup.get("degraded_reason") or "otel_disabled"),
+        "degradation_reason": degraded_reason,
     }
