@@ -9488,7 +9488,7 @@ def test_run_detail_shows_event_delivery_healthy_when_no_dead_letter_for_run(tmp
     assert "Event Delivery Health" in html
     assert "healthy" in html
     assert "Dead-lettered Events" in html
-    assert ">0<" in html
+    assert 'Degraded Telemetry Events</span><span class="v">0</span>' in html
 
 def test_run_detail_shows_telemetry_export_degraded_health() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
