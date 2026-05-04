@@ -323,6 +323,10 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
     effective = json.loads(captured["run"].effective_settings_json)
     assert json.loads(effective["runtime_inputs"]["candidate_profile_json"]) == profile_snapshot
     assert "agentic_runtime_expectation" in effective["runtime_inputs"]
+    synonym_settings = dict(effective.get("synonym_management") or {})
+    assert synonym_settings.get("auto_apply_recommendation_enabled") is False
+    assert synonym_settings.get("auto_promote_global_enabled") is False
+    assert synonym_settings.get("auto_accept_ai_action_enabled") is True
 
 def test_post_runs_path_trigger_captures_agentic_runtime_expectation(tmp_path) -> None:
     captured = {}
@@ -4194,6 +4198,29 @@ def test_admin_run_synonym_proposal_action_blocked_when_apply_to_run_disabled() 
             data={"action": "approve", "acted_by": "operator@example.com"},
         )
     assert resp.status_code == 409
+
+
+def test_synonym_management_mode_includes_new_automation_flags_with_defaults() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    from fitcv_cp.app import _synonym_management_mode
+
+    run = PipelineRun(
+        run_id="run-syn-mode-defaults",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps({"synonym_management": {"apply_to_run_enabled": False}}),
+    )
+    mode = _synonym_management_mode(run)
+    assert mode["apply_to_run_enabled"] is False
+    assert mode["auto_apply_recommendation_enabled"] is False
+    assert mode["auto_promote_global_enabled"] is False
+    assert mode["auto_accept_ai_action_enabled"] is True
 
 def test_admin_run_synonym_proposals_regenerate_blocked_when_propose_disabled() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus

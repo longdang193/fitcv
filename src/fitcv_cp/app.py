@@ -711,6 +711,17 @@ def _apply_trigger_runtime_envelope(
     candidate_profile_json: str | None,
     run_mode: str,
 ) -> dict[str, Any]:
+    synonym_management = dict(effective_config.get("synonym_management") or {})
+    synonym_management.setdefault("propose_enabled", True)
+    synonym_management.setdefault("apply_to_run_enabled", True)
+    synonym_management.setdefault("promote_global_enabled", True)
+    synonym_management.setdefault("auto_triage_recommendation_enabled", True)
+    synonym_management.setdefault("triage_recommendation_reuse_enabled", True)
+    synonym_management.setdefault("auto_apply_recommendation_enabled", False)
+    synonym_management.setdefault("auto_promote_global_enabled", False)
+    synonym_management.setdefault("auto_accept_ai_action_enabled", True)
+    effective_config["synonym_management"] = synonym_management
+
     runtime_inputs = effective_config.setdefault("runtime_inputs", {})
     if jobs_input_json:
         runtime_inputs["jobs_input_json"] = jobs_input_json
@@ -2700,16 +2711,30 @@ def _load_run_effective_config_snapshot(
     *,
     fallback_to_runtime_config: bool = True,
 ) -> dict[str, Any]:
+    def _with_synonym_defaults(payload: dict[str, Any]) -> dict[str, Any]:
+        normalized = dict(payload or {})
+        block = dict(normalized.get("synonym_management") or {})
+        block.setdefault("propose_enabled", True)
+        block.setdefault("apply_to_run_enabled", True)
+        block.setdefault("promote_global_enabled", True)
+        block.setdefault("auto_triage_recommendation_enabled", True)
+        block.setdefault("triage_recommendation_reuse_enabled", True)
+        block.setdefault("auto_apply_recommendation_enabled", False)
+        block.setdefault("auto_promote_global_enabled", False)
+        block.setdefault("auto_accept_ai_action_enabled", True)
+        normalized["synonym_management"] = block
+        return normalized
+
     if run.effective_settings_json:
         try:
             payload = _json.loads(run.effective_settings_json)
             if isinstance(payload, dict):
-                return payload
+                return _with_synonym_defaults(payload)
         except (_json.JSONDecodeError, TypeError):
             pass
     if fallback_to_runtime_config:
         try:
-            return load_config(run.config_path)
+            return _with_synonym_defaults(load_config(run.config_path))
         except (FileNotFoundError, ValueError):
             return {}
     return {}
@@ -2844,6 +2869,9 @@ def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
         "promote_global_enabled": bool(block.get("promote_global_enabled", True)),
         "auto_triage_recommendation_enabled": bool(block.get("auto_triage_recommendation_enabled", True)),
         "triage_recommendation_reuse_enabled": bool(block.get("triage_recommendation_reuse_enabled", True)),
+        "auto_apply_recommendation_enabled": bool(block.get("auto_apply_recommendation_enabled", False)),
+        "auto_promote_global_enabled": bool(block.get("auto_promote_global_enabled", False)),
+        "auto_accept_ai_action_enabled": bool(block.get("auto_accept_ai_action_enabled", True)),
     }
 
 def _find_synonym_proposal_index(payload: dict[str, Any], proposal_id: str) -> int | None:
