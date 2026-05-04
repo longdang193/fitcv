@@ -94,6 +94,20 @@ Quick troubleshooting:
 - `status=degraded`, `degradation_reason=otel_exporter_init_failed`
   - verify endpoint reachability, protocol path, and collector health
 
+Environment precedence note:
+
+- run-detail health cards reflect the process environment used by the active web/worker processes
+- shell/system env overrides startup-script defaults
+- if Langfuse/OTel status looks unexpected, print effective env values first:
+
+```powershell
+Write-Host "FITCV_LANGFUSE_ENABLED=$env:FITCV_LANGFUSE_ENABLED"
+Write-Host "FITCV_LANGFUSE_BASE_URL=$env:FITCV_LANGFUSE_BASE_URL"
+Write-Host "FITCV_OTEL_ENABLED=$env:FITCV_OTEL_ENABLED"
+Write-Host "FITCV_OTEL_EXPORTER_OTLP_ENDPOINT=$env:FITCV_OTEL_EXPORTER_OTLP_ENDPOINT"
+Write-Host "FITCV_OTEL_SERVICE_NAME=$env:FITCV_OTEL_SERVICE_NAME"
+```
+
 ### Control-Plane Structured Diagnostics
 
 Control-plane enqueue and backend-binding paths now emit structured diagnostics:
