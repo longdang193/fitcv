@@ -30,6 +30,9 @@ def _is_truthy(value: str | None) -> bool:
     normalized = str(value or "").strip().lower()
     return normalized in {"1", "true", "yes", "on"}
 
+def _normalized_env(value: str | None) -> str:
+    return str(value or "").strip()
+
 
 def setup_telemetry_runtime() -> dict[str, Any]:
     global _INITIALIZED, _DEGRADED_REASON, _OTEL_ENABLED
@@ -106,6 +109,34 @@ def build_trace_context(seed: str, *, parent_seed: str | None = None) -> dict[st
             "span_id": span_id,
             "parent_span_id": parent_span_id,
         }
+
+def langfuse_link_status(trace_id: str | None) -> dict[str, Any]:
+    enabled = _is_truthy(os.environ.get("FITCV_LANGFUSE_ENABLED"))
+    if not enabled:
+        return {
+            "status": "disabled",
+            "degradation_reason": "langfuse_disabled",
+            "trace_url": None,
+        }
+    base_url = _normalized_env(os.environ.get("FITCV_LANGFUSE_BASE_URL"))
+    if not base_url:
+        return {
+            "status": "degraded",
+            "degradation_reason": "langfuse_base_url_missing",
+            "trace_url": None,
+        }
+    normalized_trace_id = _normalized_env(trace_id)
+    if not normalized_trace_id:
+        return {
+            "status": "degraded",
+            "degradation_reason": "langfuse_trace_id_missing",
+            "trace_url": None,
+        }
+    return {
+        "status": "linked",
+        "degradation_reason": None,
+        "trace_url": f"{base_url.rstrip('/')}/trace/{normalized_trace_id}",
+    }
 
 
 def telemetry_export_status() -> dict[str, Any]:

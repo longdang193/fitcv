@@ -5787,6 +5787,47 @@ def test_admin_run_detail_empty_enriched_jobs_renders_gracefully():
     assert resp.status_code == 200
     assert "No enrichment data" in resp.text or "enriched" in resp.text.lower()
 
+def test_admin_run_detail_enriched_jobs_falls_back_to_results_export_when_store_empty():
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="test-fallback-enriched",
+        status=RunStatus.SUCCEEDED,
+        cvs_generated=0,
+        total_jobs=1,
+        jobs_path="",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        results_export_json=json.dumps(
+            {
+                "results": [
+                    {
+                        "job_url": "https://example.com/job/fallback-1",
+                        "job_title": "Fallback Data Engineer",
+                        "location_type": "remote",
+                        "seniority": "mid",
+                        "job_family": "data_engineering",
+                        "domain": "fintech",
+                    }
+                ]
+            }
+        ),
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=[]), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/test-fallback-enriched/tabs/enriched")
+
+    assert resp.status_code == 200
+    assert "Fallback Data Engineer" in resp.text
+    assert "remote" in resp.text
+
 
 def test_admin_run_detail_enriched_jobs_shows_required_skills():
     """Run detail renders required_skills from enriched job rows."""
@@ -9386,6 +9427,89 @@ def test_run_detail_shows_telemetry_export_healthy_when_no_degraded_events() -> 
     assert "healthy" in html
     assert "Degraded Telemetry Events" in html
     assert ">0<" in html
+
+
+def test_run_detail_shows_langfuse_linked_health_when_trace_url_present() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="langfuse-linked-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    telemetry_event = RunEvent(
+        run_id="langfuse-linked-1",
+        event_id="langfuse-ev-1",
+        stage="cv_generation",
+        level="info",
+        message="langfuse linked",
+        created_at=datetime.now(timezone.utc),
+        payload_json=json.dumps(
+            {
+                "langfuse_link": {
+                    "status": "linked",
+                    "trace_url": "http://localhost:3000/trace/trace-abc",
+                }
+            }
+        ),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], patch("fitcv_cp.app.get_events", return_value=[telemetry_event]), p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/langfuse-linked-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Langfuse Trace-Link Health" in html
+    assert "linked" in html
+    assert "Linked Events" in html
+    assert "trace/trace-abc" in html
+
+
+def test_run_detail_shows_langfuse_degraded_health_when_link_fails() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="langfuse-degraded-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    telemetry_event = RunEvent(
+        run_id="langfuse-degraded-1",
+        event_id="langfuse-ev-2",
+        stage="layer3_filter",
+        level="warning",
+        message="langfuse degraded",
+        created_at=datetime.now(timezone.utc),
+        payload_json=json.dumps(
+            {
+                "langfuse_link": {
+                    "status": "degraded",
+                    "degradation_reason": "langfuse_base_url_missing",
+                    "trace_url": None,
+                }
+            }
+        ),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], patch("fitcv_cp.app.get_events", return_value=[telemetry_event]), p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/langfuse-degraded-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Langfuse Trace-Link Health" in html
+    assert "degraded" in html
+    assert "Last Degraded Stage" in html
+    assert "layer3_filter" in html
 
 def test_run_detail_shows_dead_letter_replay_summary() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent

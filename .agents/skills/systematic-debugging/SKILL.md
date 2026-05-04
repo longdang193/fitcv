@@ -43,6 +43,12 @@ Use for ANY technical issue:
 - You're in a hurry (rushing guarantees rework)
 - Manager wants it fixed NOW (systematic is faster than thrashing)
 
+## Related Workflows
+
+- `docs/operating_system/workflows/live-run-debugging-workflow.md` (live-run failure debugging path)
+- `docs/operating_system/workflows/test-failure-triage-workflow.md` (test-failure classification and minimal-fix path)
+- `docs/operating_system/workflows/drift-detection-and-reconciliation-workflow.md` (use when failures are caused by planning/execution drift)
+
 ## The Four Phases
 
 You MUST complete each phase before proceeding to the next.

@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-results-ledger-contract
-status: active
+status: completed
 ---
 
 # deterministic-truth-results-ledger-contract

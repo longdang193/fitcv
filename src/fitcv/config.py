@@ -196,6 +196,30 @@ def load_control_plane_config(path: str | Path | None = None) -> dict[str, Any]:
     control_plane["feature_flags"] = dict(control_plane.get("feature_flags") or {})
     return control_plane
 
+def resolve_model_routing_part(
+    part_name: str,
+    *,
+    model_fallback: str = "",
+) -> dict[str, str]:
+    """Resolve provider/model/base_url for a model-routing part.
+
+    Secrets are intentionally not read from config. API keys remain env-only.
+    """
+    cp_cfg = load_control_plane_config()
+    model_routing = dict(cp_cfg.get("model_routing") or {})
+    parts = dict(model_routing.get("parts") or {})
+    part_cfg = dict(parts.get(part_name) or {})
+    providers = dict(cp_cfg.get("providers") or {})
+    provider_name = str(part_cfg.get("provider") or "").strip().lower()
+    provider_cfg = dict(providers.get(provider_name) or {})
+    model_name = str(part_cfg.get("model") or "").strip() or str(model_fallback or "").strip()
+    base_url = str(provider_cfg.get("base_url") or "").strip()
+    return {
+        "provider": provider_name,
+        "model": model_name,
+        "base_url": base_url,
+    }
+
 
 def _load_policy_file(config_dir: Path, rel_paths: tuple[str, ...]) -> tuple[dict[str, Any], Path]:
     """Load the first matching policy file, preferring the new subfolder layout."""

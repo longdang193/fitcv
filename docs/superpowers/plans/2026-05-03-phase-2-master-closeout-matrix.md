@@ -29,19 +29,20 @@ Status vocabulary:
 | F reliability hardening | done | outbox retry/dead-letter/replay/health/alerts + tests | Completed and verified. |
 | G replay modes/policy registry | done | strict/policy_replay runtime behavior + replay context persistence + tests | Replay-mode and policy provenance closure delivered. |
 | H data-plane/tooling migration path | done | explicit data-plane boundary contract + persisted metadata + UI/tests | BigQuery-default path retained with portable contract surfaces. |
-| I Prefect orchestration adoption | partial | Prefect integration + diagnostics checkpoints | End-to-end verification remains open per updated roadmap model. |
-| J OTel export/collector integration | partial | OTel export/collector checkpoints | End-to-end collector/export verification remains open per updated roadmap model. |
+| I Prefect orchestration adoption | done | Prefect integration + diagnostics checkpoints + mixed-backend live verification (`20260503-0700`) + targeted orchestration tests | End-to-end verification evidence closed in current branch state. |
+| J OTel export/collector integration | done | OTel export/collector checkpoints + targeted OTel contract/degraded-path/trace-context verification (`20260504-0015`) | End-to-end collector/export verification evidence closed in current branch state. |
 | K component boundaries/interface contracts | done | explicit component boundary extraction + contract-routed surfaces + tests | Final interface-contract closure delivered. |
-| Langfuse integration (roadmap deliverable) | partial | roadmap alignment references | End-to-end trace-link evidence is still open. |
-| SQLite event durability parity (roadmap deliverable) | partial | SQLite run-flow/artifact stabilization references | Durable event persistence parity vs BigQuery remains open. |
+| Langfuse integration (roadmap deliverable) | done | provider/runtime integration + implementation checkpoint (`20260504-0130`) + targeted telemetry/run-detail tests | End-to-end trace-link evidence is now present in current branch state. |
+| SQLite event durability parity (roadmap deliverable) | done | sqlite event durability checkpoint (`20260504-0200`) + sqlite E2E run evidence (`a924034a-6e21-4c61-be94-a33b8f99a156`) + targeted event persistence tests | Durable event history now persists and is visible via control-plane run event APIs in sqlite mode. |
+| Provider/storage no-drift parity (roadmap deliverable) | done | dual-backend live parity checkpoint (`20260504-1119`) + parity comparison bundle (`logs/parity-evidence-20260504/parity-comparison.json`) + contract parity tests (`tests/test_fitcv_cp/test_storage_backend_parity.py`) | SQLite and BigQuery produced equivalent contract outputs for run status/events/stage artifacts/enriched visibility on identical fixture input in this branch. |
 
 ## Aggregate Verdict
 
-- Done: `A`, `B`, `C`, `D`, `E`, `F`, `G`, `H`, `K`
-- Partial: `I`, `J`, `Langfuse integration`, `SQLite event durability parity`
+- Done: `A`, `B`, `C`, `D`, `E`, `F`, `G`, `H`, `I`, `J`, `K`, `Langfuse integration`, `SQLite event durability parity`, `Provider/storage no-drift parity`
+- Partial: none
 - Waived: none
 
-Current master status from this matrix: **partial**.
+Current master status from this matrix: **done**.
 
 ## Post-Close Follow-up
 
@@ -49,3 +50,8 @@ Current master status from this matrix: **partial**.
 2. Run contract validation on each closeout pass.
 
 Reference: `docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md`.
+
+
+
+
+

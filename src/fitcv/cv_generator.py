@@ -24,8 +24,10 @@ lifecycle:
 """
 
 import json
+import os
 import re
 import textwrap
+from types import SimpleNamespace
 from typing import Any
 
 from jinja2 import BaseLoader, Environment, TemplateError
@@ -37,6 +39,7 @@ from fitcv.config import (
     get_cv_generation_model,
     get_cv_generation_structured_prompt_id,
     get_required_structured_section_keys,
+    resolve_model_routing_part,
 )
 from fitcv.contracts import (
     ANALYSIS_CHANNEL_DEFINITIONS,
@@ -67,6 +70,109 @@ _CANDIDATE_NAME_PLACEHOLDER_VALUES = {
     "candidate name",
     "your name",
 }
+
+def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
+    routing = resolve_model_routing_part(
+        "cv_generation_structured_write",
+        model_fallback=get_cv_generation_model(config),
+    )
+    provider_name = str(routing.get("provider") or "").strip().lower()
+    allowed_http_providers = {"openai", "openai_compatible", "9router"}
+    if provider_name not in allowed_http_providers:
+        raise RuntimeError(
+            "cv_generation_structured_write provider must be configured in control-plane model_routing.parts as "
+            "one of: openai, openai_compatible, 9router."
+        )
+    base_url = (
+        str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL") or "").strip()
+        or str(routing.get("base_url") or "").strip()
+    )
+    if not base_url:
+        raise RuntimeError("OpenAI-compatible CV generation routing requires provider base_url in control-plane config.")
+    api_key = (
+        str(os.environ.get("FITCV_LANGGRAPH_OPENAI_API_KEY") or "").strip()
+        or str(os.environ.get("OPENAI_API_KEY") or "").strip()
+        or str(os.environ.get("OPENAI_COMPATIBLE_API_KEY") or "").strip()
+    )
+    if not api_key:
+        raise RuntimeError("OpenAI-compatible CV generation routing requires API key in env.")
+    wire_api = str(os.environ.get("FITCV_LANGGRAPH_WIRE_API") or "").strip().lower() or "responses"
+    timeout_seconds = float(str(os.environ.get("FITCV_LANGGRAPH_TIMEOUT_SECONDS") or "").strip() or "120")
+    model_override = (
+        str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
+        or str(routing.get("model") or "").strip()
+    )
+    if not model_override:
+        raise RuntimeError(
+            "cv_generation_structured_write model must be configured in control-plane model_routing.parts "
+            "(or FITCV_LANGGRAPH_MODEL env override)."
+        )
+
+    import httpx
+
+    def _generate_content(*, model: str, contents: str) -> Any:
+        del model
+        resolved_model = model_override
+        with httpx.Client(timeout=timeout_seconds) as client:
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            if wire_api == "responses":
+                payload = {
+                    "model": resolved_model,
+                    "input": contents,
+                    "text": {"format": {"type": "json_object"}},
+                }
+                try:
+                    resp = client.post(f"{base_url.rstrip('/')}/responses", headers=headers, json=payload)
+                    resp.raise_for_status()
+                    body = dict(resp.json() or {})
+                    text = str(body.get("output_text") or "").strip()
+                    if not text:
+                        output = body.get("output")
+                        if isinstance(output, list):
+                            chunks: list[str] = []
+                            for item in output:
+                                if not isinstance(item, dict):
+                                    continue
+                                for content_item in item.get("content") or []:
+                                    if not isinstance(content_item, dict):
+                                        continue
+                                    chunk = str(content_item.get("text") or "").strip()
+                                    if chunk:
+                                        chunks.append(chunk)
+                            text = "\n".join(chunks).strip()
+                except httpx.HTTPStatusError as exc:
+                    if exc.response is None or exc.response.status_code != 404:
+                        raise
+                    payload = {
+                        "model": resolved_model,
+                        "messages": [{"role": "user", "content": contents}],
+                        "temperature": 0.0,
+                        "response_format": {"type": "json_object"},
+                    }
+                    resp = client.post(f"{base_url.rstrip('/')}/chat/completions", headers=headers, json=payload)
+                    resp.raise_for_status()
+                    body = dict(resp.json() or {})
+                    text = str((((body.get("choices") or [{}])[0]).get("message") or {}).get("content") or "").strip()
+            else:
+                payload = {
+                    "model": resolved_model,
+                    "messages": [{"role": "user", "content": contents}],
+                    "temperature": 0.0,
+                    "response_format": {"type": "json_object"},
+                }
+                resp = client.post(f"{base_url.rstrip('/')}/chat/completions", headers=headers, json=payload)
+                resp.raise_for_status()
+                body = dict(resp.json() or {})
+                text = str((((body.get("choices") or [{}])[0]).get("message") or {}).get("content") or "").strip()
+        return SimpleNamespace(text=text)
+
+    return SimpleNamespace(models=SimpleNamespace(generate_content=_generate_content))
+
+def _make_generation_client(config: dict[str, Any]) -> Any:
+    return _build_openai_compat_client(config)
 
 
 # ── template variant selector ─────────────────────────────────────────────────
@@ -1222,10 +1328,6 @@ def generate_structured_cv(
 ) -> dict[str, Any]:
     """Call the LLM to generate a structured CV document."""
     import pathlib
-    import google.auth  # type: ignore[import-untyped]
-    from google import genai  # type: ignore[import-untyped]
-
-    from fitcv.config import get_vertex_location
 
     template_path = _resolve_template_path(config)
     template_str = pathlib.Path(template_path).read_text(encoding="utf-8")
@@ -1240,17 +1342,8 @@ def generate_structured_cv(
         repair_missing_sections=repair_missing_sections,
     )
 
-    creds, _ = google.auth.default(
-        scopes=["https://www.googleapis.com/auth/cloud-platform"]
-    )
-    client = genai.Client(
-        vertexai=True,
-        project=str(config.get("gcp_project", "")),
-        location=get_vertex_location(config),
-        credentials=creds,
-    )
+    client = _make_generation_client(config)
 
-    cv_cfg = config.get("cv") or {}
     model_name = get_cv_generation_model(config)
     response = client.models.generate_content(model=model_name, contents=prompt)
     response_payload = _extract_json_payload(str(response.text))

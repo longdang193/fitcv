@@ -14,7 +14,7 @@ tags:
 
 from unittest.mock import MagicMock
 import json
-from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, list_filter_results_for_run, update_run_results_export, update_run_cv_generation_debug, update_run_stage_transition_artifacts, update_run_settings_used, update_run_checkpoint, update_run_mapping_suggestions, update_run_synonym_proposals, update_run_effective_settings
+from fitcv_cp.bq_store import insert_run, update_run_status, append_event, get_run, list_runs, get_events, list_cvs_for_run, get_cv_markdown, list_run_structured_jobs, list_filter_results_for_run, update_run_results_export, update_run_cv_generation_debug, update_run_stage_transition_artifacts, update_run_settings_used, update_run_checkpoint, update_run_mapping_suggestions, update_run_synonym_proposals, update_run_effective_settings, request_run_cancel
 from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import datetime
 import uuid
@@ -138,6 +138,65 @@ def test_get_events_returns_list():
     assert isinstance(get_events("rid", bq, project="p", dataset="d"), list)
 
 
+def test_append_event_local_mode_persists_to_file(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_LOCAL_EVENT_HISTORY_DIR", str(tmp_path / "events"))
+    ev = RunEvent(
+        run_id="rid-local-1",
+        event_id=str(uuid.uuid4()),
+        stage="normalize",
+        level="info",
+        message="stage started",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    status = append_event(ev, None, project="local", dataset="local")
+    assert status["persistence_status"] == "persisted"
+    events = get_events("rid-local-1", None, project="local", dataset="local")
+    assert len(events) >= 1
+    assert events[-1].stage == "normalize"
+    assert events[-1].message == "stage started"
+
+def test_request_run_cancel_local_mode_updates_run_state(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv_cp.sqlite3"))
+    run = _make_run()
+    insert_run(run, None, project="local", dataset="fitcv")
+
+    ok = request_run_cancel(
+        run.run_id,
+        requested_by="admin",
+        new_status=RunStatus.CANCELLED.value,
+        bq=None,
+        project="local",
+        dataset="fitcv",
+    )
+
+    updated = get_run(run.run_id, None, project="local", dataset="fitcv")
+    assert ok is True
+    assert updated is not None
+    assert updated.status == RunStatus.CANCELLED
+    assert updated.cancel_requested_by == "admin"
+    assert updated.cancel_requested_at is not None
+
+
+def test_get_events_local_mode_reads_file_without_memory_state(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_LOCAL_EVENT_HISTORY_DIR", str(tmp_path / "events"))
+    ev = RunEvent(
+        run_id="rid-local-2",
+        event_id=str(uuid.uuid4()),
+        stage="ranking",
+        level="info",
+        message="ranked jobs",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+    )
+    append_event(ev, None, project="local", dataset="local")
+    from fitcv_cp import bq_store
+
+    bq_store._LOCAL_EVENTS.clear()
+    events = get_events("rid-local-2", None, project="local", dataset="local")
+    assert len(events) == 1
+    assert events[0].stage == "ranking"
+    assert events[0].message == "ranked jobs"
+
+
 def test_list_cvs_for_run_parameterized():
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([
@@ -148,6 +207,33 @@ def test_list_cvs_for_run_parameterized():
     bq.query.assert_called_once()
     sql_arg = bq.query.call_args[0][0]
     assert "rid" not in sql_arg, "SQL must use query parameters"
+
+def test_cv_versions_sqlite_mode_round_trip(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv_cp.sqlite3"))
+    row = {
+        "version_id": "ver-1",
+        "run_id": "run-1",
+        "job_url": "https://example.com/job/1",
+        "fit_classification": "strong",
+        "generated_at": "2026-05-04T00:00:00+00:00",
+        "cv_generation_model": "cx/gpt-5.2",
+        "cv_prompt_version": "v1",
+        "cv_schema_version": "cv_doc_v1",
+        "cv_structured_json": json.dumps({"schema_version": "cv_doc_v1"}),
+        "cv_markdown": "# CV",
+    }
+    from fitcv_cp.bq_store import insert_cv_version_row
+
+    errors = insert_cv_version_row(row, None, project="", dataset="")
+    assert errors == []
+
+    rows = list_cvs_for_run("run-1", None, project="", dataset="")
+    assert len(rows) == 1
+    assert rows[0]["version_id"] == "ver-1"
+    assert rows[0]["cv_structured"]["schema_version"] == "cv_doc_v1"
+    markdown = get_cv_markdown("ver-1", None, project="", dataset="")
+    assert markdown == "# CV"
 
 
 def test_list_cvs_for_run_maps_structured_cv_fields() -> None:
@@ -733,6 +819,20 @@ def test_update_run_effective_settings_updates_only_effective_settings_field() -
     param_names = {p.name for p in job_config.query_parameters}
     assert param_names == {"effective_settings_json", "run_id"}
 
+def test_update_run_effective_settings_local_mode_updates_in_memory_run() -> None:
+    from fitcv_cp import bq_store
+    run = _make_run()
+    bq_store._LOCAL_RUNS[run.run_id] = run
+    update_run_effective_settings(
+        run.run_id,
+        '{"skill_synonyms":{"gcp":"google cloud"}}',
+        None,
+        project="local",
+        dataset="local",
+    )
+    stored = bq_store._LOCAL_RUNS[run.run_id]
+    assert stored.effective_settings_json == '{"skill_synonyms":{"gcp":"google cloud"}}'
+
 
 # ── Lifecycle fields ────────────────────────────────────────────────────────
 
@@ -896,6 +996,28 @@ def test_update_run_checkpoint_uses_parameterized_query() -> None:
         "checkpoint_payload_json",
         "run_id",
     }
+
+def test_update_run_checkpoint_local_mode_updates_in_memory_run() -> None:
+    from fitcv_cp import bq_store
+    run = _make_run()
+    bq_store._LOCAL_RUNS[run.run_id] = run
+    update_run_checkpoint(
+        run.run_id,
+        None,
+        project="local",
+        dataset="local",
+        checkpoint_status="awaiting_continue",
+        next_stage="ranking",
+        last_completed_stage="shortlist",
+        completed_stages=["normalize", "enrich", "rule_filter", "shortlist"],
+        checkpoint_payload_json='{"checkpoint_payload":{"shortlist":[]}}',
+    )
+    stored = bq_store._LOCAL_RUNS[run.run_id]
+    assert stored.checkpoint_status == "awaiting_continue"
+    assert stored.next_stage == "ranking"
+    assert stored.last_completed_stage == "shortlist"
+    assert stored.completed_stages == ["normalize", "enrich", "rule_filter", "shortlist"]
+    assert stored.checkpoint_payload_json == '{"checkpoint_payload":{"shortlist":[]}}'
 
 
 def test_request_run_cancel_sets_cancel_fields():

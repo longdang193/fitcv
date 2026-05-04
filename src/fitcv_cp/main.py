@@ -12,6 +12,24 @@ from fitcv_cp.bq_store import get_pipeline_runs_schema_status
 
 logger = logging.getLogger(__name__)
 
+def _load_dotenv_defaults() -> None:
+    """Load local `.env` defaults without overriding existing process env."""
+    dotenv_path = Path.cwd() / ".env"
+    if not dotenv_path.exists() or not dotenv_path.is_file():
+        return
+    try:
+        for raw_line in dotenv_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            env_key = key.strip()
+            if not env_key or os.environ.get(env_key) is not None:
+                continue
+            os.environ[env_key] = value.strip().strip("'\"")
+    except OSError as exc:
+        logger.warning("Failed to read .env defaults from %s: %s", dotenv_path, exc)
+
 
 def _validate_google_credentials_path() -> None:
     """Resolve credentials path when possible; otherwise fall back to ADC."""
@@ -51,6 +69,7 @@ def _build_bigquery_client() -> Any:
 
 
 def build_app() -> Any:
+    _load_dotenv_defaults()
     runtime = resolve_backend_runtime()
     redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 

@@ -12,7 +12,7 @@ tags:
   - ci-safe
 """
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import json
 from fitcv_cp.reporter import PipelineReporter
 
@@ -28,10 +28,12 @@ def test_reporter_emits_event():
     bq.insert_rows_json.assert_called_once()
 
 
-def test_reporter_noop_without_bq():
+def test_reporter_persists_local_event_without_bq():
     """@proves admin_control_plane_core.pipelinereporter-integration"""
     reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
-    reporter.emit("pipeline_start", "info", "ok")  # must not raise
+    with patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
+        reporter.emit("pipeline_start", "info", "ok")
+    append_mock.assert_called_once()
 
 
 def test_reporter_payload_serialized():

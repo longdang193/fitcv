@@ -37,3 +37,28 @@ def test_trace_context_always_has_otel_compatible_ids() -> None:
     assert len(str(trace_context["trace_id"])) == 32
     assert len(str(trace_context["span_id"])) == 16
     assert len(str(trace_context["parent_span_id"])) == 16
+
+
+def test_langfuse_link_status_disabled_by_default() -> None:
+    status = telemetry.langfuse_link_status("abc123")
+    assert status["status"] == "disabled"
+    assert status["degradation_reason"] == "langfuse_disabled"
+    assert status["trace_url"] is None
+
+
+def test_langfuse_link_status_degraded_when_enabled_without_base_url(monkeypatch) -> None:
+    monkeypatch.setenv("FITCV_LANGFUSE_ENABLED", "true")
+    monkeypatch.delenv("FITCV_LANGFUSE_BASE_URL", raising=False)
+    status = telemetry.langfuse_link_status("abc123")
+    assert status["status"] == "degraded"
+    assert status["degradation_reason"] == "langfuse_base_url_missing"
+    assert status["trace_url"] is None
+
+
+def test_langfuse_link_status_returns_trace_url_when_configured(monkeypatch) -> None:
+    monkeypatch.setenv("FITCV_LANGFUSE_ENABLED", "true")
+    monkeypatch.setenv("FITCV_LANGFUSE_BASE_URL", "http://localhost:3000")
+    status = telemetry.langfuse_link_status("trace-123")
+    assert status["status"] == "linked"
+    assert status["degradation_reason"] is None
+    assert status["trace_url"] == "http://localhost:3000/trace/trace-123"

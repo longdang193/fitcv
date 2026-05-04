@@ -360,6 +360,7 @@ def _structured_section_has_content(section_key: str, section_value: Any) -> boo
 def _find_missing_required_structured_sections(
     structured_cv: dict[str, Any] | None,
     config: dict[str, Any],
+    profile: dict[str, Any] | None = None,
 ) -> list[str]:
     if structured_cv is None:
         return []
@@ -374,6 +375,11 @@ def _find_missing_required_structured_sections(
 
     missing_sections: list[str] = []
     for section_key in required_keys:
+        if section_key == "education":
+            has_profile_education = bool(list((profile or {}).get("education") or []))
+            if not has_profile_education:
+                # Do not hard-fail Education when the candidate profile has no education records.
+                continue
         section_value = sections.get(section_key)
         if not _structured_section_has_content(section_key, section_value):
             missing_sections.append(CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title()))
@@ -909,7 +915,7 @@ def run_all_validations(
     # Structural section check
     section_result = validate_output(cv_text, required_sections)
     missing_sections = list(section_result["missing_sections"])
-    missing_sections.extend(_find_missing_required_structured_sections(structured_cv, config))
+    missing_sections.extend(_find_missing_required_structured_sections(structured_cv, config, profile))
     missing_sections = list(dict.fromkeys(missing_sections))
 
     # Grounding checks
@@ -995,6 +1001,24 @@ def run_all_validations(
             + semantic_grounding_violations
         ))
 
+    selected_evidence_skill_relaxation_enabled = bool(
+        ((config.get("cv") or {}).get("validation") or {}).get(
+            "allow_profile_skill_outside_selected_evidence",
+            True,
+        )
+    )
+    if selected_evidence_skill_relaxation_enabled:
+        relaxed_skill_violations = [
+            msg for msg in list(grounding_violations)
+            if "present in candidate profile but not in selected evidence" in str(msg)
+            and str(msg).startswith("Skill ")
+        ]
+        if relaxed_skill_violations:
+            grounding_violations = [
+                msg for msg in grounding_violations
+                if msg not in relaxed_skill_violations
+            ]
+
     markdown_quality_blocking_issues, markdown_quality_review_flags = _markdown_quality_checks(
         cv_text,
         required_sections,
@@ -1002,6 +1026,9 @@ def run_all_validations(
 
     # Non-blocking warnings
     warnings: list[str] = []
+    if selected_evidence_skill_relaxation_enabled:
+        for violation in relaxed_skill_violations:
+            warnings.append(f"Relaxed selected-evidence skill grounding violation: {violation}")
     if not check_length_constraints(cv_text, max_pages=max_pages):
         warnings.append(f"CV length warning: exceeds estimated {max_pages}-page limit")
 

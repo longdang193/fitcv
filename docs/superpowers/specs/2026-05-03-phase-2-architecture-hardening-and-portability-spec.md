@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: completed
 parent_thread: workstream-operator-control-plane.operator-control-plane-phase-2-degraded-mode-and-portability-surface
 targets:
   - config/runtime/pipeline.yaml

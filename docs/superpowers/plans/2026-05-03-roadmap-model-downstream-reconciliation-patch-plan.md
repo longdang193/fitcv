@@ -1,10 +1,8 @@
 ---
-layer: change
+layer: operating_system
 artifact_type: plan
 status: completed
 parent_workstream: none
-parent_thread: none
-parent_spec: none
 targets:
   - docs/intent/master-workstream-roadmap.md
   - docs/superpowers/workstreams/registered-workstream-list.md
@@ -21,45 +19,36 @@ related_stages:
   - none
 completed_at: 2026-05-03T23:59:00+02:00
 ---
-
 # Roadmap-Model Downstream Reconciliation Patch Plan
-
-**Feature Source:** `none`
-**Feature Contract:** `none`
-**Spec:** `none`
-**Implementation Execution Map:** `none`
-**Type:** modify
-**Plan Layer:** change
-**Plan Status:** completed
 
 ## Goal
 Reconcile downstream workstream/thread/spec/execution-map/plan artifacts to the updated roadmap model for structure, semantic alignment, traceability, dependency logic, and completion-rule consistency.
 
 ## Key Deliverables
-1. Reconciliation coverage of downstream artifact families connected to the roadmap.
-2. Updated downstream artifacts where semantic or lifecycle contradictions existed.
-3. Explicit unresolved-gap recording where closure decisions remain open.
-4. Validator evidence captured using required template/lifecycle checks.
-5. Final reconciliation report using required five-section output format.
+- Reconciliation coverage of downstream artifact families connected to the roadmap.
+- Updated downstream artifacts where semantic or lifecycle contradictions existed.
+- Explicit unresolved-gap recording where closure decisions remain open.
+- Validator evidence captured using required template/lifecycle checks.
+- Final reconciliation report using required five-section output format.
 
-## Execution Summary
-- Reviewed roadmap model and downstream planning ladder artifacts.
-- Reconciled the canonical registered workstream list artifact.
-- Reconciled Phase 2 closeout artifacts to prevent false full-closure claims:
-  - `docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md`
-  - `docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md`
-- Produced required final report:
-  - `docs/superpowers/plans/2026-05-03-downstream-reconciliation-report.md`
+## Task Breakdown
+- task 1:
+  - reviewed roadmap model and downstream planning ladder artifacts
+- task 2:
+  - reconciled registered workstream list and Phase 2 closeout artifacts to remove false full-closure claims
+- task 3:
+  - produced final downstream reconciliation report in required structure
 
-## Validation Evidence
-1. `python scripts/validate_template_required_sections.py` -> pass
-2. `python scripts/validate_planning_lifecycle.py --strict` -> pass
+## Verification
+- `python scripts/validate_template_required_sections.py` -> pass
+- `python scripts/validate_planning_lifecycle.py --strict` -> pass
 
-## Remaining Open Gaps (Tracked, Not Dropped)
-1. Prefect orchestration full E2E verification evidence.
-2. OpenTelemetry collector/export full E2E verification evidence.
-3. Langfuse trace-link verification evidence.
-4. SQLite durable event-history parity evidence vs BigQuery.
+## Completion Criteria
+A plan item is considered complete when:
 
-## Completion Decision
-This patch-plan scope is complete because the requested reconciliation deliverable package is now present, validated, and explicitly records unresolved downstream gaps without silent scope expansion.
+1. all Key Deliverables are satisfied
+2. all downstream/child items are terminal or explicitly tracked as open gaps
+3. unresolved gaps include clear ownership and next actions without silent scope expansion
+
+
+

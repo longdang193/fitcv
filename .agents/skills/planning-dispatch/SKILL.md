@@ -16,6 +16,8 @@ This skill routes and triages only. It does not author specs or plans.
 
 - `docs/operating_system/templates/task-start-routing-guide.md`
 - `docs/operating_system/prompt_templates/implementation-next-action-gate-prompt.md`
+- `docs/operating_system/workflows/live-run-system-workflow.md`
+- `docs/operating_system/workflows/spec-to-plan-to-execution-workflow.md`
 - `docs/operating_system/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
 

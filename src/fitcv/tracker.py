@@ -24,6 +24,7 @@ update_application_status() raises ValueError for any status not in this list.
 """
 
 import json
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -138,6 +139,19 @@ def store_cv_version(record: dict[str, Any], config: dict[str, Any]) -> None:
     Requires GOOGLE_APPLICATION_CREDENTIALS.
     Decorated with @pytest.mark.integration in tests.
     """
+    if str(os.environ.get("FITCV_CP_DATA_BACKEND") or "").strip().lower() == "sqlite":
+        from fitcv_cp import bq_store as cp_bq_store
+
+        errors = cp_bq_store.insert_cv_version_row(
+            record,
+            bq=None,
+            project="",
+            dataset="",
+        )
+        if errors:
+            raise RuntimeError(f"SQLite insert errors for cv_versions: {errors}")
+        return
+
     from google.cloud import bigquery  # type: ignore[import-not-found]
     from google.oauth2 import service_account  # type: ignore[import-not-found]
 

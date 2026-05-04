@@ -1,3 +1,18 @@
+﻿---
+prompt_id: required-root-doc-update-prompt
+type: prompt
+stage: maintenance
+owner_layer: operating_system
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Required Root Doc Update Prompt
 
 Use this when the validator-enforced required root docs under `docs/` are
@@ -43,3 +58,4 @@ Expected output:
 - a short summary of which required docs were refreshed
 - optional root-doc recommendations, if applicable
 - validator follow-up result or recommended validation commands
+

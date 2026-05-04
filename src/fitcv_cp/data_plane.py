@@ -7,6 +7,8 @@ import os
 from dataclasses import dataclass, asdict
 from typing import Any
 
+from fitcv.config import load_control_plane_config
+
 @dataclass(frozen=True)
 class DataPlaneContract:
     runtime_mode: str
@@ -17,6 +19,13 @@ class DataPlaneContract:
 def resolve_data_plane_contract(config: dict[str, Any] | None = None) -> DataPlaneContract:
     cfg = dict(config or {})
     block = dict(cfg.get("data_plane") or {})
+    try:
+        cp_cfg = load_control_plane_config()
+    except Exception:
+        cp_cfg = {}
+    cp_backend = str(((cp_cfg.get("data_backend") or {}).get("type")) or "").strip().lower()
+    default_state_backend = "sqlite" if cp_backend == "sqlite" else "bigquery"
+    default_artifact_backend = "sqlite_json" if cp_backend == "sqlite" else "bigquery_json"
     runtime_mode = str(
         os.environ.get("FITCV_RUNTIME_MODE")
         or block.get("runtime_mode")
@@ -27,13 +36,13 @@ def resolve_data_plane_contract(config: dict[str, Any] | None = None) -> DataPla
     state_backend = str(
         os.environ.get("FITCV_STATE_BACKEND")
         or block.get("state_backend")
-        or "bigquery"
-    ).strip().lower() or "bigquery"
+        or default_state_backend
+    ).strip().lower() or default_state_backend
     artifact_backend = str(
         os.environ.get("FITCV_ARTIFACT_BACKEND")
         or block.get("artifact_backend")
-        or "bigquery_json"
-    ).strip().lower() or "bigquery_json"
+        or default_artifact_backend
+    ).strip().lower() or default_artifact_backend
     telemetry_backend = str(
         os.environ.get("FITCV_TELEMETRY_BACKEND")
         or block.get("telemetry_backend")

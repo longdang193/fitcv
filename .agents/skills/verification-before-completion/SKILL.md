@@ -19,6 +19,8 @@ Before final completion claims, read:
 
 - `docs/operating_system/repo-governance.md`
 - `docs/operating_system/agent_memory/failure-ledger.md` when the task involved meaningful retries/debugging
+- `docs/operating_system/workflows/roadmap-to-closeout-workflow.md`
+- `docs/operating_system/workflows/live-run-closeout-workflow.md` when the lane includes live-run execution
 
 ## The Iron Law
 

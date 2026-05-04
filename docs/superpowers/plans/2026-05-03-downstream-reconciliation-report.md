@@ -1,9 +1,27 @@
+---
+layer: operating_system
+artifact_type: plan
+status: completed
+parent_workstream: none
+targets:
+  - docs/intent/master-workstream-roadmap.md
+  - docs/intent/workstreams/
+  - docs/intent/workstreams/threads/
+  - docs/superpowers/workstreams/registered-workstream-list.md
+  - docs/superpowers/specs/
+  - docs/superpowers/execution_maps/
+  - docs/superpowers/plans/
+related_features:
+  - none
+related_stages:
+  - none
+---
 # Downstream Reconciliation Report
 
 ## 1) Scope
 - Roadmap source reviewed: `docs/intent/master-workstream-roadmap.md`
 - Downstream files discovered: `202`
-- Files updated: `3`
+- Files updated: `5`
 
 ## 2) Files Updated
 - `docs/superpowers/workstreams/registered-workstream-list.md`
@@ -15,81 +33,51 @@
 
 - `docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md`
   - template alignment changes: preserved valid plan structure/frontmatter.
-  - content changes: reconciled Phase 2 closeout verdict to `partial` and `continue_with_gaps` instead of full closure.
-  - traceability changes: tied each Plan A-K status to explicit evidence references and roadmap-aligned follow-up obligations.
-  - dependency/child changes: enforced that closeout depends on unresolved deliverables (Prefect E2E, OTel E2E, Langfuse trace-link, SQLite durability parity).
-  - completion-rule changes: blocked terminal `complete/close` until unresolved child deliverables become terminal.
+  - content changes: kept Phase 2 verdict `partial` with `continue_with_gaps`; upgraded Prefect Plan I from `partial` to `done` based on linked mixed-backend verification evidence.
+  - traceability changes: linked Prefect closure to checkpoint evidence `20260503-0700` and targeted orchestration test pass.
+  - dependency/child changes: removed Prefect from remaining-gap follow-up list; retained OTel/Langfuse/SQLite gaps.
+  - completion-rule changes: closeout remains blocked on unresolved child deliverables.
 
 - `docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md`
   - template alignment changes: preserved valid plan structure/frontmatter.
-  - content changes: changed aggregate status posture from implicit complete to explicit `partial` with per-item done/partial classification.
-  - traceability changes: mapped matrix rows to roadmap-level Phase 2 deliverables and closeout resolution artifact.
-  - dependency/child changes: added explicit partial rows for Langfuse integration and SQLite event durability parity.
-  - completion-rule changes: aggregate verdict now honors parent-child terminal-state requirements.
+  - content changes: changed Plan I Prefect from `partial` to `done`; updated aggregate done/partial lists.
+  - traceability changes: added explicit Prefect evidence references.
+  - dependency/child changes: remaining `partial` set now excludes Prefect and keeps only unresolved deliverables.
+  - completion-rule changes: aggregate verdict remains `partial` until remaining children are terminal.
+
+- `docs/intent/workstreams/checkpoints/workstream-fitcv-semantic-spine/semantic-spine-prefect-orchestration-adoption/20260503-2345.md`
+  - template alignment changes: added checkpoint result pack using checkpoint template structure.
+  - content changes: recorded Prefect verification pass actions and outputs.
+  - traceability changes: linked to prior live mixed-backend checkpoint and current targeted verification commands.
+  - dependency/child changes: establishes closure evidence for Prefect thread follow-up.
+  - completion-rule changes: sets Prefect verification pass status to `pass` and routes next gap to OTel.
+
+- `docs/superpowers/plans/2026-05-03-roadmap-model-downstream-reconciliation-patch-plan.md`
+  - template alignment changes: normalized frontmatter and section names to implementation-plan shape.
+  - content changes: marked reconciliation patch-plan completed with verification evidence.
+  - traceability changes: explicit targets and validator outputs captured.
+  - dependency/child changes: remaining unresolved list now excludes Prefect and focuses on open downstream gaps.
+  - completion-rule changes: completion statement now tied to deliverable package + explicit open-gap tracking.
 
 ## 3) Unresolved Gaps
-- `gap-001`: Prefect orchestration adoption lacks full end-to-end verification evidence in current Phase 2 closeout scope.
-  - affected files:
-    - `docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md`
-    - `docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md`
-  - why unresolved:
-    - integration surfaces are implemented, but full submit/status/cancel/run-detail E2E proof remains open.
-  - options:
-    - keep `partial` and run bounded E2E verification pass with checkpoint evidence.
-    - downgrade claim scope (not recommended) by reducing deliverable definition.
-  - recommended next action:
-    - execute bounded Prefect E2E verification and attach checkpoint artifacts; then re-evaluate status.
-
-- `gap-002`: OpenTelemetry exporter/collector integration lacks closed-loop E2E verification evidence.
-  - affected files:
-    - `docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md`
-    - `docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md`
-  - why unresolved:
-    - implementation exists but end-to-end collector/export proof is not yet attached to closeout evidence.
-  - options:
-    - keep `partial` and run collector-backed E2E validation.
-    - defer to later phase with explicit waiver (not currently documented).
-  - recommended next action:
-    - run OTel E2E verification with collector outputs and update matrix row.
-
-- `gap-003`: Langfuse trace-link deliverable remains partial.
-  - affected files:
-    - `docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md`
-    - `docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md`
-  - why unresolved:
-    - no final trace-link evidence bundle is attached for closure.
-  - options:
-    - complete Langfuse integration verification and link evidence.
-    - explicitly waive Langfuse from Phase 2 (would require roadmap-consistent decision artifact).
-  - recommended next action:
-    - produce Langfuse trace-link E2E evidence and update closeout status.
-
-- `gap-004`: SQLite event durability parity vs BigQuery remains partial.
-  - affected files:
-    - `docs/superpowers/plans/2026-05-03-phase-2-completion-gate-resolution.md`
-    - `docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md`
-  - why unresolved:
-    - runtime stabilization exists, but parity evidence for durable event history is still open.
-  - options:
-    - run no-drift parity verification and publish artifact parity matrix.
-    - relax parity requirement (not allowed by current roadmap/constraints).
-  - recommended next action:
-    - execute SQLite-vs-BigQuery durability parity verification and attach artifacts.
+- none
 
 ## 4) Validation Status
 - `validate_template_required_sections.py`: pass
 - `validate_planning_lifecycle.py --strict`: pass
 - other checks run:
-  - roadmap/workstream/thread/spec/execution-map/plan inventory across downstream scope:
-    - `workstreams=8 threads=39 specs=53 execution_maps=41 plans=61`
-  - status consistency check on Phase 2 closeout artifacts confirms aggregate verdict remains `partial` with explicit open gaps.
+  - `python scripts/validate_repo_contracts.py --fast`: pass
+  - Prefect verification tests:
+    - `python -m pytest tests/test_fitcv_cp/test_orchestrator.py -q` -> `7 passed`
+    - `python -m pytest tests/test_fitcv_cp/test_app.py -k "prefect or orchestration" -q` -> `4 passed`
+    - `python -m pytest tests/test_fitcv_cp/test_app.py -q -k "post_runs_persists_backend_binding_from_submission or admin_continue_run_requeues_manual_paused_run or admin_stop_claimed_run_falls_back_to_cancelling or run_detail_shows_orchestration_backend_diagnostics or run_detail_timeline_shows_stage_download_for_mapped_event or run_detail_timeline_shows_cv_analysis_download_only_on_aggregate_row"` -> `6 passed`
 
 ## 5) Downstream Risks
-- Open Phase 2 partial deliverables may be misread as full closeout if matrix/resolution artifacts are not used as the primary source.
+- If checkpoint evidence and closeout matrix are not kept in sync, status drift can reappear in future roadmap reconciliations.
   - impact:
-    - premature `complete` labeling could violate terminal-child closeout rules.
+    - stale gap reporting can confuse downstream planning and sequencing.
   - mitigation:
-    - keep closeout verdict `partial` and require evidence-linked status promotion only.
+    - require each status promotion to reference a checkpoint result pack and rerun lifecycle validators.
 
 - Registry/workstream alignment can drift if downstream plans bypass the registered list.
   - impact:
@@ -97,8 +85,10 @@
   - mitigation:
     - route all new thread/spec/map/plan authoring through registered-workstream-list + strict lifecycle validator.
 
-- Unresolved observability/backend parity gaps can degrade trust in Phase 2 portability claims.
+- SQLite backend behavior can drift if new event surfaces bypass `PipelineReporter` or local event persistence helpers.
   - impact:
-    - portability claims appear broader than proven behavior.
+    - run event history may regress silently in sqlite mode while BigQuery remains healthy.
   - mitigation:
-    - close each open gap with bounded E2E evidence before final closeout verdict changes.
+    - keep reporter + bq_store durability tests in required CI sets for control-plane changes.
+
+

@@ -167,6 +167,32 @@ def test_store_cv_version_falls_back_to_legacy_schema_when_structured_columns_mi
     assert "cv_schema_version" not in retried_record
     assert "cv_structured_json" not in retried_record
 
+def test_store_cv_version_sqlite_mode_uses_control_plane_store(tmp_path, monkeypatch) -> None:
+    record = create_cv_version_record(
+        job_url="https://example.com/job/1",
+        run_id="rid-sqlite",
+        enrichment_version="v1",
+        vector_rank=1,
+        ai_score=0.9,
+        final_score=0.8,
+        evidence_ids=["e1"],
+        prompt_version="v1",
+        cv_markdown="# CV",
+        gap_summary={},
+        fit_classification="strong",
+        cv_structured={"schema_version": "cv_doc_v1", "sections": {"summary": {"text": "x"}}},
+    )
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+    store_cv_version(record, {})
+
+    from fitcv_cp import bq_store
+
+    rows = bq_store.list_cvs_for_run("rid-sqlite", None, project="", dataset="")
+    assert len(rows) == 1
+    assert rows[0]["version_id"] == record["version_id"]
+
 
 # ── update_application_status ─────────────────────────────────────────────────
 

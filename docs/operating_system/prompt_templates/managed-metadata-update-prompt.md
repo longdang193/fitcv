@@ -1,3 +1,18 @@
+﻿---
+prompt_id: managed-metadata-update-prompt
+type: prompt
+stage: maintenance
+owner_layer: operating_system
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Managed Metadata Update Prompt
 
 Use this when the repo is already in `managed_architecture_metadata` and you
@@ -33,3 +48,4 @@ Expected output:
 - refreshed generated metadata outputs
 - validator or sync/check results
 - a spec or implementation plan when the work is too large for one safe pass
+

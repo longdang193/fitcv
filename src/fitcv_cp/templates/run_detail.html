@@ -66,8 +66,8 @@
     <span class="k">Replay Source Run</span><span class="v"><code>{{ replay_context_summary.replay_source_run_id or run.run_id }}</code></span>
     <span class="k">Policy Registry</span><span class="v"><code>{{ replay_context_summary.policy_registry_version or 'policy_registry.v1' }}</code></span>
     <span class="k">Runtime Mode</span><span class="v"><code>{{ data_plane_summary.runtime_mode or 'full' }}</code></span>
-    <span class="k">State Backend</span><span class="v"><code>{{ data_plane_summary.state_backend or 'bigquery' }}</code></span>
-    <span class="k">Artifact Backend</span><span class="v"><code>{{ data_plane_summary.artifact_backend or 'bigquery_json' }}</code></span>
+    <span class="k">State Backend</span><span class="v"><code>{{ data_plane_summary.state_backend or 'unknown' }}</code></span>
+    <span class="k">Artifact Backend</span><span class="v"><code>{{ data_plane_summary.artifact_backend or 'unknown' }}</code></span>
     <span class="k">Telemetry Backend</span><span class="v"><code>{{ data_plane_summary.telemetry_backend or 'otel_json' }}</code></span>
     <span class="k">Total Jobs</span><span class="v">{{ run.total_jobs if run.total_jobs is not none else '—' }}</span>
     <span class="k">Passed Filter</span><span class="v">{{ run.passed_filter if run.passed_filter is not none else '—' }}</span>
@@ -157,6 +157,28 @@
   </div>
   <div class="meta" style="margin-top:0.85rem">
     Stage artifacts remain the evidence source of truth even when telemetry export is degraded.
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Langfuse Trace-Link Health</h3>
+    {% if langfuse_link_health.status == 'degraded' %}
+      <span class="badge badge-warning">degraded</span>
+    {% elif langfuse_link_health.status == 'linked' %}
+      <span class="badge badge-success">linked</span>
+    {% else %}
+      <span class="badge badge-neutral">disabled</span>
+    {% endif %}
+  </div>
+  <div class="kv">
+    <span class="k">Linked Events</span><span class="v">{{ langfuse_link_health.linked_count }}</span>
+    <span class="k">Degraded Link Events</span><span class="v">{{ langfuse_link_health.degraded_count }}</span>
+    <span class="k">Last Degraded Stage</span><span class="v">{{ langfuse_link_health.last_degraded_stage or '—' }}</span>
+    <span class="k">Latest Trace URL</span><span class="v">{% if langfuse_link_health.last_trace_url %}<code>{{ langfuse_link_health.last_trace_url }}</code>{% else %}—{% endif %}</span>
+  </div>
+  <div class="meta" style="margin-top:0.85rem">
+    Langfuse linkage augments observability only. Stage artifacts remain authoritative for runtime decisions.
   </div>
 </div>
 

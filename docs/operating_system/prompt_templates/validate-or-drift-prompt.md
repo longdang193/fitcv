@@ -1,3 +1,18 @@
+﻿---
+prompt_id: validate-or-drift-prompt
+type: prompt
+stage: drift
+owner_layer: operating_system
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Validate Or Drift Prompt
 
 Use this when you want to know what is missing, drifting, or outgrown.
@@ -28,3 +43,4 @@ Please:
 
 Expected output:
 - findings, severity, and next moves
+

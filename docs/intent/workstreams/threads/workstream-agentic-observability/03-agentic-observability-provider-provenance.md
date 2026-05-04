@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-agentic-observability.agentic-observability-provider-provenance
-status: proposed
+status: completed
 ---
 
 # agentic-observability-provider-provenance

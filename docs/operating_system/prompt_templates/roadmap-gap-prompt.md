@@ -1,3 +1,18 @@
+﻿---
+prompt_id: roadmap-gap-prompt
+type: prompt
+stage: planning
+owner_layer: intent
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Roadmap Gap Prompt
 
 Use this when you think the master roadmap may be missing an important durable
@@ -25,3 +40,4 @@ Please:
 
 Expected output:
 - gap assessment plus the recommended next artifact
+

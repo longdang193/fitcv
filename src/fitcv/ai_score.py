@@ -29,8 +29,9 @@ import logging
 import re
 from datetime import datetime, timezone
 from typing import Any
+from types import SimpleNamespace
 
-from fitcv.config import get_gemini_model, get_ranking_prompt_id
+from fitcv.config import get_gemini_model, get_ranking_prompt_id, resolve_model_routing_part
 from fitcv.contracts import RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION
 from fitcv.prompts import render_prompt
 
@@ -42,6 +43,27 @@ _VALID_FIT_LABELS = frozenset({"strong", "stretch", "skip"})
 
 _DEFAULT_STRONG_THRESHOLD = 0.70
 _DEFAULT_STRETCH_THRESHOLD = 0.40
+
+
+def _extract_openai_responses_text(body: dict[str, Any]) -> str:
+    """Extract assistant text from OpenAI-compatible /responses payloads."""
+    direct = str(body.get("output_text") or "").strip()
+    if direct:
+        return direct
+    output = body.get("output")
+    if not isinstance(output, list):
+        return ""
+    chunks: list[str] = []
+    for item in output:
+        if not isinstance(item, dict):
+            continue
+        for content_item in item.get("content") or []:
+            if not isinstance(content_item, dict):
+                continue
+            text = str(content_item.get("text") or "").strip()
+            if text:
+                chunks.append(text)
+    return "\n".join(chunks).strip()
 
 
 def _stable_json_fingerprint(payload: dict[str, Any]) -> str:
@@ -180,10 +202,16 @@ def parse_score_response(response_text: str, config: dict[str, Any] | None = Non
         data = json.loads(text)
     except (json.JSONDecodeError, ValueError):
         logger.warning("parse_score_response: malformed JSON — returning defaults")
-        return _defaults.copy()
+        failed = _defaults.copy()
+        failed["score_reasoning"] = "Scoring response parse failure: malformed_json"
+        failed["parser_status"] = "malformed_json"
+        return failed
 
     if not isinstance(data, dict):
-        return _defaults.copy()
+        failed = _defaults.copy()
+        failed["score_reasoning"] = "Scoring response parse failure: non_object_payload"
+        failed["parser_status"] = "non_object_payload"
+        return failed
 
     # Clamp ai_score to [0.0, 1.0]
     raw_score = float(data.get("ai_score", 0.0))
@@ -200,6 +228,7 @@ def parse_score_response(response_text: str, config: dict[str, Any] | None = Non
         "score_reasoning":   str(data.get("score_reasoning", "")),
         "matched_strengths": list(data.get("matched_strengths", []) or []),
         "key_risks":         list(data.get("key_risks", []) or []),
+        "parser_status":     "ok",
     }
 
 
@@ -216,24 +245,96 @@ def _make_genai_client(config: dict[str, Any]) -> Any:
        - Requires Vertex AI publisher model access for the project.
     """
     import os
-    from google import genai  # type: ignore[import-untyped]
-    from fitcv.config import get_vertex_location
+    import httpx
 
-    api_key = os.environ.get("GEMINI_API_KEY", "")
-    if api_key:
-        return genai.Client(api_key=api_key)
+    routing = resolve_model_routing_part("ranking_ai_score", model_fallback=get_gemini_model(config))
 
-    # Vertex AI fallback (requires publisher model access)
-    import google.auth  # type: ignore[import-untyped]
-    creds, _ = google.auth.default(  # type: ignore[misc]
-        scopes=["https://www.googleapis.com/auth/cloud-platform"]
-    )
-    return genai.Client(
-        vertexai=True,
-        project=str(config.get("gcp_project", "")),
-        location=get_vertex_location(config),
-        credentials=creds,
-    )
+    provider_name = str(routing.get("provider") or "").strip().lower()
+    allowed_http_providers = {"openai", "openai_compatible", "9router"}
+    if provider_name not in allowed_http_providers:
+        raise RuntimeError(
+            "ranking_ai_score provider must be configured in control-plane model_routing.parts as "
+            "one of: openai, openai_compatible, 9router."
+        )
+
+    if provider_name in allowed_http_providers:
+        base_url = (
+            str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL") or "").strip()
+            or str(routing.get("base_url") or "").strip()
+        )
+        if not base_url:
+            raise RuntimeError("OpenAI-compatible reranker routing requires provider base_url in control-plane config.")
+        api_key = (
+            str(os.environ.get("FITCV_LANGGRAPH_OPENAI_API_KEY") or "").strip()
+            or str(os.environ.get("OPENAI_API_KEY") or "").strip()
+            or str(os.environ.get("OPENAI_COMPATIBLE_API_KEY") or "").strip()
+        )
+        if not api_key:
+            raise RuntimeError(
+                "Config-routed OpenAI-compatible provider for ranking_ai_score requires API key in env "
+                "(FITCV_LANGGRAPH_OPENAI_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY)."
+            )
+        wire_api = str(os.environ.get("FITCV_LANGGRAPH_WIRE_API") or "").strip().lower() or "responses"
+        timeout_seconds = float(str(os.environ.get("FITCV_LANGGRAPH_TIMEOUT_SECONDS") or "").strip() or "120")
+        model_override = (
+            str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
+            or str(routing.get("model") or "").strip()
+        )
+        if not model_override:
+            raise RuntimeError(
+                "ranking_ai_score model must be configured in control-plane model_routing.parts "
+                "(or FITCV_LANGGRAPH_MODEL env override)."
+            )
+
+        def _generate_content(*, model: str, contents: str) -> Any:
+            # For OpenAI-compatible routing, provider/model routing is authoritative.
+            del model
+            resolved_model = model_override
+            with httpx.Client(timeout=timeout_seconds) as client:
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                }
+                if wire_api == "responses":
+                    payload = {
+                        "model": resolved_model,
+                        "input": contents,
+                        "text": {"format": {"type": "json_object"}},
+                    }
+                    try:
+                        resp = client.post(f"{base_url.rstrip('/')}/responses", headers=headers, json=payload)
+                        resp.raise_for_status()
+                        body = dict(resp.json() or {})
+                        text = _extract_openai_responses_text(body)
+                    except httpx.HTTPStatusError as exc:
+                        # Compatibility fallback: some OpenAI-compatible providers
+                        # implement chat/completions but not responses.
+                        if exc.response is None or exc.response.status_code != 404:
+                            raise
+                        payload = {
+                            "model": resolved_model,
+                            "messages": [{"role": "user", "content": contents}],
+                            "temperature": 0.0,
+                            "response_format": {"type": "json_object"},
+                        }
+                        resp = client.post(f"{base_url.rstrip('/')}/chat/completions", headers=headers, json=payload)
+                        resp.raise_for_status()
+                        body = dict(resp.json() or {})
+                        text = str((((body.get("choices") or [{}])[0]).get("message") or {}).get("content") or "").strip()
+                else:
+                    payload = {
+                        "model": resolved_model,
+                        "messages": [{"role": "user", "content": contents}],
+                        "temperature": 0.0,
+                        "response_format": {"type": "json_object"},
+                    }
+                    resp = client.post(f"{base_url.rstrip('/')}/chat/completions", headers=headers, json=payload)
+                    resp.raise_for_status()
+                    body = dict(resp.json() or {})
+                    text = str((((body.get("choices") or [{}])[0]).get("message") or {}).get("content") or "").strip()
+            return SimpleNamespace(text=text)
+
+        return SimpleNamespace(models=SimpleNamespace(generate_content=_generate_content))
 
 
 def score_job(
@@ -314,6 +415,7 @@ def run_ai_scoring(
                 "ai_score": 0.0, "fit_label": "skip",
                 "score_reasoning": f"Scoring error: {exc}",
                 "matched_strengths": [], "key_risks": [],
+                "parser_status": "runtime_exception",
             })
         if i < len(shortlist[:effective_top_n]) - 1:
             time.sleep(sleep_secs)

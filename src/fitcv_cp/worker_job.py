@@ -1210,6 +1210,13 @@ def _persist_shared_progress_snapshot(
 
 def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
     runtime = resolve_backend_runtime()
+    previous_backend_env = os.environ.get("FITCV_CP_DATA_BACKEND")
+    previous_sqlite_path_env = os.environ.get("FITCV_CP_SQLITE_PATH")
+    os.environ["FITCV_CP_DATA_BACKEND"] = str(runtime.backend_type)
+    if runtime.backend_type == "sqlite":
+        os.environ["FITCV_CP_SQLITE_PATH"] = str(runtime.sqlite_path)
+    elif "FITCV_CP_SQLITE_PATH" in os.environ:
+        del os.environ["FITCV_CP_SQLITE_PATH"]
     project = runtime.project
     dataset = runtime.dataset
     bq = _get_bq() if runtime.backend_type == "bigquery" else None
@@ -1777,4 +1784,13 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             )
         except Exception as inner:
             logger.warning("[run_id=%s] Failed to write failure event: %s", run_id, inner)
+    finally:
+        if previous_backend_env is None:
+            os.environ.pop("FITCV_CP_DATA_BACKEND", None)
+        else:
+            os.environ["FITCV_CP_DATA_BACKEND"] = previous_backend_env
+        if previous_sqlite_path_env is None:
+            os.environ.pop("FITCV_CP_SQLITE_PATH", None)
+        else:
+            os.environ["FITCV_CP_SQLITE_PATH"] = previous_sqlite_path_env
 

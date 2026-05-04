@@ -1,3 +1,18 @@
+﻿---
+prompt_id: workstream-to-spec-prompt
+type: prompt
+stage: planning
+owner_layer: workstream
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Workstream To Spec Prompt
 
 Use this when you already know both the workstream and the bounded change
@@ -30,3 +45,4 @@ Please:
 
 Expected output:
 - a spec in `docs/superpowers/specs/` tied to the chosen thread file
+

@@ -1,26 +1,98 @@
+﻿---
+prompt_id: roadmap-closeout-readiness-prompt
+type: prompt
+stage: closeout
+owner_layer: intent
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Roadmap Closeout Readiness Prompt
+
+## Use When
+
+roadmap closure readiness is being decided
+
+## Prerequisites
+
+### Required
+
+- registered workstream states and closure evidence available
+- workstream closure reviewed via [workstream-closeout-readiness-prompt.md](./workstream-closeout-readiness-prompt.md) for all registered workstreams
+
+### Optional
+
+- output from [workstream-closeout-readiness-prompt.md](./workstream-closeout-readiness-prompt.md)
+
+## Next Prompts
+
+- terminal prompt (no further prompt required once closure-ready decision is returned)
+
+## Not For
+
+spec/plan authoring or implementation task selection
+
+## Verification Before Completion Trigger
+
+Required when proposing roadmap closure or claiming completion/pass status:
+
+- run `verification-before-completion` checks before final close recommendation
 
 Use this when deciding whether a roadmap can be marked `completed`.
 
 ```text
 Assess roadmap closeout readiness.
 
+Related skills:
+- verification-before-completion (use before any roadmap close/pass/fix claim)
+
+Related workflows:
+- roadmap-to-closeout-workflow.md (primary roadmap closure lifecycle)
+- drift-detection-and-reconciliation-workflow.md (if closure invariants or evidence are inconsistent)
+
 Context:
 - roadmap path:
 - registered workstreams:
 - current roadmap/workstream statuses:
+- roadmap phase structure (`Phase 1/2/3`) with per-phase Goal and Key Deliverables:
 - known blockers:
 
 Please:
 1. Validate roadmap closure invariant:
    - roadmap `completed` is allowed only when all registered workstreams are terminal (`completed | dropped`).
-2. List non-terminal workstreams (if any) and why they remain open.
-3. Classify each blocker:
+   - for any workstream closing as `completed`, downstream coverage is present:
+     - complete spec set map
+     - spec-authoring map
+     - implementation execution map
+     - linked detailed specs
+     - linked implementation plans
+   - completed threads under completed workstreams have checkpoint evidence.
+2. Validate roadmap structure readiness:
+   - each phase (`Phase 1/2/3`) has its own non-empty Goal and Key Deliverables.
+   - phase deliverables are not mixed across phases.
+3. Verify roadmap content readiness:
+   - roadmap-level Goal/Key Deliverables remain accurate for current lifecycle state.
+   - evaluate deliverable-by-deliverable satisfaction and mark each as satisfied | unsatisfied.
+4. List non-terminal workstreams (if any) and why they remain open.
+5. Classify each blocker:
    - execution gap | evidence gap | status-hygiene gap | scope-decision gap
-4. Recommend immediate next actions (top 3) to reach closeable state.
-5. Return final recommendation:
+6. Recommend immediate next actions (top 3) to reach closeable state.
+7. For the immediate next step, select one action only from existing artifacts:
+   - roadmap/workstream/thread scope
+   - approved specs
+   - execution-map ordering/dependencies
+   - current implementation plan tasks
+   - open blockers and downstream impact
+8. Return final recommendation:
    - close now | continue execution | re-scope
 ```
 
 Expected output:
-- roadmap closeout verdict and concrete next actions
+- roadmap closeout verdict, concrete next actions, and one selected next action constrained by existing planning artifacts
+

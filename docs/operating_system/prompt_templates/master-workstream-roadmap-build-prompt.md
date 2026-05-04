@@ -1,5 +1,42 @@
+﻿---
+prompt_id: master-workstream-roadmap-build-prompt
+type: prompt
+stage: planning
+owner_layer: intent
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
 # Master Workstream Roadmap Build Prompt
 
+## Use When
+
+intent is clear and a master roadmap structure must be authored or revised
+
+## Prerequisites
+
+### Required
+
+- intent context is available
+
+### Optional
+
+- existing workstream registry
+
+## Next Prompts
+
+- registered-workstream-set-build-prompt.md
+- downstream-reconciliation-after-roadmap-format-change.md
+
+## Not For
+
+thread-level execution or implementation planning
 Use this when intent exists but the major delivery threads needed to reach the
 end goal have not yet been mapped clearly enough.
 
@@ -25,3 +62,4 @@ Expected output:
 - a proposed or updated master workstream roadmap
 - identified major delivery threads
 - next recommended artifact, usually the registered workstream set
+

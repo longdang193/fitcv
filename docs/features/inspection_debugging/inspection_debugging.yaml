@@ -271,6 +271,7 @@ refs:
   - docs/superpowers/specs/2026-05-02-phase-2-observability-otel-trace-context-spec.md
   - docs/superpowers/specs/2026-05-02-phase-2-policy-versioned-stage-result-spec.md
   - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
+  - docs/superpowers/specs/2026-05-04-langfuse-trace-link-verification-closure-spec.md
   plans:
   - docs/superpowers/archive/plans/2026-03-31-cv-generation-debug-snapshots-implementation.md
   - docs/superpowers/archive/plans/2026-03-31-pipeline-decision-consistency-cleanup-implementation.md

@@ -58,7 +58,6 @@ ACCEPTED_STATUS: Final[Literal["accepted"]] = "accepted"
 VALIDATION_FAILED_STATUS: Final[Literal["validation_failed"]] = "validation_failed"
 GENERATION_FAILED_STATUS: Final[Literal["generation_failed"]] = "generation_failed"
 DEFAULT_MAX_SUMMARY_LINES = 3
-DEFAULT_FITCV_LANGGRAPH_ENV_FILENAME = ".env"
 DEFAULT_FITCV_LANGGRAPH_REPO_NAME = "fitcv-langgraph"
 
 _REPAIRABLE_VALIDATION_FIELDS = ("grounding_violations", "skill_violations")
@@ -164,58 +163,11 @@ def _discover_fitcv_langgraph_repo_root() -> Path | None:
     return None
 
 
-def _resolve_fitcv_langgraph_env_file(repo_root: Path) -> Path | None:
-    env_value = os.environ.get("FITCV_LANGGRAPH_ENV_FILE", "").strip()
-    if env_value:
-        candidate = Path(env_value)
-        if candidate.is_file():
-            return candidate
-    candidate = repo_root / DEFAULT_FITCV_LANGGRAPH_ENV_FILENAME
-    if candidate.is_file():
-        return candidate
-    return None
-
-
-def _current_repo_env_file() -> Path | None:
-    candidate = _repo_root() / DEFAULT_FITCV_LANGGRAPH_ENV_FILENAME
-    if candidate.is_file():
-        return candidate
-    return None
-
-
 def _build_fitcv_langgraph_env_values(repo_root: Path | None) -> dict[str, str]:
-    env_values = dict(os.environ)
-    env_files: list[Path] = []
-
-    if repo_root is not None:
-        default_langgraph_env = repo_root / DEFAULT_FITCV_LANGGRAPH_ENV_FILENAME
-        if default_langgraph_env.is_file():
-            env_files.append(default_langgraph_env)
-
-    current_repo_env = _current_repo_env_file()
-    if current_repo_env is not None and current_repo_env not in env_files:
-        env_files.append(current_repo_env)
-
-    if repo_root is not None:
-        explicit_env_file = _resolve_fitcv_langgraph_env_file(repo_root)
-        if explicit_env_file is not None and explicit_env_file not in env_files:
-            env_files.append(explicit_env_file)
-
-    for env_file in env_files:
-        env_values.update(_parse_env_file(env_file))
-    return env_values
-
-
-def _parse_env_file(path: Path) -> dict[str, str]:
-    values: dict[str, str] = {}
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        values[key.strip()] = value.strip().strip('"').strip("'")
-    return values
-
+    del repo_root
+    # Keep runtime routing deterministic: process env is source-of-truth.
+    # Do not merge external .env files from neighboring repos.
+    return dict(os.environ)
 
 @contextmanager
 def _temporary_environ(values: dict[str, str]) -> Iterator[None]:
