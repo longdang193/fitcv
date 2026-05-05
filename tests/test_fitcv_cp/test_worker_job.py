@@ -84,12 +84,13 @@ def test_worker_normalizes_windows_service_account_key_in_non_windows_runtime():
 
     with patch("fitcv_cp.worker_job.os.name", "posix"), \
        patch.dict("fitcv_cp.worker_job.os.environ", {"GOOGLE_APPLICATION_CREDENTIALS": "/app/sa_key.json"}, clear=False), \
-       patch("fitcv_cp.worker_job.Path.exists", return_value=True), \
+       patch("fitcv_cp.worker_job.Path") as mock_path, \
        patch("fitcv_cp.worker_job.run_pipeline", return_value={
             "run_id": "r1", "total_jobs": 1, "passed_filter": 1, "ranked": 1, "cvs_generated": 1
        }) as mock_run_pipeline, \
        patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run):
+        mock_path.return_value.exists.return_value = True
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     effective_config = mock_run_pipeline.call_args.kwargs["config"]
