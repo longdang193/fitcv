@@ -22,4 +22,3 @@ prompt:
 
 forbidden:
   - "Ad hoc publication to the public repo outside scripts/publish_public_repo.ps1 -Push"
-

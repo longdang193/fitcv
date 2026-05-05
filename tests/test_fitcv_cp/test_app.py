@@ -273,7 +273,7 @@ def test_post_runs_persists_manual_staged_mode(tmp_path) -> None:
 
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
@@ -304,7 +304,7 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
 
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
@@ -346,7 +346,7 @@ def test_post_runs_path_trigger_captures_agentic_runtime_expectation(tmp_path) -
         clear=False,
     ), patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
@@ -387,7 +387,7 @@ def test_post_runs_run_all_and_manual_staged_share_canonical_runtime_envelope(tm
 
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value=config):
         run_all_resp = TestClient(_app()).post(
@@ -550,7 +550,7 @@ def test_post_runs_with_config_overrides(tmp_path):
 
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run"), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
@@ -578,7 +578,7 @@ def test_admin_upload_trigger_success(tmp_path):
     """@proves trigger_run_management.job-input-modes"""
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run"), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
@@ -609,7 +609,7 @@ def test_admin_upload_trigger_persists_run_scoped_synonym_overlay() -> None:
 
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
@@ -1126,7 +1126,7 @@ def test_admin_run_detail_shows_replay_context_metadata() -> None:
     assert "policy_registry.v2" in resp.text
     assert "Runtime Mode" in resp.text
     assert "full" in resp.text
-    assert "bigquery" in resp.text
+    assert "sqlite" in resp.text
 
 
 def test_admin_run_detail_shows_stage_result_policy_and_trace_summary() -> None:
@@ -9576,7 +9576,7 @@ def test_run_detail_shows_event_delivery_healthy_when_no_dead_letter_for_run(tmp
     assert "Event Delivery Health" in html
     assert "healthy" in html
     assert "Dead-lettered Events" in html
-    assert ">0<" in html
+    assert 'Degraded Telemetry Events</span><span class="v">0</span>' in html
 
 def test_run_detail_shows_telemetry_export_degraded_health() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
@@ -9643,6 +9643,40 @@ def test_run_detail_shows_telemetry_export_healthy_when_no_degraded_events() -> 
     assert "healthy" in html
     assert "Degraded Telemetry Events" in html
     assert ">0<" in html
+
+
+def test_run_detail_ignores_otel_disabled_for_telemetry_degradation() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="telemetry-disabled-1",
+        status=RunStatus.SUCCEEDED,
+        jobs_path="data/sample_jobs.json",
+        triggered_by="admin",
+        trigger_source="web",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    telemetry_event = RunEvent(
+        run_id="telemetry-disabled-1",
+        event_id="telemetry-ev-3",
+        stage="pipeline_start",
+        level="info",
+        message="telemetry disabled",
+        created_at=datetime.now(timezone.utc),
+        payload_json=json.dumps({"telemetry_export": {"status": "degraded", "degradation_reason": "otel_disabled"}}),
+    )
+    p = _run_detail_base_patches(run)
+    with p[0], p[1], patch("fitcv_cp.app.get_events", return_value=[telemetry_event]), p[3], p[4]:
+        resp = TestClient(_app()).get("/admin/runs/telemetry-disabled-1")
+
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Telemetry Export Health" in html
+    assert "healthy" in html
+    assert "Degraded Telemetry Events" in html
+    assert 'Degraded Telemetry Events</span><span class="v">0</span>' in html
 
 
 def test_run_detail_shows_langfuse_unverified_health_when_trace_url_present() -> None:

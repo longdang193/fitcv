@@ -11,4 +11,3 @@ This directory contains product docs, generated discovery, and operating-system 
 - Keep product docs and operating-system docs separate.
 - Update generated discovery from source layers rather than hand-editing generated files.
 - Do not make public docs depend on private operating-system materials.
-

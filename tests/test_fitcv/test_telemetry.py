@@ -15,10 +15,10 @@ tags:
 from fitcv import telemetry
 
 
-def test_telemetry_disabled_by_default_reports_degraded() -> None:
+def test_telemetry_disabled_by_default_reports_disabled() -> None:
     telemetry.reset_telemetry_runtime_for_tests()
     status = telemetry.telemetry_export_status()
-    assert status["status"] == "degraded"
+    assert status["status"] == "disabled"
     assert status["degradation_reason"] == "otel_disabled"
 
 
