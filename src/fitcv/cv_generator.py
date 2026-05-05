@@ -320,6 +320,32 @@ def _format_language_lines(profile: dict[str, Any] | None) -> list[str]:
         lines.append(line)
     return lines
 
+def _format_education_lines(profile: dict[str, Any] | None) -> list[str]:
+    if not profile:
+        return []
+
+    lines: list[str] = []
+    for education in profile.get("education") or []:
+        if not isinstance(education, dict):
+            continue
+        degree = str(education.get("degree") or "").strip()
+        institution = str(education.get("institution") or "").strip()
+        if not degree and not institution:
+            continue
+
+        field = str(education.get("field") or "").strip()
+        start = str(education.get("start") or "").strip()
+        end = str(education.get("end") or "").strip()
+
+        parts = [part for part in (degree, institution) if part]
+        line = " — ".join(parts)
+        if field:
+            line = f"{line} ({field})"
+        if start or end:
+            line = f"{line} [{ '–'.join(part for part in (start, end) if part) }]"
+        lines.append(line)
+    return lines
+
 
 def _format_evidence_block(item: dict[str, Any]) -> str:
     evidence_type = str(item.get("evidence_type") or "")
@@ -732,6 +758,13 @@ def _build_generation_prompt_context(
             section_evidence_lines.append(
                 "Use these candidate languages when filling the Languages section:\n"
                 + "\n".join(f"- {line}" for line in language_lines)
+            )
+    if "Education" in enabled_section_names:
+        education_lines = _format_education_lines(profile)
+        if education_lines:
+            section_evidence_lines.append(
+                "Use these candidate education entries when filling the Education section:\n"
+                + "\n".join(f"- {line}" for line in education_lines)
             )
     section_evidence = "\n\n".join(section_evidence_lines) or "(no additional section-specific evidence)"
     analysis_summary_lines: list[str] = []
