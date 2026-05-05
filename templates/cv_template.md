@@ -17,7 +17,7 @@
 
 ## Education
 {% for edu in selected_education %}
-### {{ edu.degree }} — {{ edu.institution }} ({{ edu.start }}–{{ edu.end }})
+### {{ edu.degree }} — {{ edu.institution }}{% if edu.start or edu.end %} ({% if edu.start %}{{ edu.start }}{% endif %}{% if edu.start and edu.end %}–{% endif %}{% if edu.end %}{{ edu.end }}{% endif %}){% endif %}
 {% if edu.field %}*{{ edu.field }}*{% endif %}
 {% endfor %}
 

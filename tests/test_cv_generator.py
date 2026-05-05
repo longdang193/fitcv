@@ -1088,6 +1088,65 @@ def test_build_generation_prompt_includes_certification_and_language_evidence() 
     assert "English (read: C2, write: C2, speak: C2)" in prompt
 
 
+def test_build_generation_prompt_includes_education_evidence() -> None:
+    config = {
+        "cv": {
+            "composition": {
+                "education": {"enabled": True},
+            }
+        }
+    }
+    profile = {
+        "education": [
+            {
+                "degree": "M.Sc. Data Engineering",
+                "field": "Data Engineering",
+                "institution": "Technical University Berlin",
+                "start": "2017-10",
+                "end": "2019-09",
+            },
+        ],
+    }
+    prompt = build_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["SQL"]},
+        evidence=[],
+        gap={"matched": [], "missing": []},
+        template="## Education\n...",
+        profile=profile,
+        config=config,
+    )
+    assert "Use these candidate education entries when filling the Education section" in prompt
+    assert "M.Sc. Data Engineering — Technical University Berlin (Data Engineering) [2017-10–2019-09]" in prompt
+
+def test_render_cv_markdown_education_dates_do_not_render_none_tokens(tmp_path: Path) -> None:
+    template_path = tmp_path / "cv_template.md"
+    template_path.write_text(
+        "# {{ candidate.name }}\n"
+        "**{{ headline }}**\n\n"
+        "## Summary\n"
+        "{{ summary }}\n\n"
+        "## Education\n"
+        "{% for edu in selected_education %}\n"
+        "### {{ edu.degree }} — {{ edu.institution }}{% if edu.start or edu.end %} ({% if edu.start %}{{ edu.start }}{% endif %}{% if edu.start and edu.end %}–{% endif %}{% if edu.end %}{{ edu.end }}{% endif %}){% endif %}\n"
+        "{% endfor %}\n",
+        encoding="utf-8",
+    )
+    structured_cv = build_empty_structured_cv(
+        jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+    structured_cv["sections"]["education"] = [
+        {"degree": "MSc Data Science", "institution": "TU Berlin", "field": None, "start": None, "end": None}
+    ]
+    rendered = render_cv_markdown(
+        structured_cv,
+        {"cv": {"preset": "europass"}, "_template_path": str(template_path)},
+    )
+    assert "None–None" not in rendered
+    assert "(None" not in rendered
+
 def test_build_generation_prompt_includes_analysis_aware_evidence_guidance() -> None:
     config = {
         "cv": {
