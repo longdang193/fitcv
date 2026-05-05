@@ -23,7 +23,7 @@ from fitcv.config import load_control_plane_config
 def test_load_control_plane_config_defaults_from_runtime_yaml() -> None:
     cfg = load_control_plane_config()
 
-    assert cfg["data_backend"]["type"] == "bigquery"
+    assert cfg["data_backend"]["type"] == "sqlite"
     assert "providers" in cfg
     assert "model_routing" in cfg
     assert "parts" in cfg["model_routing"]
@@ -38,7 +38,10 @@ def test_load_control_plane_config_env_override_backend_type(monkeypatch: pytest
     assert cfg["data_backend"]["type"] == "sqlite"
 
 
-def test_load_control_plane_config_rejects_invalid_backend_type(tmp_path: Path) -> None:
+def test_load_control_plane_config_rejects_invalid_backend_type(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("FITCV_CP_DATA_BACKEND", raising=False)
     config_path = tmp_path / "control_plane.yaml"
     config_path.write_text(
         "control_plane:\n"

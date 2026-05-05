@@ -428,6 +428,7 @@ def test_store_filter_results_integration(config: dict) -> None:
 
 def test_store_filter_results_row_includes_run_id(monkeypatch: pytest.MonkeyPatch) -> None:
     """store_filter_results includes run_id in every inserted row."""
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
     from unittest.mock import MagicMock, patch
     captured: dict = {}
 
@@ -457,6 +458,7 @@ def test_store_filter_results_row_includes_run_id(monkeypatch: pytest.MonkeyPatc
 
 def test_store_filter_results_run_id_in_rejected_rows(monkeypatch: pytest.MonkeyPatch) -> None:
     """Rejected rows include run_id and reasons unchanged."""
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
     from unittest.mock import MagicMock, patch
     captured: dict = {}
 
@@ -484,7 +486,8 @@ def test_store_filter_results_run_id_in_rejected_rows(monkeypatch: pytest.Monkey
     assert rows[0]["passed"] is False
 
 
-def test_store_filter_results_serializes_marks_json_as_string() -> None:
+def test_store_filter_results_serializes_marks_json_as_string(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
     from unittest.mock import MagicMock, patch
     import json as _json
 
