@@ -1128,6 +1128,144 @@ def test_worker_run_all_keeps_awaiting_review_for_high_risk_review_required() ->
     final_status = mock_update.call_args_list[-1].args[1]
     assert final_status.value == "awaiting_continue"
 
+def test_worker_run_all_executes_synonym_automation_when_enabled() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(
+        effective_settings_json=json.dumps(
+            {
+                "skill_synonyms": {},
+                "synonym_management": {
+                    "propose_enabled": True,
+                    "apply_to_run_enabled": True,
+                    "promote_global_enabled": True,
+                    "auto_triage_recommendation_enabled": True,
+                    "triage_recommendation_reuse_enabled": True,
+                    "auto_apply_recommendation_enabled": True,
+                    "auto_promote_global_enabled": True,
+                    "auto_accept_ai_action_enabled": True,
+                },
+            }
+        )
+    )
+    mock_run.cancel_requested_at = None
+    mock_run.checkpoint_payload_json = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+    mock_run.synonym_proposals_json = None
+    mock_run.run_mode = "run_all"
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r-auto-synonym",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 1,
+        "mapping_suggestions": [
+            {"field": "skill", "alias": "gcp", "canonical": "google cloud", "confidence": 0.91, "must_have_skill": "gcp"}
+        ],
+        "completed_stages": ["normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis", "cv_generation"],
+        "last_completed_stage": "cv_generation",
+        "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
+        "cv_generation_debug_records": [],
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job._persist_global_skill_synonyms_map"), \
+       patch("fitcv_cp.worker_job._load_global_skill_synonyms_map", return_value={}), \
+       patch("fitcv_cp.worker_job.update_run_effective_settings"), \
+       patch("fitcv_cp.worker_job.update_run_synonym_proposals", return_value={"persistence_status": "persisted"}) as mock_syn_update, \
+       patch("fitcv_cp.worker_job.update_run_status") as mock_update:
+        execute_pipeline_run(run_id="r-auto-synonym", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    final_status = mock_update.call_args_list[-1].args[1]
+    assert final_status.value == "succeeded"
+    synonym_payload = json.loads(mock_syn_update.call_args.args[1])
+    proposals = list(synonym_payload.get("proposals") or [])
+    assert proposals
+    assert proposals[0]["recommended_action"] == "approve"
+    assert proposals[0]["proposal_status"] == "approved_for_run_overlay"
+    trace_summary = dict((synonym_payload.get("synonym_proposals_trace") or {}).get("trace_summary") or {})
+    assert int(trace_summary.get("triage_recommendation_generated_total") or 0) >= 1
+    assert int(trace_summary.get("auto_apply_recommendation_applied") or 0) >= 1
+    assert trace_summary.get("auto_promote_global_skip_reason") == "applied"
+
+def test_worker_run_all_does_not_execute_synonym_automation_when_disabled() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(
+        effective_settings_json=json.dumps(
+            {
+                "skill_synonyms": {},
+                "synonym_management": {
+                    "propose_enabled": True,
+                    "apply_to_run_enabled": True,
+                    "promote_global_enabled": True,
+                    "auto_triage_recommendation_enabled": False,
+                    "triage_recommendation_reuse_enabled": True,
+                    "auto_apply_recommendation_enabled": False,
+                    "auto_promote_global_enabled": False,
+                    "auto_accept_ai_action_enabled": True,
+                },
+            }
+        )
+    )
+    mock_run.cancel_requested_at = None
+    mock_run.checkpoint_payload_json = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+    mock_run.synonym_proposals_json = None
+    mock_run.run_mode = "run_all"
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r-auto-synonym-disabled",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 1,
+        "mapping_suggestions": [
+            {"field": "skill", "alias": "gcp", "canonical": "google cloud", "confidence": 0.91, "must_have_skill": "gcp"}
+        ],
+        "completed_stages": ["normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis", "cv_generation"],
+        "last_completed_stage": "cv_generation",
+        "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
+        "cv_generation_debug_records": [],
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job._persist_global_skill_synonyms_map"), \
+       patch("fitcv_cp.worker_job._load_global_skill_synonyms_map", return_value={}), \
+       patch("fitcv_cp.worker_job.update_run_effective_settings"), \
+       patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}) as append_mock, \
+       patch("fitcv_cp.worker_job.update_run_synonym_proposals", return_value={"persistence_status": "persisted"}) as mock_syn_update, \
+       patch("fitcv_cp.worker_job.update_run_status") as mock_update:
+        execute_pipeline_run(run_id="r-auto-synonym-disabled", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    final_status = mock_update.call_args_list[-1].args[1]
+    assert final_status.value == "succeeded"
+    synonym_payload = json.loads(mock_syn_update.call_args.args[1])
+    proposals = list(synonym_payload.get("proposals") or [])
+    assert proposals
+    assert proposals[0].get("recommended_action") is None
+    assert proposals[0]["proposal_status"] == "proposed_unreviewed"
+    trace_summary = dict((synonym_payload.get("synonym_proposals_trace") or {}).get("trace_summary") or {})
+    assert int(trace_summary.get("triage_recommendation_generated_total") or 0) == 0
+    assert int(trace_summary.get("auto_apply_recommendation_applied") or 0) == 0
+    assert int(trace_summary.get("auto_promote_global_applied") or 0) == 0
+    automation_stages = {
+        "synonym_proposal_triage_completed",
+        "synonym_proposal_auto_apply_completed",
+        "synonym_proposal_promoted_global",
+    }
+    emitted = [call.args[0] for call in append_mock.call_args_list if call.args]
+    assert not any(getattr(ev, "stage", "") in automation_stages for ev in emitted)
+
 
 def test_worker_debug_snapshot_persistence_failure_does_not_fail_run():
     bq = MagicMock()
