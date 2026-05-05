@@ -38,6 +38,7 @@ def skip_integration_without_creds(request: pytest.FixtureRequest) -> None:
             pytest.skip("Set GOOGLE_APPLICATION_CREDENTIALS to run integration tests")
 
 
+
 @pytest.fixture
 def sample_jobs_path() -> Path:
     """Absolute path to the sample jobs JSON fixture."""

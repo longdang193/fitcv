@@ -100,6 +100,11 @@ def test_agentic_settings_sections_have_expected_slugs() -> None:
 def test_agentic_settings_section_ownership_is_explicit() -> None:
     assert AGENTIC_SETTINGS_SECTIONS["agentic-core"] == [
         "cv.agentic_late_stage.enabled",
+        "synonym_management.propose_enabled",
+        "synonym_management.apply_to_run_enabled",
+        "synonym_management.promote_global_enabled",
+        "synonym_management.auto_triage_recommendation_enabled",
+        "synonym_management.triage_recommendation_reuse_enabled",
         "cv_analysis.semantic_alignment.enabled",
     ]
     assert AGENTIC_SETTINGS_SECTIONS["agentic-advanced"] == [
@@ -122,6 +127,11 @@ def test_agentic_settings_mutability_distinguishes_editable_metadata_only_and_ex
     }
     assert editable_agentic_settings_keys() == {
         "cv.agentic_late_stage.enabled",
+        "synonym_management.propose_enabled",
+        "synonym_management.apply_to_run_enabled",
+        "synonym_management.promote_global_enabled",
+        "synonym_management.auto_triage_recommendation_enabled",
+        "synonym_management.triage_recommendation_reuse_enabled",
         "cv_analysis.semantic_alignment.enabled",
         "cv_analysis.semantic_alignment.required_skill_lexical_weight",
         "cv_analysis.semantic_alignment.required_skill_semantic_weight",
