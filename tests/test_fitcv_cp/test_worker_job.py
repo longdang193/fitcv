@@ -18,6 +18,11 @@ import json
 from fitcv_cp.backend_runtime import BackendRuntime
 from fitcv_cp.worker_job import execute_pipeline_run
 from fitcv_cp.models import RunStatus
+import pytest
+
+@pytest.fixture(autouse=True)
+def _force_bigquery_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
 
 
 def test_worker_marks_succeeded_on_success():
