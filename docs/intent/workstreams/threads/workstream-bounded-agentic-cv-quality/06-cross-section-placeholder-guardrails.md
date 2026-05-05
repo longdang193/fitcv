@@ -1,6 +1,6 @@
 ---
 thread_id: workstream-bounded-agentic-cv-quality.cross-section-placeholder-guardrails
-status: active
+status: completed
 ---
 
 # Bounded Change Thread: Cross-Section Placeholder Guardrails
