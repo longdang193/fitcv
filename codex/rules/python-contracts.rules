@@ -16,4 +16,3 @@ forbidden:
 guidance:
   - "Prefer precise Python types and narrow structures over Any when editing or adding Python code."
   - "Use @proves in test-function docstrings for capability proof; reserve file-level capabilities for implementation ownership or materially lineage-relevant test modules."
-

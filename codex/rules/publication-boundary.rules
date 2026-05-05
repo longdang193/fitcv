@@ -16,4 +16,3 @@ forbidden_paths:
 
 prompt:
   - "Any command that would publish or copy private-only paths into the public repo"
-
