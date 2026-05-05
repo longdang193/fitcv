@@ -105,6 +105,9 @@ def test_agentic_settings_section_ownership_is_explicit() -> None:
         "synonym_management.promote_global_enabled",
         "synonym_management.auto_triage_recommendation_enabled",
         "synonym_management.triage_recommendation_reuse_enabled",
+        "synonym_management.auto_apply_recommendation_enabled",
+        "synonym_management.auto_promote_global_enabled",
+        "synonym_management.auto_accept_ai_action_enabled",
         "cv_analysis.semantic_alignment.enabled",
     ]
     assert AGENTIC_SETTINGS_SECTIONS["agentic-advanced"] == [
@@ -132,6 +135,9 @@ def test_agentic_settings_mutability_distinguishes_editable_metadata_only_and_ex
         "synonym_management.promote_global_enabled",
         "synonym_management.auto_triage_recommendation_enabled",
         "synonym_management.triage_recommendation_reuse_enabled",
+        "synonym_management.auto_apply_recommendation_enabled",
+        "synonym_management.auto_promote_global_enabled",
+        "synonym_management.auto_accept_ai_action_enabled",
         "cv_analysis.semantic_alignment.enabled",
         "cv_analysis.semantic_alignment.required_skill_lexical_weight",
         "cv_analysis.semantic_alignment.required_skill_semantic_weight",
