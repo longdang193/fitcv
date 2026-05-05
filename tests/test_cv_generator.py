@@ -637,6 +637,45 @@ def test_normalize_structured_cv_filters_synthetic_education_rows() -> None:
     assert len(normalized["sections"]["education"]) == 1
     assert normalized["sections"]["education"][0]["degree"] == "MSc Data Science"
 
+def test_normalize_structured_cv_filters_synthetic_rows_in_other_sections() -> None:
+    normalized = _normalize_structured_cv(
+        {
+            "sections": {
+                "header": {"name": "Jane Doe", "title": "Data Analyst"},
+                "summary": {"text": "Grounded summary."},
+                "projects": [
+                    {"name": "Not specified", "context": "None", "bullets": ["None"]},
+                    {"name": "FitCV", "context": "Pipeline", "bullets": ["Shipped release"]},
+                ],
+                "certifications": [
+                    {"name": "None", "issuer": "None", "year": "None"},
+                    {"name": "AWS SA", "issuer": "Amazon", "year": "2024"},
+                ],
+                "publications": [
+                    {"title": "Not provided", "publisher": "None", "year": "None"},
+                    {"title": "Paper A", "publisher": "ACM", "year": "2023"},
+                ],
+                "languages": [
+                    {"name": "None", "level": "None"},
+                    {"name": "English", "level": "C2"},
+                ],
+            }
+        },
+        jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "europass"}},
+        fit_classification="strong",
+    )
+
+    assert len(normalized["sections"]["projects"]) == 1
+    assert normalized["sections"]["projects"][0]["name"] == "FitCV"
+    assert len(normalized["sections"]["certifications"]) == 1
+    assert normalized["sections"]["certifications"][0]["name"] == "AWS SA"
+    assert len(normalized["sections"]["publications"]) == 1
+    assert normalized["sections"]["publications"][0]["title"] == "Paper A"
+    assert len(normalized["sections"]["languages"]) == 1
+    assert normalized["sections"]["languages"][0]["name"] == "English"
+
 def test_normalize_cv_markdown_is_deterministic() -> None:
     raw = "# Jane Doe\r\n\r\n## Experience\r\n* built pipelines\r\n\r\n\r\n## Projects\r\n• shipped feature\r\n"
     once = _normalize_cv_markdown(raw)

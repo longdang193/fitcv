@@ -724,3 +724,39 @@ def test_run_all_validations_flags_synthetic_education_rows() -> None:
         "Synthetic Education row detected" in message
         for message in result["grounding_violations"]
     )
+
+def test_run_all_validations_flags_synthetic_non_education_rows() -> None:
+    profile = {
+        "experiences": [{"role": "Data Analyst", "company": "ACME"}],
+        "projects": [],
+        "skills": ["SQL", "Python"],
+    }
+    cv_text = (
+        "# Jane Doe\n"
+        "## Summary\nAnalyst with SQL and Python experience.\n"
+        "## Skills\nSQL, Python\n"
+        "## Experience\n"
+        "### Data Analyst — ACME (2022–2024)\n"
+        "- Built reporting workflows.\n"
+    )
+    structured_cv = {
+        "sections": {
+            "projects": [{"name": "Not specified", "context": "None", "bullets": ["None"]}],
+            "certifications": [{"name": "None", "issuer": "None", "year": "None"}],
+            "publications": [{"title": "Not provided", "publisher": "None", "year": "None"}],
+            "languages": [{"name": "None", "level": "None"}],
+        }
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=_CV_CONFIG,
+        structured_cv=structured_cv,
+    )
+
+    assert result["valid"] is False
+    assert any("Synthetic Projects row detected" in message for message in result["grounding_violations"])
+    assert any("Synthetic Certifications row detected" in message for message in result["grounding_violations"])
+    assert any("Synthetic Publications row detected" in message for message in result["grounding_violations"])
+    assert any("Synthetic Languages row detected" in message for message in result["grounding_violations"])
