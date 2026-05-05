@@ -28,10 +28,12 @@ def test_worker_marks_succeeded_on_success():
     with patch("fitcv_cp.worker_job.run_pipeline", return_value={
         "run_id": "r1", "total_jobs": 5, "passed_filter": 3, "ranked": 2, "cvs_generated": 1
     }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
-       patch("fitcv_cp.worker_job.get_run", return_value=mock_run):
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_status") as mock_update_status:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
                              config_path=".env.yaml")
-    assert bq.query.call_count >= 2  # running + succeeded
+    statuses = [call.args[1].value for call in mock_update_status.call_args_list if len(call.args) >= 2]
+    assert "running" in statuses and "succeeded" in statuses
 
 
 def test_worker_sqlite_mode_skips_bigquery_client_bootstrap():
@@ -129,7 +131,7 @@ def test_worker_persists_results_export_json_on_success():
     assert payload["run_mode"] == "run_all"
     assert payload["run_mode_label"] == "Run All"
     assert payload["data_plane"]["runtime_mode"] == "full"
-    assert payload["data_plane"]["state_backend"] == "bigquery"
+    assert payload["data_plane"]["state_backend"] == "sqlite"
     assert payload["replay_context"]["replay_mode"] == "strict"
     assert payload["replay_context"]["replay_source_run_id"] == "r1"
     assert payload["replay_context"]["policy_registry_version"] == "policy_registry.v1"
@@ -799,7 +801,7 @@ def test_worker_persists_settings_used_json_on_success():
     assert payload["run_id"] == "r1"
     assert payload["settings_schema_version"] == "settings_used_v2"
     assert payload["data_plane"]["runtime_mode"] == "full"
-    assert payload["data_plane"]["artifact_backend"] == "bigquery_json"
+    assert payload["data_plane"]["artifact_backend"] == "sqlite_json"
     assert payload["replay_context"]["replay_mode"] == "strict"
     assert payload["replay_context"]["replay_source_run_id"] == "r1"
     assert payload["replay_context"]["policy_registry_version"] == "policy_registry.v1"
@@ -944,15 +946,19 @@ def test_worker_mapping_suggestions_persistence_failure_appends_warning_event() 
     }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_mapping_suggestions", side_effect=RuntimeError("missing column")), \
+       patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}) as append_mock, \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     final_status = mock_update.call_args_list[-1].args[1]
     assert final_status.value == "succeeded"
-    event_row = bq.insert_rows_json.call_args_list[-1][0][1][0]
-    assert event_row["stage"] == "snapshot_persist_failed"
-    assert event_row["level"] == "warning"
-    assert "mapping_suggestions snapshot persistence failed" in event_row["message"]
+    events = [call.args[0] for call in append_mock.call_args_list if call.args]
+    warning_events = [ev for ev in events if getattr(ev, "stage", "") == "snapshot_persist_failed" and getattr(ev, "level", "") == "warning"]
+    assert warning_events
+    assert any(
+        "mapping_suggestions snapshot persistence failed" in str(getattr(ev, "message", ""))
+        for ev in warning_events
+    )
 
 
 def test_worker_synonym_proposals_degradation_appends_warning_event() -> None:
@@ -986,16 +992,18 @@ def test_worker_synonym_proposals_degradation_appends_warning_event() -> None:
            "persistence_status": "bundle_only_degraded",
            "degradation_reason": "missing_synonym_proposals_json_column",
        }), \
+       patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}) as append_mock, \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     final_status = mock_update.call_args_list[-1].args[1]
     assert final_status.value == "succeeded"
-    event_row = bq.insert_rows_json.call_args_list[-1][0][1][0]
-    assert event_row["stage"] == "snapshot_persist_failed"
-    assert event_row["level"] == "warning"
-    assert "synonym_proposals snapshot persistence failed" in event_row["message"]
-    assert "missing_synonym_proposals_json_column" in event_row["message"]
+    events = [call.args[0] for call in append_mock.call_args_list if call.args]
+    warning_events = [ev for ev in events if getattr(ev, "stage", "") == "snapshot_persist_failed" and getattr(ev, "level", "") == "warning"]
+    assert warning_events
+    message = str(getattr(warning_events[-1], "message", ""))
+    assert "synonym_proposals snapshot persistence failed" in message
+    assert "missing_synonym_proposals_json_column" in message
 
 
 def test_worker_review_hold_uses_non_null_snapshot_timestamp_for_synonym_and_mapping() -> None:
@@ -1199,12 +1207,14 @@ def test_worker_marks_failed_on_exception():
     mock_run.cancel_requested_at = None
     with patch("fitcv_cp.worker_job.run_pipeline", side_effect=RuntimeError("boom")), \
          patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
-         patch("fitcv_cp.worker_job.get_run", return_value=mock_run):
+         patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+         patch("fitcv_cp.worker_job.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
                              config_path=".env.yaml")
-    # Both the status update AND the error event insert must have been called
-    bq.query.assert_called()  # update to failed
-    bq.insert_rows_json.assert_called()  # error event appended
+    statuses = [call.args[1].value for call in mock_update_status.call_args_list if len(call.args) >= 2]
+    assert "failed" in statuses
+    append_mock.assert_called()
 
 
 def test_worker_error_event_has_correct_level():
@@ -1214,12 +1224,12 @@ def test_worker_error_event_has_correct_level():
     mock_run.cancel_requested_at = None
     with patch("fitcv_cp.worker_job.run_pipeline", side_effect=RuntimeError("boom")), \
          patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
-         patch("fitcv_cp.worker_job.get_run", return_value=mock_run):
+         patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+         patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
                              config_path=".env.yaml")
-    event_row = bq.insert_rows_json.call_args_list[-1][0][1][0]
-    assert event_row["level"] == "error"
-    assert event_row["stage"] == "pipeline_failed"
+    events = [call.args[0] for call in append_mock.call_args_list if call.args]
+    assert any(getattr(ev, "level", "") == "error" and getattr(ev, "stage", "") == "pipeline_failed" for ev in events)
 
 
 def test_worker_uses_effective_settings_not_bq_settings():

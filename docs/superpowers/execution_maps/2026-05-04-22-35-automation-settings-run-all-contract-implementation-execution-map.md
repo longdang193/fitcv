@@ -17,6 +17,12 @@ specs:
 ## Goal
 Orchestrate bounded implementation for automation-setting behavior so triage refresh/reuse, recommendation apply, global promotion, and run-all auto-accept semantics are explicit, safe, and testable without uncontrolled scope expansion.
 
+## Key Deliverables
+- Settings contract completion for automation toggles and effective settings snapshots.
+- Bounded synonym automation orchestration with safe apply/promote gating and explicit accounting.
+- Run-all auto-accept gate constrained to low-risk review-required reasons.
+- Regression evidence showing manual fallback behavior remains intact when automation is disabled.
+
 ## Scope
 - In scope:
   - automation-setting contract completion in control-plane settings schema
@@ -76,6 +82,15 @@ Orchestrate bounded implementation for automation-setting behavior so triage ref
   - run-all auto-accept could incorrectly finalize high-risk review-required records.
 - Observability drift risk:
   - missing or inconsistent action accounting fields can hide partial failures.
+
+## Dependencies And Risks
+- dependencies:
+  - `docs/superpowers/specs/2026-05-04-22-20-automation-settings-run-all-contract-spec.md`
+  - settings schema + effective-settings resolution in control-plane runtime surfaces
+- risks:
+  - auto-promote safety-gate bypass if orchestration order drifts
+  - high-risk review-required items incorrectly auto-accepted if gating drifts
+  - observability/accounting drift hides partial automation failures
 
 ## Recommended Plan Breakdown
 1. Plan 1: settings contract completion and snapshot parity.
