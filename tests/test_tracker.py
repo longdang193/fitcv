@@ -124,7 +124,10 @@ def test_create_cv_version_record_includes_structured_cv_and_generation_metadata
     assert record["cv_prompt_version"] == "cv_prompt_v3"
 
 
-def test_store_cv_version_falls_back_to_legacy_schema_when_structured_columns_missing() -> None:
+def test_store_cv_version_falls_back_to_legacy_schema_when_structured_columns_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
     record = create_cv_version_record(
         job_url="u",
         run_id="rid",

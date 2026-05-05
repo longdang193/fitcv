@@ -31,6 +31,9 @@ related_stages:
 ## Problem
 Current Langfuse behavior can present a trace URL that looks valid while no trace is actually ingested into Langfuse. The existing link can be constructed from base URL + trace id without guaranteeing backend ingestion, which creates a misleading operator experience (`Trace not found`).
 
+## Goal
+- Ensure Langfuse observability surfaces only present trace links as actionable when ingestion is viable and operator semantics remain truthful.
+
 ## Desired Outcome
 - Langfuse trace links shown in run observability surfaces correspond to real ingested traces.
 - Local development defaults are explicit and predictable (`localhost`) unless overridden.
@@ -52,6 +55,12 @@ Current Langfuse behavior can present a trace URL that looks valid while no trac
 - Preserve non-Langfuse observability behavior (OTel and event delivery surfaces).
 
 ## What Should Stay True (Invariants)
+- Stage artifacts remain the source of truth for runtime decisions.
+- Pipeline execution must not fail due to Langfuse unavailability.
+- `disabled` / `degraded` states remain explicit and machine-readable.
+- Existing run lifecycle/state transitions remain unchanged.
+
+## Invariants
 - Stage artifacts remain the source of truth for runtime decisions.
 - Pipeline execution must not fail due to Langfuse unavailability.
 - `disabled` / `degraded` states remain explicit and machine-readable.

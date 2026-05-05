@@ -19,6 +19,11 @@ from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import datetime
 import uuid
 from google.api_core.exceptions import BadRequest
+import pytest
+
+@pytest.fixture(autouse=True)
+def _force_bigquery_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
 
 
 def _make_run() -> PipelineRun:

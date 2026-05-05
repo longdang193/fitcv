@@ -238,7 +238,9 @@ def test_resolve_candidate_query_embedding_reuses_or_refreshes_cache(
     cached_contract: str,
     expected_status: str,
     should_generate: bool,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
     profile = {
         "headline": "Data Analyst",
         "skills": [{"name": "SQL"}, {"name": "Python"}],
@@ -386,7 +388,10 @@ def test_run_vector_search_returns_shortlist(config: dict, sample_profile_path) 
     assert isinstance(result, list)
 
 
-def test_run_vector_search_prefers_nested_pipeline_top_n_over_legacy_flat_key() -> None:
+def test_run_vector_search_prefers_nested_pipeline_top_n_over_legacy_flat_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
     profile = {
         "headline": "Data Analyst",
         "skills": [{"name": "SQL"}],
