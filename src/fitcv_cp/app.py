@@ -1330,7 +1330,7 @@ def _run_telemetry_export_health(events: list[RunEvent]) -> dict[str, Any]:
 
 
 def _run_langfuse_link_health(events: list[RunEvent]) -> dict[str, Any]:
-    linked_count = 0
+    unverified_count = 0
     degraded_count = 0
     disabled_count = 0
     last_degraded_stage: str | None = None
@@ -1346,8 +1346,8 @@ def _run_langfuse_link_health(events: list[RunEvent]) -> dict[str, Any]:
         stage = str(ev.stage or "")
         langfuse = dict(payload.get("langfuse_link") or {})
         status = str(langfuse.get("status") or "")
-        if status == "linked":
-            linked_count += 1
+        if status == "unverified":
+            unverified_count += 1
             trace_url = str(langfuse.get("trace_url") or "").strip()
             if trace_url:
                 last_trace_url = trace_url
@@ -1361,13 +1361,13 @@ def _run_langfuse_link_health(events: list[RunEvent]) -> dict[str, Any]:
             disabled_count += 1
     if degraded_count > 0:
         overall = "degraded"
-    elif linked_count > 0:
-        overall = "linked"
+    elif unverified_count > 0:
+        overall = "unverified"
     else:
         overall = "disabled"
     return {
         "status": overall,
-        "linked_count": linked_count,
+        "unverified_count": unverified_count,
         "degraded_count": degraded_count,
         "disabled_count": disabled_count,
         "last_degraded_stage": last_degraded_stage,
@@ -3729,6 +3729,31 @@ def _fallback_enriched_rows_from_results_export(rows: list[dict[str, Any]]) -> l
         )
     return fallback_rows
 
+def _fallback_enriched_rows_from_stage_artifacts(run: PipelineRun) -> list[dict[str, Any]]:
+    """Derive enriched-tab rows from enrich stage artifacts during in-flight runs."""
+    stage_artifacts = _stage_artifacts_by_id(run)
+    enrich_stage = dict(stage_artifacts.get("enrich") or {})
+    sample_rows = list(enrich_stage.get("outputs_sample") or [])
+    fallback_rows: list[dict[str, Any]] = []
+    for row in sample_rows:
+        if not isinstance(row, dict):
+            continue
+        job_url = str(row.get("job_url") or "").strip()
+        if not job_url:
+            continue
+        fallback_rows.append(
+            {
+                "job_url": job_url,
+                "title": str(row.get("title") or row.get("job_title") or job_url),
+                "location_type": row.get("location_type"),
+                "seniority": row.get("seniority"),
+                "job_family": row.get("job_family"),
+                "domain": row.get("domain"),
+                "required_skills": row.get("required_skills") if isinstance(row.get("required_skills"), list) else [],
+            }
+        )
+    return fallback_rows
+
 
 def _stage_result_summary_rows(run: PipelineRun) -> list[dict[str, str]]:
     if not run.results_export_json:
@@ -3856,6 +3881,8 @@ def _build_enriched_tab_context(
 ) -> dict[str, Any]:
     results_rows = _results_export_rows(run)
     enriched_jobs = list_run_structured_jobs(run_id, bq, project=project, dataset=dataset)
+    if not enriched_jobs:
+        enriched_jobs = _fallback_enriched_rows_from_stage_artifacts(run)
     if not enriched_jobs:
         enriched_jobs = _fallback_enriched_rows_from_results_export(results_rows)
     filter_results = list_filter_results_for_run(run_id, bq, project=project, dataset=dataset)
@@ -5250,6 +5277,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "stage": e.stage,
                 "level": e.level,
                 "message": e.message,
+                "payload_json": e.payload_json,
                 "created_at": e.created_at.isoformat() if hasattr(e.created_at, "isoformat") else str(e.created_at),
             }
             for e in events
