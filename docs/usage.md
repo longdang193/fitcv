@@ -35,7 +35,19 @@ Entry point: `/admin/runs`
 
 ## Settings Workflow
 
-Use `/admin/settings` to tune future-run defaults. Use run-level `settings-used.json` for what a specific run actually used.
+Use `/admin/settings` to tune future-run defaults.
+
+Operator truth model:
+
+1. adjust shared defaults on `/admin/settings`
+2. optionally apply trigger-time per-run overrides when starting a run
+3. verify historical run truth from run-level `settings-used.json`
+
+Important:
+
+- editing settings does not rewrite past runs
+- per-run overrides do not change shared saved defaults
+- metadata-only rows in Settings are informational (runtime-owned), not editable controls
 
 ## Engineering Workflow
 

@@ -713,18 +713,6 @@ SETTINGS_SECTIONS: dict[str, list[str]] = {
         "pipeline.final_top_n",
         "pipeline.evidence_top_k",
     ],
-    "retrieval-advanced": [
-        "cv_analysis.semantic_alignment.model",
-        "cv_analysis.semantic_alignment.required_skill_lexical_weight",
-        "cv_analysis.semantic_alignment.required_skill_semantic_weight",
-        "cv_analysis.semantic_alignment.role_lexical_weight",
-        "cv_analysis.semantic_alignment.role_semantic_weight",
-        "cv_analysis.semantic_alignment.responsibility_lexical_weight",
-        "cv_analysis.semantic_alignment.responsibility_semantic_weight",
-        "cv_analysis.semantic_alignment.domain_lexical_weight",
-        "cv_analysis.semantic_alignment.domain_semantic_weight",
-        "cv_analysis.semantic_alignment.channel_pool_size",
-    ],
     "timing": [
         "enrichment_sleep_secs",
         "rerank_sleep_secs",

@@ -108,16 +108,16 @@ def load_active_settings(*, bq: Any, project: str, dataset: str) -> dict[str, An
     )
     rows = list(bq.query(sql).result())
 
-    seen: set[str] = set()
+    seen_valid: set[str] = set()
     result: dict[str, Any] = {}
     for row in rows:
         key = str(row["setting_key"])
-        if key in seen:
+        if key in seen_valid:
             continue  # older value for same key — skip
-        seen.add(key)
         raw = json.loads(str(row["setting_value_json"]))
         try:
             result[key] = coerce_value(key, raw)
+            seen_valid.add(key)
         except (KeyError, ValueError) as exc:
             logger.warning("Skipping unknown/invalid setting key=%s: %s", key, exc)
 

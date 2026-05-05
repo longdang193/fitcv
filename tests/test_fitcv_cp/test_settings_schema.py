@@ -525,7 +525,6 @@ def test_settings_sections_has_expected_slugs():
     from fitcv_cp.settings_schema import SETTINGS_SECTIONS
     assert set(SETTINGS_SECTIONS.keys()) == {
         "retrieval-core",
-        "retrieval-advanced",
         "timing",
         "run-lifecycle",
         "global-job-filters",
@@ -552,20 +551,11 @@ def test_settings_sections_no_key_appears_twice():
             seen.add(key)
 
 
-def test_settings_sections_retrieval_core_and_advanced_cover_semantic_alignment_keys():
+def test_settings_sections_retrieval_core_stays_focused_on_selection_funnel():
     from fitcv_cp.settings_schema import SETTINGS_SECTIONS
     assert "pipeline.evidence_top_k" in SETTINGS_SECTIONS["retrieval-core"]
     assert "cv_analysis.semantic_alignment.enabled" not in SETTINGS_SECTIONS["retrieval-core"]
-    assert "cv_analysis.semantic_alignment.model" in SETTINGS_SECTIONS["retrieval-advanced"]
-    assert "cv_analysis.semantic_alignment.required_skill_lexical_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
-    assert "cv_analysis.semantic_alignment.required_skill_semantic_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
-    assert "cv_analysis.semantic_alignment.role_lexical_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
-    assert "cv_analysis.semantic_alignment.role_semantic_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
-    assert "cv_analysis.semantic_alignment.responsibility_lexical_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
-    assert "cv_analysis.semantic_alignment.responsibility_semantic_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
-    assert "cv_analysis.semantic_alignment.domain_lexical_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
-    assert "cv_analysis.semantic_alignment.domain_semantic_weight" in SETTINGS_SECTIONS["retrieval-advanced"]
-    assert "cv_analysis.semantic_alignment.channel_pool_size" in SETTINGS_SECTIONS["retrieval-advanced"]
+    assert "retrieval-advanced" not in SETTINGS_SECTIONS
 
 
 def test_agentic_sections_own_semantic_alignment_enablement() -> None:
