@@ -28,8 +28,14 @@ related_stages:
 - Classification: `change`
 - Rationale: This is a bounded runtime behavior and observability integration change in product code and startup/runtime config surfaces, not a pure operating-system or intent-only governance update.
 
+## Goal
+Ensure Langfuse trace-link observability is ingestion-truthful in local and configured environments so operator surfaces do not present misleading trace availability.
+
 ## Problem
 Current Langfuse behavior can present a trace URL that looks valid while no trace is actually ingested into Langfuse. The existing link can be constructed from base URL + trace id without guaranteeing backend ingestion, which creates a misleading operator experience (`Trace not found`).
+
+## Goal
+- Ensure Langfuse observability surfaces only present trace links as actionable when ingestion is viable and operator semantics remain truthful.
 
 ## Desired Outcome
 - Langfuse trace links shown in run observability surfaces correspond to real ingested traces.
@@ -52,6 +58,12 @@ Current Langfuse behavior can present a trace URL that looks valid while no trac
 - Preserve non-Langfuse observability behavior (OTel and event delivery surfaces).
 
 ## What Should Stay True (Invariants)
+- Stage artifacts remain the source of truth for runtime decisions.
+- Pipeline execution must not fail due to Langfuse unavailability.
+- `disabled` / `degraded` states remain explicit and machine-readable.
+- Existing run lifecycle/state transitions remain unchanged.
+
+## Invariants
 - Stage artifacts remain the source of truth for runtime decisions.
 - Pipeline execution must not fail due to Langfuse unavailability.
 - `disabled` / `degraded` states remain explicit and machine-readable.
