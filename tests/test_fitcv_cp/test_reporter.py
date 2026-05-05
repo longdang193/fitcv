@@ -48,7 +48,7 @@ def test_reporter_payload_serialized():
     payload = json.loads(call_args["payload_json"])
     telemetry_export = dict(payload.get("telemetry_export") or {})
     trace_context = dict(payload.get("trace_context") or {})
-    assert telemetry_export.get("status") in {"degraded", "export_enabled"}
+    assert telemetry_export.get("status") in {"disabled", "degraded", "export_enabled"}
     assert str(trace_context.get("trace_id") or "").strip()
     assert str(trace_context.get("span_id") or "").strip()
     assert str(trace_context.get("parent_span_id") or "").strip()

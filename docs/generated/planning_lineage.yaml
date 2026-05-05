@@ -331,6 +331,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-03-14-20-phase-2-architecture-hardening-and-portability-plan.md
     - docs/superpowers/plans/2026-05-03-16-50-sqlite-e2e-backend-runtime-plan.md
     - docs/superpowers/plans/2026-05-04-14-40-ranking-and-cv-provider-routing-hardening-plan.md
+    - docs/superpowers/plans/2026-05-04-21-35-telemetry-disabled-classification-surface-audit-plan.md
     - docs/superpowers/plans/2026-05-04-provider-storage-agnostic-parity-implementation-plan.md
     derived_completion: completed
 - workstream_id: workstream-pipeline-efficiency-and-reuse

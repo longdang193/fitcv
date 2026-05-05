@@ -1698,6 +1698,17 @@ def _resolved_cv_generation_model(
             return runtime_model
     return default_model
 
+
+def _default_cv_generation_runtime_provenance(
+    cv_generation_model: str | None,
+) -> dict[str, Any]:
+    return {
+        "runtime_path": "fitcv_cv_generation_builtin",
+        "provider": "fitcv_builtin",
+        "model": str(cv_generation_model or "").strip() or None,
+    }
+
+
 def _normalize_review_required_reason_code(
     *,
     status: str,
@@ -4314,7 +4325,9 @@ def run_pipeline(
         structured_cv_final: dict[str, Any] | None = None
         markdown_final: str | None = None
         job_cv_generation_model_value: str | None = cv_generation_model_value
-        job_runtime_provenance: dict[str, Any] | None = None
+        job_runtime_provenance: dict[str, Any] | None = _default_cv_generation_runtime_provenance(
+            cv_generation_model_value
+        )
         job_agentic_live_trace: dict[str, Any] | None = None
         try:
             if agentic_late_stage_enabled:

@@ -1318,6 +1318,8 @@ def _run_telemetry_export_health(events: list[RunEvent]) -> dict[str, Any]:
         telemetry = dict(payload.get("telemetry_export") or {})
         if str(telemetry.get("status") or "") != "degraded":
             continue
+        if str(telemetry.get("degradation_reason") or "").strip() == "otel_disabled":
+            continue
         degraded_count += 1
         stage = str(getattr(event, "stage", "") or "").strip()
         if stage:
@@ -7592,6 +7594,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 run=run,
                 trace_name="agentic_live_trace",
             )
+        if str(trace_payload.get("trace_status") or "").strip() == "not_applicable":
+            raise HTTPException(status_code=404, detail="Agentic live trace export is not available for this run")
         return Response(
             content=_json.dumps(trace_payload, ensure_ascii=False, indent=2),
             media_type="application/json",
@@ -7614,6 +7618,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 run=run,
                 trace_name="cv_analysis_trace",
             )
+        if str(trace_payload.get("trace_status") or "").strip() == "not_applicable":
+            raise HTTPException(status_code=404, detail="CV analysis trace export is not available for this run")
         return Response(
             content=_json.dumps(trace_payload, ensure_ascii=False, indent=2),
             media_type="application/json",
