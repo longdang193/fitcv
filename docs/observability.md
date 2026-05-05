@@ -63,6 +63,7 @@ Runtime toggles:
 - `FITCV_OTEL_ENABLED` (`true`/`false`)
 - `FITCV_OTEL_EXPORTER_OTLP_ENDPOINT` (OTLP HTTP endpoint)
 - `FITCV_OTEL_SERVICE_NAME` (optional, defaults to `fitcv-control-plane`)
+- `FITCV_LANGFUSE_RICH_IO_ENABLED` (`true`/`false`; local startup scripts default to `true` when unset)
 - `control_plane.observability.emit_model_routing_diagnostics` (runtime routing event toggle)
 - `control_plane.observability.emit_backend_capability_diagnostics` (backend diagnostics event toggle)
 
@@ -102,15 +103,47 @@ Environment precedence note:
 
 - run-detail health cards reflect the process environment used by the active web/worker processes
 - shell/system env overrides startup-script defaults
+- startup scripts now default `FITCV_LANGFUSE_RICH_IO_ENABLED=true` for local/dev observability unless explicitly overridden
 - if Langfuse/OTel status looks unexpected, print effective env values first:
 
 ```powershell
 Write-Host "FITCV_LANGFUSE_ENABLED=$env:FITCV_LANGFUSE_ENABLED"
 Write-Host "FITCV_LANGFUSE_BASE_URL=$env:FITCV_LANGFUSE_BASE_URL"
+Write-Host "FITCV_LANGFUSE_RICH_IO_ENABLED=$env:FITCV_LANGFUSE_RICH_IO_ENABLED"
 Write-Host "FITCV_OTEL_ENABLED=$env:FITCV_OTEL_ENABLED"
 Write-Host "FITCV_OTEL_EXPORTER_OTLP_ENDPOINT=$env:FITCV_OTEL_EXPORTER_OTLP_ENDPOINT"
 Write-Host "FITCV_OTEL_SERVICE_NAME=$env:FITCV_OTEL_SERVICE_NAME"
 ```
+
+Langfuse export consumption lanes:
+
+- raw export: keep full fidelity for forensics
+- analysis-ready export: filter to rows with meaningful `input` or `output`, plus `:rich_io` rows
+  (including exports where `input`/`output` are stringified JSON objects)
+
+Example:
+
+```powershell
+python scripts/filter_langfuse_export.py `
+  --input logs/exports_*.jsonl `
+  --output logs/exports_analysis_ready.jsonl
+```
+
+Pipeline summary quality block:
+
+- `pipeline_complete` rich output now includes `quality_summary` with:
+  - acceptance/review/failure distribution and rates
+  - analysis-to-generation conversion
+  - retry counts
+
+Langfuse latency semantics:
+
+- UI `Latency` is derived from observation/span timing (`start_time` -> `end_time`).
+- `:rich_io` payload field `output.latency_ms` is a custom diagnostic metric and is not
+  automatically used by Langfuse UI latency unless a timed observation exists.
+- Control-plane rich IO ingestion now emits an `observation-create` span for
+  high-value events when `latency_ms > 0`, so UI latency and payload latency can
+  agree for those rows.
 
 ### Control-Plane Structured Diagnostics
 

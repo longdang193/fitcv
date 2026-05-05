@@ -5428,6 +5428,27 @@ def test_run_pipeline_pipeline_complete_event_omits_export_rows(
         },
         "output_snapshot": {
             "cvs_generated": 1,
+            "quality_summary": {
+                "acceptance_review_failure": {
+                    "accepted": 1,
+                    "review_required": 0,
+                    "validation_failed": 0,
+                    "generation_failed": 0,
+                    "persistence_failed": 0,
+                    "accepted_rate": 1.0,
+                    "review_required_rate": 0.0,
+                    "failure_rate": 0.0,
+                },
+                "analysis_to_generation_conversion": {
+                    "ready_for_generation": 1,
+                    "generation_attempted": 1,
+                    "conversion_rate": 1.0,
+                },
+                "retry_counts": {
+                    "total_retry_count": 0,
+                    "attempted_jobs": 1,
+                },
+            },
         },
     }
 
@@ -5532,6 +5553,7 @@ def test_run_pipeline_emits_bounded_cv_analysis_event_payload(
         "artifact_refs": {
             "stage_id": "cv_analysis",
         },
+        "latency_ms": 0,
     }
 
 
@@ -5707,6 +5729,10 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
             "stage_id": "cv_generation",
         },
     }
+    cv_generation_result_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_result")
+    assert cv_generation_result_event[3]["event_name"] == "cv_generation_result"
+    assert cv_generation_result_event[3]["deterministic_outcome"] == "validation_failed"
+    assert cv_generation_result_event[3]["output_snapshot"]["status"] == "validation_failed"
 
 
 @patch("fitcv.pipeline.store_cv_version")
