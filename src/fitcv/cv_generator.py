@@ -946,12 +946,72 @@ def _is_synthetic_education_entry(entry: dict[str, Any]) -> bool:
     return False
 
 
-def _education_section_enabled(config: dict[str, Any]) -> bool:
+def _section_enabled(config: dict[str, Any], section_key: str) -> bool:
     composition = ((config.get("cv") or {}).get("composition") or {})
-    education_cfg = composition.get("education")
-    if not isinstance(education_cfg, dict):
+    section_cfg = composition.get(section_key)
+    if not isinstance(section_cfg, dict):
         return True
-    return bool(education_cfg.get("enabled", True))
+    return bool(section_cfg.get("enabled", True))
+
+def _is_synthetic_experience_entry(entry: dict[str, Any]) -> bool:
+    bullets = [bullet for bullet in (entry.get("bullets") or []) if isinstance(bullet, str)]
+    if any(not _is_placeholder_token(bullet) for bullet in bullets):
+        return False
+    return all(
+        _is_placeholder_token(value)
+        for value in (
+            entry.get("role"),
+            entry.get("company"),
+            entry.get("start"),
+            entry.get("end"),
+            entry.get("location"),
+        )
+    )
+
+def _is_synthetic_projects_entry(entry: dict[str, Any]) -> bool:
+    bullets = [bullet for bullet in (entry.get("bullets") or []) if isinstance(bullet, str)]
+    if any(not _is_placeholder_token(bullet) for bullet in bullets):
+        return False
+    return _is_placeholder_token(entry.get("name")) and _is_placeholder_token(entry.get("context"))
+
+def _is_synthetic_certifications_entry(entry: dict[str, Any]) -> bool:
+    return all(
+        _is_placeholder_token(value)
+        for value in (entry.get("name"), entry.get("issuer"), entry.get("year"))
+    )
+
+def _is_synthetic_publications_entry(entry: dict[str, Any]) -> bool:
+    return all(
+        _is_placeholder_token(value)
+        for value in (entry.get("title"), entry.get("publisher"), entry.get("year"))
+    )
+
+def _is_synthetic_languages_entry(entry: dict[str, Any]) -> bool:
+    return all(
+        _is_placeholder_token(value)
+        for value in (entry.get("name"), entry.get("level"))
+    )
+
+def _sanitize_section_entries(
+    section_key: str,
+    entries: list[dict[str, Any]],
+    *,
+    config: dict[str, Any],
+) -> list[dict[str, Any]]:
+    if not _section_enabled(config, section_key):
+        return []
+    checks = {
+        "education": _is_synthetic_education_entry,
+        "experience": _is_synthetic_experience_entry,
+        "projects": _is_synthetic_projects_entry,
+        "certifications": _is_synthetic_certifications_entry,
+        "publications": _is_synthetic_publications_entry,
+        "languages": _is_synthetic_languages_entry,
+    }
+    checker = checks.get(section_key)
+    if checker is None:
+        return entries
+    return [entry for entry in entries if not checker(entry)]
 
 
 def _sanitize_education_entries(
@@ -959,12 +1019,7 @@ def _sanitize_education_entries(
     *,
     config: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    if not _education_section_enabled(config):
-        return []
-    return [
-        entry for entry in education_entries
-        if not _is_synthetic_education_entry(entry)
-    ]
+    return _sanitize_section_entries("education", education_entries, config=config)
 
 
 def _normalize_structured_cv(
@@ -1017,6 +1072,11 @@ def _normalize_structured_cv(
                 "bullets": _normalize_bullets(item.get("bullets")),
             }
         )
+    normalized["sections"]["experience"] = _sanitize_section_entries(
+        "experience",
+        normalized["sections"]["experience"],
+        config=config,
+    )
 
     normalized["sections"]["projects"] = []
     for item in _coerce_object_list(raw_sections.get("projects")):
@@ -1027,6 +1087,11 @@ def _normalize_structured_cv(
                 "bullets": _normalize_bullets(item.get("bullets")),
             }
         )
+    normalized["sections"]["projects"] = _sanitize_section_entries(
+        "projects",
+        normalized["sections"]["projects"],
+        config=config,
+    )
 
     normalized["sections"]["education"] = []
     for item in _coerce_object_list(raw_sections.get("education")):
@@ -1068,6 +1133,11 @@ def _normalize_structured_cv(
                 "year": str(item.get("year") or "").strip() or None,
             }
         )
+    normalized["sections"]["certifications"] = _sanitize_section_entries(
+        "certifications",
+        normalized["sections"]["certifications"],
+        config=config,
+    )
 
     normalized["sections"]["publications"] = []
     for item in _coerce_object_list(raw_sections.get("publications")):
@@ -1078,6 +1148,11 @@ def _normalize_structured_cv(
                 "year": str(item.get("year") or "").strip() or None,
             }
         )
+    normalized["sections"]["publications"] = _sanitize_section_entries(
+        "publications",
+        normalized["sections"]["publications"],
+        config=config,
+    )
 
     normalized["sections"]["languages"] = []
     for item in _coerce_object_list(raw_sections.get("languages")):
@@ -1087,6 +1162,11 @@ def _normalize_structured_cv(
                 "level": str(item.get("level") or "").strip() or None,
             }
         )
+    normalized["sections"]["languages"] = _sanitize_section_entries(
+        "languages",
+        normalized["sections"]["languages"],
+        config=config,
+    )
 
     validate_structured_cv(normalized, config=config)
     return normalized
@@ -1307,10 +1387,13 @@ def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) ->
     structured_cv = deepcopy(structured_cv)
     sections = structured_cv.get("sections")
     if isinstance(sections, dict):
-        education_section = sections.get("education")
-        if isinstance(education_section, list):
-            sections["education"] = _sanitize_education_entries(
-                [item for item in education_section if isinstance(item, dict)],
+        for section_key in ("experience", "projects", "education", "certifications", "publications", "languages"):
+            section_items = sections.get(section_key)
+            if not isinstance(section_items, list):
+                continue
+            sections[section_key] = _sanitize_section_entries(
+                section_key,
+                [item for item in section_items if isinstance(item, dict)],
                 config=config,
             )
     validate_structured_cv(structured_cv, config=config)

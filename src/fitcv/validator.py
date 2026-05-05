@@ -834,6 +834,41 @@ def _check_synthetic_education_entries(structured_cv: dict[str, Any] | None) -> 
                 )
     return violations
 
+def _check_synthetic_non_education_entries(structured_cv: dict[str, Any] | None) -> list[str]:
+    if not isinstance(structured_cv, dict):
+        return []
+    sections = structured_cv.get("sections")
+    if not isinstance(sections, dict):
+        return []
+    violations: list[str] = []
+
+    def _rows(section_key: str) -> list[dict[str, Any]]:
+        values = sections.get(section_key)
+        if not isinstance(values, list):
+            return []
+        return [item for item in values if isinstance(item, dict)]
+
+    for index, row in enumerate(_rows("projects")):
+        bullets = [bullet for bullet in (row.get("bullets") or []) if isinstance(bullet, str)]
+        if any(not _is_placeholder_token(bullet) for bullet in bullets):
+            continue
+        if _is_placeholder_token(row.get("name")) and _is_placeholder_token(row.get("context")):
+            violations.append(f"Synthetic Projects row detected at index {index}: placeholder name/context.")
+
+    for index, row in enumerate(_rows("certifications")):
+        if all(_is_placeholder_token(value) for value in (row.get("name"), row.get("issuer"), row.get("year"))):
+            violations.append(f"Synthetic Certifications row detected at index {index}: all fields are placeholders.")
+
+    for index, row in enumerate(_rows("publications")):
+        if all(_is_placeholder_token(value) for value in (row.get("title"), row.get("publisher"), row.get("year"))):
+            violations.append(f"Synthetic Publications row detected at index {index}: all fields are placeholders.")
+
+    for index, row in enumerate(_rows("languages")):
+        if all(_is_placeholder_token(value) for value in (row.get("name"), row.get("level"))):
+            violations.append(f"Synthetic Languages row detected at index {index}: all fields are placeholders.")
+
+    return violations
+
 def check_employer_grounding(cv_text: str, known_employers: list[str]) -> list[str]:
     """Return violations for any employer mentioned in the CV text that is not in known_employers.
 
@@ -1093,6 +1128,7 @@ def run_all_validations(
             + _check_unresolved_placeholders(cv_text)
             + _check_candidate_name_placeholders(cv_text, structured_cv)
             + _check_synthetic_education_entries(structured_cv)
+            + _check_synthetic_non_education_entries(structured_cv)
         )
     )
 
