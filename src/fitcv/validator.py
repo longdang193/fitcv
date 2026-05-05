@@ -121,6 +121,16 @@ _MARKDOWN_PLACEHOLDER_PATTERNS = (
     re.compile(r"lorem ipsum", re.IGNORECASE),
     re.compile(r"\bto be (filled|provided|updated)\b", re.IGNORECASE),
 )
+_EDUCATION_PLACEHOLDER_TOKENS = {
+    "",
+    "none",
+    "null",
+    "n/a",
+    "na",
+    "not specified",
+    "not provided",
+    "unknown",
+}
 
 
 def _role_family_aliases(config: dict[str, Any]) -> dict[str, set[str]]:
@@ -779,6 +789,51 @@ def _check_unresolved_placeholders(cv_text: str) -> list[str]:
         )
     return list(dict.fromkeys(violations))
 
+
+def _normalize_placeholder_token(value: Any) -> str:
+    normalized = str(value or "").strip().lower()
+    normalized = normalized.replace("–", "-").replace("—", "-")
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized
+
+
+def _is_placeholder_token(value: Any) -> bool:
+    return _normalize_placeholder_token(value) in _EDUCATION_PLACEHOLDER_TOKENS
+
+
+def _check_synthetic_education_entries(structured_cv: dict[str, Any] | None) -> list[str]:
+    if not isinstance(structured_cv, dict):
+        return []
+    sections = structured_cv.get("sections")
+    if not isinstance(sections, dict):
+        return []
+    education_rows = sections.get("education")
+    if not isinstance(education_rows, list):
+        return []
+    violations: list[str] = []
+    for index, row in enumerate(education_rows):
+        if not isinstance(row, dict):
+            continue
+        values = (
+            row.get("degree"),
+            row.get("institution"),
+            row.get("field"),
+            row.get("start"),
+            row.get("end"),
+        )
+        if all(_is_placeholder_token(value) for value in values):
+            violations.append(
+                f"Synthetic Education row detected at index {index}: all fields are placeholders."
+            )
+            continue
+        if _is_placeholder_token(row.get("degree")) and _is_placeholder_token(row.get("institution")):
+            if _is_placeholder_token(row.get("start")) and _is_placeholder_token(row.get("end")):
+                violations.append(
+                    "Synthetic Education row detected at index "
+                    f"{index}: placeholder degree/institution/date pair."
+                )
+    return violations
+
 def check_employer_grounding(cv_text: str, known_employers: list[str]) -> list[str]:
     """Return violations for any employer mentioned in the CV text that is not in known_employers.
 
@@ -1037,6 +1092,7 @@ def run_all_validations(
             grounding_violations
             + _check_unresolved_placeholders(cv_text)
             + _check_candidate_name_placeholders(cv_text, structured_cv)
+            + _check_synthetic_education_entries(structured_cv)
         )
     )
 

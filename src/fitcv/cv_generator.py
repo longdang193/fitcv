@@ -27,6 +27,7 @@ import json
 import os
 import re
 import textwrap
+from copy import deepcopy
 from types import SimpleNamespace
 from typing import Any
 
@@ -69,6 +70,16 @@ LEGACY_MARKDOWN_PROMPT_ID = "cv_generation.write.v1"
 _CANDIDATE_NAME_PLACEHOLDER_VALUES = {
     "candidate name",
     "your name",
+}
+_EDUCATION_PLACEHOLDER_TOKENS = {
+    "",
+    "none",
+    "null",
+    "n/a",
+    "na",
+    "not specified",
+    "not provided",
+    "unknown",
 }
 
 def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
@@ -906,6 +917,56 @@ def _coerce_object_list(values: Any) -> list[dict[str, Any]]:
     return result
 
 
+def _normalize_placeholder_token(value: Any) -> str:
+    normalized = str(value or "").strip().lower()
+    normalized = normalized.replace("–", "-").replace("—", "-")
+    normalized = re.sub(r"\s+", " ", normalized)
+    return normalized
+
+
+def _is_placeholder_token(value: Any) -> bool:
+    return _normalize_placeholder_token(value) in _EDUCATION_PLACEHOLDER_TOKENS
+
+
+def _is_synthetic_education_entry(entry: dict[str, Any]) -> bool:
+    degree = entry.get("degree")
+    institution = entry.get("institution")
+    field = entry.get("field")
+    start = entry.get("start")
+    end = entry.get("end")
+    all_placeholder = all(
+        _is_placeholder_token(value)
+        for value in (degree, institution, field, start, end)
+    )
+    if all_placeholder:
+        return True
+    if _is_placeholder_token(degree) and _is_placeholder_token(institution):
+        if _is_placeholder_token(start) and _is_placeholder_token(end):
+            return True
+    return False
+
+
+def _education_section_enabled(config: dict[str, Any]) -> bool:
+    composition = ((config.get("cv") or {}).get("composition") or {})
+    education_cfg = composition.get("education")
+    if not isinstance(education_cfg, dict):
+        return True
+    return bool(education_cfg.get("enabled", True))
+
+
+def _sanitize_education_entries(
+    education_entries: list[dict[str, Any]],
+    *,
+    config: dict[str, Any],
+) -> list[dict[str, Any]]:
+    if not _education_section_enabled(config):
+        return []
+    return [
+        entry for entry in education_entries
+        if not _is_synthetic_education_entry(entry)
+    ]
+
+
 def _normalize_structured_cv(
     raw_structured_cv: dict[str, Any],
     *,
@@ -978,6 +1039,10 @@ def _normalize_structured_cv(
                 "end": str(item.get("end") or "").strip() or None,
             }
         )
+    normalized["sections"]["education"] = _sanitize_education_entries(
+        normalized["sections"]["education"],
+        config=config,
+    )
 
     raw_skills = raw_sections.get("skills")
     raw_groups = raw_skills.get("groups") if isinstance(raw_skills, dict) else []
@@ -1239,6 +1304,15 @@ def render_cv_markdown(structured_cv: dict[str, Any], config: dict[str, Any]) ->
     """Render markdown from a validated structured CV document."""
     import pathlib
 
+    structured_cv = deepcopy(structured_cv)
+    sections = structured_cv.get("sections")
+    if isinstance(sections, dict):
+        education_section = sections.get("education")
+        if isinstance(education_section, list):
+            sections["education"] = _sanitize_education_entries(
+                [item for item in education_section if isinstance(item, dict)],
+                config=config,
+            )
     validate_structured_cv(structured_cv, config=config)
     template_path = _resolve_template_path(config)
     template_str = pathlib.Path(template_path).read_text(encoding="utf-8")
