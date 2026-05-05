@@ -2,7 +2,7 @@
 layer: change
 artifact_type: plan
 status: proposed
-parent_thread: workstream-bounded-agentic-cv-quality.cross-section-placeholder-guardrails
+parent_thread: workstream-bounded-agentic-cv-quality.agentic-cv-quality-analysis-grounding
 parent_spec: docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
 targets:
   - src/fitcv/cv_generator.py
