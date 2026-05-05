@@ -42,6 +42,25 @@ FitCV uses layered configuration with clear ownership boundaries.
 4. runtime env overrides
 5. run-scoped `settings-used.json` captures final effective view
 
+Interpretation rules:
+
+- `/admin/settings` edits persisted defaults for future runs only.
+- trigger-time per-run overrides do not mutate saved defaults.
+- completed-run truth belongs to the run-scoped `settings-used.json` snapshot.
+- runtime env ownership can supersede settings-owned values in agentic/live provider paths.
+
+## Settings Surface Ownership
+
+The settings page intentionally mixes editable controls with metadata-only rows.
+
+- editable: schema-backed controls with persistence keys and save handlers
+- metadata-only: fixed/runtime-owned values shown for operator context and provenance
+
+Examples:
+
+- editable: retrieval funnel sizes, ranking weights, timing, run lifecycle guard, CV composition toggles
+- metadata-only: fixed runtime-contract fields such as single-option model metadata
+
 ## Backend and Provider Routing
 
 - backend routing: resolved by control-plane runtime config + env override

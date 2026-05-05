@@ -42,6 +42,35 @@
     color: var(--text-primary);
     font-weight: 600;
   }
+  .settings-toolbar {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .settings-global-summary {
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-1);
+    padding: 0.7rem 0.9rem;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+  .settings-quick-nav {
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-1);
+    padding: 0.65rem 0.9rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.6rem;
+  }
+  .settings-quick-nav a {
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+  }
   .task-section {
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -373,8 +402,16 @@
       <li>To confirm what actually ran, open Run Detail and check Agentic Runtime Alignment.</li>
     </ul>
   </section>
+  <section class="settings-toolbar">
+    <div class="settings-global-summary" data-global-dirty-summary="settings-page">All sections saved</div>
+    <nav class="settings-quick-nav" data-settings-quick-nav="true" aria-label="Settings quick navigation">
+      {% for section in settings_page_task_sections %}
+        <a href="#task-{{ section.id }}">{{ section.title }}</a>
+      {% endfor %}
+    </nav>
+  </section>
   {% for section in settings_page_task_sections %}
-    <section class="task-section" data-task-section="{{ section.id }}">
+    <section class="task-section" data-task-section="{{ section.id }}" id="task-{{ section.id }}">
       <div class="task-section-header">
         <div>
           <div class="task-section-title">{{ section.title }}</div>
@@ -572,7 +609,22 @@
       else if (dirtyCount === 1) summary.textContent = '1 unsaved edit';
       else summary.textContent = dirtyCount + ' unsaved edits';
     }
+    updateGlobalDirtySummary();
     updateWeightsTotal();
+  }
+
+  function updateGlobalDirtySummary() {
+    const summary = document.querySelector('[data-global-dirty-summary="settings-page"]');
+    if (!summary) return;
+    const forms = document.querySelectorAll('form[data-dirty-card]');
+    let dirtyForms = 0;
+    forms.forEach(function(form) {
+      const hasDirtyRow = form.querySelector('[data-entry-key][data-dirty="true"]') !== null;
+      if (hasDirtyRow) dirtyForms += 1;
+    });
+    if (dirtyForms === 0) summary.textContent = 'All sections saved';
+    else if (dirtyForms === 1) summary.textContent = '1 section has unsaved edits';
+    else summary.textContent = dirtyForms + ' sections have unsaved edits';
   }
 
   document.addEventListener('DOMContentLoaded', function() {

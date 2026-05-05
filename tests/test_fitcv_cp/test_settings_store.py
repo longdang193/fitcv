@@ -86,3 +86,15 @@ def test_load_active_editable_settings_excludes_metadata_only_keys() -> None:
     assert result == {
         "cv_generation_model": "gemini-2.5-pro",
     }
+
+def test_load_active_settings_falls_back_to_older_valid_row_when_latest_is_invalid() -> None:
+    bq = MagicMock()
+    rows = [
+        _make_bq_row("pipeline.final_top_n", '"not-an-int"', "2026-01-03T00:00:00"),
+        _make_bq_row("pipeline.final_top_n", "7", "2026-01-02T00:00:00"),
+    ]
+    bq.query.return_value.result.return_value = iter(rows)
+
+    result = load_active_settings(bq=bq, project="p", dataset="d")
+
+    assert result["pipeline.final_top_n"] == 7
