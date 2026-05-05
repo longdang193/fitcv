@@ -94,14 +94,19 @@ def setup_telemetry_runtime() -> dict[str, Any]:
             return {"enabled": False, "degraded_reason": _DEGRADED_REASON}
 
 
-def build_trace_context(seed: str, *, parent_seed: str | None = None) -> dict[str, str]:
+def build_trace_context(
+    seed: str,
+    *,
+    parent_seed: str | None = None,
+    emit_otel_span: bool = True,
+) -> dict[str, str]:
     setup_telemetry_runtime()
     trace_id = _otel_id(seed, length=32)
     span_id = _otel_id(f"{seed}:span", length=16)
     parent_source = parent_seed or f"{seed}:parent"
     parent_span_id = _otel_id(parent_source, length=16)
 
-    if not _OTEL_ENABLED:
+    if not _OTEL_ENABLED or not emit_otel_span:
         return {
             "trace_id": trace_id,
             "span_id": span_id,

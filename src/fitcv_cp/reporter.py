@@ -22,7 +22,6 @@ lifecycle:
   status: active
 """
 import datetime
-import hashlib
 import json
 import logging
 import os
@@ -42,7 +41,6 @@ _MAX_OBJECT_KEYS = 30
 _SENSITIVE_KEY_PARTS = {
     "password",
     "secret",
-    "token",
     "authorization",
     "api_key",
     "private_key",
@@ -125,6 +123,19 @@ def _build_langfuse_rich_io_contract(
         "event_status": "emitted",
         "stage_family": stage_family,
     }
+    latency_ms = payload.get("latency_ms")
+    if isinstance(latency_ms, int) and latency_ms >= 0:
+        rich_output["latency_ms"] = latency_ms
+    usage_payload = payload.get("usage")
+    if isinstance(usage_payload, dict):
+        rich_output["usage"] = _redact_and_bound(usage_payload)
+    cost_payload = payload.get("cost")
+    if isinstance(cost_payload, dict):
+        rich_output["cost"] = _redact_and_bound(cost_payload)
+    elif isinstance(cost_payload, (int, float)):
+        rich_output["cost"] = {"total": float(cost_payload), "currency": "usd"}
+    elif isinstance(payload.get("cost_usd"), (int, float)):
+        rich_output["cost"] = {"total": float(payload["cost_usd"]), "currency": "usd"}
 
     if stage_family in {"normalize", "cv_analysis", "cv_generation"}:
         input_snapshot = payload.get("input_snapshot")
@@ -162,6 +173,7 @@ def _build_langfuse_ingestion_headers() -> dict[str, str] | None:
 
 def _emit_langfuse_native_io(
     *,
+    run_id: str,
     stage: str,
     trace_id: str,
     rich_contract: dict[str, Any],
@@ -179,31 +191,64 @@ def _emit_langfuse_native_io(
         return "degraded", "langfuse_base_url_missing"
     ingestion_url = f"{base_url}/api/public/ingestion"
     now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
-    rich_trace_id = hashlib.sha256(f"{trace_id}:{stage}:rich".encode("utf-8")).hexdigest()[:32]
-    body = {
-        "batch": [
+    rich_input = dict(rich_contract.get("input") or {})
+    rich_output = dict(rich_contract.get("output") or {})
+    batch: list[dict[str, Any]] = [
+        {
+            "id": str(uuid.uuid4()),
+            "timestamp": now,
+            "type": "trace-create",
+            "body": {
+                # Attach rich payloads to the same trace context surfaced in run events.
+                "id": trace_id,
+                "name": f"{stage}:rich_io",
+                "sessionId": run_id,
+                "userId": str(os.environ.get("FITCV_LANGFUSE_USER_ID") or "fitcv-control-plane"),
+                "input": rich_input,
+                "output": rich_output,
+                "metadata": {
+                    "source_trace_id": trace_id,
+                    "stage": stage,
+                    "stage_family": stage_family,
+                    "rich_io_source": "fitcv-control-plane",
+                },
+            },
+        }
+    ]
+    latency_ms = rich_output.get("latency_ms")
+    if isinstance(latency_ms, int) and latency_ms > 0:
+        end_at = datetime.datetime.now(datetime.timezone.utc)
+        start_at = end_at - datetime.timedelta(milliseconds=int(latency_ms))
+        batch.append(
             {
                 "id": str(uuid.uuid4()),
                 "timestamp": now,
-                "type": "trace-create",
+                "type": "observation-create",
                 "body": {
-                    "id": rich_trace_id,
-                    "name": f"{stage}:rich_io",
-                    "input": json.dumps((rich_contract.get("input") or {}), ensure_ascii=False),
-                    "output": json.dumps((rich_contract.get("output") or {}), ensure_ascii=False),
+                    "id": f"{trace_id}:latency",
+                    "traceId": trace_id,
+                    "name": f"{stage}:rich_io_latency",
+                    "type": "SPAN",
+                    "startTime": start_at.isoformat().replace("+00:00", "Z"),
+                    "endTime": end_at.isoformat().replace("+00:00", "Z"),
+                    "level": "DEFAULT",
                     "metadata": {
                         "source_trace_id": trace_id,
                         "stage": stage,
+                        "stage_family": stage_family,
+                        "latency_source": "payload.latency_ms",
                     },
                 },
             }
-        ],
+        )
+    body = {
+        "batch": batch,
         "metadata": {"source": "fitcv-control-plane"},
     }
     try:
         resp = httpx.post(ingestion_url, headers=headers, json=body, timeout=5.0)
         if 200 <= resp.status_code < 300:
-            return f"sent:{rich_trace_id}", None
+            return f"sent:{trace_id}", None
         return "degraded", f"langfuse_ingestion_http_{resp.status_code}"
     except Exception:
         return "degraded", "langfuse_ingestion_failed"
@@ -240,6 +285,7 @@ class PipelineReporter:
         )
         trace_id = str(payload_value["trace_context"].get("trace_id") or "")
         native_status, native_reason = _emit_langfuse_native_io(
+            run_id=self._run_id,
             stage=stage,
             trace_id=trace_id,
             rich_contract=dict(payload_value["langfuse_rich_io"] or {}),

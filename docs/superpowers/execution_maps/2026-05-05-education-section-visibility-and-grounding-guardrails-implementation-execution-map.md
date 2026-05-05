@@ -1,7 +1,10 @@
 ---
 artifact_type: execution_map
 map_type: implementation_execution
+parent_workstream: workstream-bounded-agentic-cv-quality
 parent_thread: workstream-bounded-agentic-cv-quality.education-section-visibility-and-grounding-guardrails
+threads:
+  - workstream-bounded-agentic-cv-quality.education-section-visibility-and-grounding-guardrails
 created_at: 2026-05-05
 status: active
 ---
