@@ -1,6 +1,6 @@
 ---
 thread_id: workstream-bounded-agentic-cv-quality.education-section-visibility-and-grounding-guardrails
-status: active
+status: completed
 ---
 
 # Bounded Change Thread: Education Section Visibility And Grounding Guardrails
