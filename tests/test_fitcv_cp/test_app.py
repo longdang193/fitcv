@@ -273,7 +273,7 @@ def test_post_runs_persists_manual_staged_mode(tmp_path) -> None:
 
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
@@ -304,7 +304,7 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
 
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
@@ -350,7 +350,7 @@ def test_post_runs_path_trigger_captures_agentic_runtime_expectation(tmp_path) -
         clear=False,
     ), patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
@@ -391,7 +391,7 @@ def test_post_runs_run_all_and_manual_staged_share_canonical_runtime_envelope(tm
 
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value=config):
         run_all_resp = TestClient(_app()).post(
@@ -554,7 +554,7 @@ def test_post_runs_with_config_overrides(tmp_path):
 
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run"), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
@@ -582,7 +582,7 @@ def test_admin_upload_trigger_success(tmp_path):
     """@proves trigger_run_management.job-input-modes"""
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run"), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p", "bigquery_dataset": "d", "service_account_key": "k",
@@ -613,7 +613,7 @@ def test_admin_upload_trigger_persists_run_scoped_synonym_overlay() -> None:
 
     with patch("fitcv_cp.app.load_active_settings", return_value={}), \
          patch("fitcv_cp.app.insert_run", side_effect=_capture_insert), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.enqueue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
          patch("fitcv_cp.app.update_run_queue_job_id"), \
          patch("fitcv_cp.app.load_config", return_value={
              "gcp_project": "p",
@@ -1130,7 +1130,7 @@ def test_admin_run_detail_shows_replay_context_metadata() -> None:
     assert "policy_registry.v2" in resp.text
     assert "Runtime Mode" in resp.text
     assert "full" in resp.text
-    assert "bigquery" in resp.text
+    assert "sqlite" in resp.text
 
 
 def test_admin_run_detail_shows_stage_result_policy_and_trace_summary() -> None:

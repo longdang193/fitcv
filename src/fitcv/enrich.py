@@ -1224,6 +1224,10 @@ def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
             api_key = candidate
             break
     if not api_key:
+        # Allow Gemini-native fallback when a Gemini key is present but OpenAI-compatible
+        # keys are intentionally unset in local/test environments.
+        if str(os.environ.get("GEMINI_API_KEY", "")).strip():
+            return None
         raise RuntimeError(
             "Config-routed HTTP provider for enrich_extraction requires API key in env "
             "(FITCV_LLM_API_KEY or FITCV_LANGGRAPH_OPENAI_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY)."
