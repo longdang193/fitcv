@@ -61,7 +61,11 @@ def build_steps(*, root: Path, check_only: bool, python_executable: str, isolate
     if not check_only:
         steps.append([python_executable, generator])
     if isolated_repo:
-        steps.append([python_executable, generator, "--check"] if check_only else [python_executable, generator, "--validate-only"])
+        if check_only:
+            steps.append([python_executable, generator, "--check"])
+        else:
+            steps.append([python_executable, formatter])
+            steps.append([python_executable, generator, "--validate-only"])
         return steps
     steps.extend(
         [
