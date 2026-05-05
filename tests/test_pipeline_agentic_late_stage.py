@@ -295,10 +295,18 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     mock_run_all_validations: MagicMock,
     mock_store_cv_version: MagicMock,
 ) -> None:
+    class _Reporter:
+        def __init__(self) -> None:
+            self.events: list[tuple[str, str, str, dict | None]] = []
+
+        def emit(self, stage: str, level: str, message: str, payload: dict | None = None) -> None:
+            self.events.append((stage, level, message, payload))
+
     job = _minimal_job()
     profile = _minimal_profile()
     config = _minimal_config()
     config["cv"]["agentic_late_stage"]["enabled"] = True
+    reporter = _Reporter()
 
     mock_config.return_value = config
     mock_parse.return_value = [job]
@@ -430,7 +438,12 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
         create=True,
         return_value=agentic_generation_result,
     ) as mock_agentic_generation:
-        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="late-stage-agentic")
+        result = run_pipeline(
+            "data/sample_jobs.json",
+            config_path="config/env.yaml",
+            run_id="late-stage-agentic",
+            reporter=reporter,
+        )
 
     mock_agentic_analysis.assert_called_once()
     mock_agentic_generation.assert_called_once()
@@ -451,6 +464,8 @@ def test_run_pipeline_routes_through_agentic_late_stage_when_enabled(
     assert stage_artifacts["cv_generation"]["late_stage_mode"]["late_stage_mode"] == "agentic"
     assert stage_artifacts["cv_generation"]["decision_summary"]["cv_generation_model"] == "cx/gpt-5.5"
     assert stage_artifacts["cv_generation"]["decision_summary"]["cv_generation_provider"] == "openai"
+    cv_generation_invoked_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_invoked")
+    assert cv_generation_invoked_event[3]["provenance"]["cv_generation_model"] == "cx/gpt-5.5"
 
 
 @patch("fitcv.pipeline.store_cv_version")
