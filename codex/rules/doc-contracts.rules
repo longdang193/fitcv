@@ -16,4 +16,3 @@ forbidden:
 guidance:
   - "Canonical truth should flow downward from upstream owning layers; lower layers should derive or reference that truth rather than restating the same semantic fact manually."
   - "If generated refs are missing, patch metadata at the owning source instead of hand-editing generated outputs."
-

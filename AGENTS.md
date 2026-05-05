@@ -56,4 +56,3 @@ If GitNexus needs a refresh on this Windows machine, prefer:
 ```powershell
 npx gitnexus analyze
 ```
-

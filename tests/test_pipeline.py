@@ -2727,6 +2727,13 @@ def test_run_pipeline_returns_debug_record_for_accepted_cv(
     assert record["structured_cv_final"] == structured_cv
     assert record["markdown_final"] == "# CV Markdown"
     assert record["error"] is None
+    assert record["runtime_provenance"] == {
+        "runtime_path": "fitcv_cv_generation_builtin",
+        "provider": "fitcv_builtin",
+        "model": "gemini-2.5-flash",
+    }
+    assert result["export_results"][0]["cv"]["runtime_path"] == "fitcv_cv_generation_builtin"
+    assert result["export_results"][0]["cv"]["provider"] == "fitcv_builtin"
 
 
 @patch("fitcv.pipeline.store_cv_version")
