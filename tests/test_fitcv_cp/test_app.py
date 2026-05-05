@@ -6900,37 +6900,31 @@ def test_post_settings_section_valid_redirects():
     assert resp.headers["location"] == "/admin/settings"
 
 
-def test_post_settings_section_advanced_retrieval_valid_redirects():
-    """Valid payload for advanced retrieval section returns 303."""
-    with patch("fitcv_cp.app.save_settings_group"), \
+def test_post_settings_section_advanced_retrieval_returns_404_after_section_retirement():
+    """Legacy retrieval-advanced section is no longer an addressable section-save slug."""
+    with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/settings/section/retrieval-advanced",
             data=_retrieval_advanced_section_form(),
         )
-    assert resp.status_code == 303
-    assert resp.headers["location"] == "/admin/settings"
+    assert resp.status_code == 404
+    mock_group_save.assert_not_called()
 
 
-def test_post_settings_section_advanced_retrieval_valid_redirects_without_metadata_only_input() -> None:
-    """Advanced retrieval form should save without posting the metadata-only model field."""
-    captured = {}
-
-    def _capture_save(values, *, updated_by, bq, project, dataset):
-        captured["values"] = values
-
+def test_post_settings_section_advanced_retrieval_without_metadata_only_input_returns_404() -> None:
+    """Legacy retrieval-advanced endpoint remains removed even when form omits metadata-only values."""
     form_data = _retrieval_advanced_section_form()
     del form_data["cv_analysis.semantic_alignment.model"]
 
-    with patch("fitcv_cp.app.save_settings_group", side_effect=_capture_save), \
+    with patch("fitcv_cp.app.save_settings_group") as mock_group_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app(), follow_redirects=False).post(
             "/admin/settings/section/retrieval-advanced",
             data=form_data,
         )
-    assert resp.status_code == 303
-    assert "cv_analysis.semantic_alignment.model" not in captured["values"]
-    assert "cv_analysis.semantic_alignment.role_semantic_weight" in captured["values"]
+    assert resp.status_code == 404
+    mock_group_save.assert_not_called()
 
 
 def test_post_settings_section_agentic_core_valid_redirects() -> None:
@@ -9206,6 +9200,24 @@ def test_settings_page_labels_when_current_value_comes_from_baseline_default() -
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     assert "Source: Baseline default" in resp.text
+
+def test_settings_page_renders_global_unsaved_changes_summary_strip() -> None:
+    """Task 2 Step 1: expect page-level unsaved summary in addition to per-card status."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    assert 'data-global-dirty-summary="settings-page"' in resp.text
+    assert "All sections saved" in resp.text
+
+def test_settings_page_renders_quick_nav_for_task_sections() -> None:
+    """Task 2 Step 1: expect section quick-nav for long settings page usability."""
+    with patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    assert 'data-settings-quick-nav="true"' in resp.text
+    assert 'href="#task-selection"' in resp.text
+    assert 'href="#task-agentic"' in resp.text
+    assert 'href="#task-ranking"' in resp.text
 
 
 def test_settings_page_cv_sections_no_raw_yaml():
