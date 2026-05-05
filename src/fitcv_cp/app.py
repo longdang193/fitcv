@@ -711,6 +711,17 @@ def _apply_trigger_runtime_envelope(
     candidate_profile_json: str | None,
     run_mode: str,
 ) -> dict[str, Any]:
+    synonym_management = dict(effective_config.get("synonym_management") or {})
+    synonym_management.setdefault("propose_enabled", True)
+    synonym_management.setdefault("apply_to_run_enabled", True)
+    synonym_management.setdefault("promote_global_enabled", True)
+    synonym_management.setdefault("auto_triage_recommendation_enabled", True)
+    synonym_management.setdefault("triage_recommendation_reuse_enabled", True)
+    synonym_management.setdefault("auto_apply_recommendation_enabled", False)
+    synonym_management.setdefault("auto_promote_global_enabled", False)
+    synonym_management.setdefault("auto_accept_ai_action_enabled", True)
+    effective_config["synonym_management"] = synonym_management
+
     runtime_inputs = effective_config.setdefault("runtime_inputs", {})
     if jobs_input_json:
         runtime_inputs["jobs_input_json"] = jobs_input_json
@@ -2702,16 +2713,30 @@ def _load_run_effective_config_snapshot(
     *,
     fallback_to_runtime_config: bool = True,
 ) -> dict[str, Any]:
+    def _with_synonym_defaults(payload: dict[str, Any]) -> dict[str, Any]:
+        normalized = dict(payload or {})
+        block = dict(normalized.get("synonym_management") or {})
+        block.setdefault("propose_enabled", True)
+        block.setdefault("apply_to_run_enabled", True)
+        block.setdefault("promote_global_enabled", True)
+        block.setdefault("auto_triage_recommendation_enabled", True)
+        block.setdefault("triage_recommendation_reuse_enabled", True)
+        block.setdefault("auto_apply_recommendation_enabled", False)
+        block.setdefault("auto_promote_global_enabled", False)
+        block.setdefault("auto_accept_ai_action_enabled", True)
+        normalized["synonym_management"] = block
+        return normalized
+
     if run.effective_settings_json:
         try:
             payload = _json.loads(run.effective_settings_json)
             if isinstance(payload, dict):
-                return payload
+                return _with_synonym_defaults(payload)
         except (_json.JSONDecodeError, TypeError):
             pass
     if fallback_to_runtime_config:
         try:
-            return load_config(run.config_path)
+            return _with_synonym_defaults(load_config(run.config_path))
         except (FileNotFoundError, ValueError):
             return {}
     return {}
@@ -2846,6 +2871,9 @@ def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
         "promote_global_enabled": bool(block.get("promote_global_enabled", True)),
         "auto_triage_recommendation_enabled": bool(block.get("auto_triage_recommendation_enabled", True)),
         "triage_recommendation_reuse_enabled": bool(block.get("triage_recommendation_reuse_enabled", True)),
+        "auto_apply_recommendation_enabled": bool(block.get("auto_apply_recommendation_enabled", False)),
+        "auto_promote_global_enabled": bool(block.get("auto_promote_global_enabled", False)),
+        "auto_accept_ai_action_enabled": bool(block.get("auto_accept_ai_action_enabled", True)),
     }
 
 def _find_synonym_proposal_index(payload: dict[str, Any], proposal_id: str) -> int | None:
@@ -3405,6 +3433,222 @@ def _build_promote_global_preview(
         "counts": counts,
         "rows": selected,
     }
+
+
+def _auto_apply_synonym_recommendations(
+    *,
+    run: PipelineRun,
+    payload: dict[str, Any],
+    acted_by: str,
+    note: str,
+) -> dict[str, Any]:
+    proposals = list(payload.get("proposals") or [])
+    action_map = {
+        "approve": "approve_for_run_overlay",
+        "reject": "reject",
+        "defer": "defer",
+    }
+    reason_counts: dict[str, int] = {}
+    applied = 0
+    skipped = 0
+    failed = 0
+    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    for idx, proposal in enumerate(proposals):
+        if not isinstance(proposal, dict):
+            skipped += 1
+            reason_counts["invalid_row"] = int(reason_counts.get("invalid_row", 0)) + 1
+            continue
+        status = str(proposal.get("proposal_status") or "").strip() or "proposed_unreviewed"
+        if status not in {"proposed_unreviewed", "in_review", "deferred"}:
+            skipped += 1
+            reason_counts["not_pending"] = int(reason_counts.get("not_pending", 0)) + 1
+            continue
+        recommendation = str(proposal.get("recommended_action") or "").strip().lower()
+        if not recommendation:
+            skipped += 1
+            reason_counts["missing_recommendation"] = int(reason_counts.get("missing_recommendation", 0)) + 1
+            continue
+        action = action_map.get(recommendation)
+        if action is None:
+            skipped += 1
+            reason_counts["unsupported_recommendation"] = int(reason_counts.get("unsupported_recommendation", 0)) + 1
+            continue
+        next_status = _transition_synonym_proposal_status(status, action)
+        if not next_status:
+            failed += 1
+            reason_counts["invalid_transition"] = int(reason_counts.get("invalid_transition", 0)) + 1
+            continue
+        updated = dict(proposal)
+        history = [item for item in list(updated.get("review_history") or []) if isinstance(item, dict)]
+        history.append(
+            {
+                "action": action,
+                "from_status": status,
+                "to_status": next_status,
+                "acted_by": acted_by,
+                "acted_at": now_iso,
+                "note": note,
+            }
+        )
+        updated["proposal_status"] = next_status
+        updated["review_history"] = history
+        proposals[idx] = updated
+        applied += 1
+    payload["proposals"] = proposals
+    return {
+        "applied": applied,
+        "skipped": skipped,
+        "failed": failed,
+        "reason_counts": reason_counts,
+    }
+
+
+def _is_validation_eligible_for_auto_promote(run: PipelineRun) -> bool:
+    return run.status == RunStatus.SUCCEEDED
+
+
+def _commit_synonym_global_promotion(
+    *,
+    run: PipelineRun,
+    payload: dict[str, Any],
+    preview: dict[str, Any],
+    selected_ids: list[str],
+    acted_by: str,
+    note: str,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> dict[str, Any]:
+    global_map = _load_global_skill_synonyms_map()
+    applied = 0
+    skipped = 0
+    new_aliases = 0
+    unchanged_aliases = 0
+    overridden_aliases = 0
+    updated_ids: list[str] = []
+    for row in list(preview.get("rows") or []):
+        if not isinstance(row, dict):
+            continue
+        diff_type = str(row.get("diff_type") or "").strip()
+        if diff_type not in {"add", "update"}:
+            if str(row.get("reason") or "").strip() == "already_present":
+                unchanged_aliases += 1
+            skipped += 1
+            continue
+        alias = str(row.get("alias") or "").strip()
+        canonical = str(row.get("canonical") or "").strip()
+        proposal_id = str(row.get("proposal_id") or "").strip()
+        if not alias or not canonical or not proposal_id:
+            skipped += 1
+            continue
+        global_map[alias] = canonical
+        applied += 1
+        if diff_type == "add":
+            new_aliases += 1
+        elif diff_type == "update":
+            overridden_aliases += 1
+        updated_ids.append(proposal_id)
+    _persist_global_skill_synonyms_map(global_map)
+    proposals = list(payload.get("proposals") or [])
+    if updated_ids:
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        updated_id_set = set(updated_ids)
+        for idx, proposal in enumerate(proposals):
+            if not isinstance(proposal, dict):
+                continue
+            proposal_id = str(proposal.get("proposal_id") or "").strip()
+            if proposal_id not in updated_id_set:
+                continue
+            entry = dict(proposal)
+            history = [item for item in list(entry.get("global_promotion_history") or []) if isinstance(item, dict)]
+            history.append(
+                {
+                    "action": "promote_to_global",
+                    "acted_by": acted_by,
+                    "acted_at": now_iso,
+                    "note": note,
+                    "run_id": run.run_id,
+                }
+            )
+            entry["global_promotion_history"] = history
+            proposals[idx] = entry
+        payload["proposals"] = proposals
+        update_run_synonym_proposals(
+            run_id=run.run_id,
+            synonym_proposals_json=_json.dumps(payload, ensure_ascii=False),
+            bq=bq,
+            project=project,
+            dataset=dataset,
+        )
+    append_event(
+        RunEvent(
+            run_id=run.run_id,
+            event_id=str(uuid.uuid4()),
+            stage="synonym_proposal_promoted_global",
+            level="info",
+            message=f"Promoted {applied} synonym proposal mapping(s) to global policy",
+            created_at=datetime.datetime.now(datetime.timezone.utc),
+            payload_json=_json.dumps(
+                {
+                    "applied_count": applied,
+                    "skipped_count": skipped,
+                    "selected_count": len(selected_ids),
+                    "new_aliases_count": new_aliases,
+                    "unchanged_aliases_count": unchanged_aliases,
+                    "overridden_aliases_count": overridden_aliases,
+                    "proposal_ids": sorted(set(updated_ids)),
+                    "acted_by": acted_by,
+                    "note": note,
+                },
+                ensure_ascii=False,
+            ),
+        ),
+        bq,
+        project=project,
+        dataset=dataset,
+    )
+    return {
+        "applied": applied,
+        "skipped": skipped,
+        "failed": 0,
+        "new_aliases": new_aliases,
+        "unchanged_aliases": unchanged_aliases,
+        "overridden_aliases": overridden_aliases,
+    }
+
+
+def _sync_run_overlay_from_approved_synonym_proposals(
+    *,
+    run: PipelineRun,
+    payload: dict[str, Any],
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> None:
+    proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
+    overlay_synonyms, proposal_ids = _approved_synonym_overlay_payload(proposals)
+    if not overlay_synonyms:
+        return
+    effective_config = _load_run_effective_config_snapshot(run)
+    overlay_yaml = _build_synonym_overlay_yaml(overlay_synonyms)
+    updated_config = apply_runtime_skill_synonym_overlay(
+        effective_config,
+        overlay_synonyms,
+        source="proposal_review",
+        filename="approved-synonym-proposals.yaml",
+        uploaded_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        raw_yaml=overlay_yaml,
+    )
+    runtime = dict(updated_config.get("skill_synonyms_runtime") or {})
+    runtime["run_overlay_proposal_ids"] = proposal_ids
+    updated_config["skill_synonyms_runtime"] = runtime
+    update_run_effective_settings(
+        run.run_id,
+        _json.dumps(updated_config, ensure_ascii=False),
+        bq,
+        project=project,
+        dataset=dataset,
+    )
 
 
 def _decision_chain_label(value: Any) -> str | None:
@@ -6875,101 +7119,25 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 }
             )
             return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
-        global_map = _load_global_skill_synonyms_map()
-        applied = 0
-        skipped = 0
-        new_aliases = 0
-        unchanged_aliases = 0
-        overridden_aliases = 0
-        updated_ids: list[str] = []
-        for row in list(preview.get("rows") or []):
-            if not isinstance(row, dict):
-                continue
-            diff_type = str(row.get("diff_type") or "").strip()
-            if diff_type not in {"add", "update"}:
-                if str(row.get("reason") or "").strip() == "already_present":
-                    unchanged_aliases += 1
-                skipped += 1
-                continue
-            alias = str(row.get("alias") or "").strip()
-            canonical = str(row.get("canonical") or "").strip()
-            proposal_id = str(row.get("proposal_id") or "").strip()
-            if not alias or not canonical or not proposal_id:
-                skipped += 1
-                continue
-            global_map[alias] = canonical
-            applied += 1
-            if diff_type == "add":
-                new_aliases += 1
-            elif diff_type == "update":
-                overridden_aliases += 1
-            updated_ids.append(proposal_id)
-        _persist_global_skill_synonyms_map(global_map)
-        proposals = list(payload.get("proposals") or [])
-        if updated_ids:
-            now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
-            for idx, proposal in enumerate(proposals):
-                if not isinstance(proposal, dict):
-                    continue
-                proposal_id = str(proposal.get("proposal_id") or "").strip()
-                if proposal_id not in set(updated_ids):
-                    continue
-                entry = dict(proposal)
-                history = [item for item in list(entry.get("global_promotion_history") or []) if isinstance(item, dict)]
-                history.append(
-                    {
-                        "action": "promote_to_global",
-                        "acted_by": acted_by,
-                        "acted_at": now_iso,
-                        "note": note,
-                        "run_id": run.run_id,
-                    }
-                )
-                entry["global_promotion_history"] = history
-                proposals[idx] = entry
-            payload["proposals"] = proposals
-            update_run_synonym_proposals(
-                run_id=run.run_id,
-                synonym_proposals_json=_json.dumps(payload, ensure_ascii=False),
-                bq=bq,
-                project=project,
-                dataset=dataset,
-            )
-        append_event(
-            RunEvent(
-                run_id=run.run_id,
-                event_id=str(uuid.uuid4()),
-                stage="synonym_proposal_promoted_global",
-                level="info",
-                message=f"Promoted {applied} synonym proposal mapping(s) to global policy",
-                created_at=datetime.datetime.now(datetime.timezone.utc),
-                payload_json=_json.dumps(
-                    {
-                        "applied_count": applied,
-                        "skipped_count": skipped,
-                        "selected_count": len(selected_ids),
-                        "new_aliases_count": new_aliases,
-                        "unchanged_aliases_count": unchanged_aliases,
-                        "overridden_aliases_count": overridden_aliases,
-                        "proposal_ids": sorted(set(updated_ids)),
-                        "acted_by": acted_by,
-                        "note": note,
-                    },
-                    ensure_ascii=False,
-                ),
-            ),
-            bq,
+        promote_result = _commit_synonym_global_promotion(
+            run=run,
+            payload=payload,
+            preview=preview,
+            selected_ids=selected_ids,
+            acted_by=acted_by,
+            note=note,
+            bq=bq,
             project=project,
             dataset=dataset,
         )
         query = urlencode(
             {
-                "synonym_promote_applied": applied,
-                "synonym_promote_skipped": skipped,
-                "synonym_promote_failed": 0,
-                "synonym_promote_new_aliases": new_aliases,
-                "synonym_promote_unchanged_aliases": unchanged_aliases,
-                "synonym_promote_overridden_aliases": overridden_aliases,
+                "synonym_promote_applied": promote_result["applied"],
+                "synonym_promote_skipped": promote_result["skipped"],
+                "synonym_promote_failed": promote_result["failed"],
+                "synonym_promote_new_aliases": promote_result["new_aliases"],
+                "synonym_promote_unchanged_aliases": promote_result["unchanged_aliases"],
+                "synonym_promote_overridden_aliases": promote_result["overridden_aliases"],
             }
         )
         return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
@@ -7108,6 +7276,109 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         )
         trace_payload["trace_summary"] = trace_summary
         payload["synonym_proposals_trace"] = trace_payload
+        auto_apply_counts = {
+            "applied": 0,
+            "skipped": 0,
+            "failed": 0,
+            "reason_counts": {},
+        }
+        if bool(mode.get("auto_apply_recommendation_enabled")) and bool(mode.get("apply_to_run_enabled")):
+            auto_apply_counts = _auto_apply_synonym_recommendations(
+                run=run,
+                payload=payload,
+                acted_by=acted_by,
+                note=note or "auto:triage-refresh",
+            )
+            if int(auto_apply_counts.get("applied") or 0) > 0:
+                _sync_run_overlay_from_approved_synonym_proposals(
+                    run=run,
+                    payload=payload,
+                    bq=bq,
+                    project=project,
+                    dataset=dataset,
+                )
+                append_event(
+                    RunEvent(
+                        run_id=run.run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="synonym_proposal_auto_apply_completed",
+                        level="info",
+                        message=(
+                            "Synonym auto-apply completed: "
+                            f"applied={auto_apply_counts['applied']}, "
+                            f"skipped={auto_apply_counts['skipped']}, "
+                            f"failed={auto_apply_counts['failed']}"
+                        ),
+                        created_at=datetime.datetime.now(datetime.timezone.utc),
+                        payload_json=_json.dumps(
+                            {
+                                "applied_count": int(auto_apply_counts.get("applied") or 0),
+                                "skipped_count": int(auto_apply_counts.get("skipped") or 0),
+                                "failed_count": int(auto_apply_counts.get("failed") or 0),
+                                "reason_counts": dict(auto_apply_counts.get("reason_counts") or {}),
+                                "acted_by": acted_by,
+                                "note": note or "auto:triage-refresh",
+                            },
+                            ensure_ascii=False,
+                        ),
+                    ),
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                )
+        promote_counts = {
+            "applied": 0,
+            "skipped": 0,
+            "failed": 0,
+            "new_aliases": 0,
+            "unchanged_aliases": 0,
+            "overridden_aliases": 0,
+        }
+        promote_skip_reason = "disabled"
+        if bool(mode.get("auto_promote_global_enabled")) and bool(mode.get("promote_global_enabled")):
+            if not _is_validation_eligible_for_auto_promote(run):
+                promote_skip_reason = "validation_not_eligible"
+            else:
+                selected_ids = [
+                    str(item.get("proposal_id") or "").strip()
+                    for item in list(payload.get("proposals") or [])
+                    if isinstance(item, dict)
+                    and str(item.get("proposal_status") or "").strip() == "approved_for_run_overlay"
+                    and str(item.get("proposal_id") or "").strip()
+                ]
+                if not selected_ids:
+                    promote_skip_reason = "no_approved_proposals"
+                else:
+                    preview = _build_promote_global_preview(
+                        run=run,
+                        payload=payload,
+                        selected_proposal_ids=selected_ids,
+                    )
+                    if int((preview.get("counts") or {}).get("conflict") or 0) > 0:
+                        promote_counts["failed"] = int((preview.get("counts") or {}).get("conflict") or 0)
+                        promote_counts["skipped"] = int((preview.get("counts") or {}).get("skip") or 0)
+                        promote_skip_reason = "conflicts_present"
+                    else:
+                        promote_counts = _commit_synonym_global_promotion(
+                            run=run,
+                            payload=payload,
+                            preview=preview,
+                            selected_ids=selected_ids,
+                            acted_by=acted_by,
+                            note=note or "auto:triage-refresh",
+                            bq=bq,
+                            project=project,
+                            dataset=dataset,
+                        )
+                        promote_skip_reason = "applied"
+        trace_summary["auto_apply_recommendation_applied"] = int(auto_apply_counts.get("applied") or 0)
+        trace_summary["auto_apply_recommendation_skipped"] = int(auto_apply_counts.get("skipped") or 0)
+        trace_summary["auto_apply_recommendation_failed"] = int(auto_apply_counts.get("failed") or 0)
+        trace_summary["auto_apply_recommendation_reason_counts"] = dict(auto_apply_counts.get("reason_counts") or {})
+        trace_summary["auto_promote_global_applied"] = int(promote_counts.get("applied") or 0)
+        trace_summary["auto_promote_global_skipped"] = int(promote_counts.get("skipped") or 0)
+        trace_summary["auto_promote_global_failed"] = int(promote_counts.get("failed") or 0)
+        trace_summary["auto_promote_global_skip_reason"] = promote_skip_reason
         update_run_synonym_proposals(
             run_id=run.run_id,
             synonym_proposals_json=_json.dumps(payload, ensure_ascii=False),
@@ -7123,6 +7394,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "synonym_triage_skipped": skipped_count,
                 "synonym_triage_failed": failed_count,
                 "synonym_triage_fallback": fallback_count,
+                "synonym_auto_apply_applied": int(auto_apply_counts.get("applied") or 0),
+                "synonym_auto_apply_failed": int(auto_apply_counts.get("failed") or 0),
+                "synonym_auto_promote_applied": int(promote_counts.get("applied") or 0),
+                "synonym_auto_promote_failed": int(promote_counts.get("failed") or 0),
             }
         )
         return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)

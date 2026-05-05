@@ -96,6 +96,9 @@ _RUN_MODE_LABELS = {
 }
 _NON_SKILL_MIN_SUPPORT_FOR_PROPOSAL = 2
 _WINDOWS_ABSOLUTE_PATH_PATTERN = re.compile(r"^[A-Za-z]:[\\/]")
+LOW_RISK_AUTO_ACCEPT_REASON_CODES = {
+    "provider_response_unusable",
+}
 
 
 def _stage_deterministic_summary(
@@ -904,6 +907,42 @@ def _synonym_propose_enabled_from_run_record(run_record: Any) -> bool:
     return bool(block.get("propose_enabled", True))
 
 
+def _auto_accept_ai_action_enabled_from_run_record(run_record: Any) -> bool:
+    if run_record is None:
+        return True
+    raw_payload = getattr(run_record, "effective_settings_json", None)
+    if not raw_payload:
+        return True
+    try:
+        settings_payload = json.loads(raw_payload)
+    except (TypeError, json.JSONDecodeError):
+        return True
+    if not isinstance(settings_payload, dict):
+        return True
+    block = dict(settings_payload.get("synonym_management") or {})
+    return bool(block.get("auto_accept_ai_action_enabled", True))
+
+
+def _map_review_required_reason_code(record: dict[str, Any]) -> str:
+    explicit_code = str(record.get("review_required_reason_code") or "").strip()
+    if explicit_code and explicit_code != "unknown":
+        return explicit_code
+    error = dict(record.get("error") or {})
+    stage = str(error.get("stage") or "").strip().lower()
+    message = str(error.get("message") or record.get("operator_note") or "").strip().lower()
+    if "unsupported requirements require review" in message:
+        return "unsupported_requirement_gap"
+    if stage == "markdown_quality_review" or "markdown quality" in message:
+        return "quality_gate_failed"
+    if stage == "validation" or "validation failed" in message or "guardrail" in message:
+        return "validation_guardrail_failed"
+    if "insufficient evidence" in message or "evidence coverage" in message:
+        return "evidence_coverage_insufficient"
+    if stage in {"provider", "llm"} or "provider" in message or "response unusable" in message:
+        return "provider_response_unusable"
+    return "manual_review_other"
+
+
 def _build_synonym_proposals_trace_payload(
     *,
     run_id: str,
@@ -1492,11 +1531,23 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
             item for item in list(summary.get("cv_generation_debug_records") or [])
             if isinstance(item, dict)
         ]
-        pending_review_required = sum(
-            1
-            for record in cv_debug_records
-            if str(record.get("status") or "").strip() == "review_required"
-        )
+        auto_accept_enabled = _auto_accept_ai_action_enabled_from_run_record(run_record)
+        auto_accepted_count = 0
+        pending_review_required = 0
+        review_reason_counts: dict[str, int] = {}
+        for record in cv_debug_records:
+            if str(record.get("status") or "").strip() != "review_required":
+                continue
+            reason_code = _map_review_required_reason_code(record)
+            review_reason_counts[reason_code] = int(review_reason_counts.get(reason_code, 0)) + 1
+            if run_mode == "run_all" and auto_accept_enabled and reason_code in LOW_RISK_AUTO_ACCEPT_REASON_CODES:
+                auto_accepted_count += 1
+                continue
+            pending_review_required += 1
+        summary["review_required_total"] = int(sum(review_reason_counts.values()))
+        summary["review_required_auto_accepted"] = int(auto_accepted_count)
+        summary["review_required_remaining"] = int(pending_review_required)
+        summary["review_required_reason_counts"] = dict(review_reason_counts)
         finished_at = datetime.datetime.now(datetime.timezone.utc) if pending_review_required == 0 else None
         terminal_status = RunStatus.SUCCEEDED if pending_review_required == 0 else RunStatus.AWAITING_CONTINUE
         update_run_status(
@@ -1535,8 +1586,20 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     event_id=str(uuid.uuid4()),
                     stage="cv_review_required",
                     level="warning",
-                    message=f"Run paused: {pending_review_required} review-required CV item(s) pending operator action.",
+                    message=(
+                        f"Run paused: {pending_review_required} review-required CV item(s) pending operator action. "
+                        f"Auto-accepted={auto_accepted_count}."
+                    ),
                     created_at=datetime.datetime.now(datetime.timezone.utc),
+                    payload_json=json.dumps(
+                        {
+                            "review_required_total": int(sum(review_reason_counts.values())),
+                            "auto_accepted": int(auto_accepted_count),
+                            "remaining": int(pending_review_required),
+                            "reason_counts": dict(review_reason_counts),
+                        },
+                        ensure_ascii=False,
+                    ),
                 ),
                 bq,
                 project=project,

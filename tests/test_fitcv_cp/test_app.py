@@ -326,6 +326,10 @@ def test_post_runs_path_trigger_persists_canonical_jobs_and_candidate_snapshots(
     effective = json.loads(captured["run"].effective_settings_json)
     assert json.loads(effective["runtime_inputs"]["candidate_profile_json"]) == profile_snapshot
     assert "agentic_runtime_expectation" in effective["runtime_inputs"]
+    synonym_settings = dict(effective.get("synonym_management") or {})
+    assert synonym_settings.get("auto_apply_recommendation_enabled") is False
+    assert synonym_settings.get("auto_promote_global_enabled") is False
+    assert synonym_settings.get("auto_accept_ai_action_enabled") is True
 
 def test_post_runs_path_trigger_captures_agentic_runtime_expectation(tmp_path) -> None:
     captured = {}
@@ -4244,6 +4248,29 @@ def test_admin_run_synonym_proposal_action_blocked_when_apply_to_run_disabled() 
         )
     assert resp.status_code == 409
 
+
+def test_synonym_management_mode_includes_new_automation_flags_with_defaults() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    from fitcv_cp.app import _synonym_management_mode
+
+    run = PipelineRun(
+        run_id="run-syn-mode-defaults",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps({"synonym_management": {"apply_to_run_enabled": False}}),
+    )
+    mode = _synonym_management_mode(run)
+    assert mode["apply_to_run_enabled"] is False
+    assert mode["auto_apply_recommendation_enabled"] is False
+    assert mode["auto_promote_global_enabled"] is False
+    assert mode["auto_accept_ai_action_enabled"] is True
+
 def test_admin_run_synonym_proposals_regenerate_blocked_when_propose_disabled() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -4350,10 +4377,14 @@ def test_admin_run_synonym_proposals_triage_refresh_redirects_with_summary() -> 
         )
 
     assert resp.status_code == 303
-    assert (
-        resp.headers["location"]
-        == "/admin/runs/run-triage-refresh?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_fresh=1&synonym_triage_skipped=1&synonym_triage_failed=0&synonym_triage_fallback=0"
-    )
+    location = resp.headers["location"]
+    assert location.startswith("/admin/runs/run-triage-refresh?")
+    assert "synonym_triage_triaged=1" in location
+    assert "synonym_triage_reused=0" in location
+    assert "synonym_triage_fresh=1" in location
+    assert "synonym_triage_skipped=1" in location
+    assert "synonym_triage_failed=0" in location
+    assert "synonym_triage_fallback=0" in location
     assert persisted_payloads
     proposals = persisted_payloads[-1]["proposals"]
     pending = [row for row in proposals if row.get("proposal_id") == "proposal-pending"][0]
@@ -4554,10 +4585,14 @@ def test_admin_run_synonym_proposals_triage_refresh_provider_failure_is_graceful
         )
 
     assert resp.status_code == 303
-    assert (
-        resp.headers["location"]
-        == "/admin/runs/run-triage-provider-fail?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_fresh=1&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=1"
-    )
+    location = resp.headers["location"]
+    assert location.startswith("/admin/runs/run-triage-provider-fail?")
+    assert "synonym_triage_triaged=1" in location
+    assert "synonym_triage_reused=0" in location
+    assert "synonym_triage_fresh=1" in location
+    assert "synonym_triage_skipped=0" in location
+    assert "synonym_triage_failed=0" in location
+    assert "synonym_triage_fallback=1" in location
 
 
 def test_admin_run_synonym_proposals_triage_refresh_provider_success_persists_recommendation() -> None:
@@ -4607,10 +4642,14 @@ def test_admin_run_synonym_proposals_triage_refresh_provider_success_persists_re
         )
 
     assert resp.status_code == 303
-    assert (
-        resp.headers["location"]
-        == "/admin/runs/run-triage-provider-success?synonym_triage_triaged=1&synonym_triage_reused=0&synonym_triage_fresh=1&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=0"
-    )
+    location = resp.headers["location"]
+    assert location.startswith("/admin/runs/run-triage-provider-success?")
+    assert "synonym_triage_triaged=1" in location
+    assert "synonym_triage_reused=0" in location
+    assert "synonym_triage_fresh=1" in location
+    assert "synonym_triage_skipped=0" in location
+    assert "synonym_triage_failed=0" in location
+    assert "synonym_triage_fallback=0" in location
     assert persisted_payloads
     proposal = persisted_payloads[-1]["proposals"][0]
     assert proposal["recommended_action"] == "approve"
@@ -4666,10 +4705,14 @@ def test_admin_run_synonym_proposals_triage_refresh_reuses_unchanged_recommendat
         )
 
     assert resp.status_code == 303
-    assert (
-        resp.headers["location"]
-        == "/admin/runs/run-triage-reuse?synonym_triage_triaged=0&synonym_triage_reused=1&synonym_triage_fresh=0&synonym_triage_skipped=0&synonym_triage_failed=0&synonym_triage_fallback=0"
-    )
+    location = resp.headers["location"]
+    assert location.startswith("/admin/runs/run-triage-reuse?")
+    assert "synonym_triage_triaged=0" in location
+    assert "synonym_triage_reused=1" in location
+    assert "synonym_triage_fresh=0" in location
+    assert "synonym_triage_skipped=0" in location
+    assert "synonym_triage_failed=0" in location
+    assert "synonym_triage_fallback=0" in location
 
 def test_admin_run_synonym_proposals_triage_refresh_auto_disabled_skips_generation() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -4736,6 +4779,119 @@ def test_admin_run_synonym_proposals_triage_refresh_reuse_disabled_forces_fresh(
     assert resp.status_code == 303
     assert "synonym_triage_reused=0" in resp.headers["location"]
     assert "synonym_triage_fresh=1" in resp.headers["location"]
+
+
+def test_admin_run_synonym_proposals_triage_refresh_auto_apply_and_promote_when_enabled() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-triage-auto-apply-promote",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps(
+            {
+                "synonym_management": {
+                    "auto_triage_recommendation_enabled": False,
+                    "apply_to_run_enabled": True,
+                    "promote_global_enabled": True,
+                    "auto_apply_recommendation_enabled": True,
+                    "auto_promote_global_enabled": True,
+                }
+            }
+        ),
+        synonym_proposals_json=(
+            '{"run_id":"run-triage-auto-apply-promote","proposals":['
+            '{"proposal_id":"proposal-a","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9,"recommended_action":"approve","recommendation_confidence":0.9,"recommendation_rationale":"ok"}'
+            ']}'
+        ),
+    )
+    persisted_global: dict[str, str] = {}
+    payloads: list[dict[str, Any]] = []
+
+    def _capture_update(run_id: str, synonym_proposals_json: str, bq, *, project: str, dataset: str):
+        payloads.append(json.loads(synonym_proposals_json))
+        return {"persistence_status": "persisted", "degradation_reason": ""}
+
+    def _capture_global_persist(mappings: dict[str, str]) -> None:
+        persisted_global.clear()
+        persisted_global.update(mappings)
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", side_effect=_capture_update), \
+         patch("fitcv_cp.app._load_global_skill_synonyms_map", return_value={}), \
+         patch("fitcv_cp.app._persist_global_skill_synonyms_map", side_effect=_capture_global_persist), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-auto-apply-promote/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 303
+    assert "synonym_auto_apply_applied=1" in resp.headers["location"]
+    assert "synonym_auto_promote_applied=1" in resp.headers["location"]
+    assert persisted_global.get("gcp") == "google cloud"
+    assert payloads
+    promoted = payloads[-1]["proposals"][0]
+    assert promoted["proposal_status"] == "approved_for_run_overlay"
+    assert promoted.get("global_promotion_history")
+
+
+def test_admin_run_synonym_proposals_triage_refresh_auto_promote_skips_on_conflict() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-triage-auto-promote-conflict",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps(
+            {
+                "synonym_management": {
+                    "auto_promote_global_enabled": True,
+                    "promote_global_enabled": True,
+                }
+            }
+        ),
+        synonym_proposals_json=(
+            '{"run_id":"run-triage-auto-promote-conflict","proposals":['
+            '{"proposal_id":"proposal-a","proposal_status":"approved_for_run_overlay","alias":"gcp","canonical":"google cloud","confidence":0.9},'
+            '{"proposal_id":"proposal-b","proposal_status":"approved_for_run_overlay","alias":"gcp","canonical":"great cloud platform","confidence":0.8}'
+            ']}'
+        ),
+    )
+    persist_global_calls = 0
+
+    def _count_global_persist(_mappings: dict[str, str]) -> None:
+        nonlocal persist_global_calls
+        persist_global_calls += 1
+
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.update_run_synonym_proposals", return_value={"persistence_status": "persisted", "degradation_reason": ""}), \
+         patch("fitcv_cp.app._load_global_skill_synonyms_map", return_value={}), \
+         patch("fitcv_cp.app._persist_global_skill_synonyms_map", side_effect=_count_global_persist), \
+         patch("fitcv_cp.app.update_run_effective_settings"), \
+         patch("fitcv_cp.app.append_event"):
+        resp = TestClient(_app(), follow_redirects=False).post(
+            "/admin/runs/run-triage-auto-promote-conflict/synonym-proposals/triage-refresh",
+            data={"acted_by": "operator@example.com"},
+        )
+
+    assert resp.status_code == 303
+    assert "synonym_auto_promote_applied=0" in resp.headers["location"]
+    assert "synonym_auto_promote_failed=2" in resp.headers["location"]
+    assert persist_global_calls == 0
 
 def test_download_run_approved_synonym_overlay_yaml() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus

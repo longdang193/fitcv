@@ -33,10 +33,12 @@ def test_worker_marks_succeeded_on_success():
     with patch("fitcv_cp.worker_job.run_pipeline", return_value={
         "run_id": "r1", "total_jobs": 5, "passed_filter": 3, "ranked": 2, "cvs_generated": 1
     }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
-       patch("fitcv_cp.worker_job.get_run", return_value=mock_run):
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_status") as mock_update_status:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
                              config_path=".env.yaml")
-    assert bq.query.call_count >= 2  # running + succeeded
+    statuses = [call.args[1].value for call in mock_update_status.call_args_list if len(call.args) >= 2]
+    assert "running" in statuses and "succeeded" in statuses
 
 
 def test_worker_sqlite_mode_skips_bigquery_client_bootstrap():
@@ -950,15 +952,19 @@ def test_worker_mapping_suggestions_persistence_failure_appends_warning_event() 
     }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
        patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
        patch("fitcv_cp.worker_job.update_run_mapping_suggestions", side_effect=RuntimeError("missing column")), \
+       patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}) as append_mock, \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     final_status = mock_update.call_args_list[-1].args[1]
     assert final_status.value == "succeeded"
-    event_row = bq.insert_rows_json.call_args_list[-1][0][1][0]
-    assert event_row["stage"] == "snapshot_persist_failed"
-    assert event_row["level"] == "warning"
-    assert "mapping_suggestions snapshot persistence failed" in event_row["message"]
+    events = [call.args[0] for call in append_mock.call_args_list if call.args]
+    warning_events = [ev for ev in events if getattr(ev, "stage", "") == "snapshot_persist_failed" and getattr(ev, "level", "") == "warning"]
+    assert warning_events
+    assert any(
+        "mapping_suggestions snapshot persistence failed" in str(getattr(ev, "message", ""))
+        for ev in warning_events
+    )
 
 
 def test_worker_synonym_proposals_degradation_appends_warning_event() -> None:
@@ -992,16 +998,18 @@ def test_worker_synonym_proposals_degradation_appends_warning_event() -> None:
            "persistence_status": "bundle_only_degraded",
            "degradation_reason": "missing_synonym_proposals_json_column",
        }), \
+       patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}) as append_mock, \
        patch("fitcv_cp.worker_job.update_run_status") as mock_update:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
 
     final_status = mock_update.call_args_list[-1].args[1]
     assert final_status.value == "succeeded"
-    event_row = bq.insert_rows_json.call_args_list[-1][0][1][0]
-    assert event_row["stage"] == "snapshot_persist_failed"
-    assert event_row["level"] == "warning"
-    assert "synonym_proposals snapshot persistence failed" in event_row["message"]
-    assert "missing_synonym_proposals_json_column" in event_row["message"]
+    events = [call.args[0] for call in append_mock.call_args_list if call.args]
+    warning_events = [ev for ev in events if getattr(ev, "stage", "") == "snapshot_persist_failed" and getattr(ev, "level", "") == "warning"]
+    assert warning_events
+    message = str(getattr(warning_events[-1], "message", ""))
+    assert "synonym_proposals snapshot persistence failed" in message
+    assert "missing_synonym_proposals_json_column" in message
 
 
 def test_worker_review_hold_uses_non_null_snapshot_timestamp_for_synonym_and_mapping() -> None:
@@ -1041,6 +1049,84 @@ def test_worker_review_hold_uses_non_null_snapshot_timestamp_for_synonym_and_map
     synonym_payload = json.loads(mock_syn_update.call_args.args[1])
     assert isinstance(mapping_payload.get("created_at"), str) and mapping_payload["created_at"]
     assert isinstance(synonym_payload.get("created_at"), str) and synonym_payload["created_at"]
+
+
+def test_worker_run_all_auto_accepts_low_risk_review_required_when_enabled() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(
+        effective_settings_json=json.dumps(
+            {"synonym_management": {"auto_accept_ai_action_enabled": True}}
+        )
+    )
+    mock_run.cancel_requested_at = None
+    mock_run.checkpoint_payload_json = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+    mock_run.synonym_proposals_json = None
+    mock_run.run_mode = "run_all"
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r-auto-accept",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 0,
+        "completed_stages": ["normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis", "cv_generation"],
+        "cv_generation_debug_records": [
+            {"status": "review_required", "job_url": "https://example.com/1", "error": {"stage": "provider", "message": "response unusable"}}
+        ],
+        "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_status") as mock_update:
+        execute_pipeline_run(run_id="r-auto-accept", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    final_status = mock_update.call_args_list[-1].args[1]
+    assert final_status.value == "succeeded"
+
+
+def test_worker_run_all_keeps_awaiting_review_for_high_risk_review_required() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(
+        effective_settings_json=json.dumps(
+            {"synonym_management": {"auto_accept_ai_action_enabled": True}}
+        )
+    )
+    mock_run.cancel_requested_at = None
+    mock_run.checkpoint_payload_json = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+    mock_run.synonym_proposals_json = None
+    mock_run.run_mode = "run_all"
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r-high-risk-review",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 0,
+        "completed_stages": ["normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis", "cv_generation"],
+        "cv_generation_debug_records": [
+            {"status": "review_required", "job_url": "https://example.com/1", "error": {"stage": "validation", "message": "validation failed"}}
+        ],
+        "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_status") as mock_update:
+        execute_pipeline_run(run_id="r-high-risk-review", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    final_status = mock_update.call_args_list[-1].args[1]
+    assert final_status.value == "awaiting_continue"
 
 
 def test_worker_debug_snapshot_persistence_failure_does_not_fail_run():
@@ -1127,12 +1213,14 @@ def test_worker_marks_failed_on_exception():
     mock_run.cancel_requested_at = None
     with patch("fitcv_cp.worker_job.run_pipeline", side_effect=RuntimeError("boom")), \
          patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
-         patch("fitcv_cp.worker_job.get_run", return_value=mock_run):
+         patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+         patch("fitcv_cp.worker_job.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
                              config_path=".env.yaml")
-    # Both the status update AND the error event insert must have been called
-    bq.query.assert_called()  # update to failed
-    bq.insert_rows_json.assert_called()  # error event appended
+    statuses = [call.args[1].value for call in mock_update_status.call_args_list if len(call.args) >= 2]
+    assert "failed" in statuses
+    append_mock.assert_called()
 
 
 def test_worker_error_event_has_correct_level():
@@ -1142,12 +1230,12 @@ def test_worker_error_event_has_correct_level():
     mock_run.cancel_requested_at = None
     with patch("fitcv_cp.worker_job.run_pipeline", side_effect=RuntimeError("boom")), \
          patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
-         patch("fitcv_cp.worker_job.get_run", return_value=mock_run):
+         patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+         patch("fitcv_cp.worker_job.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json",
                              config_path=".env.yaml")
-    event_row = bq.insert_rows_json.call_args_list[-1][0][1][0]
-    assert event_row["level"] == "error"
-    assert event_row["stage"] == "pipeline_failed"
+    events = [call.args[0] for call in append_mock.call_args_list if call.args]
+    assert any(getattr(ev, "level", "") == "error" and getattr(ev, "stage", "") == "pipeline_failed" for ev in events)
 
 
 def test_worker_uses_effective_settings_not_bq_settings():
