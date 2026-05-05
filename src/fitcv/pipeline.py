@@ -59,6 +59,7 @@ can make this configurable without code changes.
 import logging
 import hashlib
 import os
+import time
 import uuid
 from copy import deepcopy
 from typing import Any, Callable, cast
@@ -1505,6 +1506,9 @@ def _bounded_event_payload(
     input_snapshot: dict[str, Any] | None = None,
     output_snapshot: dict[str, Any] | None = None,
     artifact_refs: dict[str, Any] | None = None,
+    latency_ms: int | None = None,
+    usage: dict[str, Any] | None = None,
+    cost: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     payload: dict[str, Any] = {
         "event_name": event_name,
@@ -1528,7 +1532,50 @@ def _bounded_event_payload(
         payload["output_snapshot"] = _json_safe_pipeline_value(output_snapshot)
     if artifact_refs:
         payload["artifact_refs"] = _json_safe_pipeline_value(artifact_refs)
+    if latency_ms is not None:
+        payload["latency_ms"] = int(latency_ms)
+    if usage:
+        payload["usage"] = _json_safe_pipeline_value(usage)
+    if cost:
+        payload["cost"] = _json_safe_pipeline_value(cost)
     return payload
+
+
+def _extract_generation_trace_metrics(agentic_live_trace: dict[str, Any] | None) -> dict[str, Any]:
+    trace = dict(agentic_live_trace or {})
+    attempts = [
+        dict(item)
+        for item in list(trace.get("attempts") or [])
+        if isinstance(item, dict)
+    ]
+    latencies = [
+        int(item.get("latency_ms") or 0)
+        for item in attempts
+        if int(item.get("latency_ms") or 0) > 0
+    ]
+    total_latency_ms = int(sum(latencies)) if latencies else None
+    retry_count = max(0, len(attempts) - 1)
+    final_attempt = attempts[-1] if attempts else {}
+
+    usage_block = None
+    for key in ("usage", "token_usage", "response_usage"):
+        value = final_attempt.get(key)
+        if isinstance(value, dict):
+            usage_block = dict(value)
+            break
+    cost_block = None
+    if isinstance(final_attempt.get("cost"), dict):
+        cost_block = dict(final_attempt["cost"])
+    elif final_attempt.get("cost_usd") is not None:
+        cost_block = {"usd": final_attempt.get("cost_usd")}
+
+    return {
+        "latency_ms": total_latency_ms,
+        "attempt_count": len(attempts),
+        "retry_count": retry_count,
+        "usage": usage_block,
+        "cost": cost_block,
+    }
 
 
 def _build_analysis_evidence_selection_summary(
@@ -2630,7 +2677,9 @@ def _build_stage_result(
     summary = dict(decision_summary or {})
     decision = _resolve_stage_decision(status=status, decision_summary=summary)
     trace_seed = f"{stage_id}:{status}:{summary.get('debug_records_captured', '')}"
-    trace_context = build_trace_context(trace_seed)
+    # Stage result trace context is used for deterministic artifact linkage.
+    # Avoid creating extra OTel spans here to reduce low-signal null span exports.
+    trace_context = build_trace_context(trace_seed, emit_otel_span=False)
     return {
         "stage_id": stage_id,
         "status": status,
@@ -3859,6 +3908,7 @@ def run_pipeline(
     enabled_cv_sections = _cv_generation_enabled_sections(config)
     agentic_late_stage_enabled = _agentic_late_stage_enabled(config)
     if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("cv_analysis"):
+        cv_analysis_started_monotonic = time.monotonic()
         if reporter is not None:
             reporter.emit(
                 "layer4_cv_analysis_invoked",
@@ -4253,6 +4303,7 @@ def run_pipeline(
                         ),
                     },
                     artifact_refs={"stage_id": "cv_analysis"},
+                    latency_ms=int((time.monotonic() - cv_analysis_started_monotonic) * 1000),
                 ),
             )  # type: ignore[union-attr]
             if blocked_by_reranker_diagnostics:
@@ -4315,6 +4366,7 @@ def run_pipeline(
         if str(record.get("status") or "") == "ready_for_generation"
     ]
     for analysis_record in generation_ready_records:
+        cv_generation_started_monotonic = time.monotonic()
         job = dict(analysis_record.get("job_snapshot") or {})
         evidence = list(analysis_record.get("evidence_payload") or [])
         evidence_used = _build_debug_evidence_used(evidence)
@@ -4341,6 +4393,45 @@ def run_pipeline(
             job_runtime_provenance,
         )
         job_agentic_live_trace: dict[str, Any] | None = None
+
+        def _emit_cv_generation_result_event(
+            *,
+            status: str,
+            attempt_count: int = 1,
+            retry_count: int = 0,
+            latency_ms: int | None = None,
+            usage: dict[str, Any] | None = None,
+            cost: dict[str, Any] | None = None,
+        ) -> None:
+            if reporter is None:
+                return
+            reporter.emit(
+                "layer4_cv_generation_result",
+                "info",
+                f"CV generation result for {job.get('job_url')}: {status}",
+                _bounded_event_payload(
+                    event_name="cv_generation_result",
+                    event_family="decision",
+                    source_stage="cv_generation",
+                    event_status="completed",
+                    job_url=str(job.get("job_url") or ""),
+                    deterministic_outcome=str(status or ""),
+                    fallback_used=False,
+                    input_snapshot={
+                        "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
+                        "fit_classification": fit,
+                    },
+                    output_snapshot={
+                        "status": str(status or ""),
+                        "attempt_count": int(attempt_count),
+                        "retry_count": int(retry_count),
+                    },
+                    artifact_refs={"stage_id": "cv_generation"},
+                    latency_ms=latency_ms,
+                    usage=usage,
+                    cost=cost,
+                ),
+            )  # type: ignore[union-attr]
         try:
             if agentic_late_stage_enabled:
                 agentic_generation_result = run_agentic_cv_generation(
@@ -4356,6 +4447,7 @@ def run_pipeline(
                     job_runtime_provenance = dict(agentic_generation_result["runtime_provenance"])
                 if isinstance(agentic_generation_result.get("agentic_live_trace"), dict):
                     job_agentic_live_trace = dict(agentic_generation_result["agentic_live_trace"])
+                generation_metrics = _extract_generation_trace_metrics(job_agentic_live_trace)
                 fit = str(agentic_generation_result["fit_classification"] or fit)
                 analysis_input_summary = dict(agentic_generation_result["analysis_input_summary"])
                 evidence_used = list(agentic_generation_result["evidence_used"])
@@ -4367,6 +4459,34 @@ def run_pipeline(
                 repair_attempt = dict(agentic_generation_result["repair_attempt"])
                 structured_cv_final = agentic_generation_result["structured_cv_final"]
                 markdown_final = agentic_generation_result["markdown_final"]
+                if reporter is not None:
+                    reporter.emit(
+                        "layer4_cv_generation_result",
+                        "info",
+                        f"CV generation result for {job.get('job_url')}: {agentic_generation_result.get('status')}",
+                        _bounded_event_payload(
+                            event_name="cv_generation_result",
+                            event_family="decision",
+                            source_stage="cv_generation",
+                            event_status="completed",
+                            job_url=str(job.get("job_url") or ""),
+                            deterministic_outcome=str(agentic_generation_result.get("status") or ""),
+                            fallback_used=False,
+                            input_snapshot={
+                                "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
+                                "fit_classification": fit,
+                            },
+                            output_snapshot={
+                                "status": str(agentic_generation_result.get("status") or ""),
+                                "attempt_count": int(generation_metrics["attempt_count"]),
+                                "retry_count": int(generation_metrics["retry_count"]),
+                            },
+                            artifact_refs={"stage_id": "cv_generation"},
+                            latency_ms=cast(int | None, generation_metrics["latency_ms"]),
+                            usage=cast(dict[str, Any] | None, generation_metrics["usage"]),
+                            cost=cast(dict[str, Any] | None, generation_metrics["cost"]),
+                        ),
+                    )  # type: ignore[union-attr]
                 if agentic_generation_result["status"] != "accepted":
                     retry_attempt_count = 1
                     generation_error = agentic_generation_result["error"]
@@ -4559,6 +4679,12 @@ def run_pipeline(
                     ),
                 )  # type: ignore[union-attr]
             if not validation["valid"]:
+                _emit_cv_generation_result_event(
+                    status="validation_failed",
+                    attempt_count=1,
+                    retry_count=0,
+                    latency_ms=int((time.monotonic() - cv_generation_started_monotonic) * 1000),
+                )
                 failure_details: dict[str, Any] = {
                     "missing_sections": validation.get("missing_sections") or [],
                     "grounding_violations": validation.get("grounding_violations") or [],
@@ -4636,6 +4762,12 @@ def run_pipeline(
 
             markdown_review_reason = _markdown_quality_review_reason(validation)
             if markdown_review_reason:
+                _emit_cv_generation_result_event(
+                    status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                    attempt_count=1,
+                    retry_count=0,
+                    latency_ms=int((time.monotonic() - cv_generation_started_monotonic) * 1000),
+                )
                 cv_generation_debug_records.append(
                     _build_cv_generation_debug_record(
                         job=job,
@@ -4721,12 +4853,24 @@ def run_pipeline(
                     agentic_live_trace=job_agentic_live_trace,
                 )
             )
+            _emit_cv_generation_result_event(
+                status="accepted",
+                attempt_count=1,
+                retry_count=0,
+                latency_ms=int((time.monotonic() - cv_generation_started_monotonic) * 1000),
+            )
             logger.info("[run_id=%s] CV generated for %s (fit=%s)", run_id, job.get("job_url"), fit)
 
         except Exception as exc:  # per-job failure — log and skip, don't crash the run
             logger.error("[run_id=%s] Failed for %s: %s", run_id, job.get("job_url"), exc)
             failure_status = "persistence_failed" if structured_cv_final is not None or markdown_final is not None else "generation_failed"
             failure_stage = "persistence" if failure_status == "persistence_failed" else "generation"
+            _emit_cv_generation_result_event(
+                status=failure_status,
+                attempt_count=1,
+                retry_count=0,
+                latency_ms=int((time.monotonic() - cv_generation_started_monotonic) * 1000),
+            )
             cv_generation_debug_records.append(
                 _build_cv_generation_debug_record(
                     job=job,
@@ -4862,12 +5006,48 @@ def run_pipeline(
     }
     logger.info("Pipeline run complete [run_id=%s] summary=%s", run_id, summary)
     if reporter is not None:
+        analysis_quality = _build_cv_analysis_quality_metrics(cv_analysis_results)
+        generation_quality = _build_cv_generation_quality_metrics(cv_generation_debug_records)
+        total_retry_count = sum(
+            max(0, int(record.get("attempt_count") or 1) - 1)
+            for record in cv_generation_debug_records
+            if isinstance(record, dict)
+        )
         event_summary = {
             "run_id": run_id,
             "total_jobs": summary["total_jobs"],
             "passed_filter": summary["passed_filter"],
             "ranked": summary["ranked"],
             "cvs_generated": summary["cvs_generated"],
+            "quality_summary": {
+                "acceptance_review_failure": {
+                    "accepted": generation_quality.get("accepted"),
+                    "review_required": generation_quality.get("review_required"),
+                    "validation_failed": generation_quality.get("validation_failed"),
+                    "generation_failed": generation_quality.get("generation_failed"),
+                    "persistence_failed": generation_quality.get("persistence_failed"),
+                    "accepted_rate": generation_quality.get("accepted_rate"),
+                    "review_required_rate": generation_quality.get("review_required_rate"),
+                    "failure_rate": _safe_rate(
+                        int(generation_quality.get("validation_failed") or 0)
+                        + int(generation_quality.get("generation_failed") or 0)
+                        + int(generation_quality.get("persistence_failed") or 0),
+                        int(generation_quality.get("total_attempted") or 0),
+                    ),
+                },
+                "analysis_to_generation_conversion": {
+                    "ready_for_generation": analysis_quality.get("ready_for_generation"),
+                    "generation_attempted": generation_quality.get("total_attempted"),
+                    "conversion_rate": _safe_rate(
+                        int(generation_quality.get("total_attempted") or 0),
+                        int(analysis_quality.get("ready_for_generation") or 0),
+                    ),
+                },
+                "retry_counts": {
+                    "total_retry_count": total_retry_count,
+                    "attempted_jobs": generation_quality.get("total_attempted"),
+                },
+            },
         }
         reporter.emit(
             "pipeline_complete",
@@ -4885,6 +5065,7 @@ def run_pipeline(
                 },
                 output_snapshot={
                     "cvs_generated": summary["cvs_generated"],
+                    "quality_summary": event_summary["quality_summary"],
                 },
             ),
         )  # type: ignore[union-attr]
