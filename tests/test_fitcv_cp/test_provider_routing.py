@@ -24,7 +24,7 @@ def test_resolve_part_routing_reads_provider_and_model_from_control_plane() -> N
     selection = resolve_part_routing(cfg, "enrich_extraction")
 
     assert selection.provider == "openai_compatible"
-    assert selection.model == "kimi-k2-instruct"
+    assert selection.model == "cx/gpt-5.2"
 
 
 def test_resolve_part_routing_rejects_unknown_part() -> None:

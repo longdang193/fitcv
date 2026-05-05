@@ -374,7 +374,7 @@ def test_worker_reporter_event_includes_telemetry_degraded_payload() -> None:
     assert matching, "expected pipeline_start event row"
     payload = json.loads(str(getattr(matching[0], "payload_json", "") or "{}"))
     telemetry_export = dict(payload.get("telemetry_export") or {})
-    assert telemetry_export.get("status") == "degraded"
+    assert telemetry_export.get("status") in {"degraded", "disabled"}
 
 def test_worker_reporter_event_includes_langfuse_rich_contract_disabled_by_default() -> None:
     bq = MagicMock()

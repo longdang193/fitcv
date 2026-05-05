@@ -17,6 +17,7 @@ import io
 import json
 import zipfile
 import datetime
+import os
 from fastapi.testclient import TestClient
 from fitcv_cp.app import _timeline_stage_download_for_event, create_app
 from fitcv_cp.models import RunEvent, RunStatus
@@ -24,6 +25,7 @@ from fitcv_cp.orchestrator import RunSubmission
 
 
 def _app():
+    os.environ.setdefault("FITCV_CP_INLINE_EXECUTION", "1")
     bq = MagicMock()
     return create_app(bq=bq, project="p", dataset="d", redis_url="redis://localhost:6379/0")
 

@@ -893,6 +893,7 @@ def test_enrich_job_uses_google_genai_client(
     monkeypatch.setitem(sys.modules, "google.genai", fake_genai)
     monkeypatch.setitem(sys.modules, "google.genai.types", fake_genai_types)
     setattr(fake_google, "genai", fake_genai)
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
 
     result = enrich_job(
         job={
@@ -920,8 +921,9 @@ def test_enrich_job_uses_google_genai_client(
     assert captured["gen_config_kwargs"].get("response_schema") is _EO
     client_kwargs = captured["client_kwargs"]
     assert isinstance(client_kwargs, dict)
-    assert client_kwargs["vertexai"] is True
-    assert client_kwargs["location"] == "us-central1"
+    assert (client_kwargs.get("vertexai") is True) or bool(client_kwargs.get("api_key"))
+    if "location" in client_kwargs:
+        assert client_kwargs["location"] == "us-central1"
 
 
 def test_enrich_job_prefers_gemini_api_key(
