@@ -1,0 +1,68 @@
+﻿---
+prompt_id: plan-prompt
+type: prompt
+stage: planning
+owner_layer: change
+entry_points:
+  - use this prompt when its title scope matches the current planning/execution need
+prerequisites:
+  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+next_steps:
+  - implementation-next-action-gate-prompt.md
+skills:
+  - planning-dispatch
+status: active
+---
+# Plan Prompt
+
+## Use When
+
+approved work item context exists and an execution-ready implementation/patch plan is needed
+
+## Prerequisites
+
+### Required
+
+- approved spec or execution-map context
+
+### Optional
+
+- execution map wave/lane
+
+## Next Prompts
+
+- execute-prompt.md
+
+## Not For
+
+spec discovery or closeout verdicts
+Use this when the work item context is already approved and you want an execution-ready
+plan, including patching work.
+
+If the workstream is still unclear, use `roadmap-to-workstream-prompt.md`
+before this prompt.
+If multiple approved detailed specs still need sequencing or parallel-lane
+decisions, use `spec-set-execution-map-prompt.md` first.
+
+```text
+Turn this approved work item context (or approved spec/patch context) into an execution-ready plan (implementation or patch).
+
+Spec:
+- path:
+- bounded change thread this plan follows (use a valid thread id from `docs/intent/workstreams/threads/`, or `none`):
+- if `none`, why this is operating_system work:
+- implementation execution map path, if this plan is part of a multi-spec execution wave:
+
+Please:
+1. review the spec and classify the bounded change
+2. make thread/spec lineage explicit in the plan metadata (`parent_thread`, `parent_spec`); use workstream-level `none` only when this is true operating_system work
+3. write a concrete execution plan in docs/superpowers/plans/
+4. name files to create or modify
+5. include verification steps
+6. keep the plan small, explicit, and execution-ready
+7. if an implementation execution map exists, explain how this plan fits its wave or lane
+```
+
+Expected output:
+- a plan in `docs/superpowers/plans/`
+
