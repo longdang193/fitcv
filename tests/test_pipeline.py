@@ -2585,11 +2585,11 @@ def test_run_pipeline_persists_structured_cv_and_includes_it_in_export(
 
     create_kwargs = mock_create_version.call_args.kwargs
     assert create_kwargs["cv_structured"] == structured_cv
-    assert create_kwargs["cv_generation_model"] == "gemini-2.5-flash"
+    assert create_kwargs["cv_generation_model"] == "cx/gpt-5.2"
     assert create_kwargs["cv_prompt_version"] == "v1"
     export_cv = result["export_results"][0]["cv"]
     assert export_cv["schema_version"] == "cv_doc_v1"
-    assert export_cv["model_used"] == "gemini-2.5-flash"
+    assert export_cv["model_used"] == "cx/gpt-5.2"
     assert result["cv_generation_debug_records"][0]["structured_cv_final"] == structured_cv
 
 
@@ -2728,12 +2728,12 @@ def test_run_pipeline_returns_debug_record_for_accepted_cv(
     assert record["markdown_final"] == "# CV Markdown"
     assert record["error"] is None
     assert record["runtime_provenance"] == {
-        "runtime_path": "fitcv_cv_generation_builtin",
-        "provider": "fitcv_builtin",
-        "model": "gemini-2.5-flash",
+        "runtime_path": "fitcv_cv_generation_openai_compatible",
+        "provider": "openai_compatible",
+        "model": "cx/gpt-5.2",
     }
-    assert result["export_results"][0]["cv"]["runtime_path"] == "fitcv_cv_generation_builtin"
-    assert result["export_results"][0]["cv"]["provider"] == "fitcv_builtin"
+    assert result["export_results"][0]["cv"]["runtime_path"] == "fitcv_cv_generation_openai_compatible"
+    assert result["export_results"][0]["cv"]["provider"] == "openai_compatible"
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -5588,7 +5588,9 @@ def test_normalize_late_stage_reuse_snapshots_skips_poisoned_runtime_exception_r
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
+@patch("fitcv.pipeline.resolve_model_routing_part")
 def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_failed_job(
+    mock_resolve_model_routing: MagicMock,
     mock_config: MagicMock,
     mock_parse: MagicMock,
     mock_norm: MagicMock,
@@ -5628,6 +5630,11 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
     job = _minimal_job()
     profile = _minimal_profile()
     reporter = _Reporter()
+    mock_resolve_model_routing.return_value = {
+        "provider": "openai_compatible",
+        "model": "cx/gpt-5.2",
+        "base_url": "http://localhost:20128/v1",
+    }
 
     mock_config.return_value = _minimal_config()
     mock_parse.return_value = [job]
@@ -5665,7 +5672,7 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
         "stage_owned_subreason": "validation_failed",
         "fallback_used": False,
         "provenance": {
-            "cv_generation_model": _minimal_config()["cv_generation_model"],
+            "cv_generation_model": "cx/gpt-5.2",
         },
         "input_snapshot": {
             "ranking_fit_label": "strong",
@@ -5690,7 +5697,7 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
         "deterministic_outcome": None,
         "fallback_used": False,
         "provenance": {
-            "cv_generation_model": _minimal_config()["cv_generation_model"],
+            "cv_generation_model": "cx/gpt-5.2",
         },
         "input_snapshot": {
             "ranking_fit_label": "strong",

@@ -58,6 +58,7 @@ can make this configurable without code changes.
 
 import logging
 import hashlib
+import os
 import uuid
 from copy import deepcopy
 from typing import Any, Callable, cast
@@ -78,6 +79,7 @@ from fitcv.config import (
     get_cv_generation_prompt_version,
     get_gemini_model,
     load_config,
+    resolve_model_routing_part,
 )
 from fitcv.contracts import normalize_analysis_channel_mapping
 from fitcv.cv_generator import generate_cv, render_cv_markdown
@@ -1706,6 +1708,35 @@ def _default_cv_generation_runtime_provenance(
         "runtime_path": "fitcv_cv_generation_builtin",
         "provider": "fitcv_builtin",
         "model": str(cv_generation_model or "").strip() or None,
+    }
+
+
+def _non_agentic_cv_generation_runtime_provenance(
+    cv_generation_model: str | None,
+) -> dict[str, Any]:
+    default_provenance = _default_cv_generation_runtime_provenance(cv_generation_model)
+    try:
+        routing = resolve_model_routing_part(
+            "cv_generation_structured_write",
+            model_fallback=str(cv_generation_model or "").strip(),
+        )
+    except Exception:
+        return default_provenance
+    provider = str(routing.get("provider") or "").strip().lower()
+    routed_model = str(routing.get("model") or "").strip()
+    model_override = str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
+    resolved_model = model_override or routed_model or str(cv_generation_model or "").strip()
+    if not provider:
+        return default_provenance
+    runtime_path = (
+        "fitcv_cv_generation_openai_compatible"
+        if provider in {"openai", "openai_compatible", "9router"}
+        else "fitcv_cv_generation_builtin"
+    )
+    return {
+        "runtime_path": runtime_path,
+        "provider": provider,
+        "model": resolved_model or None,
     }
 
 
@@ -4297,36 +4328,17 @@ def run_pipeline(
         )
         gap = analysis_record.get("gap_summary")
         fit = str(analysis_record.get("fit_classification") or "skip")
-        if reporter is not None:
-            reporter.emit(
-                "layer4_cv_generation_invoked",
-                "info",
-                f"CV generation invoked for {job.get('job_url')}",
-                _bounded_event_payload(
-                    event_name="cv_generation_invoked",
-                    event_family="invocation",
-                    source_stage="cv_generation",
-                    event_status="started",
-                    job_url=str(job.get("job_url") or ""),
-                    fallback_used=False,
-                    provenance={
-                        "cv_generation_model": cv_generation_model_value,
-                    },
-                    input_snapshot={
-                        "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
-                        "fit_classification": fit,
-                    },
-                    artifact_refs={"stage_id": "cv_generation"},
-                ),
-            )  # type: ignore[union-attr]
         structured_cv_initial: dict[str, Any] | None = None
         validation_initial: dict[str, Any] | None = None
         repair_attempt = dict(_EMPTY_REPAIR_ATTEMPT)
         structured_cv_final: dict[str, Any] | None = None
         markdown_final: str | None = None
-        job_cv_generation_model_value: str | None = cv_generation_model_value
-        job_runtime_provenance: dict[str, Any] | None = _default_cv_generation_runtime_provenance(
+        job_runtime_provenance: dict[str, Any] | None = _non_agentic_cv_generation_runtime_provenance(
             cv_generation_model_value
+        )
+        job_cv_generation_model_value: str | None = _resolved_cv_generation_model(
+            cv_generation_model_value,
+            job_runtime_provenance,
         )
         job_agentic_live_trace: dict[str, Any] | None = None
         try:
@@ -4524,6 +4536,28 @@ def run_pipeline(
                         structured_cv=structured_cv,
                         analysis_grounding=analysis_grounding,
                     )
+            if reporter is not None:
+                reporter.emit(
+                    "layer4_cv_generation_invoked",
+                    "info",
+                    f"CV generation invoked for {job.get('job_url')}",
+                    _bounded_event_payload(
+                        event_name="cv_generation_invoked",
+                        event_family="invocation",
+                        source_stage="cv_generation",
+                        event_status="started",
+                        job_url=str(job.get("job_url") or ""),
+                        fallback_used=False,
+                        provenance={
+                            "cv_generation_model": job_cv_generation_model_value,
+                        },
+                        input_snapshot={
+                            "ranking_fit_label": _authoritative_ranking_fit_label(job, fit),
+                            "fit_classification": fit,
+                        },
+                        artifact_refs={"stage_id": "cv_generation"},
+                    ),
+                )  # type: ignore[union-attr]
             if not validation["valid"]:
                 failure_details: dict[str, Any] = {
                     "missing_sections": validation.get("missing_sections") or [],
