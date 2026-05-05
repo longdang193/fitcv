@@ -39,7 +39,9 @@ import subprocess
 import sys
 
 
-def repo_root() -> Path:
+def repo_root(repo_override: str | None = None) -> Path:
+    if repo_override:
+        return Path(repo_override).resolve()
     return Path(__file__).resolve().parents[1]
 
 
@@ -50,8 +52,7 @@ def pytest_basetemp(default_relative: str) -> str:
     return default_relative
 
 
-def build_steps(*, check_only: bool, python_executable: str) -> list[list[str]]:
-    root = repo_root()
+def build_steps(*, root: Path, check_only: bool, python_executable: str, isolated_repo: bool) -> list[list[str]]:
     generator = str(root / "tools" / "docs" / "generate_architecture_metadata.py")
     awareness_audit = str(root / "scripts" / "audit_architecture_linkage.py")
     formatter = str(root / "scripts" / "format_contract_yaml.py")
@@ -59,6 +60,9 @@ def build_steps(*, check_only: bool, python_executable: str) -> list[list[str]]:
     steps: list[list[str]] = []
     if not check_only:
         steps.append([python_executable, generator])
+    if isolated_repo:
+        steps.append([python_executable, generator, "--check"] if check_only else [python_executable, generator, "--validate-only"])
+        return steps
     steps.extend(
         [
             [python_executable, adoption_validator],
@@ -100,13 +104,25 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run validation and verification without rewriting generated outputs first.",
     )
+    parser.add_argument(
+        "--repo-root",
+        help="Optional repository root override (used by tests and isolated validation runs).",
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    root = repo_root()
-    for step in build_steps(check_only=args.check, python_executable=sys.executable):
+    root = repo_root(args.repo_root)
+    basetemp = Path(pytest_basetemp(".tmp-tests/architecture-pytest"))
+    basetemp_parent = basetemp.parent if basetemp.is_absolute() else (root / basetemp).parent
+    basetemp_parent.mkdir(parents=True, exist_ok=True)
+    for step in build_steps(
+        root=root,
+        check_only=args.check,
+        python_executable=sys.executable,
+        isolated_repo=bool(args.repo_root),
+    ):
         status = run_step(step, cwd=root)
         if status != 0:
             return status
