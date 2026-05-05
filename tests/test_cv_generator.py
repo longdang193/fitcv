@@ -603,6 +603,40 @@ def test_normalize_structured_cv_coerces_null_section_lists() -> None:
     assert normalized["sections"]["publications"] == []
     assert normalized["sections"]["languages"] == []
 
+
+def test_normalize_structured_cv_filters_synthetic_education_rows() -> None:
+    normalized = _normalize_structured_cv(
+        {
+            "sections": {
+                "header": {"name": "Jane Doe", "title": "Data Analyst"},
+                "summary": {"text": "Grounded summary."},
+                "education": [
+                    {
+                        "degree": "Not specified",
+                        "institution": "None",
+                        "field": None,
+                        "start": "None",
+                        "end": "None",
+                    },
+                    {
+                        "degree": "MSc Data Science",
+                        "institution": "TU Berlin",
+                        "field": None,
+                        "start": "2019",
+                        "end": "2021",
+                    },
+                ],
+            }
+        },
+        jd={"job_url": "https://example.com/jobs/1", "title": "Data Analyst"},
+        profile={"name": "Jane Doe"},
+        config={"cv": {"preset": "europass", "composition": {"education": {"enabled": True}}}},
+        fit_classification="strong",
+    )
+
+    assert len(normalized["sections"]["education"]) == 1
+    assert normalized["sections"]["education"][0]["degree"] == "MSc Data Science"
+
 def test_normalize_cv_markdown_is_deterministic() -> None:
     raw = "# Jane Doe\r\n\r\n## Experience\r\n* built pipelines\r\n\r\n\r\n## Projects\r\n• shipped feature\r\n"
     once = _normalize_cv_markdown(raw)
