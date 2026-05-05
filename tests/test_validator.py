@@ -682,3 +682,45 @@ def test_run_all_validations_rejects_unresolved_template_placeholders() -> None:
 
     assert result["valid"] is False
     assert any("[Your Name]" in message for message in result["grounding_violations"])
+
+
+def test_run_all_validations_flags_synthetic_education_rows() -> None:
+    profile = {
+        "experiences": [{"role": "Data Analyst", "company": "ACME"}],
+        "projects": [],
+        "skills": ["SQL", "Python"],
+    }
+    cv_text = (
+        "# Jane Doe\n"
+        "## Summary\nAnalyst with SQL and Python experience.\n"
+        "## Skills\nSQL, Python\n"
+        "## Experience\n"
+        "### Data Analyst — ACME (2022–2024)\n"
+        "- Built reporting workflows.\n"
+    )
+    structured_cv = {
+        "sections": {
+            "education": [
+                {
+                    "degree": "Not specified",
+                    "institution": "None",
+                    "field": None,
+                    "start": "None",
+                    "end": "None",
+                }
+            ]
+        }
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=_CV_CONFIG,
+        structured_cv=structured_cv,
+    )
+
+    assert result["valid"] is False
+    assert any(
+        "Synthetic Education row detected" in message
+        for message in result["grounding_violations"]
+    )
