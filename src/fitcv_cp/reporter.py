@@ -29,7 +29,12 @@ import uuid
 from typing import Any, Optional
 
 import httpx
-from fitcv.telemetry import build_trace_context, langfuse_link_status, telemetry_export_status
+from fitcv.telemetry import (
+    build_trace_context,
+    current_trace_context,
+    langfuse_link_status,
+    telemetry_export_status,
+)
 from fitcv_cp.bq_store import append_event
 from fitcv_cp.models import RunEvent
 
@@ -270,9 +275,14 @@ class PipelineReporter:
     ) -> None:
         source_payload = dict(payload or {})
         payload_value = dict(source_payload)
-        payload_value["trace_context"] = build_trace_context(
-            f"run:{self._run_id}:stage:{stage}:message:{message}"
-        )
+        active_trace_context = current_trace_context()
+        if active_trace_context is not None:
+            payload_value["trace_context"] = active_trace_context
+        else:
+            payload_value["trace_context"] = build_trace_context(
+                f"run:{self._run_id}:stage:{stage}:message:{message}",
+                emit_otel_span=False,
+            )
         payload_value["telemetry_export"] = telemetry_export_status()
         payload_value["langfuse_link"] = langfuse_link_status(
             str(payload_value["trace_context"].get("trace_id") or "")

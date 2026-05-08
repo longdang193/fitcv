@@ -141,6 +141,7 @@ def test_reporter_langfuse_rich_io_native_sent(monkeypatch):
     assert isinstance(posted_body.get("input"), dict)
     assert isinstance(posted_body.get("output"), dict)
 
+
 def test_reporter_langfuse_rich_io_native_emits_observation_for_latency(monkeypatch):
     monkeypatch.setenv("FITCV_LANGFUSE_RICH_IO_ENABLED", "true")
     monkeypatch.setenv("FITCV_LANGFUSE_PROJECT_PUBLIC_KEY", "pk-local")
@@ -168,6 +169,7 @@ def test_reporter_langfuse_rich_io_native_emits_observation_for_latency(monkeypa
     assert str(obs_body["startTime"]).endswith("Z")
     assert str(obs_body["endTime"]).endswith("Z")
 
+
 def test_reporter_langfuse_rich_io_coerces_scalar_cost(monkeypatch):
     monkeypatch.setenv("FITCV_LANGFUSE_RICH_IO_ENABLED", "true")
     reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
@@ -178,3 +180,40 @@ def test_reporter_langfuse_rich_io_coerces_scalar_cost(monkeypatch):
     rich = dict(emitted.get("langfuse_rich_io") or {})
     rich_output = dict(rich.get("output") or {})
     assert rich_output.get("cost") == {"total": 0.123, "currency": "usd"}
+
+
+def test_reporter_reuses_active_trace_context_when_available():
+    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    active_context = {
+        "trace_id": "a" * 32,
+        "span_id": "b" * 16,
+        "parent_span_id": "c" * 16,
+    }
+    with patch("fitcv_cp.reporter.current_trace_context", return_value=active_context), \
+         patch("fitcv_cp.reporter.build_trace_context") as build_trace_context_mock, \
+         patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
+        reporter.emit("pipeline_start", "info", "ok")
+    build_trace_context_mock.assert_not_called()
+    event = append_mock.call_args[0][0]
+    emitted = json.loads(str(event.payload_json or "{}"))
+    assert emitted.get("trace_context") == active_context
+
+
+def test_reporter_uses_bounded_fallback_without_emitting_span_when_no_active_context():
+    reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
+    fallback_context = {
+        "trace_id": "d" * 32,
+        "span_id": "e" * 16,
+        "parent_span_id": "f" * 16,
+    }
+    with patch("fitcv_cp.reporter.current_trace_context", return_value=None), \
+         patch("fitcv_cp.reporter.build_trace_context", return_value=fallback_context) as build_trace_context_mock, \
+         patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
+        reporter.emit("pipeline_start", "info", "ok")
+    build_trace_context_mock.assert_called_once_with(
+        "run:r1:stage:pipeline_start:message:ok",
+        emit_otel_span=False,
+    )
+    event = append_mock.call_args[0][0]
+    emitted = json.loads(str(event.payload_json or "{}"))
+    assert emitted.get("trace_context") == fallback_context
