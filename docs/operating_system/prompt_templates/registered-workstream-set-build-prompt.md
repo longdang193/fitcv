@@ -1,18 +1,26 @@
-﻿---
-prompt_id: registered-workstream-set-build-prompt
+---
+name: registered-workstream-set-build-prompt
+description: roadmap exists and concrete workstream registration is needed.
 type: prompt
 stage: planning
-owner_layer: workstream
 entry_points:
-  - use this prompt when its title scope matches the current planning/execution need
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
+related_skills:
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- planning
+- workstream
+owner_layer: workstream
 status: active
 ---
+
 # Registered Workstream Set Build Prompt
 
 ## Use When

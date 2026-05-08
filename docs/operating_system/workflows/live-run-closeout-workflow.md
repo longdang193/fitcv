@@ -1,26 +1,36 @@
 ---
+name: live-run-closeout-workflow
+description: Finalize live-run resolution with durable evidence and route learnings
+  into tests, specs, and future scenarios.
+allowed-tools: []
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+required_outputs:
+- closeout record with root cause, fix, and evidence
+- learning backfeed actions for tests/specs/scenarios
+related_skills:
+- verification-before-completion
+- planning-dispatch
+tags:
+- workflow
+- closeout
+- change
 workflow_id: live-run-closeout
 type: workflow
 stage: closeout
 owner_layer: change
 entry_points:
-  - verification passed and closure decision is needed
-  - closeout draft exists with open evidence or learning-capture gaps
+- verification passed and closure decision is needed
+- closeout draft exists with open evidence or learning-capture gaps
 prerequisites:
-  - verification report is available
-  - traceability from failure to fix to validation is complete
+- verification report is available
+- traceability from failure to fix to validation is complete
 next_steps:
-  - thread-closeout-readiness-prompt.md
-  - live-run-scenario-planning-workflow.md
-skills:
-  - verification-before-completion
-  - planning-dispatch
+- thread-closeout-readiness-prompt.md
+- live-run-scenario-planning-workflow.md
 status: active
-outputs:
-  - closeout record with root cause, fix, and evidence
-  - learning backfeed actions for tests/specs/scenarios
 validators:
-  - closeout claim includes evidence and follow-up actions
+- closeout claim includes evidence and follow-up actions
 ---
 
 # Live Run Closeout Workflow

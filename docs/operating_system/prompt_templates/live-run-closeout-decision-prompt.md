@@ -1,22 +1,30 @@
 ---
-prompt_id: live-run-closeout-decision-prompt
+name: live-run-closeout-decision-prompt
+description: you need to decide whether live-run work can close now or must continue.
 type: prompt
 stage: closeout
-owner_layer: change
 entry_points:
-  - live-run verification finished and closeout decision is required
-  - closeout draft exists but readiness is uncertain
+- live-run verification finished and closeout decision is required
+- closeout draft exists but readiness is uncertain
 prerequisites:
-  - verification result and evidence bundle are available
-  - traceability from failure to fix to validation is available
+- verification result and evidence bundle are available
+- traceability from failure to fix to validation is available
 next_steps:
-  - thread-closeout-readiness-prompt.md
-  - implementation-next-action-gate-prompt.md
-skills:
-  - verification-before-completion
-  - planning-dispatch
+- thread-closeout-readiness-prompt.md
+- implementation-next-action-gate-prompt.md
+related_skills:
+- verification-before-completion
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- closeout
+- change
+owner_layer: change
 status: active
 ---
+
 # Live Run Closeout Decision Prompt
 
 ## Use When

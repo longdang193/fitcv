@@ -1,18 +1,26 @@
-﻿---
-prompt_id: workstream-completion-and-intent-check-prompt
+---
+name: workstream-completion-and-intent-check-prompt
+description: Use prompt template for workstream completion and intent check prompt.
 type: prompt
 stage: planning
-owner_layer: intent
 entry_points:
-  - use this prompt when its title scope matches the current planning/execution need
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
+related_skills:
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- planning
+- intent
+owner_layer: intent
 status: active
 ---
+
 # Workstream Completion And Intent Check Prompt
 
 Use this when a long-running workstream may have drifted and you want a clear

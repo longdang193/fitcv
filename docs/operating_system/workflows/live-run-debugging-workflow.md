@@ -1,28 +1,37 @@
 ---
+name: live-run-debugging-workflow
+description: Run workflow for live run debugging workflow.
+allowed-tools: []
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+required_outputs:
+- failure-boundary record
+- bounded-fix record
+- targeted-rerun evidence
+related_skills:
+- systematic-debugging
+- executing-plans
+- verification-before-completion
+tags:
+- workflow
+- execution
+- change
 workflow_id: live-run-debugging
 type: workflow
 stage: execution
 owner_layer: change
 entry_points:
-  - failure observed in live run or equivalent runtime path
+- failure observed in live run or equivalent runtime path
 prerequisites:
-  - failing run id, failing stage, or reproducible failing runtime path available
-  - access to run artifacts/logs/observability surfaces needed for evidence capture
+- failing run id, failing stage, or reproducible failing runtime path available
+- access to run artifacts/logs/observability surfaces needed for evidence capture
 next_steps:
-  - live-run-execution-workflow.md
-  - live-run-verification-workflow.md
-skills:
-  - systematic-debugging
-  - executing-plans
-  - verification-before-completion
+- live-run-execution-workflow.md
+- live-run-verification-workflow.md
 status: active
-outputs:
-  - failure-boundary record
-  - bounded-fix record
-  - targeted-rerun evidence
 validators:
-  - targeted live rerun
-  - failure to fix traceability linkage is explicit
+- targeted live rerun
+- failure to fix traceability linkage is explicit
 ---
 
 # Live Run Debugging Workflow

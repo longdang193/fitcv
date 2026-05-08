@@ -1,26 +1,36 @@
 ---
+name: live-run-preflight-check-workflow
+description: Validate live-run prerequisites before execution so evidence can be captured
+  and results are trustworthy.
+allowed-tools: []
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+required_outputs:
+- preflight readiness report
+- missing prerequisites and unblock actions
+related_skills:
+- planning-dispatch
+- executing-plans
+tags:
+- workflow
+- execution
+- change
 workflow_id: live-run-preflight-check
 type: workflow
 stage: execution
 owner_layer: change
 entry_points:
-  - scenario set exists and run readiness must be verified
-  - execution/debugging requires environment or evidence-path readiness checks
+- scenario set exists and run readiness must be verified
+- execution/debugging requires environment or evidence-path readiness checks
 prerequisites:
-  - selected scenario and target run path are identified
-  - access to environment and observability surfaces is available
+- selected scenario and target run path are identified
+- access to environment and observability surfaces is available
 next_steps:
-  - live-run-execution-workflow.md
-  - live-run-scenario-planning-workflow.md
-skills:
-  - planning-dispatch
-  - executing-plans
+- live-run-execution-workflow.md
+- live-run-scenario-planning-workflow.md
 status: active
-outputs:
-  - preflight readiness report
-  - missing prerequisites and unblock actions
 validators:
-  - readiness checks include artifacts, observability, trace IDs, environment
+- readiness checks include artifacts, observability, trace IDs, environment
 ---
 
 # Live Run Preflight Check Workflow

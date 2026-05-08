@@ -1,18 +1,26 @@
-﻿---
-prompt_id: thread-checkpoint-result-pack-prompt
+---
+name: thread-checkpoint-result-pack-prompt
+description: Use prompt template for thread checkpoint result pack prompt.
 type: prompt
 stage: execution
-owner_layer: change
 entry_points:
-  - use this prompt when its title scope matches the current planning/execution need
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
+related_skills:
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- execution
+- change
+owner_layer: change
 status: active
 ---
+
 # Thread Checkpoint Result Pack Prompt
 
 Use this when a bounded change thread had an execution pass and you want a

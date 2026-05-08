@@ -1,18 +1,30 @@
-﻿---
+---
+name: roadmap-to-closeout-workflow
+description: Run workflow for roadmap to closeout workflow.
+allowed-tools: []
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+required_outputs:
+- workflow decision or completion evidence
+related_skills:
+- planning-dispatch
+tags:
+- workflow
+- closeout
+- intent
 workflow_id: roadmap-to-closeout-workflow
 type: workflow
 stage: closeout
 owner_layer: intent
 entry_points:
-  - use this workflow when its title scope matches the current execution need
+- use this workflow when its title scope matches the current execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
 status: active
 ---
+
 # Roadmap To Closeout Workflow
 
 ## Purpose

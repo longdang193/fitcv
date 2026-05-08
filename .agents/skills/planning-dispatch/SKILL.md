@@ -1,7 +1,19 @@
 ---
 name: planning-dispatch
-description: Use when a task needs planning, design, or implementation routing before specs, plans, or code changes begin.
+description: Use when a task needs planning, design, or implementation routing before
+  specs, plans, or code changes begin.
+allowed-tools: []
+hooks:
+  pre: []
+  post: []
+required_reads: []
+required_outputs: []
+related_skills: []
+tags:
+- skill
+- planning-dispatch
 ---
+
 # Planning Dispatch
 
 ## When to Apply

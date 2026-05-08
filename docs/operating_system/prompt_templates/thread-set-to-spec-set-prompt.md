@@ -1,18 +1,26 @@
-﻿---
-prompt_id: thread-set-to-spec-set-prompt
+---
+name: thread-set-to-spec-set-prompt
+description: thread set is known and complete spec inventory must be assembled.
 type: prompt
 stage: planning
-owner_layer: change
 entry_points:
-  - use this prompt when its title scope matches the current planning/execution need
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
+related_skills:
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- planning
+- change
+owner_layer: change
 status: active
 ---
+
 # Thread Set To Spec Set Prompt
 
 ## Use When
