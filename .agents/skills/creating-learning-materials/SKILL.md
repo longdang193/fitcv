@@ -1,6 +1,18 @@
 ---
 name: creating-learning-materials
-description: Use when generating source-grounded learning questions, Anki-ready cards, Socratic prompts, interview prep, Bloom's Taxonomy exercises, multiple choice, Q&A, sequencing, or drag-and-drop study materials.
+description: Use when generating source-grounded learning questions, Anki-ready cards,
+  Socratic prompts, interview prep, Bloom's Taxonomy exercises, multiple choice, Q&A,
+  sequencing, or drag-and-drop study materials.
+allowed-tools: []
+hooks:
+  pre: []
+  post: []
+required_reads: []
+required_outputs: []
+related_skills: []
+tags:
+- skill
+- creating-learning-materials
 ---
 
 # Creating Learning Materials

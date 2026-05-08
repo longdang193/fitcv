@@ -1,18 +1,30 @@
-﻿---
+---
+name: spec-to-plan-to-execution-workflow
+description: Run workflow for spec to plan to execution workflow.
+allowed-tools: []
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+required_outputs:
+- workflow decision or completion evidence
+related_skills:
+- planning-dispatch
+tags:
+- workflow
+- planning
+- change
 workflow_id: spec-to-plan-to-execution-workflow
 type: workflow
 stage: planning
 owner_layer: change
 entry_points:
-  - use this workflow when its title scope matches the current execution need
+- use this workflow when its title scope matches the current execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
 status: active
 ---
+
 # Spec To Plan To Execution Workflow
 
 ## Purpose

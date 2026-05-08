@@ -1,7 +1,19 @@
 ---
 name: python-file-metadata
-description: Add structured metadata to files with behavioral weight (scripts, workflows, tests, utilities).
+description: Add structured metadata to files with behavioral weight (scripts, workflows,
+  tests, utilities).
+allowed-tools: []
+hooks:
+  pre: []
+  post: []
+required_reads: []
+required_outputs: []
+related_skills: []
+tags:
+- skill
+- python-file-metadata
 ---
+
 # Python File Metadata
 
 Files with **behavioral weight** (scripts, orchestration logic, tests, utilities) must declare a structured metadata block at the top of the file. This metadata explains intent, scope, and constraints without requiring the reader to scan the entire file.

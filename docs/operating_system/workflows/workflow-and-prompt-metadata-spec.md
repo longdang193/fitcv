@@ -1,16 +1,28 @@
 ---
+name: workflow-and-prompt-metadata-spec
+description: Define one minimal metadata contract for `workflows/` and `prompt_templates/`
+  that supports routing and execution with low management overhead.
+allowed-tools: []
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+required_outputs:
+- workflow decision or completion evidence
+related_skills:
+- doc-system-lifecycle
+tags:
+- workflow
+- maintenance
+- operating_system
 workflow_id: workflow-and-prompt-metadata-spec
 type: workflow
 stage: maintenance
 owner_layer: operating_system
 entry_points:
-  - creating or updating prompt/workflow governance documents
+- creating or updating prompt/workflow governance documents
 prerequisites:
-  - target prompt/workflow files are identified
+- target prompt/workflow files are identified
 next_steps:
-  - validate-or-drift-prompt.md
-skills:
-  - doc-system-lifecycle
+- validate-or-drift-prompt.md
 status: active
 ---
 

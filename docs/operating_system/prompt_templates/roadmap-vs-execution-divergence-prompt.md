@@ -1,18 +1,26 @@
-﻿---
-prompt_id: roadmap-vs-execution-divergence-prompt
+---
+name: roadmap-vs-execution-divergence-prompt
+description: Use prompt template for roadmap vs execution divergence prompt.
 type: prompt
 stage: drift
-owner_layer: intent
 entry_points:
-  - use this prompt when its title scope matches the current planning/execution need
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
+related_skills:
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- drift
+- intent
+owner_layer: intent
 status: active
 ---
+
 # Roadmap Vs Execution Divergence Prompt
 
 Use this when you want to compare the master roadmap or a named workstream

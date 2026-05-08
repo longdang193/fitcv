@@ -1,18 +1,26 @@
-﻿---
-prompt_id: roadmap-closeout-readiness-prompt
+---
+name: roadmap-closeout-readiness-prompt
+description: roadmap closure readiness is being decided.
 type: prompt
 stage: closeout
-owner_layer: intent
 entry_points:
-  - use this prompt when its title scope matches the current planning/execution need
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
+related_skills:
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- closeout
+- intent
+owner_layer: intent
 status: active
 ---
+
 # Roadmap Closeout Readiness Prompt
 
 ## Use When

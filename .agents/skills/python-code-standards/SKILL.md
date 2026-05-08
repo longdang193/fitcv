@@ -1,7 +1,19 @@
 ---
 name: python-code-standards
-description: Use when generating or modifying any Python file to enforce style, types, and quality.
+description: Use when generating or modifying any Python file to enforce style, types,
+  and quality.
+allowed-tools: []
+hooks:
+  pre: []
+  post: []
+required_reads: []
+required_outputs: []
+related_skills: []
+tags:
+- skill
+- python-code-standards
 ---
+
 # Python Code Standards
 
 You are required to follow these strict principles when writing or modifying Python code.
