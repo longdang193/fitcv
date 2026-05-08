@@ -1,6 +1,17 @@
 ---
 name: brainstorming
-description: "Use when exploring or defining new behavior, features, components, or non-trivial changes before implementation."
+description: Use when exploring or defining new behavior, features, components, or
+  non-trivial changes before implementation.
+allowed-tools: []
+hooks:
+  pre: []
+  post: []
+required_reads: []
+required_outputs: []
+related_skills: []
+tags:
+- skill
+- brainstorming
 ---
 
 # Brainstorming Ideas Into Designs

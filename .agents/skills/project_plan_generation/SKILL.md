@@ -1,6 +1,17 @@
 ---
 name: project_plan_generation
-description: "Use when the user explicitly asks for a Markdown plan document and the compatibility planning layer is needed."
+description: Use when the user explicitly asks for a Markdown plan document and the
+  compatibility planning layer is needed.
+allowed-tools: []
+hooks:
+  pre: []
+  post: []
+required_reads: []
+required_outputs: []
+related_skills: []
+tags:
+- skill
+- project_plan_generation
 ---
 
 # Project Plan Generation Skill

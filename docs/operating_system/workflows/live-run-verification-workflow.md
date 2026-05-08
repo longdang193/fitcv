@@ -1,26 +1,36 @@
 ---
+name: live-run-verification-workflow
+description: Confirm issue resolution and expected behavior using evidence, while
+  screening for regressions before closeout.
+allowed-tools: []
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+required_outputs:
+- verification result report
+- regression risk notes
+related_skills:
+- verification-before-completion
+- test-driven-development
+tags:
+- workflow
+- closeout
+- change
 workflow_id: live-run-verification
 type: workflow
 stage: closeout
 owner_layer: change
 entry_points:
-  - live run or rerun completed with success signal
-  - debugging pass claims issue resolution
+- live run or rerun completed with success signal
+- debugging pass claims issue resolution
 prerequisites:
-  - run artifacts and telemetry references are available
-  - expected outputs and acceptance criteria are identified
+- run artifacts and telemetry references are available
+- expected outputs and acceptance criteria are identified
 next_steps:
-  - live-run-closeout-workflow.md
-  - live-run-debugging-workflow.md
-skills:
-  - verification-before-completion
-  - test-driven-development
+- live-run-closeout-workflow.md
+- live-run-debugging-workflow.md
 status: active
-outputs:
-  - verification result report
-  - regression risk notes
 validators:
-  - expected outputs and evidence checks are explicit
+- expected outputs and evidence checks are explicit
 ---
 
 # Live Run Verification Workflow

@@ -1,18 +1,26 @@
-﻿---
-prompt_id: managed-metadata-update-prompt
+---
+name: managed-metadata-update-prompt
+description: Use prompt template for managed metadata update prompt.
 type: prompt
 stage: maintenance
-owner_layer: operating_system
 entry_points:
-  - use this prompt when its title scope matches the current planning/execution need
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
+related_skills:
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- maintenance
+- operating_system
+owner_layer: operating_system
 status: active
 ---
+
 # Managed Metadata Update Prompt
 
 Use this when the repo is already in `managed_architecture_metadata` and you

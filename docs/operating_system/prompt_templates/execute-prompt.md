@@ -1,18 +1,26 @@
-﻿---
-prompt_id: execute-prompt
+---
+name: execute-prompt
+description: an implementation plan exists and execution should run task-by-task.
 type: prompt
 stage: execution
-owner_layer: change
 entry_points:
-  - use this prompt when its title scope matches the current planning/execution need
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
+related_skills:
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- execution
+- change
+owner_layer: change
 status: active
 ---
+
 # Execute Prompt
 
 ## Use When

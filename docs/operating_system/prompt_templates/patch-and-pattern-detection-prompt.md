@@ -1,23 +1,32 @@
 ---
-prompt_id: patch-and-pattern-detection-prompt
+name: patch-and-pattern-detection-prompt
+description: a specific patch is required and you also need a controlled search for
+  similar issues.
 type: prompt
 stage: execution
-owner_layer: change
 entry_points:
-  - next eligible action is a bounded patch and recurrence risk should be checked
-  - a local fix is required and similar issues may exist across related artifacts
+- next eligible action is a bounded patch and recurrence risk should be checked
+- a local fix is required and similar issues may exist across related artifacts
 prerequisites:
-  - in-scope roadmap/workstream/thread/spec/plan context is identified
-  - concrete failure mode and target patch scope are identified
+- in-scope roadmap/workstream/thread/spec/plan context is identified
+- concrete failure mode and target patch scope are identified
 next_steps:
-  - implementation-next-action-gate-prompt.md
-  - thread-closeout-readiness-prompt.md
-skills:
-  - systematic-debugging
-  - executing-plans
-  - verification-before-completion
+- implementation-next-action-gate-prompt.md
+- thread-closeout-readiness-prompt.md
+related_skills:
+- systematic-debugging
+- executing-plans
+- verification-before-completion
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- execution
+- change
+owner_layer: change
 status: active
 ---
+
 # Patch + Pattern Detection Prompt
 
 ## Use When

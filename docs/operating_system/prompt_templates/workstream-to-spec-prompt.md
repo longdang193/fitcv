@@ -1,18 +1,26 @@
-﻿---
-prompt_id: workstream-to-spec-prompt
+---
+name: workstream-to-spec-prompt
+description: Use prompt template for workstream to spec prompt.
 type: prompt
 stage: planning
-owner_layer: workstream
 entry_points:
-  - use this prompt when its title scope matches the current planning/execution need
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
+related_skills:
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- planning
+- workstream
+owner_layer: workstream
 status: active
 ---
+
 # Workstream To Spec Prompt
 
 Use this when you already know both the workstream and the bounded change

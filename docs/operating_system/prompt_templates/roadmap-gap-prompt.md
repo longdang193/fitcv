@@ -1,18 +1,26 @@
-﻿---
-prompt_id: roadmap-gap-prompt
+---
+name: roadmap-gap-prompt
+description: Use prompt template for roadmap gap prompt.
 type: prompt
 stage: planning
-owner_layer: intent
 entry_points:
-  - use this prompt when its title scope matches the current planning/execution need
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
+related_skills:
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- planning
+- intent
+owner_layer: intent
 status: active
 ---
+
 # Roadmap Gap Prompt
 
 Use this when you think the master roadmap may be missing an important durable

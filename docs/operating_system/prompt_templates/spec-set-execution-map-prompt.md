@@ -1,18 +1,27 @@
-﻿---
-prompt_id: spec-set-execution-map-prompt
+---
+name: spec-set-execution-map-prompt
+description: approved detailed specs exist and implementation sequencing/waves are
+  needed.
 type: prompt
 stage: planning
-owner_layer: change
 entry_points:
-  - use this prompt when its title scope matches the current planning/execution need
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
+related_skills:
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- planning
+- change
+owner_layer: change
 status: active
 ---
+
 # Spec Set To Implementation Execution Map Prompt
 
 ## Use When

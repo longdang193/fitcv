@@ -1,6 +1,19 @@
 ---
 name: central-config-layer
-description: Use this skill when a project needs shared configuration across multiple modules, services, agents, or pipelines. Helps design, validate, and refactor a central configuration layer for environment settings, runtime behavior, taxonomies, thresholds, defaults, and normalization rules.
+description: Use this skill when a project needs shared configuration across multiple
+  modules, services, agents, or pipelines. Helps design, validate, and refactor a
+  central configuration layer for environment settings, runtime behavior, taxonomies,
+  thresholds, defaults, and normalization rules.
+allowed-tools: []
+hooks:
+  pre: []
+  post: []
+required_reads: []
+required_outputs: []
+related_skills: []
+tags:
+- skill
+- central-config-layer
 ---
 
 # Central Config Layer

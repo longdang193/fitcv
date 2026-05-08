@@ -1,6 +1,18 @@
 ---
 name: private-public-repo-governance
-description: Use when a project needs a private internal repo and a separate public curated repo, or when deciding what should stay private versus what can be published in a clean product-facing repository.
+description: Use when a project needs a private internal repo and a separate public
+  curated repo, or when deciding what should stay private versus what can be published
+  in a clean product-facing repository.
+allowed-tools: []
+hooks:
+  pre: []
+  post: []
+required_reads: []
+required_outputs: []
+related_skills: []
+tags:
+- skill
+- private-public-repo-governance
 ---
 
 # Private / Public Repo Governance
