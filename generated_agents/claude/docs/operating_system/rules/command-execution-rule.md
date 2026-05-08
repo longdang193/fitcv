@@ -1,14 +1,13 @@
 ---
-name: command-execution
+name: command-execution-rule
 description: Define command execution safety boundaries and escalation conditions.
 alwaysApply: true
 required_reads:
-- docs/operating_system/governance/repo-governance.md
-- AGENTS.md
+  - docs/operating_system/repo-governance.md
 tags:
-- rule
-- safety
-- execution
+  - rule
+  - safety
+  - commands
 ---
 
 <!--
@@ -21,28 +20,19 @@ To update: edit canonical source, then run sync.
 
 # Command Execution Rule
 
-Use approved command patterns by default, escalate before risky operations, and
-prevent destructive execution without explicit approval flow.
+Use source-first command execution.
 
-## Allow
+## Requirements
 
-- `git status`
-- `git diff`
-- `git branch --show-current`
-- `python -m py_compile`
-- `pytest`
-- `scripts/sync_agent_adapters.ps1`
-- `scripts/verify_agent_adapters.ps1`
-- `scripts/publish_public_repo.ps1`
+- Prefer read-only inspection before mutating commands.
+- Require explicit approval for mutating or risky commands unless platform policy auto-allows them.
+- Keep working directories inside repo workspace.
+- Use validator and sync scripts through canonical repo paths.
+- Treat destructive actions, installs, network side effects, and long-running mutations as escalation points.
 
-## Prompt Before Execute
+## Escalation Conditions
 
-- `git push`
-- `git push --force-with-lease`
-- `docker compose up -d --build`
-- recursive delete or move operations
-- `scripts/publish_public_repo.ps1 -Push`
-
-## Forbidden
-
-- Ad hoc publication to the public repo outside `scripts/publish_public_repo.ps1 -Push`
+- command deletes or rewrites repo state
+- command installs dependencies or changes environment state
+- command pushes, publishes, or syncs external systems
+- command scope is uncertain or blast radius is not bounded
