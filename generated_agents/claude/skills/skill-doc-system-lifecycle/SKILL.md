@@ -6,11 +6,11 @@ description: Use when designing, updating, or auditing project docs, artifact
 allowed-tools: []
 hooks:
   pre:
-  - python scripts/hooks/run_validator.py --fast
+  - .\.venv\Scripts\python.exe scripts/validate_repo_contracts.py --fast
   post:
-  - python scripts/hooks/run_validator.py --fast
+  - .\.venv\Scripts\python.exe scripts/validate_repo_contracts.py --fast
 required_reads:
-- docs/operating_system/governance/repo-governance.md
+- docs/operating_system/repo-governance.md
 tags:
 - skill
 - skill-doc-system-lifecycle
@@ -42,10 +42,10 @@ Apply when:
 <MUST-READ>
 Before doc-system decisions, read:
 
-- `docs/operating_system/governance/repo-governance.md`
-- `docs/operating_system/planning/planning-dispatch.md`
-- `docs/operating_system/lifecycle/doc-system-lifecycle.md`
-- `docs/operating_system/lifecycle/feature-lifecycle.md` when feature-managed surfaces are in scope
+- `docs/operating_system/repo-governance.md`
+- `docs/operating_system/planning-dispatch.md`
+- `docs/operating_system/doc-system-lifecycle.md`
+- `docs/operating_system/feature-lifecycle.md` when feature-managed surfaces are in scope
 - `docs/operating_system/templates/task-start-routing-guide.md` when routing/planning artifacts are in scope
 - `docs/operating_system/templates/master-workstream-roadmap-template.md` when roadmap shape is in scope
 - `docs/operating_system/templates/registered-workstream-list-template.md` when workstream registration shape is in scope
@@ -55,7 +55,6 @@ Before doc-system decisions, read:
 - `docs/operating_system/templates/detailed-specification-template.md` when spec structure is in scope
 - `docs/operating_system/templates/implementation-execution-map-template.md` when multi-plan execution orchestration is in scope
 - `docs/operating_system/templates/implementation-plan-template.md` when implementation-plan structure is in scope
-- `repo_config/planning_artifact_schema.yaml` when planning metadata contract changes are in scope
 - `repo_config/adoption-mode.yaml` when adoption-state or managed-surface obligations may change
 - `repo_config/agent-adapter-mappings.json` or equivalent adapter mapping config when generated adapter/runtime surfaces are in scope
 - `repo_config/publication-config.json` when publication-boundary contract surfaces are in scope
