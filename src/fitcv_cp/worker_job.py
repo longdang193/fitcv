@@ -49,6 +49,7 @@ from google.cloud import bigquery
 
 from fitcv.config import apply_runtime_skill_synonym_overlay, parse_skill_synonym_overlay_yaml
 from fitcv.pipeline import PipelineCancelled, run_pipeline
+from fitcv.telemetry import observe_span, set_span_attributes
 from fitcv_cp.backend_runtime import resolve_backend_runtime
 from fitcv_cp.bq_store import (
     append_event,
@@ -1734,177 +1735,192 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
     summary: dict[str, Any] = {}
     run_record: Any | None = None
 
-    try:
-        current_run_record = get_run(run_id, bq, project=project, dataset=dataset)
-        # ── Step 1: Mark running ──────────────────────────────────────────────
-        update_run_status(
-            run_id, RunStatus.RUNNING, bq, project=project, dataset=dataset,
-            started_at=(
-                datetime.datetime.now(datetime.timezone.utc)
-                if current_run_record is None or getattr(current_run_record, "started_at", None) is None
-                else None
-            ),
-        )
-
-        # ── Step 2: Read current row (reads cancel_requested_at + config snapshot)
-        run_record = get_run(run_id, bq, project=project, dataset=dataset)
-        effective_config: dict[str, Any] | None = None
-        if run_record and run_record.effective_settings_json:
-            try:
-                effective_config = json.loads(run_record.effective_settings_json)
-            except Exception as exc:
-                logger.warning("[run_id=%s] Failed to parse effective_settings_json: %s", run_id, exc)
-        effective_config = _normalize_runtime_service_account_key(effective_config, run_id=run_id)
-        replay_context = _resolve_run_replay_context(
-            effective_config=effective_config,
-            run_id=run_id,
-        )
-        run_mode = str(getattr(run_record, "run_mode", "run_all") or "run_all")
-        next_stage = getattr(run_record, "next_stage", None) or "normalize"
-        checkpoint_payload: dict[str, Any] | None = None
-        checkpoint_payload_json = getattr(run_record, "checkpoint_payload_json", None)
-        if checkpoint_payload_json:
-            try:
-                checkpoint_container = json.loads(checkpoint_payload_json)
-                checkpoint_payload_candidate = checkpoint_container.get("checkpoint_payload")
-                if isinstance(checkpoint_payload_candidate, dict):
-                    checkpoint_payload = checkpoint_payload_candidate
-            except Exception as exc:
-                logger.warning("[run_id=%s] Failed to parse checkpoint payload: %s", run_id, exc)
-
-        # ── Step 3: Early-exit if cancellation already requested ──────────────
-        if run_record and run_record.cancel_requested_at is not None:
-            logger.info("[run_id=%s] Cancellation already requested — exiting early", run_id)
+    with observe_span(
+        "fitcv.worker_job",
+        attributes={
+            "run_id": run_id,
+            "backend_type": str(runtime.backend_type),
+        },
+    ):
+        try:
+            current_run_record = get_run(run_id, bq, project=project, dataset=dataset)
+            # ── Step 1: Mark running ──────────────────────────────────────────────
             update_run_status(
-                run_id, RunStatus.CANCELLED, bq, project=project, dataset=dataset,
-                finished_at=datetime.datetime.now(datetime.timezone.utc),
-            )
-            append_event(
-                _run_cancelled_event(run_id, "Run cancelled before pipeline execution started"),
-                bq, project=project, dataset=dataset,
-            )
-            return
-
-        # ── Step 4: Run pipeline with cooperative cancellation check ──────────
-        reporter = PipelineReporter(run_id=run_id, bq=bq, project=project, dataset=dataset)
-
-        def _cancellation_check() -> bool:
-            """Lightweight re-read to check if cancel was requested mid-flight."""
-            current = get_run(run_id, bq, project=project, dataset=dataset)
-            return current is not None and current.cancel_requested_at is not None
-
-        late_stage_reuse_snapshots = _collect_late_stage_reuse_snapshots(
-            current_run_id=run_id,
-            bq=bq,
-            project=project,
-            dataset=dataset,
-        )
-
-        def _stage_progress_callback(progress_summary: dict[str, Any]) -> None:
-            if run_mode != "run_all":
-                return
-            snapshot_time = datetime.datetime.now(datetime.timezone.utc)
-            try:
-                _persist_shared_progress_snapshot(
-                    run_id=run_id,
-                    run_record=run_record,
-                    summary=progress_summary,
-                    snapshot_at=snapshot_time,
-                    bq=bq,
-                    project=project,
-                    dataset=dataset,
-                    run_status=RunStatus.RUNNING,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "[run_id=%s] Failed to persist run-all progress snapshot after %s: %s",
-                    run_id,
-                    progress_summary.get("last_completed_stage"),
-                    exc,
-                )
-                try:
-                    append_event(
-                        _snapshot_persist_failed_event(run_id, "stage_progress", str(exc)),
-                        bq,
-                        project=project,
-                        dataset=dataset,
-                    )
-                except Exception as inner:
-                    logger.warning(
-                        "[run_id=%s] Failed to append stage progress persistence warning event: %s",
-                        run_id,
-                        inner,
-                    )
-
-        summary = run_pipeline(
-            jobs_path=jobs_path,
-            config_path=config_path,
-            reporter=reporter,
-            config=effective_config,
-            run_id=run_id,
-            cancellation_check=_cancellation_check,
-            start_stage=next_stage if run_mode == "manual_staged" else None,
-            stop_after_stage=next_stage if run_mode == "manual_staged" else None,
-            checkpoint_payload=checkpoint_payload,
-            reuse_snapshots=late_stage_reuse_snapshots,
-            stage_progress_callback=_stage_progress_callback if run_mode == "run_all" else None,
-        )
-
-        paused_after_stage = str(summary.get("paused_after_stage") or "").strip() or None
-        if paused_after_stage is not None:
-            checkpoint_time = datetime.datetime.now(datetime.timezone.utc)
-            update_run_status(
-                run_id,
-                RunStatus.AWAITING_CONTINUE,
-                bq,
-                project=project,
-                dataset=dataset,
-                summary=summary,
-            )
-            update_run_checkpoint(
-                run_id,
-                bq,
-                project=project,
-                dataset=dataset,
-                checkpoint_status="awaiting_continue",
-                next_stage=summary.get("next_stage"),
-                last_completed_stage=paused_after_stage,
-                completed_stages=list(summary.get("completed_stages") or []),
-                checkpoint_payload_json=_build_manual_checkpoint_payload(
-                    run_id=run_id,
-                    summary=summary,
-                    created_at=checkpoint_time,
-                    replay_context=replay_context,
+                run_id, RunStatus.RUNNING, bq, project=project, dataset=dataset,
+                started_at=(
+                    datetime.datetime.now(datetime.timezone.utc)
+                    if current_run_record is None or getattr(current_run_record, "started_at", None) is None
+                    else None
                 ),
             )
-            try:
-                update_run_stage_transition_artifacts(
-                    run_id,
-                    _build_stage_transition_artifacts_payload(
+
+            # ── Step 2: Read current row (reads cancel_requested_at + config snapshot)
+            with observe_span(
+                "run.resolve_context",
+                attributes={
+                    "run_id": run_id,
+                    "backend_type": str(runtime.backend_type),
+                },
+            ):
+                run_record = get_run(run_id, bq, project=project, dataset=dataset)
+                effective_config: dict[str, Any] | None = None
+                if run_record and run_record.effective_settings_json:
+                    try:
+                        effective_config = json.loads(run_record.effective_settings_json)
+                    except Exception as exc:
+                        logger.warning("[run_id=%s] Failed to parse effective_settings_json: %s", run_id, exc)
+                effective_config = _normalize_runtime_service_account_key(effective_config, run_id=run_id)
+                replay_context = _resolve_run_replay_context(
+                    effective_config=effective_config,
+                    run_id=run_id,
+                )
+                run_mode = str(getattr(run_record, "run_mode", "run_all") or "run_all")
+                next_stage = getattr(run_record, "next_stage", None) or "normalize"
+                checkpoint_payload: dict[str, Any] | None = None
+                checkpoint_payload_json = getattr(run_record, "checkpoint_payload_json", None)
+                if checkpoint_payload_json:
+                    try:
+                        checkpoint_container = json.loads(checkpoint_payload_json)
+                        checkpoint_payload_candidate = checkpoint_container.get("checkpoint_payload")
+                        if isinstance(checkpoint_payload_candidate, dict):
+                            checkpoint_payload = checkpoint_payload_candidate
+                    except Exception as exc:
+                        logger.warning("[run_id=%s] Failed to parse checkpoint payload: %s", run_id, exc)
+
+                set_span_attributes(
+                    {
+                        "run_mode": run_mode,
+                        "next_stage": next_stage,
+                        "has_effective_config": effective_config is not None,
+                        "has_replay_context": replay_context is not None,
+                        "has_checkpoint_payload": checkpoint_payload is not None,
+                    }
+                )
+
+            # ── Step 3: Early-exit if cancellation already requested ──────────────
+            if run_record and run_record.cancel_requested_at is not None:
+                logger.info("[run_id=%s] Cancellation already requested — exiting early", run_id)
+                update_run_status(
+                    run_id, RunStatus.CANCELLED, bq, project=project, dataset=dataset,
+                    finished_at=datetime.datetime.now(datetime.timezone.utc),
+                )
+                append_event(
+                    _run_cancelled_event(run_id, "Run cancelled before pipeline execution started"),
+                    bq, project=project, dataset=dataset,
+                )
+                set_span_attributes({"run_terminal_status": str(RunStatus.CANCELLED)})
+                return
+
+            # ── Step 4: Run pipeline with cooperative cancellation check ──────────
+            reporter = PipelineReporter(run_id=run_id, bq=bq, project=project, dataset=dataset)
+
+            def _cancellation_check() -> bool:
+                """Lightweight re-read to check if cancel was requested mid-flight."""
+                current = get_run(run_id, bq, project=project, dataset=dataset)
+                return current is not None and current.cancel_requested_at is not None
+
+            late_stage_reuse_snapshots = _collect_late_stage_reuse_snapshots(
+                current_run_id=run_id,
+                bq=bq,
+                project=project,
+                dataset=dataset,
+            )
+
+            def _stage_progress_callback(progress_summary: dict[str, Any]) -> None:
+                if run_mode != "run_all":
+                    return
+                snapshot_time = datetime.datetime.now(datetime.timezone.utc)
+                try:
+                    _persist_shared_progress_snapshot(
                         run_id=run_id,
-                        summary=summary,
-                        finished_at=checkpoint_time,
-                        run_status=RunStatus.AWAITING_CONTINUE,
-                        degradation_reason="checkpoint_partial_snapshot",
-                    ),
+                        run_record=run_record,
+                        summary=progress_summary,
+                        snapshot_at=snapshot_time,
+                        bq=bq,
+                        project=project,
+                        dataset=dataset,
+                        run_status=RunStatus.RUNNING,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "[run_id=%s] Failed to persist run-all progress snapshot after %s: %s",
+                        run_id,
+                        progress_summary.get("last_completed_stage"),
+                        exc,
+                    )
+                    try:
+                        append_event(
+                            _snapshot_persist_failed_event(run_id, "stage_progress", str(exc)),
+                            bq,
+                            project=project,
+                            dataset=dataset,
+                        )
+                    except Exception as inner:
+                        logger.warning(
+                            "[run_id=%s] Failed to append stage progress persistence warning event: %s",
+                            run_id,
+                            inner,
+                        )
+
+            with observe_span(
+                "run.execute_pipeline",
+                attributes={
+                    "run_id": run_id,
+                    "run_mode": run_mode,
+                    "start_stage": next_stage if run_mode == "manual_staged" else None,
+                    "stop_after_stage": next_stage if run_mode == "manual_staged" else None,
+                },
+            ):
+                summary = run_pipeline(
+                    jobs_path=jobs_path,
+                    config_path=config_path,
+                    reporter=reporter,
+                    config=effective_config,
+                    run_id=run_id,
+                    cancellation_check=_cancellation_check,
+                    start_stage=next_stage if run_mode == "manual_staged" else None,
+                    stop_after_stage=next_stage if run_mode == "manual_staged" else None,
+                    checkpoint_payload=checkpoint_payload,
+                    reuse_snapshots=late_stage_reuse_snapshots,
+                    stage_progress_callback=_stage_progress_callback if run_mode == "run_all" else None,
+                )
+
+            paused_after_stage = str(summary.get("paused_after_stage") or "").strip() or None
+            if paused_after_stage is not None:
+                checkpoint_time = datetime.datetime.now(datetime.timezone.utc)
+                update_run_status(
+                    run_id,
+                    RunStatus.AWAITING_CONTINUE,
                     bq,
                     project=project,
                     dataset=dataset,
+                    summary=summary,
                 )
-            except Exception as exc:
-                logger.warning(
-                    "[run_id=%s] Failed to persist stage transition artifacts snapshot at checkpoint: %s",
+                update_run_checkpoint(
                     run_id,
-                    exc,
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                    checkpoint_status="awaiting_continue",
+                    next_stage=summary.get("next_stage"),
+                    last_completed_stage=paused_after_stage,
+                    completed_stages=list(summary.get("completed_stages") or []),
+                    checkpoint_payload_json=_build_manual_checkpoint_payload(
+                        run_id=run_id,
+                        summary=summary,
+                        created_at=checkpoint_time,
+                        replay_context=replay_context,
+                    ),
                 )
-            if _summary_has_reached_stage(summary, "enrich"):
                 try:
-                    update_run_mapping_suggestions(
+                    update_run_stage_transition_artifacts(
                         run_id,
-                        _build_mapping_suggestions_payload(
+                        _build_stage_transition_artifacts_payload(
                             run_id=run_id,
                             summary=summary,
-                            created_at=checkpoint_time,
+                            finished_at=checkpoint_time,
+                            run_status=RunStatus.AWAITING_CONTINUE,
+                            degradation_reason="checkpoint_partial_snapshot",
                         ),
                         bq,
                         project=project,
@@ -1912,440 +1928,482 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     )
                 except Exception as exc:
                     logger.warning(
-                        "[run_id=%s] Failed to persist mapping suggestions snapshot at checkpoint: %s",
+                        "[run_id=%s] Failed to persist stage transition artifacts snapshot at checkpoint: %s",
                         run_id,
                         exc,
                     )
+                if _summary_has_reached_stage(summary, "enrich"):
                     try:
-                        append_event(
-                            _snapshot_persist_failed_event(run_id, "mapping_suggestions", str(exc)),
-                            bq,
-                            project=project,
-                            dataset=dataset,
-                        )
-                    except Exception as inner:
-                        logger.warning(
-                            "[run_id=%s] Failed to append mapping suggestions persistence warning event: %s",
+                        update_run_mapping_suggestions(
                             run_id,
-                            inner,
-                        )
-                if _synonym_propose_enabled_from_run_record(run_record):
-                    try:
-                        synonym_payload_json = _build_synonym_proposals_payload(
-                            run_id=run_id,
-                            summary=summary,
-                            created_at=checkpoint_time,
-                            existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
-                            global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
-                        )
-                        synonym_payload = json.loads(synonym_payload_json)
-                        if isinstance(synonym_payload, dict):
-                            _run_synonym_automation_for_payload(
+                            _build_mapping_suggestions_payload(
                                 run_id=run_id,
-                                run_record=run_record,
-                                payload=synonym_payload,
-                                run_status=RunStatus.AWAITING_CONTINUE,
-                                bq=bq,
-                                project=project,
-                                dataset=dataset,
-                            )
-                            synonym_payload_json = json.dumps(synonym_payload, ensure_ascii=False)
-                        synonym_status = update_run_synonym_proposals(
-                            run_id,
-                            synonym_payload_json,
+                                summary=summary,
+                                created_at=checkpoint_time,
+                            ),
                             bq,
-                            project=project,
-                            dataset=dataset,
-                        )
-                        _append_synonym_suppression_summary_event(
-                            run_id=run_id,
-                            synonym_payload_json=synonym_payload_json,
-                            bq=bq,
-                            project=project,
-                            dataset=dataset,
-                        )
-                        _append_degraded_snapshot_persistence_warning(
-                            run_id=run_id,
-                            snapshot_name="synonym_proposals",
-                            persistence_status=synonym_status,
-                            bq=bq,
                             project=project,
                             dataset=dataset,
                         )
                     except Exception as exc:
                         logger.warning(
-                            "[run_id=%s] Failed to persist synonym proposals snapshot at checkpoint: %s",
+                            "[run_id=%s] Failed to persist mapping suggestions snapshot at checkpoint: %s",
                             run_id,
                             exc,
                         )
                         try:
                             append_event(
-                                _snapshot_persist_failed_event(run_id, "synonym_proposals", str(exc)),
+                                _snapshot_persist_failed_event(run_id, "mapping_suggestions", str(exc)),
                                 bq,
                                 project=project,
                                 dataset=dataset,
                             )
                         except Exception as inner:
                             logger.warning(
-                                "[run_id=%s] Failed to append synonym proposals persistence warning event: %s",
+                                "[run_id=%s] Failed to append mapping suggestions persistence warning event: %s",
                                 run_id,
                                 inner,
                             )
-            append_event(
-                RunEvent(
-                    run_id=run_id,
-                    event_id=str(uuid.uuid4()),
-                    stage="stage_checkpoint",
-                    level="info",
-                    message=f"Paused after {paused_after_stage}; next stage: {summary.get('next_stage') or 'complete'}",
-                    created_at=checkpoint_time,
-                ),
-                bq,
-                project=project,
-                dataset=dataset,
-            )
-            return
-
-        # ── Step 5: Terminalize or park for review ───────────────────────────
-        cv_debug_records = [
-            item for item in list(summary.get("cv_generation_debug_records") or [])
-            if isinstance(item, dict)
-        ]
-        auto_accept_enabled = _auto_accept_ai_action_enabled_from_run_record(run_record)
-        auto_accepted_count = 0
-        pending_review_required = 0
-        review_reason_counts: dict[str, int] = {}
-        for record in cv_debug_records:
-            if str(record.get("status") or "").strip() != "review_required":
-                continue
-            reason_code = _map_review_required_reason_code(record)
-            review_reason_counts[reason_code] = int(review_reason_counts.get(reason_code, 0)) + 1
-            if run_mode == "run_all" and auto_accept_enabled and reason_code in LOW_RISK_AUTO_ACCEPT_REASON_CODES:
-                auto_accepted_count += 1
-                continue
-            pending_review_required += 1
-        summary["review_required_total"] = int(sum(review_reason_counts.values()))
-        summary["review_required_auto_accepted"] = int(auto_accepted_count)
-        summary["review_required_remaining"] = int(pending_review_required)
-        summary["review_required_reason_counts"] = dict(review_reason_counts)
-        finished_at = datetime.datetime.now(datetime.timezone.utc) if pending_review_required == 0 else None
-        terminal_status = RunStatus.SUCCEEDED if pending_review_required == 0 else RunStatus.AWAITING_CONTINUE
-        update_run_status(
-            run_id,
-            terminal_status,
-            bq,
-            project=project,
-            dataset=dataset,
-            finished_at=finished_at,
-            summary=summary,
-        )
-        completed_stages = [
-            "normalize",
-            "enrich",
-            "rule_filter",
-            "shortlist",
-            "ranking",
-            "cv_analysis",
-            "cv_generation",
-        ]
-        if pending_review_required > 0:
-            update_run_checkpoint(
-                run_id,
-                bq,
-                project=project,
-                dataset=dataset,
-                checkpoint_status="awaiting_review",
-                next_stage=None,
-                last_completed_stage="cv_generation",
-                completed_stages=completed_stages,
-                checkpoint_payload_json=None,
-            )
-            append_event(
-                RunEvent(
-                    run_id=run_id,
-                    event_id=str(uuid.uuid4()),
-                    stage="cv_review_required",
-                    level="warning",
-                    message=(
-                        f"Run paused: {pending_review_required} review-required CV item(s) pending operator action. "
-                        f"Auto-accepted={auto_accepted_count}."
-                    ),
-                    created_at=datetime.datetime.now(datetime.timezone.utc),
-                    payload_json=json.dumps(
-                        {
-                            "review_required_total": int(sum(review_reason_counts.values())),
-                            "auto_accepted": int(auto_accepted_count),
-                            "remaining": int(pending_review_required),
-                            "reason_counts": dict(review_reason_counts),
-                        },
-                        ensure_ascii=False,
-                    ),
-                ),
-                bq,
-                project=project,
-                dataset=dataset,
-            )
-        elif run_mode == "manual_staged":
-            update_run_checkpoint(
-                run_id,
-                bq,
-                project=project,
-                dataset=dataset,
-                checkpoint_status="completed",
-                next_stage=None,
-                last_completed_stage="cv_generation",
-                completed_stages=completed_stages,
-                checkpoint_payload_json=None,
-            )
-        else:
-            update_run_progress(
-                run_id,
-                bq,
-                project=project,
-                dataset=dataset,
-                last_completed_stage="cv_generation",
-                completed_stages=completed_stages,
-            )
-        export_results = list(summary.get("export_results") or [])
-        try:
-                update_run_results_export(
-                    run_id,
-                    _build_results_export_payload(
+                    if _synonym_propose_enabled_from_run_record(run_record):
+                        try:
+                            synonym_payload_json = _build_synonym_proposals_payload(
+                                run_id=run_id,
+                                summary=summary,
+                                created_at=checkpoint_time,
+                                existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
+                                global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
+                            )
+                            synonym_payload = json.loads(synonym_payload_json)
+                            if isinstance(synonym_payload, dict):
+                                _run_synonym_automation_for_payload(
+                                    run_id=run_id,
+                                    run_record=run_record,
+                                    payload=synonym_payload,
+                                    run_status=RunStatus.AWAITING_CONTINUE,
+                                    bq=bq,
+                                    project=project,
+                                    dataset=dataset,
+                                )
+                                synonym_payload_json = json.dumps(synonym_payload, ensure_ascii=False)
+                            synonym_status = update_run_synonym_proposals(
+                                run_id,
+                                synonym_payload_json,
+                                bq,
+                                project=project,
+                                dataset=dataset,
+                            )
+                            _append_synonym_suppression_summary_event(
+                                run_id=run_id,
+                                synonym_payload_json=synonym_payload_json,
+                                bq=bq,
+                                project=project,
+                                dataset=dataset,
+                            )
+                            _append_degraded_snapshot_persistence_warning(
+                                run_id=run_id,
+                                snapshot_name="synonym_proposals",
+                                persistence_status=synonym_status,
+                                bq=bq,
+                                project=project,
+                                dataset=dataset,
+                            )
+                        except Exception as exc:
+                            logger.warning(
+                                "[run_id=%s] Failed to persist synonym proposals snapshot at checkpoint: %s",
+                                run_id,
+                                exc,
+                            )
+                            try:
+                                append_event(
+                                    _snapshot_persist_failed_event(run_id, "synonym_proposals", str(exc)),
+                                    bq,
+                                    project=project,
+                                    dataset=dataset,
+                                )
+                            except Exception as inner:
+                                logger.warning(
+                                    "[run_id=%s] Failed to append synonym proposals persistence warning event: %s",
+                                    run_id,
+                                    inner,
+                                )
+                append_event(
+                    RunEvent(
                         run_id=run_id,
-                        run_record=run_record,
-                        effective_config=effective_config,
-                        summary=summary,
-                        export_results=export_results,
-                        finished_at=finished_at,
-                        replay_context=replay_context,
-                    ),
-                    bq,
-                    project=project,
-                    dataset=dataset,
-            )
-        except Exception as exc:
-            logger.warning("[run_id=%s] Failed to persist results export snapshot: %s", run_id, exc)
-        try:
-            update_run_cv_generation_debug(
-                run_id,
-                _build_cv_generation_debug_payload(
-                    run_id=run_id,
-                    run_record=run_record,
-                    summary=summary,
-                    finished_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
-                ),
-                bq,
-                project=project,
-                dataset=dataset,
-            )
-        except Exception as exc:
-            logger.warning("[run_id=%s] Failed to persist CV generation debug snapshot: %s", run_id, exc)
-        try:
-            update_run_stage_transition_artifacts(
-                run_id,
-                _build_stage_transition_artifacts_payload(
-                    run_id=run_id,
-                    summary=summary,
-                    finished_at=finished_at,
-                    run_status=RunStatus.SUCCEEDED,
-                ),
-                bq,
-                project=project,
-                dataset=dataset,
-            )
-        except Exception as exc:
-            logger.warning("[run_id=%s] Failed to persist stage transition artifacts snapshot: %s", run_id, exc)
-        try:
-            update_run_settings_used(
-                run_id,
-                _build_settings_used_payload(
-                    run_id=run_id,
-                    run_record=run_record,
-                    effective_config=effective_config,
-                    config_path=config_path,
-                    finished_at=finished_at,
-                    replay_context=replay_context,
-                ),
-                bq,
-                project=project,
-                dataset=dataset,
-            )
-        except Exception as exc:
-            logger.warning("[run_id=%s] Failed to persist settings-used snapshot: %s", run_id, exc)
-        if _summary_has_reached_stage(summary, "enrich"):
-            snapshot_created_at = finished_at or datetime.datetime.now(datetime.timezone.utc)
-            try:
-                update_run_mapping_suggestions(
-                    run_id,
-                    _build_mapping_suggestions_payload(
-                        run_id=run_id,
-                        summary=summary,
-                        created_at=snapshot_created_at,
+                        event_id=str(uuid.uuid4()),
+                        stage="stage_checkpoint",
+                        level="info",
+                        message=f"Paused after {paused_after_stage}; next stage: {summary.get('next_stage') or 'complete'}",
+                        created_at=checkpoint_time,
                     ),
                     bq,
                     project=project,
                     dataset=dataset,
                 )
-            except Exception as exc:
-                logger.warning("[run_id=%s] Failed to persist mapping suggestions snapshot: %s", run_id, exc)
-                try:
+                set_span_attributes({
+                    "run_terminal_status": str(RunStatus.AWAITING_CONTINUE),
+                    "paused_after_stage": paused_after_stage,
+                })
+                return
+
+            # ── Step 5: Terminalize or park for review ───────────────────────────
+            with observe_span(
+                "run.finalize_status",
+                attributes={
+                    "run_id": run_id,
+                    "run_mode": run_mode,
+                },
+            ):
+                cv_debug_records = [
+                    item for item in list(summary.get("cv_generation_debug_records") or [])
+                    if isinstance(item, dict)
+                ]
+                auto_accept_enabled = _auto_accept_ai_action_enabled_from_run_record(run_record)
+                auto_accepted_count = 0
+                pending_review_required = 0
+                review_reason_counts: dict[str, int] = {}
+                for record in cv_debug_records:
+                    if str(record.get("status") or "").strip() != "review_required":
+                        continue
+                    reason_code = _map_review_required_reason_code(record)
+                    review_reason_counts[reason_code] = int(review_reason_counts.get(reason_code, 0)) + 1
+                    if run_mode == "run_all" and auto_accept_enabled and reason_code in LOW_RISK_AUTO_ACCEPT_REASON_CODES:
+                        auto_accepted_count += 1
+                        continue
+                    pending_review_required += 1
+                summary["review_required_total"] = int(sum(review_reason_counts.values()))
+                summary["review_required_auto_accepted"] = int(auto_accepted_count)
+                summary["review_required_remaining"] = int(pending_review_required)
+                summary["review_required_reason_counts"] = dict(review_reason_counts)
+                finished_at = datetime.datetime.now(datetime.timezone.utc) if pending_review_required == 0 else None
+                terminal_status = RunStatus.SUCCEEDED if pending_review_required == 0 else RunStatus.AWAITING_CONTINUE
+                set_span_attributes(
+                    {
+                        "review_required_total": int(sum(review_reason_counts.values())),
+                        "review_required_remaining": int(pending_review_required),
+                        "run_terminal_status": str(terminal_status),
+                    }
+                )
+                update_run_status(
+                    run_id,
+                    terminal_status,
+                    bq,
+                    project=project,
+                    dataset=dataset,
+                    finished_at=finished_at,
+                    summary=summary,
+                )
+                completed_stages = [
+                    "normalize",
+                    "enrich",
+                    "rule_filter",
+                    "shortlist",
+                    "ranking",
+                    "cv_analysis",
+                    "cv_generation",
+                ]
+                if pending_review_required > 0:
+                    update_run_checkpoint(
+                        run_id,
+                        bq,
+                        project=project,
+                        dataset=dataset,
+                        checkpoint_status="awaiting_review",
+                        next_stage=None,
+                        last_completed_stage="cv_generation",
+                        completed_stages=completed_stages,
+                        checkpoint_payload_json=None,
+                    )
                     append_event(
-                        _snapshot_persist_failed_event(run_id, "mapping_suggestions", str(exc)),
+                        RunEvent(
+                            run_id=run_id,
+                            event_id=str(uuid.uuid4()),
+                            stage="cv_review_required",
+                            level="warning",
+                            message=(
+                                f"Run paused: {pending_review_required} review-required CV item(s) pending operator action. "
+                                f"Auto-accepted={auto_accepted_count}."
+                            ),
+                            created_at=datetime.datetime.now(datetime.timezone.utc),
+                            payload_json=json.dumps(
+                                {
+                                    "review_required_total": int(sum(review_reason_counts.values())),
+                                    "auto_accepted": int(auto_accepted_count),
+                                    "remaining": int(pending_review_required),
+                                    "reason_counts": dict(review_reason_counts),
+                                },
+                                ensure_ascii=False,
+                            ),
+                        ),
                         bq,
                         project=project,
                         dataset=dataset,
                     )
-                except Exception as inner:
-                    logger.warning(
-                        "[run_id=%s] Failed to append mapping suggestions persistence warning event: %s",
+                elif run_mode == "manual_staged":
+                    update_run_checkpoint(
                         run_id,
-                        inner,
+                        bq,
+                        project=project,
+                        dataset=dataset,
+                        checkpoint_status="completed",
+                        next_stage=None,
+                        last_completed_stage="cv_generation",
+                        completed_stages=completed_stages,
+                        checkpoint_payload_json=None,
                     )
-            if _synonym_propose_enabled_from_run_record(run_record):
+                else:
+                    update_run_progress(
+                        run_id,
+                        bq,
+                        project=project,
+                        dataset=dataset,
+                        last_completed_stage="cv_generation",
+                        completed_stages=completed_stages,
+                    )
+                export_results = list(summary.get("export_results") or [])
                 try:
-                    synonym_payload_json = _build_synonym_proposals_payload(
-                        run_id=run_id,
-                        summary=summary,
-                        created_at=snapshot_created_at,
-                        existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
-                        global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
-                    )
-                    synonym_payload = json.loads(synonym_payload_json)
-                    if isinstance(synonym_payload, dict):
-                        _run_synonym_automation_for_payload(
-                            run_id=run_id,
-                            run_record=run_record,
-                            payload=synonym_payload,
-                            run_status=terminal_status,
-                            bq=bq,
+                        update_run_results_export(
+                            run_id,
+                            _build_results_export_payload(
+                                run_id=run_id,
+                                run_record=run_record,
+                                effective_config=effective_config,
+                                summary=summary,
+                                export_results=export_results,
+                                finished_at=finished_at,
+                                replay_context=replay_context,
+                            ),
+                            bq,
                             project=project,
                             dataset=dataset,
-                        )
-                        synonym_payload_json = json.dumps(synonym_payload, ensure_ascii=False)
-                    synonym_status = update_run_synonym_proposals(
+                    )
+                except Exception as exc:
+                    logger.warning("[run_id=%s] Failed to persist results export snapshot: %s", run_id, exc)
+                try:
+                    update_run_cv_generation_debug(
                         run_id,
-                        synonym_payload_json,
+                        _build_cv_generation_debug_payload(
+                            run_id=run_id,
+                            run_record=run_record,
+                            summary=summary,
+                            finished_at=finished_at or datetime.datetime.now(datetime.timezone.utc),
+                        ),
                         bq,
-                        project=project,
-                        dataset=dataset,
-                    )
-                    _append_synonym_suppression_summary_event(
-                        run_id=run_id,
-                        synonym_payload_json=synonym_payload_json,
-                        bq=bq,
-                        project=project,
-                        dataset=dataset,
-                    )
-                    _append_degraded_snapshot_persistence_warning(
-                        run_id=run_id,
-                        snapshot_name="synonym_proposals",
-                        persistence_status=synonym_status,
-                        bq=bq,
                         project=project,
                         dataset=dataset,
                     )
                 except Exception as exc:
-                    logger.warning("[run_id=%s] Failed to persist synonym proposals snapshot: %s", run_id, exc)
+                    logger.warning("[run_id=%s] Failed to persist CV generation debug snapshot: %s", run_id, exc)
+                try:
+                    update_run_stage_transition_artifacts(
+                        run_id,
+                        _build_stage_transition_artifacts_payload(
+                            run_id=run_id,
+                            summary=summary,
+                            finished_at=finished_at,
+                            run_status=RunStatus.SUCCEEDED,
+                        ),
+                        bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+                except Exception as exc:
+                    logger.warning("[run_id=%s] Failed to persist stage transition artifacts snapshot: %s", run_id, exc)
+                try:
+                    update_run_settings_used(
+                        run_id,
+                        _build_settings_used_payload(
+                            run_id=run_id,
+                            run_record=run_record,
+                            effective_config=effective_config,
+                            config_path=config_path,
+                            finished_at=finished_at,
+                            replay_context=replay_context,
+                        ),
+                        bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+                except Exception as exc:
+                    logger.warning("[run_id=%s] Failed to persist settings-used snapshot: %s", run_id, exc)
+                if _summary_has_reached_stage(summary, "enrich"):
+                    snapshot_created_at = finished_at or datetime.datetime.now(datetime.timezone.utc)
                     try:
-                        append_event(
-                            _snapshot_persist_failed_event(run_id, "synonym_proposals", str(exc)),
+                        update_run_mapping_suggestions(
+                            run_id,
+                            _build_mapping_suggestions_payload(
+                                run_id=run_id,
+                                summary=summary,
+                                created_at=snapshot_created_at,
+                            ),
                             bq,
                             project=project,
                             dataset=dataset,
                         )
-                    except Exception as inner:
-                        logger.warning(
-                            "[run_id=%s] Failed to append synonym proposals persistence warning event: %s",
-                            run_id,
-                            inner,
-                        )
+                    except Exception as exc:
+                        logger.warning("[run_id=%s] Failed to persist mapping suggestions snapshot: %s", run_id, exc)
+                        try:
+                            append_event(
+                                _snapshot_persist_failed_event(run_id, "mapping_suggestions", str(exc)),
+                                bq,
+                                project=project,
+                                dataset=dataset,
+                            )
+                        except Exception as inner:
+                            logger.warning(
+                                "[run_id=%s] Failed to append mapping suggestions persistence warning event: %s",
+                                run_id,
+                                inner,
+                            )
+                    if _synonym_propose_enabled_from_run_record(run_record):
+                        try:
+                            synonym_payload_json = _build_synonym_proposals_payload(
+                                run_id=run_id,
+                                summary=summary,
+                                created_at=snapshot_created_at,
+                                existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
+                                global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
+                            )
+                            synonym_payload = json.loads(synonym_payload_json)
+                            if isinstance(synonym_payload, dict):
+                                _run_synonym_automation_for_payload(
+                                    run_id=run_id,
+                                    run_record=run_record,
+                                    payload=synonym_payload,
+                                    run_status=terminal_status,
+                                    bq=bq,
+                                    project=project,
+                                    dataset=dataset,
+                                )
+                                synonym_payload_json = json.dumps(synonym_payload, ensure_ascii=False)
+                            synonym_status = update_run_synonym_proposals(
+                                run_id,
+                                synonym_payload_json,
+                                bq,
+                                project=project,
+                                dataset=dataset,
+                            )
+                            _append_synonym_suppression_summary_event(
+                                run_id=run_id,
+                                synonym_payload_json=synonym_payload_json,
+                                bq=bq,
+                                project=project,
+                                dataset=dataset,
+                            )
+                            _append_degraded_snapshot_persistence_warning(
+                                run_id=run_id,
+                                snapshot_name="synonym_proposals",
+                                persistence_status=synonym_status,
+                                bq=bq,
+                                project=project,
+                                dataset=dataset,
+                            )
+                        except Exception as exc:
+                            logger.warning("[run_id=%s] Failed to persist synonym proposals snapshot: %s", run_id, exc)
+                            try:
+                                append_event(
+                                    _snapshot_persist_failed_event(run_id, "synonym_proposals", str(exc)),
+                                    bq,
+                                    project=project,
+                                    dataset=dataset,
+                                )
+                            except Exception as inner:
+                                logger.warning(
+                                    "[run_id=%s] Failed to append synonym proposals persistence warning event: %s",
+                                    run_id,
+                                    inner,
+                                )
 
-    except PipelineCancelled as exc:
-        # ── Step 5 (alt): Pipeline was cancelled at a checkpoint ──────────────
-        logger.info("[run_id=%s] Pipeline cancelled at checkpoint: %s", run_id, exc)
-        cancelled_at = datetime.datetime.now(datetime.timezone.utc)
-        update_run_status(
-            run_id, RunStatus.CANCELLED, bq, project=project, dataset=dataset,
-            finished_at=cancelled_at,
-            summary=summary if isinstance(summary, dict) else None,
-        )
-        if isinstance(summary, dict) and summary:
+        except PipelineCancelled as exc:
+            # ── Step 5 (alt): Pipeline was cancelled at a checkpoint ──────────────
+            logger.info("[run_id=%s] Pipeline cancelled at checkpoint: %s", run_id, exc)
+            cancelled_at = datetime.datetime.now(datetime.timezone.utc)
+            set_span_attributes({"run_terminal_status": str(RunStatus.CANCELLED)})
+            update_run_status(
+                run_id, RunStatus.CANCELLED, bq, project=project, dataset=dataset,
+                finished_at=cancelled_at,
+                summary=summary if isinstance(summary, dict) else None,
+            )
+            if isinstance(summary, dict) and summary:
+                try:
+                    _persist_shared_progress_snapshot(
+                        run_id=run_id,
+                        run_record=run_record,
+                        summary=summary,
+                        snapshot_at=cancelled_at,
+                        bq=bq,
+                        project=project,
+                        dataset=dataset,
+                        run_status=RunStatus.CANCELLED,
+                    )
+                except Exception as persist_exc:
+                    logger.warning(
+                        "[run_id=%s] Failed to persist partial progress snapshot for cancelled run: %s",
+                        run_id,
+                        persist_exc,
+                    )
             try:
-                _persist_shared_progress_snapshot(
-                    run_id=run_id,
-                    run_record=run_record,
-                    summary=summary,
-                    snapshot_at=cancelled_at,
-                    bq=bq,
+                append_event(
+                    _run_cancelled_event(run_id, f"Run cancelled at pipeline checkpoint: {exc}"),
+                    bq, project=project, dataset=dataset,
+                )
+            except Exception as inner:
+                logger.warning("[run_id=%s] Failed to write cancellation event: %s", run_id, inner)
+
+        except Exception as exc:
+            # ── Step 7: Unexpected pipeline failure ───────────────────────────────
+            logger.exception("[run_id=%s] Pipeline failed: %s", run_id, exc)
+            failed_at = datetime.datetime.now(datetime.timezone.utc)
+            set_span_attributes({
+                "run_terminal_status": str(RunStatus.FAILED),
+                "error.message": str(exc),
+            })
+            update_run_status(
+                run_id, RunStatus.FAILED, bq, project=project, dataset=dataset,
+                finished_at=failed_at,
+                summary=summary if isinstance(summary, dict) else None,
+                error_message=str(exc),
+            )
+            if isinstance(summary, dict) and summary:
+                try:
+                    _persist_shared_progress_snapshot(
+                        run_id=run_id,
+                        run_record=run_record,
+                        summary=summary,
+                        snapshot_at=failed_at,
+                        bq=bq,
+                        project=project,
+                        dataset=dataset,
+                        run_status=RunStatus.FAILED,
+                    )
+                except Exception as persist_exc:
+                    logger.warning(
+                        "[run_id=%s] Failed to persist partial progress snapshot for failed run: %s",
+                        run_id,
+                        persist_exc,
+                    )
+            try:
+                append_event(
+                    RunEvent(
+                        run_id=run_id,
+                        event_id=str(uuid.uuid4()),
+                        stage="pipeline_failed",
+                        level="error",
+                        message=str(exc),
+                        created_at=failed_at,
+                    ),
+                    bq,
                     project=project,
                     dataset=dataset,
-                    run_status=RunStatus.CANCELLED,
                 )
-            except Exception as persist_exc:
-                logger.warning(
-                    "[run_id=%s] Failed to persist partial progress snapshot for cancelled run: %s",
-                    run_id,
-                    persist_exc,
-                )
-        try:
-            append_event(
-                _run_cancelled_event(run_id, f"Run cancelled at pipeline checkpoint: {exc}"),
-                bq, project=project, dataset=dataset,
-            )
-        except Exception as inner:
-            logger.warning("[run_id=%s] Failed to write cancellation event: %s", run_id, inner)
-
-    except Exception as exc:
-        # ── Step 7: Unexpected pipeline failure ───────────────────────────────
-        logger.exception("[run_id=%s] Pipeline failed: %s", run_id, exc)
-        failed_at = datetime.datetime.now(datetime.timezone.utc)
-        update_run_status(
-            run_id, RunStatus.FAILED, bq, project=project, dataset=dataset,
-            finished_at=failed_at,
-            summary=summary if isinstance(summary, dict) else None,
-            error_message=str(exc),
-        )
-        if isinstance(summary, dict) and summary:
-            try:
-                _persist_shared_progress_snapshot(
-                    run_id=run_id,
-                    run_record=run_record,
-                    summary=summary,
-                    snapshot_at=failed_at,
-                    bq=bq,
-                    project=project,
-                    dataset=dataset,
-                    run_status=RunStatus.FAILED,
-                )
-            except Exception as persist_exc:
-                logger.warning(
-                    "[run_id=%s] Failed to persist partial progress snapshot for failed run: %s",
-                    run_id,
-                    persist_exc,
-                )
-        try:
-            append_event(
-                RunEvent(
-                    run_id=run_id,
-                    event_id=str(uuid.uuid4()),
-                    stage="pipeline_failed",
-                    level="error",
-                    message=str(exc),
-                    created_at=failed_at,
-                ),
-                bq,
-                project=project,
-                dataset=dataset,
-            )
-        except Exception as inner:
-            logger.warning("[run_id=%s] Failed to write failure event: %s", run_id, inner)
-    finally:
-        if previous_backend_env is None:
-            os.environ.pop("FITCV_CP_DATA_BACKEND", None)
-        else:
-            os.environ["FITCV_CP_DATA_BACKEND"] = previous_backend_env
-        if previous_sqlite_path_env is None:
-            os.environ.pop("FITCV_CP_SQLITE_PATH", None)
-        else:
-            os.environ["FITCV_CP_SQLITE_PATH"] = previous_sqlite_path_env
+            except Exception as inner:
+                logger.warning("[run_id=%s] Failed to write failure event: %s", run_id, inner)
+        finally:
+            if previous_backend_env is None:
+                os.environ.pop("FITCV_CP_DATA_BACKEND", None)
+            else:
+                os.environ["FITCV_CP_DATA_BACKEND"] = previous_backend_env
+            if previous_sqlite_path_env is None:
+                os.environ.pop("FITCV_CP_SQLITE_PATH", None)
+            else:
+                os.environ["FITCV_CP_SQLITE_PATH"] = previous_sqlite_path_env
 
