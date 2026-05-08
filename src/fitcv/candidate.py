@@ -51,7 +51,7 @@ _FALLBACK_ROLE_FAMILY_BY_ROLE = {
     "ml engineer": "ml_engineering",
 }
 
-_PREFERENCE_TEXT_KEYS = ("target_role", "seniority_target")
+_PREFERENCE_TEXT_KEYS = ("target_role", "seniority_target", "salary_range", "notice_period")
 _PREFERENCE_LIST_KEYS = (
     "location_types",
     "locations",

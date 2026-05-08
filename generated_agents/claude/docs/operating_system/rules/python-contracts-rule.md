@@ -1,15 +1,13 @@
 ---
-name: python-contracts
-description: Enforce Python contract/style/type expectations for generated and edited
-  Python files.
-alwaysApply: false
+name: python-contracts-rule
+description: Enforce Python contract/style/type expectations for generated and edited Python files.
+alwaysApply: true
 required_reads:
-- .agents/skills/skill-python-code-standards/SKILL.md
-- docs/operating_system/governance/repo-governance.md
+  - .agents/skills/python-code-standards/SKILL.md
 tags:
-- rule
-- python
-- contracts
+  - rule
+  - python
+  - quality
 ---
 
 <!--
@@ -22,22 +20,11 @@ To update: edit canonical source, then run sync.
 
 # Python Contracts Rule
 
-For Python changes, follow the Python standards workflow and keep contract,
-typing, and verification expectations consistent.
+Apply Python quality standards to edited or generated Python files.
 
-## Required
+## Requirements
 
-- Python files with behavioral weight (entry points, orchestration/workflow files, test modules, migrations/cleanup scripts, and shared utilities) must declare a top-of-file `@meta` block.
-- Python metadata must be capability-first when stable capability IDs exist upstream.
-
-## Forbidden
-
-- Add a redundant Python `@meta` features list when capability linkage already determines stable feature ownership.
-- Use function-level `@capability` on helpers, wrappers, tests, adapters, or incidental callers.
-- Swallow errors with bare `except` blocks or unlogged exception handling.
-- Use broad `type: ignore` comments without an error code and short reason.
-
-## Guidance
-
-- Prefer precise Python types and narrow structures over `Any` when editing or adding Python code.
-- Use `@proves` in test-function docstrings for capability proof; reserve file-level capabilities for implementation ownership or materially lineage-relevant test modules.
+- Preserve file metadata contracts where repo patterns require them.
+- Keep type hints, naming, and test coverage aligned with existing standards.
+- Prefer small source-first fixes over broad speculative rewrites.
+- Update tests when Python behavior or contracts change.

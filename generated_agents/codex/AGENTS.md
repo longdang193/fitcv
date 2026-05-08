@@ -63,50 +63,6 @@ If GitNexus needs a refresh on this Windows machine, prefer:
 npx gitnexus analyze
 ```
 
-<!-- gitnexus:start -->
-# GitNexus — Code Intelligence
-
-This project is indexed by GitNexus as **fitcv** (13039 symbols, 34641 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
-
-> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
-
-## Always Do
-
-- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
-- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
-- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
-- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
-- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
-
-## Never Do
-
-- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
-- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
-- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
-- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
-
-## Resources
-
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/fitcv/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/fitcv/clusters` | All functional areas |
-| `gitnexus://repo/fitcv/processes` | All execution flows |
-| `gitnexus://repo/fitcv/process/{name}` | Step-by-step execution trace |
-
-## CLI
-
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-
-<!-- gitnexus:end -->
-
 <!-- BEGIN GENERATED: RUNTIME_MANIFEST -->
 ## Runtime Extension Manifest (Generated)
 
@@ -128,95 +84,94 @@ This project is indexed by GitNexus as **fitcv** (13039 symbols, 34641 relations
   - Source: `docs/operating_system/rules/python-contracts-rule.md`
 
 ### Workflow-Skills Manifest
-- `workflow-drift-detection-and-reconciliation` — Run the drift detection and reconciliation workflow procedure.
-  - Source: `docs/operating_system/workflows/workflow-drift-detection-and-reconciliation.md`
-  - Generated skill: `skills/workflow-drift-detection-and-reconciliation/SKILL.md`
-- `workflow-live-run-closeout` — Run the live run closeout workflow procedure.
-  - Source: `docs/operating_system/workflows/workflow-live-run-closeout.md`
-  - Generated skill: `skills/workflow-live-run-closeout/SKILL.md`
-- `workflow-live-run-debugging` — Run the live run debugging workflow procedure.
-  - Source: `docs/operating_system/workflows/workflow-live-run-debugging.md`
-  - Generated skill: `skills/workflow-live-run-debugging/SKILL.md`
-- `workflow-live-run-execution` — Run the live run execution workflow procedure.
-  - Source: `docs/operating_system/workflows/workflow-live-run-execution.md`
-  - Generated skill: `skills/workflow-live-run-execution/SKILL.md`
-- `workflow-live-run-preflight-check` — Run the live run preflight check workflow procedure.
-  - Source: `docs/operating_system/workflows/workflow-live-run-preflight-check.md`
-  - Generated skill: `skills/workflow-live-run-preflight-check/SKILL.md`
-- `workflow-live-run-scenario-planning` — Run the live run scenario planning workflow procedure.
-  - Source: `docs/operating_system/workflows/workflow-live-run-scenario-planning.md`
-  - Generated skill: `skills/workflow-live-run-scenario-planning/SKILL.md`
-- `workflow-live-run-system` — Run the live run system workflow procedure.
-  - Source: `docs/operating_system/workflows/workflow-live-run-system.md`
-  - Generated skill: `skills/workflow-live-run-system/SKILL.md`
-- `workflow-live-run-verification` — Run the live run verification workflow procedure.
-  - Source: `docs/operating_system/workflows/workflow-live-run-verification.md`
-  - Generated skill: `skills/workflow-live-run-verification/SKILL.md`
-- `workflow-multi-worktree-execution` — Run the multi-worktree execution workflow procedure.
-  - Source: `docs/operating_system/workflows/workflow-multi-worktree-execution.md`
-  - Generated skill: `skills/workflow-multi-worktree-execution/SKILL.md`
-- `workflow-prompt-metadata-spec` — Run the workflow and prompt metadata specification procedure.
-  - Source: `docs/operating_system/workflows/workflow-prompt-metadata-spec.md`
-  - Generated skill: `skills/workflow-prompt-metadata-spec/SKILL.md`
-- `workflow-roadmap-to-closeout` — Run the roadmap to closeout workflow procedure.
-  - Source: `docs/operating_system/workflows/workflow-roadmap-to-closeout.md`
-  - Generated skill: `skills/workflow-roadmap-to-closeout/SKILL.md`
-- `workflow-spec-to-plan-to-execution` — Run the spec to plan to execution workflow procedure.
-  - Source: `docs/operating_system/workflows/workflow-spec-to-plan-to-execution.md`
-  - Generated skill: `skills/workflow-spec-to-plan-to-execution/SKILL.md`
-- `workflow-test-failure-triage` — Run the test failure triage workflow procedure.
-  - Source: `docs/operating_system/workflows/workflow-test-failure-triage.md`
-  - Generated skill: `skills/workflow-test-failure-triage/SKILL.md`
+- `drift-detection-and-reconciliation-workflow` — Run drift detection and reconciliation workflow procedure.
+  - Source: `docs/operating_system/workflows/drift-detection-and-reconciliation-workflow.md`
+  - Generated skill: `skills/drift-detection-and-reconciliation-workflow/SKILL.md`
+- `live-run-closeout-workflow` — Run live run closeout workflow procedure.
+  - Source: `docs/operating_system/workflows/live-run-closeout-workflow.md`
+  - Generated skill: `skills/live-run-closeout-workflow/SKILL.md`
+- `live-run-debugging-workflow` — Run live run debugging workflow procedure.
+  - Source: `docs/operating_system/workflows/live-run-debugging-workflow.md`
+  - Generated skill: `skills/live-run-debugging-workflow/SKILL.md`
+- `live-run-execution-workflow` — Run live run execution workflow procedure.
+  - Source: `docs/operating_system/workflows/live-run-execution-workflow.md`
+  - Generated skill: `skills/live-run-execution-workflow/SKILL.md`
+- `live-run-preflight-check-workflow` — Run live run preflight check workflow procedure.
+  - Source: `docs/operating_system/workflows/live-run-preflight-check-workflow.md`
+  - Generated skill: `skills/live-run-preflight-check-workflow/SKILL.md`
+- `live-run-scenario-planning-workflow` — Run live run scenario planning workflow procedure.
+  - Source: `docs/operating_system/workflows/live-run-scenario-planning-workflow.md`
+  - Generated skill: `skills/live-run-scenario-planning-workflow/SKILL.md`
+- `live-run-system-workflow` — Run live run system workflow procedure.
+  - Source: `docs/operating_system/workflows/live-run-system-workflow.md`
+  - Generated skill: `skills/live-run-system-workflow/SKILL.md`
+- `live-run-verification-workflow` — Run live run verification workflow procedure.
+  - Source: `docs/operating_system/workflows/live-run-verification-workflow.md`
+  - Generated skill: `skills/live-run-verification-workflow/SKILL.md`
+- `roadmap-to-closeout-workflow` — Run roadmap to closeout workflow procedure.
+  - Source: `docs/operating_system/workflows/roadmap-to-closeout-workflow.md`
+  - Generated skill: `skills/roadmap-to-closeout-workflow/SKILL.md`
+- `spec-to-plan-to-execution-workflow` — Run spec to plan to execution workflow procedure.
+  - Source: `docs/operating_system/workflows/spec-to-plan-to-execution-workflow.md`
+  - Generated skill: `skills/spec-to-plan-to-execution-workflow/SKILL.md`
+- `test-failure-triage-workflow` — Run test failure triage workflow procedure.
+  - Source: `docs/operating_system/workflows/test-failure-triage-workflow.md`
+  - Generated skill: `skills/test-failure-triage-workflow/SKILL.md`
+- `workflow-and-prompt-metadata-spec` — Run workflow and prompt metadata specification procedure.
+  - Source: `docs/operating_system/workflows/workflow-and-prompt-metadata-spec.md`
+  - Generated skill: `skills/workflow-and-prompt-metadata-spec/SKILL.md`
 
 ### Native Skills Manifest
+- `brainstorming` — Use when exploring or defining new behavior, features, components, or non-trivial changes before implementation.
+  - Source: `.agents/skills/brainstorming/SKILL.md`
+- `central-config-layer` — Use this skill when a project needs shared configuration across multiple modules, services, agents, or pipelines. Helps design, validate, and refactor a central configuration layer for environment settings, runtime behavior, taxonomies, thresholds, defaults, and normalization rules.
+  - Source: `.agents/skills/central-config-layer/SKILL.md`
+- `creating-learning-materials` — Use when generating source-grounded learning questions, Anki-ready cards, Socratic prompts, interview prep, Bloom's Taxonomy exercises, multiple choice, Q&A, sequencing, or drag-and-drop study materials.
+  - Source: `.agents/skills/creating-learning-materials/SKILL.md`
+- `dispatching-parallel-agents` — Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies.
+  - Source: `.agents/skills/dispatching-parallel-agents/SKILL.md`
+- `doc-system-lifecycle` — Use when designing, updating, or auditing project docs that may affect source-of-truth placement, metadata, sync rules, or generated discovery.
+  - Source: `.agents/skills/doc-system-lifecycle/SKILL.md`
+- `executing-plans` — Use when you have a written implementation plan to execute in a separate session with review checkpoints.
+  - Source: `.agents/skills/executing-plans/SKILL.md`
+- `finishing-a-development-branch` — Use when implementation is complete, all tests pass, and you need to decide how to integrate the work - guides completion of development work by presenting structured options for merge, PR, or cleanup.
+  - Source: `.agents/skills/finishing-a-development-branch/SKILL.md`
 - `plan-document-reviewer` — Use when a spec or implementation plan is about to guide significant work, especially for cross-cutting, handoff-heavy, or starter/public-sync changes where scope drift, weak validation, or genericity leakage would be costly.
   - Source: `.agents/skills/plan-document-reviewer/SKILL.md`
-- `skill-brainstorming` — Use when exploring or defining new behavior, features, components, or non-trivial changes before implementation.
-  - Source: `.agents/skills/skill-brainstorming/SKILL.md`
-- `skill-central-config-layer` — Use this skill when a project needs shared configuration across multiple modules, services, agents, or pipelines. Helps design, validate, and refactor a central configuration layer for environment settings, runtime behavior, taxonomies, thresholds, defaults, and normalization rules.
-  - Source: `.agents/skills/skill-central-config-layer/SKILL.md`
-- `skill-creating-learning-materials` — Use when generating source-grounded learning questions, Anki-ready cards, Socratic prompts, interview prep, Bloom's Taxonomy exercises, multiple choice, Q&A, sequencing, or drag-and-drop study materials.
-  - Source: `.agents/skills/skill-creating-learning-materials/SKILL.md`
-- `skill-dispatching-parallel-agents` — Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies.
-  - Source: `.agents/skills/skill-dispatching-parallel-agents/SKILL.md`
+- `planning-dispatch` — Use when a task needs planning, design, or implementation routing before specs, plans, or code changes begin.
+  - Source: `.agents/skills/planning-dispatch/SKILL.md`
+- `private-public-repo-governance` — Use when a project needs a private internal repo and a separate public curated repo, or when deciding what should stay private versus what can be published in a clean product-facing repository.
+  - Source: `.agents/skills/private-public-repo-governance/SKILL.md`
+- `project_plan_generation` — Use when the user explicitly asks for a Markdown plan document and the compatibility planning layer is needed.
+  - Source: `.agents/skills/project_plan_generation/SKILL.md`
+- `python-code-standards` — Use when generating or modifying any Python file to enforce style, types, and quality.
+  - Source: `.agents/skills/python-code-standards/SKILL.md`
+- `python-file-metadata` — Add structured metadata to files with behavioral weight (scripts, workflows, tests, utilities).
+  - Source: `.agents/skills/python-file-metadata/SKILL.md`
+- `python-refactoring-expert` — Use proactively when instructed to restructure an existing codebase, detect code smells, or apply patterns.
+  - Source: `.agents/skills/python-refactoring-expert/SKILL.md`
+- `receiving-code-review` — Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation.
+  - Source: `.agents/skills/receiving-code-review/SKILL.md`
+- `requesting-code-review` — Use when completing tasks, implementing major features, or before merging to verify work meets requirements.
+  - Source: `.agents/skills/requesting-code-review/SKILL.md`
 - `skill-doc-system-lifecycle` — Use when designing, updating, or auditing project docs, artifact schemas, metadata contracts, sync rules, or generated discovery surfaces that affect source-of-truth placement or validator behavior.
   - Source: `.agents/skills/skill-doc-system-lifecycle/SKILL.md`
-- `skill-executing-plans` — Use when you have a written implementation plan to execute in a separate session with review checkpoints.
-  - Source: `.agents/skills/skill-executing-plans/SKILL.md`
-- `skill-finishing-a-development-branch` — Use when implementation is complete, all tests pass, and you need to decide how to integrate the work - guides completion of development work by presenting structured options for merge, PR, or cleanup.
-  - Source: `.agents/skills/skill-finishing-a-development-branch/SKILL.md`
-- `skill-planning-dispatch` — Use when a task needs planning, design, or implementation routing before specs, plans, or code changes begin.
-  - Source: `.agents/skills/skill-planning-dispatch/SKILL.md`
-- `skill-private-public-repo-governance` — Use when a project needs a private internal repo and a separate public curated repo, or when deciding what should stay private versus what can be published in a clean product-facing repository.
-  - Source: `.agents/skills/skill-private-public-repo-governance/SKILL.md`
-- `skill-project-plan-generation` — Use when the user explicitly asks for a Markdown plan document and the compatibility planning layer is needed.
-  - Source: `.agents/skills/skill-project-plan-generation/SKILL.md`
-- `skill-python-code-standards` — Use when generating or modifying any Python file to enforce style, types, and quality.
-  - Source: `.agents/skills/skill-python-code-standards/SKILL.md`
-- `skill-python-file-metadata` — Add structured metadata to files with behavioral weight (scripts, workflows, tests, utilities).
-  - Source: `.agents/skills/skill-python-file-metadata/SKILL.md`
-- `skill-python-refactoring-expert` — Use proactively when instructed to restructure an existing codebase, detect code smells, or apply patterns.
-  - Source: `.agents/skills/skill-python-refactoring-expert/SKILL.md`
-- `skill-receiving-code-review` — Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation.
-  - Source: `.agents/skills/skill-receiving-code-review/SKILL.md`
-- `skill-requesting-code-review` — Use when completing tasks, implementing major features, or before merging to verify work meets requirements.
-  - Source: `.agents/skills/skill-requesting-code-review/SKILL.md`
-- `skill-subagent-driven-development` — Use when executing implementation plans with independent tasks in the current session.
-  - Source: `.agents/skills/skill-subagent-driven-development/SKILL.md`
-- `skill-systematic-debugging` — Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes.
-  - Source: `.agents/skills/skill-systematic-debugging/SKILL.md`
-- `skill-test-driven-development` — Use when implementing any feature or bugfix, before writing implementation code.
-  - Source: `.agents/skills/skill-test-driven-development/SKILL.md`
-- `skill-using-git-worktrees` — Use when starting feature work that needs isolation from current workspace or before executing implementation plans - creates isolated git worktrees with smart directory selection and safety verification.
-  - Source: `.agents/skills/skill-using-git-worktrees/SKILL.md`
-- `skill-using-superpowers` — Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions.
-  - Source: `.agents/skills/skill-using-superpowers/SKILL.md`
-- `skill-verification-before-completion` — Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always.
-  - Source: `.agents/skills/skill-verification-before-completion/SKILL.md`
-- `skill-writing-plans` — Use when a confirmed design needs a multi-step implementation plan before code changes begin.
-  - Source: `.agents/skills/skill-writing-plans/SKILL.md`
-- `skill-writing-skills` — Use when creating new skills, editing existing skills, or verifying skills work before deployment.
-  - Source: `.agents/skills/skill-writing-skills/SKILL.md`
+- `subagent-driven-development` — Use when executing implementation plans with independent tasks in the current session.
+  - Source: `.agents/skills/subagent-driven-development/SKILL.md`
+- `systematic-debugging` — Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes.
+  - Source: `.agents/skills/systematic-debugging/SKILL.md`
+- `test-driven-development` — Use when implementing any feature or bugfix, before writing implementation code.
+  - Source: `.agents/skills/test-driven-development/SKILL.md`
+- `using-git-worktrees` — Use when starting feature work that needs isolation from current workspace or before executing implementation plans - creates isolated git worktrees with smart directory selection and safety verification.
+  - Source: `.agents/skills/using-git-worktrees/SKILL.md`
+- `using-superpowers` — Use when starting any conversation - establishes how to find and use skills, requiring Skill tool invocation before ANY response including clarifying questions.
+  - Source: `.agents/skills/using-superpowers/SKILL.md`
+- `verification-before-completion` — Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always.
+  - Source: `.agents/skills/verification-before-completion/SKILL.md`
+- `writing-plans` — Use when a confirmed design needs a multi-step implementation plan before code changes begin.
+  - Source: `.agents/skills/writing-plans/SKILL.md`
+- `writing-skills` — Use when creating new skills, editing existing skills, or verifying skills work before deployment.
+  - Source: `.agents/skills/writing-skills/SKILL.md`
 
 ### Resolution Notes
 - `AGENTS.md` is the authoritative Codex root instruction surface.
