@@ -1,6 +1,23 @@
 ---
 name: plan-document-reviewer
 description: Use when a spec or implementation plan is about to guide significant work, especially for cross-cutting, handoff-heavy, or starter/public-sync changes where scope drift, weak validation, or genericity leakage would be costly.
+allowed-tools: []
+hooks:
+  pre:
+  - python scripts/hooks/run_validator.py --fast
+  post:
+  - python scripts/hooks/run_validator.py --fast
+required_reads:
+- docs/operating_system/agent_memory/
+- docs/operating_system/repo-governance.md
+- docs/operating_system/templates/implementation-plan-template.md
+- docs/operating_system/templates/detailed-specification-template.md
+required_outputs: []
+tags:
+- skill
+- review
+- planning
+- plan-document-reviewer
 ---
 
 # Plan Document Reviewer

@@ -27,6 +27,10 @@ strict = true
 module = "fitcv.tracker"
 warn_unused_ignores = false
 
+[tool.pyright]
+include = ["src", "scripts", "tests"]
+extraPaths = ["src", "scripts"]
+
 [dependency-groups]
 dev = [
     "fastapi>=0.135.2",

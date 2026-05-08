@@ -18,6 +18,7 @@ import pytest
 import yaml
 from fitcv_cp.settings_schema import (
     AGENTIC_SETTINGS_SECTIONS,
+    SETTINGS_SECTIONS,
     SETTINGS_SCHEMA,
     apply_settings_to_config,
     editable_agentic_settings_keys,
@@ -95,6 +96,10 @@ def test_agentic_settings_sections_have_expected_slugs() -> None:
         "agentic-core",
         "agentic-advanced",
     }
+
+def test_settings_sections_exclude_legacy_retrieval_advanced_slug() -> None:
+    """Task-first agentic advanced controls replace the legacy retrieval-advanced section."""
+    assert "retrieval-advanced" not in SETTINGS_SECTIONS
 
 
 def test_agentic_settings_section_ownership_is_explicit() -> None:
