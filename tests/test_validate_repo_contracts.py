@@ -182,8 +182,30 @@ def test_build_subprocess_steps_runs_adoption_shape_before_repo_config() -> None
     ) < next(index for index, step in enumerate(rendered) if "validate_repo_config.py" in step)
 
 
+def test_build_subprocess_steps_includes_optional_repo_local_scripts_when_present() -> None:
+    steps = VALIDATOR.build_subprocess_steps(
+        root=REPO_ROOT,
+        python_executable="python",
+        fast=True,
+    )
+
+    rendered = [" ".join(step) for step in steps]
+
+    assert any("validate_checkpoint_packs.py" in step for step in rendered)
+    assert any("validate_prompt_ladder.py" in step for step in rendered)
+    assert any("validate_prompt_metadata_schema.py" in step for step in rendered)
+
+
 def test_build_subprocess_steps_skips_sync_for_starter_method_only(tmp_path: Path) -> None:
     write_adoption_mode(tmp_path, "starter_method_only")
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+    for script_name in (
+        "validate_adoption_shape.py",
+        "validate_repo_config.py",
+        "sync_architecture_docs.py",
+    ):
+        write_text(scripts_dir / script_name, "def main():\n    return 0\n")
 
     steps = VALIDATOR.build_subprocess_steps(
         root=tmp_path,
@@ -200,6 +222,14 @@ def test_build_subprocess_steps_skips_sync_for_starter_method_only(tmp_path: Pat
 
 def test_build_subprocess_steps_keeps_sync_for_managed_mode(tmp_path: Path) -> None:
     write_adoption_mode(tmp_path, "managed_architecture_metadata")
+    scripts_dir = tmp_path / "scripts"
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+    for script_name in (
+        "validate_adoption_shape.py",
+        "validate_repo_config.py",
+        "sync_architecture_docs.py",
+    ):
+        write_text(scripts_dir / script_name, "def main():\n    return 0\n")
 
     steps = VALIDATOR.build_subprocess_steps(
         root=tmp_path,
