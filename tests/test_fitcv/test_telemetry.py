@@ -42,12 +42,25 @@ def test_telemetry_does_not_report_enabled_after_failed_init(monkeypatch) -> Non
     assert first["status"] == "degraded"
     assert second["status"] == "degraded"
 
+
 def test_trace_context_always_has_otel_compatible_ids() -> None:
     telemetry.reset_telemetry_runtime_for_tests()
     trace_context = telemetry.build_trace_context("seed-value")
     assert len(str(trace_context["trace_id"])) == 32
     assert len(str(trace_context["span_id"])) == 16
     assert len(str(trace_context["parent_span_id"])) == 16
+
+
+def test_current_trace_context_is_none_when_telemetry_disabled() -> None:
+    telemetry.reset_telemetry_runtime_for_tests()
+    assert telemetry.current_trace_context() is None
+
+
+def test_observe_span_yields_none_when_telemetry_disabled() -> None:
+    telemetry.reset_telemetry_runtime_for_tests()
+    with telemetry.observe_span("pipeline.test", attributes={"run_id": "r1"}) as trace_context:
+        assert trace_context is None
+        assert telemetry.current_trace_context() is None
 
 
 def test_langfuse_link_status_disabled_by_default() -> None:
