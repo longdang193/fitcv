@@ -125,7 +125,7 @@ from fitcv.rule_filter import (
 )
 from fitcv.tracker import create_cv_version_record, store_cv_version
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
-from fitcv.telemetry import build_trace_context
+from fitcv.telemetry import build_trace_context, observe_span, set_span_attributes
 from fitcv.vector_search import run_vector_search
 from fitcv.vector_search import store_shortlist
 from fitcv.pipeline_store import PipelineStore
@@ -3469,21 +3469,29 @@ def run_pipeline(
     final_top_n = int(config.get("pipeline", {}).get("final_top_n", 0))
 
     if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("normalize"):
-        raw_jobs = parse_jobs_file(jobs_path)
-        normalized = normalize_batch(raw_jobs)
-        _normalized_with_exclusions, deduplicated_jobs = normalize_batch_with_exclusions(raw_jobs)
-        if reporter is not None:
-            reporter.emit(  # type: ignore[union-attr]
-                "layer1_normalize",
-                "info",
-                f"Normalization dedupe: kept {len(normalized)} of {len(raw_jobs)} jobs, removed {len(deduplicated_jobs)} duplicate(s)",
-            )
+        with observe_span("pipeline.normalize", attributes={"run_id": run_id}):
+            raw_jobs = parse_jobs_file(jobs_path)
+            normalized = normalize_batch(raw_jobs)
+            _normalized_with_exclusions, deduplicated_jobs = normalize_batch_with_exclusions(raw_jobs)
+            if reporter is not None:
+                reporter.emit(  # type: ignore[union-attr]
+                    "layer1_normalize",
+                    "info",
+                    f"Normalization dedupe: kept {len(normalized)} of {len(raw_jobs)} jobs, removed {len(deduplicated_jobs)} duplicate(s)",
+                )
 
-        raw_rows = prepare_raw_rows(raw_jobs)
-        pipeline_store.load_raw_jobs(raw_rows, config)
-        state["raw_jobs"] = raw_jobs
-        state["normalized"] = normalized
-        state["deduplicated_jobs"] = deduplicated_jobs
+            raw_rows = prepare_raw_rows(raw_jobs)
+            pipeline_store.load_raw_jobs(raw_rows, config)
+            state["raw_jobs"] = raw_jobs
+            state["normalized"] = normalized
+            state["deduplicated_jobs"] = deduplicated_jobs
+            set_span_attributes(
+                {
+                    "input_jobs": len(raw_jobs),
+                    "normalized_jobs": len(normalized),
+                    "deduplicated_jobs": len(deduplicated_jobs),
+                }
+            )
         if stage_progress_callback is not None:
             stage_progress_callback(
                 _build_stage_progress_summary(
@@ -3516,36 +3524,36 @@ def run_pipeline(
     normalized = list(state["normalized"])
 
     if PIPELINE_STAGE_SEQUENCE.index(start_stage) <= PIPELINE_STAGE_SEQUENCE.index("enrich"):
-        raw_global = config.get("global_job_filters", {})
-        global_settings = (
-            {f"global_job_filters.{k}": v for k, v in raw_global.items()}
-            if raw_global else None
-        )
-        pre_filter = apply_pre_enrichment_global_filters(normalized, global_settings)
-        pre_filter_passed_urls: set[str] = set(pre_filter["passed"])
-        surviving_normalized = [
-            j for j in normalized
-            if str(j.get("job_url", "")) in pre_filter_passed_urls
-        ]
-        pre_filter_rejected_jobs = list(pre_filter["rejected"])
-        if reporter is not None:
-            n_pre_rejected = len(normalized) - len(surviving_normalized)
-            reporter.emit(  # type: ignore[union-attr]
-                "layer1b_pre_filter", "info",
-                f"Pre-enrichment filter: {len(surviving_normalized)} pass, {n_pre_rejected} rejected",
+        with observe_span("pipeline.enrich", attributes={"run_id": run_id}):
+            raw_global = config.get("global_job_filters", {})
+            global_settings = (
+                {f"global_job_filters.{k}": v for k, v in raw_global.items()}
+                if raw_global else None
             )
+            pre_filter = apply_pre_enrichment_global_filters(normalized, global_settings)
+            pre_filter_passed_urls: set[str] = set(pre_filter["passed"])
+            surviving_normalized = [
+                j for j in normalized
+                if str(j.get("job_url", "")) in pre_filter_passed_urls
+            ]
+            pre_filter_rejected_jobs = list(pre_filter["rejected"])
+            if reporter is not None:
+                n_pre_rejected = len(normalized) - len(surviving_normalized)
+                reporter.emit(  # type: ignore[union-attr]
+                    "layer1b_pre_filter", "info",
+                    f"Pre-enrichment filter: {len(surviving_normalized)} pass, {n_pre_rejected} rejected",
+                )
 
-        if cancellation_check and cancellation_check():
-            raise PipelineCancelled("Cancelled before enrichment")
-        enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(
-            surviving_normalized,
-            config,
-            pipeline_store=pipeline_store,
-        )
-        if fresh_enriched_rows:
-            pipeline_store.load_structured_jobs(fresh_enriched_rows, config)
-        pipeline_store.load_run_structured_jobs(enriched, run_id, config)
-        if reporter is not None:
+            if cancellation_check and cancellation_check():
+                raise PipelineCancelled("Cancelled before enrichment")
+            enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(
+                surviving_normalized,
+                config,
+                pipeline_store=pipeline_store,
+            )
+            if fresh_enriched_rows:
+                pipeline_store.load_structured_jobs(fresh_enriched_rows, config)
+            pipeline_store.load_run_structured_jobs(enriched, run_id, config)
             reused_count = sum(
                 1 for row in enriched
                 if str(row.get("enrich_reuse_status") or "") == REUSED_CACHED_ENRICHMENT_STATUS
@@ -3554,15 +3562,25 @@ def run_pipeline(
                 1 for row in enriched
                 if str(row.get("enrich_reuse_status") or "") == FRESH_ENRICHMENT_STATUS
             )
-            reporter.emit(  # type: ignore[union-attr]
-                "layer1_jobs", "info",
-                (
-                    f"Ingested {len(raw_jobs)} jobs, enriched {len(enriched)} "
-                    f"(after pre-filter; fresh={fresh_count}, reused={reused_count})"
-                ),
+            if reporter is not None:
+                reporter.emit(  # type: ignore[union-attr]
+                    "layer1_jobs", "info",
+                    (
+                        f"Ingested {len(raw_jobs)} jobs, enriched {len(enriched)} "
+                        f"(after pre-filter; fresh={fresh_count}, reused={reused_count})"
+                    ),
+                )
+            state["pre_filter_rejected_jobs"] = pre_filter_rejected_jobs
+            state["enriched"] = enriched
+            set_span_attributes(
+                {
+                    "normalized_jobs": len(normalized),
+                    "pre_filter_rejected": len(pre_filter_rejected_jobs),
+                    "enriched_jobs": len(enriched),
+                    "fresh_enriched": fresh_count,
+                    "reused_enriched": reused_count,
+                }
             )
-        state["pre_filter_rejected_jobs"] = pre_filter_rejected_jobs
-        state["enriched"] = enriched
         if stage_progress_callback is not None:
             stage_progress_callback(
                 _build_stage_progress_summary(

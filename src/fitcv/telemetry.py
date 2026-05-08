@@ -4,15 +4,18 @@ Minimal OpenTelemetry runtime helpers with safe fallback behavior.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import threading
+from collections.abc import Iterator, Mapping
 from typing import Any
 
 _INIT_LOCK = threading.Lock()
 _INITIALIZED = False
 _DEGRADED_REASON: str | None = None
 _OTEL_ENABLED = False
+
 
 def reset_telemetry_runtime_for_tests() -> None:
     global _INITIALIZED, _DEGRADED_REASON, _OTEL_ENABLED
@@ -29,6 +32,7 @@ def _otel_id(seed: str, *, length: int) -> str:
 def _is_truthy(value: str | None) -> bool:
     normalized = str(value or "").strip().lower()
     return normalized in {"1", "true", "yes", "on"}
+
 
 def _normalized_env(value: str | None) -> str:
     return str(value or "").strip()
@@ -50,6 +54,7 @@ def _parse_otlp_headers(value: str | None) -> dict[str, str]:
             headers[key_clean] = val_clean
     return headers
 
+
 def setup_telemetry_runtime() -> dict[str, Any]:
     global _INITIALIZED, _DEGRADED_REASON, _OTEL_ENABLED
     with _INIT_LOCK:
@@ -63,10 +68,10 @@ def setup_telemetry_runtime() -> dict[str, Any]:
 
         try:
             from opentelemetry import trace  # type: ignore
+            from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter  # type: ignore
             from opentelemetry.sdk.resources import Resource  # type: ignore
             from opentelemetry.sdk.trace import TracerProvider  # type: ignore
             from opentelemetry.sdk.trace.export import BatchSpanProcessor  # type: ignore
-            from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter  # type: ignore
         except Exception:
             _DEGRADED_REASON = "otel_dependency_missing"
             _OTEL_ENABLED = False
@@ -94,6 +99,89 @@ def setup_telemetry_runtime() -> dict[str, Any]:
             return {"enabled": False, "degraded_reason": _DEGRADED_REASON}
 
 
+def _normalized_attributes(attributes: Mapping[str, Any] | None) -> dict[str, Any]:
+    normalized: dict[str, Any] = {}
+    for key, value in dict(attributes or {}).items():
+        if value is None:
+            continue
+        normalized[str(key)] = value
+    return normalized
+
+
+def _fallback_trace_context(seed: str, *, parent_seed: str | None = None) -> dict[str, str]:
+    trace_id = _otel_id(seed, length=32)
+    span_id = _otel_id(f"{seed}:span", length=16)
+    parent_source = parent_seed or f"{seed}:parent"
+    parent_span_id = _otel_id(parent_source, length=16)
+    return {
+        "trace_id": trace_id,
+        "span_id": span_id,
+        "parent_span_id": parent_span_id,
+    }
+
+
+def current_trace_context() -> dict[str, str] | None:
+    setup_telemetry_runtime()
+    if not _OTEL_ENABLED:
+        return None
+    try:
+        from opentelemetry import trace  # type: ignore
+        from opentelemetry.trace.span import format_span_id, format_trace_id  # type: ignore
+
+        current = trace.get_current_span()
+        span_context = current.get_span_context()
+        if not getattr(span_context, "is_valid", False):
+            return None
+        parent_ctx = getattr(current, "parent", None)
+        parent_span_id = None
+        if parent_ctx is not None:
+            parent_span_id = format_span_id(parent_ctx.span_id)
+        return {
+            "trace_id": format_trace_id(span_context.trace_id),
+            "span_id": format_span_id(span_context.span_id),
+            "parent_span_id": parent_span_id or "0" * 16,
+        }
+    except Exception:
+        return None
+
+
+@contextlib.contextmanager
+def observe_span(name: str, *, attributes: Mapping[str, Any] | None = None) -> Iterator[dict[str, str] | None]:
+    setup_telemetry_runtime()
+    normalized_attributes = _normalized_attributes(attributes)
+    if not _OTEL_ENABLED:
+        yield None
+        return
+    try:
+        from opentelemetry import trace  # type: ignore
+
+        tracer = trace.get_tracer("fitcv.telemetry")
+        with tracer.start_as_current_span(name) as span:
+            for key, value in normalized_attributes.items():
+                span.set_attribute(key, value)
+            yield current_trace_context()
+            return
+    except Exception:
+        yield None
+
+
+def set_span_attributes(attributes: Mapping[str, Any] | None) -> None:
+    normalized_attributes = _normalized_attributes(attributes)
+    if not normalized_attributes:
+        return
+    setup_telemetry_runtime()
+    if not _OTEL_ENABLED:
+        return
+    try:
+        from opentelemetry import trace  # type: ignore
+
+        current = trace.get_current_span()
+        for key, value in normalized_attributes.items():
+            current.set_attribute(key, value)
+    except Exception:
+        return
+
+
 def build_trace_context(
     seed: str,
     *,
@@ -101,38 +189,20 @@ def build_trace_context(
     emit_otel_span: bool = True,
 ) -> dict[str, str]:
     setup_telemetry_runtime()
-    trace_id = _otel_id(seed, length=32)
-    span_id = _otel_id(f"{seed}:span", length=16)
-    parent_source = parent_seed or f"{seed}:parent"
-    parent_span_id = _otel_id(parent_source, length=16)
+    active_context = current_trace_context()
+    if active_context is not None:
+        return active_context
+    fallback_context = _fallback_trace_context(seed, parent_seed=parent_seed)
 
     if not _OTEL_ENABLED or not emit_otel_span:
-        return {
-            "trace_id": trace_id,
-            "span_id": span_id,
-            "parent_span_id": parent_span_id,
-        }
+        return fallback_context
 
     try:
-        from opentelemetry import trace  # type: ignore
-        from opentelemetry.trace.span import format_span_id, format_trace_id  # type: ignore
-
-        tracer = trace.get_tracer("fitcv.telemetry")
-        with tracer.start_as_current_span(seed) as span:
-            ctx = span.get_span_context()
-            current = trace.get_current_span()
-            parent_ctx = current.parent
-            return {
-                "trace_id": format_trace_id(ctx.trace_id),
-                "span_id": format_span_id(ctx.span_id),
-                "parent_span_id": format_span_id(parent_ctx.span_id) if parent_ctx else parent_span_id,
-            }
+        with observe_span(seed) as trace_context:
+            return trace_context or fallback_context
     except Exception:
-        return {
-            "trace_id": trace_id,
-            "span_id": span_id,
-            "parent_span_id": parent_span_id,
-        }
+        return fallback_context
+
 
 def langfuse_link_status(trace_id: str | None) -> dict[str, Any]:
     enabled = _is_truthy(os.environ.get("FITCV_LANGFUSE_ENABLED"))
