@@ -323,8 +323,15 @@ def test_load_profile_json_text_normalizes_additive_alignment_metadata() -> None
             ],
             "preferences": {
                 "target_role": " Data Analyst ",
+                "seniority_target": " senior ",
+                "salary_range": " €80,000 — €100,000 ",
+                "notice_period": " 3 months ",
+                "location_types": [" Remote ", "", "HYBRID", "remote"],
+                "locations": [" Berlin ", "", "Munich", "berlin"],
                 "role_families": [" analytics ", "", "data_science"],
                 "domains": [" banking ", "", "fintech"],
+                "exclude_contract_types": [" Internship ", "", "Contract", "internship"],
+                "exclude_experience_levels": [" Internship ", "", "Entry level", "internship"],
             },
         }
     )
@@ -332,8 +339,15 @@ def test_load_profile_json_text_normalizes_additive_alignment_metadata() -> None
     result = load_profile_json_text(payload)
 
     assert result["preferences"]["target_role"] == "Data Analyst"
+    assert result["preferences"]["seniority_target"] == "senior"
+    assert result["preferences"]["salary_range"] == "€80,000 — €100,000"
+    assert result["preferences"]["notice_period"] == "3 months"
+    assert result["preferences"]["location_types"] == ["remote", "hybrid"]
+    assert result["preferences"]["locations"] == ["berlin", "munich"]
     assert result["preferences"]["role_families"] == ["analytics", "data_science"]
     assert result["preferences"]["domains"] == ["banking", "fintech"]
+    assert result["preferences"]["exclude_contract_types"] == ["internship", "contract"]
+    assert result["preferences"]["exclude_experience_levels"] == ["internship", "entry level"]
     assert result["experiences"][0]["role_family"] == "analytics"
     assert result["experiences"][0]["domain_tags"] == ["banking", "fintech"]
     assert result["experiences"][0]["responsibility_themes"] == ["dashboarding", "kpi_reporting"]
