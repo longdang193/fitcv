@@ -1,18 +1,26 @@
-﻿---
-prompt_id: mode-migration-prompt
+---
+name: mode-migration-prompt
+description: Use prompt template for mode migration prompt.
 type: prompt
 stage: maintenance
-owner_layer: operating_system
 entry_points:
-  - use this prompt when its title scope matches the current planning/execution need
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
+related_skills:
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- maintenance
+- operating_system
+owner_layer: operating_system
 status: active
 ---
+
 # Mode Migration Prompt
 
 Use this when you want to assess or plan migration from

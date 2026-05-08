@@ -1,6 +1,17 @@
 ---
 name: systematic-debugging
-description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes
+description: Use when encountering any bug, test failure, or unexpected behavior,
+  before proposing fixes
+allowed-tools: []
+hooks:
+  pre: []
+  post: []
+required_reads: []
+required_outputs: []
+related_skills: []
+tags:
+- skill
+- systematic-debugging
 ---
 
 # Systematic Debugging

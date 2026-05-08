@@ -1,6 +1,17 @@
 ---
 name: subagent-driven-development
-description: Use when executing implementation plans with independent tasks in the current session
+description: Use when executing implementation plans with independent tasks in the
+  current session
+allowed-tools: []
+hooks:
+  pre: []
+  post: []
+required_reads: []
+required_outputs: []
+related_skills: []
+tags:
+- skill
+- subagent-driven-development
 ---
 
 # Subagent-Driven Development

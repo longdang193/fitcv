@@ -1,18 +1,26 @@
-﻿---
-prompt_id: lifecycle-readiness-and-proceed-prompt
+---
+name: lifecycle-readiness-and-proceed-prompt
+description: Use prompt template for lifecycle readiness and proceed prompt.
 type: prompt
 stage: drift
-owner_layer: operating_system
 entry_points:
-  - use this prompt when its title scope matches the current planning/execution need
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
+related_skills:
+- planning-dispatch
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- drift
+- operating_system
+owner_layer: operating_system
 status: active
 ---
+
 # Lifecycle Readiness And Proceed Prompt
 
 Use this when you need to check incomplete lifecycle state and decide concrete

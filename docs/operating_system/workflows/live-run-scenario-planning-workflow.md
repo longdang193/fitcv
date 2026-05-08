@@ -1,25 +1,35 @@
 ---
+name: live-run-scenario-planning-workflow
+description: Define reusable live-run scenarios and triggers that are traceable to
+  current workstream/thread/spec scope.
+allowed-tools: []
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+required_outputs:
+- scenario set with triggers and traceability mappings
+related_skills:
+- brainstorming
+- planning-dispatch
+tags:
+- workflow
+- planning
+- change
 workflow_id: live-run-scenario-planning
 type: workflow
 stage: planning
 owner_layer: change
 entry_points:
-  - live-run scenarios are missing or outdated for a target path
-  - closeout/debugging feedback requires scenario updates
+- live-run scenarios are missing or outdated for a target path
+- closeout/debugging feedback requires scenario updates
 prerequisites:
-  - target workstream/thread/spec scope is identified
-  - expected behavior and success signals are available from specs/plans
+- target workstream/thread/spec scope is identified
+- expected behavior and success signals are available from specs/plans
 next_steps:
-  - live-run-preflight-check-workflow.md
-  - live-run-execution-workflow.md
-skills:
-  - brainstorming
-  - planning-dispatch
+- live-run-preflight-check-workflow.md
+- live-run-execution-workflow.md
 status: active
-outputs:
-  - scenario set with triggers and traceability mappings
 validators:
-  - each scenario maps to scope and expected evidence
+- each scenario maps to scope and expected evidence
 ---
 
 # Live Run Scenario Planning Workflow

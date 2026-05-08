@@ -1,6 +1,17 @@
 ---
 name: dispatching-parallel-agents
-description: Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies
+description: Use when facing 2+ independent tasks that can be worked on without shared
+  state or sequential dependencies
+allowed-tools: []
+hooks:
+  pre: []
+  post: []
+required_reads: []
+required_outputs: []
+related_skills: []
+tags:
+- skill
+- dispatching-parallel-agents
 ---
 
 # Dispatching Parallel Agents

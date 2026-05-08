@@ -1,22 +1,30 @@
 ---
-prompt_id: live-run-system-dispatch-prompt
+name: live-run-system-dispatch-prompt
+description: you need to choose the correct live-run workflow and entry point.
 type: prompt
 stage: execution
-owner_layer: change
 entry_points:
-  - live-run work is requested and the correct workflow entry point must be selected
-  - partial live-run state exists and needs deterministic routing
+- live-run work is requested and the correct workflow entry point must be selected
+- partial live-run state exists and needs deterministic routing
 prerequisites:
-  - current run state and available artifacts are identified
-  - in-scope roadmap/workstream/thread/spec context is available
+- current run state and available artifacts are identified
+- in-scope roadmap/workstream/thread/spec context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-  - thread-closeout-readiness-prompt.md
-skills:
-  - planning-dispatch
-  - executing-plans
+- implementation-next-action-gate-prompt.md
+- thread-closeout-readiness-prompt.md
+related_skills:
+- planning-dispatch
+- executing-plans
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+tags:
+- prompt-template
+- execution
+- change
+owner_layer: change
 status: active
 ---
+
 # Live Run System Dispatch Prompt
 
 ## Use When

@@ -1,6 +1,17 @@
 ---
 name: writing-plans
-description: Use when a confirmed design needs a multi-step implementation plan before code changes begin.
+description: Use when a confirmed design needs a multi-step implementation plan before
+  code changes begin.
+allowed-tools: []
+hooks:
+  pre: []
+  post: []
+required_reads: []
+required_outputs: []
+related_skills: []
+tags:
+- skill
+- writing-plans
 ---
 
 # Writing Plans

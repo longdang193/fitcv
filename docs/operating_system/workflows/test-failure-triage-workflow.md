@@ -1,28 +1,37 @@
 ---
+name: test-failure-triage-workflow
+description: Run workflow for test failure triage workflow.
+allowed-tools: []
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+required_outputs:
+- failure-classification record
+- minimal-fix record
+- targeted and full rerun evidence
+related_skills:
+- systematic-debugging
+- test-driven-development
+- verification-before-completion
+tags:
+- workflow
+- execution
+- change
 workflow_id: test-failure-triage
 type: workflow
 stage: execution
 owner_layer: change
 entry_points:
-  - failing test(s) detected in local or CI runs
+- failing test(s) detected in local or CI runs
 prerequisites:
-  - failing test identifiers and command to reproduce are available
-  - in-scope spec/plan context is available for behavior alignment checks
+- failing test identifiers and command to reproduce are available
+- in-scope spec/plan context is available for behavior alignment checks
 next_steps:
-  - implementation-next-action-gate-prompt.md
-  - thread-closeout-readiness-prompt.md
-skills:
-  - systematic-debugging
-  - test-driven-development
-  - verification-before-completion
+- implementation-next-action-gate-prompt.md
+- thread-closeout-readiness-prompt.md
 status: active
-outputs:
-  - failure-classification record
-  - minimal-fix record
-  - targeted and full rerun evidence
 validators:
-  - targeted failing test rerun
-  - full suite rerun when needed
+- targeted failing test rerun
+- full suite rerun when needed
 ---
 
 # Test Failure Triage Workflow

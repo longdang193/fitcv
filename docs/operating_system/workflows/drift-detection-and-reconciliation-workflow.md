@@ -1,18 +1,30 @@
-﻿---
+---
+name: drift-detection-and-reconciliation-workflow
+description: Run workflow for drift detection and reconciliation workflow.
+allowed-tools: []
+required_reads:
+- docs/operating_system/prompt_templates/README.md
+required_outputs:
+- workflow decision or completion evidence
+related_skills:
+- planning-dispatch
+tags:
+- workflow
+- drift
+- operating_system
 workflow_id: drift-detection-and-reconciliation-workflow
 type: workflow
 stage: drift
 owner_layer: operating_system
 entry_points:
-  - use this workflow when its title scope matches the current execution need
+- use this workflow when its title scope matches the current execution need
 prerequisites:
-  - relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-  - implementation-next-action-gate-prompt.md
-skills:
-  - planning-dispatch
+- implementation-next-action-gate-prompt.md
 status: active
 ---
+
 # Drift Detection And Reconciliation Workflow
 
 ## Purpose
