@@ -1,0 +1,12 @@
+{
+  "_generated": true,
+  "_source": "docs/operating_system/provider_settings/antigravity.yaml",
+  "_generated_by": "scripts/sync_agent_adapters.py",
+  "_do_not_edit": "Edit canonical source and run sync.",
+  "provider": "antigravity",
+  "lifecycle_hooks_supported": false,
+  "fallback": {
+    "mode": "rules_workflows",
+    "task_end_rule": "Run `python scripts/hooks/run_validator.py --fast` before completion claims."
+  }
+}

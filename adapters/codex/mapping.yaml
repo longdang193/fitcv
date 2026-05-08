@@ -1,0 +1,44 @@
+platform: codex
+mappings:
+  - source: AGENTS.md
+    destination: generated_agents/codex/AGENTS.md
+    mode: render_root_doc_with_manifest
+    comment_prefix: "#"
+  - source: docs/operating_system/provider_settings/codex.yaml
+    destination: generated_agents/codex/hooks.json
+    mode: render_codex_hooks_from_yaml
+    comment_prefix: "#"
+  - source: docs/operating_system/rules
+    destination: generated_agents/codex/docs/operating_system/rules
+    mode: render_codex_rules_tree
+    include_glob: "*-rule.md"
+    comment_prefix: "#"
+  - source: docs/operating_system/rules
+    destination: .agents/rules
+    mode: copy_tree
+    include_glob: "*.md"
+    comment_prefix: "#"
+  - source: docs/operating_system/prompt_templates
+    destination: generated_agents/codex/docs/operating_system/prompt_templates
+    mode: copy_tree
+    comment_prefix: "#"
+  - source: docs/operating_system
+    destination: generated_agents/codex/docs/operating_system
+    mode: copy_tree
+    include_glob: "**/*.md"
+    comment_prefix: "#"
+  - source: docs/operating_system/workflows
+    destination: .agents/workflows
+    mode: copy_tree
+    include_glob: "*.md"
+    comment_prefix: "#"
+  - source: docs/operating_system/workflows
+    destination: generated_agents/codex/skills
+    mode: render_workflow_skills_tree
+    include_glob: "*.md"
+    comment_prefix: "#"
+  - source: .agents/skills
+    destination: generated_agents/codex/skills
+    mode: copy_tree
+    include_glob: "*/SKILL.md"
+    comment_prefix: "#"

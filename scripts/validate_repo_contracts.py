@@ -34,10 +34,14 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
+from functools import lru_cache
+import importlib.util
+import inspect
 import os
 from pathlib import Path
 import subprocess
 import sys
+from types import ModuleType
 
 import yaml
 from validator_policy import (
@@ -97,49 +101,137 @@ def pytest_basetemp(default_relative: str) -> str:
     return default_relative
 
 
-def managed_architecture_metadata_enabled(root: Path) -> bool:
-    adoption_mode_path = root / "repo_config" / "adoption-mode.yaml"
-    if not adoption_mode_path.exists():
-        return True
-    payload = yaml.safe_load(adoption_mode_path.read_text(encoding="utf-8"))
-    if not isinstance(payload, dict):
-        return True
-    return bool(payload.get("managed_architecture_metadata", False))
-
-
-def read_adoption_mode(root: Path) -> str | None:
+@lru_cache(maxsize=8)
+def load_adoption_mode_payload(root: Path) -> dict | None:
     adoption_mode_path = root / "repo_config" / "adoption-mode.yaml"
     if not adoption_mode_path.exists():
         return None
     payload = yaml.safe_load(adoption_mode_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
+        return None
+    return payload
+
+def managed_architecture_metadata_enabled(root: Path) -> bool:
+    payload = load_adoption_mode_payload(root)
+    if payload is None:
+        return True
+    return bool(payload.get("managed_architecture_metadata", False))
+
+def read_adoption_mode(root: Path) -> str | None:
+    payload = load_adoption_mode_payload(root)
+    if payload is None:
         return None
     mode = payload.get("adoption_mode")
     if mode not in ALLOWED_MODES:
         return None
     return mode
 
+IN_PROCESS_SCRIPT_NAMES = {
+    "validate_adoption_shape.py",
+    "validate_checkpoint_packs.py",
+    "validate_planning_lifecycle.py",
+    "validate_template_required_sections.py",
+    "validate_prompt_ladder.py",
+    "validate_prompt_metadata_schema.py",
+    "validate_agent_metadata_schema.py",
+    "validate_provider_settings_schema.py",
+    "validate_generated_header_format.py",
+    "validate_agent_runtime_drift.py",
+    "sync_architecture_docs.py",
+    "validate_repo_config.py",
+}
+
+@lru_cache(maxsize=64)
+def _load_script_module(script_path: Path) -> ModuleType:
+    module_name = f"_repo_contract_step_{script_path.stem}"
+    spec = importlib.util.spec_from_file_location(module_name, script_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load script module: {script_path.as_posix()}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+def _run_script_main_in_process(script_path: Path, args: list[str], cwd: Path) -> int:
+    module = _load_script_module(script_path)
+    if not hasattr(module, "main"):
+        raise RuntimeError(f"Script has no main(): {script_path.as_posix()}")
+    main_callable = getattr(module, "main")
+    original_cwd = Path.cwd()
+    original_argv = sys.argv[:]
+    try:
+        os.chdir(cwd)
+        sys.argv = [script_path.as_posix(), *args]
+        parameter_count = len(inspect.signature(main_callable).parameters)
+        if parameter_count == 0:
+            result = main_callable()
+        else:
+            result = main_callable(args)
+        return int(result) if isinstance(result, int) else 0
+    finally:
+        sys.argv = original_argv
+        os.chdir(original_cwd)
+
+def _can_run_in_process(command: list[str], repo_root_path: Path) -> bool:
+    if len(command) < 2:
+        return False
+    python_exe = Path(command[0]).name.lower()
+    if python_exe not in {"python", "python.exe", Path(sys.executable).name.lower()}:
+        return False
+    if command[1] == "-m":
+        return False
+    script_path = Path(command[1]).resolve()
+    scripts_root = (repo_root_path / "scripts").resolve()
+    try:
+        script_path.relative_to(scripts_root)
+    except ValueError:
+        return False
+    return script_path.name in IN_PROCESS_SCRIPT_NAMES
 
 def run_step(command: list[str], *, cwd: Path) -> int:
     rendered = " ".join(command)
     print(f"> {rendered}")
+    if _can_run_in_process(command, cwd):
+        script_path = Path(command[1]).resolve()
+        script_args = command[2:]
+        return _run_script_main_in_process(script_path, script_args, cwd)
     completed = subprocess.run(command, cwd=cwd, check=False)
     return completed.returncode
 
 
-def build_subprocess_steps(*, root: Path, python_executable: str, fast: bool) -> list[list[str]]:
+def build_subprocess_steps(
+    *,
+    root: Path,
+    python_executable: str,
+    fast: bool,
+    adoption_mode: str | None = None,
+) -> list[list[str]]:
     adoption_shape_script = str(root / "scripts" / "validate_adoption_shape.py")
     checkpoint_pack_script = str(root / "scripts" / "validate_checkpoint_packs.py")
     planning_lifecycle_script = str(root / "scripts" / "validate_planning_lifecycle.py")
     template_sections_script = str(root / "scripts" / "validate_template_required_sections.py")
+    prompt_ladder_script = str(root / "scripts" / "validate_prompt_ladder.py")
+    prompt_metadata_schema_script = str(root / "scripts" / "validate_prompt_metadata_schema.py")
     repo_config_script = str(root / "scripts" / "validate_repo_config.py")
+    agent_metadata_schema_script = str(root / "scripts" / "validate_agent_metadata_schema.py")
+    provider_settings_schema_script = str(root / "scripts" / "validate_provider_settings_schema.py")
+    generated_header_script = str(root / "scripts" / "validate_generated_header_format.py")
+    agent_runtime_drift_script = str(root / "scripts" / "validate_agent_runtime_drift.py")
     steps: list[list[str]] = [
         [python_executable, adoption_shape_script],
         [python_executable, checkpoint_pack_script],
         [python_executable, planning_lifecycle_script],
         [python_executable, template_sections_script],
+        [python_executable, prompt_ladder_script],
+        [python_executable, prompt_metadata_schema_script],
+        [python_executable, agent_metadata_schema_script],
+        [python_executable, provider_settings_schema_script],
+        [python_executable, generated_header_script],
+        [python_executable, agent_runtime_drift_script, "--skip-deploy-check"],
     ]
-    if read_adoption_mode(root) != "starter_method_only":
+    if adoption_mode is None:
+        adoption_mode = read_adoption_mode(root)
+    if adoption_mode != "starter_method_only":
         sync_script = str(root / "scripts" / "sync_architecture_docs.py")
         steps.append([python_executable, sync_script, "--check"])
     steps.append([python_executable, repo_config_script])
