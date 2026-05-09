@@ -14,6 +14,7 @@ tags:
 
 from unittest.mock import MagicMock, patch
 from fitcv_cp.queue import enqueue_run
+import fitcv_cp.queue as queue_module
 
 
 def test_enqueue_run_returns_uuid():
@@ -98,3 +99,32 @@ def test_cancel_queued_run_returns_false_when_not_found():
     with patch("fitcv_cp.queue.Job.fetch", side_effect=NoSuchJobError("rq-job-missing")):
         result = cancel_queued_run("rq-job-missing", redis_url="redis://localhost:6379/0")
     assert result is False
+
+
+def test_inline_start_delay_seconds_bounds_values() -> None:
+    with patch.dict("os.environ", {"FITCV_CP_INLINE_START_DELAY_SECONDS": "0.2"}, clear=False):
+        assert queue_module._inline_start_delay_seconds() == 0.2
+    with patch.dict("os.environ", {"FITCV_CP_INLINE_START_DELAY_SECONDS": "-4"}, clear=False):
+        assert queue_module._inline_start_delay_seconds() == 0.0
+    with patch.dict("os.environ", {"FITCV_CP_INLINE_START_DELAY_SECONDS": "bogus"}, clear=False):
+        assert queue_module._inline_start_delay_seconds() == 0.05
+
+
+def test_run_inline_job_after_delay_waits_before_execution() -> None:
+    with patch("fitcv_cp.queue.time.sleep") as sleep_mock:
+        with patch("fitcv_cp.queue._run_inline_job") as run_mock:
+            with patch.dict("os.environ", {"FITCV_CP_INLINE_START_DELAY_SECONDS": "0.25"}, clear=False):
+                queue_module._run_inline_job_after_delay(
+                    "inline-job-1",
+                    "run-1",
+                    "data/jobs.json",
+                    "config/env.yaml",
+                )
+    sleep_mock.assert_called_once_with(0.25)
+    run_mock.assert_called_once_with(
+        "inline-job-1",
+        "run-1",
+        "data/jobs.json",
+        "config/env.yaml",
+    )
+
