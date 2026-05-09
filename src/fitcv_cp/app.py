@@ -1950,8 +1950,15 @@ def _build_ranked_cv_outcome_summary(rows: list[dict[str, Any]]) -> dict[str, in
             stage_owned_subreason == "review_required" or cv_gen_status == "review_required"
         ):
             summary["ranked_review_required_count"] += 1
-        elif pipeline_status == "ranked_no_cv":
+        elif pipeline_status == "ranked_no_cv" and (
+            stage_owned_subreason in {"validation_failed", "generation_failed", "persistence_failed"}
+            or cv_gen_status in {"validation_failed", "generation_failed", "persistence_failed"}
+        ):
             summary["ranked_generation_failed_count"] += 1
+        elif pipeline_status == "ranked_no_cv":
+            # Preserve stage-owned "no CV yet" versus "CV generation failed"
+            # truth in summary counters for run detail.
+            summary["ranked_other_no_cv_count"] += 1
         else:
             summary["ranked_other_no_cv_count"] += 1
     return summary
@@ -2058,6 +2065,15 @@ def _build_hitl_closure_summary(run: PipelineRun, queue: dict[str, Any] | None =
         "requires_no_accepted_ack": requires_no_accepted_ack,
         "closure_mode": closure_mode,
     }
+
+def _checkpoint_truth_for_review_closure(run: PipelineRun) -> tuple[str | None, list[str], str | None]:
+    """Preserve stage-owned checkpoint truth when lifecycle closes review."""
+    completed_stages = [str(item).strip() for item in list(run.completed_stages or []) if str(item).strip()]
+    last_completed_stage = str(run.last_completed_stage or "").strip() or None
+    if last_completed_stage is None and completed_stages:
+        last_completed_stage = completed_stages[-1]
+    checkpoint_payload_json = run.checkpoint_payload_json
+    return (last_completed_stage, completed_stages, checkpoint_payload_json)
 
 def _effective_settings_dict(run: PipelineRun) -> dict[str, Any]:
     payload = _load_json_object(run.effective_settings_json)
@@ -4084,7 +4100,7 @@ def _timeline_stage_summary_message(
         if validation_failed is not None:
             details.append(f"{validation_failed} validation failed")
         if generation_failed is not None:
-            details.append(f"{generation_failed} failed")
+            details.append(f"{generation_failed} generation failed")
         if persistence_failed is not None:
             details.append(f"{persistence_failed} persistence failed")
         if details:
@@ -5999,25 +6015,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
-        _, queue_job_id = continue_run_with_job_id(
-            run_id=run.run_id,
-            jobs_path=run.jobs_path,
-            config_path=run.config_path,
-            triggered_by="admin",
-            redis_url=redis_url,
-        )
-        submission = _resolve_submission_binding(run.run_id, queue_job_id)
         update_run_status(run.run_id, RunStatus.QUEUED, bq, project=project, dataset=dataset)
-        update_run_orchestration_binding(
-            run.run_id,
-            queue_job_id=submission.queue_job_id,
-            orchestration_backend=submission.backend,
-            orchestration_run_id=submission.backend_run_id,
-            bq=bq,
-            project=project,
-            dataset=dataset,
-        )
-        update_run_queue_job_id(run.run_id, submission.queue_job_id, bq, project=project, dataset=dataset)
         update_run_checkpoint(
             run.run_id,
             bq,
@@ -6029,6 +6027,25 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             completed_stages=run.completed_stages,
             checkpoint_payload_json=run.checkpoint_payload_json,
         )
+        _, queue_job_id = continue_run_with_job_id(
+            run_id=run.run_id,
+            jobs_path=run.jobs_path,
+            config_path=run.config_path,
+            triggered_by="admin",
+            redis_url=redis_url,
+        )
+        submission = _resolve_submission_binding(run.run_id, queue_job_id)
+        update_run_orchestration_binding(
+            run.run_id,
+            queue_job_id=submission.queue_job_id,
+            orchestration_backend=submission.backend,
+            orchestration_run_id=submission.backend_run_id,
+            bq=bq,
+            project=project,
+            dataset=dataset,
+        )
+        update_run_queue_job_id(run.run_id, submission.queue_job_id, bq, project=project, dataset=dataset)
+
         append_event(
             RunEvent(
                 run_id=run.run_id,
@@ -6489,6 +6506,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 dataset=dataset,
                 finished_at=now,
             )
+            last_completed_stage, completed_stages, checkpoint_payload_json = _checkpoint_truth_for_review_closure(run)
             update_run_checkpoint(
                 run_id,
                 bq,
@@ -6496,9 +6514,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 dataset=dataset,
                 checkpoint_status="completed",
                 next_stage=None,
-                last_completed_stage="cv_generation",
-                completed_stages=list(run.completed_stages or []),
-                checkpoint_payload_json=None,
+                last_completed_stage=last_completed_stage,
+                completed_stages=completed_stages,
+                checkpoint_payload_json=checkpoint_payload_json,
             )
             closure_payload = _build_hitl_review_audit_payload(
                 dataclasses.replace(
@@ -6722,6 +6740,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 dataset=dataset,
                 finished_at=finished_at,
             )
+            last_completed_stage, completed_stages, checkpoint_payload_json = _checkpoint_truth_for_review_closure(run)
             update_run_checkpoint(
                 run_id,
                 bq,
@@ -6729,9 +6748,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 dataset=dataset,
                 checkpoint_status="completed",
                 next_stage=None,
-                last_completed_stage="cv_generation",
-                completed_stages=list(run.completed_stages or []),
-                checkpoint_payload_json=None,
+                last_completed_stage=last_completed_stage,
+                completed_stages=completed_stages,
+                checkpoint_payload_json=checkpoint_payload_json,
             )
             closure_payload = _build_hitl_review_audit_payload(
                 dataclasses.replace(
