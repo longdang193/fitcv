@@ -1,6 +1,6 @@
-﻿---
+---
 thread_id: workstream-operator-control-plane.operator-control-plane-run-detail-truth
-status: active
+status: completed
 ---
 
 # operator-control-plane-run-detail-truth
@@ -33,3 +33,5 @@ src/fitcv_cp/app.py; templates; run events
 
 Outcome truth wins over convenience copy.
 
+Latest checkpoint evidence:
+- docs/intent/workstreams/checkpoints/workstream-operator-control-plane/operator-control-plane-run-detail-truth/20260509-0848.md
