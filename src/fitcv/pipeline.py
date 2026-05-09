@@ -125,7 +125,19 @@ from fitcv.rule_filter import (
 )
 from fitcv.tracker import create_cv_version_record, store_cv_version
 from fitcv.validator import AnalysisGroundingPayload, run_all_validations
-from fitcv.telemetry import build_trace_context, observe_span, set_span_attributes
+from fitcv.telemetry import (
+    bound_langfuse_excerpt,
+    bound_langfuse_issue_list,
+    bound_langfuse_list,
+    bound_langfuse_markdown,
+    build_langfuse_item_observation_attributes,
+    build_trace_context,
+    observe_span,
+    render_langfuse_labeled_list_section,
+    render_langfuse_labeled_text_section,
+    render_langfuse_markdown_sections,
+    set_span_attributes,
+)
 from fitcv.vector_search import run_vector_search
 from fitcv.vector_search import store_shortlist
 from fitcv.pipeline_store import PipelineStore
@@ -1603,6 +1615,403 @@ def _build_analysis_evidence_selection_summary(
     return {key: value for key, value in payload.items() if value not in ({}, [], None)}
 
 
+def _render_cv_analysis_item_input(*, profile: dict[str, Any], job: dict[str, Any]) -> str:
+    job_title = _extract_job_title(job) or "Unknown job"
+    required_skills = bound_langfuse_list(
+        [str(item).strip() for item in list(job.get("required_skills") or []) if str(item).strip()],
+        max_items=8,
+        max_item_chars=300,
+    )
+    candidate_skills = bound_langfuse_list(
+        flatten_skills(profile),
+        max_items=20,
+        max_item_chars=80,
+    )
+    experience_highlights = bound_langfuse_list(
+        list(profile.get("experience_highlights") or []),
+        max_items=8,
+        max_item_chars=300,
+    )
+    sections = [
+        (
+            "## Job",
+            [f"Title: {job_title}"],
+        ),
+    ]
+    sections.append(("### Job Excerpt", [bound_langfuse_excerpt(str(job.get("description") or ""), max_chars=1500) or ""]))
+    sections.append(("### Requirements Excerpt", [f"- {item}" for item in required_skills]))
+    sections.append(("## Candidate", [f"Headline: {bound_langfuse_excerpt(str(profile.get('headline') or ''), max_chars=240) or 'Unknown candidate'}"]))
+    sections.append(("### Skills", [f"- {item}" for item in candidate_skills]))
+    sections.append(("### Experience Highlights", [f"- {item}" for item in experience_highlights]))
+    sections.append(
+        (
+            "## Instructions",
+            [
+                bound_langfuse_excerpt(
+                    str(job.get("analysis_instructions") or "Evaluate fit for generation readiness."),
+                    max_chars=2000,
+                )
+                or "Evaluate fit for generation readiness."
+            ],
+        )
+    )
+    sections.append(("## Rubric", ["- domain", "- seniority", "- stack", "- scope"]))
+    return render_langfuse_markdown_sections(sections)
+
+
+def _render_cv_analysis_item_output(analysis_record: dict[str, Any]) -> str:
+    fit_decision = str(analysis_record.get("fit_classification") or "unknown")
+    matched = bound_langfuse_list(
+        list((analysis_record.get("gap_summary") or {}).get("matched") or []),
+        max_items=8,
+        max_item_chars=240,
+    )
+    risks = bound_langfuse_list(
+        list((analysis_record.get("gap_summary") or {}).get("missing") or []),
+        max_items=8,
+        max_item_chars=240,
+    )
+    status = str(analysis_record.get("status") or "unknown")
+    error_payload = analysis_record.get("outcome_reason") or analysis_record.get("error")
+    if isinstance(error_payload, dict):
+        error_summary = bound_langfuse_excerpt(
+            str(error_payload.get("message") or error_payload.get("stage") or ""),
+            max_chars=1000,
+        )
+    else:
+        error_summary = bound_langfuse_excerpt(str(error_payload or ""), max_chars=1000)
+    reasoning_summary = bound_langfuse_excerpt(status, max_chars=1000) or "unknown"
+    sections = [
+        ("## Fit Decision", [fit_decision]),
+        ("## Fit Score", [str(analysis_record.get("fit_score") or "n/a")]),
+        ("## Reasoning Summary", [reasoning_summary]),
+        ("## Evidence", [f"- {item}" for item in matched] or ["- No bounded evidence available"]),
+        ("## Risks", [f"- {item}" for item in risks]),
+        (
+            "## Generation Readiness",
+            ["true" if status == "ready_for_generation" else "false"],
+        ),
+    ]
+    if error_summary:
+        sections.append(("## Failure Summary", [error_summary]))
+    return render_langfuse_markdown_sections(sections)
+
+
+def _build_cv_analysis_item_observation_attributes(
+    *,
+    run_id: str,
+    profile: dict[str, Any],
+    job: dict[str, Any],
+    analysis_record: dict[str, Any],
+) -> dict[str, Any]:
+    status = str(analysis_record.get("status") or "")
+    fit_decision = str(analysis_record.get("fit_classification") or "unknown")
+    generation_readiness = status == "ready_for_generation"
+    error_payload = analysis_record.get("outcome_reason") or analysis_record.get("error")
+    if isinstance(error_payload, dict):
+        error_summary = bound_langfuse_excerpt(
+            str(error_payload.get("message") or error_payload.get("stage") or ""),
+            max_chars=1000,
+        )
+    else:
+        error_summary = bound_langfuse_excerpt(str(error_payload or ""), max_chars=1000)
+    candidate_skills = bound_langfuse_list(
+        flatten_skills(profile),
+        max_items=20,
+        max_item_chars=80,
+    )
+    experience_highlights = bound_langfuse_list(
+        list(profile.get("experience_highlights") or []),
+        max_items=8,
+        max_item_chars=300,
+    )
+    requirements_excerpt = bound_langfuse_list(
+        [str(item).strip() for item in list(job.get("required_skills") or []) if str(item).strip()],
+        max_items=8,
+        max_item_chars=300,
+    )
+    matched = bound_langfuse_list(
+        list((analysis_record.get("gap_summary") or {}).get("matched") or []),
+        max_items=8,
+        max_item_chars=240,
+    )
+    risks = bound_langfuse_list(
+        list((analysis_record.get("gap_summary") or {}).get("missing") or []),
+        max_items=8,
+        max_item_chars=240,
+    )
+    reasoning_summary = bound_langfuse_excerpt(status, max_chars=1000)
+    input_structured = {
+        "job_id": _extract_job_url(job) or _extract_job_title(job),
+        "job_title": _extract_job_title(job),
+        "job_excerpt": bound_langfuse_excerpt(str(job.get("description") or ""), max_chars=1500),
+        "requirements_excerpt": requirements_excerpt,
+        "candidate_excerpt": {
+            "headline": bound_langfuse_excerpt(str(profile.get("headline") or ""), max_chars=240),
+            "skills": candidate_skills,
+            "experience_highlights": experience_highlights,
+        },
+        "instructions": bound_langfuse_excerpt(
+            str(job.get("analysis_instructions") or "Evaluate fit for generation readiness."),
+            max_chars=2000,
+        ),
+        "rubric": {
+            "fit_dimensions": ["domain", "seniority", "stack", "scope"],
+        },
+        "context_refs": {
+            "analysis_input_fingerprint": analysis_record.get("analysis_input_fingerprint"),
+            "retrieval_context_summary": bound_langfuse_excerpt(
+                ", ".join(matched) if matched else "No bounded retrieval context available",
+                max_chars=1000,
+            ),
+        },
+    }
+    output_structured = {
+        "fit_decision": fit_decision,
+        "fit_score": analysis_record.get("fit_score"),
+        "reasoning_summary": reasoning_summary,
+        "evidence": matched,
+        "risks": risks,
+        "generation_readiness": generation_readiness,
+        "disposition": status,
+        "failure_summary": error_summary,
+    }
+    metadata = {
+        "run_id": run_id,
+        "job_url": _extract_job_url(job),
+        "job_title": _extract_job_title(job),
+        "analysis_input_fingerprint": analysis_record.get("analysis_input_fingerprint"),
+        "analysis_reuse_status": analysis_record.get("analysis_reuse_status"),
+        "ranking_fit_label": analysis_record.get("ranking_fit_label"),
+        "reuse_status": analysis_record.get("analysis_reuse_status"),
+        "deterministic_gate_result": status,
+        "selected": True,
+        "status": status,
+    }
+    return build_langfuse_item_observation_attributes(
+        observation_name="cv_analysis_item",
+        observation_type="generation",
+        rendered_input=_render_cv_analysis_item_input(profile=profile, job=job),
+        rendered_output=_render_cv_analysis_item_output(analysis_record),
+        input_structured=input_structured,
+        output_structured=output_structured,
+        metadata=metadata,
+        prompt_name="cv_analysis_item",
+        extra_attributes={
+            "fitcv.run_id": run_id,
+            "fitcv.job_url": _extract_job_url(job),
+            "fitcv.stage_id": "cv_analysis",
+        },
+    )
+
+
+def _emit_cv_analysis_item_observation(
+    *,
+    run_id: str,
+    profile: dict[str, Any],
+    job: dict[str, Any],
+    analysis_record: dict[str, Any],
+) -> None:
+    attributes = _build_cv_analysis_item_observation_attributes(
+        run_id=run_id,
+        profile=profile,
+        job=job,
+        analysis_record=analysis_record,
+    )
+    with observe_span("pipeline.cv_analysis_item", attributes=attributes):
+        return
+
+
+def _render_cv_generation_item_input(
+    *,
+    job: dict[str, Any],
+    evidence_used: list[dict[str, Any]],
+    fit_classification: str | None,
+) -> str:
+    required_skills = bound_langfuse_list(
+        [str(item).strip() for item in list(job.get("required_skills") or []) if str(item).strip()],
+        max_items=8,
+        max_item_chars=300,
+    )
+    evidence_lines = bound_langfuse_list(
+        [
+            str(item.get("name") or item.get("source_ref") or item.get("evidence_type") or "evidence").strip()
+            for item in evidence_used
+            if str(item.get("name") or item.get("source_ref") or item.get("evidence_type") or "").strip()
+        ],
+        max_items=8,
+        max_item_chars=240,
+    )
+    sections = [
+        ("## Job", [f"Title: {_extract_job_title(job) or 'Unknown job'}"]),
+        ("### Job Excerpt", [bound_langfuse_excerpt(str(job.get("description") or ""), max_chars=1500) or ""]),
+        ("### Constraints", [f"- {item}" for item in required_skills]),
+        ("## Analysis Inputs", [f"Fit Classification: {fit_classification or 'unknown'}"]),
+        ("## Selected Evidence", [f"- {item}" for item in evidence_lines] or ["- No evidence selected"]),
+        (
+            "## Generation Instructions",
+            [
+                bound_langfuse_excerpt(
+                    str(job.get("generation_instructions") or "Generate grounded CV sections only from selected evidence."),
+                    max_chars=2000,
+                )
+                or "Generate grounded CV sections only from selected evidence."
+            ],
+        ),
+    ]
+    return render_langfuse_markdown_sections(sections)
+
+
+def _render_cv_generation_item_output(debug_record: dict[str, Any]) -> str:
+    status = str(debug_record.get("status") or "unknown")
+    markdown_final = bound_langfuse_markdown(str(debug_record.get("markdown_final") or "").strip(), max_chars=12000)
+    validation_initial = dict(debug_record.get("validation_initial") or {})
+    review_issue_inputs = (
+        list(validation_initial.get("missing_sections") or [])
+        + list(validation_initial.get("grounding_violations") or [])
+        + list(validation_initial.get("skill_violations") or [])
+        + list(validation_initial.get("markdown_quality_blocking_issues") or [])
+        + list(validation_initial.get("markdown_quality_review_flags") or [])
+    )
+    validation_valid = bool(validation_initial.get("valid")) if validation_initial else status == "accepted"
+    error_payload = debug_record.get("error")
+    if isinstance(error_payload, dict):
+        failure_summary = bound_langfuse_excerpt(
+            str(error_payload.get("message") or error_payload.get("stage") or ""),
+            max_chars=1000,
+        )
+    else:
+        failure_summary = bound_langfuse_excerpt(str(error_payload or ""), max_chars=1000)
+    if status == CV_GENERATION_REVIEW_REQUIRED_STATUS and not review_issue_inputs and failure_summary:
+        review_issue_inputs.append(failure_summary)
+    review_issues = bound_langfuse_issue_list(review_issue_inputs)
+    sections = [
+        ("## Status", [status]),
+        ("## Generated CV Markdown", [markdown_final or "No markdown generated"]),
+        ("## Validation Summary", ["valid" if validation_valid else status]),
+        ("## Review Issues", [f"- {item}" for item in review_issues]),
+        ("## Persistence Outcome", ["stored" if status == "accepted" else status]),
+    ]
+    if failure_summary:
+        sections.append(("## Failure Summary", [failure_summary]))
+    return render_langfuse_markdown_sections(sections)
+
+
+def _build_cv_generation_item_observation_attributes(
+    *,
+    run_id: str,
+    analysis_record: dict[str, Any],
+    debug_record: dict[str, Any],
+) -> dict[str, Any]:
+    job = dict(analysis_record.get("job_snapshot") or {})
+    status = str(debug_record.get("status") or "")
+    required_skills = bound_langfuse_list(
+        [str(item).strip() for item in list(job.get("required_skills") or []) if str(item).strip()],
+        max_items=8,
+        max_item_chars=300,
+    )
+    evidence_lines = bound_langfuse_list(
+        [
+            str(item.get("name") or item.get("source_ref") or item.get("evidence_type") or "evidence").strip()
+            for item in list(debug_record.get("evidence_used") or [])
+            if str(item.get("name") or item.get("source_ref") or item.get("evidence_type") or "").strip()
+        ],
+        max_items=8,
+        max_item_chars=240,
+    )
+    validation_initial = dict(debug_record.get("validation_initial") or {})
+    review_issue_inputs = (
+        list(validation_initial.get("missing_sections") or [])
+        + list(validation_initial.get("grounding_violations") or [])
+        + list(validation_initial.get("skill_violations") or [])
+        + list(validation_initial.get("markdown_quality_blocking_issues") or [])
+        + list(validation_initial.get("markdown_quality_review_flags") or [])
+    )
+    validation_valid = bool(validation_initial.get("valid")) if validation_initial else status == "accepted"
+    error_payload = debug_record.get("error")
+    if isinstance(error_payload, dict):
+        failure_summary = bound_langfuse_excerpt(
+            str(error_payload.get("message") or error_payload.get("stage") or ""),
+            max_chars=1000,
+        )
+    else:
+        failure_summary = bound_langfuse_excerpt(str(error_payload or ""), max_chars=1000)
+    if status == CV_GENERATION_REVIEW_REQUIRED_STATUS and not review_issue_inputs and failure_summary:
+        review_issue_inputs.append(failure_summary)
+    review_issues = bound_langfuse_issue_list(review_issue_inputs)
+    input_structured = {
+        "job_id": _extract_job_url(job) or _extract_job_title(job),
+        "job_excerpt": bound_langfuse_excerpt(str(job.get("description") or ""), max_chars=1500),
+        "constraints": required_skills,
+        "selected_evidence": evidence_lines,
+        "analysis_inputs": {
+            "analysis_input_fingerprint": analysis_record.get("analysis_input_fingerprint"),
+            "fit_classification": analysis_record.get("fit_classification"),
+        },
+        "generation_instructions": bound_langfuse_excerpt(
+            str(job.get("generation_instructions") or "Generate grounded CV sections only from selected evidence."),
+            max_chars=2000,
+        ),
+    }
+    output_structured = {
+        "status": status,
+        "cv_markdown": bound_langfuse_markdown(str(debug_record.get("markdown_final") or "").strip(), max_chars=12000),
+        "cv_structured": debug_record.get("structured_cv_final"),
+        "validation_summary": {
+            "valid": validation_valid,
+            "review_issues": review_issues,
+        },
+        "persistence_outcome": "stored" if status == "accepted" else status,
+        "failure_summary": failure_summary,
+    }
+    metadata = {
+        "run_id": run_id,
+        "job_url": _extract_job_url(job),
+        "job_title": _extract_job_title(job),
+        "status": status,
+        "selected": status == "accepted",
+        "attempt_count": debug_record.get("attempt_count"),
+        "analysis_input_fingerprint": analysis_record.get("analysis_input_fingerprint"),
+        "parent_observation_name": "cv_analysis_item",
+        "disposition": status,
+        "output_structured": output_structured,
+    }
+    return build_langfuse_item_observation_attributes(
+        observation_name="cv_generation_item",
+        observation_type="generation",
+        rendered_input=_render_cv_generation_item_input(
+            job=job,
+            evidence_used=list(debug_record.get("evidence_used") or []),
+            fit_classification=cast(str | None, debug_record.get("fit_classification")),
+        ),
+        rendered_output=_render_cv_generation_item_output(debug_record),
+        input_structured=input_structured,
+        output_structured=output_structured,
+        metadata=metadata,
+        prompt_name="cv_generation_item",
+        extra_attributes={
+            "fitcv.run_id": run_id,
+            "fitcv.job_url": _extract_job_url(job),
+            "fitcv.stage_id": "cv_generation",
+        },
+    )
+
+
+def _emit_cv_generation_item_observation(
+    *,
+    run_id: str,
+    analysis_record: dict[str, Any],
+    debug_record: dict[str, Any],
+) -> None:
+    attributes = _build_cv_generation_item_observation_attributes(
+        run_id=run_id,
+        analysis_record=analysis_record,
+        debug_record=debug_record,
+    )
+    with observe_span("pipeline.cv_generation_item", attributes=attributes):
+        return
+
+
 def _authoritative_ranking_fit_label(
     job: dict[str, Any],
     fit_classification: str | None,
@@ -2572,8 +2981,6 @@ def _debug_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | None
         "cv_generation_model": record.get("cv_generation_model"),
         "cv_prompt_id": record.get("cv_prompt_id"),
         "cv_prompt_template_path": record.get("cv_prompt_template_path"),
-        "structured_cv_final": record.get("structured_cv_final"),
-        "markdown_final": record.get("markdown_final"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "", [])}
 
@@ -2602,7 +3009,6 @@ def _debug_record_changed_sample(record: dict[str, Any]) -> dict[str, Any] | Non
         "cv_generation_model": record.get("cv_generation_model"),
         "cv_prompt_id": record.get("cv_prompt_id"),
         "cv_prompt_template_path": record.get("cv_prompt_template_path"),
-        "structured_cv_final": record.get("structured_cv_final"),
         "error": record.get("error"),
     }
     return {key: value for key, value in sample.items() if value not in (None, "", [])}
@@ -4017,6 +4423,12 @@ def run_pipeline(
                             },
                         )
                         cv_analysis_results.append(analysis_record)
+                        _emit_cv_analysis_item_observation(
+                            run_id=run_id,
+                            profile=profile,
+                            job=job,
+                            analysis_record=analysis_record,
+                        )
                         cv_generation_debug_records.append(
                             _build_cv_generation_debug_record(
                                 job=job,
@@ -4052,6 +4464,12 @@ def run_pipeline(
                             "analysis_reuse_status": "reused_exact_match",
                         }
                         cv_analysis_results.append(analysis_record)
+                        _emit_cv_analysis_item_observation(
+                            run_id=run_id,
+                            profile=profile,
+                            job=job,
+                            analysis_record=analysis_record,
+                        )
                         reused_status = str(analysis_record.get("status") or "")
                         if reused_status in {"skipped_fit_gate", "analysis_failed"}:
                             debug_error = (
@@ -4114,6 +4532,12 @@ def run_pipeline(
                         if agentic_late_stage_enabled:
                             analysis_record = dict(run_agentic_cv_analysis(job, profile, config))
                             cv_analysis_results.append(analysis_record)
+                            _emit_cv_analysis_item_observation(
+                                run_id=run_id,
+                                profile=profile,
+                                job=job,
+                                analysis_record=analysis_record,
+                            )
                             evidence = list(analysis_record.get("evidence_payload") or [])
                             evidence_selection_summary = dict(analysis_record.get("evidence_selection_summary") or {})
                             gap = analysis_record.get("gap_summary")
@@ -4212,6 +4636,12 @@ def run_pipeline(
                                 },
                             )
                             cv_analysis_results.append(analysis_record)
+                            _emit_cv_analysis_item_observation(
+                                run_id=run_id,
+                                profile=profile,
+                                job=job,
+                                analysis_record=analysis_record,
+                            )
                             cv_generation_debug_records.append(
                                 _build_cv_generation_debug_record(
                                     job=job,
@@ -4236,19 +4666,24 @@ def run_pipeline(
                             )
                             continue
 
-                        cv_analysis_results.append(
-                            _build_cv_analysis_record(
-                                job=job,
-                                status="ready_for_generation",
-                                analysis_input_fingerprint=analysis_fingerprint_record["fingerprint"],
-                                analysis_reuse_status="fresh_compute",
-                                evidence_payload=evidence,
-                                evidence_used=_build_debug_evidence_used(evidence),
-                                evidence_selection_summary=evidence_selection_summary,
-                                gap_summary=gap,
-                                fit_classification=fit,
-                                error=None,
-                            )
+                        analysis_record = _build_cv_analysis_record(
+                            job=job,
+                            status="ready_for_generation",
+                            analysis_input_fingerprint=analysis_fingerprint_record["fingerprint"],
+                            analysis_reuse_status="fresh_compute",
+                            evidence_payload=evidence,
+                            evidence_used=_build_debug_evidence_used(evidence),
+                            evidence_selection_summary=evidence_selection_summary,
+                            gap_summary=gap,
+                            fit_classification=fit,
+                            error=None,
+                        )
+                        cv_analysis_results.append(analysis_record)
+                        _emit_cv_analysis_item_observation(
+                            run_id=run_id,
+                            profile=profile,
+                            job=job,
+                            analysis_record=analysis_record,
                         )
                     except Exception as exc:
                         logger.error("[run_id=%s] CV analysis failed for %s: %s", run_id, job.get("job_url"), exc)
@@ -4268,6 +4703,12 @@ def run_pipeline(
                             },
                         )
                         cv_analysis_results.append(analysis_record)
+                        _emit_cv_analysis_item_observation(
+                            run_id=run_id,
+                            profile=profile,
+                            job=job,
+                            analysis_record=analysis_record,
+                        )
                         cv_generation_debug_records.append(
                             _build_cv_generation_debug_record(
                                 job=job,
@@ -4475,6 +4916,7 @@ def run_pipeline(
                     job_runtime_provenance,
                 )
                 job_agentic_live_trace: dict[str, Any] | None = None
+                generation_attempt_count = 1
 
             def _emit_cv_generation_result_event(
                 *,
@@ -4577,6 +5019,7 @@ def run_pipeline(
                             error=cast(dict[str, str] | None, generation_error),
                         ):
                             retry_attempt_count = 2
+                            generation_attempt_count = 2
                             retry_result = run_agentic_cv_generation(
                                 analysis_record=analysis_record,
                                 profile=profile,
@@ -4633,6 +5076,11 @@ def run_pipeline(
                             )
                             debug_record["attempt_count"] = retry_attempt_count
                             cv_generation_debug_records.append(debug_record)
+                            _emit_cv_generation_item_observation(
+                                run_id=run_id,
+                                analysis_record=analysis_record,
+                                debug_record=debug_record,
+                            )
                             continue
                     review_reason = _hitl_review_reason_for_agentic_case(
                         analysis_record,
@@ -4786,31 +5234,35 @@ def run_pipeline(
                     )
                     # Store rejected version for later review (v2 feature placeholder)
                     # store_rejected_cv(job, validation, config)
-                    cv_generation_debug_records.append(
-                        _build_cv_generation_debug_record(
-                            job=job,
-                            status="validation_failed",
-                            fit_classification=fit,
-                            evidence_used=evidence_used,
-                            evidence_selection_summary=evidence_selection_summary,
-                            analysis_input_summary=analysis_input_summary,
-                            gap_summary=gap,
-                            structured_cv_initial=structured_cv_initial,
-                            validation_initial=validation_initial,
-                            repair_attempt=repair_attempt,
-                            structured_cv_final=None,
-                            markdown_final=None,
-                            enabled_sections=enabled_cv_sections,
-                            cv_generation_model=job_cv_generation_model_value,
-                            runtime_provenance=job_runtime_provenance,
-                            cv_prompt_id=cv_prompt_id_value,
-                            cv_prompt_template_path=cv_prompt_template_path_value,
-                            error={
-                                "stage": "validation",
-                                "message": f"CV validation failed for {job.get('job_url')}",
-                            },
-                            agentic_live_trace=job_agentic_live_trace,
-                        )
+                    validation_failed_debug_record = _build_cv_generation_debug_record(
+                        job=job,
+                        status="validation_failed",
+                        fit_classification=fit,
+                        evidence_used=evidence_used,
+                        evidence_selection_summary=evidence_selection_summary,
+                        analysis_input_summary=analysis_input_summary,
+                        gap_summary=gap,
+                        structured_cv_initial=structured_cv_initial,
+                        validation_initial=validation_initial,
+                        repair_attempt=repair_attempt,
+                        structured_cv_final=None,
+                        markdown_final=None,
+                        enabled_sections=enabled_cv_sections,
+                        cv_generation_model=job_cv_generation_model_value,
+                        runtime_provenance=job_runtime_provenance,
+                        cv_prompt_id=cv_prompt_id_value,
+                        cv_prompt_template_path=cv_prompt_template_path_value,
+                        error={
+                            "stage": "validation",
+                            "message": f"CV validation failed for {job.get('job_url')}",
+                        },
+                        agentic_live_trace=job_agentic_live_trace,
+                    )
+                    cv_generation_debug_records.append(validation_failed_debug_record)
+                    _emit_cv_generation_item_observation(
+                        run_id=run_id,
+                        analysis_record=analysis_record,
+                        debug_record=validation_failed_debug_record,
                     )
                     if reporter is not None:
                         reporter.emit(
@@ -4850,31 +5302,35 @@ def run_pipeline(
                         retry_count=0,
                         latency_ms=int((time.monotonic() - cv_generation_started_monotonic) * 1000),
                     )
-                    cv_generation_debug_records.append(
-                        _build_cv_generation_debug_record(
-                            job=job,
-                            status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
-                            fit_classification=fit,
-                            evidence_used=evidence_used,
-                            evidence_selection_summary=evidence_selection_summary,
-                            analysis_input_summary=analysis_input_summary,
-                            gap_summary=gap,
-                            structured_cv_initial=structured_cv_initial,
-                            validation_initial=validation_initial,
-                            repair_attempt=repair_attempt,
-                            structured_cv_final=structured_cv,
-                            markdown_final=cv,
-                            enabled_sections=enabled_cv_sections,
-                            cv_generation_model=job_cv_generation_model_value,
-                            runtime_provenance=job_runtime_provenance,
-                            cv_prompt_id=cv_prompt_id_value,
-                            cv_prompt_template_path=cv_prompt_template_path_value,
-                            error={
-                                "stage": "markdown_quality_review",
-                                "message": markdown_review_reason,
-                            },
-                            agentic_live_trace=job_agentic_live_trace,
-                        )
+                    review_required_debug_record = _build_cv_generation_debug_record(
+                        job=job,
+                        status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                        fit_classification=fit,
+                        evidence_used=evidence_used,
+                        evidence_selection_summary=evidence_selection_summary,
+                        analysis_input_summary=analysis_input_summary,
+                        gap_summary=gap,
+                        structured_cv_initial=structured_cv_initial,
+                        validation_initial=validation_initial,
+                        repair_attempt=repair_attempt,
+                        structured_cv_final=structured_cv,
+                        markdown_final=cv,
+                        enabled_sections=enabled_cv_sections,
+                        cv_generation_model=job_cv_generation_model_value,
+                        runtime_provenance=job_runtime_provenance,
+                        cv_prompt_id=cv_prompt_id_value,
+                        cv_prompt_template_path=cv_prompt_template_path_value,
+                        error={
+                            "stage": "markdown_quality_review",
+                            "message": markdown_review_reason,
+                        },
+                        agentic_live_trace=job_agentic_live_trace,
+                    )
+                    cv_generation_debug_records.append(review_required_debug_record)
+                    _emit_cv_generation_item_observation(
+                        run_id=run_id,
+                        analysis_record=analysis_record,
+                        debug_record=review_required_debug_record,
                     )
                     continue
 
@@ -4912,33 +5368,38 @@ def run_pipeline(
                     "generated_at": version.get("generated_at"),
                     "fit_classification": fit,
                 })
-                cv_generation_debug_records.append(
-                    _build_cv_generation_debug_record(
-                        job=job,
-                        status="accepted",
-                        fit_classification=fit,
-                        evidence_used=evidence_used,
-                        evidence_selection_summary=evidence_selection_summary,
-                        analysis_input_summary=analysis_input_summary,
-                        gap_summary=gap,
-                        structured_cv_initial=structured_cv_initial,
-                        validation_initial=validation_initial,
-                        repair_attempt=repair_attempt,
-                        structured_cv_final=structured_cv_final,
-                        markdown_final=markdown_final,
-                        enabled_sections=enabled_cv_sections,
-                        cv_generation_model=job_cv_generation_model_value,
-                        runtime_provenance=job_runtime_provenance,
-                        cv_prompt_id=cv_prompt_id_value,
-                        cv_prompt_template_path=cv_prompt_template_path_value,
-                        error=None,
-                        agentic_live_trace=job_agentic_live_trace,
-                    )
+                accepted_debug_record = _build_cv_generation_debug_record(
+                    job=job,
+                    status="accepted",
+                    fit_classification=fit,
+                    evidence_used=evidence_used,
+                    evidence_selection_summary=evidence_selection_summary,
+                    analysis_input_summary=analysis_input_summary,
+                    gap_summary=gap,
+                    structured_cv_initial=structured_cv_initial,
+                    validation_initial=validation_initial,
+                    repair_attempt=repair_attempt,
+                    structured_cv_final=structured_cv_final,
+                    markdown_final=markdown_final,
+                    enabled_sections=enabled_cv_sections,
+                    cv_generation_model=job_cv_generation_model_value,
+                    runtime_provenance=job_runtime_provenance,
+                    cv_prompt_id=cv_prompt_id_value,
+                    cv_prompt_template_path=cv_prompt_template_path_value,
+                    error=None,
+                    agentic_live_trace=job_agentic_live_trace,
+                )
+                accepted_debug_record["attempt_count"] = generation_attempt_count
+                cv_generation_debug_records.append(accepted_debug_record)
+                _emit_cv_generation_item_observation(
+                    run_id=run_id,
+                    analysis_record=analysis_record,
+                    debug_record=accepted_debug_record,
                 )
                 _emit_cv_generation_result_event(
                     status="accepted",
-                    attempt_count=1,
-                    retry_count=0,
+                    attempt_count=generation_attempt_count,
+                    retry_count=max(generation_attempt_count - 1, 0),
                     latency_ms=int((time.monotonic() - cv_generation_started_monotonic) * 1000),
                 )
                 logger.info("[run_id=%s] CV generated for %s (fit=%s)", run_id, job.get("job_url"), fit)
@@ -4953,31 +5414,35 @@ def run_pipeline(
                     retry_count=0,
                     latency_ms=int((time.monotonic() - cv_generation_started_monotonic) * 1000),
                 )
-                cv_generation_debug_records.append(
-                    _build_cv_generation_debug_record(
-                        job=job,
-                        status=failure_status,
-                        fit_classification=fit,
-                        evidence_used=evidence_used,
-                        evidence_selection_summary=evidence_selection_summary,
-                        analysis_input_summary=analysis_input_summary,
-                        gap_summary=gap,
-                        structured_cv_initial=structured_cv_initial,
-                        validation_initial=validation_initial,
-                        repair_attempt=repair_attempt,
-                        structured_cv_final=structured_cv_final if failure_status == "persistence_failed" else None,
-                        markdown_final=markdown_final if failure_status == "persistence_failed" else None,
-                        enabled_sections=enabled_cv_sections,
-                        cv_generation_model=job_cv_generation_model_value,
-                        runtime_provenance=job_runtime_provenance,
-                        cv_prompt_id=cv_prompt_id_value,
-                        cv_prompt_template_path=cv_prompt_template_path_value,
-                        error={
-                            "stage": failure_stage,
-                            "message": str(exc),
-                        },
-                        agentic_live_trace=job_agentic_live_trace,
-                    )
+                failure_debug_record = _build_cv_generation_debug_record(
+                    job=job,
+                    status=failure_status,
+                    fit_classification=fit,
+                    evidence_used=evidence_used,
+                    evidence_selection_summary=evidence_selection_summary,
+                    analysis_input_summary=analysis_input_summary,
+                    gap_summary=gap,
+                    structured_cv_initial=structured_cv_initial,
+                    validation_initial=validation_initial,
+                    repair_attempt=repair_attempt,
+                    structured_cv_final=structured_cv_final if failure_status == "persistence_failed" else None,
+                    markdown_final=markdown_final if failure_status == "persistence_failed" else None,
+                    enabled_sections=enabled_cv_sections,
+                    cv_generation_model=job_cv_generation_model_value,
+                    runtime_provenance=job_runtime_provenance,
+                    cv_prompt_id=cv_prompt_id_value,
+                    cv_prompt_template_path=cv_prompt_template_path_value,
+                    error={
+                        "stage": failure_stage,
+                        "message": str(exc),
+                    },
+                    agentic_live_trace=job_agentic_live_trace,
+                )
+                cv_generation_debug_records.append(failure_debug_record)
+                _emit_cv_generation_item_observation(
+                    run_id=run_id,
+                    analysis_record=analysis_record,
+                    debug_record=failure_debug_record,
                 )
                 if reporter is not None:
                     reporter.emit(

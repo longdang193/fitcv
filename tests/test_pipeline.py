@@ -18,6 +18,7 @@ tags:
 
 import json
 import uuid
+from contextlib import contextmanager
 from typing import Any
 from unittest.mock import ANY, MagicMock, patch
 
@@ -1234,6 +1235,13 @@ def test_run_pipeline_manual_pause_after_cv_analysis_preserves_reranker_blocked_
 ) -> None:
     from fitcv.pipeline import run_pipeline
 
+    observed_calls: list[tuple[str, dict[str, Any]]] = []
+
+    @contextmanager
+    def _capture_observe_span(name: str, *, attributes: dict[str, Any] | None = None):
+        observed_calls.append((name, dict(attributes or {})))
+        yield None
+
     job = {
         **_minimal_job("https://example.com/blocked"),
         "title": "Blocked Before Analysis",
@@ -1262,14 +1270,15 @@ def test_run_pipeline_manual_pause_after_cv_analysis_preserves_reranker_blocked_
     mock_config.return_value = _minimal_config()
     mock_profile_yaml.return_value = _minimal_profile()
 
-    result = run_pipeline(
-        "data/sample_jobs.json",
-        config_path="config/env.yaml",
-        run_id="pause-cv-analysis-reranker-block",
-        start_stage="cv_analysis",
-        stop_after_stage="cv_analysis",
-        checkpoint_payload=checkpoint_payload,
-    )
+    with patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span):
+        result = run_pipeline(
+            "data/sample_jobs.json",
+            config_path="config/env.yaml",
+            run_id="pause-cv-analysis-reranker-block",
+            start_stage="cv_analysis",
+            stop_after_stage="cv_analysis",
+            checkpoint_payload=checkpoint_payload,
+        )
 
     mock_retrieve_bundle.assert_not_called()
     mock_retrieve_evidence.assert_not_called()
@@ -1279,6 +1288,14 @@ def test_run_pipeline_manual_pause_after_cv_analysis_preserves_reranker_blocked_
     assert result["next_stage"] == "cv_generation"
     assert result["checkpoint_payload"]["cv_analysis_results"][0]["status"] == "blocked_by_reranker_fit"
     assert result["checkpoint_payload"]["cv_generation_debug_records"][0]["status"] == "blocked_by_reranker_fit"
+    item_calls = [attributes for name, attributes in observed_calls if name == "pipeline.cv_analysis_item"]
+    assert len(item_calls) == 1
+    metadata = json.loads(item_calls[0]["langfuse.observation.metadata"])
+    assert metadata["deterministic_gate_result"] == "blocked_by_reranker_fit"
+    assert metadata["output_structured"]["generation_readiness"] is False
+    assert metadata["output_structured"]["disposition"] == "blocked_by_reranker_fit"
+    assert metadata["output_structured"]["failure_summary"] == "Blocked https://example.com/blocked before CV analysis (reranker fit=skip)"
+    assert "## Failure Summary" in item_calls[0]["langfuse.observation.output"]
 
 
 @patch("fitcv.pipeline.load_profile_yaml")
@@ -2059,6 +2076,115 @@ def test_run_pipeline_reuses_exact_match_cv_analysis_records() -> None:
     assert cv_analysis_block["outputs_sample"][0]["analysis_input_fingerprint"] == analysis_fingerprint
 
 
+
+def test_run_pipeline_emits_cv_analysis_item_observation_for_reused_analysis() -> None:
+    from fitcv.evidence import build_cv_analysis_input_fingerprint
+    from fitcv.pipeline import run_pipeline
+
+    observed_calls: list[tuple[str, dict[str, Any]]] = []
+
+    @contextmanager
+    def _capture_observe_span(name: str, *, attributes: dict[str, Any] | None = None):
+        observed_calls.append((name, dict(attributes or {})))
+        yield None
+
+    job = {
+        **_minimal_job(),
+        "title": "Data Engineer",
+        "required_skills": ["SQL"],
+        "preferred_skills": ["Python"],
+        "responsibilities": ["Build data pipelines for stakeholders."],
+        "description": "Need strong SQL and pipeline delivery experience.",
+        "domain": "banking",
+        "job_family": "analytics",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+    profile = _minimal_profile()
+    config = _minimal_config()
+    analysis_fingerprint = build_cv_analysis_input_fingerprint(profile, job, config)["fingerprint"]
+    reused_analysis_record = {
+        "job_url": job["job_url"],
+        "job_title": "Data Engineer",
+        "status": "ready_for_generation",
+        "ranking_fit_label": "strong",
+        "fit_classification": "strong",
+        "decision_chain": {
+            "shortlist": {"status": "returned_by_vector_search", "advanced_to_scoring": True},
+            "primary_fit": {"source": "reranker", "label": "strong"},
+            "cv_analysis": {"status": "ready_for_generation", "completed": True},
+            "cv_generation": {"status": "not_attempted", "attempted": False},
+            "validation": {"status": "not_run"},
+        },
+        "job_snapshot": dict(job),
+        "evidence_payload": [{"evidence_id": "e1", "evidence_type": "experience_entry", "source_ref": "experiences[0]"}],
+        "evidence_used": [{"evidence_type": "experience_entry", "source_ref": "experiences[0]", "name": "DE"}],
+        "evidence_selection_summary": {"selected_evidence_count": 1, "fallback_used": False},
+        "gap_summary": {"matched": ["SQL"], "partial": [], "missing": []},
+        "analysis_input_fingerprint": analysis_fingerprint,
+        "analysis_reuse_status": "reused_exact_match",
+        "outcome_reason": None,
+        "error": None,
+    }
+    reuse_snapshots = {
+        "schema_version": "late_stage_reuse_v1",
+        "ranking_ai_scores": [],
+        "cv_analysis_records": [
+            {
+                "job_url": job["job_url"],
+                "analysis_input_fingerprint": analysis_fingerprint,
+                "analysis_record": reused_analysis_record,
+            }
+        ],
+    }
+
+    with patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span), \
+         patch("fitcv.pipeline.load_config", return_value=config), \
+         patch("fitcv.pipeline.parse_jobs_file", return_value=[job]), \
+         patch("fitcv.pipeline.normalize_batch", return_value=[job]), \
+         patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])), \
+         patch("fitcv.pipeline.load_to_bigquery"), \
+         patch("fitcv.pipeline.apply_pre_enrichment_global_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
+         patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}), \
+         patch("fitcv.pipeline.enrich_batch", return_value=[job]), \
+         patch("fitcv.pipeline.load_structured_jobs"), \
+         patch("fitcv.pipeline.load_run_structured_jobs"), \
+         patch("fitcv.pipeline.load_profile_yaml", return_value=profile), \
+         patch("fitcv.pipeline.load_candidate_to_bigquery"), \
+         patch("fitcv.pipeline.apply_rule_filters", return_value={"passed": [job["job_url"]], "rejected": []}), \
+         patch("fitcv.pipeline.store_filter_results"), \
+         patch("fitcv.pipeline.embed_and_store_jobs"), \
+         patch("fitcv.pipeline.run_vector_search", return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}]), \
+         patch("fitcv.pipeline.run_ai_scoring", return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}]), \
+         patch("fitcv.pipeline.store_final_ranking"), \
+         patch("fitcv.pipeline.retrieve_evidence_bundle") as mock_retrieve_bundle, \
+         patch("fitcv.pipeline.compute_gap") as mock_compute_gap:
+        run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+            reuse_snapshots=reuse_snapshots,
+            stop_after_stage="cv_analysis",
+        )
+
+    mock_retrieve_bundle.assert_not_called()
+    mock_compute_gap.assert_not_called()
+    item_calls = [attributes for name, attributes in observed_calls if name == "pipeline.cv_analysis_item"]
+    assert len(item_calls) == 1
+    item_attributes = item_calls[0]
+    assert item_attributes["langfuse.observation.name"] == "cv_analysis_item"
+    assert item_attributes["langfuse.observation.input"].startswith("## Job")
+    assert "### Requirements Excerpt" in item_attributes["langfuse.observation.input"]
+    assert "## Candidate" in item_attributes["langfuse.observation.input"]
+    assert item_attributes["langfuse.observation.output"].startswith("## Fit Decision")
+    assert "## Generation Readiness" in item_attributes["langfuse.observation.output"]
+    metadata = json.loads(item_attributes["langfuse.observation.metadata"])
+    assert metadata["analysis_reuse_status"] == "reused_exact_match"
+    assert metadata["reuse_status"] == "reused_exact_match"
+    assert metadata["selected"] is True
+    assert metadata["input_structured"]["job_id"] == job["job_url"]
+    assert metadata["input_structured"]["requirements_excerpt"] == ["SQL"]
+    assert metadata["output_structured"]["fit_decision"] == "strong"
+    assert metadata["output_structured"]["generation_readiness"] is True
 def test_run_pipeline_emits_bounded_reused_cv_analysis_failure_event() -> None:
     from fitcv.evidence import build_cv_analysis_input_fingerprint
     from fitcv.pipeline import run_pipeline
@@ -2124,7 +2250,15 @@ def test_run_pipeline_emits_bounded_reused_cv_analysis_failure_event() -> None:
         ],
     }
 
-    with patch("fitcv.pipeline.load_config", return_value=config), \
+    observed_calls: list[tuple[str, dict[str, Any]]] = []
+
+    @contextmanager
+    def _capture_observe_span(name: str, *, attributes: dict[str, Any] | None = None):
+        observed_calls.append((name, dict(attributes or {})))
+        yield None
+
+    with patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span), \
+         patch("fitcv.pipeline.load_config", return_value=config), \
          patch("fitcv.pipeline.parse_jobs_file", return_value=[job]), \
          patch("fitcv.pipeline.normalize_batch", return_value=[job]), \
          patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])), \
@@ -2154,6 +2288,13 @@ def test_run_pipeline_emits_bounded_reused_cv_analysis_failure_event() -> None:
 
     mock_retrieve_bundle.assert_not_called()
     mock_compute_gap.assert_not_called()
+    item_calls = [attributes for name, attributes in observed_calls if name == "pipeline.cv_analysis_item"]
+    assert len(item_calls) == 1
+    metadata = json.loads(item_calls[0]["langfuse.observation.metadata"])
+    assert metadata["output_structured"]["generation_readiness"] is False
+    assert metadata["output_structured"]["disposition"] == "analysis_failed"
+    assert metadata["output_structured"]["failure_summary"] == "cached failure"
+    assert "## Failure Summary" in item_calls[0]["langfuse.observation.output"]
     assert (
         "layer4_cv_error",
         "error",
@@ -2180,6 +2321,971 @@ def test_run_pipeline_emits_bounded_reused_cv_analysis_failure_event() -> None:
     ) in reporter.events
 
 
+
+def test_run_pipeline_emits_cv_generation_item_observation_for_accepted_generation() -> None:
+    from contextlib import ExitStack
+
+    from fitcv.pipeline import run_pipeline
+
+    observed_calls: list[tuple[str, dict[str, Any]]] = []
+
+    @contextmanager
+    def _capture_observe_span(name: str, *, attributes: dict[str, Any] | None = None):
+        observed_calls.append((name, dict(attributes or {})))
+        yield None
+
+    job = {
+        **_minimal_job(),
+        "title": "Data Engineer",
+        "description": "Build reliable data pipelines and analytics products.",
+        "required_skills": ["SQL", "Python"],
+        "preferred_skills": ["Airflow"],
+        "responsibilities": ["Own ELT workflows."],
+        "domain": "banking",
+        "job_family": "analytics",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+    profile = _minimal_profile()
+    config = _minimal_config()
+    structured_cv = {
+        "schema_version": "cv_doc_v1",
+        "sections": {
+            "header": {"name": "Test Candidate", "title": "Data Engineer"},
+            "summary": {"text": "Grounded summary."},
+            "experience": [{"role": "DE", "company": "ACME"}],
+            "skills": {"groups": [{"name": "Core", "items": ["SQL", "Python"]}]},
+        },
+    }
+
+    with ExitStack() as stack:
+        stack.enter_context(patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span))
+        stack.enter_context(patch("fitcv.pipeline.load_config", return_value=config))
+        stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
+        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_pre_enrichment_global_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}))
+        stack.enter_context(patch("fitcv.pipeline.enrich_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_rule_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_filter_results"))
+        stack.enter_context(patch("fitcv.pipeline.embed_and_store_jobs"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_vector_search",
+                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_ai_scoring",
+                return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}],
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_final_ranking"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.retrieve_evidence_bundle",
+                return_value={
+                    "selected_evidence": [
+                        {
+                            "evidence_id": "e1",
+                            "evidence_type": "experience_entry",
+                            "source_ref": "experiences[0]",
+                            "name": "ACME Data Engineering",
+                        }
+                    ],
+                    "selected_evidence_ids": ["e1"],
+                    "effective_channel_pool_size": 1,
+                    "merged_pool_size": 1,
+                    "deduped_pool_size": 1,
+                    "channel_counts": {"experience_entry": 1},
+                },
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.compute_gap",
+                return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.generate_cv",
+                return_value={"structured_cv": structured_cv, "markdown": "# Test Candidate\n\n## Summary\nGrounded summary."},
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_all_validations",
+                return_value={"valid": True, "missing_sections": [], "grounding_violations": [], "skill_violations": [], "warnings": []},
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.create_cv_version_record",
+                return_value={"version_id": "v1", "generated_at": "2026-05-09T00:00:00Z"},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.PipelineStore.store_cv_version"))
+        run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+        )
+
+    item_calls = [attributes for name, attributes in observed_calls if name == "pipeline.cv_generation_item"]
+    assert len(item_calls) == 1
+    item_attributes = item_calls[0]
+    assert item_attributes["langfuse.observation.name"] == "cv_generation_item"
+    assert item_attributes["langfuse.observation.input"].startswith("## Job")
+    assert "## Selected Evidence" in item_attributes["langfuse.observation.input"]
+    assert item_attributes["langfuse.observation.output"].startswith("## Status")
+    assert "## Generated CV Markdown" in item_attributes["langfuse.observation.output"]
+    metadata = json.loads(item_attributes["langfuse.observation.metadata"])
+    assert metadata["status"] == "accepted"
+    assert metadata["job_url"] == job["job_url"]
+    assert metadata["analysis_input_fingerprint"]
+    assert metadata["parent_observation_name"] == "cv_analysis_item"
+    assert metadata["input_structured"]["job_id"] == job["job_url"]
+    assert metadata["input_structured"]["constraints"] == ["SQL", "Python"]
+    assert metadata["output_structured"]["cv_markdown"].startswith("# Test Candidate")
+    assert metadata["output_structured"]["validation_summary"]["valid"] is True
+    assert metadata["output_structured"]["persistence_outcome"] == "stored"
+
+
+
+def test_run_pipeline_emits_cv_generation_item_observation_for_validation_failed() -> None:
+    from contextlib import ExitStack
+
+    from fitcv.pipeline import run_pipeline
+
+    observed_calls: list[tuple[str, dict[str, Any]]] = []
+
+    @contextmanager
+    def _capture_observe_span(name: str, *, attributes: dict[str, Any] | None = None):
+        observed_calls.append((name, dict(attributes or {})))
+        yield None
+
+    job = {
+        **_minimal_job(),
+        "title": "Data Engineer",
+        "description": "Build reliable data pipelines and analytics products.",
+        "required_skills": ["SQL", "Python"],
+        "preferred_skills": ["Airflow"],
+        "responsibilities": ["Own ELT workflows."],
+        "domain": "banking",
+        "job_family": "analytics",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+    profile = _minimal_profile()
+    config = _minimal_config()
+    structured_cv = {
+        "schema_version": "cv_doc_v1",
+        "sections": {
+            "header": {"name": "Test Candidate", "title": "Data Engineer"},
+            "summary": {"text": "Grounded summary."},
+            "experience": [{"role": "DE", "company": "ACME"}],
+            "skills": {"groups": [{"name": "Core", "items": ["SQL", "Python"]}]},
+        },
+    }
+
+    with ExitStack() as stack:
+        stack.enter_context(patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span))
+        stack.enter_context(patch("fitcv.pipeline.load_config", return_value=config))
+        stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
+        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_pre_enrichment_global_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}))
+        stack.enter_context(patch("fitcv.pipeline.enrich_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_rule_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_filter_results"))
+        stack.enter_context(patch("fitcv.pipeline.embed_and_store_jobs"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_vector_search",
+                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_ai_scoring",
+                return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}],
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_final_ranking"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.retrieve_evidence_bundle",
+                return_value={
+                    "selected_evidence": [
+                        {
+                            "evidence_id": "e1",
+                            "evidence_type": "experience_entry",
+                            "source_ref": "experiences[0]",
+                            "name": "ACME Data Engineering",
+                        }
+                    ],
+                    "selected_evidence_ids": ["e1"],
+                    "effective_channel_pool_size": 1,
+                    "merged_pool_size": 1,
+                    "deduped_pool_size": 1,
+                    "channel_counts": {"experience_entry": 1},
+                },
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.compute_gap",
+                return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.generate_cv",
+                return_value={"structured_cv": structured_cv, "markdown": "# Test Candidate\n\n## Summary\nGrounded summary."},
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_all_validations",
+                return_value={
+                    "valid": False,
+                    "missing_sections": ["Skills"],
+                    "grounding_violations": [],
+                    "deterministic_grounding_violations": [],
+                    "semantic_grounding_violations": [],
+                    "skill_violations": [],
+                    "markdown_quality_blocking_issues": [],
+                    "markdown_quality_review_flags": [],
+                    "warnings": [],
+                    "support_source_summary": {},
+                },
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.create_cv_version_record"))
+        stack.enter_context(patch("fitcv.pipeline.PipelineStore.store_cv_version"))
+        run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+        )
+
+    item_calls = [attributes for name, attributes in observed_calls if name == "pipeline.cv_generation_item"]
+    assert len(item_calls) == 1
+    item_attributes = item_calls[0]
+    assert item_attributes["langfuse.observation.name"] == "cv_generation_item"
+    assert item_attributes["langfuse.observation.output"].startswith("## Status")
+    assert "## Review Issues" in item_attributes["langfuse.observation.output"]
+    metadata = json.loads(item_attributes["langfuse.observation.metadata"])
+    assert metadata["status"] == "validation_failed"
+    assert metadata["job_url"] == job["job_url"]
+    assert metadata["parent_observation_name"] == "cv_analysis_item"
+    assert metadata["output_structured"]["status"] == "validation_failed"
+    assert metadata["output_structured"]["validation_summary"]["valid"] is False
+    assert metadata["output_structured"]["validation_summary"]["review_issues"] == ["Skills"]
+    assert metadata["output_structured"]["persistence_outcome"] == "validation_failed"
+
+
+
+def test_run_pipeline_emits_cv_generation_item_observation_for_review_required() -> None:
+    from contextlib import ExitStack
+
+    from fitcv.pipeline import run_pipeline
+
+    observed_calls: list[tuple[str, dict[str, Any]]] = []
+
+    @contextmanager
+    def _capture_observe_span(name: str, *, attributes: dict[str, Any] | None = None):
+        observed_calls.append((name, dict(attributes or {})))
+        yield None
+
+    job = {
+        **_minimal_job(),
+        "title": "Data Engineer",
+        "description": "Build reliable data pipelines and analytics products.",
+        "required_skills": ["SQL", "Python"],
+        "preferred_skills": ["Airflow"],
+        "responsibilities": ["Own ELT workflows."],
+        "domain": "banking",
+        "job_family": "analytics",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+    profile = _minimal_profile()
+    config = _minimal_config()
+    structured_cv = {
+        "schema_version": "cv_doc_v1",
+        "sections": {
+            "header": {"name": "Test Candidate", "title": "Data Engineer"},
+            "summary": {"text": "Grounded summary."},
+            "experience": [{"role": "DE", "company": "ACME"}],
+            "skills": {"groups": [{"name": "Core", "items": ["SQL", "Python"]}]},
+        },
+    }
+
+    with ExitStack() as stack:
+        stack.enter_context(patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span))
+        stack.enter_context(patch("fitcv.pipeline.load_config", return_value=config))
+        stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
+        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_pre_enrichment_global_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}))
+        stack.enter_context(patch("fitcv.pipeline.enrich_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_rule_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_filter_results"))
+        stack.enter_context(patch("fitcv.pipeline.embed_and_store_jobs"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_vector_search",
+                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_ai_scoring",
+                return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}],
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_final_ranking"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.retrieve_evidence_bundle",
+                return_value={
+                    "selected_evidence": [
+                        {
+                            "evidence_id": "e1",
+                            "evidence_type": "experience_entry",
+                            "source_ref": "experiences[0]",
+                            "name": "ACME Data Engineering",
+                        }
+                    ],
+                    "selected_evidence_ids": ["e1"],
+                    "effective_channel_pool_size": 1,
+                    "merged_pool_size": 1,
+                    "deduped_pool_size": 1,
+                    "channel_counts": {"experience_entry": 1},
+                },
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.compute_gap",
+                return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.generate_cv",
+                return_value={"structured_cv": structured_cv, "markdown": "# Test Candidate\n\n## Summary\nGrounded summary."},
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_all_validations",
+                return_value={
+                    "valid": True,
+                    "missing_sections": [],
+                    "grounding_violations": [],
+                    "deterministic_grounding_violations": [],
+                    "semantic_grounding_violations": [],
+                    "skill_violations": [],
+                    "markdown_quality_blocking_issues": [],
+                    "markdown_quality_review_flags": ["bullets too dense"],
+                    "warnings": [],
+                    "support_source_summary": {},
+                },
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.create_cv_version_record"))
+        stack.enter_context(patch("fitcv.pipeline.PipelineStore.store_cv_version"))
+        run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+        )
+
+    item_calls = [attributes for name, attributes in observed_calls if name == "pipeline.cv_generation_item"]
+    assert len(item_calls) == 1
+    item_attributes = item_calls[0]
+    metadata = json.loads(item_attributes["langfuse.observation.metadata"])
+    assert metadata["status"] == "review_required"
+    assert metadata["output_structured"]["status"] == "review_required"
+    assert metadata["output_structured"]["validation_summary"]["valid"] is True
+    assert metadata["output_structured"]["validation_summary"]["review_issues"] == [
+        "Markdown quality requires review: bullets too dense"
+    ]
+    assert metadata["output_structured"]["persistence_outcome"] == "review_required"
+    assert "## Review Issues" in item_attributes["langfuse.observation.output"]
+
+
+
+def test_run_pipeline_emits_cv_generation_item_observation_for_persistence_failed() -> None:
+    from contextlib import ExitStack
+
+    from fitcv.pipeline import run_pipeline
+
+    observed_calls: list[tuple[str, dict[str, Any]]] = []
+
+    @contextmanager
+    def _capture_observe_span(name: str, *, attributes: dict[str, Any] | None = None):
+        observed_calls.append((name, dict(attributes or {})))
+        yield None
+
+    job = {
+        **_minimal_job(),
+        "title": "Data Engineer",
+        "description": "Build reliable data pipelines and analytics products.",
+        "required_skills": ["SQL", "Python"],
+        "preferred_skills": ["Airflow"],
+        "responsibilities": ["Own ELT workflows."],
+        "domain": "banking",
+        "job_family": "analytics",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+    profile = _minimal_profile()
+    config = _minimal_config()
+    structured_cv = {
+        "schema_version": "cv_doc_v1",
+        "sections": {
+            "header": {"name": "Test Candidate", "title": "Data Engineer"},
+            "summary": {"text": "Grounded summary."},
+            "experience": [{"role": "DE", "company": "ACME"}],
+            "skills": {"groups": [{"name": "Core", "items": ["SQL", "Python"]}]},
+        },
+    }
+
+    with ExitStack() as stack:
+        stack.enter_context(patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span))
+        stack.enter_context(patch("fitcv.pipeline.load_config", return_value=config))
+        stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
+        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_pre_enrichment_global_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}))
+        stack.enter_context(patch("fitcv.pipeline.enrich_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_rule_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_filter_results"))
+        stack.enter_context(patch("fitcv.pipeline.embed_and_store_jobs"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_vector_search",
+                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_ai_scoring",
+                return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}],
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_final_ranking"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.retrieve_evidence_bundle",
+                return_value={
+                    "selected_evidence": [
+                        {
+                            "evidence_id": "e1",
+                            "evidence_type": "experience_entry",
+                            "source_ref": "experiences[0]",
+                            "name": "ACME Data Engineering",
+                        }
+                    ],
+                    "selected_evidence_ids": ["e1"],
+                    "effective_channel_pool_size": 1,
+                    "merged_pool_size": 1,
+                    "deduped_pool_size": 1,
+                    "channel_counts": {"experience_entry": 1},
+                },
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.compute_gap",
+                return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.generate_cv",
+                return_value={"structured_cv": structured_cv, "markdown": "# Test Candidate\n\n## Summary\nGrounded summary."},
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_all_validations",
+                return_value={
+                    "valid": True,
+                    "missing_sections": [],
+                    "grounding_violations": [],
+                    "skill_violations": [],
+                    "warnings": [],
+                },
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.create_cv_version_record",
+                return_value={"version_id": "v1", "generated_at": "2026-05-09T00:00:00Z"},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.PipelineStore.store_cv_version", side_effect=RuntimeError("db down")))
+        run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+        )
+
+    item_calls = [attributes for name, attributes in observed_calls if name == "pipeline.cv_generation_item"]
+    assert len(item_calls) == 1
+    item_attributes = item_calls[0]
+    metadata = json.loads(item_attributes["langfuse.observation.metadata"])
+    assert metadata["status"] == "persistence_failed"
+    assert metadata["output_structured"]["status"] == "persistence_failed"
+    assert metadata["output_structured"]["cv_markdown"].startswith("# Test Candidate")
+    assert metadata["output_structured"]["persistence_outcome"] == "persistence_failed"
+    assert metadata["output_structured"]["failure_summary"] == "db down"
+    assert "## Failure Summary" in item_attributes["langfuse.observation.output"]
+
+
+
+def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed() -> None:
+    from contextlib import ExitStack
+
+    from fitcv.pipeline import run_pipeline
+
+    observed_calls: list[tuple[str, dict[str, Any]]] = []
+
+    @contextmanager
+    def _capture_observe_span(name: str, *, attributes: dict[str, Any] | None = None):
+        observed_calls.append((name, dict(attributes or {})))
+        yield None
+
+    job = {
+        **_minimal_job(),
+        "title": "Data Engineer",
+        "description": "Build reliable data pipelines and analytics products.",
+        "required_skills": ["SQL", "Python"],
+        "preferred_skills": ["Airflow"],
+        "responsibilities": ["Own ELT workflows."],
+        "domain": "banking",
+        "job_family": "analytics",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+    profile = _minimal_profile()
+    config = _minimal_config()
+
+    with ExitStack() as stack:
+        stack.enter_context(patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span))
+        stack.enter_context(patch("fitcv.pipeline.load_config", return_value=config))
+        stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
+        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_pre_enrichment_global_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}))
+        stack.enter_context(patch("fitcv.pipeline.enrich_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_rule_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_filter_results"))
+        stack.enter_context(patch("fitcv.pipeline.embed_and_store_jobs"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_vector_search",
+                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_ai_scoring",
+                return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}],
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_final_ranking"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.retrieve_evidence_bundle",
+                return_value={
+                    "selected_evidence": [
+                        {
+                            "evidence_id": "e1",
+                            "evidence_type": "experience_entry",
+                            "source_ref": "experiences[0]",
+                            "name": "ACME Data Engineering",
+                        }
+                    ],
+                    "selected_evidence_ids": ["e1"],
+                    "effective_channel_pool_size": 1,
+                    "merged_pool_size": 1,
+                    "deduped_pool_size": 1,
+                    "channel_counts": {"experience_entry": 1},
+                },
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.compute_gap",
+                return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.generate_cv", side_effect=RuntimeError("llm down")))
+        stack.enter_context(patch("fitcv.pipeline.run_all_validations"))
+        stack.enter_context(patch("fitcv.pipeline.create_cv_version_record"))
+        stack.enter_context(patch("fitcv.pipeline.PipelineStore.store_cv_version"))
+        run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+        )
+
+    item_calls = [attributes for name, attributes in observed_calls if name == "pipeline.cv_generation_item"]
+    assert len(item_calls) == 1
+    item_attributes = item_calls[0]
+    metadata = json.loads(item_attributes["langfuse.observation.metadata"])
+    assert metadata["status"] == "generation_failed"
+    assert metadata["output_structured"]["status"] == "generation_failed"
+    assert metadata["output_structured"]["failure_summary"] == "llm down"
+    assert metadata["output_structured"]["persistence_outcome"] == "generation_failed"
+    assert "## Failure Summary" in item_attributes["langfuse.observation.output"]
+
+
+
+def test_run_pipeline_emits_cv_generation_item_retry_metadata_for_agentic_generation_failure() -> None:
+    from contextlib import ExitStack
+
+    from fitcv.pipeline import run_pipeline
+
+    observed_calls: list[tuple[str, dict[str, Any]]] = []
+
+    @contextmanager
+    def _capture_observe_span(name: str, *, attributes: dict[str, Any] | None = None):
+        observed_calls.append((name, dict(attributes or {})))
+        yield None
+
+    job = {
+        **_minimal_job(),
+        "title": "Data Engineer",
+        "description": "Build reliable data pipelines and analytics products.",
+        "required_skills": ["SQL", "Python"],
+        "preferred_skills": ["Airflow"],
+        "responsibilities": ["Own ELT workflows."],
+        "domain": "banking",
+        "job_family": "analytics",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+    profile = _minimal_profile()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    failed_result = {
+        "status": "generation_failed",
+        "fit_classification": "strong",
+        "analysis_input_summary": {"job_excerpt": "Data engineer role"},
+        "evidence_used": [{"name": "ACME Data Engineering", "source_ref": "experiences[0]", "evidence_type": "experience_entry"}],
+        "evidence_selection_summary": {"selected_evidence_ids": ["e1"]},
+        "gap_summary": {"matched": ["SQL"], "partial": [], "missing": []},
+        "structured_cv_initial": None,
+        "validation_initial": None,
+        "repair_attempt": {"performed": False, "missing_sections": []},
+        "structured_cv_final": None,
+        "markdown_final": None,
+        "runtime_provenance": {"provider": "gemini", "model": "gemini-test"},
+        "agentic_live_trace": {},
+        "error": {"stage": "generation", "message": "model timeout"},
+    }
+
+    with ExitStack() as stack:
+        stack.enter_context(patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span))
+        stack.enter_context(patch("fitcv.pipeline.load_config", return_value=config))
+        stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
+        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_pre_enrichment_global_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}))
+        stack.enter_context(patch("fitcv.pipeline.enrich_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_rule_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_filter_results"))
+        stack.enter_context(patch("fitcv.pipeline.embed_and_store_jobs"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_vector_search",
+                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_ai_scoring",
+                return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}],
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_final_ranking"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_agentic_cv_generation",
+                side_effect=[dict(failed_result), dict(failed_result)],
+            )
+        )
+        run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+        )
+
+    item_calls = [attributes for name, attributes in observed_calls if name == "pipeline.cv_generation_item"]
+    assert len(item_calls) == 1
+    item_attributes = item_calls[0]
+    metadata = json.loads(item_calls[0]["langfuse.observation.metadata"])
+    assert metadata["status"] == "generation_failed"
+    assert metadata["attempt_count"] == 2
+    assert metadata["output_structured"]["failure_summary"] == "model timeout"
+    assert metadata["output_structured"]["persistence_outcome"] == "generation_failed"
+    assert "## Failure Summary" in item_attributes["langfuse.observation.output"]
+
+
+
+def test_run_pipeline_emits_cv_generation_item_selected_retry_success_metadata() -> None:
+    from contextlib import ExitStack
+
+    from fitcv.pipeline import run_pipeline
+
+    observed_calls: list[tuple[str, dict[str, Any]]] = []
+
+    @contextmanager
+    def _capture_observe_span(name: str, *, attributes: dict[str, Any] | None = None):
+        observed_calls.append((name, dict(attributes or {})))
+        yield None
+
+    job = {
+        **_minimal_job(),
+        "title": "Data Engineer",
+        "description": "Build reliable data pipelines and analytics products.",
+        "required_skills": ["SQL", "Python"],
+        "preferred_skills": ["Airflow"],
+        "responsibilities": ["Own ELT workflows."],
+        "domain": "banking",
+        "job_family": "analytics",
+        "fit_label": "strong",
+        "fit_label_source": "reranker",
+    }
+    profile = _minimal_profile()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    failed_result = {
+        "status": "generation_failed",
+        "fit_classification": "strong",
+        "analysis_input_summary": {"job_excerpt": "Data engineer role"},
+        "evidence_used": [{"name": "ACME Data Engineering", "source_ref": "experiences[0]", "evidence_type": "experience_entry"}],
+        "evidence_selection_summary": {"selected_evidence_ids": ["e1"]},
+        "gap_summary": {"matched": ["SQL"], "partial": [], "missing": []},
+        "structured_cv_initial": None,
+        "validation_initial": None,
+        "repair_attempt": {"performed": False, "missing_sections": []},
+        "structured_cv_final": None,
+        "markdown_final": None,
+        "runtime_provenance": {"provider": "gemini", "model": "gemini-test"},
+        "agentic_live_trace": {},
+        "error": {"stage": "generation", "message": "model timeout"},
+    }
+    accepted_result = {
+        "status": "accepted",
+        "fit_classification": "strong",
+        "analysis_input_summary": {"job_excerpt": "Data engineer role"},
+        "evidence_used": [{"name": "ACME Data Engineering", "source_ref": "experiences[0]", "evidence_type": "experience_entry"}],
+        "evidence_selection_summary": {"selected_evidence_ids": ["e1"]},
+        "gap_summary": {"matched": ["SQL"], "partial": [], "missing": []},
+        "structured_cv_initial": {"schema_version": "cv_doc_v1", "sections": {"header": {"name": "Test Candidate"}}},
+        "validation_initial": {"valid": True, "missing_sections": []},
+        "repair_attempt": {"performed": False, "missing_sections": []},
+        "structured_cv_final": {"schema_version": "cv_doc_v1", "sections": {"header": {"name": "Test Candidate"}}},
+        "markdown_final": "# Test Candidate\n\n## Summary\nGrounded summary.",
+        "runtime_provenance": {"provider": "gemini", "model": "gemini-test"},
+        "agentic_live_trace": {},
+        "error": None,
+    }
+
+    with ExitStack() as stack:
+        stack.enter_context(patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span))
+        stack.enter_context(patch("fitcv.pipeline.load_config", return_value=config))
+        stack.enter_context(patch("fitcv.pipeline.parse_jobs_file", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.normalize_batch_with_exclusions", return_value=([job], [])))
+        stack.enter_context(patch("fitcv.pipeline.load_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_pre_enrichment_global_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.lookup_reusable_structured_jobs", return_value={}))
+        stack.enter_context(patch("fitcv.pipeline.enrich_batch", return_value=[job]))
+        stack.enter_context(patch("fitcv.pipeline.load_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_run_structured_jobs"))
+        stack.enter_context(patch("fitcv.pipeline.load_profile_yaml", return_value=profile))
+        stack.enter_context(patch("fitcv.pipeline.load_candidate_to_bigquery"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.apply_rule_filters",
+                return_value={"passed": [job["job_url"]], "rejected": []},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_filter_results"))
+        stack.enter_context(patch("fitcv.pipeline.embed_and_store_jobs"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_vector_search",
+                return_value=[{"job_url": job["job_url"], "vector_similarity": 0.91, "vector_rank": 1}],
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_ai_scoring",
+                return_value=[{"job_url": job["job_url"], "ai_score": 0.92, "fit_label": "strong"}],
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.store_final_ranking"))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.retrieve_evidence_bundle",
+                return_value={
+                    "selected_evidence": [
+                        {
+                            "evidence_id": "e1",
+                            "evidence_type": "experience_entry",
+                            "source_ref": "experiences[0]",
+                            "name": "ACME Data Engineering",
+                        }
+                    ],
+                    "selected_evidence_ids": ["e1"],
+                    "effective_channel_pool_size": 1,
+                    "merged_pool_size": 1,
+                    "deduped_pool_size": 1,
+                    "channel_counts": {"experience_entry": 1},
+                },
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.compute_gap",
+                return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
+            )
+        )
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_agentic_cv_generation",
+                side_effect=[dict(failed_result), dict(accepted_result)],
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.create_cv_version_record",
+                return_value={"version_id": "v1", "generated_at": "2026-05-09T00:00:00Z"},
+            )
+        )
+        stack.enter_context(patch("fitcv.pipeline.PipelineStore.store_cv_version"))
+        run_pipeline(
+            "data/sample_jobs.json",
+            config_path=".env.yaml",
+        )
+
+    item_calls = [attributes for name, attributes in observed_calls if name == "pipeline.cv_generation_item"]
+    assert len(item_calls) == 1
+    item_attributes = item_calls[0]
+    metadata = json.loads(item_calls[0]["langfuse.observation.metadata"])
+    assert metadata["status"] == "accepted"
+    assert metadata["selected"] is True
+    assert metadata["attempt_count"] == 2
+    assert metadata["output_structured"]["validation_summary"]["valid"] is True
+    assert metadata["output_structured"]["persistence_outcome"] == "stored"
+    assert "## Generated CV Markdown" in item_attributes["langfuse.observation.output"]
 @patch("fitcv.pipeline.store_cv_version")
 @patch("fitcv.pipeline.create_cv_version_record")
 @patch("fitcv.pipeline.run_all_validations")
@@ -4208,7 +5314,8 @@ def test_build_stage_transition_artifacts_caps_samples_at_20_and_truncates_text(
     cv_block = artifacts["stages"]["cv_generation"]
     assert len(normalize_block["inputs_sample"]) == 20
     assert len(cv_block["outputs_sample"]) == 20
-    assert cv_block["outputs_sample"][0]["markdown_final"].endswith("...[truncated]")
+    assert "markdown_final" not in cv_block["outputs_sample"][0]
+    assert "structured_cv_final" not in cv_block["outputs_sample"][0]
     assert cv_block["outputs_sample"][0]["evidence_selection_summary"] == {
         "selected_evidence_count": 1,
         "selected_evidence_ids": ["exp-1"],
