@@ -49,7 +49,11 @@ from google.cloud import bigquery
 
 from fitcv.config import apply_runtime_skill_synonym_overlay, parse_skill_synonym_overlay_yaml
 from fitcv.pipeline import PipelineCancelled, run_pipeline
-from fitcv.telemetry import observe_span, set_span_attributes
+from fitcv.telemetry import (
+    build_langfuse_trace_attributes,
+    observe_span,
+    set_span_attributes,
+)
 from fitcv_cp.backend_runtime import resolve_backend_runtime
 from fitcv_cp.bq_store import (
     append_event,
@@ -1740,6 +1744,22 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
         attributes={
             "run_id": run_id,
             "backend_type": str(runtime.backend_type),
+            **build_langfuse_trace_attributes(
+                trace_name="fitcv.worker_job",
+                session_id=run_id,
+                input_payload={
+                    "run_id": run_id,
+                    "jobs_path": jobs_path,
+                    "config_path": config_path,
+                    "backend_type": str(runtime.backend_type),
+                },
+                metadata={
+                    "scope": "control_plane_worker",
+                    "backend_type": str(runtime.backend_type),
+                    "project": str(project or ""),
+                    "dataset": str(dataset or ""),
+                },
+            ),
         },
     ):
         try:
@@ -1794,6 +1814,34 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                         "has_effective_config": effective_config is not None,
                         "has_replay_context": replay_context is not None,
                         "has_checkpoint_payload": checkpoint_payload is not None,
+                        **build_langfuse_trace_attributes(
+                            session_id=run_id,
+                            user_id=str(getattr(run_record, "triggered_by", "") or "").strip() or None,
+                            input_payload={
+                                "run_id": run_id,
+                                "jobs_path": str(getattr(run_record, "jobs_path", "") or jobs_path or ""),
+                                "config_path": str(getattr(run_record, "config_path", "") or config_path or ""),
+                                "run_mode": run_mode,
+                                "next_stage": next_stage if run_mode == "manual_staged" else None,
+                                "jobs_input_source": getattr(run_record, "jobs_input_source", None),
+                                "candidate_profile_source": getattr(run_record, "candidate_profile_source", None),
+                            },
+                            metadata={
+                                "scope": "control_plane_worker",
+                                "backend_type": str(runtime.backend_type),
+                                "trigger_source": getattr(run_record, "trigger_source", None),
+                                "run_mode": run_mode,
+                                "next_stage": next_stage,
+                                "has_effective_config": effective_config is not None,
+                                "has_replay_context": replay_context is not None,
+                                "has_checkpoint_payload": checkpoint_payload is not None,
+                                "jobs_input_source": getattr(run_record, "jobs_input_source", None),
+                                "candidate_profile_source": getattr(run_record, "candidate_profile_source", None),
+                            },
+                            extra_attributes={
+                                "langfuse.user.id": str(getattr(run_record, "triggered_by", "") or "").strip() or None,
+                            },
+                        ),
                     }
                 )
 

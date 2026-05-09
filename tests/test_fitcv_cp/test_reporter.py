@@ -112,7 +112,7 @@ def test_reporter_langfuse_rich_io_stage_specific_snapshots(monkeypatch):
     assert snapshot_in.get("token") == "abc"
     snapshot_out = dict(rich_output.get("output_snapshot") or {})
     assert snapshot_out.get("passed_filter") == 2
-    assert native.get("status") in {"degraded", "sent"}
+    assert native.get("status") == "superseded_by_span_contract"
 
 
 def test_reporter_langfuse_rich_io_native_sent(monkeypatch):
@@ -120,26 +120,23 @@ def test_reporter_langfuse_rich_io_native_sent(monkeypatch):
     monkeypatch.setenv("FITCV_LANGFUSE_PROJECT_PUBLIC_KEY", "pk-local")
     monkeypatch.setenv("FITCV_LANGFUSE_PROJECT_SECRET_KEY", "sk-local")
     monkeypatch.setenv("FITCV_LANGFUSE_BASE_URL", "http://localhost:3000")
+    monkeypatch.setenv("FITCV_LANGFUSE_ENABLED", "true")
     reporter = PipelineReporter(run_id="r1", bq=None, project="p", dataset="d")
-    payload = {"input_snapshot": {"total_jobs": 3}, "output_snapshot": {"passed_filter": 1}}
-    with patch("fitcv_cp.reporter.httpx.post") as post_mock, \
+    payload = {"latency_ms": 250}
+    post_response = MagicMock()
+    post_response.status_code = 200
+    with patch("fitcv_cp.reporter.httpx.post", return_value=post_response) as post_mock, \
          patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}) as append_mock:
-        post_mock.return_value.status_code = 200
-        reporter.emit("layer1_normalize", "info", "normalize done", payload=payload)
+        reporter.emit("layer1b_pre_filter", "info", "pre-filter done", payload=payload)
     event = append_mock.call_args[0][0]
     emitted = json.loads(str(event.payload_json or "{}"))
     native = dict(emitted.get("langfuse_rich_io_native") or {})
-    assert str(native.get("status") or "").startswith("sent:")
-    posted_json = post_mock.call_args.kwargs["json"]
-    batch_item = posted_json["batch"][0]
-    assert batch_item["type"] == "trace-create"
-    posted_body = dict(batch_item["body"] or {})
-    trace_id = str((emitted.get("trace_context") or {}).get("trace_id") or "")
-    assert posted_body["id"] == trace_id
-    assert posted_body["sessionId"] == "r1"
-    assert posted_body["userId"] == "fitcv-control-plane"
-    assert isinstance(posted_body.get("input"), dict)
-    assert isinstance(posted_body.get("output"), dict)
+    link = dict(emitted.get("langfuse_link") or {})
+    assert native.get("status").startswith("sent:")
+    assert native.get("degradation_reason") is None
+    assert link.get("status") == "verified"
+    assert link.get("degradation_reason") is None
+    post_mock.assert_called_once()
 
 
 def test_reporter_langfuse_rich_io_native_emits_observation_for_latency(monkeypatch):
@@ -155,19 +152,8 @@ def test_reporter_langfuse_rich_io_native_emits_observation_for_latency(monkeypa
     }
     with patch("fitcv_cp.reporter.httpx.post") as post_mock, \
          patch("fitcv_cp.reporter.append_event", return_value={"persistence_status": "persisted"}):
-        post_mock.return_value.status_code = 200
         reporter.emit("layer4_cv_analysis", "info", "analysis complete", payload=payload)
-    posted_json = post_mock.call_args.kwargs["json"]
-    batch_items = list(posted_json.get("batch") or [])
-    assert len(batch_items) == 2
-    assert batch_items[0]["type"] == "trace-create"
-    assert batch_items[1]["type"] == "observation-create"
-    obs_body = dict(batch_items[1].get("body") or {})
-    assert obs_body["traceId"]
-    assert obs_body["type"] == "SPAN"
-    assert str(obs_body["name"]).endswith(":rich_io_latency")
-    assert str(obs_body["startTime"]).endswith("Z")
-    assert str(obs_body["endTime"]).endswith("Z")
+    post_mock.assert_not_called()
 
 
 def test_reporter_langfuse_rich_io_coerces_scalar_cost(monkeypatch):

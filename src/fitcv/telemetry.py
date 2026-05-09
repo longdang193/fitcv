@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import json
 import os
 import threading
 from collections.abc import Iterator, Mapping
@@ -15,6 +16,9 @@ _INIT_LOCK = threading.Lock()
 _INITIALIZED = False
 _DEGRADED_REASON: str | None = None
 _OTEL_ENABLED = False
+_LANGFUSE_JSON_MAX_CHARS = 4000
+_LANGFUSE_COLLECTION_MAX_ITEMS = 25
+_LANGFUSE_MAPPING_MAX_ITEMS = 50
 
 
 def reset_telemetry_runtime_for_tests() -> None:
@@ -53,6 +57,102 @@ def _parse_otlp_headers(value: str | None) -> dict[str, str]:
         if key_clean and val_clean:
             headers[key_clean] = val_clean
     return headers
+
+
+def _truncate_langfuse_text(value: str, *, max_chars: int = _LANGFUSE_JSON_MAX_CHARS) -> str:
+    if len(value) <= max_chars:
+        return value
+    suffix = "... [truncated]"
+    if max_chars <= len(suffix):
+        return value[:max_chars]
+    return f"{value[: max_chars - len(suffix)]}{suffix}"
+
+
+def _bounded_langfuse_value(value: Any) -> Any:
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        return _truncate_langfuse_text(value)
+    if isinstance(value, Mapping):
+        bounded_items = list(value.items())[:_LANGFUSE_MAPPING_MAX_ITEMS]
+        return {
+            str(key): _bounded_langfuse_value(item_value)
+            for key, item_value in bounded_items
+            if item_value is not None
+        }
+    if isinstance(value, (list, tuple, set)):
+        return [
+            _bounded_langfuse_value(item)
+            for item in list(value)[:_LANGFUSE_COLLECTION_MAX_ITEMS]
+        ]
+    return _truncate_langfuse_text(str(value))
+
+
+def serialize_langfuse_json(value: Any, *, max_chars: int = _LANGFUSE_JSON_MAX_CHARS) -> str | None:
+    if value is None:
+        return None
+    try:
+        serialized = json.dumps(
+            _bounded_langfuse_value(value),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    except Exception:
+        serialized = json.dumps({"value": _truncate_langfuse_text(str(value), max_chars=max_chars)})
+    return _truncate_langfuse_text(serialized, max_chars=max_chars)
+
+
+def build_langfuse_trace_attributes(
+    *,
+    trace_name: str | None = None,
+    session_id: str | None = None,
+    user_id: str | None = None,
+    input_payload: Any = None,
+    output_payload: Any = None,
+    metadata: Mapping[str, Any] | None = None,
+    extra_attributes: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    return _normalized_attributes(
+        {
+            "langfuse.trace.name": trace_name,
+            "langfuse.session.id": session_id,
+            "langfuse.user.id": user_id,
+            "langfuse.trace.input": serialize_langfuse_json(input_payload),
+            "langfuse.trace.output": serialize_langfuse_json(output_payload),
+            "langfuse.trace.metadata": serialize_langfuse_json(metadata),
+            **dict(extra_attributes or {}),
+        }
+    )
+
+
+def build_langfuse_observation_attributes(
+    *,
+    observation_type: str | None = None,
+    input_payload: Any = None,
+    output_payload: Any = None,
+    metadata: Mapping[str, Any] | None = None,
+    model: str | None = None,
+    model_parameters: Mapping[str, Any] | None = None,
+    usage_details: Mapping[str, Any] | None = None,
+    cost_details: Mapping[str, Any] | None = None,
+    prompt_name: str | None = None,
+    extra_attributes: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    return _normalized_attributes(
+        {
+            "langfuse.observation.type": observation_type,
+            "langfuse.observation.input": serialize_langfuse_json(input_payload),
+            "langfuse.observation.output": serialize_langfuse_json(output_payload),
+            "langfuse.observation.metadata": serialize_langfuse_json(metadata),
+            "langfuse.observation.model": model,
+            "langfuse.observation.model_parameters": serialize_langfuse_json(model_parameters),
+            "langfuse.observation.usage_details": serialize_langfuse_json(usage_details),
+            "langfuse.observation.cost_details": serialize_langfuse_json(cost_details),
+            "langfuse.observation.prompt_name": prompt_name,
+            **dict(extra_attributes or {}),
+        }
+    )
 
 
 def setup_telemetry_runtime() -> dict[str, Any]:
@@ -204,7 +304,7 @@ def build_trace_context(
         return fallback_context
 
 
-def langfuse_link_status(trace_id: str | None) -> dict[str, Any]:
+def langfuse_link_status(trace_id: str | None, *, verified: bool = False) -> dict[str, Any]:
     enabled = _is_truthy(os.environ.get("FITCV_LANGFUSE_ENABLED"))
     if not enabled:
         return {
@@ -225,6 +325,12 @@ def langfuse_link_status(trace_id: str | None) -> dict[str, Any]:
             "status": "degraded",
             "degradation_reason": "langfuse_trace_id_missing",
             "trace_url": None,
+        }
+    if verified:
+        return {
+            "status": "verified",
+            "degradation_reason": None,
+            "trace_url": f"{base_url.rstrip('/')}/trace/{normalized_trace_id}",
         }
     return {
         "status": "unverified",

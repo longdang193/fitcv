@@ -185,11 +185,13 @@ def _emit_langfuse_native_io(
 ) -> tuple[str, str | None]:
     if not _langfuse_ingestion_enabled():
         return "disabled", "langfuse_rich_io_disabled"
+    stage_family = str((rich_contract.get("input") or {}).get("stage_family") or "")
+    if stage_family in {"normalize", "cv_analysis", "cv_generation"}:
+        return "superseded_by_span_contract", "otel_langfuse_span_contract_active"
     headers = _build_langfuse_ingestion_headers()
     if headers is None:
         return "degraded", "langfuse_credentials_missing"
-    stage_family = str((rich_contract.get("input") or {}).get("stage_family") or "")
-    if stage_family not in {"normalize", "cv_analysis", "cv_generation"}:
+    if stage_family not in {"generic"}:
         return "not_applicable", None
     base_url = str(os.environ.get("FITCV_LANGFUSE_BASE_URL") or "").strip().rstrip("/")
     if not base_url:
@@ -284,9 +286,6 @@ class PipelineReporter:
                 emit_otel_span=False,
             )
         payload_value["telemetry_export"] = telemetry_export_status()
-        payload_value["langfuse_link"] = langfuse_link_status(
-            str(payload_value["trace_context"].get("trace_id") or "")
-        )
         payload_value["langfuse_rich_io"] = _build_langfuse_rich_io_contract(
             stage=stage,
             level=level,
@@ -299,6 +298,10 @@ class PipelineReporter:
             stage=stage,
             trace_id=trace_id,
             rich_contract=dict(payload_value["langfuse_rich_io"] or {}),
+        )
+        payload_value["langfuse_link"] = langfuse_link_status(
+            trace_id,
+            verified=native_status.startswith("sent:"),
         )
         payload_value["langfuse_rich_io_native"] = {
             "status": native_status,
