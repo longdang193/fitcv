@@ -30,6 +30,7 @@ import multiprocessing
 import os
 import sys
 import threading
+import time
 import types
 import uuid
 from datetime import datetime, timezone
@@ -80,6 +81,15 @@ def _inline_execution_enabled() -> bool:
     return raw in {"1", "true", "yes", "on"}
 
 
+def _inline_start_delay_seconds() -> float:
+    raw = str(os.environ.get("FITCV_CP_INLINE_START_DELAY_SECONDS", "0.05") or "0.05").strip()
+    try:
+        delay = float(raw)
+    except ValueError:
+        return 0.05
+    return max(0.0, min(delay, 1.0))
+
+
 def _run_inline_job(job_id: str, run_id: str, jobs_path: str, config_path: str) -> None:
     from fitcv_cp import worker_job  # noqa: F401
     from fitcv_cp.bq_store import append_event, update_run_status
@@ -116,6 +126,13 @@ def _run_inline_job(job_id: str, run_id: str, jobs_path: str, config_path: str) 
         )
 
 
+def _run_inline_job_after_delay(job_id: str, run_id: str, jobs_path: str, config_path: str) -> None:
+    delay_seconds = _inline_start_delay_seconds()
+    if delay_seconds > 0:
+        time.sleep(delay_seconds)
+    _run_inline_job(job_id, run_id, jobs_path, config_path)
+
+
 def get_queue(redis_url: str = "redis://redis:6379/0") -> Queue:
     global _queue
     if _queue is None:
@@ -138,7 +155,7 @@ def enqueue_run_with_job_id(
         job_id = f"inline-{uuid.uuid4()}"
         _INLINE_JOB_STATUS[job_id] = "queued"
         thread = threading.Thread(
-            target=_run_inline_job,
+            target=_run_inline_job_after_delay,
             args=(job_id, run_id, jobs_path, config_path),
             daemon=True,
         )
