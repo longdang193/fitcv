@@ -44,6 +44,25 @@ Mode changes pacing, not stage truth semantics.
 - run artifacts/events must remain consistent with stage-owned outcomes
 - `StageResult`/trace fields and run exports are the audit surface
 
+## Two-Layer Observability Ownership
+
+Wave 1 Langfuse observability splits responsibilities across two layers:
+
+- **run-summary layer**
+  - root/run trace context and aggregate events remain the operator entrypoint
+  - `pipeline_complete` and related summary surfaces stay aggregate-only
+  - run-level quality summaries describe distribution, conversion, retry, and health facts across the run
+- **item-observation layer**
+  - `cv_analysis_item` captures one bounded analysis observation per candidate-job attempt
+  - `cv_generation_item` captures one bounded generation observation per candidate-job attempt
+  - item observations carry disposition-aware reviewer-facing `input`/`output` plus structured metadata for filtering and joins
+
+Ownership rule:
+
+- run-summary surfaces answer **how run behaved overall**
+- item observations answer **what happened for one candidate-job attempt**
+- do not duplicate full item-level raw IO into aggregate run-summary payloads
+
 ## Portability Expectations
 
 - sqlite and bigquery backends must preserve the same operator-visible contracts
