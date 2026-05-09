@@ -509,6 +509,51 @@ def test_timeline_stage_download_maps_cv_analysis_skip_to_cv_analysis():
     assert _timeline_stage_download_for_event("layer4_cv_skip") == "cv_analysis"
 
 
+def test_ranked_cv_outcome_summary_preserves_stage_owned_no_cv_vs_failed_distinction() -> None:
+    from fitcv_cp.app import _build_ranked_cv_outcome_summary
+
+    rows = [
+        {
+            "rank": 1,
+            "pipeline_status": "ranked_with_cv",
+            "stage_owned_subreason": "accepted",
+            "decision_chain": {"cv_generation": {"status": "accepted"}},
+        },
+        {
+            "rank": 2,
+            "pipeline_status": "ranked_no_cv",
+            "stage_owned_subreason": "review_required",
+            "decision_chain": {"cv_generation": {"status": "review_required"}},
+        },
+        {
+            "rank": 3,
+            "pipeline_status": "ranked_no_cv",
+            "stage_owned_subreason": "validation_failed",
+            "decision_chain": {"cv_generation": {"status": "validation_failed"}},
+        },
+        {
+            "rank": 4,
+            "pipeline_status": "ranked_no_cv",
+            "stage_owned_subreason": "ready_for_generation",
+            "decision_chain": {"cv_generation": {"status": "not_attempted"}},
+        },
+        {
+            "rank": 5,
+            "pipeline_status": "ranked_blocked_by_reranker_fit",
+            "stage_owned_subreason": "blocked_by_reranker_fit",
+            "decision_chain": {"cv_generation": {"status": "not_attempted"}},
+        },
+    ]
+
+    summary = _build_ranked_cv_outcome_summary(rows)
+    assert summary["ranked_total"] == 5
+    assert summary["ranked_cv_created_count"] == 1
+    assert summary["ranked_review_required_count"] == 1
+    assert summary["ranked_generation_failed_count"] == 1
+    assert summary["ranked_fit_gated_count"] == 1
+    assert summary["ranked_other_no_cv_count"] == 1
+
+
 # ── settings API ─────────────────────────────────────────────────────────────
 
 def test_get_settings_returns_dict():
@@ -755,12 +800,25 @@ def test_admin_continue_run_requeues_manual_paused_run() -> None:
     paused_run.jobs_path = "data/sample_jobs.json"
     paused_run.config_path = ".env.yaml"
 
+    call_order: list[str] = []
+
+    def _record(name: str):
+        def _inner(*args, **kwargs):
+            call_order.append(name)
+            return None
+        return _inner
+
+    def _continue(*args, **kwargs):
+        call_order.append("continue")
+        return ("run-123", "rq-job-abc")
+
     with patch("fitcv_cp.app.get_run", return_value=paused_run), \
-         patch("fitcv_cp.app.continue_run_with_job_id", return_value=("run-123", "rq-job-abc")), \
+         patch("fitcv_cp.app.continue_run_with_job_id", side_effect=_continue), \
          patch("fitcv_cp.app.update_run_effective_settings"), \
-         patch("fitcv_cp.app.update_run_status") as mock_status, \
-         patch("fitcv_cp.app.update_run_queue_job_id") as mock_queue, \
-         patch("fitcv_cp.app.update_run_checkpoint") as mock_checkpoint, \
+         patch("fitcv_cp.app.update_run_status", side_effect=_record("status")) as mock_status, \
+         patch("fitcv_cp.app.update_run_queue_job_id", side_effect=_record("queue")) as mock_queue, \
+         patch("fitcv_cp.app.update_run_checkpoint", side_effect=_record("checkpoint")) as mock_checkpoint, \
+         patch("fitcv_cp.app.update_run_orchestration_binding", side_effect=_record("binding")) as mock_binding, \
          patch("fitcv_cp.app.append_event"):
         resp = TestClient(_app()).post("/admin/runs/run-123/continue")
 
@@ -768,6 +826,9 @@ def test_admin_continue_run_requeues_manual_paused_run() -> None:
     mock_status.assert_called_once()
     mock_queue.assert_called_once()
     mock_checkpoint.assert_called_once()
+    mock_binding.assert_called_once()
+    assert call_order.index("status") < call_order.index("continue")
+    assert call_order.index("checkpoint") < call_order.index("continue")
 
 
 def test_admin_continue_run_uses_canonical_next_stage_from_completed_truth() -> None:
@@ -1469,6 +1530,9 @@ def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> N
         run_id="run-review-batch-1",
         status=RunStatus.AWAITING_CONTINUE,
         checkpoint_status="awaiting_review",
+        last_completed_stage="cv_analysis",
+        completed_stages=["normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis"],
+        checkpoint_payload_json=json.dumps({"checkpoint_payload": {"stage": "cv_analysis"}}),
         triggered_by="admin",
         trigger_source="web",
         jobs_path="data/sample_jobs.json",
@@ -1518,6 +1582,10 @@ def test_admin_run_cv_review_batch_action_applies_and_skips_terminal_rows() -> N
     )
     assert mock_update_status.call_count == 2
     mock_update_checkpoint.assert_called_once()
+    checkpoint_kwargs = mock_update_checkpoint.call_args.kwargs
+    assert checkpoint_kwargs["last_completed_stage"] == "cv_analysis"
+    assert checkpoint_kwargs["completed_stages"] == ["normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis"]
+    assert checkpoint_kwargs["checkpoint_payload_json"] == json.dumps({"checkpoint_payload": {"stage": "cv_analysis"}})
     assert mock_append.call_count >= 2
     completion_events = [
         call.args[0]
@@ -3079,6 +3147,68 @@ def test_run_detail_timeline_uses_bounded_cv_analysis_payload_counts():
 
     assert resp.status_code == 200
     assert "CV analysis complete: 1 ready, 2 blocked, 0 skipped, 1 failed" in resp.text
+
+
+def test_run_detail_timeline_keeps_cv_generation_failure_types_distinct() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-cv-generation-failure-types",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json=json.dumps(
+            {
+                "artifacts": {
+                    "stages": {
+                        "cv_generation": {
+                            "status": "completed",
+                            "output_counts": {
+                                "accepted": 1,
+                                "validation_failed": 2,
+                                "generation_failed": 3,
+                                "persistence_failed": 4,
+                            },
+                        }
+                    }
+                }
+            }
+        ),
+    )
+    events = [
+        RunEvent(
+            run_id="run-cv-generation-failure-types",
+            event_id="e1",
+            stage="pipeline_complete",
+            level="info",
+            message="legacy completion summary",
+            created_at=datetime.now(timezone.utc),
+            payload_json=json.dumps(
+                {
+                    "event_name": "pipeline_complete",
+                    "event_family": "summary",
+                    "source_stage": "cv_generation",
+                    "event_status": "completed",
+                }
+            ),
+        )
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-cv-generation-failure-types")
+
+    assert resp.status_code == 200
+    assert (
+        "CV generation complete: 1 accepted, 2 validation failed, 3 generation failed, 4 persistence failed"
+        in resp.text
+    )
 
 
 def test_run_detail_timeline_keeps_validation_failed_job_message_from_payload():
