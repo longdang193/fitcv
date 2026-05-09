@@ -54,6 +54,36 @@ This is the main observability surface. It combines:
 
 For most debugging, start here before opening raw JSON exports.
 
+## Two-Layer Langfuse Observability Model
+
+Wave 1 uses a two-layer contract in Langfuse:
+
+- **Layer 1: run-scoped summary surfaces**
+  - existing run/root trace context remains the operator entrypoint
+  - aggregate summaries such as `pipeline_complete` stay aggregate-only
+  - run-summary surfaces do not shadow-store item-level raw analysis/generation IO
+- **Layer 2: item-level evaluable observations**
+  - `cv_analysis_item` emits one bounded item observation per candidate-job analysis attempt
+  - `cv_generation_item` emits one bounded item observation per candidate-job generation attempt
+  - both item observations are nested under the same run trace so lineage stays inspectable in one place
+
+Wave 1 item observations are designed for two audiences at once:
+
+- **reviewers/operators** see reviewer-first rendered `input` and `output` as readable markdown/text sections
+- **automation/filtering** uses structured backing payloads preserved in observation metadata rather than parsing rendered markdown
+
+Bounded payload policy:
+
+- rendered `input` and `output` are intentionally capped and redacted through shared telemetry helpers
+- item observations preserve disposition-aware summaries for success, blocked, review-required, validation-failed, generation-failed, and persistence-failed paths
+- raw chain-of-thought, unbounded provider payloads, and oversized blobs are not stored in Langfuse item observations
+- telemetry degradation still must not block primary pipeline execution
+
+Wave 1 verification status:
+
+- focused telemetry and pipeline regression coverage verifies schema, truncation, retry/disposition semantics, and lineage expectations
+- one local Langfuse validation pass has verified that the run trace still shows root/run-summary context while nested `cv_analysis_item` and `cv_generation_item` observations expose reviewer-readable rendered IO under the same trace
+
 ## OpenTelemetry Export Runtime
 
 FitCV now supports OpenTelemetry export wiring with safe fallback behavior.
@@ -120,6 +150,7 @@ Langfuse export consumption lanes:
 - raw export: keep full fidelity for forensics
 - analysis-ready export: filter to rows with meaningful `input` or `output`, plus `:rich_io` rows
   (including exports where `input`/`output` are stringified JSON objects)
+- reviewer-first Wave 1 item observations should surface sectioned markdown/text in Langfuse `input`/`output`, while metadata keeps structured backing payloads for filters and joins
 
 Example:
 
