@@ -48,6 +48,7 @@ Interpretation rules:
 - trigger-time per-run overrides do not mutate saved defaults.
 - completed-run truth belongs to the run-scoped `settings-used.json` snapshot.
 - runtime env ownership can supersede settings-owned values in agentic/live provider paths.
+- do not use current `/admin/settings` values to retroactively interpret completed runs; use that run's exported `settings-used.json`.
 
 ## Settings Surface Ownership
 
@@ -55,6 +56,11 @@ The settings page intentionally mixes editable controls with metadata-only rows.
 
 - editable: schema-backed controls with persistence keys and save handlers
 - metadata-only: fixed/runtime-owned values shown for operator context and provenance
+
+Operator-safe rule:
+
+- if a row is metadata-only, it is descriptive provenance, not a persisted operator control
+- only editable schema-backed rows participate in grouped-save writes on `/admin/settings`
 
 Examples:
 

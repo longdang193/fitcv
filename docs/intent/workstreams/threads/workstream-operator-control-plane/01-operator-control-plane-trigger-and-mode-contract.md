@@ -1,6 +1,6 @@
-﻿---
+---
 thread_id: workstream-operator-control-plane.operator-control-plane-trigger-and-mode-contract
-status: proposed
+status: completed
 ---
 
 # operator-control-plane-trigger-and-mode-contract
@@ -23,11 +23,11 @@ src/fitcv_cp trigger forms; snapshot payloads
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-04-28-operator-control-plane-trigger-and-mode-contract-spec.md
 
 ## Linked Plan
 
-- none yet
+- docs/superpowers/plans/2026-05-06-operator-control-plane-trigger-and-mode-contract-bootstrap-plan.md
 
 ## Notes
 

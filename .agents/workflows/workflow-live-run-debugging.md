@@ -45,8 +45,8 @@ Handle live-run failures with evidence-first debugging and bounded fixes.
    - minimal scope
    - no unrelated changes
 5. Apply the fix.
-6. Trigger targeted rerun through `workflow-live-run-execution`.
-7. Route to `workflow-live-run-verification` when rerun result is successful;
+6. Trigger targeted rerun through `workflow-live-run-execution.md`.
+7. Route to `workflow-live-run-verification.md` when rerun result is successful;
    continue debugging when rerun fails.
 
 ## Decision Gates

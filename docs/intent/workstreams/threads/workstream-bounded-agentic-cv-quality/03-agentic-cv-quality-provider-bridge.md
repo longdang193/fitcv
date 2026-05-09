@@ -1,8 +1,9 @@
-﻿---
-thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-provider-bridge
-status: proposed
 ---
-
+thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-provider-bridge
+status: completed
+parent_spec: docs/superpowers/specs/2026-05-02-ranked-cv-outcome-clarity-and-review-diagnostics-spec.md
+implementation_plan: docs/superpowers/plans/2026-05-04-provider-storage-agnostic-parity-implementation-plan.md
+---
 # agentic-cv-quality-provider-bridge
 
 ## Goal

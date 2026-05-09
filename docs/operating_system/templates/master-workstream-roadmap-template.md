@@ -2,13 +2,13 @@
 template_id: master-workstream-roadmap
 document_type: master_workstream_roadmap
 target_globs:
-  - docs/intent/master-workstream-roadmap.md
+- docs/intent/master-workstream-roadmap.md
 required_sections:
-  - Goal
-  - Key Deliverables
-  - Phase Structure
-  - Workstream Index
-  - Completion Criteria
+- Goal
+- Key Deliverables
+- Task/Wave Breakdown
+- Workstream Index
+- Completion Criteria
 ---
 
 # Master Workstream Roadmap Template
@@ -19,10 +19,15 @@ required_sections:
 
 ## Key Deliverables
 
-- <deliverable 1>
-- <deliverable 2>
+### <deliverable 1>
 
-## Phase Structure
+Describe one concrete roadmap outcome this document must deliver, including scope, intended result, and how success will be recognized at roadmap level.
+
+### <deliverable 2>
+
+Describe one additional roadmap-level outcome this document must deliver, including why it matters and which downstream workstreams it enables.
+
+## Task/Wave Breakdown
 
 ### Phase 1
 
@@ -32,8 +37,13 @@ required_sections:
 
 #### Key Deliverables
 
-- <phase-1 deliverable 1>
-- <phase-1 deliverable 2>
+### <phase-1 deliverable 1>
+
+Describe one concrete outcome Phase 1 must deliver before later phases can safely begin.
+
+### <phase-1 deliverable 2>
+
+Describe a second concrete Phase 1 outcome, milestone, or gating result needed for downstream workstreams.
 
 ### Phase 2
 
@@ -43,8 +53,13 @@ required_sections:
 
 #### Key Deliverables
 
-- <phase-2 deliverable 1>
-- <phase-2 deliverable 2>
+### <phase-2 deliverable 1>
+
+Describe one concrete Phase 2 outcome that builds on Phase 1 and advances the roadmap toward its target state.
+
+### <phase-2 deliverable 2>
+
+Describe a second concrete Phase 2 outcome, checkpoint, or readiness gate required before Phase 3.
 
 ### Phase 3
 
@@ -54,8 +69,13 @@ required_sections:
 
 #### Key Deliverables
 
-- <phase-3 deliverable 1>
-- <phase-3 deliverable 2>
+### <phase-3 deliverable 1>
+
+Describe one concrete Phase 3 outcome that completes or hardens the roadmap target state.
+
+### <phase-3 deliverable 2>
+
+Describe a final Phase 3 outcome that proves the roadmap is operationally complete or ready for closeout.
 
 ## Workstream Index
 
@@ -71,5 +91,7 @@ A roadmap item is considered complete when:
 
 Canonical source-of-truth:
 
-- `docs/operating_system/repo-governance.md`
+<LINK>
+- `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
+</LINK>

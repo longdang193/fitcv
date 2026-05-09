@@ -1,6 +1,8 @@
 ﻿---
 thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-analysis-grounding
-status: active
+status: completed
+parent_spec: docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
+implementation_plan: docs/superpowers/plans/2026-05-03-bounded-cv-quality-analysis-grounding-bootstrap-plan.md
 ---
 
 # agentic-cv-quality-analysis-grounding

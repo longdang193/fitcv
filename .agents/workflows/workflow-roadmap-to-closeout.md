@@ -36,14 +36,12 @@ Run a deterministic closure path from active roadmap/workstream/thread state to 
 
 ## Steps (Ordered)
 
-<LINK>
 1. Run thread closure review with [thread-closeout-readiness-prompt.md](../prompt_templates/thread-closeout-readiness-prompt.md)
 2. Resolve thread blockers using [implementation-next-action-gate-prompt.md](../prompt_templates/implementation-next-action-gate-prompt.md)
 3. Run workstream closure review with [workstream-closeout-readiness-prompt.md](../prompt_templates/workstream-closeout-readiness-prompt.md)
 4. Resolve workstream blockers using [implementation-next-action-gate-prompt.md](../prompt_templates/implementation-next-action-gate-prompt.md)
 5. Run roadmap closure review with [roadmap-closeout-readiness-prompt.md](../prompt_templates/roadmap-closeout-readiness-prompt.md)
 6. If closure-ready, run final verification and close
-</LINK>
 
 ## Decision Gates
 
@@ -58,12 +56,10 @@ Run a deterministic closure path from active roadmap/workstream/thread state to 
 
 ## Related Prompts
 
-<LINK>
 - [thread-closeout-readiness-prompt.md](../prompt_templates/thread-closeout-readiness-prompt.md)
 - [workstream-closeout-readiness-prompt.md](../prompt_templates/workstream-closeout-readiness-prompt.md)
 - [roadmap-closeout-readiness-prompt.md](../prompt_templates/roadmap-closeout-readiness-prompt.md)
 - [implementation-next-action-gate-prompt.md](../prompt_templates/implementation-next-action-gate-prompt.md)
-</LINK>
 
 ## Failure/Recovery Path
 

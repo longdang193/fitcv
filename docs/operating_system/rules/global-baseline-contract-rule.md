@@ -1,22 +1,19 @@
 ---
-name: global-baseline-contract-rule
+name: global-baseline-contract
 description: Enforce AGENTS.md as the shared cross-tool baseline contract.
 alwaysApply: true
 required_reads:
-  - AGENTS.md
+- AGENTS.md
+- docs/operating_system/governance/repo-governance.md
 tags:
-  - rule
-  - baseline
-  - runtime
+- baseline
+- cross-tool
+- governance
+- rule
 ---
 
 # Global Baseline Contract Rule
 
-Treat `AGENTS.md` as shared baseline contract.
-
-## Requirements
-
-- Keep generated runtime instruction surfaces aligned with `AGENTS.md`.
-- Reflect canonical manifest, governance, and source-of-truth notes in generated outputs.
-- Resolve drift by updating canonical docs first, then regenerating adapters.
-- Do not treat generated runtime files as primary source unless explicitly documented.
+Use `AGENTS.md` as the shared baseline contract across Codex, Claude, and
+Gemini runtimes. Runtime targets are generated and deployed; do not hand-edit
+runtime target files.

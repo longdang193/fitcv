@@ -1,8 +1,9 @@
-﻿---
-thread_id: workstream-agentic-synonym-management.agentic-synonym-unmatched-term-detection
-status: proposed
 ---
-
+thread_id: workstream-agentic-synonym-management.agentic-synonym-unmatched-term-detection
+status: completed
+parent_spec: docs/superpowers/specs/2026-05-02-run-scoped-multi-field-synonym-overlay-parity-spec.md
+implementation_plan: docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+---
 # agentic-synonym-unmatched-term-detection
 
 ## Goal

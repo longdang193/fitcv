@@ -1,8 +1,9 @@
-﻿---
-thread_id: workstream-agentic-observability.agentic-observability-operator-surface
-status: proposed
 ---
-
+thread_id: workstream-agentic-observability.agentic-observability-operator-surface
+status: completed
+parent_spec: docs/superpowers/specs/2026-04-28-agentic-run-mode-and-synonym-proposal-observability-spec.md
+implementation_plan: docs/superpowers/plans/2026-04-28-agentic-run-mode-and-synonym-proposal-observability-plan.md
+---
 # agentic-observability-operator-surface
 
 ## Goal
@@ -32,4 +33,3 @@ inspection_debugging UI; exports
 ## Notes
 
 Keep private reasoning out.
-

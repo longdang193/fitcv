@@ -1,6 +1,6 @@
 ﻿---
 thread_id: workstream-operator-control-plane.operator-control-plane-settings-surface-alignment
-status: in_progress
+status: completed
 ---
 
 # operator-control-plane-settings-surface-alignment
@@ -31,15 +31,20 @@ settings UI; persisted settings snapshots
 
 ## Implementation Progress
 
-- checkpoint: `docs/intent/workstreams/checkpoints/workstream-operator-control-plane/operator-control-plane-settings-surface-alignment/20260505-1425.md`
+- checkpoints:
+  - `docs/intent/workstreams/checkpoints/workstream-operator-control-plane/operator-control-plane-settings-surface-alignment/20260505-1425.md`
+  - `docs/intent/workstreams/checkpoints/workstream-operator-control-plane/operator-control-plane-settings-surface-alignment/20260505-2316.md`
+  - `docs/intent/workstreams/checkpoints/workstream-operator-control-plane/operator-control-plane-settings-surface-alignment/20260505-2320.md`
 - completed:
   - task 1 (settings schema/store truth alignment)
   - task 2 (settings rendering + grouped-save UX alignment)
+  - task 3 (docs/discovery/validation closeout)
 - commits:
   - `80faaf1` align settings registry sections and active-settings fallback behavior
   - `d61f773` add settings quick-nav + global dirty summary and align section tests
-- current focus:
-  - task 3 docs/discovery/validation closeout
+- verification:
+  - `python -m pytest tests/test_fitcv_cp/test_app.py tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_settings_store.py` -> `510 passed`
+  - `python scripts/validate_repo_contracts.py --fast` -> passed
 
 ## Notes
 

@@ -1,8 +1,9 @@
-﻿---
-thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract
-status: proposed
 ---
-
+thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract
+status: active
+parent_spec: docs/superpowers/specs/2026-05-03-pipeline-efficiency-exact-match-contract-bootstrap-spec.md
+implementation_plan: docs/superpowers/plans/2026-05-03-pipeline-efficiency-exact-match-bootstrap-plan.md
+---
 # efficiency-reuse-exact-match-contract
 
 ## Goal
@@ -23,13 +24,19 @@ reuse fingerprints; ranking or cv_analysis rows
 
 ## Linked Spec
 
-- none yet
+- `docs/superpowers/specs/2026-05-03-pipeline-efficiency-exact-match-contract-bootstrap-spec.md`
 
 ## Linked Plan
 
-- none yet
+- `docs/superpowers/plans/2026-05-03-pipeline-efficiency-exact-match-bootstrap-plan.md`
 
 ## Notes
 
-Contract first.
+Bootstrap Steps 1-3 complete. Deterministic reuse contract, invalidation boundaries, and test evidence are captured.
 
+Latest checkpoint evidence:
+- `docs/intent/workstreams/checkpoints/workstream-pipeline-efficiency-and-reuse/efficiency-reuse-exact-match-contract/20260508-1610.md`
+- `docs/intent/workstreams/checkpoints/workstream-pipeline-efficiency-and-reuse/efficiency-reuse-exact-match-contract/20260508-1614.md`
+- `docs/intent/workstreams/checkpoints/workstream-pipeline-efficiency-and-reuse/efficiency-reuse-exact-match-contract/20260508-1644.md`
+
+Thread remains active for follow-on persistence remediation so exact-match late-stage reuse can be durably materialized from stored snapshots.

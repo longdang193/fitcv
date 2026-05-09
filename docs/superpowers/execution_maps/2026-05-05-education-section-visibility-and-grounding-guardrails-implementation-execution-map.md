@@ -4,7 +4,10 @@ map_type: implementation_execution
 parent_workstream: workstream-bounded-agentic-cv-quality
 parent_thread: workstream-bounded-agentic-cv-quality.education-section-visibility-and-grounding-guardrails
 threads:
+  - workstream-bounded-agentic-cv-quality.agentic-cv-quality-analysis-grounding
   - workstream-bounded-agentic-cv-quality.education-section-visibility-and-grounding-guardrails
+specs:
+  - docs/superpowers/specs/2026-04-28-agentic-cv-quality-analysis-grounding-spec.md
 created_at: 2026-05-05
 status: active
 ---

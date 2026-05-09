@@ -84,6 +84,7 @@ outputs:
 invariants:
 - ranked jobs enter and stage-owned `ready_for_generation`, `blocked_by_reranker_fit`, `skipped_fit_gate`, or `analysis_failed` records leave
 - evidence retrieval, final evidence selection, gap analysis, and fit-gate ownership belong to this stage
+- downstream stages may consume cv-analysis outputs but must not reinterpret cv-analysis stage-owned status meaning
 - this stage does not generate or persist final CV artifacts
 human_notes:
 - cv analysis

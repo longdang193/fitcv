@@ -1,6 +1,6 @@
 ---
 thread_id: workstream-operator-control-plane.operator-control-plane-agentic-settings-surface
-status: active
+status: completed
 ---
 
 # operator-control-plane-agentic-settings-surface

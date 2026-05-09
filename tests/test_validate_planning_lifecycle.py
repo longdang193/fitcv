@@ -29,6 +29,14 @@ def write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def seed_planning_schema(root: Path) -> None:
+    source_schema = REPO_ROOT / "repo_config" / "planning_artifact_schema.yaml"
+    write_text(
+        root / "repo_config" / "planning_artifact_schema.yaml",
+        source_schema.read_text(encoding="utf-8"),
+    )
+
+
 def run_validator(repo_root: Path, *extra: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [sys.executable, str(VALIDATOR), "--repo-root", str(repo_root), *extra],
@@ -52,6 +60,7 @@ def seed_minimum_workstream(
     workstream_status: str,
     thread_status: str,
 ) -> None:
+    seed_planning_schema(root)
     if roadmap_status is None:
         write_text(root / "docs" / "intent" / "master-workstream-roadmap.md", "# Roadmap\n")
     else:
@@ -132,5 +141,58 @@ def test_completed_roadmap_with_non_terminal_workstream_fails() -> None:
         result = run_validator(root)
         assert result.returncode == 1
         assert "completed master roadmap cannot contain non-terminal workstream status" in result.stdout
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_completed_roadmap_requires_completed_workstream_coverage() -> None:
+    root = make_test_root()
+    try:
+        seed_minimum_workstream(
+            root,
+            roadmap_status="completed",
+            workstream_status="completed",
+            thread_status="dropped",
+        )
+        result = run_validator(root)
+        assert result.returncode == 1
+        assert "missing `complete_spec_set` execution map" in result.stdout
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_completed_workstream_requires_goal_and_key_deliverables() -> None:
+    root = make_test_root()
+    try:
+        seed_minimum_workstream(
+            root,
+            roadmap_status="active",
+            workstream_status="completed",
+            thread_status="dropped",
+        )
+        result = run_validator(root)
+        assert result.returncode == 1
+        assert "completed workstream must have non-empty `Key Deliverables`" in result.stdout
+    finally:
+        rmtree(root, ignore_errors=True)
+
+
+def test_thread_with_manual_linked_spec_section_warns_in_strict_mode() -> None:
+    root = make_test_root()
+    try:
+        seed_minimum_workstream(root, workstream_status="active", thread_status="proposed")
+        write_text(
+            root / "docs" / "intent" / "workstreams" / "threads" / "sample-workstream" / "01-sample-thread.md",
+            "---\n"
+            "thread_id: sample-workstream.sample-thread\n"
+            "status: proposed\n"
+            "---\n\n"
+            "# Sample Thread\n\n"
+            "## Linked Spec\n\n"
+            "docs/superpowers/specs/2026-05-08-sample-spec.md\n",
+        )
+        result = run_validator(root, "--strict")
+        assert result.returncode == 1
+        assert "manual thread linkage section is deprecated" in result.stdout.lower()
     finally:
         rmtree(root, ignore_errors=True)

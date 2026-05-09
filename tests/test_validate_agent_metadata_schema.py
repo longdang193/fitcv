@@ -48,7 +48,6 @@ hooks:
   pre: []
   post: []
 required_reads: []
-required_outputs: []
 tags: []
 ---
 # Demo
@@ -69,11 +68,9 @@ tags: []
         _write(
             root / "docs/operating_system/workflows/demo.md",
             """---
-name: demo
+name: demo-workflow
 description: demo
-allowed-tools: []
 required_reads: []
-required_outputs: []
 related_skills: []
 tags: []
 ---

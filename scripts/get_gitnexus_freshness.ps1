@@ -9,10 +9,15 @@ param(
 
     [switch]$RequireFresh,
 
+    [switch]$RefreshFailed,
+
+    [string]$RefreshFailureDetails,
+
     [switch]$Json
 )
 
 $ErrorActionPreference = 'Stop'
+$GITNEXUS_WSL_REFRESH_COMMAND = '.\scripts\gitnexus_wsl.ps1 analyze'
 
 function Get-RepoRoot {
     (git rev-parse --show-toplevel).Trim()
@@ -35,8 +40,16 @@ function Get-ShortCommit {
 function Get-Recommendation {
     param(
         [string]$Status,
-        [string]$TaskTier
+        [string]$TaskTier,
+        [bool]$RefreshFailed
     )
+
+    if ($RefreshFailed) {
+        return @{
+            recommendedAction = 'source-first'
+            recommendation = 'GitNexus refresh failed; continue source-first with code, tests, and active docs. Retry later with .\scripts\gitnexus_wsl.ps1 analyze if GitNexus help is still useful.'
+        }
+    }
 
     switch ($Status) {
         'fresh' {
@@ -109,7 +122,15 @@ $indexedCommit = $null
 $indexedAt = $null
 $details = 'GitNexus meta file not found.'
 
-if (Test-Path -LiteralPath $resolvedMetaPath) {
+if ($RefreshFailed) {
+    if ([string]::IsNullOrWhiteSpace($RefreshFailureDetails)) {
+        $details = 'GitNexus refresh failed.'
+    }
+    else {
+        $details = "GitNexus refresh failed: $RefreshFailureDetails"
+    }
+}
+elseif (Test-Path -LiteralPath $resolvedMetaPath) {
     try {
         $meta = Get-Content -Raw -LiteralPath $resolvedMetaPath | ConvertFrom-Json
         $indexedCommit = [string]$meta.lastCommit
@@ -134,7 +155,7 @@ if (Test-Path -LiteralPath $resolvedMetaPath) {
     }
 }
 
-$recommendation = Get-Recommendation -Status $status -TaskTier $TaskTier
+$recommendation = Get-Recommendation -Status $status -TaskTier $TaskTier -RefreshFailed ([bool]$RefreshFailed)
 $requireFreshSatisfied = (-not $RequireFresh) -or ($status -eq 'fresh')
 
 $result = [ordered]@{
@@ -148,6 +169,9 @@ $result = [ordered]@{
     metaPath = $resolvedMetaPath
     requireFresh = [bool]$RequireFresh
     requireFreshSatisfied = $requireFreshSatisfied
+    refreshFailed = [bool]$RefreshFailed
+    refreshFailureDetails = $RefreshFailureDetails
+    refreshCommand = $GITNEXUS_WSL_REFRESH_COMMAND
     recommendedAction = $recommendation.recommendedAction
     recommendation = $recommendation.recommendation
     details = $details
@@ -166,6 +190,11 @@ else {
     if ($result.indexedAt) {
         Write-Host "Indexed at: $($result.indexedAt)"
     }
+    Write-Host "Refresh failed: $($result.refreshFailed)"
+    if ($result.refreshFailureDetails) {
+        Write-Host "Refresh failure details: $($result.refreshFailureDetails)"
+    }
+    Write-Host "Refresh command: $($result.refreshCommand)"
     Write-Host "Recommended action: $($result.recommendedAction)"
     Write-Host "Recommendation: $($result.recommendation)"
     Write-Host "Details: $($result.details)"

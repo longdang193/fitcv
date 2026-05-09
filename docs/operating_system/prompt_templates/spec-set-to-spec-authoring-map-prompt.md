@@ -1,46 +1,26 @@
 ---
 name: spec-set-to-spec-authoring-map-prompt
-description: complete spec set exists and detailed-spec authoring order must be orchestrated.
+description: Translate a spec set into an authoring map for detailed-spec creation.
 type: prompt
 stage: planning
 entry_points:
-- use this prompt when its title scope matches the current planning/execution need
+- complete spec set exists and detailed-spec authoring order must be orchestrated
 prerequisites:
-- relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- spec set inventory exists
 next_steps:
-- implementation-next-action-gate-prompt.md
+- spec-prompt.md
+- spec-set-execution-map-prompt.md
 related_skills:
-- planning-dispatch
+- skill-planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
+- docs/operating_system/workflows/workflow-spec-to-plan-to-execution.md
 tags:
-- prompt-template
+- prompt
 - planning
-- change
-owner_layer: change
-status: active
 ---
 
 # Spec Set To Spec-Authoring Map Prompt
-
-## Use When
-
-complete spec set exists and detailed-spec authoring order must be orchestrated
-
-## Prerequisites
-
-### Required
-
-- spec set inventory exists
-
-### Optional
-
-- parallel lane constraints
-
-## Next Prompts
-
-- spec-prompt.md
-- spec-set-execution-map-prompt.md
 
 ## Not For
 
@@ -73,4 +53,3 @@ Expected output:
 - dependency and sequencing guidance for detailed-spec authoring
 - safe parallel authoring lanes
 - recommended next detailed-spec sequence
-

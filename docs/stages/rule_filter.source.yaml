@@ -5,6 +5,7 @@ boundaries:
   - deterministic pass/reject ownership belongs to this stage
   - reject reasons should be finalized here
   - canonical enrich outputs should be consumed here instead of reinterpreting raw extracted phrases when available
+  - downstream stages may consume pass/reject outputs but must not reinterpret rule-filter ownership of deterministic eligibility
   - later stages should only consider the passed set as retrieval-eligible
 inputs:
   - deterministic filter and policy settings

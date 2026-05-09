@@ -1,6 +1,6 @@
-﻿---
+---
 thread_id: workstream-fitcv-semantic-spine.semantic-spine-replay-drift-removal
-status: proposed
+status: completed
 ---
 
 # semantic-spine-replay-drift-removal
@@ -23,11 +23,11 @@ docs/intent/; operator phrasing; any replay-era UI or docs
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-replay-drift-removal-spec.md
 
 ## Linked Plan
 
-- none yet
+- docs/superpowers/plans/2026-05-06-semantic-spine-replay-drift-removal-bootstrap-plan.md
 
 ## Notes
 

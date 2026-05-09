@@ -1,8 +1,9 @@
 ---
 thread_id: workstream-agentic-observability.agentic-observability-shared-trace-standard
-status: proposed
+status: completed
+parent_spec: docs/superpowers/specs/2026-05-02-observability-evidence-control-docs-alignment-spec.md
+implementation_plan: docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
 ---
-
 # agentic-observability-shared-trace-standard
 
 ## Goal

@@ -37,6 +37,16 @@ import yaml
 
 HEADING_RE = re.compile(r"^##\s+(.+?)\s*$", re.MULTILINE)
 PLACEHOLDER_ONLY_RE = re.compile(r"^\s*(<[^>\n]+>|\[[^\]\n]+\]|\([^)\n]+\))\s*$")
+SECTION_ALIASES: dict[str, tuple[str, ...]] = {
+    "Task/Wave Breakdown": (
+        "Task/Wave Breakdown",
+        "Task Breakdown",
+        "Execution Waves",
+        "Authoring Waves",
+        "Phase Structure",
+    ),
+}
+
 
 
 @dataclass(frozen=True)
@@ -240,6 +250,14 @@ def _is_section_empty(content: str) -> bool:
     return False
 
 
+def _resolve_section_name(required: str, section_names: set[str]) -> str | None:
+    aliases = SECTION_ALIASES.get(required, (required,))
+    for candidate in aliases:
+        if candidate in section_names:
+            return candidate
+    return None
+
+
 def _matches_rule(path: Path, root: Path, rule: TemplateRule) -> bool:
     rel = relative_path(path, root)
     return any(path.match(glob_pattern) or rel == glob_pattern for glob_pattern in rule.target_globs)
@@ -309,7 +327,8 @@ def validate_documents(
         section_names = set(sections.keys())
 
         for required in rule.required_sections:
-            if required not in section_names:
+            resolved_name = _resolve_section_name(required, section_names)
+            if resolved_name is None:
                 findings.append(
                     Finding(
                         category="template_section_missing",
@@ -318,12 +337,12 @@ def validate_documents(
                     )
                 )
                 continue
-            if _is_section_empty(sections[required]):
+            if _is_section_empty(sections[resolved_name]):
                 findings.append(
                     Finding(
                         category="template_section_empty",
                         path=rel,
-                        message=f"required section `{required}` is empty for template `{rule.template_id}`.",
+                        message=f"required section `{resolved_name}` is empty for template `{rule.template_id}`.",
                     )
                 )
 
@@ -342,7 +361,8 @@ def validate_documents(
                 )
 
         if rule.template_id == "master-workstream-roadmap":
-            phase_structure = sections.get("Phase Structure", "")
+            roadmap_structure_name = _resolve_section_name("Task/Wave Breakdown", section_names)
+            phase_structure = sections.get(roadmap_structure_name, "") if roadmap_structure_name else ""
             phase_sections = _extract_h3_sections(phase_structure)
             for phase_name in ("Phase 1", "Phase 2", "Phase 3"):
                 phase_block = phase_sections.get(phase_name)

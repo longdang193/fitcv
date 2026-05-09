@@ -1,8 +1,9 @@
-﻿---
-thread_id: workstream-agentic-synonym-management.agentic-synonym-proposal-engine
-status: proposed
 ---
-
+thread_id: workstream-agentic-synonym-management.agentic-synonym-proposal-engine
+status: completed
+parent_spec: docs/superpowers/specs/2026-05-03-triage-recommendation-two-layer-auto-and-reuse-control-spec.md
+implementation_plan: docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+---
 # agentic-synonym-proposal-engine
 
 ## Goal
@@ -32,4 +33,3 @@ proposal artifacts; candidate term sets
 ## Notes
 
 Keep proposals review-first.
-

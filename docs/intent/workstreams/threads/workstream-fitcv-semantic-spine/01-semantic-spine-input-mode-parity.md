@@ -1,6 +1,6 @@
-﻿---
+---
 thread_id: workstream-fitcv-semantic-spine.semantic-spine-input-mode-parity
-status: proposed
+status: completed
 ---
 
 # semantic-spine-input-mode-parity
@@ -23,11 +23,11 @@ src/fitcv/pipeline.py; trigger input parsers; docs/stages/*.source.yaml
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-input-mode-parity-spec.md
 
 ## Linked Plan
 
-- none yet
+- docs/superpowers/plans/2026-04-28-fitcv-wave-3-input-analysis-parity-grounding-plan.md
 
 ## Notes
 

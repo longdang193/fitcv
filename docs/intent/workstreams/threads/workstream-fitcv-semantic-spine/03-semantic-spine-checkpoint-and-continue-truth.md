@@ -1,6 +1,6 @@
-﻿---
+---
 thread_id: workstream-fitcv-semantic-spine.semantic-spine-checkpoint-and-continue-truth
-status: proposed
+status: completed
 ---
 
 # semantic-spine-checkpoint-and-continue-truth
@@ -23,11 +23,11 @@ src/fitcv_cp/; pipeline checkpoint persistence
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-04-28-fitcv-semantic-spine-checkpoint-and-continue-truth-spec.md
 
 ## Linked Plan
 
-- none yet
+- docs/superpowers/plans/2026-05-06-semantic-spine-checkpoint-and-continue-truth-bootstrap-plan.md
 
 ## Notes
 

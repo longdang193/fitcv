@@ -8,6 +8,7 @@ boundaries:
   - canonical downstream skill fields are limited to `required_skills` and `preferred_skills`, and are represented as canonical skill entities plus flattened canonical skill labels
   - manual staged runs may attach a run-scoped synonym overlay after this stage and before continuing into `rule_filter`
   - enrich reuse is decided before LLM invocation from normalized raw-job fingerprints plus the effective enrich-contract fingerprint
+  - downstream stages may consume enrich outputs but must not reinterpret enrich-stage reuse/provenance decisions
   - downstream scoring and CV work should rely on the enriched contract rather than raw input shape
 inputs:
   - normalized job rows

@@ -1,8 +1,8 @@
 ---
 name: workstream-alignment-review-prompt
-description: Use prompt template for workstream alignment review prompt.
+description: Review whether workstream execution remains aligned with roadmap intent.
 type: prompt
-stage: drift
+stage: planning
 entry_points:
 - use this prompt when its title scope matches the current planning/execution need
 prerequisites:
@@ -10,15 +10,13 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- planning-dispatch
+- skill-planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
+- docs/operating_system/workflows/workflow-roadmap-to-closeout.md
 tags:
-- prompt-template
-- drift
-- workstream
-owner_layer: workstream
-status: active
+- prompt
+- planning
 ---
 
 # Workstream Alignment Review Prompt
@@ -35,7 +33,7 @@ Review whether this proposed change belongs to the named workstream.
 
 Change context:
 - proposed change:
-- proposed workstream id:
+- proposed workstream id or canonical workstream name:
 - workstream doc:
 - why I think it belongs there:
 - possible operating_system angle:
@@ -43,11 +41,10 @@ Change context:
 Please:
 1. assess whether the change fits the named workstream
 2. recommend a different registered workstream if the fit is weak
-3. say if this should really use `parent_workstream: none` because it is operating_system work
+3. say if this should really use `parent_workstream: none` because it is operating_system work rather than product workstream execution
 4. explain the reasoning briefly
 5. recommend the next artifact or prompt to use
 ```
 
 Expected output:
 - alignment assessment plus the recommended next step
-

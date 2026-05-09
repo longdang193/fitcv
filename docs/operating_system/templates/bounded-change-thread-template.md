@@ -2,13 +2,14 @@
 template_id: bounded-change-thread
 document_type: bounded_change_thread
 target_globs:
-  - docs/intent/workstreams/threads/*/*.md
+- docs/intent/workstreams/threads/*/*.md
 required_sections:
-  - Goal
-  - Key Deliverables
-  - Scope
-  - Dependencies
-  - Completion Criteria
+- Goal
+- Key Deliverables
+- Task/Wave Breakdown
+- Scope
+- Dependencies
+- Completion Criteria
 ---
 
 # Bounded Change Thread Template
@@ -19,8 +20,23 @@ required_sections:
 
 ## Key Deliverables
 
-- <deliverable 1>
-- <deliverable 2>
+### <deliverable 1>
+
+Describe one concrete bounded-thread outcome this document must deliver, including the intended change, the owned slice, and the observable end state.
+
+### <deliverable 2>
+
+Describe another concrete bounded-thread outcome, such as a completed dependency, risk reduction, or closeout gate for the thread.
+
+## Task/Wave Breakdown
+
+### Wave 1
+
+Describe the first bounded slice of work or investigation needed to start the thread safely.
+
+### Wave 2
+
+Describe the next bounded slice needed to complete the thread or hand off to downstream execution artifacts.
 
 ## Scope
 
@@ -43,5 +59,7 @@ A thread item is considered complete when:
 
 Canonical source-of-truth:
 
-- `docs/operating_system/repo-governance.md`
+<LINK>
+- `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
+</LINK>

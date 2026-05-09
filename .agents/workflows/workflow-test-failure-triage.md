@@ -1,19 +1,5 @@
 ---
-name: workflow-test-failure-triage
 description: Run the test failure triage workflow procedure.
-required_reads:
-- docs/operating_system/governance/repo-governance.md
-related_skills:
-- skill-systematic-debugging
-- skill-test-driven-development
-- skill-verification-before-completion
-tags:
-- workflow
-- execution
-- change
-allowed-tools: []
-required_outputs:
-- docs/superpowers/plans/
 ---
 
 <!--
@@ -58,7 +44,7 @@ unnecessary scope growth.
    - reject broad refactors unless explicitly required to fix boundary.
 3. Spec-alignment gate:
    - reject “make tests green only” fixes that violate intended behavior/spec.
-4. Stability gate:
+4. Stability gate
    - pass requires targeted rerun success; full rerun required when risk warrants.
 
 ## Anti-Patterns To Avoid

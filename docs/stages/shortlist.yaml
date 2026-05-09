@@ -91,6 +91,7 @@ invariants:
 - raw retrieval output enters here and the scoring shortlist leaves here
 - this stage owns the distinction between raw vector hits and the later scoring shortlist
 - shortlist transition reasons should be explainable here rather than inferred later
+- downstream stages may consume shortlist outputs but must not reinterpret shortlist-stage transition reasons
 human_notes:
 - shortlist
 - vector search

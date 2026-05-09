@@ -227,15 +227,17 @@ def test_build_candidate_query_embedding_contract_fingerprint_changes_with_model
 
 
 @pytest.mark.parametrize(
-    ("cached_signature", "cached_contract", "expected_status", "should_generate"),
+    ("cached_signature", "cached_contract", "expect_cached_row", "expected_status", "should_generate"),
     [
-        ("matching", "matching", "reused_cached_query_embedding", False),
-        ("matching", "stale", "fresh_query_embedding", True),
+        ("matching", "matching", True, "reused_cached_query_embedding", False),
+        ("matching", "stale", True, "fresh_query_embedding", True),
+        ("missing", "missing", False, "fresh_query_embedding", True),
     ],
 )
 def test_resolve_candidate_query_embedding_reuses_or_refreshes_cache(
     cached_signature: str,
     cached_contract: str,
+    expect_cached_row: bool,
     expected_status: str,
     should_generate: bool,
     monkeypatch: pytest.MonkeyPatch,
@@ -266,19 +268,23 @@ def test_resolve_candidate_query_embedding_reuses_or_refreshes_cache(
         patch("fitcv.vector_search.generate_embedding") as mock_generate_embedding,
     ):
         client = mock_bigquery_client.return_value
-        client.query.return_value.result.return_value = [
-            type(
-                "Row",
-                (),
-                {
-                    "candidate_query_signature": row_signature,
-                    "candidate_query_contract_fingerprint": row_contract,
-                    "candidate_query_text": expected_text,
-                    "candidate_query_components_json": "{}",
-                    "embedding": [0.11, 0.22],
-                },
-            )()
-        ]
+        client.query.return_value.result.return_value = (
+            [
+                type(
+                    "Row",
+                    (),
+                    {
+                        "candidate_query_signature": row_signature,
+                        "candidate_query_contract_fingerprint": row_contract,
+                        "candidate_query_text": expected_text,
+                        "candidate_query_components_json": "{}",
+                        "embedding": [0.11, 0.22],
+                    },
+                )()
+            ]
+            if expect_cached_row
+            else []
+        )
         client.insert_rows_json.return_value = []
         mock_generate_embedding.return_value = [0.33, 0.44]
 

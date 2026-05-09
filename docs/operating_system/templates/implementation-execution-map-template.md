@@ -2,13 +2,13 @@
 template_id: implementation-execution-map
 document_type: implementation_execution_map
 target_globs:
-  - docs/superpowers/execution_maps/*.md
+- docs/superpowers/execution_maps/*.md
 required_sections:
-  - Goal
-  - Key Deliverables
-  - Execution Waves
-  - Dependencies And Risks
-  - Completion Criteria
+- Goal
+- Key Deliverables
+- Task/Wave Breakdown
+- Dependencies And Risks
+- Completion Criteria
 required_frontmatter:
   artifact_type: execution_map
   map_type: implementation_execution
@@ -22,15 +22,23 @@ required_frontmatter:
 
 ## Key Deliverables
 
-- <deliverable 1>
-- <deliverable 2>
+### <deliverable 1>
 
-## Execution Waves
+Describe one concrete execution-map outcome this document must deliver, such as lane coordination, dependency sequencing, or rollout readiness across downstream plans.
 
-- wave 1:
-  - <plan>
-- wave 2:
-  - <plan>
+### <deliverable 2>
+
+Describe another concrete execution-map result this document must deliver, such as reduced cross-lane uncertainty, explicit handoffs, or readiness for parallel execution.
+
+## Task/Wave Breakdown
+
+### Wave 1
+
+Describe the first implementation wave, including which plans or lanes start first and what dependencies they unlock.
+
+### Wave 2
+
+Describe the next implementation wave, including downstream plans, dependency closures, or rollout sequencing.
 
 ## Dependencies And Risks
 
@@ -49,5 +57,7 @@ An implementation-execution-map item is considered complete when:
 
 Canonical source-of-truth:
 
-- `docs/operating_system/repo-governance.md`
+<LINK>
+- `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
+</LINK>

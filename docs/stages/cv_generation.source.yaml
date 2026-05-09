@@ -4,6 +4,7 @@ summary: Convert generation-ready CV-analysis records into accepted or rejected 
 boundaries:
   - cv-analysis-ready jobs enter and accepted or rejected CV artifacts leave
   - generation, validation, repair, and persistence ownership belong to this stage
+  - downstream surfaces may consume cv-generation outputs but must not reinterpret cv-generation stage-owned statuses
   - evidence retrieval, gap analysis, and fit-gate ownership do not belong to this stage
 inputs:
   - CV generation settings plus section-visibility controls and warning-only max-pages validation settings
@@ -14,7 +15,7 @@ outputs:
   - '`stage_transition_artifacts.cv_generation.decision_summary.quality_metrics` with accepted, validation-failed, generation-failed, and persistence-failed counts and rates'
   - bounded `stage_transition_artifacts.cv_generation` runtime block with input, output, and changed-state samples, including bounded upstream `cv_analysis` inputs, selected evidence context, and hybrid validation provenance for debugging
   - rendered markdown CVs
-  - stage-owned final CV generation statuses (accepted, validation_failed, generation_failed, persistence_failed)
+  - stage-owned final CV generation statuses (accepted, review_required, validation_failed, generation_failed, persistence_failed)
   - structured CV artifacts
   - validation and repair outcomes
 depends_on:

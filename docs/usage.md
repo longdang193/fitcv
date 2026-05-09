@@ -48,6 +48,12 @@ Important:
 - editing settings does not rewrite past runs
 - per-run overrides do not change shared saved defaults
 - metadata-only rows in Settings are informational (runtime-owned), not editable controls
+- historical/debug truth for a run always comes from that run's `settings-used.json`, not from whatever defaults are currently visible on `/admin/settings`
+
+Editable vs fixed controls:
+
+- editable controls: schema-backed fields that are persisted as future defaults when saved
+- fixed controls: runtime-owned, metadata-only fields shown for transparency and provenance
 
 ## Engineering Workflow
 

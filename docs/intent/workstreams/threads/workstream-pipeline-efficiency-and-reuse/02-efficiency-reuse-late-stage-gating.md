@@ -1,8 +1,9 @@
-﻿---
-thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
-status: proposed
 ---
-
+thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
+status: active
+parent_spec: docs/superpowers/specs/2026-05-03-pipeline-efficiency-exact-match-contract-bootstrap-spec.md
+implementation_plan: docs/superpowers/plans/2026-05-03-pipeline-efficiency-exact-match-bootstrap-plan.md
+---
 # efficiency-reuse-late-stage-gating
 
 ## Goal

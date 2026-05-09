@@ -1,6 +1,6 @@
-﻿---
+---
 thread_id: workstream-operator-control-plane.operator-control-plane-agentic-review-actions
-status: proposed
+status: completed
 ---
 
 # operator-control-plane-agentic-review-actions
@@ -23,11 +23,12 @@ operator run detail or review queues
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
+- docs/superpowers/specs/2026-04-28-agentic-synonym-review-queue-and-operator-actions-spec.md
 
 ## Linked Plan
 
-- none yet
+- docs/superpowers/plans/2026-05-06-operator-control-plane-agentic-review-actions-bootstrap-plan.md
 
 ## Notes
 

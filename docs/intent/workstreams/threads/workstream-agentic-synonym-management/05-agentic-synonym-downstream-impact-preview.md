@@ -1,8 +1,9 @@
-﻿---
-thread_id: workstream-agentic-synonym-management.agentic-synonym-downstream-impact-preview
-status: proposed
 ---
-
+thread_id: workstream-agentic-synonym-management.agentic-synonym-downstream-impact-preview
+status: completed
+parent_spec: docs/superpowers/specs/2026-05-01-repeatable-batch-submit-global-promotion-and-llm-triage-spec.md
+implementation_plan: docs/superpowers/plans/2026-04-28-fitcv-wave-4-synonym-review-surface-plan.md
+---
 # agentic-synonym-downstream-impact-preview
 
 ## Goal

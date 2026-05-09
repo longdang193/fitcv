@@ -17,7 +17,7 @@ capabilities:
     statement: Settings schema registry
     state: active
   - capability_id: settings_system.operator-facing-agentic-settings
-    statement: Expose a bounded operator-facing registry for editable, metadata-only, and excluded agentic defaults.
+    statement: Expose a bounded operator-facing registry for agentic future-run defaults that explicitly classifies editable, metadata-only, and excluded controls, and does not surface setup-only secrets, deployment glue, or run-history truth.
     state: active
   - capability_id: settings_system.retrieval-settings
     statement: Retrieval settings

@@ -174,6 +174,23 @@ def test_setup_only_and_deployment_only_agentic_knobs_stay_out_of_registry() -> 
         assert key not in editable_settings_keys()
         assert key not in metadata_only_settings_keys()
 
+def test_agentic_section_entries_use_agentic_group_ownership() -> None:
+    """Bounded operator-facing agentic controls should be owned by the agentic group."""
+    schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
+    for section_keys in AGENTIC_SETTINGS_SECTIONS.values():
+        for key in section_keys:
+            assert schema_by_key[key]["group"] == "agentic"
+
+def test_agentic_section_entries_map_to_allowed_operator_config_roots() -> None:
+    """Agentic settings should map only to operator-owned runtime roots."""
+    schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
+    allowed_roots = {"cv", "cv_analysis", "synonym_management"}
+    for section_keys in AGENTIC_SETTINGS_SECTIONS.values():
+        for key in section_keys:
+            config_path = list(schema_by_key[key]["config_path"])
+            assert config_path
+            assert config_path[0] in allowed_roots
+
 
 # ── type coercion ─────────────────────────────────────────────────────────────
 

@@ -1,8 +1,9 @@
-﻿---
-thread_id: workstream-agentic-observability.agentic-observability-synonym-proposal-trace
-status: proposed
 ---
-
+thread_id: workstream-agentic-observability.agentic-observability-synonym-proposal-trace
+status: completed
+parent_spec: docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
+implementation_plan: docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
+---
 # agentic-observability-synonym-proposal-trace
 
 ## Goal

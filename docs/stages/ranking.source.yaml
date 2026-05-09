@@ -6,6 +6,7 @@ boundaries:
   - authoritative post-filter ranking fit ownership belongs to this stage
   - canonical enrich outputs should be the default semantic input contract for ranking features when available
   - explicit candidate preferences remain authoritative, but sparse YAML may be supplemented by deterministic fallback intent inferred from recent profile evidence
+  - downstream stages may consume ranked outputs but must not reinterpret ranking-stage fit-label authority
   - final ranking inputs and ranked-job selection should be explainable here
 inputs:
   - reranker outputs

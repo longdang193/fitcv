@@ -4,6 +4,7 @@ summary: Normalize raw run inputs into a stable job list, apply deduplication, a
 boundaries:
   - raw job input ends here and normalized job rows begin here
   - deduplication ownership belongs to this stage
+  - downstream stages may consume normalized rows but must not reinterpret normalize-stage deduplication decisions
   - downstream stages should only see the normalized, deduplicated candidate job pool produced here
 inputs:
   - raw job payloads from file, path, or pasted JSON inputs

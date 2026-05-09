@@ -1,6 +1,6 @@
-﻿---
+---
 thread_id: workstream-fitcv-semantic-spine.semantic-spine-stage-authority-contract
-status: proposed
+status: completed
 ---
 
 # semantic-spine-stage-authority-contract
@@ -23,11 +23,11 @@ src/fitcv/pipeline.py; results artifacts; docs/stages/*
 
 ## Linked Spec
 
-- none yet
+- docs/superpowers/specs/2026-05-05-semantic-spine-stage-authority-contract-spec.md
 
 ## Linked Plan
 
-- none yet
+- docs/superpowers/plans/2026-05-06-semantic-spine-stage-authority-contract-bootstrap-plan.md
 
 ## Notes
 
