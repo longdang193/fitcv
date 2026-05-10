@@ -51,16 +51,94 @@ def test_load_config_raises_for_missing_file() -> None:
         load_config("/nonexistent/path/.env.yaml")
 
 
-def test_load_config_raises_for_missing_keys(tmp_path: Path) -> None:
+def test_load_config_raises_for_missing_keys(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     import pytest
     isolated_root = tmp_path / "isolated" / "a" / "b" / "c" / "d"
     isolated_root.mkdir(parents=True)
     bad_yaml = isolated_root / ".env.yaml"
     bad_yaml.write_text("some_key: value\n")
-    for env_key in ("GCP_PROJECT", "BIGQUERY_DATASET", "GOOGLE_APPLICATION_CREDENTIALS"):
-        os.environ.pop(env_key, None)
-    with pytest.raises(ValueError, match="Missing config keys"):
+    cfg_dir = isolated_root / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
+    monkeypatch.delenv("GCP_PROJECT", raising=False)
+    monkeypatch.delenv("BIGQUERY_DATASET", raising=False)
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+    with pytest.raises(ValueError, match="Missing config keys for bigquery backend"):
         load_config(bad_yaml)
+
+
+def test_load_config_sqlite_backend_allows_missing_cloud_keys(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text("some_key: value\n")
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.delenv("GCP_PROJECT", raising=False)
+    monkeypatch.delenv("BIGQUERY_DATASET", raising=False)
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+
+    cfg = load_config(env_yaml)
+
+    assert cfg["cv"]["preset"] == "europass"
+    assert "gcp_project" not in cfg
+    assert "bigquery_dataset" not in cfg
+    assert "service_account_key" not in cfg
+
+
+def test_load_config_bigquery_backend_requires_cloud_keys(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text("some_key: value\n")
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
+    monkeypatch.delenv("GCP_PROJECT", raising=False)
+    monkeypatch.delenv("BIGQUERY_DATASET", raising=False)
+    monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
+
+    with pytest.raises(ValueError, match="Missing config keys for bigquery backend"):
+        load_config(env_yaml)
 
 
 def test_load_config_prefers_standard_env_vars_for_infra_keys(
