@@ -48,7 +48,18 @@ def write_text(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def seed_planning_schema(root: Path) -> None:
+    source_schema = REPO_ROOT / "repo_config" / "planning_artifact_schema.yaml"
+    write_text(
+        root / "repo_config" / "planning_artifact_schema.yaml",
+        source_schema.read_text(encoding="utf-8"),
+    )
+
+
 def run_validator(repo_root: Path) -> subprocess.CompletedProcess[str]:
+    schema_path = repo_root / "repo_config" / "planning_artifact_schema.yaml"
+    if not schema_path.exists():
+        seed_planning_schema(repo_root)
     return subprocess.run(
         [sys.executable, str(VALIDATOR), "--repo-root", str(repo_root)],
         cwd=REPO_ROOT,
@@ -743,6 +754,65 @@ capability_ids:
     )
 
     result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "invalid capability id" in result.stdout.lower()
+
+
+def test_validator_rejects_missing_required_root_docs(tmp_path: Path) -> None:
+    write_adoption_mode(
+        tmp_path,
+        "managed_architecture_metadata",
+        managed=True,
+        legacy=False,
+        generator="scripts/sync_architecture_docs.py",
+        starter_sync=managed_starter_sync_block(),
+    )
+    write_text(
+        tmp_path / "docs" / "features" / "data-pipeline" / "feature.source.yaml",
+        """feature_id: data-pipeline
+name: Data Pipeline
+status: active
+type: workflow
+summary: Pipeline summary.
+invariants: []
+domains: []
+depends_on: []
+capabilities: []
+stage_participation: []
+lineage_exceptions: []
+""",
+    )
+    write_text(tmp_path / "docs" / "features" / "data-pipeline" / "history.md", "# History\n")
+    write_text(tmp_path / "docs" / "features" / "data-pipeline" / "lineage.generated.yaml", "features: {}\n")
+    write_text(tmp_path / "docs" / "features" / "data-pipeline" / "data-pipeline.yaml", "feature_id: data-pipeline\n")
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "missing required root project doc" in result.stdout.lower()
+    assert "docs/setup.md" in result.stdout
+
+
+def test_validator_rejects_missing_required_root_doc_frontmatter_in_managed_mode(
+    tmp_path: Path,
+) -> None:
+    seed_required_managed_mode_surface(tmp_path)
+    write_text(
+        tmp_path / "docs" / "pipeline.md",
+        "# Pipeline\nThe workflow stages and handoff sequence describe the processing flow.\n",
+    )
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "managed required root doc must include frontmatter metadata" in result.stdout.lower()
+    assert "docs/pipeline.md" in result.stdout
+
+
+def test_validator_rejects_pipeline_frontmatter_without_stage_links_in_managed_mode(
+    tmp_path: Path,
+) -> None:
     seed_required_managed_mode_surface(tmp_path)
     write_text(
         tmp_path / "docs" / "pipeline.md",
@@ -896,12 +966,7 @@ def test_validator_rejects_intent_folder_without_markdown_files(tmp_path: Path) 
     (tmp_path / "docs" / "operating_system").mkdir(parents=True, exist_ok=True)
     (tmp_path / "docs" / "superpowers" / "specs").mkdir(parents=True, exist_ok=True)
     (tmp_path / "docs" / "superpowers" / "plans").mkdir(parents=True, exist_ok=True)
-    write_adoption_mode(
-        tmp_path,
-        "starter_method_only",
-        managed=False,
-        legacy=False,
-    )
+    (tmp_path / "repo_config").mkdir(parents=True, exist_ok=True)
     (tmp_path / "scripts").mkdir(parents=True, exist_ok=True)
     (tmp_path / "tests").mkdir(parents=True, exist_ok=True)
 
@@ -913,10 +978,11 @@ def test_validator_rejects_intent_folder_without_markdown_files(tmp_path: Path) 
 
 
 def seed_required_folder_surface(root: Path) -> None:
+    seed_planning_schema(root)
     for relative_path in (
         "docs/intent/README.md",
-        "docs/operating_system/repo-governance.md",
-        "docs/operating_system/doc-system-lifecycle.md",
+        "docs/operating_system/governance/repo-governance.md",
+        "docs/operating_system/skill-doc-system-lifecycle.md",
         "docs/superpowers/specs/README.md",
         "docs/superpowers/plans/README.md",
         "repo_config/adoption-mode.yaml",
@@ -1352,92 +1418,6 @@ The workflow stages and handoff sequence describe the processing flow.
     assert "managed required root doc doc_type must be a canonical concise string" in result.stdout.lower()
     assert "managed required root doc explains.stages contains duplicate value" in result.stdout.lower()
     assert "managed required root doc explains.stages[2] must be a non-empty canonical string item" in result.stdout.lower()
-
-
-def test_validator_rejects_missing_required_root_docs(tmp_path: Path) -> None:
-    write_adoption_mode(
-        tmp_path,
-        "managed_architecture_metadata",
-        managed=True,
-        legacy=False,
-        generator="scripts/sync_architecture_docs.py",
-        starter_sync=managed_starter_sync_block(),
-    )
-    write_text(
-        tmp_path / "docs" / "features" / "data-pipeline" / "feature.source.yaml",
-        """feature_id: data-pipeline
-name: Data Pipeline
-status: active
-type: workflow
-summary: Pipeline summary.
-invariants: []
-domains: []
-depends_on: []
-capabilities: []
-stage_participation: []
-lineage_exceptions: []
-""",
-    )
-    write_text(tmp_path / "docs" / "features" / "data-pipeline" / "history.md", "# History\n")
-    write_text(tmp_path / "docs" / "features" / "data-pipeline" / "lineage.generated.yaml", "features: {}\n")
-    write_text(tmp_path / "docs" / "features" / "data-pipeline" / "data-pipeline.yaml", "feature_id: data-pipeline\n")
-
-    result = run_validator(tmp_path)
-
-    assert result.returncode == 1
-    assert "missing required root project doc" in result.stdout.lower()
-    assert "docs/setup.md" in result.stdout
-
-
-def test_validator_rejects_missing_required_root_doc_frontmatter_in_managed_mode(
-    tmp_path: Path,
-) -> None:
-    seed_required_managed_mode_surface(tmp_path)
-    write_text(
-        tmp_path / "docs" / "pipeline.md",
-        "# Pipeline\nThe workflow stages and handoff sequence describe the processing flow.\n",
-    )
-    write_adoption_mode(
-        tmp_path,
-        "managed_architecture_metadata",
-        managed=True,
-        legacy=False,
-        generator="scripts/sync_architecture_docs.py",
-        starter_sync=managed_starter_sync_block(),
-    )
-
-    result = run_validator(tmp_path)
-
-    assert result.returncode == 1
-    assert "managed required root doc must include frontmatter metadata" in result.stdout.lower()
-    assert "docs/pipeline.md" in result.stdout
-
-
-def test_validator_rejects_pipeline_frontmatter_without_stage_links_in_managed_mode(
-    tmp_path: Path,
-) -> None:
-    seed_required_managed_mode_surface(tmp_path)
-    write_text(
-        tmp_path / "docs" / "pipeline.md",
-        """---
-doc_id: pipeline
-doc_type: operator-guide
-explains:
-  features:
-    - sample-feature
----
-
-# Pipeline
-
-The workflow stages and handoff sequence describe the processing flow.
-""",
-    )
-
-    result = run_validator(tmp_path)
-
-    assert result.returncode == 1
-    assert "pipeline doc must explain one or more stages" in result.stdout.lower()
-    assert "docs/pipeline.md" in result.stdout
 
 
 def test_validator_rejects_noncanonical_repo_relative_paths(tmp_path: Path) -> None:
@@ -1948,7 +1928,7 @@ layer: operating_system
 artifact_type: spec
 status: proposed
 targets:
-  - docs/operating_system/repo-governance.md
+  - docs/operating_system/governance/repo-governance.md
 related_features: []
 related_stages: []
 ---
@@ -1974,7 +1954,7 @@ artifact_type: plan
 status: proposed
 parent_workstream: platform-delivery
 targets:
-  - docs/operating_system/repo-governance.md
+  - docs/operating_system/governance/repo-governance.md
 related_features: []
 related_stages: []
 ---
@@ -2087,7 +2067,7 @@ artifact_type: spec
 status: proposed
 parent_thread: {thread_id}
 targets:
-  - docs/operating_system/repo-governance.md
+  - docs/operating_system/governance/repo-governance.md
 related_features: []
 related_stages: []
 ---
@@ -2104,7 +2084,7 @@ status: proposed
 parent_thread: {thread_id}
 parent_spec: docs/superpowers/specs/2026-04-25-sample-spec.md
 targets:
-  - docs/operating_system/repo-governance.md
+  - docs/operating_system/governance/repo-governance.md
 related_features: []
 related_stages: []
 ---
@@ -2133,7 +2113,7 @@ artifact_type: spec
 status: proposed
 parent_thread: platform-delivery.sample-thread
 targets:
-  - docs/operating_system/repo-governance.md
+  - docs/operating_system/governance/repo-governance.md
 related_features: []
 related_stages: []
 ---
@@ -2150,7 +2130,7 @@ status: proposed
 parent_thread: platform-delivery.sample-thread
 parent_spec: docs/superpowers/specs/2026-04-25-sample-spec.md
 targets:
-  - docs/operating_system/repo-governance.md
+  - docs/operating_system/governance/repo-governance.md
 related_features: []
 related_stages: []
 ---
@@ -2178,7 +2158,7 @@ artifact_type: spec
 status: proposed
 parent_thread: {thread_id}
 targets:
-  - docs/operating_system/repo-governance.md
+  - docs/operating_system/governance/repo-governance.md
 related_features: []
 related_stages: []
 ---
@@ -2195,7 +2175,7 @@ status: proposed
 parent_thread: {other_thread_id}
 parent_spec: docs/superpowers/specs/2026-04-25-sample-spec.md
 targets:
-  - docs/operating_system/repo-governance.md
+  - docs/operating_system/governance/repo-governance.md
 related_features: []
 related_stages: []
 ---
@@ -2591,4 +2571,152 @@ timeline:
 
     assert result.returncode == 1
     assert "timeline[0] is missing required keys" in result.stdout.lower()
+
+
+def test_validator_accepts_change_artifacts_with_registered_feature_and_stage_refs(tmp_path: Path) -> None:
+    seed_required_managed_mode_surface(tmp_path)
+    seed_managed_feature_folder(tmp_path)
+    seed_stage_source(tmp_path, "sample_stage")
+    seed_generated_stage_contract(tmp_path, "sample_stage")
+    seed_generated_discovery(tmp_path)
+    thread_id = seed_thread_registry_entry(tmp_path)
+    write_text(
+        tmp_path / "docs" / "superpowers" / "specs" / "2026-05-08-sample-spec.md",
+        f"""---
+layer: change
+artifact_type: spec
+status: proposed
+parent_thread: {thread_id}
+targets:
+  - docs/operating_system/governance/repo-governance.md
+related_features:
+  - sample-feature
+related_stages:
+  - sample_stage
+---
+
+# Sample Spec
+""",
+    )
+    write_text(
+        tmp_path / "docs" / "superpowers" / "plans" / "2026-05-08-sample-plan.md",
+        f"""---
+layer: change
+artifact_type: plan
+status: proposed
+parent_thread: {thread_id}
+parent_spec: docs/superpowers/specs/2026-05-08-sample-spec.md
+targets:
+  - docs/operating_system/governance/repo-governance.md
+related_features:
+  - sample-feature
+related_stages:
+  - sample_stage
+---
+
+# Sample Plan
+""",
+    )
+    generator = run_planning_lineage_generator(tmp_path)
+    assert generator.returncode == 0, generator.stderr
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 0, result.stdout
+
+
+def test_validator_rejects_change_spec_with_unknown_related_feature(tmp_path: Path) -> None:
+    seed_required_managed_mode_surface(tmp_path)
+    seed_managed_feature_folder(tmp_path)
+    seed_generated_discovery(tmp_path)
+    thread_id = seed_thread_registry_entry(tmp_path)
+    write_text(
+        tmp_path / "docs" / "superpowers" / "specs" / "2026-05-08-sample-spec.md",
+        f"""---
+layer: change
+artifact_type: spec
+status: proposed
+parent_thread: {thread_id}
+targets:
+  - docs/operating_system/governance/repo-governance.md
+related_features:
+  - missing-feature
+related_stages: []
+---
+
+# Sample Spec
+""",
+    )
+    generator = run_planning_lineage_generator(tmp_path)
+    assert generator.returncode == 0, generator.stderr
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "related_features entries must resolve to registered feature ids" in result.stdout.lower()
+
+
+def test_validator_rejects_change_plan_without_parent_spec(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    thread_id = seed_thread_registry_entry(tmp_path)
+    write_text(
+        tmp_path / "docs" / "superpowers" / "plans" / "2026-05-08-sample-plan.md",
+        f"""---
+layer: change
+artifact_type: plan
+status: proposed
+parent_thread: {thread_id}
+targets:
+  - docs/operating_system/governance/repo-governance.md
+related_features: []
+related_stages: []
+---
+
+# Sample Plan
+""",
+    )
+    generator = run_planning_lineage_generator(tmp_path)
+    assert generator.returncode == 0, generator.stderr
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "superpowers plan is missing required `parent_spec` frontmatter" in result.stdout.lower()
+
+
+def test_validator_accepts_workstream_with_registered_workstreams_on_roadmap(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    seed_required_starter_docs(tmp_path)
+    write_text(
+        tmp_path / "docs" / "intent" / "master-workstream-roadmap.md",
+        """---
+artifact_type: roadmap
+layer: intent
+status: proposed
+roadmap_id: master-workstream-roadmap
+registered_workstreams:
+  - platform-delivery
+---
+
+# Roadmap
+""",
+    )
+    write_text(
+        tmp_path / "docs" / "intent" / "workstreams" / "platform-delivery.md",
+        """---
+artifact_type: workstream
+layer: workstream
+status: proposed
+workstream_id: platform-delivery
+roadmap_id: master-workstream-roadmap
+---
+
+# Platform Delivery
+""",
+    )
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 0, result.stdout
 

@@ -5,11 +5,11 @@ type: script
 domain: config
 responsibility:
   - Validate repo-level config ownership surfaces for shape and path sanity.
-  - Validate runtime config YAML files under config/ as parseable top-level mappings.
+  - Validate runtime config YAML files under configs/ as parseable top-level mappings.
 inputs:
   - repo_config/publication-config.json
   - repo_config/agent-adapter-mappings.json
-  - config/**/*.yaml
+  - configs/*.yaml
 outputs:
   - Exit status and human-readable validation results.
 tags:
@@ -37,6 +37,12 @@ REQUIRED_PUBLICATION_KEYS = {
     "allowedGeneratedPaths",
     "scrubPrivateReferencePaths",
 }
+REQUIRED_STARTER_KIT_KEYS = {
+    "outputRoot",
+    "copyPaths",
+    "requiredPaths",
+    "forbiddenPaths",
+}
 ALLOWED_MAPPING_MODE_KEYS = {"prefix", "headerMode"}
 
 
@@ -58,8 +64,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path to agent-adapter-mappings.json.",
     )
     parser.add_argument(
+        "--starter-kit-manifest",
+        default="repo_config/starter-kit-manifest.json",
+        help="Path to starter-kit-manifest.json.",
+    )
+    parser.add_argument(
         "--runtime-config-root",
-        default="config",
+        default="configs",
         help="Directory containing runtime/workflow YAML configs.",
     )
     parser.add_argument(
@@ -104,7 +115,8 @@ def validate_publication_config(payload: Any, errors: list[str]) -> None:
     missing = REQUIRED_PUBLICATION_KEYS - set(payload.keys())
     if missing:
         errors.append(
-            "Publication config is missing required keys: " + ", ".join(sorted(missing))
+            "Publication config is missing required keys: "
+            + ", ".join(sorted(missing))
         )
 
     for key in REQUIRED_PUBLICATION_KEYS & set(payload.keys()):
@@ -113,6 +125,30 @@ def validate_publication_config(payload: Any, errors: list[str]) -> None:
             isinstance(item, str) and item.strip() for item in value
         ):
             errors.append(f"Publication config key `{key}` must be a list of strings.")
+
+
+def validate_starter_kit_manifest(payload: Any, errors: list[str]) -> None:
+    if not isinstance(payload, dict):
+        errors.append("Starter-kit manifest must be a JSON object.")
+        return
+
+    missing = REQUIRED_STARTER_KIT_KEYS - set(payload.keys())
+    if missing:
+        errors.append(
+            "Starter-kit manifest is missing required keys: "
+            + ", ".join(sorted(missing))
+        )
+
+    output_root = payload.get("outputRoot")
+    if not isinstance(output_root, str) or not output_root.strip():
+        errors.append("Starter-kit manifest key `outputRoot` must be a non-empty string.")
+
+    for key in (REQUIRED_STARTER_KIT_KEYS - {"outputRoot"}) & set(payload.keys()):
+        value = payload[key]
+        if not isinstance(value, list) or not all(
+            isinstance(item, str) and item.strip() for item in value
+        ):
+            errors.append(f"Starter-kit manifest key `{key}` must be a list of strings.")
 
 
 def validate_adapter_mappings(
@@ -161,7 +197,7 @@ def validate_adapter_mappings(
 
 
 def validate_runtime_configs(runtime_root: Path, errors: list[str]) -> None:
-    yaml_paths = sorted(runtime_root.rglob("*.yaml"))
+    yaml_paths = sorted(runtime_root.glob("*.yaml"))
     if not yaml_paths:
         errors.append(f"No runtime config YAML files found under: {runtime_root}")
         return
@@ -189,6 +225,7 @@ def main() -> int:
 
     publication_config_path = Path(args.publication_config).resolve()
     adapter_mappings_path = Path(args.adapter_mappings).resolve()
+    starter_kit_manifest_path = Path(args.starter_kit_manifest).resolve()
     runtime_config_root = Path(args.runtime_config_root).resolve()
     repo_root = infer_repo_root(args.repo_root, publication_config_path, adapter_mappings_path)
 
@@ -197,6 +234,7 @@ def main() -> int:
     for path, label in (
         (publication_config_path, "Publication config"),
         (adapter_mappings_path, "Adapter mappings"),
+        (starter_kit_manifest_path, "Starter-kit manifest"),
     ):
         if not path.exists():
             errors.append(f"{label} path does not exist: {path}")
@@ -221,10 +259,18 @@ def main() -> int:
         errors.append(f"Adapter mappings could not be parsed: {exc}")
         adapter_mappings = None
 
+    try:
+        starter_kit_manifest = load_json(starter_kit_manifest_path)
+    except json.JSONDecodeError as exc:
+        errors.append(f"Starter-kit manifest could not be parsed: {exc}")
+        starter_kit_manifest = None
+
     if publication_config is not None:
         validate_publication_config(publication_config, errors)
     if adapter_mappings is not None:
         validate_adapter_mappings(adapter_mappings, repo_root, errors)
+    if starter_kit_manifest is not None:
+        validate_starter_kit_manifest(starter_kit_manifest, errors)
 
     validate_runtime_configs(runtime_config_root, errors)
 

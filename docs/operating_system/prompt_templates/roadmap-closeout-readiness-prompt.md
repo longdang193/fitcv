@@ -1,6 +1,6 @@
 ---
 name: roadmap-closeout-readiness-prompt
-description: roadmap closure readiness is being decided.
+description: Guide execution for roadmap closeout readiness prompt.
 type: prompt
 stage: closeout
 entry_points:
@@ -10,37 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- planning-dispatch
+- skill-planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
 tags:
-- prompt-template
+- prompt
 - closeout
-- intent
-owner_layer: intent
-status: active
 ---
 
 # Roadmap Closeout Readiness Prompt
-
-## Use When
-
-roadmap closure readiness is being decided
-
-## Prerequisites
-
-### Required
-
-- registered workstream states and closure evidence available
-- workstream closure reviewed via [workstream-closeout-readiness-prompt.md](./workstream-closeout-readiness-prompt.md) for all registered workstreams
-
-### Optional
-
-- output from [workstream-closeout-readiness-prompt.md](./workstream-closeout-readiness-prompt.md)
-
-## Next Prompts
-
-- terminal prompt (no further prompt required once closure-ready decision is returned)
 
 ## Not For
 
@@ -50,26 +28,12 @@ spec/plan authoring or implementation task selection
 
 Required when proposing roadmap closure or claiming completion/pass status:
 
-- run `verification-before-completion` checks before final close recommendation
+- run `skill-verification-before-completion` checks before final close recommendation
 
 Use this when deciding whether a roadmap can be marked `completed`.
 
 ```text
 Assess roadmap closeout readiness.
-
-Related skills:
-- verification-before-completion (use before any roadmap close/pass/fix claim)
-
-Related workflows:
-- roadmap-to-closeout-workflow.md (primary roadmap closure lifecycle)
-- drift-detection-and-reconciliation-workflow.md (if closure invariants or evidence are inconsistent)
-
-Context:
-- roadmap path:
-- registered workstreams:
-- current roadmap/workstream statuses:
-- roadmap phase structure (`Phase 1/2/3`) with per-phase Goal and Key Deliverables:
-- known blockers:
 
 Please:
 1. Validate roadmap closure invariant:
@@ -103,4 +67,3 @@ Please:
 
 Expected output:
 - roadmap closeout verdict, concrete next actions, and one selected next action constrained by existing planning artifacts
-

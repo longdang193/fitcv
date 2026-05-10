@@ -1,9 +1,9 @@
 ---
 name: downstream-reconciliation-after-roadmap-format-change
-description: Use prompt template for downstream reconciliation after roadmap format
-  change.
+description: Reconcile downstream planning and execution artifacts after roadmap format
+  changes.
 type: prompt
-stage: planning
+stage: drift
 entry_points:
 - use this prompt when its title scope matches the current planning/execution need
 prerequisites:
@@ -11,15 +11,13 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- planning-dispatch
+- skill-planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
+- docs/operating_system/workflows/workflow-roadmap-to-closeout.md
 tags:
-- prompt-template
+- prompt
 - planning
-- intent
-owner_layer: intent
-status: active
 ---
 
 # Downstream Reconciliation After Roadmap Format Change
@@ -56,7 +54,7 @@ This is not a cosmetic formatting pass.
    - `docs/operating_system/templates/detailed-specification-template.md`
    - `docs/operating_system/templates/implementation-execution-map-template.md`
    - `docs/operating_system/templates/implementation-plan-template.md`
-   - `docs/operating_system/repo-governance.md`
+   - `docs/operating_system/governance/repo-governance.md`
    - `scripts/validate_planning_lifecycle.py`
    - `scripts/validate_template_required_sections.py`
 
@@ -175,4 +173,3 @@ Return a reconciliation report in this structure:
   - impact:
   - mitigation:
 ```
-

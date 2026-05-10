@@ -1,8 +1,8 @@
 ---
 name: workstream-completion-and-intent-check-prompt
-description: Use prompt template for workstream completion and intent check prompt.
+description: Check workstream completion against intent-level outcomes and deliverables.
 type: prompt
-stage: planning
+stage: drift
 entry_points:
 - use this prompt when its title scope matches the current planning/execution need
 prerequisites:
@@ -10,15 +10,13 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- planning-dispatch
+- skill-planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
+- docs/operating_system/workflows/workflow-roadmap-to-closeout.md
 tags:
-- prompt-template
+- prompt
 - planning
-- intent
-owner_layer: intent
-status: active
 ---
 
 # Workstream Completion And Intent Check Prompt
@@ -64,4 +62,3 @@ Expected output:
 - completion verdict against intent
 - explicit done/missing/drifted breakdown
 - next decision and concrete follow-up actions
-

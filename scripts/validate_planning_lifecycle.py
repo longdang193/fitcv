@@ -30,12 +30,14 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from typing import Any
 
 import yaml
 
+from planning_artifact_schema import get_allowed_values, get_required_values
+
 ACTIVE_STATUSES = {"active", "completed"}
-ALLOWED_MAP_TYPES = {"complete_spec_set", "spec_authoring", "implementation_execution"}
 TERMINAL_THREAD_STATUSES = {"completed", "dropped"}
 TERMINAL_WORKSTREAM_STATUSES = {"completed", "dropped"}
 
@@ -120,6 +122,42 @@ def extract_frontmatter(path: Path) -> dict[str, Any] | None:
     if not isinstance(payload, dict):
         return None
     return payload
+
+
+def extract_body(path: Path) -> str:
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    if text.startswith("\ufeff"):
+        text = text.removeprefix("\ufeff")
+    if not text.startswith("---"):
+        return text
+    marker_end = text.find("\n---", 3)
+    if marker_end == -1:
+        return text
+    return text[marker_end + 4 :]
+
+
+def extract_h2_section(body: str, section_name: str) -> str | None:
+    pattern = re.compile(rf"^##\s+{re.escape(section_name)}\s*$", re.MULTILINE)
+    match = pattern.search(body)
+    if match is None:
+        return None
+    next_heading = re.search(r"^##\s+.+$", body[match.end() :], re.MULTILINE)
+    if next_heading is None:
+        return body[match.end() :].strip()
+    return body[match.end() : match.end() + next_heading.start()].strip()
+
+
+def is_effectively_empty(section_text: str) -> bool:
+    if not section_text.strip():
+        return True
+    lines = [line.strip() for line in section_text.splitlines() if line.strip()]
+    if not lines:
+        return True
+    return all(re.fullmatch(r"(<[^>]+>|\[[^\]]+\]|\([^)]*\))", line) for line in lines)
+
+
+def has_unchecked_checklist(section_text: str) -> bool:
+    return bool(re.search(r"^\s*-\s*\[\s\]\s+", section_text, re.MULTILINE))
 
 
 def discover_workstreams(root: Path) -> dict[str, WorkstreamRecord]:
@@ -222,18 +260,25 @@ def validate_execution_map_integrity(
 ) -> list[Finding]:
     findings: list[Finding] = []
     spec_paths = {relative_path(spec.path, root): spec for spec in specs}
+    expected_artifact_type = get_required_values(root, "execution_map").get(
+        "artifact_type", "execution_map"
+    )
+    allowed_map_types = set(get_allowed_values(root, "map_type", "execution_map"))
     for record in maps:
         rel = relative_path(record.path, root)
-        if record.artifact_type != "execution_map":
+        if record.artifact_type != expected_artifact_type:
             findings.append(
                 Finding(
                     level="ERROR",
                     category="execution_map_format_error",
                     path=rel,
-                    message="execution map must use `artifact_type: execution_map`.",
+                    message=(
+                        "execution map must use "
+                        f"`artifact_type: {expected_artifact_type}`."
+                    ),
                 )
             )
-        if record.map_type not in ALLOWED_MAP_TYPES:
+        if record.map_type not in allowed_map_types:
             findings.append(
                 Finding(
                     level="ERROR",
@@ -241,7 +286,7 @@ def validate_execution_map_integrity(
                     path=rel,
                     message=(
                         "execution map must use `map_type` in "
-                        f"{sorted(ALLOWED_MAP_TYPES)}."
+                        f"{sorted(allowed_map_types)}."
                     ),
                 )
             )
@@ -359,7 +404,38 @@ def validate_lifecycle_coverage(
         if isinstance(roadmap_payload.get("status"), str)
         else None
     )
-    if roadmap_status == "completed":
+    roadmap_completed = roadmap_status == "completed"
+    if roadmap_completed:
+        roadmap_body = extract_body(roadmap_path)
+        roadmap_goal = extract_h2_section(roadmap_body, "Goal")
+        roadmap_deliverables = extract_h2_section(roadmap_body, "Key Deliverables")
+        if roadmap_goal is None or is_effectively_empty(roadmap_goal):
+            findings.append(
+                Finding(
+                    level="ERROR",
+                    category="planning_lifecycle_error",
+                    path=relative_path(roadmap_path, root),
+                    message="completed roadmap must have a non-empty `Goal` section.",
+                )
+            )
+        if roadmap_deliverables is None or is_effectively_empty(roadmap_deliverables):
+            findings.append(
+                Finding(
+                    level="ERROR",
+                    category="planning_lifecycle_error",
+                    path=relative_path(roadmap_path, root),
+                    message="completed roadmap must have non-empty `Key Deliverables`.",
+                )
+            )
+        elif has_unchecked_checklist(roadmap_deliverables):
+            findings.append(
+                Finding(
+                    level="ERROR",
+                    category="planning_lifecycle_error",
+                    path=relative_path(roadmap_path, root),
+                    message="completed roadmap cannot contain unchecked Key Deliverables checklist items.",
+                )
+            )
         non_terminal_workstreams = [
             workstream
             for workstream in workstreams.values()
@@ -416,11 +492,21 @@ def validate_lifecycle_coverage(
         has_spec_authoring_map = any(record.map_type == "spec_authoring" for record in ws_maps)
         has_implementation_map = any(record.map_type == "implementation_execution" for record in ws_maps)
 
+        coverage_level = (
+            "ERROR"
+            if roadmap_completed and workstream.status == "completed"
+            else "WARN"
+        )
+
         if not has_complete_spec_set:
             findings.append(
                 Finding(
-                    level="WARN",
-                    category="planning_lifecycle_warning",
+                    level=coverage_level,
+                    category=(
+                        "planning_lifecycle_error"
+                        if coverage_level == "ERROR"
+                        else "planning_lifecycle_warning"
+                    ),
                     path=relative_path(workstream.path, root),
                     message="missing `complete_spec_set` execution map for active/completed workstream.",
                 )
@@ -428,8 +514,12 @@ def validate_lifecycle_coverage(
         if not has_spec_authoring_map:
             findings.append(
                 Finding(
-                    level="WARN",
-                    category="planning_lifecycle_warning",
+                    level=coverage_level,
+                    category=(
+                        "planning_lifecycle_error"
+                        if coverage_level == "ERROR"
+                        else "planning_lifecycle_warning"
+                    ),
                     path=relative_path(workstream.path, root),
                     message="missing `spec_authoring` execution map for active/completed workstream.",
                 )
@@ -437,8 +527,12 @@ def validate_lifecycle_coverage(
         if not has_implementation_map:
             findings.append(
                 Finding(
-                    level="WARN",
-                    category="planning_lifecycle_warning",
+                    level=coverage_level,
+                    category=(
+                        "planning_lifecycle_error"
+                        if coverage_level == "ERROR"
+                        else "planning_lifecycle_warning"
+                    ),
                     path=relative_path(workstream.path, root),
                     message="missing `implementation_execution` execution map for active/completed workstream.",
                 )
@@ -446,8 +540,12 @@ def validate_lifecycle_coverage(
         if not has_specs:
             findings.append(
                 Finding(
-                    level="WARN",
-                    category="planning_lifecycle_warning",
+                    level=coverage_level,
+                    category=(
+                        "planning_lifecycle_error"
+                        if coverage_level == "ERROR"
+                        else "planning_lifecycle_warning"
+                    ),
                     path=relative_path(workstream.path, root),
                     message="no detailed specs linked to this workstream's bounded threads.",
                 )
@@ -455,13 +553,59 @@ def validate_lifecycle_coverage(
         if not has_plans:
             findings.append(
                 Finding(
-                    level="WARN",
-                    category="planning_lifecycle_warning",
+                    level=coverage_level,
+                    category=(
+                        "planning_lifecycle_error"
+                        if coverage_level == "ERROR"
+                        else "planning_lifecycle_warning"
+                    ),
                     path=relative_path(workstream.path, root),
                     message="no implementation plans linked to this workstream's bounded threads.",
                 )
             )
+        for thread in ws_threads:
+            thread_body = extract_body(thread.path)
+            if any(section in thread_body.lower() for section in ("## linked spec", "## linked plan")):
+                findings.append(
+                    Finding(
+                        level="WARN",
+                        category="planning_lifecycle_warning",
+                        path=relative_path(thread.path, root),
+                        message="manual thread linkage section is deprecated; use generated planning lineage instead.",
+                    )
+                )
+
         if workstream.status == "completed":
+            workstream_body = extract_body(workstream.path)
+            ws_goal = extract_h2_section(workstream_body, "Goal")
+            ws_deliverables = extract_h2_section(workstream_body, "Key Deliverables")
+            if ws_goal is None or is_effectively_empty(ws_goal):
+                findings.append(
+                    Finding(
+                        level="ERROR",
+                        category="planning_lifecycle_error",
+                        path=relative_path(workstream.path, root),
+                        message="completed workstream must have a non-empty `Goal` section.",
+                    )
+                )
+            if ws_deliverables is None or is_effectively_empty(ws_deliverables):
+                findings.append(
+                    Finding(
+                        level="ERROR",
+                        category="planning_lifecycle_error",
+                        path=relative_path(workstream.path, root),
+                        message="completed workstream must have non-empty `Key Deliverables`.",
+                    )
+                )
+            elif has_unchecked_checklist(ws_deliverables):
+                findings.append(
+                    Finding(
+                        level="ERROR",
+                        category="planning_lifecycle_error",
+                        path=relative_path(workstream.path, root),
+                        message="completed workstream cannot contain unchecked Key Deliverables checklist items.",
+                    )
+                )
             non_terminal_threads = [
                 thread for thread in ws_threads if thread.status not in TERMINAL_THREAD_STATUSES
             ]
@@ -480,6 +624,36 @@ def validate_lifecycle_coverage(
             for thread in ws_threads:
                 if thread.status != "completed":
                     continue
+                thread_body = extract_body(thread.path)
+                thread_goal = extract_h2_section(thread_body, "Goal")
+                thread_deliverables = extract_h2_section(thread_body, "Key Deliverables")
+                if thread_goal is None or is_effectively_empty(thread_goal):
+                    findings.append(
+                        Finding(
+                            level="ERROR",
+                            category="planning_lifecycle_error",
+                            path=relative_path(thread.path, root),
+                            message="completed thread must have a non-empty `Goal` section.",
+                        )
+                    )
+                if thread_deliverables is None or is_effectively_empty(thread_deliverables):
+                    findings.append(
+                        Finding(
+                            level="ERROR",
+                            category="planning_lifecycle_error",
+                            path=relative_path(thread.path, root),
+                            message="completed thread must have non-empty `Key Deliverables`.",
+                        )
+                    )
+                elif has_unchecked_checklist(thread_deliverables):
+                    findings.append(
+                        Finding(
+                            level="ERROR",
+                            category="planning_lifecycle_error",
+                            path=relative_path(thread.path, root),
+                            message="completed thread cannot contain unchecked Key Deliverables checklist items.",
+                        )
+                    )
                 thread_slug = thread.path.stem
                 if "-" in thread_slug:
                     maybe_number, remainder = thread_slug.split("-", 1)

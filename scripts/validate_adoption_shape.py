@@ -27,8 +27,10 @@ lifecycle:
 from __future__ import annotations
 
 import argparse
+import os
 from dataclasses import dataclass
 from datetime import date, datetime
+from functools import lru_cache
 from pathlib import Path
 import re
 import sys
@@ -45,6 +47,12 @@ from planning_lineage_support import (
     discover_threads,
     discover_workstreams,
     render_planning_lineage_yaml,
+)
+
+from planning_artifact_schema import (
+    get_allowed_values,
+    get_required_fields,
+    get_required_values,
 )
 
 from validator_policy import (
@@ -99,6 +107,10 @@ from validator_policy import (
     YAML_ARCHITECTURE_TEMPLATE_PATH,
 )
 
+FEATURE_METADATA_REGEX = re.compile(
+    "|".join(re.escape(pattern) for pattern in FEATURE_METADATA_PATTERNS)
+)
+
 
 @dataclass(frozen=True)
 class Finding:
@@ -143,6 +155,14 @@ def relpath(path: Path, root: Path) -> str:
 
 
 def load_yaml(path: Path) -> Any:
+    return _load_yaml_cached(path.resolve())
+
+@lru_cache(maxsize=4096)
+def _read_text_cached(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="ignore")
+
+@lru_cache(maxsize=2048)
+def _load_yaml_cached(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as handle:
         return yaml.safe_load(handle)
 
@@ -672,6 +692,34 @@ def registered_workstream_ids(root: Path) -> set[str]:
 
 def registered_thread_ids(root: Path) -> set[str]:
     return set(discover_threads(root))
+
+
+def registered_feature_ids(root: Path) -> set[str]:
+    feature_ids: set[str] = set()
+    for path in feature_source_files(root):
+        try:
+            payload = load_yaml(path)
+        except yaml.YAMLError:
+            continue
+        if isinstance(payload, dict):
+            feature_id = payload.get("feature_id")
+            if isinstance(feature_id, str) and feature_id.strip():
+                feature_ids.add(feature_id.strip())
+    return feature_ids
+
+
+def registered_stage_ids(root: Path) -> set[str]:
+    stage_ids: set[str] = set()
+    for path in stage_source_files(root):
+        try:
+            payload = load_yaml(path)
+        except yaml.YAMLError:
+            continue
+        if isinstance(payload, dict):
+            stage_id = payload.get("stage_id")
+            if isinstance(stage_id, str) and stage_id.strip():
+                stage_ids.add(stage_id.strip())
+    return stage_ids
 
 
 def validate_thread_registry(root: Path, findings: list[Finding]) -> None:
@@ -2651,22 +2699,25 @@ def validate_lineage_generated_schema(root: Path, findings: list[Finding]) -> No
 
 def contains_feature_metadata_markers(path: Path) -> bool:
     try:
-        text = path.read_text(encoding="utf-8", errors="ignore")
+        text = _read_text_cached(path.resolve())
     except OSError:
         return False
-    return any(pattern in text for pattern in FEATURE_METADATA_PATTERNS)
+    return FEATURE_METADATA_REGEX.search(text) is not None
 
 
 def metadata_marker_files(root: Path) -> list[Path]:
     matches: list[Path] = []
-    for path in root.rglob("*"):
-        if not path.is_file() or path.suffix.lower() not in METADATA_SCAN_SUFFIXES:
-            continue
-        relative_parts = path.relative_to(root).parts
-        if relative_parts and relative_parts[0] in METADATA_SCAN_SKIP_DIRS:
-            continue
-        if contains_feature_metadata_markers(path):
-            matches.append(path)
+    skip_dirs = set(METADATA_SCAN_SKIP_DIRS)
+    suffixes = {suffix.lower() for suffix in METADATA_SCAN_SUFFIXES}
+    for current_root, dirs, files in os.walk(root, topdown=True):
+        dirs[:] = [name for name in dirs if name not in skip_dirs]
+        current = Path(current_root)
+        for name in files:
+            path = current / name
+            if path.suffix.lower() not in suffixes:
+                continue
+            if contains_feature_metadata_markers(path):
+                matches.append(path)
     return sorted(matches)
 
 
@@ -2864,7 +2915,12 @@ def validate_specs_and_plans(root: Path, findings: list[Finding]) -> None:
     spec_records = {
         record.path: record for record in discover_superpowers_artifacts(root, "specs")
     }
+    allowed_layers = set(get_allowed_values(root, "layer", "spec"))
     for folder_name in ("specs", "plans"):
+        artifact_type = folder_name.removesuffix("s")
+        required_fields = set(get_required_fields(root, artifact_type))
+        required_values = get_required_values(root, artifact_type)
+        expected_artifact_type = required_values.get("artifact_type", artifact_type)
         folder = root / "docs" / "superpowers" / folder_name
         if not folder.exists():
             continue
@@ -2877,7 +2933,7 @@ def validate_specs_and_plans(root: Path, findings: list[Finding]) -> None:
                 continue
             relative_path = relpath(path, root)
             payload, error, _ = extract_markdown_frontmatter(text)
-            artifact_label = f"Superpowers {folder_name.removesuffix('s')}"
+            artifact_label = f"Superpowers {artifact_type}"
             if error is not None:
                 add_error(
                     findings,
@@ -2895,13 +2951,22 @@ def validate_specs_and_plans(root: Path, findings: list[Finding]) -> None:
                 )
                 continue
 
-            artifact_type = payload.get("artifact_type")
-            if artifact_type != folder_name.removesuffix("s"):
+            for required_field in required_fields:
+                if required_field not in payload:
+                    add_error(
+                        findings,
+                        relative_path,
+                        f"{artifact_label} is missing required `{required_field}` frontmatter.",
+                        f"Add `{required_field}` using the canonical planning artifact schema.",
+                    )
+
+            actual_artifact_type = payload.get("artifact_type")
+            if actual_artifact_type != expected_artifact_type:
                 add_error(
                     findings,
                     relative_path,
                     f"{artifact_label} has the wrong artifact_type.",
-                    f"Set `artifact_type: {folder_name.removesuffix('s')}` so the metadata matches the folder.",
+                    f"Set `artifact_type: {expected_artifact_type}` so the metadata matches the canonical planning schema.",
                 )
 
             layer = payload.get("layer")
@@ -2914,6 +2979,41 @@ def validate_specs_and_plans(root: Path, findings: list[Finding]) -> None:
                     value=layer,
                     fix="Use a single-line canonical layer such as intent, operating_system, workstream, or change.",
                 )
+                if isinstance(layer, str) and allowed_layers and layer not in allowed_layers:
+                    add_error(
+                        findings,
+                        relative_path,
+                        f"{artifact_label} layer must be one of {sorted(allowed_layers)}.",
+                        "Use the canonical planning schema layer vocabulary.",
+                    )
+
+            related_features = payload.get("related_features")
+            if isinstance(related_features, list):
+                known_feature_ids = registered_feature_ids(root)
+                invalid_features = [
+                    item for item in related_features if isinstance(item, str) and item not in known_feature_ids
+                ]
+                if invalid_features:
+                    add_error(
+                        findings,
+                        relative_path,
+                        "related_features entries must resolve to registered feature ids.",
+                        "Use only feature_id values declared in docs/features/*/feature.source.yaml.",
+                    )
+
+            related_stages = payload.get("related_stages")
+            if isinstance(related_stages, list):
+                known_stage_ids = registered_stage_ids(root)
+                invalid_stages = [
+                    item for item in related_stages if isinstance(item, str) and item not in known_stage_ids
+                ]
+                if invalid_stages:
+                    add_error(
+                        findings,
+                        relative_path,
+                        "related_stages entries must resolve to registered stage ids.",
+                        "Use only stage_id values declared in docs/stages/*.source.yaml.",
+                    )
 
             if layer in {"intent", "operating_system"}:
                 parent_workstream = payload.get("parent_workstream")
@@ -2964,16 +3064,24 @@ def validate_specs_and_plans(root: Path, findings: list[Finding]) -> None:
 
             if folder_name == "plans":
                 parent_spec = payload.get("parent_spec")
-                _validate_canonical_repo_relative_path(
-                    findings,
-                    root=root,
-                    path=relative_path,
-                    subject=artifact_label,
-                    field_name="parent_spec",
-                    value=parent_spec,
-                    require_exists=True,
-                    fix="Use a canonical repo-relative path to the parent spec in docs/superpowers/specs/.",
-                )
+                if parent_spec is None:
+                    add_error(
+                        findings,
+                        relative_path,
+                        f"{artifact_label} is missing required `parent_spec` frontmatter.",
+                        "Add `parent_spec` using the canonical planning artifact schema.",
+                    )
+                else:
+                    _validate_canonical_repo_relative_path(
+                        findings,
+                        root=root,
+                        path=relative_path,
+                        subject=artifact_label,
+                        field_name="parent_spec",
+                        value=parent_spec,
+                        require_exists=True,
+                        fix="Use a canonical repo-relative path to the parent spec in docs/superpowers/specs/.",
+                    )
                 if isinstance(parent_spec, str):
                     spec_record = spec_records.get(parent_spec)
                     if spec_record is None:
@@ -3005,7 +3113,6 @@ def validate_specs_and_plans(root: Path, findings: list[Finding]) -> None:
                     "Operating-system spec/plan does not explicitly clear related_features.",
                     "Use related_features: [] unless product-feature impact is intentionally documented.",
                 )
-
 
 def run_validation(root: Path, adoption_mode_path: Path) -> list[Finding]:
     findings: list[Finding] = []
@@ -3062,3 +3169,4 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

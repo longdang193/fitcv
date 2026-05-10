@@ -136,6 +136,7 @@ IN_PROCESS_SCRIPT_NAMES = {
     "validate_agent_metadata_schema.py",
     "validate_provider_settings_schema.py",
     "validate_generated_header_format.py",
+    "validate_agent_runtime_drift.py",
     "sync_architecture_docs.py",
     "validate_repo_config.py",
 }
@@ -215,7 +216,7 @@ def build_subprocess_steps(
     agent_metadata_schema_script = str(root / "scripts" / "validate_agent_metadata_schema.py")
     provider_settings_schema_script = str(root / "scripts" / "validate_provider_settings_schema.py")
     generated_header_script = str(root / "scripts" / "validate_generated_header_format.py")
-    agent_runtime_drift_script = str(root / "scripts" / "sync_agent_adapters.py")
+    agent_runtime_drift_script = str(root / "scripts" / "validate_agent_runtime_drift.py")
     steps: list[list[str]] = [
         [python_executable, adoption_shape_script],
         [python_executable, checkpoint_pack_script],
@@ -226,10 +227,11 @@ def build_subprocess_steps(
         [python_executable, agent_metadata_schema_script],
         [python_executable, provider_settings_schema_script],
         [python_executable, generated_header_script],
-        [python_executable, agent_runtime_drift_script, "--check"],
     ]
     if adoption_mode is None:
         adoption_mode = read_adoption_mode(root)
+    if adoption_mode != "starter_method_only":
+        steps.append([python_executable, agent_runtime_drift_script, "--skip-deploy-check"])
     if adoption_mode != "starter_method_only":
         sync_script = str(root / "scripts" / "sync_architecture_docs.py")
         steps.append([python_executable, sync_script, "--check"])

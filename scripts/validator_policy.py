@@ -363,6 +363,7 @@ METADATA_SCAN_SKIP_DIRS = {
     ".agents",
     "venv",
     "node_modules",
+    "generated_agents",
     "docs",
     "agent-core",
     "repo_config",
