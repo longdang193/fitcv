@@ -450,8 +450,11 @@ def resolve_candidate_query_embedding(
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path:
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
     table_ref = f"{project}.{dataset}.candidate_query_embeddings"
     try:
         cached_row = _load_latest_candidate_query_embedding(
@@ -683,8 +686,11 @@ def run_vector_search(
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
 
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path:
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
 
     candidate_query_record = resolve_candidate_query_embedding(profile, config)
     embedding_vector = list(candidate_query_record.get("embedding") or [])
@@ -769,8 +775,11 @@ def store_shortlist(
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
 
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path:
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
     table_ref = f"{project}.{dataset}.vector_shortlist"
     now = datetime.now(tz=timezone.utc).isoformat()
 

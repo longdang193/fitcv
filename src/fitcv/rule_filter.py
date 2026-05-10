@@ -558,7 +558,7 @@ def store_filter_results(
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
-    if key_path and os.path.exists(key_path):
+    if key_path:
         credentials = service_account.Credentials.from_service_account_file(key_path)
         client = bigquery.Client(project=project, credentials=credentials)
     else:

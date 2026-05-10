@@ -334,6 +334,15 @@ def build_candidate_chunks(profile: dict[str, Any]) -> list[dict[str, Any]]:
 
 # ── integration: Vertex AI embedding ─────────────────────────────────────────
 
+def _deterministic_local_embedding(text: str) -> list[float]:
+    digest = hashlib.sha256(text.encode("utf-8")).digest()
+    values: list[float] = []
+    for idx in range(SQLITE_EMBED_DIM):
+        b = digest[idx % len(digest)]
+        values.append((float(b) / 127.5) - 1.0)
+    return values
+
+
 def generate_embedding(
     text: str,
     config: dict[str, Any],
@@ -341,9 +350,12 @@ def generate_embedding(
 ) -> list[float]:
     """Call Vertex AI text-embedding-005 and return the embedding vector.
 
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
+    Requires GOOGLE_APPLICATION_CREDENTIALS in non-sqlite mode.
     Marked @pytest.mark.integration in tests.
     """
+    if sqlite_mode_enabled(config):
+        return _deterministic_local_embedding(text)
+
     try:
         import vertexai  # type: ignore[import-untyped]
         from fitcv.config import get_vertex_location
@@ -357,12 +369,7 @@ def generate_embedding(
         embeddings = model.get_embeddings([text])
         return embeddings[0].values  # type: ignore[return-value]
     except Exception:
-        digest = hashlib.sha256(text.encode("utf-8")).digest()
-        values: list[float] = []
-        for idx in range(SQLITE_EMBED_DIM):
-            b = digest[idx % len(digest)]
-            values.append((float(b) / 127.5) - 1.0)
-        return values
+        return _deterministic_local_embedding(text)
 
 
 def _sqlite_path() -> str:
@@ -474,8 +481,11 @@ def embed_and_store_jobs(
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path:
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
     table_ref = f"{project}.{dataset}.job_embeddings"
     now = datetime.now(tz=timezone.utc).isoformat()
     embedding_contract = build_embedding_contract_fingerprint(config)
@@ -576,8 +586,11 @@ def embed_and_store_candidate(
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path:
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
     table_ref = f"{project}.{dataset}.candidate_embeddings"
     now = datetime.now(tz=timezone.utc).isoformat()
 

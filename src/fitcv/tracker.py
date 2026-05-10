@@ -210,18 +210,34 @@ def update_application_status(
 def store_application_status(record: dict[str, Any], config: dict[str, Any]) -> None:
     """Insert an application_tracker record into fitcv.application_tracker.
 
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
+    Requires GOOGLE_APPLICATION_CREDENTIALS for BigQuery mode.
     Decorated with @pytest.mark.integration in tests.
     """
+    if sqlite_mode_enabled(config):
+        from fitcv_cp import bq_store as cp_bq_store
+
+        errors = cp_bq_store.insert_application_tracker_row(
+            record,
+            bq=None,
+            project="",
+            dataset="",
+        )
+        if errors:
+            raise RuntimeError(f"SQLite insert errors for application_tracker: {errors}")
+        return
+
     from google.cloud import bigquery  # type: ignore[import-not-found]
     from google.oauth2 import service_account  # type: ignore[import-not-found]
 
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
-    key_path = str(config["service_account_key"])
+    key_path = str(config.get("service_account_key") or "").strip()
 
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path:
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
     table_ref = f"{project}.{dataset}.application_tracker"
 
     errors = client.insert_rows_json(table_ref, [record])

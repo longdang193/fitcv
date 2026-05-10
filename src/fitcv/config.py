@@ -778,10 +778,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     cfg = _apply_infra_env_overrides(cfg)
 
     backend = resolve_data_backend(cfg)
-    required_keys = [
-        key for key in _REQUIRED_KEYS
-        if backend == "bigquery" or key != "service_account_key"
-    ]
+    required_keys = _REQUIRED_KEYS if backend == "bigquery" else []
     missing = [k for k in required_keys if k not in cfg]
     if missing:
         raise ValueError(
