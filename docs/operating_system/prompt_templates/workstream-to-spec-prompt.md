@@ -1,6 +1,6 @@
 ---
 name: workstream-to-spec-prompt
-description: Use prompt template for workstream to spec prompt.
+description: Map workstream scope into detailed specification authoring tasks.
 type: prompt
 stage: planning
 entry_points:
@@ -10,15 +10,13 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- planning-dispatch
+- skill-planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
+- docs/operating_system/workflows/workflow-roadmap-to-closeout.md
 tags:
-- prompt-template
+- prompt
 - planning
-- workstream
-owner_layer: workstream
-status: active
 ---
 
 # Workstream To Spec Prompt
@@ -53,4 +51,3 @@ Please:
 
 Expected output:
 - a spec in `docs/superpowers/specs/` tied to the chosen thread file
-
