@@ -1763,8 +1763,11 @@ def store_evidence_selection(
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
 
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path:
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
     table_ref = f"{project}.{dataset}.evidence_selections"
 
     rows = [
