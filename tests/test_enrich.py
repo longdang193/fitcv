@@ -191,6 +191,7 @@ def test_lookup_reusable_structured_jobs_returns_exact_fingerprint_and_contract_
     monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
     monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
     monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
 
     jobs = [
         {
@@ -285,6 +286,7 @@ def test_lookup_reusable_structured_jobs_normalises_datetime_enriched_at(
     monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
     monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
     monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
 
     jobs = [
         {
@@ -674,6 +676,7 @@ def test_load_structured_jobs_uses_explicit_staging_schema(
     monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
     monkeypatch.setitem(sys.modules, "google.oauth2", fake_google_oauth2)
     monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
 
     load_structured_jobs(
         enriched=[{"job_url": "url1", "salary_min": None, "salary_max": None}],
@@ -1066,6 +1069,7 @@ def test_load_run_structured_jobs_inserts_to_correct_table(
             "applications_count": 10,
         }
     ]
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
 
     load_run_structured_jobs(
         enriched=enriched,
@@ -1119,6 +1123,7 @@ def test_load_run_structured_jobs_injects_run_id_into_rows(
     monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
     monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
     monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
 
     enriched = [{"job_url": "https://example.com/1", "title": "DE"}]
     load_run_structured_jobs(
@@ -1177,6 +1182,7 @@ def test_load_run_structured_jobs_uses_write_append(
     monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
     monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
     monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
 
     enriched = [{"job_url": "https://example.com/1"}]
     load_run_structured_jobs(
@@ -1231,6 +1237,7 @@ def test_load_run_structured_jobs_excludes_schema_extra_fields(
     monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
     monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
     monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
 
     enriched = [
         {
@@ -1256,6 +1263,57 @@ def test_load_run_structured_jobs_excludes_schema_extra_fields(
     row = captured["rows"][0]  # type: ignore[index]
     for excluded in ("company_id", "sector", "salary_min", "salary_max", "salary_currency", "applications_count"):
         assert excluded not in row, f"Field {excluded!r} should not be in run_structured_jobs row"
+
+
+def test_load_run_structured_jobs_writes_sqlite_rows(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pytest.TempPathFactory,
+) -> None:
+    import sqlite3
+
+    sqlite_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(sqlite_path))
+
+    enriched = [
+        {
+            "job_url": "https://example.com/jobs/1",
+            "title": "Data Engineer",
+            "company_name": "Acme",
+            "required_skills": ["SQL", "Python"],
+            "required_skills_canonical": ["sql", "python"],
+            "preferred_skills": ["dbt"],
+            "preferred_skills_canonical": ["dbt"],
+            "responsibilities": ["Build pipelines"],
+            "responsibilities_canonical": ["build pipelines"],
+            "tech_stack": ["Python", "BigQuery"],
+            "tech_stack_canonical": ["python", "bigquery"],
+            "keywords": ["etl"],
+            "keywords_canonical": ["etl"],
+            "required_skill_entities": [{"raw_text": "SQL", "canonical": "sql"}],
+            "preferred_skill_entities": [{"raw_text": "dbt", "canonical": "dbt"}],
+            "mapping_suggestions": [{"canonical": "sql", "matches": True}],
+            "enriched_at": "2026-05-10T00:00:00+00:00",
+        }
+    ]
+
+    inserted = load_run_structured_jobs(enriched=enriched, run_id="run-123", config={})
+
+    assert inserted == 1
+    with sqlite3.connect(sqlite_path) as conn:
+        row = conn.execute(
+            "SELECT run_id, job_url, payload_json FROM run_structured_jobs WHERE run_id = ? AND job_url = ?",
+            ("run-123", "https://example.com/jobs/1"),
+        ).fetchone()
+
+    assert row is not None
+    assert row[0] == "run-123"
+    assert row[1] == "https://example.com/jobs/1"
+    payload = __import__("json").loads(str(row[2]))
+    assert payload["run_id"] == "run-123"
+    assert payload["required_skills"] == ["SQL", "Python"]
+    assert payload["required_skill_entities_json"] == '[{"raw_text": "SQL", "canonical": "sql"}]'
+    assert payload["mapping_suggestions_json"] == '[{"canonical": "sql", "matches": true}]'
 
 
 # ── EnrichmentOutput + _apply_structured_normalization ───────────────────────

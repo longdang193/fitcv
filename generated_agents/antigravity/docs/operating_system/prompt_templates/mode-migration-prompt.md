@@ -1,6 +1,6 @@
 ---
 name: mode-migration-prompt
-description: Plan and execute adoption-mode migration with controlled scope and validation.
+description: Use prompt template for mode migration prompt.
 type: prompt
 stage: maintenance
 entry_points:
@@ -10,12 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
 tags:
-- prompt
+- prompt-template
 - maintenance
+- operating_system
+owner_layer: operating_system
+status: active
 ---
 
 <!--
@@ -60,3 +63,4 @@ Please:
 
 Expected output:
 - migration assessment, spec, or plan
+

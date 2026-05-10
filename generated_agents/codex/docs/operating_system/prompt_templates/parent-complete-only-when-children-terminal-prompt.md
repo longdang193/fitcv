@@ -1,8 +1,8 @@
 ---
 name: parent-complete-only-when-children-terminal-prompt
-description: Validate parent completion only when all child items are terminal.
+description: Use prompt template for parent complete only when children terminal prompt.
 type: prompt
-stage: maintenance
+stage: planning
 entry_points:
 - use this prompt when its title scope matches the current planning/execution need
 prerequisites:
@@ -10,12 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
 tags:
-- prompt
-- maintenance
+- prompt-template
+- planning
+- operating_system
+owner_layer: operating_system
+status: active
 ---
 
 <!--
@@ -61,3 +64,4 @@ Expected output:
 - invariant pass/fail result
 - exact remediation actions
 - `can_close` decision
+

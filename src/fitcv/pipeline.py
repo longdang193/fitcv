@@ -2977,6 +2977,7 @@ def _debug_record_output_sample(record: dict[str, Any]) -> dict[str, Any] | None
         "gap_summary": record.get("gap_summary"),
         "validation_initial": record.get("validation_initial"),
         "repair_attempt": record.get("repair_attempt"),
+        "structured_cv_final": record.get("structured_cv_final"),
         "enabled_sections": record.get("enabled_sections"),
         "cv_generation_model": record.get("cv_generation_model"),
         "cv_prompt_id": record.get("cv_prompt_id"),

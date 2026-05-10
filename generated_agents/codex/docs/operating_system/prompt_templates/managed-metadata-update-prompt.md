@@ -1,31 +1,24 @@
 ---
 name: managed-metadata-update-prompt
-description: Update or repair managed architecture metadata in source-of-truth order.
+description: Use prompt template for managed metadata update prompt.
 type: prompt
 stage: maintenance
 entry_points:
-- repository is already in managed_architecture_metadata mode and metadata drift/fixes
-  are needed
-- validator findings indicate managed metadata inconsistency across source and generated
-  surfaces
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-- adoption mode is known from repo_config/adoption-mode.yaml
-- in-scope feature/stage/source metadata surfaces are identified
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
 - implementation-next-action-gate-prompt.md
-- validate-or-drift-prompt.md
 related_skills:
-- skill-doc-system-lifecycle
-- skill-planning-dispatch
-- skill-verification-before-completion
+- planning-dispatch
 required_reads:
-- docs/operating_system/governance/repo-governance.md
-- docs/operating_system/adoption/project-adoption-migration-guide.md
-- AGENTS.md
+- docs/operating_system/prompt_templates/README.md
 tags:
-- prompt
+- prompt-template
 - maintenance
-- metadata
+- operating_system
+owner_layer: operating_system
+status: active
 ---
 
 <!--
@@ -71,3 +64,4 @@ Expected output:
 - refreshed generated metadata outputs
 - validator or sync/check results
 - a spec or implementation plan when the work is too large for one safe pass
+

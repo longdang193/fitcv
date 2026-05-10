@@ -1,9 +1,11 @@
 """Tests for fitcv.ai_score — all pure unit tests (no cloud calls)."""
 
 import json
+import sqlite3
 import sys
 import time
 import types
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -420,6 +422,123 @@ def test_run_ai_scoring_prefers_nested_pipeline_top_n_over_legacy_flat_key() -> 
     assert len(results) == 1
     assert mock_score_job.call_count == 1
     assert results[0]["job_url"] == "https://example.com/1"
+
+
+# ── store_ai_scores ───────────────────────────────────────────────────────────
+
+
+def test_store_ai_scores_writes_sqlite_rows(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv.ai_score import store_ai_scores
+
+    db_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+
+    scores = [
+        {
+            "job_url": "https://example.com/job-1",
+            "ai_score": 0.91,
+            "fit_label": "strong",
+            "score_reasoning": "Strong SQL and Python fit",
+            "matched_strengths": ["SQL", "Python"],
+            "key_risks": ["No dbt"],
+        },
+        {
+            "job_url": "https://example.com/job-2",
+            "ai_score": 0.55,
+            "fit_label": "stretch",
+            "score_reasoning": "Partial analytics overlap",
+            "matched_strengths": ["Looker"],
+            "key_risks": [],
+        },
+    ]
+
+    store_ai_scores(scores, config={})
+
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT job_url, ai_score, fit_label, score_reasoning,
+                   matched_strengths_json, key_risks_json
+            FROM ai_score_results
+            ORDER BY job_url
+            """
+        ).fetchall()
+
+    assert len(rows) == 2
+    assert rows[0][0] == "https://example.com/job-1"
+    assert float(rows[0][1]) == 0.91
+    assert rows[0][2] == "strong"
+    assert json.loads(str(rows[0][4])) == ["SQL", "Python"]
+    assert json.loads(str(rows[0][5])) == ["No dbt"]
+    assert rows[1][0] == "https://example.com/job-2"
+    assert float(rows[1][1]) == 0.55
+    assert rows[1][2] == "stretch"
+    assert json.loads(str(rows[1][4])) == ["Looker"]
+    assert json.loads(str(rows[1][5])) == []
+
+
+def test_store_ai_scores_bigquery_mode_uses_bigquery_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from fitcv.ai_score import store_ai_scores
+
+    calls: dict[str, object] = {}
+
+    class FakeCredentials:
+        @staticmethod
+        def from_service_account_file(path: str) -> str:
+            calls["credential_path"] = path
+            return "fake-creds"
+
+    class FakeClient:
+        def __init__(self, *, project: str, credentials: object) -> None:
+            calls["project"] = project
+            calls["credentials"] = credentials
+
+        def insert_rows_json(self, table_ref: str, rows: list[dict[str, object]]) -> list[object]:
+            calls["table_ref"] = table_ref
+            calls["rows"] = rows
+            return []
+
+    fake_bigquery = types.SimpleNamespace(Client=FakeClient)
+    fake_service_account = types.SimpleNamespace(Credentials=FakeCredentials)
+    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
+    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
+    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
+    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
+
+    store_ai_scores(
+        [
+            {
+                "job_url": "https://example.com/job-9",
+                "ai_score": 0.88,
+                "fit_label": "strong",
+                "score_reasoning": "Good fit",
+                "matched_strengths": ["SQL"],
+                "key_risks": [],
+            }
+        ],
+        config={
+            "gcp_project": "demo-project",
+            "bigquery_dataset": "fitcv",
+            "service_account_key": "C:/fake/key.json",
+        },
+    )
+
+    assert calls["credential_path"] == "C:/fake/key.json"
+    assert calls["project"] == "demo-project"
+    assert calls["table_ref"] == "demo-project.fitcv.ai_score_results"
+    rows = calls["rows"]
+    assert isinstance(rows, list)
+    assert rows[0]["job_url"] == "https://example.com/job-9"
+    assert rows[0]["matched_strengths"] == ["SQL"]
+    assert rows[0]["key_risks"] == []
+    assert float(rows[0]["ai_score"]) == 0.88
 
 
 # ── integration tests ─────────────────────────────────────────────────────────

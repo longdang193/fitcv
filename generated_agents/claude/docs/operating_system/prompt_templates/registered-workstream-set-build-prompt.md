@@ -1,23 +1,24 @@
 ---
 name: registered-workstream-set-build-prompt
-description: Create or update the registered workstream set from roadmap coverage.
+description: roadmap exists and concrete workstream registration is needed.
 type: prompt
 stage: planning
 entry_points:
-- roadmap exists and concrete workstream registration is needed
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-- master roadmap path identified
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-- bounded-change-thread-build-prompt.md
-- roadmap-to-workstream-prompt.md
+- implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
-- docs/operating_system/workflows/workflow-roadmap-to-closeout.md
 tags:
-- prompt
+- prompt-template
 - planning
+- workstream
+owner_layer: workstream
+status: active
 ---
 
 <!--
@@ -29,6 +30,25 @@ To update: edit canonical source, then run sync.
 -->
 
 # Registered Workstream Set Build Prompt
+
+## Use When
+
+roadmap exists and concrete workstream registration is needed
+
+## Prerequisites
+
+### Required
+
+- master roadmap path identified
+
+### Optional
+
+- existing workstream docs
+
+## Next Prompts
+
+- bounded-change-thread-build-prompt.md
+- roadmap-to-workstream-prompt.md
 
 ## Not For
 
@@ -58,3 +78,4 @@ Expected output:
 - proposed registered workstream set
 - coverage findings about the set
 - next recommended artifact, usually bounded change threads for one workstream
+

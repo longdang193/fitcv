@@ -2,14 +2,13 @@
 template_id: registered-workstream-list
 document_type: registered_workstream_list
 target_globs:
-- docs/superpowers/workstreams/registered-workstream-list.md
+  - docs/superpowers/workstreams/registered-workstream-list.md
 required_sections:
-- Goal
-- Key Deliverables
-- Task/Wave Breakdown
-- Registered Workstreams
-- Traceability
-- Completion Criteria
+  - Goal
+  - Key Deliverables
+  - Registered Workstreams
+  - Traceability
+  - Completion Criteria
 ---
 
 <!--
@@ -28,23 +27,8 @@ To update: edit canonical source, then run sync.
 
 ## Key Deliverables
 
-### <deliverable 1>
-
-Describe one concrete output this registered workstream set must provide, such as ownership clarity, sequencing coverage, or status visibility for the roadmap.
-
-### <deliverable 2>
-
-Describe another concrete output this workstream set must provide, such as gap detection, prioritization signal, or durable ownership mapping.
-
-## Task/Wave Breakdown
-
-### Wave 1
-
-Describe the first pass needed to assemble, validate, or reconcile the registered workstream set.
-
-### Wave 2
-
-Describe the follow-up pass needed to refine statuses, ownership, sequencing, or roadmap alignment.
+- <deliverable 1>
+- <deliverable 2>
 
 ## Registered Workstreams
 
@@ -66,7 +50,5 @@ A workstream-list item is considered complete when:
 
 Canonical source-of-truth:
 
-<LINK>
-- `docs/operating_system/governance/repo-governance.md`
+- `docs/operating_system/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
-</LINK>
