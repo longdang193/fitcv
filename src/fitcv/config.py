@@ -170,6 +170,50 @@ def _apply_control_plane_env_overrides(control_plane: dict[str, Any]) -> dict[st
         cursor[key_path[-1]] = env_value
     return updated
 
+def resolve_data_backend(config: dict[str, Any] | None = None) -> str:
+    """Resolve active persistence backend from canonical control-plane settings.
+
+    Precedence:
+    1. explicit FITCV_CP_DATA_BACKEND env override
+    2. passed config["control_plane"]["data_backend"]["type"]
+    3. passed config["data_backend"]["type"]
+    4. load_control_plane_config() when available
+    5. default to bigquery for backward compatibility
+    """
+    env_backend = str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower()
+    if env_backend:
+        if env_backend not in {"bigquery", "sqlite"}:
+            raise ValueError("FITCV_CP_DATA_BACKEND must be one of: bigquery, sqlite")
+        return env_backend
+
+    cfg = config or {}
+    nested_control_plane = dict(cfg.get("control_plane") or {})
+    nested_backend = dict(nested_control_plane.get("data_backend") or {})
+    direct_backend = dict(cfg.get("data_backend") or {})
+    backend = str(
+        nested_backend.get("type")
+        or direct_backend.get("type")
+        or ""
+    ).strip().lower()
+    if backend:
+        if backend not in {"bigquery", "sqlite"}:
+            raise ValueError("data_backend.type must be one of: bigquery, sqlite")
+        return backend
+
+    try:
+        control_plane_cfg = load_control_plane_config()
+    except FileNotFoundError:
+        return "bigquery"
+    return str((control_plane_cfg.get("data_backend") or {}).get("type") or "bigquery").strip().lower() or "bigquery"
+
+
+
+def sqlite_mode_enabled(config: dict[str, Any] | None = None) -> bool:
+    """Return True when sqlite persistence mode is active."""
+    return resolve_data_backend(config) == "sqlite"
+
+
+
 def load_control_plane_config(path: str | Path | None = None) -> dict[str, Any]:
     """Load control-plane runtime config with env overrides and hygiene checks."""
     config_path = Path(path) if path is not None else _DEFAULT_CONTROL_PLANE_CONFIG_PATH
@@ -729,9 +773,16 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     cfg = _normalize_config_keys(cfg)
     cfg = _apply_infra_env_overrides(cfg)
 
-    missing = [k for k in _REQUIRED_KEYS if k not in cfg]
+    backend = resolve_data_backend(cfg)
+    required_keys = [
+        key for key in _REQUIRED_KEYS
+        if backend == "bigquery" or key != "service_account_key"
+    ]
+    missing = [k for k in required_keys if k not in cfg]
     if missing:
-        raise ValueError(f"Missing config keys: {missing}")
+        raise ValueError(
+            f"Missing config keys for {backend} backend: {missing}"
+        )
 
     loaded_policy_paths: dict[str, Path] = {}
 

@@ -1,7 +1,6 @@
 ---
 name: validate-or-drift-prompt
-description: Choose validation or drift-reconciliation path based on current artifact
-  state.
+description: Use prompt template for validate or drift prompt.
 type: prompt
 stage: drift
 entry_points:
@@ -11,12 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
 tags:
-- prompt
+- prompt-template
 - drift
+- operating_system
+owner_layer: operating_system
+status: active
 ---
 
 <!--
@@ -57,3 +59,4 @@ Please:
 
 Expected output:
 - findings, severity, and next moves
+

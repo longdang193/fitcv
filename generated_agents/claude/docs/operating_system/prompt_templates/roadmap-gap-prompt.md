@@ -1,6 +1,6 @@
 ---
 name: roadmap-gap-prompt
-description: Identify roadmap coverage gaps and propose bounded corrective additions.
+description: Use prompt template for roadmap gap prompt.
 type: prompt
 stage: planning
 entry_points:
@@ -10,13 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
-- docs/operating_system/workflows/workflow-roadmap-to-closeout.md
 tags:
-- prompt
-- drift
+- prompt-template
+- planning
+- intent
+owner_layer: intent
+status: active
 ---
 
 <!--
@@ -54,3 +56,4 @@ Please:
 
 Expected output:
 - gap assessment plus the recommended next artifact
+

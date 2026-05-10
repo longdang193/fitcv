@@ -2,14 +2,13 @@
 template_id: complete-specification-set
 document_type: complete_specification_set
 target_globs:
-- docs/superpowers/execution_maps/*.md
+  - docs/superpowers/execution_maps/*.md
 required_sections:
-- Goal
-- Key Deliverables
-- Task/Wave Breakdown
-- Spec Inventory
-- Coverage Check
-- Completion Criteria
+  - Goal
+  - Key Deliverables
+  - Spec Inventory
+  - Coverage Check
+  - Completion Criteria
 required_frontmatter:
   artifact_type: execution_map
   map_type: complete_spec_set
@@ -31,23 +30,8 @@ To update: edit canonical source, then run sync.
 
 ## Key Deliverables
 
-### <deliverable 1>
-
-Describe one concrete output this full specification set must provide, such as complete thread coverage, spec readiness, or removal of ambiguity before execution planning.
-
-### <deliverable 2>
-
-Describe another concrete output this spec set must provide, such as dependency completeness, sequencing clarity, or approval readiness.
-
-## Task/Wave Breakdown
-
-### Wave 1
-
-Describe the first pass needed to identify, group, or author the required specifications for the covered threads.
-
-### Wave 2
-
-Describe the follow-up pass needed to close coverage gaps, reconcile dependencies, or finalize the full specification set.
+- <deliverable 1>
+- <deliverable 2>
 
 ## Spec Inventory
 
@@ -70,7 +54,5 @@ A complete-spec-set item is considered complete when:
 
 Canonical source-of-truth:
 
-<LINK>
-- `docs/operating_system/governance/repo-governance.md`
+- `docs/operating_system/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
-</LINK>

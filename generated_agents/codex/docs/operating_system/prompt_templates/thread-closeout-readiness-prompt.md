@@ -1,6 +1,6 @@
 ---
 name: thread-closeout-readiness-prompt
-description: Guide execution for thread closeout readiness prompt.
+description: thread closure as completed/dropped is being decided.
 type: prompt
 stage: closeout
 entry_points:
@@ -10,12 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
 tags:
-- prompt
+- prompt-template
 - closeout
+- change
+owner_layer: change
+status: active
 ---
 
 <!--
@@ -28,6 +31,25 @@ To update: edit canonical source, then run sync.
 
 # Thread Closeout Readiness Prompt
 
+## Use When
+
+thread closure as completed/dropped is being decided
+
+## Prerequisites
+
+### Required
+
+- thread status and evidence context available
+- prior execution routing completed via [implementation-next-action-gate-prompt.md](./implementation-next-action-gate-prompt.md) (or explicit reason why not needed)
+
+### Optional
+
+- recent next-action gate result
+
+## Next Prompts
+
+- `workstream-closeout-readiness-prompt.md`
+
 ## Not For
 
 initial planning or spec drafting
@@ -36,13 +58,26 @@ initial planning or spec drafting
 
 Required when proposing thread closure (`completed` or `dropped`) or claiming fix/pass status:
 
-- run `skill-verification-before-completion` checks before final close recommendation
+- run `verification-before-completion` checks before final close recommendation
 
 Use this when deciding whether a bounded change thread can be marked
 `completed` or `dropped`.
 
 ```text
 Assess thread closeout readiness.
+
+Related skills:
+- verification-before-completion (use before any thread close/pass/fix claim)
+
+Related workflows:
+- spec-to-plan-to-execution-workflow.md (upstream execution trace source)
+- live-run-closeout-workflow.md (when closure evidence comes from live-run lanes)
+
+Context:
+- thread id/path:
+- parent workstream:
+- thread status:
+- related spec(s), plan(s), and checkpoint result pack(s):
 
 Please:
 1. Decide whether this thread should close as `completed`, close as `dropped`, or remain open.
@@ -68,3 +103,4 @@ Please:
 
 Expected output:
 - thread closeout verdict, concrete next actions, and one selected next action constrained by existing planning artifacts
+

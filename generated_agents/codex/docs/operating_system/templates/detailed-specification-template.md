@@ -2,15 +2,14 @@
 template_id: detailed-specification
 document_type: detailed_specification
 target_globs:
-- docs/superpowers/specs/*.md
+  - docs/superpowers/specs/*.md
 required_sections:
-- Goal
-- Key Deliverables
-- Task/Wave Breakdown
-- Design Decisions
-- Invariants
-- Validation Plan
-- Completion Criteria
+  - Goal
+  - Key Deliverables
+  - Design Decisions
+  - Invariants
+  - Validation Plan
+  - Completion Criteria
 required_frontmatter:
   artifact_type: spec
 ---
@@ -31,23 +30,8 @@ To update: edit canonical source, then run sync.
 
 ## Key Deliverables
 
-### <deliverable 1>
-
-Describe one concrete specification outcome this document must deliver, such as a resolved design boundary, contract decision, or validated implementation constraint.
-
-### <deliverable 2>
-
-Describe another concrete specification result this document must deliver, such as clarified invariants, interface shape, or validation confidence.
-
-## Task/Wave Breakdown
-
-### Wave 1
-
-Describe the first design or analysis pass needed to define the specification correctly.
-
-### Wave 2
-
-Describe the follow-up pass needed to resolve open questions, tighten decisions, or prepare the spec for approval.
+- <deliverable 1>
+- <deliverable 2>
 
 ## Design Decisions
 
@@ -71,7 +55,5 @@ A specification item is considered complete when:
 
 Canonical source-of-truth:
 
-<LINK>
-- `docs/operating_system/governance/repo-governance.md`
+- `docs/operating_system/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
-</LINK>
