@@ -1423,6 +1423,7 @@ def _enrich_chunk(
     import time
     from google.api_core.exceptions import ResourceExhausted  # type: ignore[import-untyped]
     from google.genai.errors import ClientError  # type: ignore[import-untyped]
+    import httpx
 
     sleep_secs = float(config.get("enrichment_sleep_secs", 1.0))
     max_retries = int(config.get("enrichment_max_retries", 2))
@@ -1448,7 +1449,13 @@ def _enrich_chunk(
                         raise
                     attempts += 1
                     time.sleep(sleep_secs * (2 ** (attempts - 1)))
+                except httpx.HTTPStatusError as exc:
+                    if getattr(getattr(exc, "response", None), "status_code", None) != 429 or attempts >= max_retries:
+                        raise
+                    attempts += 1
+                    time.sleep(sleep_secs * (2 ** (attempts - 1)))
     return results
+
 
 
 def enrich_batch(
