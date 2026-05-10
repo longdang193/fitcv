@@ -59,13 +59,13 @@ Provide task-level implementation structure and verification gates proving no un
 - Existing Wave 2 plan patch includes audit-priority task 0 requirements.
 
 **Steps:**
-- [ ] Step 1: finalize required fields and bounds for readable `input`/`output` across quality stages.
-- [ ] Step 2: codify payload partition shape (`metadata.quality.*`, `metadata.ops.*`).
-- [ ] Step 3: add guardrails so top-level `output` cannot be emitted empty/undefined.
-- [ ] Step 4: add stage-specific summary builder hooks (`enrich`, `cv_analysis`, `cv_generation`, `acceptance_review`).
+- [x] Step 1: finalize required fields and bounds for readable `input`/`output` across quality stages.
+- [x] Step 2: codify payload partition shape (`metadata.quality.*`, `metadata.ops.*`).
+- [x] Step 3: add guardrails so top-level `output` cannot be emitted empty/undefined.
+- [x] Step 4: add stage-specific summary builder hooks (`enrich`, `cv_analysis`, `cv_generation`, `acceptance_review`).
 
 **Verification:**
-- [ ] `python -m pytest tests/test_fitcv/test_telemetry.py -q`
+- [x] `python -m pytest tests/test_fitcv/test_telemetry.py -q`
 
 **Exit Criteria:**
 - Telemetry helper layer enforces readable IO invariants for all quality stages.
@@ -85,14 +85,14 @@ Provide task-level implementation structure and verification gates proving no un
 - Task 1 helper contract fields and builders are finalized.
 
 **Steps:**
-- [ ] Step 1: route `enrich_item` emissions through readable summary builder.
-- [ ] Step 2: route `cv_analysis_item` and `cv_generation_item` emissions through readable summary builders.
-- [ ] Step 3: route `acceptance_review_item` emission with non-empty `output` guardrail and structured quality metadata.
-- [ ] Step 4: verify lineage fields remain stable from generation to acceptance review.
+- [x] Step 1: route `enrich_item` emissions through readable summary builder.
+- [x] Step 2: route `cv_analysis_item` and `cv_generation_item` emissions through readable summary builders.
+- [x] Step 3: route `acceptance_review_item` emission with non-empty `output` guardrail and structured quality metadata.
+- [x] Step 4: verify lineage fields remain stable from generation to acceptance review.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_pipeline.py -q -k "langfuse or telemetry or cv_generation or acceptance or review"`
-- [ ] `python -m pytest tests/test_fitcv_cp/test_reporter.py -q`
+- [x] `python -m pytest tests/test_pipeline.py -q -k "langfuse or telemetry or cv_generation or acceptance or review"`
+- [x] `python -m pytest tests/test_fitcv_cp/test_reporter.py -q`
 
 **Exit Criteria:**
 - All quality stages emit bounded readable IO with required lineage and metadata partitioning.
@@ -111,10 +111,10 @@ Provide task-level implementation structure and verification gates proving no un
 - Task 2 call-site wiring complete.
 
 **Steps:**
-- [ ] Step 1: add tests that assert no quality-stage `output` is undefined/empty.
-- [ ] Step 2: add tests for `metadata.quality.*` vs `metadata.ops.*` separation.
-- [ ] Step 3: add bounded-length assertions for stage summaries.
-- [ ] Step 4: add degraded/disabled telemetry fallback assertions that preserve non-blocking execution.
+- [x] Step 1: add tests that assert no quality-stage `output` is undefined/empty.
+- [x] Step 2: add tests for `metadata.quality.*` vs `metadata.ops.*` separation.
+- [x] Step 3: add bounded-length assertions for stage summaries.
+- [x] Step 4: add degraded/disabled telemetry fallback assertions that preserve non-blocking execution.
 
 **Verification Matrix (Stage-Level Readable IO Contract):**
 
@@ -126,9 +126,9 @@ Provide task-level implementation structure and verification gates proving no un
 | `acceptance_review_item` | review decision context present | action+rationale summary non-empty | output length capped + truncation marker when capped | review quality signals under `metadata.quality.*`; operator/system provenance under `metadata.ops.*` |
 
 **Verification:**
-- [ ] `python -m pytest tests/test_fitcv/test_telemetry.py -q`
-- [ ] `python -m pytest tests/test_pipeline.py -q -k "langfuse or telemetry or cv_generation or acceptance or review"`
-- [ ] `python -m pytest tests/test_fitcv_cp/test_reporter.py -q`
+- [x] `python -m pytest tests/test_fitcv/test_telemetry.py -q`
+- [x] `python -m pytest tests/test_pipeline.py -q -k "langfuse or telemetry or cv_generation or acceptance or review"`
+- [x] `python -m pytest tests/test_fitcv_cp/test_reporter.py -q`
 
 **Exit Criteria:**
 - Tests enforce readable IO, metadata split, bounded summaries, and fallback behavior.
@@ -146,12 +146,12 @@ Provide task-level implementation structure and verification gates proving no un
 - Task 1–3 behavior and tests finalized.
 
 **Steps:**
-- [ ] Step 1: document quality-stage readable IO invariants and summary intent per stage.
-- [ ] Step 2: document `metadata.quality.*` and `metadata.ops.*` separation contract.
-- [ ] Step 3: add reviewer workflow note for sub-15-second trace inspection target.
+- [x] Step 1: document quality-stage readable IO invariants and summary intent per stage.
+- [x] Step 2: document `metadata.quality.*` and `metadata.ops.*` separation contract.
+- [x] Step 3: add reviewer workflow note for sub-15-second trace inspection target.
 
 **Verification:**
-- [ ] manual review of docs against code/test behavior
+- [x] manual review of docs against code/test behavior
 
 **Exit Criteria:**
 - Docs accurately reflect final hardening behavior and reviewer usage expectations.
@@ -168,9 +168,9 @@ Provide task-level implementation structure and verification gates proving no un
 - Task 1–4 complete.
 
 **Steps:**
-- [ ] Step 1: run test subset and planning/contract validators.
-- [ ] Step 2: verify rollback guidance preserves Wave 1 run-summary behavior.
-- [ ] Step 3: produce concise handoff for execution closeout.
+- [x] Step 1: run test subset and planning/contract validators.
+- [x] Step 2: verify rollback guidance preserves Wave 1 run-summary behavior.
+- [x] Step 3: produce concise handoff for execution closeout.
 
 **Rollback Boundaries (Explicit):**
 
@@ -190,11 +190,11 @@ Provide task-level implementation structure and verification gates proving no un
   - degraded telemetry mode remains non-blocking for pipeline execution
 
 **Verification:**
-- [ ] `python -m pytest tests/test_fitcv/test_telemetry.py -q`
-- [ ] `python -m pytest tests/test_fitcv_cp/test_reporter.py -q`
-- [ ] `python -m pytest tests/test_pipeline.py -q -k "langfuse or telemetry or cv_generation or acceptance or review"`
-- [ ] `python scripts/validate_template_required_sections.py`
-- [ ] `python scripts/validate_planning_lifecycle.py --strict`
+- [x] `python -m pytest tests/test_fitcv/test_telemetry.py -q`
+- [x] `python -m pytest tests/test_fitcv_cp/test_reporter.py -q`
+- [x] `python -m pytest tests/test_pipeline.py -q -k "langfuse or telemetry or cv_generation or acceptance or review"`
+- [x] `python scripts/validate_template_required_sections.py`
+- [x] `python scripts/validate_planning_lifecycle.py --strict`
 
 **Exit Criteria:**
 - Quality IO hardening implementation lane is validated, rollback-aware, and handoff-ready.
