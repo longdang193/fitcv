@@ -11,13 +11,14 @@ load_candidate_to_bigquery : insert into all candidate BQ tables (integration)
 """
 
 import re
-import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
 
 import yaml
+
+from fitcv.config import sqlite_mode_enabled
 
 
 # ── required profile sections ─────────────────────────────────────────────────
@@ -607,7 +608,7 @@ def load_candidate_to_bigquery(
     Requires GOOGLE_APPLICATION_CREDENTIALS.
     Decorated with @pytest.mark.integration in tests.
     """
-    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+    if sqlite_mode_enabled(config):
         return
 
     from google.cloud import bigquery  # type: ignore[import-untyped]

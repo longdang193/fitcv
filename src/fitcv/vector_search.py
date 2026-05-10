@@ -32,7 +32,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fitcv.candidate import flatten_skills, infer_role_family
-from fitcv.config import load_control_plane_config
+from fitcv.config import sqlite_mode_enabled
 from fitcv.embeddings import generate_embedding, get_shortlist_embedding_model
 
 DEFAULT_RECENT_ROLE_COUNT = 3
@@ -45,22 +45,6 @@ FRESH_QUERY_EMBEDDING_STATUS = "fresh_query_embedding"
 logger = logging.getLogger(__name__)
 
 
-def _sqlite_mode_enabled(config: dict[str, Any] | None = None) -> bool:
-    cfg = config or {}
-    explicit_mode = str(((cfg.get("data_plane") or {}).get("state_backend") or "")).strip().lower()
-    if explicit_mode:
-        return explicit_mode == "sqlite"
-    env_mode = str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower()
-    if env_mode:
-        return env_mode == "sqlite"
-    # Preserve explicit BigQuery-style configs used by legacy callers/tests.
-    if cfg.get("gcp_project") and cfg.get("bigquery_dataset"):
-        return False
-    try:
-        cp_cfg = load_control_plane_config()
-        return str(((cp_cfg.get("data_backend") or {}).get("type")) or "").strip().lower() == "sqlite"
-    except Exception:
-        return False
 
 
 def _sqlite_path() -> str:
@@ -403,7 +387,7 @@ def resolve_candidate_query_embedding(
     query_text = build_candidate_query_text(profile, config)
     signature_record = build_candidate_query_signature_record(components)
     contract_record = build_candidate_query_embedding_contract_fingerprint(config)
-    sqlite_mode = _sqlite_mode_enabled(config)
+    sqlite_mode = sqlite_mode_enabled(config)
     if sqlite_mode:
         with sqlite3.connect(_sqlite_path()) as conn:
             _ensure_sqlite_vector_tables(conn)
@@ -637,7 +621,7 @@ def run_vector_search(
     """
     if not passed_job_urls:
         return []
-    sqlite_mode = _sqlite_mode_enabled(config)
+    sqlite_mode = sqlite_mode_enabled(config)
     effective_top_n = (
         top_n
         if top_n is not None
@@ -752,7 +736,7 @@ def store_shortlist(
     """
     if not shortlist:
         return
-    if _sqlite_mode_enabled(config):
+    if sqlite_mode_enabled(config):
         effective_strategy = retrieval_strategy or str(config.get("retrieval_strategy", "job_summary_v1"))
         now = datetime.now(tz=timezone.utc).isoformat()
         with sqlite3.connect(_sqlite_path()) as conn:

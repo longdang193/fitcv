@@ -1063,7 +1063,7 @@ def lookup_reusable_structured_jobs(
     project = str(config.get("gcp_project") or "").strip()
     dataset = str(config.get("bigquery_dataset") or "").strip()
     key_path = str(config.get("service_account_key") or "").strip()
-    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+    if sqlite_mode_enabled(config):
         job_urls = [
             str(job.get("job_url") or "")
             for job in normalized_jobs
@@ -1607,7 +1607,7 @@ def load_structured_jobs(
     Returns:
         Number of rows upserted.
     """
-    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+    if sqlite_mode_enabled(config):
         with sqlite3.connect(_sqlite_path()) as conn:
             _ensure_sqlite_structured_jobs_table(conn)
             rows = []
