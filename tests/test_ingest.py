@@ -5,7 +5,13 @@ from pathlib import Path
 
 import pytest
 
-from fitcv.ingest import parse_jobs_file, prepare_raw_rows, snake_case_keys, validate_linkedin_schema
+from fitcv.ingest import (
+    load_to_bigquery,
+    parse_jobs_file,
+    prepare_raw_rows,
+    snake_case_keys,
+    validate_linkedin_schema,
+)
 
 
 def test_parse_jobs_file_returns_list(sample_jobs_path: Path) -> None:
@@ -115,14 +121,108 @@ def test_prepare_raw_rows_preserves_raw_json(sample_jobs_path: Path) -> None:
         assert raw["jobUrl"] == original["jobUrl"]
 
 
+def test_load_to_bigquery_writes_sqlite_rows(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    rows = [
+        {
+            "job_url": "https://example.com/job-1",
+            "title": "Data Engineer",
+            "location": "Berlin",
+            "posted_time": "1 day ago",
+            "published_at": "2026-05-10T00:00:00+00:00",
+            "company_name": "Acme",
+            "company_url": "https://linkedin.com/company/acme",
+            "company_id": "123",
+            "description": "Build pipelines",
+            "applications_count": "12",
+            "contract_type": "Full-time",
+            "experience_level": "Mid-Senior level",
+            "work_type": "Remote",
+            "sector": "Tech",
+            "salary": "",
+            "apply_url": "https://apply.example.com/1",
+            "apply_type": "EASY_APPLY",
+            "raw_json": json.dumps({"jobUrl": "https://example.com/job-1"}),
+            "ingested_at": "2026-05-10T00:00:00+00:00",
+        }
+    ]
+
+    import sqlite3
+
+    db_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+
+    inserted = load_to_bigquery(rows, config={})
+
+    assert inserted == 1
+    with sqlite3.connect(db_path) as conn:
+        stored = conn.execute(
+            "SELECT job_url, title, raw_json FROM raw_jobs WHERE job_url = ?",
+            ("https://example.com/job-1",),
+        ).fetchone()
+
+    assert stored is not None
+    assert stored[0] == "https://example.com/job-1"
+    assert stored[1] == "Data Engineer"
+    assert json.loads(str(stored[2]))["jobUrl"] == "https://example.com/job-1"
+
+
 @pytest.mark.integration
 def test_load_to_bigquery_inserts_rows(sample_jobs_path: Path, config: dict) -> None:
     """Integration test — requires GOOGLE_APPLICATION_CREDENTIALS."""
-    from fitcv.ingest import load_to_bigquery
     jobs = parse_jobs_file(sample_jobs_path)
     rows = prepare_raw_rows(jobs)
     inserted = load_to_bigquery(rows, config)
     assert inserted == len(rows)
+
+
+def test_load_to_bigquery_bigquery_mode_uses_bigquery_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    import sys
+    import types
+
+    calls: dict[str, object] = {}
+
+    class FakeCredentials:
+        @staticmethod
+        def from_service_account_file(path: str) -> str:
+            calls["credential_path"] = path
+            return "fake-creds"
+
+    class FakeClient:
+        def __init__(self, *, project: str, credentials: object | None = None) -> None:
+            calls["project"] = project
+            calls["credentials"] = credentials
+
+        def insert_rows_json(self, table_ref: str, rows: list[dict[str, object]]) -> list[object]:
+            calls["table_ref"] = table_ref
+            calls["rows"] = rows
+            return []
+
+    fake_bigquery = types.SimpleNamespace(Client=FakeClient)
+    fake_service_account = types.SimpleNamespace(Credentials=FakeCredentials)
+    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
+    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
+    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
+    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
+
+    rows = [{"job_url": "https://example.com/job-2", "title": "Analytics Engineer"}]
+    inserted = load_to_bigquery(
+        rows,
+        config={
+            "gcp_project": "demo-project",
+            "bigquery_dataset": "fitcv",
+            "service_account_key": "C:/fake/key.json",
+        },
+    )
+
+    assert inserted == 1
+    assert calls["credential_path"] == "C:/fake/key.json"
+    assert calls["project"] == "demo-project"
+    assert calls["table_ref"] == "demo-project.fitcv.raw_jobs"
+    sent_rows = calls["rows"]
+    assert isinstance(sent_rows, list)
+    assert sent_rows[0]["job_url"] == "https://example.com/job-2"
 
 
 def test_fetch_from_apify_returns_list(sample_jobs_path: Path) -> None:

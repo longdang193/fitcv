@@ -1,6 +1,6 @@
 ---
 name: required-root-doc-update-prompt
-description: Update required root docs so they match current repo behavior and contracts.
+description: Use prompt template for required root doc update prompt.
 type: prompt
 stage: maintenance
 entry_points:
@@ -10,12 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
 tags:
-- prompt
+- prompt-template
 - maintenance
+- operating_system
+owner_layer: operating_system
+status: active
 ---
 
 <!--
@@ -71,3 +74,4 @@ Expected output:
 - a short summary of which required docs were refreshed
 - optional root-doc recommendations, if applicable
 - validator follow-up result or recommended validation commands
+

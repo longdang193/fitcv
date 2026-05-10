@@ -1,23 +1,24 @@
 ---
 name: thread-set-to-spec-set-prompt
-description: Convert a thread set into a complete specification set with traceability.
+description: thread set is known and complete spec inventory must be assembled.
 type: prompt
 stage: planning
 entry_points:
-- thread set is known and complete spec inventory must be assembled
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-- thread set in scope identified
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-- spec-set-to-spec-authoring-map-prompt.md
-- spec-prompt.md
+- implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
-- docs/operating_system/workflows/workflow-roadmap-to-closeout.md
 tags:
-- prompt
+- prompt-template
 - planning
+- change
+owner_layer: change
+status: active
 ---
 
 <!--
@@ -29,6 +30,25 @@ To update: edit canonical source, then run sync.
 -->
 
 # Thread Set To Spec Set Prompt
+
+## Use When
+
+thread set is known and complete spec inventory must be assembled
+
+## Prerequisites
+
+### Required
+
+- thread set in scope identified
+
+### Optional
+
+- existing specs
+
+## Next Prompts
+
+- spec-set-to-spec-authoring-map-prompt.md
+- spec-prompt.md
 
 ## Not For
 
@@ -45,7 +65,7 @@ Context:
 - thread files in scope:
 - known dependencies between threads:
 - known shared surfaces:
-- existing specs already visible through `docs/generated/planning_lineage.yaml`:
+- existing specs already linked through planning_lineage:
 
 Please:
 1. decide which threads need specs
@@ -60,3 +80,4 @@ Expected output:
 - uncovered or redundant spec findings
 - split/merge decisions across the thread set
 - next artifact recommendation, usually a spec-authoring map
+

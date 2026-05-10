@@ -37,11 +37,14 @@ store_evidence_selection : persist selected evidence to BigQuery (integration)
 import hashlib
 import json
 import math
+import os
+import sqlite3
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
-from fitcv.config import get_embedding_model
+from fitcv.config import get_embedding_model, sqlite_mode_enabled
 from fitcv.contracts import (
     ANALYSIS_CHANNEL_IDS,
     CV_ANALYSIS_REUSE_SCHEMA_VERSION,
@@ -1670,6 +1673,32 @@ def retrieve_evidence(
     )
 
 
+def _local_sqlite_path() -> str:
+    return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+
+
+
+def _ensure_local_evidence_selections_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS evidence_selections (
+            job_url TEXT NOT NULL,
+            evidence_id TEXT NOT NULL,
+            evidence_type TEXT NOT NULL,
+            name TEXT NOT NULL,
+            skills_json TEXT NOT NULL,
+            business_value TEXT NOT NULL,
+            score REAL NOT NULL,
+            source_ref TEXT NOT NULL,
+            selected_at TEXT NOT NULL,
+            PRIMARY KEY (job_url, evidence_id)
+        )
+        """
+    )
+    conn.commit()
+
+
+
 def store_evidence_selection(
     job_url: str,
     evidence: list[dict[str, Any]],
@@ -1677,6 +1706,54 @@ def store_evidence_selection(
 ) -> None:
     """Insert evidence selection rows into fitcv.evidence_selections."""
     if not evidence:
+        return
+
+    now = datetime.now(tz=timezone.utc).isoformat()
+
+    if sqlite_mode_enabled(config):
+        db_path = Path(_local_sqlite_path())
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(db_path) as conn:
+            _ensure_local_evidence_selections_table(conn)
+            conn.executemany(
+                """
+                INSERT INTO evidence_selections(
+                    job_url,
+                    evidence_id,
+                    evidence_type,
+                    name,
+                    skills_json,
+                    business_value,
+                    score,
+                    source_ref,
+                    selected_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(job_url, evidence_id) DO UPDATE SET
+                    evidence_type = excluded.evidence_type,
+                    name = excluded.name,
+                    skills_json = excluded.skills_json,
+                    business_value = excluded.business_value,
+                    score = excluded.score,
+                    source_ref = excluded.source_ref,
+                    selected_at = excluded.selected_at
+                """,
+                [
+                    (
+                        str(job_url),
+                        str(item["evidence_id"]),
+                        str(item["evidence_type"]),
+                        str(item["name"]),
+                        json.dumps(list(item.get("skills") or []), ensure_ascii=False),
+                        str(item.get("business_value") or ""),
+                        float(item.get("selection_score") or item.get("score") or 0.0),
+                        str(item["source_ref"]),
+                        now,
+                    )
+                    for item in evidence
+                ],
+            )
+            conn.commit()
         return
 
     from google.cloud import bigquery  # type: ignore[import-not-found]
@@ -1689,7 +1766,6 @@ def store_evidence_selection(
     credentials = service_account.Credentials.from_service_account_file(key_path)
     client = bigquery.Client(project=project, credentials=credentials)
     table_ref = f"{project}.{dataset}.evidence_selections"
-    now = datetime.now(tz=timezone.utc).isoformat()
 
     rows = [
         {

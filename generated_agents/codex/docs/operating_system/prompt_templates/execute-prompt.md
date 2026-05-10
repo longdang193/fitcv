@@ -1,6 +1,6 @@
 ---
 name: execute-prompt
-description: Guide execution for execute prompt.
+description: an implementation plan exists and execution should run task-by-task.
 type: prompt
 stage: execution
 entry_points:
@@ -10,12 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
 tags:
-- prompt
+- prompt-template
 - execution
+- change
+owner_layer: change
+status: active
 ---
 
 <!--
@@ -28,6 +31,25 @@ To update: edit canonical source, then run sync.
 
 # Execute Prompt
 
+## Use When
+
+an implementation plan exists and execution should run task-by-task
+
+## Prerequisites
+
+### Required
+
+- plan path exists
+
+### Optional
+
+- latest readiness assessment
+
+## Next Prompts
+
+- implementation-next-action-gate-prompt.md
+- thread-closeout-readiness-prompt.md
+
 ## Not For
 
 planning from scratch
@@ -38,7 +60,7 @@ carry it out.
 
 Required when claiming completion of a plan/task set or pass/fix status:
 
-- run `skill-verification-before-completion` checks before final completion claim
+- run `verification-before-completion` checks before final completion claim
 
 If you are still deciding which roadmap thread the work belongs to, use
 `roadmap-to-workstream-prompt.md` or `workstream-alignment-review-prompt.md`
@@ -46,6 +68,18 @@ before this prompt.
 
 ```text
 Execute this implementation plan in this session.
+
+Related skills:
+- executing-plans (use when executing an approved plan task-by-task)
+- verification-before-completion (use before completion/pass/fix claims)
+
+Related workflows:
+- spec-to-plan-to-execution-workflow.md (primary execution lifecycle)
+- drift-detection-and-reconciliation-workflow.md (fallback when execution diverges from plan/spec)
+
+Plan:
+- path:
+- roadmap thread this work follows (use a valid ID from `docs/intent/workstreams/`, or `none` if operating_system work):
 
 Please:
 1. review the plan critically before starting
@@ -63,3 +97,4 @@ Please:
 
 Expected output:
 - implemented changes plus verification results
+

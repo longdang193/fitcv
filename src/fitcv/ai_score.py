@@ -26,12 +26,20 @@ store_ai_scores       : persist to fitcv.ai_score_results (integration)
 import json
 import hashlib
 import logging
+import os
 import re
+import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from types import SimpleNamespace
 
-from fitcv.config import get_gemini_model, get_ranking_prompt_id, resolve_model_routing_part
+from fitcv.config import (
+    get_gemini_model,
+    get_ranking_prompt_id,
+    resolve_model_routing_part,
+    sqlite_mode_enabled,
+)
 from fitcv.contracts import RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION
 from fitcv.prompts import render_prompt
 
@@ -425,16 +433,78 @@ def run_ai_scoring(
 
 # ── integration: persist scores ───────────────────────────────────────────────
 
+def _local_sqlite_path() -> str:
+    return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+
+
+
+def _ensure_local_ai_score_results_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ai_score_results (
+            job_url TEXT PRIMARY KEY,
+            ai_score REAL NOT NULL,
+            fit_label TEXT NOT NULL,
+            score_reasoning TEXT NOT NULL,
+            matched_strengths_json TEXT NOT NULL,
+            key_risks_json TEXT NOT NULL,
+            scored_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.commit()
+
+
+
 def store_ai_scores(
     scores: list[dict[str, Any]],
     config: dict[str, Any],
 ) -> None:
-    """Insert AI scoring results into fitcv.ai_score_results.
-
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
-    Decorated with @pytest.mark.integration in tests.
-    """
+    """Insert AI scoring results into fitcv.ai_score_results."""
     if not scores:
+        return
+
+    now = datetime.now(tz=timezone.utc).isoformat()
+
+    if sqlite_mode_enabled(config):
+        db_path = Path(_local_sqlite_path())
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(db_path) as conn:
+            _ensure_local_ai_score_results_table(conn)
+            conn.executemany(
+                """
+                INSERT INTO ai_score_results(
+                    job_url,
+                    ai_score,
+                    fit_label,
+                    score_reasoning,
+                    matched_strengths_json,
+                    key_risks_json,
+                    scored_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(job_url) DO UPDATE SET
+                    ai_score = excluded.ai_score,
+                    fit_label = excluded.fit_label,
+                    score_reasoning = excluded.score_reasoning,
+                    matched_strengths_json = excluded.matched_strengths_json,
+                    key_risks_json = excluded.key_risks_json,
+                    scored_at = excluded.scored_at
+                """,
+                [
+                    (
+                        str(score["job_url"]),
+                        float(score["ai_score"]),
+                        str(score["fit_label"]),
+                        str(score.get("score_reasoning") or ""),
+                        json.dumps(list(score.get("matched_strengths") or []), ensure_ascii=False),
+                        json.dumps(list(score.get("key_risks") or []), ensure_ascii=False),
+                        now,
+                    )
+                    for score in scores
+                ],
+            )
+            conn.commit()
         return
 
     from google.cloud import bigquery  # type: ignore[import-untyped]
@@ -446,17 +516,16 @@ def store_ai_scores(
     credentials = service_account.Credentials.from_service_account_file(key_path)
     client = bigquery.Client(project=project, credentials=credentials)
     table_ref = f"{project}.{dataset}.ai_score_results"
-    now = datetime.now(tz=timezone.utc).isoformat()
 
     rows = [
         {
-            "job_url":           s["job_url"],
-            "ai_score":          s["ai_score"],
-            "fit_label":         s["fit_label"],
-            "score_reasoning":   s.get("score_reasoning", ""),
+            "job_url": s["job_url"],
+            "ai_score": s["ai_score"],
+            "fit_label": s["fit_label"],
+            "score_reasoning": s.get("score_reasoning", ""),
             "matched_strengths": s.get("matched_strengths", []),
-            "key_risks":         s.get("key_risks", []),
-            "scored_at":         now,
+            "key_risks": s.get("key_risks", []),
+            "scored_at": now,
         }
         for s in scores
     ]

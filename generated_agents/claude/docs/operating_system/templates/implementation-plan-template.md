@@ -2,13 +2,13 @@
 template_id: implementation-plan
 document_type: implementation_plan
 target_globs:
-- docs/superpowers/plans/*.md
+  - docs/superpowers/plans/*.md
 required_sections:
-- Goal
-- Key Deliverables
-- Task/Wave Breakdown
-- Verification
-- Completion Criteria
+  - Goal
+  - Key Deliverables
+  - Task Breakdown
+  - Verification
+  - Completion Criteria
 required_frontmatter:
   artifact_type: plan
 ---
@@ -29,23 +29,15 @@ To update: edit canonical source, then run sync.
 
 ## Key Deliverables
 
-### <deliverable 1>
+- <deliverable 1>
+- <deliverable 2>
 
-Describe one concrete implementation outcome this plan must deliver, including changed surfaces, expected behavior, and verification intent.
+## Task Breakdown
 
-### <deliverable 2>
-
-Describe another concrete implementation result this plan must deliver, such as test coverage, documentation alignment, or downstream handoff readiness.
-
-## Task/Wave Breakdown
-
-### task 1:
-
-Describe the first executable task, including touched surfaces, intended result, and how it will be verified.
-
-### task 2:
-
-Describe the next executable task, including dependency order, expected outcome, and follow-up verification or handoff.
+- task 1:
+  - <step>
+- task 2:
+  - <step>
 
 ## Verification
 
@@ -61,7 +53,5 @@ A plan item is considered complete when:
 
 Canonical source-of-truth:
 
-<LINK>
-- `docs/operating_system/governance/repo-governance.md`
+- `docs/operating_system/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
-</LINK>

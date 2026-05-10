@@ -2,13 +2,13 @@
 template_id: spec-authoring-map
 document_type: spec_authoring_map
 target_globs:
-- docs/superpowers/execution_maps/*.md
+  - docs/superpowers/execution_maps/*.md
 required_sections:
-- Goal
-- Key Deliverables
-- Task/Wave Breakdown
-- Parallel Lanes
-- Completion Criteria
+  - Goal
+  - Key Deliverables
+  - Authoring Waves
+  - Parallel Lanes
+  - Completion Criteria
 required_frontmatter:
   artifact_type: execution_map
   map_type: spec_authoring
@@ -30,23 +30,15 @@ To update: edit canonical source, then run sync.
 
 ## Key Deliverables
 
-### <deliverable 1>
+- <deliverable 1>
+- <deliverable 2>
 
-Describe one concrete authoring outcome this map must deliver, such as a completed spec subset, sequencing decision, or dependency-resolved drafting lane.
+## Authoring Waves
 
-### <deliverable 2>
-
-Describe another concrete authoring result this map must deliver, such as clearer lane ownership, reduced drafting risk, or resolved sequencing.
-
-## Task/Wave Breakdown
-
-### Wave 1
-
-Describe the first authoring wave, including which specs start first and why.
-
-### Wave 2
-
-Describe the second authoring wave, including follow-on specs, dependency handling, or consolidation steps.
+- wave 1:
+  - <spec>
+- wave 2:
+  - <spec>
 
 ## Parallel Lanes
 
@@ -65,7 +57,5 @@ A spec-authoring-map item is considered complete when:
 
 Canonical source-of-truth:
 
-<LINK>
-- `docs/operating_system/governance/repo-governance.md`
+- `docs/operating_system/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
-</LINK>

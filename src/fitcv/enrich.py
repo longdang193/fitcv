@@ -42,7 +42,7 @@ from typing import Any, TypedDict
 from types import SimpleNamespace
 
 from pydantic import BaseModel as _BaseModel, Field as _Field
-from fitcv.config import get_gemini_model, resolve_model_routing_part
+from fitcv.config import get_gemini_model, resolve_model_routing_part, sqlite_mode_enabled
 from fitcv.candidate import infer_role_family
 from fitcv.prompts import get_prompt_definition, render_prompt
 
@@ -1755,6 +1755,22 @@ def _map_to_run_structured_jobs_row(
     return mapped
 
 
+def _ensure_sqlite_run_structured_jobs_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS run_structured_jobs (
+            run_id TEXT NOT NULL,
+            job_url TEXT NOT NULL,
+            payload_json TEXT NOT NULL,
+            enriched_at TEXT,
+            PRIMARY KEY (run_id, job_url)
+        )
+        """
+    )
+    conn.commit()
+
+
+
 def load_run_structured_jobs(
     enriched: list[dict[str, Any]],
     run_id: str,
@@ -1771,8 +1787,32 @@ def load_run_structured_jobs(
     Returns:
         Number of rows appended.
     """
-    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
-        return len(enriched)
+    if sqlite_mode_enabled(config):
+        rows = [_map_to_run_structured_jobs_row(row, run_id) for row in enriched]
+        db_path = _sqlite_path()
+        os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
+        with sqlite3.connect(db_path) as conn:
+            _ensure_sqlite_run_structured_jobs_table(conn)
+            conn.executemany(
+                """
+                INSERT INTO run_structured_jobs(run_id, job_url, payload_json, enriched_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(run_id, job_url) DO UPDATE SET
+                    payload_json = excluded.payload_json,
+                    enriched_at = excluded.enriched_at
+                """,
+                [
+                    (
+                        str(row["run_id"]),
+                        str(row["job_url"]),
+                        json.dumps(row, ensure_ascii=False),
+                        str(row.get("enriched_at") or ""),
+                    )
+                    for row in rows
+                ],
+            )
+            conn.commit()
+        return len(rows)
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
 

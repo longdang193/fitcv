@@ -1,23 +1,25 @@
 ---
 name: spec-prompt
-description: Author or update a detailed specification aligned to bounded change scope.
+description: a specific detailed spec must be drafted from an approved bounded work
+  item context.
 type: prompt
 stage: planning
 entry_points:
-- a specific detailed spec must be drafted from an approved bounded work item context
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-- bounded thread context known or explicit operating_system justification
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-- spec-set-execution-map-prompt.md
-- plan-prompt.md
+- implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
-- docs/operating_system/workflows/workflow-spec-to-plan-to-execution.md
 tags:
-- prompt
+- prompt-template
 - planning
+- change
+owner_layer: change
+status: active
 ---
 
 <!--
@@ -29,6 +31,25 @@ To update: edit canonical source, then run sync.
 -->
 
 # Detailed Spec Prompt
+
+## Use When
+
+a specific detailed spec must be drafted from an approved bounded work item context
+
+## Prerequisites
+
+### Required
+
+- bounded thread context known or explicit operating_system justification
+
+### Optional
+
+- spec authoring map
+
+## Next Prompts
+
+- spec-set-execution-map-prompt.md
+- plan-prompt.md
 
 ## Not For
 
@@ -50,29 +71,17 @@ Work item:
 - affected area:
 - constraints:
 - what should stay true:
-- bounded change thread this follows (use a valid thread artifact from `docs/intent/workstreams/threads/`; prefer its canonical `name` and keep the legacy `thread_id` only when needed to locate the existing file; use `none` only for true operating_system work):
+- bounded change thread this follows (use a valid `thread_id` from `docs/intent/workstreams/threads/`; use `none` only for true operating_system work):
 - if `none`, explain why this should not attach to a product workstream thread:
 
 Please:
 1. classify the work as intent, operating_system, workstream, or change
 2. identify the owning docs and targets
 3. state how this follows the chosen thread via `parent_thread`; if truly operating_system scoped, state why `parent_thread: none` is intentional
-4. draft the detailed spec in docs/superpowers/specs/ using the canonical detailed specification template
-5. include required frontmatter for the spec, including at minimum:
-   - `artifact_type: spec`
-   - `layer`
-   - `status`
-   - `name` as the preferred identity field for new specs
-6. include required sections with exact names:
-   - `## Goal`
-   - `## Key Deliverables`
-   - `## Design Decisions`
-   - `## Invariants`
-   - `## Validation Plan`
-   - `## Completion Criteria`
-7. ensure completion semantics in `## Completion Criteria` stay aligned with lifecycle rules
-8. call out whether the next artifact should be another detailed spec or an implementation execution map
+4. draft the detailed spec in docs/superpowers/specs/
+5. call out whether the next artifact should be another detailed spec or an implementation execution map
 ```
 
 Expected output:
-- a template-aligned spec in `docs/superpowers/specs/` with required frontmatter and required sections
+- a spec in `docs/superpowers/specs/`
+

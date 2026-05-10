@@ -1,6 +1,6 @@
 ---
 name: workstream-closeout-readiness-prompt
-description: Guide execution for workstream closeout readiness prompt.
+description: workstream closure readiness is being decided.
 type: prompt
 stage: closeout
 entry_points:
@@ -10,12 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
 tags:
-- prompt
+- prompt-template
 - closeout
+- workstream
+owner_layer: workstream
+status: active
 ---
 
 <!--
@@ -28,6 +31,25 @@ To update: edit canonical source, then run sync.
 
 # Workstream Closeout Readiness Prompt
 
+## Use When
+
+workstream closure readiness is being decided
+
+## Prerequisites
+
+### Required
+
+- thread statuses and evidence context available
+- per-thread readiness reviewed via [thread-closeout-readiness-prompt.md](./thread-closeout-readiness-prompt.md) for in-scope threads
+
+### Optional
+
+- thread closeout review output
+
+## Next Prompts
+
+- `roadmap-closeout-readiness-prompt.md`
+
 ## Not For
 
 thread creation or spec authoring
@@ -36,12 +58,25 @@ thread creation or spec authoring
 
 Required when proposing workstream closure or claiming completion/pass status:
 
-- run `skill-verification-before-completion` checks before final close recommendation
+- run `verification-before-completion` checks before final close recommendation
 
 Use this when deciding whether a workstream can be marked `completed`.
 
 ```text
 Assess workstream closeout readiness.
+
+Related skills:
+- verification-before-completion (use before any workstream close/pass/fix claim)
+
+Related workflows:
+- roadmap-to-closeout-workflow.md (primary closure escalation path)
+- drift-detection-and-reconciliation-workflow.md (if lifecycle/status evidence is inconsistent)
+
+Context:
+- workstream id/path:
+- bounded thread files:
+- current workstream/thread statuses:
+- related specs/plans/execution maps/checkpoint result packs:
 
 Please:
 1. Validate workstream closure invariant:
@@ -67,3 +102,4 @@ Please:
 
 Expected output:
 - workstream closeout verdict, concrete next actions, and one selected next action constrained by existing planning artifacts
+

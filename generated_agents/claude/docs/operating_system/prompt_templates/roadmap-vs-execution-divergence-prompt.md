@@ -1,7 +1,6 @@
 ---
 name: roadmap-vs-execution-divergence-prompt
-description: Detect and reconcile divergence between roadmap intent and execution
-  state.
+description: Use prompt template for roadmap vs execution divergence prompt.
 type: prompt
 stage: drift
 entry_points:
@@ -11,13 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
-- docs/operating_system/workflows/workflow-roadmap-to-closeout.md
 tags:
-- prompt
+- prompt-template
 - drift
+- intent
+owner_layer: intent
+status: active
 ---
 
 <!--
@@ -60,3 +61,4 @@ Expected output:
 - divergence findings
 - explicit alignment vs misalignment calls
 - recommended next moves such as refining roadmap/workstream docs, retiring stale artifacts, reclassifying work, or drafting the next bounded spec/plan
+
