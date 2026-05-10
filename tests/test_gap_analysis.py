@@ -16,6 +16,7 @@ tags:
 """
 
 import pytest
+from pathlib import Path
 
 from fitcv.gap_analysis import classify_fit, classify_skill_match, compute_gap, normalise_raw_skill
 
@@ -343,3 +344,112 @@ def test_classify_fit_default_thresholds_when_no_config() -> None:
     }
     result = classify_fit(gap_strong, required_count=5, config=None)
     assert result in ("strong", "stretch", "skip")
+
+
+# ── store_gap_analysis ─────────────────────────────────────────────────────────
+
+
+def test_store_gap_analysis_writes_sqlite_row(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import json
+    import sqlite3
+
+    from fitcv.gap_analysis import store_gap_analysis
+
+    db_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+
+    gap = {
+        "matched": ["SQL"],
+        "partial": [{"required": "Google Cloud", "candidate": "GCP", "canonical": "google cloud"}],
+        "missing": ["Terraform"],
+        "years_risk": True,
+        "overclaim_risk": ["years_gap: candidate has 3 years, 5 required"],
+    }
+
+    store_gap_analysis("https://example.com/job-1", gap, config={})
+
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            """
+            SELECT job_url, matched_skills_json, partial_skills_json, missing_skills_json,
+                   years_risk, overclaim_risk_json
+            FROM gap_analysis
+            WHERE job_url = ?
+            """,
+            ("https://example.com/job-1",),
+        ).fetchone()
+
+    assert row is not None
+    assert row[0] == "https://example.com/job-1"
+    assert json.loads(str(row[1])) == ["SQL"]
+    assert json.loads(str(row[2])) == [
+        {"required": "Google Cloud", "candidate": "GCP", "canonical": "google cloud"}
+    ]
+    assert json.loads(str(row[3])) == ["Terraform"]
+    assert int(row[4]) == 1
+    assert json.loads(str(row[5])) == ["years_gap: candidate has 3 years, 5 required"]
+
+
+def test_store_gap_analysis_bigquery_mode_uses_bigquery_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+    import types
+
+    from fitcv.gap_analysis import store_gap_analysis
+
+    calls: dict[str, object] = {}
+
+    class FakeCredentials:
+        @staticmethod
+        def from_service_account_file(path: str) -> str:
+            calls["credential_path"] = path
+            return "fake-creds"
+
+    class FakeClient:
+        def __init__(self, *, project: str, credentials: object) -> None:
+            calls["project"] = project
+            calls["credentials"] = credentials
+
+        def insert_rows_json(self, table_ref: str, rows: list[dict[str, object]]) -> list[object]:
+            calls["table_ref"] = table_ref
+            calls["rows"] = rows
+            return []
+
+    fake_bigquery = types.SimpleNamespace(Client=FakeClient)
+    fake_service_account = types.SimpleNamespace(Credentials=FakeCredentials)
+    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
+    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
+    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
+    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
+
+    store_gap_analysis(
+        "https://example.com/job-2",
+        {
+            "matched": ["SQL"],
+            "partial": [{"required": "Google Cloud", "candidate": "GCP", "canonical": "google cloud"}],
+            "missing": [],
+            "years_risk": False,
+            "overclaim_risk": [],
+        },
+        config={
+            "gcp_project": "demo-project",
+            "bigquery_dataset": "fitcv",
+            "service_account_key": "C:/fake/key.json",
+        },
+    )
+
+    assert calls["credential_path"] == "C:/fake/key.json"
+    assert calls["project"] == "demo-project"
+    assert calls["table_ref"] == "demo-project.fitcv.gap_analysis"
+    rows = calls["rows"]
+    assert isinstance(rows, list)
+    assert rows[0]["job_url"] == "https://example.com/job-2"
+    assert rows[0]["partial_skills"] == [
+        '{"required": "Google Cloud", "candidate": "GCP", "canonical": "google cloud"}'
+    ]

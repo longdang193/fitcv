@@ -1,6 +1,6 @@
 ---
 name: roadmap-to-workstream-prompt
-description: Map roadmap items into concrete workstreams with clear boundaries.
+description: Use prompt template for roadmap to workstream prompt.
 type: prompt
 stage: planning
 entry_points:
@@ -10,13 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
-- docs/operating_system/workflows/workflow-roadmap-to-closeout.md
 tags:
-- prompt
+- prompt-template
 - planning
+- intent
+owner_layer: intent
+status: active
 ---
 
 <!--
@@ -54,3 +56,4 @@ Please:
 Expected output:
 - recommended workstream routing, or `operating_system` routing, plus the next
   artifact to create
+

@@ -32,10 +32,14 @@ Two-level matching:
 This preserves provenance for CV generation and overclaim detection.
 """
 
+import os
 import re
+import sqlite3
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
+from fitcv.config import sqlite_mode_enabled
 from fitcv.rule_filter import _canonicalise_skill, _get_skill_synonyms
 
 
@@ -383,16 +387,81 @@ def classify_fit(
 
 # ── integration: store to bigquery ────────────────────────────────────────────
 
+def _local_sqlite_path() -> str:
+    return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+
+
+
+def _ensure_local_gap_analysis_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS gap_analysis (
+            job_url TEXT PRIMARY KEY,
+            matched_skills_json TEXT NOT NULL,
+            partial_skills_json TEXT NOT NULL,
+            missing_skills_json TEXT NOT NULL,
+            years_risk INTEGER NOT NULL,
+            overclaim_risk_json TEXT NOT NULL,
+            analysed_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.commit()
+
+
+
 def store_gap_analysis(
     job_id: str,
     gap: dict[str, Any],
     config: dict[str, Any],
 ) -> None:
-    """Insert a gap analysis row into fitcv.gap_analysis.
+    """Insert a gap analysis row into fitcv.gap_analysis."""
+    import json
 
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
-    Decorated with @pytest.mark.integration in tests.
-    """
+    now = datetime.now(tz=timezone.utc).isoformat()
+    matched = list(gap.get("matched") or [])
+    partial = list(gap.get("partial") or [])
+    missing = list(gap.get("missing") or [])
+    overclaim_risk = list(gap.get("overclaim_risk") or [])
+
+    if sqlite_mode_enabled(config):
+        db_path = Path(_local_sqlite_path())
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(db_path) as conn:
+            _ensure_local_gap_analysis_table(conn)
+            conn.execute(
+                """
+                INSERT INTO gap_analysis(
+                    job_url,
+                    matched_skills_json,
+                    partial_skills_json,
+                    missing_skills_json,
+                    years_risk,
+                    overclaim_risk_json,
+                    analysed_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(job_url) DO UPDATE SET
+                    matched_skills_json = excluded.matched_skills_json,
+                    partial_skills_json = excluded.partial_skills_json,
+                    missing_skills_json = excluded.missing_skills_json,
+                    years_risk = excluded.years_risk,
+                    overclaim_risk_json = excluded.overclaim_risk_json,
+                    analysed_at = excluded.analysed_at
+                """,
+                (
+                    str(job_id),
+                    json.dumps(matched, ensure_ascii=False),
+                    json.dumps(partial, ensure_ascii=False),
+                    json.dumps(missing, ensure_ascii=False),
+                    int(bool(gap.get("years_risk", False))),
+                    json.dumps(overclaim_risk, ensure_ascii=False),
+                    now,
+                ),
+            )
+            conn.commit()
+        return
+
     from google.cloud import bigquery  # type: ignore[import-not-found]
     from google.oauth2 import service_account  # type: ignore[import-not-found]
 
@@ -403,19 +472,15 @@ def store_gap_analysis(
     credentials = service_account.Credentials.from_service_account_file(key_path)
     client = bigquery.Client(project=project, credentials=credentials)
     table_ref = f"{project}.{dataset}.gap_analysis"
-    now = datetime.now(tz=timezone.utc).isoformat()
 
-    # Serialise partial dicts to JSON strings for BQ ARRAY<STRING> storage.
-    import json
-    partial_serialised = [json.dumps(p) for p in (gap.get("partial") or [])]
-
+    partial_serialised = [json.dumps(item, ensure_ascii=False) for item in partial]
     row = {
         "job_url": str(job_id),
-        "matched_skills": list(gap.get("matched") or []),
+        "matched_skills": matched,
         "partial_skills": partial_serialised,
-        "missing_skills": list(gap.get("missing") or []),
+        "missing_skills": missing,
         "years_risk": bool(gap.get("years_risk", False)),
-        "overclaim_risk": list(gap.get("overclaim_risk") or []),
+        "overclaim_risk": overclaim_risk,
         "analysed_at": now,
     }
 

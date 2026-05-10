@@ -1,24 +1,24 @@
 ---
 name: bounded-change-thread-build-prompt
-description: Define a bounded change thread with clear scope, ownership, and completion
-  criteria.
+description: a workstream exists and bounded executable thread slices must be created/refined.
 type: prompt
 stage: planning
 entry_points:
-- a workstream exists and bounded executable thread slices must be created/refined
+- use this prompt when its title scope matches the current planning/execution need
 prerequisites:
-- workstream id/path known
+- relevant in-scope roadmap/workstream/thread/spec/plan context is available
 next_steps:
-- thread-set-to-spec-set-prompt.md
-- workstream-to-spec-prompt.md
+- implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
-- docs/operating_system/workflows/workflow-roadmap-to-closeout.md
 tags:
-- prompt
+- prompt-template
 - planning
+- change
+owner_layer: change
+status: active
 ---
 
 <!--
@@ -30,6 +30,25 @@ To update: edit canonical source, then run sync.
 -->
 
 # Bounded Change Thread Build Prompt
+
+## Use When
+
+a workstream exists and bounded executable thread slices must be created/refined
+
+## Prerequisites
+
+### Required
+
+- workstream id/path known
+
+### Optional
+
+- existing thread files
+
+## Next Prompts
+
+- thread-set-to-spec-set-prompt.md
+- workstream-to-spec-prompt.md
 
 ## Not For
 
@@ -63,3 +82,4 @@ Expected output:
 - dependency and shared-surface notes
 - per-thread status and short goal statements
 - next recommended artifact, usually a spec for one bounded change thread
+

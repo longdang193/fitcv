@@ -1,7 +1,6 @@
 ---
 name: parallel-bounded-change-planning-prompt
-description: Identify bounded change threads that can run in parallel without unsafe
-  overlap.
+description: Use prompt template for parallel bounded change planning prompt.
 type: prompt
 stage: planning
 entry_points:
@@ -11,13 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
-- docs/operating_system/workflows/workflow-spec-to-plan-to-execution.md
 tags:
-- prompt
+- prompt-template
 - planning
+- change
+owner_layer: change
+status: active
 ---
 
 <!--
@@ -57,3 +58,4 @@ Expected output:
 - shared-surface risks
 - ownership boundaries
 - next artifact recommendations, usually organized by thread file
+

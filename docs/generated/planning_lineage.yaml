@@ -37,6 +37,7 @@ workstreams:
     plans:
     - docs/superpowers/plans/2026-04-29-agentic-live-trace-surface-plan.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
+    - docs/superpowers/plans/2026-05-09-15-54-evaluable-langfuse-item-observation-contract-plan.md
     derived_completion: completed
   - thread_id: workstream-agentic-observability.agentic-observability-synonym-proposal-trace
     status: proposed
@@ -291,7 +292,7 @@ workstreams:
   status: active
   path: docs/intent/workstreams/workstream-operator-control-plane.md
   thread_count: 6
-  completed_thread_count: 1
+  completed_thread_count: 2
   derived_completion: in_progress
   threads:
   - thread_id: workstream-operator-control-plane.operator-control-plane-trigger-and-mode-contract
@@ -301,13 +302,13 @@ workstreams:
     plans: []
     derived_completion: not_started
   - thread_id: workstream-operator-control-plane.operator-control-plane-run-detail-truth
-    status: active
+    status: completed
     path: docs/intent/workstreams/threads/workstream-operator-control-plane/02-operator-control-plane-run-detail-truth.md
     specs:
     - docs/superpowers/specs/2026-04-28-operator-control-plane-run-detail-truth-spec.md
     plans:
     - docs/superpowers/plans/2026-05-03-operator-control-plane-run-detail-truth-bootstrap-plan.md
-    derived_completion: in_progress
+    derived_completion: completed
   - thread_id: workstream-operator-control-plane.operator-control-plane-settings-surface-alignment
     status: in_progress
     path: docs/intent/workstreams/threads/workstream-operator-control-plane/03-operator-control-plane-settings-surface-alignment.md
@@ -346,6 +347,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-04-14-40-ranking-and-cv-provider-routing-hardening-plan.md
     - docs/superpowers/plans/2026-05-04-21-35-telemetry-disabled-classification-surface-audit-plan.md
     - docs/superpowers/plans/2026-05-04-provider-storage-agnostic-parity-implementation-plan.md
+    - docs/superpowers/plans/2026-05-10-provider-agnostic-persistence-patch-plan.md
     derived_completion: completed
 - workstream_id: workstream-pipeline-efficiency-and-reuse
   status: active

@@ -5,7 +5,7 @@ status: proposed
 template_id: implementation-plan
 name: evaluable-langfuse-item-observation-contract
 parent_thread: workstream-agentic-observability.agentic-observability-provider-provenance
-parent_spec: docs/superpowers/specs/2026-05-09-evaluable-langfuse-item-observation-contract-spec.md
+parent_spec: docs/superpowers/specs/2026-05-04-langfuse-rich-input-output-observability-spec.md
 targets:
   - docs/observability.md
   - docs/pipeline.md
@@ -43,7 +43,7 @@ Patch nearest truthful analysis and generation boundaries so each candidate-job 
 
 Add focused tests and doc updates proving rendered readability, payload shape, caps, lineage, and backward-compatible run-summary behavior, then complete one live Langfuse verification pass showing nested evaluable item observations beneath existing run trace.
 
-## Task/Wave Breakdown
+## Task Breakdown
 
 ### task 1: Source-first boundary confirmation and scope lock
 

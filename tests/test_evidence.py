@@ -14,6 +14,10 @@ tags:
   - ci-safe
 """
 
+from pathlib import Path
+
+import pytest
+
 from fitcv import evidence as evidence_module
 from fitcv.evidence import retrieve_evidence, retrieve_evidence_bundle, score_evidence_item
 
@@ -696,3 +700,127 @@ def test_retrieve_evidence_bundle_prefers_broader_channel_coverage_over_redundan
     assert bundle["selected_evidence_count"] == 2
     assert len(bundle["unselected_top_candidates"]) >= 1
     assert bundle["unselected_top_candidates"][0]["evidence_id"] == "exp_2"
+
+
+# ── store_evidence_selection ───────────────────────────────────────────────────
+
+
+def test_store_evidence_selection_writes_sqlite_rows(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import json
+    import sqlite3
+
+    from fitcv.evidence import store_evidence_selection
+
+    db_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+
+    selected = [
+        {
+            "evidence_id": "proj_1",
+            "evidence_type": "project_entry",
+            "name": "FitCV",
+            "skills": ["Python", "BigQuery"],
+            "business_value": "Reduced tailoring time",
+            "selection_score": 0.91,
+            "source_ref": "projects[0]",
+        },
+        {
+            "evidence_id": "exp_1",
+            "evidence_type": "experience_entry",
+            "name": "Data Engineer @ Acme",
+            "skills": ["SQL"],
+            "business_value": "",
+            "score": 0.67,
+            "source_ref": "experiences[0]",
+        },
+    ]
+
+    store_evidence_selection("https://example.com/job-1", selected, config={})
+
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute(
+            """
+            SELECT job_url, evidence_id, evidence_type, name, skills_json,
+                   business_value, score, source_ref
+            FROM evidence_selections
+            ORDER BY evidence_id
+            """
+        ).fetchall()
+
+    assert len(rows) == 2
+    assert rows[0][0] == "https://example.com/job-1"
+    assert rows[0][1] == "exp_1"
+    assert json.loads(str(rows[0][4])) == ["SQL"]
+    assert float(rows[0][6]) == 0.67
+    assert rows[1][1] == "proj_1"
+    assert json.loads(str(rows[1][4])) == ["Python", "BigQuery"]
+    assert float(rows[1][6]) == 0.91
+
+
+def test_store_evidence_selection_bigquery_mode_uses_bigquery_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sys
+    import types
+
+    from fitcv.evidence import store_evidence_selection
+
+    calls: dict[str, object] = {}
+
+    class FakeCredentials:
+        @staticmethod
+        def from_service_account_file(path: str) -> str:
+            calls["credential_path"] = path
+            return "fake-creds"
+
+    class FakeClient:
+        def __init__(self, *, project: str, credentials: object) -> None:
+            calls["project"] = project
+            calls["credentials"] = credentials
+
+        def insert_rows_json(self, table_ref: str, rows: list[dict[str, object]]) -> list[object]:
+            calls["table_ref"] = table_ref
+            calls["rows"] = rows
+            return []
+
+    fake_bigquery = types.SimpleNamespace(Client=FakeClient)
+    fake_service_account = types.SimpleNamespace(Credentials=FakeCredentials)
+    monkeypatch.setitem(sys.modules, "google.cloud", types.SimpleNamespace(bigquery=fake_bigquery))
+    monkeypatch.setitem(sys.modules, "google.cloud.bigquery", fake_bigquery)
+    monkeypatch.setitem(sys.modules, "google.oauth2", types.SimpleNamespace(service_account=fake_service_account))
+    monkeypatch.setitem(sys.modules, "google.oauth2.service_account", fake_service_account)
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
+
+    store_evidence_selection(
+        "https://example.com/job-2",
+        [
+            {
+                "evidence_id": "proj_9",
+                "evidence_type": "project_entry",
+                "name": "Warehouse Modernization",
+                "skills": ["dbt"],
+                "business_value": "Improved reporting reliability",
+                "selection_score": 0.88,
+                "source_ref": "projects[2]",
+            }
+        ],
+        config={
+            "gcp_project": "demo-project",
+            "bigquery_dataset": "fitcv",
+            "service_account_key": "C:/fake/key.json",
+        },
+    )
+
+    assert calls["credential_path"] == "C:/fake/key.json"
+    assert calls["project"] == "demo-project"
+    assert calls["table_ref"] == "demo-project.fitcv.evidence_selections"
+    rows = calls["rows"]
+    assert isinstance(rows, list)
+    assert rows[0]["job_url"] == "https://example.com/job-2"
+    assert rows[0]["evidence_id"] == "proj_9"
+    assert rows[0]["skills"] == ["dbt"]
+    assert float(rows[0]["score"]) == 0.88

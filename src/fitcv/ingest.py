@@ -11,9 +11,12 @@ load_to_bigquery      : insert rows into fitcv.raw_jobs (requires credentials)
 
 import json
 import os
+import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from fitcv.config import sqlite_mode_enabled
 
 # ── field mapping: LinkedIn scraper camelCase → raw_jobs snake_case ──────────
 
@@ -130,6 +133,41 @@ def prepare_raw_rows(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 # ── BigQuery load (integration) ───────────────────────────────────────────────
 
+def _local_sqlite_path() -> str:
+    return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+
+
+
+def _ensure_local_raw_jobs_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS raw_jobs (
+            job_url TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            location TEXT NOT NULL,
+            posted_time TEXT NOT NULL,
+            published_at TEXT,
+            company_name TEXT NOT NULL,
+            company_url TEXT NOT NULL,
+            company_id TEXT NOT NULL,
+            description TEXT NOT NULL,
+            applications_count TEXT NOT NULL,
+            contract_type TEXT NOT NULL,
+            experience_level TEXT NOT NULL,
+            work_type TEXT NOT NULL,
+            sector TEXT NOT NULL,
+            salary TEXT NOT NULL,
+            apply_url TEXT NOT NULL,
+            apply_type TEXT NOT NULL,
+            raw_json TEXT NOT NULL,
+            ingested_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.commit()
+
+
+
 def load_to_bigquery(rows: list[dict[str, Any]], config: dict[str, Any]) -> int:
     """Insert *rows* into fitcv.raw_jobs and return the number of rows inserted.
 
@@ -144,7 +182,81 @@ def load_to_bigquery(rows: list[dict[str, Any]], config: dict[str, Any]) -> int:
     Returns:
         Number of rows successfully inserted.
     """
-    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+    if sqlite_mode_enabled(config):
+        db_path = Path(_local_sqlite_path())
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(db_path) as conn:
+            _ensure_local_raw_jobs_table(conn)
+            conn.executemany(
+                """
+                INSERT INTO raw_jobs(
+                    job_url,
+                    title,
+                    location,
+                    posted_time,
+                    published_at,
+                    company_name,
+                    company_url,
+                    company_id,
+                    description,
+                    applications_count,
+                    contract_type,
+                    experience_level,
+                    work_type,
+                    sector,
+                    salary,
+                    apply_url,
+                    apply_type,
+                    raw_json,
+                    ingested_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(job_url) DO UPDATE SET
+                    title = excluded.title,
+                    location = excluded.location,
+                    posted_time = excluded.posted_time,
+                    published_at = excluded.published_at,
+                    company_name = excluded.company_name,
+                    company_url = excluded.company_url,
+                    company_id = excluded.company_id,
+                    description = excluded.description,
+                    applications_count = excluded.applications_count,
+                    contract_type = excluded.contract_type,
+                    experience_level = excluded.experience_level,
+                    work_type = excluded.work_type,
+                    sector = excluded.sector,
+                    salary = excluded.salary,
+                    apply_url = excluded.apply_url,
+                    apply_type = excluded.apply_type,
+                    raw_json = excluded.raw_json,
+                    ingested_at = excluded.ingested_at
+                """,
+                [
+                    (
+                        str(row.get("job_url") or ""),
+                        str(row.get("title") or ""),
+                        str(row.get("location") or ""),
+                        str(row.get("posted_time") or ""),
+                        row.get("published_at"),
+                        str(row.get("company_name") or ""),
+                        str(row.get("company_url") or ""),
+                        str(row.get("company_id") or ""),
+                        str(row.get("description") or ""),
+                        str(row.get("applications_count") or ""),
+                        str(row.get("contract_type") or ""),
+                        str(row.get("experience_level") or ""),
+                        str(row.get("work_type") or ""),
+                        str(row.get("sector") or ""),
+                        str(row.get("salary") or ""),
+                        str(row.get("apply_url") or ""),
+                        str(row.get("apply_type") or ""),
+                        str(row.get("raw_json") or ""),
+                        str(row.get("ingested_at") or ""),
+                    )
+                    for row in rows
+                ],
+            )
+            conn.commit()
         return len(rows)
 
     from google.cloud import bigquery  # type: ignore[import-untyped]
@@ -158,7 +270,8 @@ def load_to_bigquery(rows: list[dict[str, Any]], config: dict[str, Any]) -> int:
         credentials = service_account.Credentials.from_service_account_file(key_path)
         client = bigquery.Client(project=project, credentials=credentials)
     else:
-        client = bigquery.Client(project=project)
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
 
     table_ref = f"{project}.{dataset}.raw_jobs"
     errors = client.insert_rows_json(table_ref, rows)

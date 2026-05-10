@@ -1,6 +1,6 @@
 ---
 name: provider-history-sync-prompt
-description: Sync provider history records to current source-of-truth lifecycle evidence.
+description: Use prompt template for provider history sync prompt.
 type: prompt
 stage: maintenance
 entry_points:
@@ -10,12 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
 tags:
-- prompt
+- prompt-template
 - maintenance
+- operating_system
+owner_layer: operating_system
+status: active
 ---
 
 <!--
@@ -68,3 +71,4 @@ Expected output:
 - SQLite provider counts before and after sync
 - encrypted-content warning, if present
 - restart instruction for Codex Desktop when needed
+

@@ -1,8 +1,8 @@
 ---
 name: thread-checkpoint-result-pack-prompt
-description: Create a checkpoint result pack for thread-level execution evidence.
+description: Use prompt template for thread checkpoint result pack prompt.
 type: prompt
-stage: maintenance
+stage: execution
 entry_points:
 - use this prompt when its title scope matches the current planning/execution need
 prerequisites:
@@ -10,13 +10,15 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- skill-planning-dispatch
+- planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
-- docs/operating_system/workflows/workflow-roadmap-to-closeout.md
 tags:
-- prompt
-- planning
+- prompt-template
+- execution
+- change
+owner_layer: change
+status: active
 ---
 
 <!--
@@ -62,3 +64,4 @@ Please:
 Expected output:
 - one checkpoint result-pack Markdown file at
   `docs/intent/workstreams/checkpoints/<workstream-id>/<thread-slug>/`
+

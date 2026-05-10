@@ -84,40 +84,40 @@ npx gitnexus analyze
   - Source: `docs/operating_system/rules/python-contracts-rule.md`
 
 ### Workflow-Skills Manifest
-- `drift-detection-and-reconciliation-workflow` — Run drift detection and reconciliation workflow procedure.
+- `drift-detection-and-reconciliation-workflow` — Run workflow for drift detection and reconciliation workflow.
   - Source: `docs/operating_system/workflows/drift-detection-and-reconciliation-workflow.md`
   - Generated skill: `skills/drift-detection-and-reconciliation-workflow/SKILL.md`
-- `live-run-closeout-workflow` — Run live run closeout workflow procedure.
+- `live-run-closeout-workflow` — Finalize live-run resolution with durable evidence and route learnings into tests, specs, and future scenarios.
   - Source: `docs/operating_system/workflows/live-run-closeout-workflow.md`
   - Generated skill: `skills/live-run-closeout-workflow/SKILL.md`
-- `live-run-debugging-workflow` — Run live run debugging workflow procedure.
+- `live-run-debugging-workflow` — Run workflow for live run debugging workflow.
   - Source: `docs/operating_system/workflows/live-run-debugging-workflow.md`
   - Generated skill: `skills/live-run-debugging-workflow/SKILL.md`
-- `live-run-execution-workflow` — Run live run execution workflow procedure.
+- `live-run-execution-workflow` — Execute selected live-run scope and produce complete, traceable run evidence.
   - Source: `docs/operating_system/workflows/live-run-execution-workflow.md`
   - Generated skill: `skills/live-run-execution-workflow/SKILL.md`
-- `live-run-preflight-check-workflow` — Run live run preflight check workflow procedure.
+- `live-run-preflight-check-workflow` — Validate live-run prerequisites before execution so evidence can be captured and results are trustworthy.
   - Source: `docs/operating_system/workflows/live-run-preflight-check-workflow.md`
   - Generated skill: `skills/live-run-preflight-check-workflow/SKILL.md`
-- `live-run-scenario-planning-workflow` — Run live run scenario planning workflow procedure.
+- `live-run-scenario-planning-workflow` — Define reusable live-run scenarios and triggers that are traceable to current workstream/thread/spec scope.
   - Source: `docs/operating_system/workflows/live-run-scenario-planning-workflow.md`
   - Generated skill: `skills/live-run-scenario-planning-workflow/SKILL.md`
-- `live-run-system-workflow` — Run live run system workflow procedure.
+- `live-run-system-workflow` — Orchestrate the full live-run lifecycle by routing to the correct modular sub-workflow based on current state and run signals.
   - Source: `docs/operating_system/workflows/live-run-system-workflow.md`
   - Generated skill: `skills/live-run-system-workflow/SKILL.md`
-- `live-run-verification-workflow` — Run live run verification workflow procedure.
+- `live-run-verification-workflow` — Confirm issue resolution and expected behavior using evidence, while screening for regressions before closeout.
   - Source: `docs/operating_system/workflows/live-run-verification-workflow.md`
   - Generated skill: `skills/live-run-verification-workflow/SKILL.md`
-- `roadmap-to-closeout-workflow` — Run roadmap to closeout workflow procedure.
+- `roadmap-to-closeout-workflow` — Run workflow for roadmap to closeout workflow.
   - Source: `docs/operating_system/workflows/roadmap-to-closeout-workflow.md`
   - Generated skill: `skills/roadmap-to-closeout-workflow/SKILL.md`
-- `spec-to-plan-to-execution-workflow` — Run spec to plan to execution workflow procedure.
+- `spec-to-plan-to-execution-workflow` — Run workflow for spec to plan to execution workflow.
   - Source: `docs/operating_system/workflows/spec-to-plan-to-execution-workflow.md`
   - Generated skill: `skills/spec-to-plan-to-execution-workflow/SKILL.md`
-- `test-failure-triage-workflow` — Run test failure triage workflow procedure.
+- `test-failure-triage-workflow` — Run workflow for test failure triage workflow.
   - Source: `docs/operating_system/workflows/test-failure-triage-workflow.md`
   - Generated skill: `skills/test-failure-triage-workflow/SKILL.md`
-- `workflow-and-prompt-metadata-spec` — Run workflow and prompt metadata specification procedure.
+- `workflow-and-prompt-metadata-spec` — Define one minimal metadata contract for `workflows/` and `prompt_templates/` that supports routing and execution with low management overhead.
   - Source: `docs/operating_system/workflows/workflow-and-prompt-metadata-spec.md`
   - Generated skill: `skills/workflow-and-prompt-metadata-spec/SKILL.md`
 
