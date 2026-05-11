@@ -16,13 +16,14 @@ lifecycle:
 """
 
 import re
-import os
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, cast
 
 import yaml
+
+from fitcv.config import sqlite_mode_enabled
 
 
 # ── required profile sections ─────────────────────────────────────────────────
@@ -612,7 +613,7 @@ def load_candidate_to_bigquery(
     Requires GOOGLE_APPLICATION_CREDENTIALS.
     Decorated with @pytest.mark.integration in tests.
     """
-    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+    if sqlite_mode_enabled(config):
         return
 
     from google.cloud import bigquery  # type: ignore[import-untyped]
@@ -622,8 +623,11 @@ def load_candidate_to_bigquery(
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
 
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path:
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
 
     rows_by_table = prepare_profile_rows(profile)
     table_map = {

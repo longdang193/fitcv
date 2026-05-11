@@ -272,12 +272,11 @@ def load_to_bigquery(rows: list[dict[str, Any]], config: dict[str, Any]) -> int:
     project: str = str(config["gcp_project"])
     dataset: str = str(config["bigquery_dataset"])
 
-    if key_path and Path(key_path).exists():
+    if key_path:
         credentials = service_account.Credentials.from_service_account_file(key_path)
         client = bigquery.Client(project=project, credentials=credentials)
     else:
-        credentials = service_account.Credentials.from_service_account_file(key_path)
-        client = bigquery.Client(project=project, credentials=credentials)
+        client = bigquery.Client(project=project)
 
     table_ref = f"{project}.{dataset}.raw_jobs"
     errors = client.insert_rows_json(table_ref, rows)

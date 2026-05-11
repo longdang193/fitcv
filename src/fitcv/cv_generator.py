@@ -86,29 +86,21 @@ def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
             "cv_generation_structured_write provider must be configured in control-plane model_routing.parts as "
             "one of: openai, openai_compatible, 9router."
         )
-    base_url = (
-        str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL") or "").strip()
-        or str(routing.get("base_url") or "").strip()
-    )
+    base_url = str(routing.get("base_url") or "").strip()
     if not base_url:
         raise RuntimeError("OpenAI-compatible CV generation routing requires provider base_url in control-plane config.")
     api_key = (
-        str(os.environ.get("FITCV_LANGGRAPH_OPENAI_API_KEY") or "").strip()
-        or str(os.environ.get("OPENAI_API_KEY") or "").strip()
+        str(os.environ.get("OPENAI_API_KEY") or "").strip()
         or str(os.environ.get("OPENAI_COMPATIBLE_API_KEY") or "").strip()
     )
     if not api_key:
         raise RuntimeError("OpenAI-compatible CV generation routing requires API key in env.")
-    wire_api = str(os.environ.get("FITCV_LANGGRAPH_WIRE_API") or "").strip().lower() or "responses"
-    timeout_seconds = float(str(os.environ.get("FITCV_LANGGRAPH_TIMEOUT_SECONDS") or "").strip() or "120")
-    model_override = (
-        str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
-        or str(routing.get("model") or "").strip()
-    )
+    wire_api = str(routing.get("wire_api") or "").strip().lower() or "responses"
+    timeout_seconds = float(str(routing.get("timeout_seconds") or "").strip() or "120")
+    model_override = str(routing.get("model") or "").strip()
     if not model_override:
         raise RuntimeError(
-            "cv_generation_structured_write model must be configured in control-plane model_routing.parts "
-            "(or FITCV_LANGGRAPH_MODEL env override)."
+            "cv_generation_structured_write model must be configured in control-plane model_routing.parts."
         )
 
     import httpx

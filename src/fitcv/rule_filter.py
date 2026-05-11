@@ -53,6 +53,8 @@ import os
 from datetime import datetime, timezone
 from typing import Any
 
+from fitcv.config import sqlite_mode_enabled
+
 logger = logging.getLogger(__name__)
 
 RULE_FILTER_SIGNAL_LABELS: dict[str, str] = {
@@ -538,7 +540,7 @@ def store_filter_results(
     Requires GOOGLE_APPLICATION_CREDENTIALS.
     Decorated with @pytest.mark.integration in tests.
     """
-    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+    if sqlite_mode_enabled(config):
         return
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
@@ -546,7 +548,7 @@ def store_filter_results(
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
-    if key_path and os.path.exists(key_path):
+    if key_path:
         credentials = service_account.Credentials.from_service_account_file(key_path)
         client = bigquery.Client(project=project, credentials=credentials)
     else:

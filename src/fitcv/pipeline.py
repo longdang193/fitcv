@@ -2170,8 +2170,7 @@ def _non_agentic_cv_generation_runtime_provenance(
         return default_provenance
     provider = str(routing.get("provider") or "").strip().lower()
     routed_model = str(routing.get("model") or "").strip()
-    model_override = str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
-    resolved_model = model_override or routed_model or str(cv_generation_model or "").strip()
+    resolved_model = routed_model or str(cv_generation_model or "").strip()
     if not provider:
         return default_provenance
     runtime_path = (

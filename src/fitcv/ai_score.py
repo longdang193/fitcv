@@ -258,32 +258,24 @@ def _make_genai_client(config: dict[str, Any]) -> Any:
         )
 
     if provider_name in allowed_http_providers:
-        base_url = (
-            str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL") or "").strip()
-            or str(routing.get("base_url") or "").strip()
-        )
+        base_url = str(routing.get("base_url") or "").strip()
         if not base_url:
             raise RuntimeError("OpenAI-compatible reranker routing requires provider base_url in control-plane config.")
         api_key = (
-            str(os.environ.get("FITCV_LANGGRAPH_OPENAI_API_KEY") or "").strip()
-            or str(os.environ.get("OPENAI_API_KEY") or "").strip()
+            str(os.environ.get("OPENAI_API_KEY") or "").strip()
             or str(os.environ.get("OPENAI_COMPATIBLE_API_KEY") or "").strip()
         )
         if not api_key:
             raise RuntimeError(
                 "Config-routed OpenAI-compatible provider for ranking_ai_score requires API key in env "
-                "(FITCV_LANGGRAPH_OPENAI_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY)."
+                "(OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY)."
             )
-        wire_api = str(os.environ.get("FITCV_LANGGRAPH_WIRE_API") or "").strip().lower() or "responses"
-        timeout_seconds = float(str(os.environ.get("FITCV_LANGGRAPH_TIMEOUT_SECONDS") or "").strip() or "120")
-        model_override = (
-            str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
-            or str(routing.get("model") or "").strip()
-        )
+        wire_api = str(routing.get("wire_api") or "").strip().lower() or "responses"
+        timeout_seconds = float(str(routing.get("timeout_seconds") or "").strip() or "120")
+        model_override = str(routing.get("model") or "").strip()
         if not model_override:
             raise RuntimeError(
-                "ranking_ai_score model must be configured in control-plane model_routing.parts "
-                "(or FITCV_LANGGRAPH_MODEL env override)."
+                "ranking_ai_score model must be configured in control-plane model_routing.parts."
             )
 
         def _generate_content(*, model: str, contents: str) -> Any:
@@ -505,8 +497,11 @@ def store_ai_scores(
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path:
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
     table_ref = f"{project}.{dataset}.ai_score_results"
 
     rows = [

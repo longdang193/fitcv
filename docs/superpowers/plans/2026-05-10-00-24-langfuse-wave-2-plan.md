@@ -5,7 +5,7 @@ status: proposed
 template_id: implementation-plan
 name: langfuse-wave-2-observability-integration
 parent_thread: workstream-agentic-observability.agentic-observability-provider-provenance
-parent_spec: docs/superpowers/specs/2026-05-04-local-langfuse-ingestion-and-link-validity-spec.md
+parent_spec: docs/superpowers/specs/2026-05-09-evaluable-langfuse-item-observation-contract-spec.md
 targets:
   - docs/observability.md
   - docs/pipeline.md
@@ -18,22 +18,23 @@ targets:
   - tests/test_fitcv_cp/test_reporter.py
   - tests/test_pipeline.py
 related_stages:
+  - enrich
   - cv_analysis
   - cv_generation
-  - cv_generation
+  - acceptance_review
 ---
 
 # 2026-05-10 Langfuse Wave 2 Observability Integration Plan
 
 ## Goal
 
-Implement Wave 2 observability contract on top of existing Wave 1 Langfuse item telemetry by adding a truthful `cv_generation_item` observation lane and a downstream evaluator/export lane, while preserving run-summary boundaries and stable lineage across `cv_analysis_item` -> `cv_generation_item` -> `cv_generation_item` for deterministic review and offline evaluation.
+Implement Wave 2 observability contract on top of existing Wave 1 Langfuse item telemetry by adding a truthful `acceptance_review_item` observation lane and a downstream evaluator/export lane, while preserving run-summary boundaries and stable lineage across `cv_analysis_item` -> `cv_generation_item` -> `acceptance_review_item` for deterministic review and offline evaluation.
 
 ## Key Deliverables
 
 ### Acceptance review observation contract
 
-- Add canonical `cv_generation_item` emission with strict enum validation for review action (`approved`, `rejected`, `changes_requested`, `approved_with_warnings`).
+- Add canonical `acceptance_review_item` emission with strict enum validation for review action (`approved`, `rejected`, `changes_requested`, `approved_with_warnings`).
 - Enforce lineage to generation attempt via required `source_generation_version_id` and linkable observation metadata.
 - Preserve reviewer-first rendered `input`/`output` plus structured backing metadata for automation.
 
@@ -51,6 +52,29 @@ Implement Wave 2 observability contract on top of existing Wave 1 Langfuse item 
 
 ## Task Breakdown
 
+### task 0: quality-stage readable IO contract hardening (audit priority)
+
+**Files:**
+- Inspect: `docs/superpowers/reports/2026-05-10-langfuse-quality-observability-audit.md`
+- Inspect: `src/fitcv/telemetry.py`
+- Inspect: `src/fitcv/pipeline.py`
+- Inspect: `src/fitcv_cp/reporter.py`
+- Inspect: `src/fitcv_cp/worker_job.py`
+- Inspect tests: `tests/test_fitcv/test_telemetry.py`, `tests/test_fitcv_cp/test_reporter.py`, `tests/test_pipeline.py`
+
+- [ ] Step 1: enforce hard invariant for quality stages (`enrich_item`, `cv_analysis_item`, `cv_generation_item`, `acceptance_review_item`) that top-level readable `output` is never undefined/empty.
+- [ ] Step 2: require bounded reviewer-readable `input` and `output` for each quality stage item emission.
+- [ ] Step 3: split payload domains explicitly:
+  - reviewer-facing summaries in top-level `input`/`output`
+  - evaluable structured fields in `metadata.quality.*`
+  - control/provenance/ops fields in `metadata.ops.*`
+- [ ] Step 4: define stage-specific output summary expectations:
+  - `enrich_item`: extracted entities/deltas and normalization summary
+  - `cv_analysis_item`: fit label, top reasons, confidence/evidence summary
+  - `cv_generation_item`: generated CV preview snippet, validation summary, selected-attempt context
+  - `acceptance_review_item`: action, rationale, warning/violation summary, reviewer-note excerpt
+- [ ] Step 5: add trace re-sampling verification criteria so patched traces prove sub-15-second quality review viability per item.
+
 ### task 1: lock Wave 2 contract boundaries and ownership
 
 **Files:**
@@ -61,17 +85,17 @@ Implement Wave 2 observability contract on top of existing Wave 1 Langfuse item 
 - Inspect tests: `tests/test_fitcv/test_telemetry.py`, `tests/test_fitcv_cp/test_reporter.py`, `tests/test_pipeline.py`
 
 - [ ] Step 1: confirm exact emission boundary where final acceptance decision becomes truthful and durable.
-- [ ] Step 2: map current Wave 1 lineage fields and decide canonical parent linkage for `cv_generation_item`.
+- [ ] Step 2: map current Wave 1 lineage fields and decide canonical parent linkage for `acceptance_review_item`.
 - [ ] Step 3: define required vs optional Wave 2 metadata fields and bounded limits.
 - [ ] Step 4: confirm run-summary surfaces remain aggregate-only and do not shadow-store full item IO.
 
-### task 2: implement `cv_generation_item` schema helper and guardrails
+### task 2: implement `acceptance_review_item` schema helper and guardrails
 
 **Files:**
 - Modify: `src/fitcv/telemetry.py`
 - Modify/Add tests: `tests/test_fitcv/test_telemetry.py`
 
-- [ ] Step 1: add helper builder for `cv_generation_item` envelope with required fields:
+- [ ] Step 1: add helper builder for `acceptance_review_item` envelope with required fields:
   - `observation_type`, `schema_version`, `redaction_version`
   - `run_id`, `candidate_id`, `job_id`, `attempt_id`, `attempt_index`, `selected`
   - `source_generation_version_id`, `parent_observation_id`
@@ -82,7 +106,7 @@ Implement Wave 2 observability contract on top of existing Wave 1 Langfuse item 
 - [ ] Step 4: include normalization helpers for booleans, indexes, and nullable fields aligned with Wave 1 style.
 - [ ] Step 5: preserve non-blocking telemetry behavior when exporters are disabled or degraded.
 
-### task 3: emit `cv_generation_item` at truthful pipeline boundary
+### task 3: emit `acceptance_review_item` at truthful pipeline boundary
 
 **Files:**
 - Modify: `src/fitcv/pipeline.py`
@@ -90,7 +114,7 @@ Implement Wave 2 observability contract on top of existing Wave 1 Langfuse item 
 - Modify: `src/fitcv_cp/worker_job.py`
 - Modify/Add tests: `tests/test_pipeline.py`, `tests/test_fitcv_cp/test_reporter.py`
 
-- [ ] Step 1: patch acceptance decision boundary to emit one `cv_generation_item` per finalized review decision.
+- [ ] Step 1: patch acceptance decision boundary to emit one `acceptance_review_item` per finalized review decision.
 - [ ] Step 2: wire parent-child lineage to selected `cv_generation_item` attempt and include `source_generation_version_id`.
 - [ ] Step 3: capture review context in structured metadata (reason codes, warning counts, override flags, operator note excerpts).
 - [ ] Step 4: keep terminal disposition semantics distinguishable (`approved`, `rejected`, `changes_requested`, `approved_with_warnings`).
@@ -117,7 +141,7 @@ Implement Wave 2 observability contract on top of existing Wave 1 Langfuse item 
 - Modify/Add tests: `tests/test_fitcv/test_telemetry.py`, `tests/test_pipeline.py`, `tests/test_fitcv_cp/test_reporter.py`
 
 - [ ] Step 1: document Wave 2 two-lane contract and explicit boundaries vs Wave 1.
-- [ ] Step 2: publish `cv_generation_item` schema table with required fields and enum values.
+- [ ] Step 2: publish `acceptance_review_item` schema table with required fields and enum values.
 - [ ] Step 3: publish evaluator/export field contract and sample row semantics.
 - [ ] Step 4: add fixtures for paths:
   - accepted clean
@@ -161,12 +185,15 @@ Optional export verification lane:
 
 A plan item is considered complete when:
 
-1. `cv_generation_item` observation emits at truthful boundary with enforced action enum and required lineage fields.
-2. Wave 2 export lane produces stable evaluator-ready JSONL/CSV rows from structured metadata.
-3. Wave 1 run-summary and item-observation behavior remains backward compatible and separate from evaluator export concerns.
-4. fixtures and tests pass for approval/rejection/change-request/warning-accept paths plus degraded telemetry path.
-5. docs describe Wave 2 contract, dependencies, and rollout/rollback boundaries clearly for execution handoff.
-6. planning lifecycle and template validators pass without introducing contract drift.
+1. No quality stage (`enrich_item`, `cv_analysis_item`, `cv_generation_item`, `acceptance_review_item`) emits undefined/empty top-level readable `output` in sampled traces.
+2. Each sampled quality stage trace shows bounded reviewer-readable `input` and `output` plus structured `metadata.quality.*` without crowding primary IO with ops/control fields.
+3. Reviewer can determine outcome quality in under 15 seconds per sampled item from Langfuse trace UI.
+4. `acceptance_review_item` observation emits at truthful boundary with enforced action enum and required lineage fields.
+5. Wave 2 export lane produces stable evaluator-ready JSONL/CSV rows from structured metadata.
+6. Wave 1 run-summary and item-observation behavior remains backward compatible and separate from evaluator export concerns.
+7. fixtures and tests pass for approval/rejection/change-request/warning-accept paths plus degraded telemetry path.
+8. docs describe Wave 2 contract, dependencies, and rollout/rollback boundaries clearly for execution handoff.
+9. planning lifecycle and template validators pass without introducing contract drift.
 
 ## Lifecycle Evidence Reconciliation (2026-05-10)
 

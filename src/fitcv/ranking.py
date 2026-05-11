@@ -15,12 +15,12 @@ lifecycle:
   - status: active
 """
 
-import os
 import re
 from datetime import datetime, timezone
 from typing import Any
 
 from fitcv.candidate import canonicalize_role_title, infer_role_family
+from fitcv.config import sqlite_mode_enabled
 
 SUPPORTED_RANKING_FEATURES = (
     "ai_score",
@@ -475,7 +475,7 @@ def store_final_ranking(
     """
     if not ranked_jobs:
         return
-    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+    if sqlite_mode_enabled(config):
         return
 
     from google.cloud import bigquery  # type: ignore[import-untyped]
@@ -485,7 +485,7 @@ def store_final_ranking(
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
 
-    if key_path and os.path.exists(key_path):
+    if key_path:
         credentials = service_account.Credentials.from_service_account_file(key_path)
         client = bigquery.Client(project=project, credentials=credentials)
     else:
