@@ -31,7 +31,7 @@ tags:
 multi-lane merge sequencing (use multi-worktree merge/reconcile prompt)
 
 ```text
-Orchestrate PR/merge for one lane and reconcile closure evidence.
+Orchestrate PR/merge for current lane only after closure-evidence reconciliation confirms all in-scope plans and execution-context handoff artifacts are complete: zero unresolved checklist items (`- [ ]`), no stale status fields, and no empty required sections.
 
 Context:
 - roadmap/workstream/thread in scope:

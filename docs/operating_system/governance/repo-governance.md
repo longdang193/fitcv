@@ -58,6 +58,9 @@ while still splitting ownership by role:
 - `.agents/agents/` for optional repo-local playbooks
 - `docs/operating_system/` for human governance
 
+Execution context-pack governance for long-running session handoff is defined in:
+- `docs/operating_system/governance/execution-context-pack-governance.md`
+
 The repo also splits configuration ownership by purpose:
 
 - `repo_config/`

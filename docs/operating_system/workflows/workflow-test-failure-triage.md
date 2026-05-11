@@ -36,21 +36,30 @@ unnecessary scope growth.
    - environment/config issue
    - spec mismatch
    - missing implementation
-4. Define minimal required fix.
-5. Apply fix.
-6. Rerun targeted tests first.
-7. Rerun full suite if needed by impact/risk.
-8. Confirm stability and no unintended regressions.
+4. Audit gate:
+   - if failure persists and is not proven flaky, create/update audit bundle at `docs/superpowers/plans/audit/<audit_id>/` using canonical template.
+   - before closure for qualifying failures, run:
+
+   ```powershell
+   .\.venv\Scripts\python.exe scripts\audit_check.py docs/superpowers/plans/audit/<audit_id>
+   ```
+5. Define minimal required fix.
+6. Apply fix.
+7. Rerun targeted tests first.
+8. Rerun full suite if needed by impact/risk.
+9. Confirm stability and no unintended regressions.
 
 ## Decision Gates
 
 1. Classification-before-fix gate:
    - do not implement until failure class is explicit.
-2. Minimal-fix gate:
+2. Audit mandate gate:
+   - persistent non-flaky failures require audit record (or explicit allowed bypass) per `docs/operating_system/rules/audit-evidence-mandate-rule.md`.
+3. Minimal-fix gate:
    - reject broad refactors unless explicitly required to fix boundary.
-3. Spec-alignment gate:
+4. Spec-alignment gate:
    - reject “make tests green only” fixes that violate intended behavior/spec.
-4. Stability gate:
+5. Stability gate:
    - pass requires targeted rerun success; full rerun required when risk warrants.
 
 ## Anti-Patterns To Avoid
@@ -68,6 +77,7 @@ unnecessary scope growth.
 ## Exit Criteria
 
 - failing tests are reproduced and classified
+- required audit bundle exists for persistent non-flaky failures (or explicit bypass recorded)
 - minimal fix is applied and justified
 - targeted rerun passes
 - full suite rerun passes when required

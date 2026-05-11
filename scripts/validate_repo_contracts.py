@@ -133,6 +133,7 @@ IN_PROCESS_SCRIPT_NAMES = {
     "validate_template_required_sections.py",
     "validate_prompt_ladder.py",
     "validate_prompt_metadata_schema.py",
+    "validate_execution_context_pack_references.py",
     "validate_agent_metadata_schema.py",
     "validate_provider_settings_schema.py",
     "validate_generated_header_format.py",
@@ -212,6 +213,7 @@ def build_subprocess_steps(
     template_sections_script = str(root / "scripts" / "validate_template_required_sections.py")
     prompt_ladder_script = str(root / "scripts" / "validate_prompt_ladder.py")
     prompt_metadata_schema_script = str(root / "scripts" / "validate_prompt_metadata_schema.py")
+    context_pack_references_script = str(root / "scripts" / "validate_execution_context_pack_references.py")
     repo_config_script = str(root / "scripts" / "validate_repo_config.py")
     agent_metadata_schema_script = str(root / "scripts" / "validate_agent_metadata_schema.py")
     provider_settings_schema_script = str(root / "scripts" / "validate_provider_settings_schema.py")
@@ -224,6 +226,7 @@ def build_subprocess_steps(
         [python_executable, template_sections_script],
         [python_executable, prompt_ladder_script],
         [python_executable, prompt_metadata_schema_script],
+        [python_executable, context_pack_references_script],
         [python_executable, agent_metadata_schema_script],
         [python_executable, provider_settings_schema_script],
         [python_executable, generated_header_script],
