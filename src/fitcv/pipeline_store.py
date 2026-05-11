@@ -1,4 +1,19 @@
-"""Pipeline-stage storage adapter surface for portability."""
+"""@meta
+name: pipeline_store
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.pipeline_store.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
+"""
 
 from __future__ import annotations
 

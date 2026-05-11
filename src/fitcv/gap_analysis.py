@@ -1,35 +1,18 @@
-"""Gap analysis — classify skill and experience fit between a candidate and a job.
-
-Public API
-----------
-normalise_raw_skill    : light normalisation for raw-string comparison
-classify_skill_match   : classify one required skill as matched / partial / missing
-compute_gap            : classify all required skills + flag years/overclaim risks
-classify_fit           : map a gap result to a fit label (strong/stretch/skip)
-store_gap_analysis     : persist gap result to BigQuery (integration)
-
-Skill matching rule
--------------------
-Two-level matching:
-
-  1. Raw match (→ ``matched``)
-     The candidate skill string equals the required skill string after
-     light normalisation (lowercase + strip). No synonym map involved.
-     SQL ↔ sql → matched.
-
-  2. Canonical synonym match (→ ``partial``)
-     The raw strings differ, but both map to the same canonical skill
-     through the synonym map.
-     GCP ↔ Google Cloud → partial  (both → "google cloud" via synonym map)
-     Apache Airflow ↔ Airflow → partial
-
-  3. No match (→ ``missing``)
-     Neither raw nor canonical synonym match.
-
-``partial`` entries are dicts, not plain strings:
-  {"required": "Google Cloud", "candidate": "GCP", "canonical": "google cloud"}
-
-This preserves provenance for CV generation and overclaim detection.
+"""@meta
+name: gap_analysis
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.gap_analysis.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
 """
 
 import os

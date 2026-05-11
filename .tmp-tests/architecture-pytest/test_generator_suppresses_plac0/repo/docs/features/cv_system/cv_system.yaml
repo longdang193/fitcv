@@ -1,0 +1,35 @@
+# GENERATED FILE - do not edit directly.
+feature_id: cv_system
+name: CV System
+status: active
+type: add
+summary: Own the CV-writing lifecycle.
+invariants: []
+domains:
+- pipeline
+depends_on: []
+capabilities:
+- capability_id: cv_system.structured-cv-generation
+  statement: Generate CV artifacts.
+  state: active
+stage_participation:
+- stage_id: cv_analysis
+  role: primary
+  capability_ids:
+  - cv_system.structured-cv-generation
+refs:
+  code:
+  - scripts/cv_writer.py
+  tests:
+  - tests/test_cv_writer.py
+  specs: []
+  plans:
+  - docs/superpowers/plans/2026-04-22-generic-rollup.md
+  docs:
+  - docs/features/cv_system/history.md
+  configs:
+  - config/runtime/prompts.yaml
+  components: []
+revision: 1
+latest_change_id: generic-rollup
+last_updated_at: '2026-04-22T11:00:00+00:00'

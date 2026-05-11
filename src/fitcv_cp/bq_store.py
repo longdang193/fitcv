@@ -1,38 +1,18 @@
-"""
-@meta
-name: control_plane_bq_store
-type: utility
-domain: admin_ui
+"""@meta
+name: bq_store
+type: module
+domain: runtime
+ownership: infrastructure
 responsibility:
-  - Persist and read control-plane run, event, snapshot, and artifact records.
-  - Keep mutating BigQuery operations parameterized.
+  - Module metadata placeholder for src.fitcv_cp.bq_store.
 inputs:
-  - control-plane model objects
-  - BigQuery table rows and query results
+  - Internal runtime calls and module imports
 outputs:
-  - pipeline_runs, run_events, and run-scoped snapshot updates
-capabilities:
-  - admin_control_plane_core.pipeline-runs-bigquery-table
-  - admin_control_plane_core.pipeline-run-events-bigquery-table
-  - multi_file_job_input.one-immutable-snapshot-stored-per-run
-  - run_lifecycle_controls.archive-and-unarchive-terminal-runs
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
-  - inspection_debugging.settings-used-export
-  - inspection_debugging.results-ledger-inspection
-  - inspection_debugging.stage-transition-diagnostics
-  - inspection_debugging.enriched-job-debug-export
-  - pipeline_performance.operator-facing-enriched-job-exports-now-keep-canonical-semantic-fields-and-fingerprint-reuse-provenance-while-omitting-retired-raw-duplicate-classification-baggage
-  - settings_system.trigger-time-effective-settings-snapshot
-  - trigger_run_management.runs-list-management
-  - trigger_run_management.run-detail-actions
-  - trigger_run_management.run-owned-artifact-exports
-  - trigger_run_management.run-results-export
-tags:
-  - bigquery
-  - control-plane
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
+
 import datetime
 import dataclasses
 import json

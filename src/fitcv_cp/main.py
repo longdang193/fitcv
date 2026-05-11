@@ -1,4 +1,17 @@
-"""Uvicorn entrypoint for the FitCV admin web service."""
+"""@meta
+name: main
+type: module
+domain: runtime
+ownership: infrastructure
+responsibility:
+  - Module metadata placeholder for src.fitcv_cp.main.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
+"""
 
 import logging
 import os

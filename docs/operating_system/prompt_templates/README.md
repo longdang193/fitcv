@@ -45,6 +45,7 @@ For multi-step procedures with decision gates, use workflow docs under:
 |---|---|
 | New bug, route unknown | [bug-intake-and-routing-prompt.md](./bug-intake-and-routing-prompt.md) |
 | Audit bundle authoring/repair for qualifying failure | [audit-report-with-evidence-prompt.md](./audit-report-with-evidence-prompt.md) |
+| Post-audit remediation routing (plan-first vs patch-now) | [post-audit-plan-and-patch-prompt.md](./post-audit-plan-and-patch-prompt.md) |
 | Patch implementation + pattern scan | [patch-and-pattern-detection-prompt.md](./patch-and-pattern-detection-prompt.md) |
 | Post-patch regression scope decision | [post-patch-regression-scope-prompt.md](./post-patch-regression-scope-prompt.md) |
 | Deferred likely/risk finding capture | [known-issue-capture-prompt.md](./known-issue-capture-prompt.md) |
@@ -92,21 +93,25 @@ Use in this order:
 
 1. [planning-readiness-gate-prompt.md](./planning-readiness-gate-prompt.md)
 2. [live-run-system-dispatch-prompt.md](./live-run-system-dispatch-prompt.md)
-3. [execution-readiness-gate-prompt.md](./execution-readiness-gate-prompt.md)
-4. [implementation-next-action-gate-prompt.md](./implementation-next-action-gate-prompt.md)
-5. [execute-prompt.md](./execute-prompt.md)
-6. [patch-and-pattern-detection-prompt.md](./patch-and-pattern-detection-prompt.md) (when selected action is a patch/debug lane)
-7. [multi-worktree-dispatch-prompt.md](./multi-worktree-dispatch-prompt.md) (when independent lanes are detected)
-8. [multi-worktree-merge-and-reconcile-prompt.md](./multi-worktree-merge-and-reconcile-prompt.md) (if lane split happened)
-9. [live-run-closeout-decision-prompt.md](./live-run-closeout-decision-prompt.md)
-10. [thread-closeout-readiness-prompt.md](./thread-closeout-readiness-prompt.md)
-11. [workstream-closeout-readiness-prompt.md](./workstream-closeout-readiness-prompt.md)
-12. [roadmap-closeout-readiness-prompt.md](./roadmap-closeout-readiness-prompt.md) (if roadmap closure is in scope)
+3. [deliverable-verdict-gate-prompt.md](./deliverable-verdict-gate-prompt.md)
+4. [live-run-deliverable-check-prompt.md](./live-run-deliverable-check-prompt.md)
+5. [execution-readiness-gate-prompt.md](./execution-readiness-gate-prompt.md)
+6. [implementation-next-action-gate-prompt.md](./implementation-next-action-gate-prompt.md)
+7. [execute-prompt.md](./execute-prompt.md)
+8. [patch-and-pattern-detection-prompt.md](./patch-and-pattern-detection-prompt.md) (when selected action is a patch/debug lane)
+9. [multi-worktree-dispatch-prompt.md](./multi-worktree-dispatch-prompt.md) (when independent lanes are detected)
+10. [multi-worktree-merge-and-reconcile-prompt.md](./multi-worktree-merge-and-reconcile-prompt.md) (if lane split happened)
+11. [live-run-closeout-decision-prompt.md](./live-run-closeout-decision-prompt.md)
+12. [thread-closeout-readiness-prompt.md](./thread-closeout-readiness-prompt.md)
+13. [workstream-closeout-readiness-prompt.md](./workstream-closeout-readiness-prompt.md)
+14. [roadmap-closeout-readiness-prompt.md](./roadmap-closeout-readiness-prompt.md) (if roadmap closure is in scope)
 
 ```mermaid
 flowchart TD
   P["planning-readiness-gate-prompt.md"] --> A["live-run-system-dispatch-prompt.md"]
-  A --> R["execution-readiness-gate-prompt.md"]
+  A --> V["deliverable-verdict-gate-prompt.md"]
+  V --> Q["live-run-deliverable-check-prompt.md"]
+  Q --> R["execution-readiness-gate-prompt.md"]
   R --> B["implementation-next-action-gate-prompt.md"]
   B --> C["execute-prompt.md"]
   C --> D{"Selected action is patch/debug?"}
@@ -156,6 +161,7 @@ Use in this order:
 - [roadmap-gap-prompt.md](./roadmap-gap-prompt.md)
 - [parallel-bounded-change-planning-prompt.md](./parallel-bounded-change-planning-prompt.md)
 - [planning-readiness-gate-prompt.md](./planning-readiness-gate-prompt.md)
+- [deliverable-verdict-gate-prompt.md](./deliverable-verdict-gate-prompt.md)
 - [execution-readiness-gate-prompt.md](./execution-readiness-gate-prompt.md)
 - [multi-worktree-dispatch-prompt.md](./multi-worktree-dispatch-prompt.md)
 - [single-lane-merge-and-reconcile-prompt.md](./single-lane-merge-and-reconcile-prompt.md)

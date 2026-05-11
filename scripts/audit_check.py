@@ -1,9 +1,24 @@
+"""
+@meta
+name: audit_check
+type: script
+domain: governance
+responsibility:
+  - Validate audit bundle structure and required report sections.
+  - Enforce presence of evidence, repro, and manifest artifact declarations.
+inputs:
+  - Path to docs/superpowers/plans/audit/<audit_id>
+outputs:
+  - Exit code and validation diagnostics
+lifecycle:
+  status: active
+"""
+
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
 import sys
-
 
 REQUIRED_FILES = ["report.md", "manifest.yaml"]
 REQUIRED_REPORT_TOKENS = [

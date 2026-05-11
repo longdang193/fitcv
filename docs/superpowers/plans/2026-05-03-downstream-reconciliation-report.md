@@ -11,10 +11,8 @@ targets:
   - docs/superpowers/specs/
   - docs/superpowers/execution_maps/
   - docs/superpowers/plans/
-related_features:
-  - none
-related_stages:
-  - none
+related_features: []
+related_stages: []
 ---
 # Downstream Reconciliation Report
 

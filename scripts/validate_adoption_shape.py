@@ -57,6 +57,8 @@ from planning_artifact_schema import (
 
 from validator_policy import (
     ALLOWED_MODES,
+    ALLOWED_REPO_ROLES,
+    DEFAULT_REPO_ROLE,
     ALLOWED_STARTER_SYNC_STATUSES,
     ARCHITECTURE_DAG_REQUIRED_KEYS,
     GENERATED_HISTORY_END_MARKER,
@@ -95,6 +97,7 @@ from validator_policy import (
     MODE_A_TEMPLATE_REQUIRED_FILES,
     MODE_A_TEMPLATE_ROOT,
     MODE_A_TEMPLATE_SPEC_PATH,
+    normalize_adoption_mode,
     PLACEHOLDER_PATTERNS,
     REQUIRED_DOC_KEYWORDS,
     REQUIRED_LINEAGE_TOP_LEVEL_KEYS,
@@ -123,6 +126,7 @@ class Finding:
 @dataclass(frozen=True)
 class AdoptionConfig:
     mode: str
+    repo_role: str
     managed_architecture_metadata: bool
     legacy_feature_contracts: bool
     architecture_generator: str
@@ -232,7 +236,8 @@ def parse_adoption_config(path: Path, findings: list[Finding], root: Path) -> Ad
         )
         return None
 
-    mode = payload.get("adoption_mode")
+    mode = normalize_adoption_mode(payload.get("adoption_mode"))
+    repo_role = payload.get("repo_role", DEFAULT_REPO_ROLE)
     managed = payload.get("managed_architecture_metadata")
     legacy = payload.get("legacy_feature_contracts")
     generator = payload.get("architecture_generator", "none")
@@ -243,6 +248,15 @@ def parse_adoption_config(path: Path, findings: list[Finding], root: Path) -> Ad
             relpath(path, root),
             f"Invalid adoption_mode: {mode!r}.",
             "Use one of: " + ", ".join(sorted(ALLOWED_MODES)) + ".",
+        )
+        return None
+
+    if not isinstance(repo_role, str) or repo_role not in ALLOWED_REPO_ROLES:
+        add_error(
+            findings,
+            relpath(path, root),
+            f"repo_role must be one of {sorted(ALLOWED_REPO_ROLES)}.",
+            "Set repo_role to source_owner or consumer_derived.",
         )
         return None
 
@@ -273,7 +287,7 @@ def parse_adoption_config(path: Path, findings: list[Finding], root: Path) -> Ad
         )
         return None
 
-    config = AdoptionConfig(mode, managed, legacy, generator, payload)
+    config = AdoptionConfig(mode, repo_role, managed, legacy, generator, payload)
     validate_mode_consistency(config, relpath(path, root), findings)
     validate_starter_sync_record(config, relpath(path, root), findings)
     return config
@@ -2757,55 +2771,23 @@ def validate_starter_method_only(root: Path, findings: list[Finding]) -> None:
     if features_root.exists():
         for path in sorted(features_root.iterdir()):
             if path.name != "README.md":
-                add_warning(
+                add_error(
                     findings,
                     relpath(path, root),
                     "Non-README entry exists under docs/features in starter_method_only mode.",
-                    "Confirm this is intentional prose, or switch adoption mode before adding feature metadata.",
+                    "Switch adoption mode before adding feature surfaces under docs/features/.",
                 )
     stages_root = root / "docs" / "stages"
     if stages_root.exists():
         for path in sorted(stages_root.iterdir()):
             if path.name != "README.md":
-                add_warning(
+                add_error(
                     findings,
                     relpath(path, root),
                     "Non-README entry exists under docs/stages in starter_method_only mode.",
-                    "Confirm this is intentional prose, or switch adoption mode before adding stage metadata.",
+                    "Switch adoption mode before adding stage surfaces under docs/stages/.",
                 )
-    if starter_method_only_has_nontrivial_runtime_surface(root) and not (
-        root / "docs" / "features" / "README.md"
-    ).exists():
-        add_warning(
-            findings,
-            "docs/features/README.md",
-            "Mode A repo appears to have meaningful product/runtime surface but is missing the lightweight feature index.",
-            (
-                "Add docs/features/README.md now as the lightweight feature index. Treat this as an early "
-                "migration signal toward `managed_architecture_metadata` once the repo has durable feature surface."
-            ),
-        )
-    if starter_method_only_has_api_surface(root) and not (root / "docs" / "api.md").exists():
-        add_warning(
-            findings,
-            "docs/api.md",
-            "Mode A repo appears API-heavy but is missing the lightweight API guide.",
-            (
-                "Add docs/api.md as an early anchor for the external interface. For a mature API-rich repo, "
-                "treat this as a migration signal toward `managed_architecture_metadata`, not the final "
-                "steady-state answer."
-            ),
-        )
-    if starter_method_only_has_outgrown_lightweight_anchors(root):
-        add_warning(
-            findings,
-            "repo_config/adoption-mode.yaml",
-            "Mode A repo appears to have outgrown lightweight anchors.",
-            (
-                "Plan migration to `managed_architecture_metadata` so durable product features and "
-                "stages can move into managed source and generated contract surfaces."
-            ),
-        )
+
 
 
 def validate_managed_mode(config: AdoptionConfig, root: Path, findings: list[Finding]) -> None:

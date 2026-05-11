@@ -1,0 +1,5 @@
+adoption_mode: starter_method_only
+repo_role: invalid_role
+managed_architecture_metadata: false
+legacy_feature_contracts: false
+architecture_generator: none

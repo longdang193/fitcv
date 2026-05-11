@@ -11,6 +11,8 @@ from typing import Any
 
 import yaml
 
+from validator_policy import DEFAULT_REPO_ROLE, normalize_adoption_mode
+
 VALID_PROVIDERS = ("codex", "claude", "antigravity")
 VALID_EVENTS = ("task_start", "task_end", "error", "pre_tool", "post_tool")
 VALIDATOR_COMMAND = "python scripts/hooks/run_validator.py --fast"
@@ -47,9 +49,42 @@ def _contains_encoded_whitespace(command: str) -> bool:
     return "%20" in command.lower()
 
 
+def read_adoption_config(root: Path) -> tuple[str, str]:
+    mode_file = root / "repo_config" / "adoption-mode.yaml"
+    if not mode_file.exists():
+        return "managed_architecture_metadata", DEFAULT_REPO_ROLE
+    payload = yaml.safe_load(mode_file.read_text(encoding="utf-8")) or {}
+    if not isinstance(payload, dict):
+        return "managed_architecture_metadata", DEFAULT_REPO_ROLE
+    mode = normalize_adoption_mode(payload.get("adoption_mode"))
+    repo_role = payload.get("repo_role", DEFAULT_REPO_ROLE)
+    normalized_mode = mode if isinstance(mode, str) and mode.strip() else "managed_architecture_metadata"
+    normalized_role = repo_role if isinstance(repo_role, str) and repo_role.strip() else DEFAULT_REPO_ROLE
+    return normalized_mode, normalized_role
+
+
 def validate(root: Path) -> list[Finding]:
     findings: list[Finding] = []
     settings_root = root / "docs" / "operating_system" / "provider_settings"
+    adoption_mode, repo_role = read_adoption_config(root)
+    requires_source_owned_provider_settings = (
+        adoption_mode != "starter_method_only" and repo_role == "source_owner"
+    )
+    if not settings_root.exists():
+        if requires_source_owned_provider_settings:
+            findings.append(
+                Finding(
+                    "provider_settings_schema_error",
+                    "docs/operating_system/provider_settings",
+                    "missing required provider_settings directory for source-owner managed mode.",
+                )
+            )
+        else:
+            print(
+                "SKIP:validate_provider_settings_schema:provider_settings omitted for starter_method_only or consumer_derived mode"
+            )
+        return findings
+
     for provider in VALID_PROVIDERS:
         path = settings_root / f"{provider}.yaml"
         rel = _relative(path, root)

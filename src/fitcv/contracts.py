@@ -1,3 +1,20 @@
+"""@meta
+name: contracts
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.contracts.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

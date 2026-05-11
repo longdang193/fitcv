@@ -1,13 +1,18 @@
-"""Structured candidate profile loading, validation, and BigQuery preparation.
-
-Public API
-----------
-load_profile_yaml          : parse YAML profile file
-validate_profile           : check required sections are present
-flatten_skills             : extract deduplicated skill list from all evidence
-infer_effective_preferences : merge explicit preferences with deterministic fallback intent
-prepare_profile_rows       : map profile to all 5 BQ table schemas
-load_candidate_to_bigquery : insert into all candidate BQ tables (integration)
+"""@meta
+name: candidate
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.candidate.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
 """
 
 import re

@@ -1,6 +1,7 @@
 ---
 name: live-run-system-dispatch-prompt
-description: you need to choose the correct live-run workflow and entry point.
+description: Route live-run work to the correct next workflow stage based on current
+  state.
 type: prompt
 stage: execution
 entry_points:
@@ -13,16 +14,14 @@ next_steps:
 - implementation-next-action-gate-prompt.md
 - thread-closeout-readiness-prompt.md
 related_skills:
-- planning-dispatch
-- executing-plans
+- skill-planning-dispatch
+- skill-executing-plans
 required_reads:
 - docs/operating_system/prompt_templates/README.md
+- docs/operating_system/workflows/workflow-live-run-system.md
 tags:
-- prompt-template
+- prompt
 - execution
-- change
-owner_layer: change
-status: active
 ---
 
 <!--
@@ -35,41 +34,8 @@ To update: edit canonical source, then run sync.
 
 # Live Run System Dispatch Prompt
 
-## Use When
-
-you need to choose the correct live-run workflow and entry point
-
-## Prerequisites
-
-### Required
-
-- current live-run state is known (not started | in progress | failed | passed | closeout pending)
-- available evidence/artifacts and unresolved blockers are listed
-
-### Optional
-
-- latest validator outputs
-- prior closeout/debugging assessment
-
-## Next Prompts
-
-- `implementation-next-action-gate-prompt.md`
-- `thread-closeout-readiness-prompt.md`
-
-## Not For
-
-creating new roadmap/workstream scope unrelated to the current live-run lane
-
 ```text
 Route this live-run task to the correct workflow entry point.
-
-Related skills:
-- planning-dispatch (for state-based routing and prerequisite gates)
-- executing-plans (when selected route is execution-ready)
-
-Related workflows:
-- live-run-system-workflow.md (primary orchestrator)
-- live-run-debugging-workflow.md (direct entry when failure already exists)
 
 Context:
 - roadmap/workstream/thread in scope:
@@ -81,13 +47,13 @@ Context:
 Rules:
 1. Do not invent unrelated work.
 2. Select from existing live-run workflows only:
-   - live-run-system-workflow.md
-   - live-run-scenario-planning-workflow.md
-   - live-run-preflight-check-workflow.md
-   - live-run-execution-workflow.md
-   - live-run-debugging-workflow.md
-   - live-run-verification-workflow.md
-   - live-run-closeout-workflow.md
+   - workflow-live-run-system.md
+   - workflow-live-run-scenario-planning.md
+   - workflow-live-run-preflight-check.md
+   - workflow-live-run-execution.md
+   - workflow-live-run-debugging.md
+   - workflow-live-run-verification.md
+   - workflow-live-run-closeout.md
 3. If prerequisites are missing, return the minimal unblock action first.
 4. If failure exists, route to evidence-based debugging path.
 5. If run passed, route to verification then closeout.

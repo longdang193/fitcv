@@ -1,24 +1,28 @@
 ---
 name: gitnexus-refresh-prompt
-description: Use prompt template for gitnexus refresh prompt.
+description: Refresh or repair GitNexus freshness before high-trust graph use.
 type: prompt
-stage: planning
+stage: maintenance
 entry_points:
-- use this prompt when its title scope matches the current planning/execution need
+- GitNexus freshness is stale, failed, or inconsistent with current repo state
+- high-trust GitNexus usage is needed for impact analysis/refactor safety
 prerequisites:
-- relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- repository path is known
+- GitNexus is installed in the current environment
 next_steps:
 - implementation-next-action-gate-prompt.md
+- validate-or-drift-prompt.md
 related_skills:
-- planning-dispatch
+- gitnexus-guide
+- gitnexus-impact-analysis
+- skill-planning-dispatch
 required_reads:
-- docs/operating_system/prompt_templates/README.md
+- AGENTS.md
+- docs/operating_system/governance/repo-governance.md
 tags:
-- prompt-template
-- planning
-- operating_system
-owner_layer: operating_system
-status: active
+- prompt
+- maintenance
+- gitnexus
 ---
 
 <!--
@@ -60,4 +64,3 @@ Expected output:
 - status after refresh
 - remaining issues, if any
 - source-first fallback guidance when refresh does not fully recover GitNexus
-

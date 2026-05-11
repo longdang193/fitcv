@@ -33,3 +33,8 @@ results.json; pipeline statuses; UI outcome labels
 
 This is a first-wave spec candidate.
 
+## Key Deliverables
+
+- Canonical outcome taxonomy defined (accepted, held, blocked, rejected, skipped).
+- Outcome semantics mapped to lifecycle transitions and acceptance gates.
+

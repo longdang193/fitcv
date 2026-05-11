@@ -1,0 +1,22 @@
+# GENERATED FILE - do not edit directly.
+# Source: docs/features/zeta-upstream/feature.source.yaml
+feature_id: zeta-upstream
+name: Sample Feature
+status: active
+type: workflow
+summary: Sample summary.
+invariants: []
+domains: []
+depends_on: []
+capabilities: []
+refs:
+  code: []
+  tests: []
+  specs: []
+  plans: []
+  docs: []
+  configs: []
+  components: []
+revision: 1
+latest_change_id: 2026-04-22-sample-change
+last_updated_at: "2026-04-22T10:30:00+02:00"

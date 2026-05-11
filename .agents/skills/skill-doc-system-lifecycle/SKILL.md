@@ -55,6 +55,27 @@ Before doc-system decisions, read:
 - relevant tests under `tests/` when changing schema/config contracts they verify
 </MUST-READ>
 
+## Python Metadata Grounding Checklist
+
+When drafting or reviewing Python `@meta` blocks for governed files:
+
+1. Read ownership surfaces in order:
+   - `docs/features/<feature_id>/feature.source.yaml` first
+   - generated `docs/features/<feature_id>/<feature_id>.yaml` only if assembled view needed
+   - `docs/features/<feature_id>/lineage.generated.yaml` only for evidence/drift questions
+2. Set `ownership` explicitly to `feature` or `infrastructure`.
+3. If `ownership: feature`, include `@meta.capabilities` and derive entries from upstream `capability_id` values only.
+4. If `ownership: infrastructure`, omit `@meta.capabilities` only under approved infrastructure exception policy; if present, all values must resolve upstream.
+5. Do not add manual `features` list when capability IDs already encode ownership.
+6. Ensure file-level `responsibility`, `inputs`, and `outputs` reflect real behavior (no placeholders).
+7. Verify linkage markers remain consistent:
+   - file-level `@meta.capabilities`
+   - code-level `@capability`
+   - test-level `@proves`
+8. Before closure claims on metadata-touching changes, run applicable checks:
+   - `py tools/docs/generate_architecture_metadata.py --check`
+   - `py scripts/validate_repo_contracts.py --fast`
+
 ## Planning-Lineage Compliance
 
 - Treat `docs/superpowers/specs/`, `docs/superpowers/execution_maps/`, and `docs/superpowers/plans/` as execution-facing artifacts, not governing layers.

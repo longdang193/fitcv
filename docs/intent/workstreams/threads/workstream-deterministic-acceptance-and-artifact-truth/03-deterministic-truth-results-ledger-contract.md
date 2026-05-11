@@ -33,3 +33,8 @@ results.json exports; inspection surfaces
 
 Avoid duplicated unofficial summaries.
 
+## Key Deliverables
+
+- Canonical results ledger chain requirements documented.
+- Export truth constraints documented for reviewer-visible evidence.
+

@@ -163,7 +163,7 @@ docs/features/<feature_id>/
 `README.md` is optional and should explain current behavior only when prose adds
 value; it should not repeat generated contracts or lineage.
 
-Validation in `managed_architecture_metadata` mode enforces the required set:
+Validation in `source_of_truth_owner (alias: managed_architecture_metadata)` mode enforces the required set:
 
 - `feature.source.yaml`
 - `<feature_id>.yaml`

@@ -1,0 +1,20 @@
+roadmap:
+  path: docs/intent/master-workstream-roadmap.md
+  workstream_count: 1
+  completed_workstream_count: 1
+workstreams:
+- workstream_id: sample-delivery
+  status: active
+  path: docs/intent/workstreams/sample-delivery.md
+  thread_count: 1
+  completed_thread_count: 1
+  derived_completion: completed
+  threads:
+  - thread_id: sample-delivery.sample-capability-lineage
+    status: completed
+    path: docs/intent/workstreams/threads/sample-delivery/01-sample-capability-lineage.md
+    specs:
+    - docs/superpowers/specs/2026-04-22-sample-spec.md
+    plans:
+    - docs/superpowers/plans/2026-04-22-sample-plan.md
+    derived_completion: completed

@@ -46,6 +46,10 @@ def load_module(name: str, path: Path):
 
 VALIDATOR = load_module("validate_repo_contracts", VALIDATOR_PATH)
 POLICY = load_module("validator_policy_for_tests", POLICY_PATH)
+ENV_GITIGNORE_VALIDATOR = load_module(
+    "validate_env_gitignore_contract",
+    REPO_ROOT / "scripts" / "validate_env_gitignore_contract.py",
+)
 
 
 def run_validator(*args: str) -> subprocess.CompletedProcess[str]:
@@ -178,6 +182,7 @@ def test_build_subprocess_steps_runs_adoption_shape_before_repo_config() -> None
     assert any("validate_template_required_sections.py" in step for step in rendered)
     assert any("validate_prompt_ladder.py" in step for step in rendered)
     assert any("validate_prompt_metadata_schema.py" in step for step in rendered)
+    assert any("validate_env_gitignore_contract.py" in step for step in rendered)
     assert any("validate_repo_config.py" in step for step in rendered)
     assert next(
         index for index, step in enumerate(rendered) if "validate_adoption_shape.py" in step
@@ -237,3 +242,29 @@ def test_shared_repo_contract_markers_match_expected_contract() -> None:
     assert POLICY.HUMAN_NOTES_HEADING == "## Human Notes"
     assert POLICY.ARCHITECTURE_METADATA_MARKER_LINE == "# @architecture"
     assert POLICY.SETUP_META_MARKER == "@meta"
+
+
+def test_validate_env_gitignore_contract_passes_with_required_entries(tmp_path: Path) -> None:
+    write_text(
+        tmp_path / ".gitignore",
+        """.env
+.env.*
+!.env.example
+""",
+    )
+    write_text(tmp_path / ".env.example", "API_KEY=placeholder\n")
+
+    issues = ENV_GITIGNORE_VALIDATOR.validate_env_gitignore_contract(tmp_path)
+
+    assert issues == []
+
+
+def test_validate_env_gitignore_contract_reports_missing_entries(tmp_path: Path) -> None:
+    write_text(tmp_path / ".gitignore", "node_modules/\n")
+    write_text(tmp_path / ".env.example", "API_KEY=placeholder\n")
+
+    issues = ENV_GITIGNORE_VALIDATOR.validate_env_gitignore_contract(tmp_path)
+
+    assert "missing required .gitignore entry: .env" in issues
+    assert "missing required .gitignore entry: .env.*" in issues
+    assert "missing required .gitignore entry when .env.example exists: !.env.example" in issues

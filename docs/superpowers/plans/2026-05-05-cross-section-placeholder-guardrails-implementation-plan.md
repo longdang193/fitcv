@@ -10,7 +10,7 @@ targets:
   - tests/test_cv_generator.py
   - tests/test_validator.py
 related_features:
-  - cv_system.analysis-grounded-validation
+  - cv_system
 related_stages:
   - cv_generation
 ---

@@ -1,12 +1,18 @@
-"""Ingest raw LinkedIn job postings JSON into BigQuery.
-
-Public API
-----------
-parse_jobs_file       : load raw JSON array from disk
-validate_linkedin_schema : check required scraper fields exist
-snake_case_keys       : convert camelCase scraper keys to snake_case
-prepare_raw_rows      : map raw jobs into the raw_jobs BQ schema
-load_to_bigquery      : insert rows into fitcv.raw_jobs (requires credentials)
+"""@meta
+name: ingest
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.ingest.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
 """
 
 import json

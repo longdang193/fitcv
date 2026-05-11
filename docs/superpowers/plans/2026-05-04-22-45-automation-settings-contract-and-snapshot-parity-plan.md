@@ -12,7 +12,7 @@ targets:
   - tests/test_fitcv_cp/test_app.py
   - tests/test_fitcv_cp/test_worker_job.py
 related_features:
-  - none
+  []
 related_stages:
   - cv_generation
 ---

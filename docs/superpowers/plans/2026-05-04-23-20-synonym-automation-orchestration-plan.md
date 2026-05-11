@@ -8,7 +8,7 @@ targets:
   - src/fitcv_cp/app.py
   - tests/test_fitcv_cp/test_app.py
 related_features:
-  - none
+  []
 related_stages:
   - cv_generation
 ---

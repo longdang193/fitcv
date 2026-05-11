@@ -1,27 +1,18 @@
-"""
-@meta
-name: fitcv_embeddings
-type: utility
-domain: shortlist
-responsibility:
-  - Build stable shortlist job summary signatures and embedding payloads.
-  - Reuse cached shortlist embeddings when signature and contract fingerprints match.
-inputs:
-  - structured job dictionaries
-  - candidate evidence chunks
-  - embedding config and BigQuery metadata
-outputs:
-  - embedding records
-  - shortlist embedding reuse metadata
+"""@meta
+name: embeddings
+type: module
+domain: runtime
+ownership: feature
 capabilities:
-  - pipeline_performance.shortlist-now-builds-a-stable-structured-embedding-input-signature-before-generating-job-summary-vectors
-  - pipeline_performance.shortlist-reuses-the-latest-stored-embedding-row-for-a-job-url-only-when-both-the-structured-signature-and-embedding-contract-fingerprint-still-match
-  - pipeline_performance.fresh-shortlist-embeddings-persist-signature-metadata-so-later-runs-can-skip-repeated-embedding-work-safely
-tags:
-  - embeddings
-  - shortlist
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.embeddings.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
 
 import hashlib

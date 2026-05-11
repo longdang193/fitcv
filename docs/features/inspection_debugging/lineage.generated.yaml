@@ -7,11 +7,7 @@ capabilities:
     state: active
     statement: Show the three-tab inspection surface and client-side tab switching for run detail.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -189,20 +185,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.run-progress-and-checkpoints:
     state: active
     statement: Show execution mode, reached stages, checkpoint state, and run-next-stage controls across run modes.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -386,20 +380,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.synonym-overlay-inspection:
     state: active
     statement: Surface active and default synonym-overlay state and snapshots during staged inspection flows.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -577,20 +569,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.run-owned-artifact-exports:
     state: active
     statement: Provide run-scoped downloads such as CVs, artifact bundles, and CV debug exports when owned outputs exist.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -774,20 +764,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.stage-artifact-downloads:
     state: active
     statement: Expose stage-owned downloads only after the owning stage has been reached and the artifact exists.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -965,28 +953,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.settings-used-export:
     state: active
     statement: Show canonical operator-facing settings-used exports and compatibility projections when needed.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/bq_store.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/worker_job.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -1182,28 +1160,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.results-ledger-inspection:
     state: active
     statement: Keep `results.json` job-centric while exposing compact decision chains, skip states, and export-ready outcomes.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/bq_store.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/worker_job.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -1405,28 +1373,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.stage-transition-diagnostics:
     state: active
     statement: Provide aggregate timeline rows and bounded per-stage transition artifacts for major stage handoffs.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/bq_store.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/worker_job.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -1616,24 +1574,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.prompt-provenance-diagnostics:
     state: active
     statement: Surface effective enrich, ranking, and CV-generation prompt identifiers, templates, and models in diagnostics.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/worker_job.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_worker_job.py
       confidence: high
@@ -1816,20 +1768,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.ranking-diagnostics:
     state: active
     statement: Expose ranking contract details, weighted contributions, fit thresholds, and reranker reuse state.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -2007,20 +1957,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.shortlist-diagnostics:
     state: active
     statement: Show shortlist retrieval facts, raw-hit visibility, candidate-query inputs, and embedding reuse provenance.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -2198,20 +2146,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.cv-analysis-diagnostics:
     state: active
     statement: Expose analysis outcomes, selected evidence, hybrid alignment details, and analysis reuse visibility.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -2395,20 +2341,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.cv-generation-diagnostics:
     state: active
     statement: Expose CV-writing outcomes, grounding and support validation detail, and authoritative fit context.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -2592,24 +2536,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.reuse-diagnostics:
     state: active
     statement: Surface late-stage reuse snapshots and exact-match reuse counters across ranking and analysis flows.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/worker_job.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -2799,24 +2737,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.quality-metrics-diagnostics:
     state: active
     statement: Show compact stage-level quality metrics across shortlist, ranking, analysis, and generation stages.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/worker_job.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -3000,24 +2932,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.enriched-job-debug-export:
     state: active
     statement: Include enriched-job inspection exports with canonical skill companions, mapping suggestions, and enrich provenance.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/bq_store.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -3201,20 +3127,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   inspection_debugging.rule-filter-diagnostics:
     state: active
     statement: Show active blocking filters, mark-code counts, and separate pre-enrichment reject visibility.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -3398,11 +3322,13 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
 timeline:
 - completed_at: '2026-04-22T00:07:00+02:00'
   source_plan: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md

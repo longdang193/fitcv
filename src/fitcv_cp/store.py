@@ -1,8 +1,16 @@
-"""
-Control-plane storage adapter surface.
-
-This module provides a narrow storage abstraction used by control-plane runtime
-paths so sqlite and bigquery behavior can be selected behind one interface.
+"""@meta
+name: store
+type: module
+domain: runtime
+ownership: infrastructure
+responsibility:
+  - Module metadata placeholder for src.fitcv_cp.store.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
 """
 
 from __future__ import annotations

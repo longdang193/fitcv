@@ -1,21 +1,16 @@
-"""
-@meta
-name: fitcv_cp_synonym_proposals
-type: utility
-domain: run_orchestration
+"""@meta
+name: synonym_proposals
+type: module
+domain: runtime
+ownership: infrastructure
 responsibility:
-  - Build run-scoped synonym proposal payloads and trace summaries.
+  - Module metadata placeholder for src.fitcv_cp.synonym_proposals.
 inputs:
-  - mapping suggestions
-  - optional existing proposal payload
-  - optional global synonym map
+  - Internal runtime calls and module imports
 outputs:
-  - synonym proposals JSON payloads
-tags:
-  - synonyms
-  - payloads
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
 
 from __future__ import annotations

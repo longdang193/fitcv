@@ -1,7 +1,18 @@
-adoption_mode: starter_method_only
-managed_architecture_metadata: false
+adoption_mode: managed_architecture_metadata
+repo_role: consumer_derived
+managed_architecture_metadata: true
 legacy_feature_contracts: false
-architecture_generator: none
+architecture_generator: tools/docs/generate_architecture_metadata.py
+starter_sync:
+  starter_baseline_ref: unknown
+  last_shared_surface_review_at: "2026-05-11"
+  reviewed_surface_classes:
+    - adapters
+    - generated_instruction_surfaces
+    - operating_system_docs
+    - repo_config
+    - skills
+    - validation_and_sync_scripts
 notes: >
-  Repo operating-system, intent, adapter, and publication guidance are adopted.
-  Product feature/stage metadata is intentionally not adopted yet.
+  Repo uses managed feature/stage metadata and generated architecture discovery.
+  Validation should enforce managed architecture metadata contracts.

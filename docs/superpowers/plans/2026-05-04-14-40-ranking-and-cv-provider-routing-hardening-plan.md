@@ -11,7 +11,7 @@ targets:
   - tests/test_ai_score.py
   - tests/test_cv_generator.py
 related_features:
-  - none
+  []
 related_stages:
   - shortlist
   - ranking

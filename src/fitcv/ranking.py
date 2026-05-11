@@ -1,16 +1,18 @@
-"""Composite final ranking — weighted combination of supported runtime ranking features.
-
-Public API
-----------
-compute_must_have_match  : compute ratio of candidate skills to required job skills
-compute_seniority_fit    : map seniority closeness to [0.0, 1.0]
-compute_title_relevance  : compute semantic role alignment between job title and target role
-compute_preference_fit   : compute overlap of preferred domains/locations
-get_active_ranking_weights          : resolve config weights for the supported runtime contract
-get_active_missing_value_defaults   : resolve missing-value defaults for supported features
-compute_final_score      : compute weighted sum of features using config weights
-rank_jobs                : sort jobs by final_score (then ai_score, then vector similarity)
-store_final_ranking      : persist ranked list to BigQuery (integration)
+"""@meta
+name: ranking
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.ranking.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
 """
 
 import os

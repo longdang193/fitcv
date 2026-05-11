@@ -1,0 +1,21 @@
+# GENERATED FILE - do not edit directly.
+stage_id: cv_analysis
+name: CV Analysis
+status: active
+purpose: Prepare ranked jobs for writing.
+feature_refs:
+- cv_system
+capability_refs:
+- cv_system.structured-cv-generation
+code_refs: []
+test_refs: []
+doc_refs: []
+config_refs: []
+component_refs: []
+depends_on: []
+inputs:
+- ranked jobs
+outputs:
+- generation-ready jobs
+invariants: []
+human_notes: []

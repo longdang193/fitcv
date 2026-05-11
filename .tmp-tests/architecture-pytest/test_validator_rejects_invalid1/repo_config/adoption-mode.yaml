@@ -1,0 +1,5 @@
+adoption_mode: legacy_compatibility
+repo_role: consumer_derived
+managed_architecture_metadata: false
+legacy_feature_contracts: true
+architecture_generator: none

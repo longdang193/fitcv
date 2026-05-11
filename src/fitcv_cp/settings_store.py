@@ -1,25 +1,18 @@
-"""
-@meta
-name: control_plane_settings_store
-type: utility
-domain: pipeline_config
+"""@meta
+name: settings_store
+type: module
+domain: runtime
+ownership: infrastructure
 responsibility:
-  - Persist admin settings overrides to the pipeline_settings BigQuery table.
-  - Load latest active settings per key without in-process caching.
+  - Module metadata placeholder for src.fitcv_cp.settings_store.
 inputs:
-  - pipeline_settings BigQuery rows
-  - admin settings update payloads
+  - Internal runtime calls and module imports
 outputs:
-  - appended settings rows
-  - active settings dictionaries
-capabilities:
-  - settings_system.bigquery-backed-pipeline-settings-store
-tags:
-  - settings
-  - bigquery
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
+
 import datetime
 import json
 import logging

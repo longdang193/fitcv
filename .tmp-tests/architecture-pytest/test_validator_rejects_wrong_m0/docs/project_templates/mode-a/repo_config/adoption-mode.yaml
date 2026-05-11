@@ -1,0 +1,4 @@
+adoption_mode: managed_architecture_metadata
+managed_architecture_metadata: true
+legacy_feature_contracts: false
+architecture_generator: scripts/sync_architecture_docs.py

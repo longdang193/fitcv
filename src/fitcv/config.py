@@ -1,29 +1,18 @@
-"""
-@meta
-name: fitcv_config
-type: utility
-domain: pipeline_config
-responsibility:
-  - Load infrastructure, taxonomy, runtime, policy, prompt, and CV config files.
-  - Hydrate canonical nested settings plus temporary compatibility projections.
-inputs:
-  - .env.yaml or config/env.yaml
-  - config/**/*.yaml policy files
-outputs:
-  - merged runtime configuration dictionaries
+"""@meta
+name: config
+type: module
+domain: runtime
+ownership: feature
 capabilities:
-  - settings_system.baseline-default-hydration
-  - settings_system.cv-analysis-alignment-settings
-  - settings_system.cv-generation-settings
-  - settings_system.cv-composition-visibility-settings
-  - settings_system.warning-only-cv-max-pages-validation-setting
-  - pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
-  - cv_system.config-owned-generation-contract
-tags:
-  - config
-  - settings
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.config.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
 
 import logging

@@ -1,26 +1,18 @@
-"""
-@meta
+"""@meta
 name: cv_generator
-type: utility
-domain: cv_generation
-responsibility:
-  - Assemble grounded CV-generation prompts from selected evidence and config.
-  - Produce structured CV payloads and rendered markdown outputs for downstream persistence.
-inputs:
-  - selected analysis evidence
-  - candidate profile data
-  - cv generation config and prompt templates
-outputs:
-  - structured CV payloads
-  - rendered CV markdown
+type: module
+domain: runtime
+ownership: feature
 capabilities:
-  - cv_system.structured-cv-generation
-tags:
-  - cv
-  - generation
-  - lineage-owner
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.cv_generator.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
 
 import json

@@ -1,26 +1,18 @@
-"""Semantic retrieval via BigQuery VECTOR_SEARCH.
-
-v1 design (Option A — one candidate summary embedding):
-- Build one candidate query text: headline + top skills + preferred domains
-- Embed it with Vertex AI text-embedding-005
-- Search fitcv.job_embeddings WHERE chunk_type = 'job_summary'
-- Restrict to job_url IN (passed_job_urls) — the rule-filtered universe
-- Return top-N results ranked by cosine similarity
-
-Option B (multi-evidence aggregation) is deferred to v2.
-
-Public API
-----------
-build_candidate_query_text : deterministic candidate query string (no embedding call)
-build_vector_search_query  : BigQuery VECTOR_SEARCH SQL string
-run_vector_search          : embed + query + return shortlist rows (integration)
-store_shortlist            : insert into fitcv.vector_shortlist (integration)
-
-Config keys consumed (from pipeline.yaml)
------------------------------------------
-config["vector_top_n"]              : default top_n for VECTOR_SEARCH (default 50)
-config["vector_max_candidate_skills"]: max skills in candidate query text (default 15)
-config["retrieval_strategy"]        : stored in vector_shortlist (default "job_summary_v1")
+"""@meta
+name: vector_search
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.vector_search.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
 """
 
 import hashlib

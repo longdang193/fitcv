@@ -44,17 +44,21 @@ Please:
    - bounded scope respected
    - verification evidence present
    - no unresolved critical blockers
-2. decide merge path:
+2. run bounded-scope doc lifecycle compliance check for changed scope:
+   - use `doc-lifecycle-bounded-scope-check-prompt.md`
+   - keep checks concise (no repo-wide expansion)
+   - block merge on lifecycle `fail` verdict
+3. decide merge path:
    - open/update PR
    - merge now
    - hold/defer with reason
-3. after merge, run required post-merge verification and report impact
-4. reconcile lifecycle/status/evidence:
+4. after merge, run required post-merge verification and report impact
+5. reconcile lifecycle/status/evidence:
    - thread/workstream status updates
    - checkpoint/result-pack evidence linkage
    - unresolved risk log
-5. if blockers remain, return the minimal prerequisite action needed to unblock
-6. return one selected next action and why alternatives are not yet eligible
+6. if blockers remain, return the minimal prerequisite action needed to unblock
+7. return one selected next action and why alternatives are not yet eligible
    - if closure criteria are already satisfied, select `close now` and explain why further actions are not eligible
 ```
 

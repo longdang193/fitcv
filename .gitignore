@@ -19,3 +19,5 @@ logs/
 .worktrees/
 data/uploads/
 .worktrees/
+.env
+.env.*

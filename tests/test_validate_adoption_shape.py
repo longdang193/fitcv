@@ -87,10 +87,12 @@ def write_adoption_mode(
     generator: str = "none",
     starter_sync: str = "",
     extra: str = "",
+    repo_role: str = "consumer_derived",
 ) -> None:
     write_text(
         root / "repo_config" / "adoption-mode.yaml",
         f"""adoption_mode: {mode}
+repo_role: {repo_role}
 managed_architecture_metadata: {str(managed).lower()}
 legacy_feature_contracts: {str(legacy).lower()}
 architecture_generator: {generator}
@@ -741,6 +743,44 @@ def test_validator_rejects_managed_contract_beside_flat_contract_in_legacy_mode(
 
     assert result.returncode == 1
     assert "beside a flat authoritative contract" in result.stdout.lower()
+
+
+def test_validator_accepts_managed_mode_with_source_owner_repo_role(tmp_path: Path) -> None:
+    seed_required_managed_mode_surface(tmp_path)
+    write_adoption_mode(
+        tmp_path,
+        "managed_architecture_metadata",
+        managed=True,
+        legacy=False,
+        generator="scripts/sync_architecture_docs.py",
+        starter_sync=managed_starter_sync_block(),
+        repo_role="source_owner",
+    )
+    seed_managed_feature_folder(tmp_path)
+    seed_generated_stage_contract(tmp_path, "data_prep")
+    seed_stage_source(tmp_path, "data_prep")
+    seed_generated_discovery(tmp_path)
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 0, result.stdout
+
+
+def test_validator_rejects_invalid_repo_role_value(tmp_path: Path) -> None:
+    seed_required_folder_surface(tmp_path)
+    write_adoption_mode(
+        tmp_path,
+        "starter_method_only",
+        managed=False,
+        legacy=False,
+        repo_role="invalid_role",
+    )
+    seed_required_starter_docs(tmp_path)
+
+    result = run_validator(tmp_path)
+
+    assert result.returncode == 1
+    assert "repo_role must be one of" in result.stdout.lower()
 
 
 def test_validator_rejects_invalid_capability_ids(tmp_path: Path) -> None:
@@ -1848,63 +1888,7 @@ def test_starter_method_only_allows_prose_only_feature_readme(tmp_path: Path) ->
     assert result.returncode == 0
 
 
-def test_starter_method_only_warns_when_nontrivial_repo_lacks_feature_index(tmp_path: Path) -> None:
-    seed_required_folder_surface(tmp_path)
-    seed_required_starter_docs(tmp_path)
-    seed_nontrivial_runtime_surface(tmp_path)
-
-    result = run_validator(tmp_path)
-
-    assert result.returncode == 0
-    assert "warn: docs/features/readme.md" in result.stdout.lower()
-    assert "missing the lightweight feature index" in result.stdout.lower()
-    assert "managed_architecture_metadata" in result.stdout
-
-
-def test_starter_method_only_clears_feature_index_warning_once_readme_exists(tmp_path: Path) -> None:
-    seed_required_folder_surface(tmp_path)
-    seed_required_starter_docs(tmp_path)
-    seed_nontrivial_runtime_surface(tmp_path)
-    write_text(tmp_path / "docs" / "features" / "README.md", "# Feature Index\n")
-
-    result = run_validator(tmp_path)
-
-    assert result.returncode == 0
-    assert "warn: docs/features/README.md" not in result.stdout.lower()
-    assert "outgrown lightweight anchors" not in result.stdout.lower()
-
-
-def test_starter_method_only_warns_when_api_surface_lacks_api_doc(tmp_path: Path) -> None:
-    seed_required_folder_surface(tmp_path)
-    seed_required_starter_docs(tmp_path)
-    seed_api_runtime_surface(tmp_path)
-    write_text(tmp_path / "docs" / "features" / "README.md", "# Feature Index\n")
-
-    result = run_validator(tmp_path)
-
-    assert result.returncode == 0
-    assert "warn: docs/api.md" in result.stdout.lower()
-    assert "api-heavy" in result.stdout.lower()
-    assert "early anchor" in result.stdout.lower()
-    assert "managed_architecture_metadata" in result.stdout
-
-
-def test_starter_method_only_clears_api_doc_warning_once_doc_exists(tmp_path: Path) -> None:
-    seed_required_folder_surface(tmp_path)
-    seed_required_starter_docs(tmp_path)
-    seed_api_runtime_surface(tmp_path)
-    write_text(tmp_path / "docs" / "features" / "README.md", "# Feature Index\n")
-    write_text(tmp_path / "docs" / "api.md", "# API\nDocument the external interface.\n")
-
-    result = run_validator(tmp_path)
-
-    assert result.returncode == 0
-    assert "warn: docs/api.md" not in result.stdout.lower()
-
-
-def test_starter_method_only_warns_when_repo_appears_to_have_outgrown_lightweight_anchors(
-    tmp_path: Path,
-) -> None:
+def test_starter_method_only_does_not_emit_lightweight_migration_warnings(tmp_path: Path) -> None:
     seed_required_folder_surface(tmp_path)
     seed_required_starter_docs(tmp_path)
     seed_mature_runtime_surface(tmp_path)
@@ -1914,8 +1898,9 @@ def test_starter_method_only_warns_when_repo_appears_to_have_outgrown_lightweigh
     result = run_validator(tmp_path)
 
     assert result.returncode == 0
-    assert "outgrown lightweight anchors" in result.stdout.lower()
-    assert "managed_architecture_metadata" in result.stdout
+    assert "missing the lightweight feature index" not in result.stdout.lower()
+    assert "api-heavy" not in result.stdout.lower()
+    assert "outgrown lightweight anchors" not in result.stdout.lower()
 
 
 def test_validator_rejects_superpowers_spec_missing_parent_workstream(tmp_path: Path) -> None:

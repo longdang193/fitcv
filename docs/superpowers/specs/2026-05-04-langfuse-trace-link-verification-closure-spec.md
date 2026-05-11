@@ -74,3 +74,10 @@ Canonical source-of-truth:
 
 - `docs/operating_system/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
+
+## Task/Wave Breakdown
+
+- Wave 1: Existing contract and baseline behavior snapshot.
+- Wave 2: Implementation deltas and validation gates.
+- Wave 3: Verification evidence and closeout readiness checks.
+
