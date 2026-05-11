@@ -190,6 +190,16 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "agentic_section": _AGENTIC_SECTION_CORE,
     },
     {
+        "key": "synonym_management.disable_all_reuse",
+        "type": "bool",
+        "default": False,
+        "label": "Disable All Reuse",
+        "description": "Disable all synonym-management reuse lanes and force fresh recompute paths for this run.",
+        "group": "agentic",
+        "config_path": ["synonym_management", "disable_all_reuse"],
+        "agentic_section": _AGENTIC_SECTION_CORE,
+    },
+    {
         "key": "synonym_management.auto_apply_recommendation_enabled",
         "type": "bool",
         "default": False,

@@ -958,7 +958,8 @@ def _synonym_management_mode_from_run_record(run_record: Any) -> dict[str, bool]
     if not isinstance(settings_payload, dict):
         settings_payload = {}
     block = dict(settings_payload.get("synonym_management") or {})
-    return {
+    disable_all_reuse = bool(block.get("disable_all_reuse", False))
+    mode = {
         "propose_enabled": bool(block.get("propose_enabled", True)),
         "apply_to_run_enabled": bool(block.get("apply_to_run_enabled", True)),
         "promote_global_enabled": bool(block.get("promote_global_enabled", True)),
@@ -967,6 +968,9 @@ def _synonym_management_mode_from_run_record(run_record: Any) -> dict[str, bool]
         "auto_apply_recommendation_enabled": bool(block.get("auto_apply_recommendation_enabled", False)),
         "auto_promote_global_enabled": bool(block.get("auto_promote_global_enabled", False)),
     }
+    if disable_all_reuse:
+        mode["triage_recommendation_reuse_enabled"] = False
+    return mode
 
 def _stable_sha256_json(payload: dict[str, Any]) -> str:
     raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)

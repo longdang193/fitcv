@@ -4397,9 +4397,37 @@ def test_synonym_management_mode_includes_new_automation_flags_with_defaults() -
     )
     mode = _synonym_management_mode(run)
     assert mode["apply_to_run_enabled"] is False
+    assert mode["triage_recommendation_reuse_enabled"] is True
     assert mode["auto_apply_recommendation_enabled"] is False
     assert mode["auto_promote_global_enabled"] is False
     assert mode["auto_accept_ai_action_enabled"] is True
+
+
+def test_synonym_management_mode_disable_all_reuse_forces_triage_reuse_off() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+    from fitcv_cp.app import _synonym_management_mode
+
+    run = PipelineRun(
+        run_id="run-syn-mode-disable-all-reuse",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        run_mode="run_all",
+        effective_settings_json=json.dumps(
+            {
+                "synonym_management": {
+                    "disable_all_reuse": True,
+                    "triage_recommendation_reuse_enabled": True,
+                }
+            }
+        ),
+    )
+    mode = _synonym_management_mode(run)
+    assert mode["triage_recommendation_reuse_enabled"] is False
 
 def test_admin_run_synonym_proposals_regenerate_blocked_when_propose_disabled() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus

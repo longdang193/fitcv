@@ -25,6 +25,24 @@ def _force_bigquery_mode(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "bigquery")
 
 
+def test_worker_synonym_mode_disable_all_reuse_forces_triage_reuse_off() -> None:
+    from fitcv_cp.worker_job import _synonym_management_mode_from_run_record
+
+    run_record = MagicMock(
+        effective_settings_json=json.dumps(
+            {
+                "synonym_management": {
+                    "disable_all_reuse": True,
+                    "triage_recommendation_reuse_enabled": True,
+                }
+            }
+        )
+    )
+
+    mode = _synonym_management_mode_from_run_record(run_record)
+    assert mode["triage_recommendation_reuse_enabled"] is False
+
+
 def test_worker_marks_succeeded_on_success():
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])

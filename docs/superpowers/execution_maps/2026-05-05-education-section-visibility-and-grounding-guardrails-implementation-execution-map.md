@@ -5,6 +5,9 @@ parent_workstream: workstream-bounded-agentic-cv-quality
 parent_thread: workstream-bounded-agentic-cv-quality.education-section-visibility-and-grounding-guardrails
 threads:
   - workstream-bounded-agentic-cv-quality.education-section-visibility-and-grounding-guardrails
+  - workstream-bounded-agentic-cv-quality.agentic-cv-quality-cross-seam-calibration
+specs:
+  - docs/superpowers/specs/2026-04-29-agentic-cv-quality-drift-and-depth-patch-spec.md
 created_at: 2026-05-05
 status: active
 ---

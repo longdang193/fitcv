@@ -2881,7 +2881,8 @@ def _validate_overlay_scope(overlay_payload: dict[str, Any], scope: str) -> None
 def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
     config = _load_run_effective_config_snapshot(run, fallback_to_runtime_config=False)
     block = dict(config.get("synonym_management") or {})
-    return {
+    disable_all_reuse = bool(block.get("disable_all_reuse", False))
+    mode = {
         "propose_enabled": bool(block.get("propose_enabled", True)),
         "apply_to_run_enabled": bool(block.get("apply_to_run_enabled", True)),
         "promote_global_enabled": bool(block.get("promote_global_enabled", True)),
@@ -2891,6 +2892,9 @@ def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
         "auto_promote_global_enabled": bool(block.get("auto_promote_global_enabled", False)),
         "auto_accept_ai_action_enabled": bool(block.get("auto_accept_ai_action_enabled", True)),
     }
+    if disable_all_reuse:
+        mode["triage_recommendation_reuse_enabled"] = False
+    return mode
 
 def _find_synonym_proposal_index(payload: dict[str, Any], proposal_id: str) -> int | None:
     target = str(proposal_id or "").strip()
