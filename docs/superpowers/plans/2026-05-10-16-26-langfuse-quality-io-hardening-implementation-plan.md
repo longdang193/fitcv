@@ -5,7 +5,7 @@ status: proposed
 template_id: implementation-plan
 name: langfuse-quality-io-hardening-implementation
 parent_thread: workstream-agentic-observability.agentic-observability-provider-provenance
-parent_spec: docs/superpowers/specs/2026-05-09-evaluable-langfuse-item-observation-contract-spec.md
+parent_spec: docs/superpowers/specs/2026-05-04-langfuse-rich-input-output-observability-spec.md
 targets:
   - src/fitcv/telemetry.py
   - src/fitcv/pipeline.py
@@ -20,7 +20,7 @@ related_stages:
   - enrich
   - cv_analysis
   - cv_generation
-  - acceptance_review
+  - shortlist
 ---
 
 # 2026-05-10-16-26 Langfuse Quality IO Hardening Implementation Plan

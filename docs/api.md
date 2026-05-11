@@ -44,17 +44,13 @@ Typical response:
 
 ## Control-Plane Runtime Backend Mode
 
-The control-plane startup backend is resolved from `config/runtime/control_plane.yaml` under:
+The control-plane runtime backend is resolved by the backend runtime resolver and can be overridden at process start:
 
-- `control_plane.data_backend.type` (`bigquery` or `sqlite`)
+- `FITCV_CP_DATA_BACKEND` (`bigquery` or `sqlite`)
 
-Override:
+Behavior:
 
-- `FITCV_CP_DATA_BACKEND` (process env) overrides the backend type at runtime.
-
-Startup behavior:
-
-- `bigquery` mode initializes BigQuery dependencies and schema diagnostics.
+- `bigquery` mode initializes BigQuery-backed storage dependencies.
 - `sqlite` mode skips BigQuery client initialization so local startup does not require GCP ADC.
 
 ## Run Trigger And Inspection API
@@ -76,16 +72,25 @@ Typical payload shape:
 {
   "jobs_path": "data/sample_jobs.json",
   "config_path": ".env.yaml",
-  "triggered_by": "admin"
+  "triggered_by": "admin",
+  "config_overrides": {},
+  "run_mode": "run_all"
 }
 ```
 
-Additional trigger variants may include resolved jobs input, candidate profile
-input, run mode, and per-run overrides depending on the caller.
+`run_mode` supports:
+- `run_all`
+- `manual_staged`
 
 Typical response:
 - `201 Created`
-- JSON representation of the created run
+- JSON object containing run identifier:
+
+```json
+{
+  "run_id": "<uuid>"
+}
+```
 
 ### `GET /runs`
 
@@ -115,7 +120,6 @@ Event shape includes:
 
 ```json
 {
-  "run_id": "example-run-id",
   "event_id": "example-event-id",
   "stage": "pipeline_complete",
   "level": "info",
@@ -124,6 +128,7 @@ Event shape includes:
   "payload_json": "{...}"
 }
 ```
+
 
 ## Settings API
 

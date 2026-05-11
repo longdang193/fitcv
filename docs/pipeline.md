@@ -46,22 +46,20 @@ Mode changes pacing, not stage truth semantics.
 
 ## Two-Layer Observability Ownership
 
-Wave 1 Langfuse observability splits responsibilities across two layers:
+Observability separates run-level and item-level surfaces:
 
 - **run-summary layer**
-  - root/run trace context and aggregate events remain the operator entrypoint
-  - `pipeline_complete` and related summary surfaces stay aggregate-only
-  - run-level quality summaries describe distribution, conversion, retry, and health facts across the run
+  - run-level events and summaries remain operator entrypoint surfaces
+  - aggregate completion/debug surfaces describe run-wide behavior
 - **item-observation layer**
-  - `cv_analysis_item` captures one bounded analysis observation per candidate-job attempt
-  - `cv_generation_item` captures one bounded generation observation per candidate-job attempt
-  - item observations carry disposition-aware reviewer-facing `input`/`output` plus structured metadata for filtering and joins
+  - item-level analysis/generation traces capture one candidate-job attempt at a time
+  - item observations carry reviewer-facing input/output plus structured metadata for filtering
 
 Ownership rule:
 
 - run-summary surfaces answer **how run behaved overall**
 - item observations answer **what happened for one candidate-job attempt**
-- do not duplicate full item-level raw IO into aggregate run-summary payloads
+- avoid duplicating full item raw IO into aggregate run-summary payloads
 
 ## Portability Expectations
 

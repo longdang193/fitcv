@@ -39,6 +39,8 @@ workstreams:
     - docs/superpowers/plans/2026-05-04-local-langfuse-ingestion-and-link-validity-implementation-plan.md
     - docs/superpowers/plans/2026-05-09-15-54-evaluable-langfuse-item-observation-contract-plan.md
     - docs/superpowers/plans/2026-05-10-00-24-langfuse-wave-2-plan.md
+    - docs/superpowers/plans/2026-05-10-16-06-langfuse-wave2-plan-hardening-and-execution-plan.md
+    - docs/superpowers/plans/2026-05-10-16-26-langfuse-quality-io-hardening-implementation-plan.md
     derived_completion: completed
   - thread_id: workstream-agentic-observability.agentic-observability-synonym-proposal-trace
     status: proposed
@@ -57,6 +59,7 @@ workstreams:
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-a-authority-anchors.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
+    - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
     derived_completion: in_progress
   - thread_id: workstream-agentic-observability.agentic-observability-otel-id-and-trace-context-alignment
     status: completed
@@ -171,7 +174,8 @@ workstreams:
   - thread_id: workstream-bounded-agentic-cv-quality.education-section-visibility-and-grounding-guardrails
     status: completed
     path: docs/intent/workstreams/threads/workstream-bounded-agentic-cv-quality/05-education-section-visibility-and-grounding-guardrails.md
-    specs: []
+    specs:
+    - docs/superpowers/specs/2026-05-05-education-section-visibility-and-grounding-guardrails-spec.md
     plans: []
     derived_completion: completed
   - thread_id: workstream-bounded-agentic-cv-quality.cross-section-placeholder-guardrails
@@ -348,6 +352,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-04-14-40-ranking-and-cv-provider-routing-hardening-plan.md
     - docs/superpowers/plans/2026-05-04-21-35-telemetry-disabled-classification-surface-audit-plan.md
     - docs/superpowers/plans/2026-05-04-provider-storage-agnostic-parity-implementation-plan.md
+    - docs/superpowers/plans/2026-05-10-14-35-provider-agnostic-runtime-hardening-plan.md
     - docs/superpowers/plans/2026-05-10-provider-agnostic-persistence-patch-plan.md
     derived_completion: completed
 - workstream_id: workstream-pipeline-efficiency-and-reuse

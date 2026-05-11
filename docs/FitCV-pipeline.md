@@ -111,18 +111,17 @@ Canonical ownership:
 
 ## Execution Modes
 
-The same pipeline order supports two operating styles:
+The same stage order supports two operator-facing run modes:
 
-- `Run All`
-- `Stage by Stage`
+- `run_all` (`Run All`)
+- `manual_staged` (`Stage by Stage`)
 
-This document intentionally avoids restating the precise checkpoint contract.
-What matters here is the operator-facing distinction:
+This document intentionally avoids restating checkpoint transition rules.
+Use contract-oriented docs when exact trigger and continuation semantics matter:
 
-- one mode prioritizes continuous batch execution
-- the other prioritizes pause, review, and controlled continuation
-
-Use the stage and feature sources when exact checkpoint semantics matter.
+- [pipeline.md](pipeline.md)
+- [api.md](api.md)
+- [usage.md](usage.md)
 
 ## Artifact Model
 
