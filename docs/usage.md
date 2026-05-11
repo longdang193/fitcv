@@ -28,10 +28,13 @@ Entry point: `/admin/runs`
 
 ## Lifecycle Actions
 
-- stop/cancel
-- continue from checkpoints
-- archive/unarchive
-- reconciliation and repair actions when needed
+Operator lifecycle actions are exposed through run-scoped admin routes:
+
+- stop active run: `POST /admin/runs/{run_id}/stop`
+- continue checkpointed run: `POST /admin/runs/{run_id}/continue`
+- archive/unarchive run: `POST /admin/runs/{run_id}/archive`, `POST /admin/runs/{run_id}/unarchive`
+- bulk archive/unarchive/cancel: `POST /admin/runs/bulk/archive`, `POST /admin/runs/bulk/unarchive`, `POST /admin/runs/bulk/cancel`
+- reconciliation/repair when needed: `POST /admin/runs/{run_id}/repair-cancellation`
 
 ## Settings Workflow
 
@@ -61,9 +64,10 @@ Important:
 - `GET /healthz`
 - `POST /runs`
 - `GET /runs/{run_id}`
-- `/admin/runs`
-- `/admin/runs/{run_id}`
-- `/admin/settings`
+- `GET /runs/{run_id}/events`
+- `GET /admin/runs`
+- `GET /admin/runs/{run_id}`
+- `GET /admin/settings`
 
 ## Related Docs
 

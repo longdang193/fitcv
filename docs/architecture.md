@@ -33,15 +33,15 @@ Owns stage execution, ranking and CV lanes, validation, artifact emission, and s
 
 ## Portability and Routing
 
-- backend portability: sqlite and bigquery supported behind shared runtime/store surfaces
-- provider portability: model-routing parts + provider registry resolve runtime clients
-- secrets: env-only
+- backend portability: sqlite and bigquery execution paths are selected through control-plane backend runtime resolution
+- provider portability: model routing is config/env driven and resolved at runtime
+- secrets: runtime credentials are supplied via environment variables
 
 ## Orchestration and Observability
 
-- queue/default orchestration and optional alternate orchestration integration
-- structured run events, stage artifacts, and trace-context surfaces
-- operator-facing exports are primary evidence boundaries
+- queue orchestration is supported by default with persisted run/orchestration bindings
+- structured run events and stage artifacts back operator inspection flows
+- operator-facing exports are primary inspection evidence surfaces
 
 ## Managed Documentation Model
 

@@ -10,7 +10,7 @@ explains:
 
 # Component Boundaries
 
-This document defines Phase 2 component ownership and dependency direction for FitCV runtime scaling.
+This document defines component ownership and dependency direction for current FitCV runtime architecture.
 
 ## Source Of Truth Per Concern
 
@@ -158,9 +158,10 @@ Validation is executed through `scripts/validate_repo_contracts.py --fast`.
 - `src/fitcv_cp/bq_store.py` -> data_plane adapter
 - `src/fitcv/pipeline.py` -> evidence contract + policy + ai runtime integration
 
-## Adoption Waves
+## Adoption Notes
 
-1. Wave K1: publish component contracts and dependency rules (this pass).
-2. Wave K2: add orchestrator adapter seam for Plan I (Prefect).
-3. Wave K3: add telemetry exporter/collector seam for Plan J (OpenTelemetry).
-4. Wave K4: enforce dependency checks and complete data-plane migration path readiness.
+Boundary enforcement is incremental and source-first:
+
+1. ownership and dependency rules are documented in this contract.
+2. validator surfaces enforce constraints and report drift.
+3. bounded exceptions are tracked and removed as dependent modules are reconciled.
