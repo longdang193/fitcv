@@ -26,7 +26,10 @@
   - Task 3 pattern sweep completed and classified (`confirmed/likely/risk`) in verification evidence
   - Task 4 branch-precedence tests added for `disable_all_reuse=True` in app/worker test suites
   - Task 4 post-fix verification evidence updated with latest app/worker counts (`369/51`)
-  - Audit completeness gate previously passed
+  - Audit completeness gate passed
+  - Strict lifecycle validation passed
+  - PR merged: `https://github.com/longdang193/fitcv/pull/22`
+  - Plan status updated to `completed`
 - **In Progress:**
   - none
 - **Deferred / Dropped:**
@@ -36,10 +39,14 @@
 
 ## 4) Files Changed This Session
 
-- `tests/test_fitcv_cp/test_app.py` — added explicit app-side `disable_all_reuse` precedence test and default-branch assertion for triage reuse.
-- `tests/test_fitcv_cp/test_worker_job.py` — added worker-side `disable_all_reuse` precedence test.
-- `docs/superpowers/plans/audit/20260511-1021-reuse-control-contract-drift/evidence/results/post_fix_verification.md` — synchronized latest test counts and branch-precedence recheck notes.
-- `docs/superpowers/execution_context_packs/reuse-control-contract-fix/latest.md` — canonical execution handoff state refreshed.
+- `src/fitcv_cp/settings_schema.py` — added operator-facing global reuse override setting.
+- `src/fitcv_cp/app.py` — enforced `disable_all_reuse` precedence.
+- `src/fitcv_cp/worker_job.py` — enforced matching precedence in worker path.
+- `tests/test_fitcv_cp/test_settings_schema.py` — updated schema contract expectations.
+- `tests/test_fitcv_cp/test_app.py` — added app precedence branch assertions.
+- `tests/test_fitcv_cp/test_worker_job.py` — added worker precedence branch assertions.
+- `docs/superpowers/plans/2026-05-11-10-31-reuse-control-contract-fix-plan.md` — closeout status set to completed.
+- `docs/superpowers/execution_context_packs/reuse-control-contract-fix/latest.md` — finalized close note.
 
 ## 5) Verification State
 
@@ -47,37 +54,38 @@
   - `py -m pytest tests/test_fitcv_cp/test_app.py -q`
   - `py -m pytest tests/test_fitcv_cp/test_worker_job.py -q`
   - `.\.venv\Scripts\python.exe scripts\audit_check.py docs/superpowers/plans/audit/20260511-1021-reuse-control-contract-drift`
+  - `py scripts/validate_planning_lifecycle.py --strict`
 - **Result summary:**
   - app: `369 passed`
   - worker: `51 passed`
   - audit gate: `AUDIT_CHECK_PASSED`
+  - lifecycle: `Planning lifecycle validation passed`
 - **Failing checks (if any):** none
-- **Gaps still unverified:** final lifecycle/closeout validation command for plan closure state.
+- **Gaps still unverified:** none for bounded lane scope.
 
 ## 6) Open Blockers / Risks
 
-- Potential additional reuse lanes outside synonym-management may still be indirect/unexposed.
-- Final lane closeout not yet executed.
+- Residual risk (accepted): broader reuse lanes outside synonym-management remain indirect/unexposed and are out of bounded scope.
+- No blockers for this lane closeout.
 
 ## 7) Next Exact Action
 
-- **Action type:** closeout verification
-- **Target:** plan/lifecycle validation layer
-- **Exact command or edit intent:** run strict lifecycle validation command for this lane and, if passing, mark plan status/closeout state.
-- **Why this is next:** all implementation and audit evidence deliverables met; only formal closure gate remains.
+- **Action type:** close now
+- **Target:** none
+- **Exact command or edit intent:** none; lane closure criteria satisfied and merge completed.
+- **Why this is next:** no further eligible in-scope actions remain.
 
 ## 8) Resume Prompt (Copy/Paste)
 
 ```text
-Read this execution context pack first. Verify its state against listed source files. Then execute the Next Exact Action immediately. Do not re-plan unless blocker is found.
+Lane closed. Start next lane/workstream task; do not reopen this bounded fix unless new regression evidence appears.
 ```
 
 ## 9) Optional Deep Context (Consult Only)
 
 - **conversation_id:** `d95bbe61-fec5-448c-ace8-6b69f6dcf3ac`
 - **overview_log:** `.gemini/antigravity/brain/d95bbe61-fec5-448c-ace8-6b69f6dcf3ac/.system_generated/logs/overview.txt`
-- **consult_if:** ambiguity on prior audit rationale or prior lane decisions
-- **notes_from_log (optional, concise):** audit trigger was contract drift between runtime reuse behavior and operator-facing config surface.
+- **consult_if:** post-close audit trace reconstruction needed
 
 ## Source-Truth Rule
 

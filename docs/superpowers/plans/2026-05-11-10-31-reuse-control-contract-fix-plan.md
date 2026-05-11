@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: reuse-control-contract-drift-bounded-fix-plan
 parent_thread: none
@@ -55,12 +55,12 @@ Extend unit tests for schema registration/defaults and precedence behavior; run 
 - Existing key `synonym_management.triage_recommendation_reuse_enabled` remains backward-compatible.
 
 **Steps:**
-- [ ] Add schema entry `synonym_management.disable_all_reuse` with type `bool`, default `false`, explicit label/description, group, and config path.
-- [ ] Place entry in agentic-core ownership list without disturbing existing ordering invariants unless required by test expectations.
-- [ ] Add/adjust tests asserting key presence, mutability classification, and section ownership.
+- [x] Add schema entry `synonym_management.disable_all_reuse` with type `bool`, default `false`, explicit label/description, group, and config path.
+- [x] Place entry in agentic-core ownership list without disturbing existing ordering invariants unless required by test expectations.
+- [x] Add/adjust tests asserting key presence, mutability classification, and section ownership.
 
 **Verification:**
-- [ ] `py -m pytest tests/test_fitcv_cp/test_settings_schema.py -q`
+- [x] `py -m pytest tests/test_fitcv_cp/test_settings_schema.py -q`
 
 **Exit Criteria:**
 - New setting exists in schema and tests prove registry + ownership correctness.
@@ -83,14 +83,14 @@ Extend unit tests for schema registration/defaults and precedence behavior; run 
 - Existing default behavior when key missing/false must remain unchanged.
 
 **Steps:**
-- [ ] Update mode-building logic to read `disable_all_reuse` from `synonym_management` block.
-- [ ] Enforce precedence: if true, force all known reuse fields in returned mode payload to `false`.
-- [ ] Keep non-reuse synonym-management fields unchanged.
-- [ ] Add/adjust tests covering both branches: override true and override false/missing.
+- [x] Update mode-building logic to read `disable_all_reuse` from `synonym_management` block.
+- [x] Enforce precedence: if true, force all known reuse fields in returned mode payload to `false`.
+- [x] Keep non-reuse synonym-management fields unchanged.
+- [x] Add/adjust tests covering both branches: override true and override false/missing.
 
 **Verification:**
-- [ ] `py -m pytest tests/test_fitcv_cp/test_app.py -q`
-- [ ] `py -m pytest tests/test_fitcv_cp/test_worker_job.py -q`
+- [x] `py -m pytest tests/test_fitcv_cp/test_app.py -q`
+- [x] `py -m pytest tests/test_fitcv_cp/test_worker_job.py -q`
 
 **Exit Criteria:**
 - Both runtime paths produce same precedence behavior with passing tests.
@@ -109,12 +109,12 @@ Extend unit tests for schema registration/defaults and precedence behavior; run 
 - Task 2 complete.
 
 **Steps:**
-- [ ] Search related modules for reuse gates lacking global override awareness.
-- [ ] Classify findings as `confirmed | likely | risk`.
-- [ ] Fix now only for confirmed, same-contract surfaces; defer others with explicit note.
+- [x] Search related modules for reuse gates lacking global override awareness.
+- [x] Classify findings as `confirmed | likely | risk`.
+- [x] Fix now only for confirmed, same-contract surfaces; defer others with explicit note.
 
 **Verification:**
-- [ ] `rg -n "reuse|cache|disable_all_reuse|triage_recommendation_reuse_enabled" src/fitcv_cp tests/test_fitcv_cp`
+- [x] `rg -n "reuse|cache|disable_all_reuse|triage_recommendation_reuse_enabled" src/fitcv_cp tests/test_fitcv_cp`
 
 **Exit Criteria:**
 - Pattern findings documented with explicit fix-now/defer decision.
@@ -133,12 +133,12 @@ Extend unit tests for schema registration/defaults and precedence behavior; run 
 - Tasks 1-3 complete with verification outputs captured.
 
 **Steps:**
-- [ ] Update report fix path/outcomes, verification evidence links, residual risk, and disposition.
-- [ ] Register new evidence artifacts with checksums in manifest.
-- [ ] Re-run audit completeness gate.
+- [x] Update report fix path/outcomes, verification evidence links, residual risk, and disposition.
+- [x] Register new evidence artifacts with checksums in manifest.
+- [x] Re-run audit completeness gate.
 
 **Verification:**
-- [ ] `.\.venv\Scripts\python.exe scripts\audit_check.py docs/superpowers/plans/audit/20260511-1021-reuse-control-contract-drift`
+- [x] `.\.venv\Scripts\python.exe scripts\audit_check.py docs/superpowers/plans/audit/20260511-1021-reuse-control-contract-drift`
 
 **Exit Criteria:**
 - Audit gate passes with no unresolved required decision items.
