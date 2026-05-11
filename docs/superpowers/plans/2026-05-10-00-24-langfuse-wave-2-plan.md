@@ -18,6 +18,7 @@ targets:
   - tests/test_fitcv_cp/test_reporter.py
   - tests/test_pipeline.py
 related_stages:
+  - enrich
   - cv_analysis
   - cv_generation
   - acceptance_review
@@ -50,6 +51,29 @@ Implement Wave 2 observability contract on top of existing Wave 1 Langfuse item 
 - Update docs to publish Wave 2 contract boundaries and handoff guidance.
 
 ## Task Breakdown
+
+### task 0: quality-stage readable IO contract hardening (audit priority)
+
+**Files:**
+- Inspect: `docs/superpowers/reports/2026-05-10-langfuse-quality-observability-audit.md`
+- Inspect: `src/fitcv/telemetry.py`
+- Inspect: `src/fitcv/pipeline.py`
+- Inspect: `src/fitcv_cp/reporter.py`
+- Inspect: `src/fitcv_cp/worker_job.py`
+- Inspect tests: `tests/test_fitcv/test_telemetry.py`, `tests/test_fitcv_cp/test_reporter.py`, `tests/test_pipeline.py`
+
+- [ ] Step 1: enforce hard invariant for quality stages (`enrich_item`, `cv_analysis_item`, `cv_generation_item`, `acceptance_review_item`) that top-level readable `output` is never undefined/empty.
+- [ ] Step 2: require bounded reviewer-readable `input` and `output` for each quality stage item emission.
+- [ ] Step 3: split payload domains explicitly:
+  - reviewer-facing summaries in top-level `input`/`output`
+  - evaluable structured fields in `metadata.quality.*`
+  - control/provenance/ops fields in `metadata.ops.*`
+- [ ] Step 4: define stage-specific output summary expectations:
+  - `enrich_item`: extracted entities/deltas and normalization summary
+  - `cv_analysis_item`: fit label, top reasons, confidence/evidence summary
+  - `cv_generation_item`: generated CV preview snippet, validation summary, selected-attempt context
+  - `acceptance_review_item`: action, rationale, warning/violation summary, reviewer-note excerpt
+- [ ] Step 5: add trace re-sampling verification criteria so patched traces prove sub-15-second quality review viability per item.
 
 ### task 1: lock Wave 2 contract boundaries and ownership
 
@@ -161,12 +185,15 @@ Optional export verification lane:
 
 A plan item is considered complete when:
 
-1. `acceptance_review_item` observation emits at truthful boundary with enforced action enum and required lineage fields.
-2. Wave 2 export lane produces stable evaluator-ready JSONL/CSV rows from structured metadata.
-3. Wave 1 run-summary and item-observation behavior remains backward compatible and separate from evaluator export concerns.
-4. fixtures and tests pass for approval/rejection/change-request/warning-accept paths plus degraded telemetry path.
-5. docs describe Wave 2 contract, dependencies, and rollout/rollback boundaries clearly for execution handoff.
-6. planning lifecycle and template validators pass without introducing contract drift.
+1. No quality stage (`enrich_item`, `cv_analysis_item`, `cv_generation_item`, `acceptance_review_item`) emits undefined/empty top-level readable `output` in sampled traces.
+2. Each sampled quality stage trace shows bounded reviewer-readable `input` and `output` plus structured `metadata.quality.*` without crowding primary IO with ops/control fields.
+3. Reviewer can determine outcome quality in under 15 seconds per sampled item from Langfuse trace UI.
+4. `acceptance_review_item` observation emits at truthful boundary with enforced action enum and required lineage fields.
+5. Wave 2 export lane produces stable evaluator-ready JSONL/CSV rows from structured metadata.
+6. Wave 1 run-summary and item-observation behavior remains backward compatible and separate from evaluator export concerns.
+7. fixtures and tests pass for approval/rejection/change-request/warning-accept paths plus degraded telemetry path.
+8. docs describe Wave 2 contract, dependencies, and rollout/rollback boundaries clearly for execution handoff.
+9. planning lifecycle and template validators pass without introducing contract drift.
 
 ## Lifecycle Evidence Reconciliation (2026-05-10)
 

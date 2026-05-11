@@ -177,8 +177,9 @@ def resolve_data_backend(config: dict[str, Any] | None = None) -> str:
     1. explicit FITCV_CP_DATA_BACKEND env override
     2. passed config["control_plane"]["data_backend"]["type"]
     3. passed config["data_backend"]["type"]
-    4. load_control_plane_config() when available
-    5. default to bigquery for backward compatibility
+    4. compatibility fallback: explicit BigQuery connection fields on passed config
+    5. load_control_plane_config() when available
+    6. default to bigquery for backward compatibility
     """
     env_backend = str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower()
     if env_backend:
@@ -199,6 +200,9 @@ def resolve_data_backend(config: dict[str, Any] | None = None) -> str:
         if backend not in {"bigquery", "sqlite"}:
             raise ValueError("data_backend.type must be one of: bigquery, sqlite")
         return backend
+
+    if cfg.get("gcp_project") and cfg.get("bigquery_dataset"):
+        return "bigquery"
 
     try:
         control_plane_cfg = load_control_plane_config()
@@ -774,10 +778,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     cfg = _apply_infra_env_overrides(cfg)
 
     backend = resolve_data_backend(cfg)
-    required_keys = [
-        key for key in _REQUIRED_KEYS
-        if backend == "bigquery" or key != "service_account_key"
-    ]
+    required_keys = _REQUIRED_KEYS if backend == "bigquery" else []
     missing = [k for k in required_keys if k not in cfg]
     if missing:
         raise ValueError(

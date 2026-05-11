@@ -1063,7 +1063,7 @@ def lookup_reusable_structured_jobs(
     project = str(config.get("gcp_project") or "").strip()
     dataset = str(config.get("bigquery_dataset") or "").strip()
     key_path = str(config.get("service_account_key") or "").strip()
-    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+    if sqlite_mode_enabled(config):
         job_urls = [
             str(job.get("job_url") or "")
             for job in normalized_jobs
@@ -1128,7 +1128,7 @@ def lookup_reusable_structured_jobs(
     from google.cloud import bigquery  # type: ignore[import-untyped]
     from google.oauth2 import service_account  # type: ignore[import-untyped]
 
-    if key_path and os.path.exists(key_path):
+    if key_path:
         credentials = service_account.Credentials.from_service_account_file(key_path)
         client = bigquery.Client(project=project, credentials=credentials)
     else:
@@ -1204,16 +1204,12 @@ def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
     if not provider_name:
         return None
 
-    base_url = (
-        str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL") or "").strip()
-        or str(routing.get("base_url") or "").strip()
-    )
+    base_url = str(routing.get("base_url") or "").strip()
     if not base_url:
         # No HTTP base_url configured for this routed provider; defer to Gemini path.
         return None
     api_key_candidates = (
         "FITCV_LLM_API_KEY",
-        "FITCV_LANGGRAPH_OPENAI_API_KEY",
         "OPENAI_API_KEY",
         "OPENAI_COMPATIBLE_API_KEY",
     )
@@ -1230,15 +1226,12 @@ def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
             return None
         raise RuntimeError(
             "Config-routed HTTP provider for enrich_extraction requires API key in env "
-            "(FITCV_LLM_API_KEY or FITCV_LANGGRAPH_OPENAI_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY)."
+            "(FITCV_LLM_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY)."
         )
-    wire_api = str(os.environ.get("FITCV_LANGGRAPH_WIRE_API") or "").strip().lower() or "responses"
-    timeout_seconds = float(
-        str(os.environ.get("FITCV_LANGGRAPH_TIMEOUT_SECONDS") or "").strip() or "120"
-    )
+    wire_api = str(routing.get("wire_api") or "").strip().lower() or "responses"
+    timeout_seconds = float(str(routing.get("timeout_seconds") or "").strip() or "120")
     model_override = (
-        str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
-        or str(routing.get("model") or "").strip()
+        str(routing.get("model") or "").strip()
         or get_gemini_model(config)
     )
 
@@ -1423,6 +1416,7 @@ def _enrich_chunk(
     import time
     from google.api_core.exceptions import ResourceExhausted  # type: ignore[import-untyped]
     from google.genai.errors import ClientError  # type: ignore[import-untyped]
+    import httpx
 
     sleep_secs = float(config.get("enrichment_sleep_secs", 1.0))
     max_retries = int(config.get("enrichment_max_retries", 2))
@@ -1448,7 +1442,13 @@ def _enrich_chunk(
                         raise
                     attempts += 1
                     time.sleep(sleep_secs * (2 ** (attempts - 1)))
+                except httpx.HTTPStatusError as exc:
+                    if getattr(getattr(exc, "response", None), "status_code", None) != 429 or attempts >= max_retries:
+                        raise
+                    attempts += 1
+                    time.sleep(sleep_secs * (2 ** (attempts - 1)))
     return results
+
 
 
 def enrich_batch(
@@ -1607,7 +1607,7 @@ def load_structured_jobs(
     Returns:
         Number of rows upserted.
     """
-    if str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower() == "sqlite":
+    if sqlite_mode_enabled(config):
         with sqlite3.connect(_sqlite_path()) as conn:
             _ensure_sqlite_structured_jobs_table(conn)
             rows = []
@@ -1646,7 +1646,7 @@ def load_structured_jobs(
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
 
-    if key_path and os.path.exists(key_path):
+    if key_path:
         credentials = service_account.Credentials.from_service_account_file(key_path)
         client = bigquery.Client(project=project, credentials=credentials)
     else:
@@ -1820,7 +1820,7 @@ def load_run_structured_jobs(
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
 
-    if key_path and os.path.exists(key_path):
+    if key_path:
         credentials = service_account.Credentials.from_service_account_file(key_path)
         client = bigquery.Client(project=project, credentials=credentials)
     else:

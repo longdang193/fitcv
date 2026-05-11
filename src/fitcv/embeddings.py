@@ -31,7 +31,7 @@ import sqlite3
 from datetime import datetime, timezone
 from typing import Any
 
-from fitcv.config import get_embedding_model, load_control_plane_config
+from fitcv.config import get_embedding_model, sqlite_mode_enabled
 
 JOB_SUMMARY_CHUNK_TYPE = "job_summary"
 SHORTLIST_SUMMARY_SCHEMA_VERSION = "shortlist_job_summary_v2"
@@ -41,22 +41,6 @@ FRESH_EMBEDDING_STATUS = "fresh_embedding"
 SQLITE_EMBED_DIM = 256
 
 
-def _sqlite_mode_enabled(config: dict[str, Any] | None = None) -> bool:
-    cfg = config or {}
-    explicit_mode = str(((cfg.get("data_plane") or {}).get("state_backend") or "")).strip().lower()
-    if explicit_mode:
-        return explicit_mode == "sqlite"
-    env_mode = str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower()
-    if env_mode:
-        return env_mode == "sqlite"
-    # Preserve explicit BigQuery-style configs used by legacy callers/tests.
-    if cfg.get("gcp_project") and cfg.get("bigquery_dataset"):
-        return False
-    try:
-        cp_cfg = load_control_plane_config()
-        return str(((cp_cfg.get("data_backend") or {}).get("type")) or "").strip().lower() == "sqlite"
-    except Exception:
-        return False
 
 
 def _normalize_summary_scalar(value: Any) -> str:
@@ -350,6 +334,15 @@ def build_candidate_chunks(profile: dict[str, Any]) -> list[dict[str, Any]]:
 
 # ── integration: Vertex AI embedding ─────────────────────────────────────────
 
+def _deterministic_local_embedding(text: str) -> list[float]:
+    digest = hashlib.sha256(text.encode("utf-8")).digest()
+    values: list[float] = []
+    for idx in range(SQLITE_EMBED_DIM):
+        b = digest[idx % len(digest)]
+        values.append((float(b) / 127.5) - 1.0)
+    return values
+
+
 def generate_embedding(
     text: str,
     config: dict[str, Any],
@@ -357,9 +350,12 @@ def generate_embedding(
 ) -> list[float]:
     """Call Vertex AI text-embedding-005 and return the embedding vector.
 
-    Requires GOOGLE_APPLICATION_CREDENTIALS.
+    Requires GOOGLE_APPLICATION_CREDENTIALS in non-sqlite mode.
     Marked @pytest.mark.integration in tests.
     """
+    if sqlite_mode_enabled(config):
+        return _deterministic_local_embedding(text)
+
     try:
         import vertexai  # type: ignore[import-untyped]
         from fitcv.config import get_vertex_location
@@ -373,12 +369,7 @@ def generate_embedding(
         embeddings = model.get_embeddings([text])
         return embeddings[0].values  # type: ignore[return-value]
     except Exception:
-        digest = hashlib.sha256(text.encode("utf-8")).digest()
-        values: list[float] = []
-        for idx in range(SQLITE_EMBED_DIM):
-            b = digest[idx % len(digest)]
-            values.append((float(b) / 127.5) - 1.0)
-        return values
+        return _deterministic_local_embedding(text)
 
 
 def _sqlite_path() -> str:
@@ -433,7 +424,7 @@ def embed_and_store_jobs(
     """
     if not structured_jobs:
         return 0
-    if _sqlite_mode_enabled(config):
+    if sqlite_mode_enabled(config):
         now = datetime.now(tz=timezone.utc).isoformat()
         embedding_contract = build_embedding_contract_fingerprint(config)
         rows: list[dict[str, Any]] = []
@@ -490,8 +481,11 @@ def embed_and_store_jobs(
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path:
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
     table_ref = f"{project}.{dataset}.job_embeddings"
     now = datetime.now(tz=timezone.utc).isoformat()
     embedding_contract = build_embedding_contract_fingerprint(config)
@@ -555,7 +549,7 @@ def embed_and_store_candidate(
     Returns:
         Number of rows inserted.
     """
-    if _sqlite_mode_enabled(config):
+    if sqlite_mode_enabled(config):
         now = datetime.now(tz=timezone.utc).isoformat()
         candidate_chunks = build_candidate_chunks(profile)
         rows = []
@@ -592,8 +586,11 @@ def embed_and_store_candidate(
     project = str(config["gcp_project"])
     dataset = str(config["bigquery_dataset"])
     key_path = str(config["service_account_key"])
-    credentials = service_account.Credentials.from_service_account_file(key_path)
-    client = bigquery.Client(project=project, credentials=credentials)
+    if key_path:
+        credentials = service_account.Credentials.from_service_account_file(key_path)
+        client = bigquery.Client(project=project, credentials=credentials)
+    else:
+        client = bigquery.Client(project=project)
     table_ref = f"{project}.{dataset}.candidate_embeddings"
     now = datetime.now(tz=timezone.utc).isoformat()
 
