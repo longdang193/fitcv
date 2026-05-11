@@ -5,7 +5,7 @@ status: proposed
 template_id: implementation-plan
 name: langfuse-wave-2-observability-integration
 parent_thread: workstream-agentic-observability.agentic-observability-provider-provenance
-parent_spec: docs/superpowers/specs/2026-05-09-evaluable-langfuse-item-observation-contract-spec.md
+parent_spec: docs/superpowers/specs/2026-05-04-langfuse-rich-input-output-observability-spec.md
 targets:
   - docs/observability.md
   - docs/pipeline.md
@@ -21,7 +21,7 @@ related_stages:
   - enrich
   - cv_analysis
   - cv_generation
-  - acceptance_review
+  - shortlist
 ---
 
 # 2026-05-10 Langfuse Wave 2 Observability Integration Plan

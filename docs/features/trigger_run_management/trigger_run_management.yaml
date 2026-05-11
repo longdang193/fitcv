@@ -334,6 +334,7 @@ refs:
   - docs/superpowers/plans/2026-05-02-phase-2-plan-i-prefect-orchestration-adoption.md
   - docs/superpowers/plans/2026-05-02-phase-2-plan-j-opentelemetry-export-and-collector-integration.md
   - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
+  - docs/superpowers/plans/2026-05-11-22-07-docs-lifecycle-alignment-plan.md
   docs:
   - docs/features/trigger_run_management/history.md
   configs: []

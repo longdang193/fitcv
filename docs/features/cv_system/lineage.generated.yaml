@@ -104,6 +104,7 @@ capabilities:
     - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
     - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
     - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
+    - docs/superpowers/specs/2026-05-05-education-section-visibility-and-grounding-guardrails-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -283,6 +284,7 @@ capabilities:
     - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
     - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
     - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
+    - docs/superpowers/specs/2026-05-05-education-section-visibility-and-grounding-guardrails-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -452,6 +454,7 @@ capabilities:
     - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
     - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
     - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
+    - docs/superpowers/specs/2026-05-05-education-section-visibility-and-grounding-guardrails-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -630,6 +633,7 @@ capabilities:
     - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
     - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
     - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
+    - docs/superpowers/specs/2026-05-05-education-section-visibility-and-grounding-guardrails-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -799,6 +803,7 @@ capabilities:
     - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
     - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
     - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
+    - docs/superpowers/specs/2026-05-05-education-section-visibility-and-grounding-guardrails-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -966,6 +971,7 @@ capabilities:
     - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
     - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
     - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
+    - docs/superpowers/specs/2026-05-05-education-section-visibility-and-grounding-guardrails-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1139,6 +1145,7 @@ capabilities:
     - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
     - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
     - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
+    - docs/superpowers/specs/2026-05-05-education-section-visibility-and-grounding-guardrails-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md
@@ -1316,6 +1323,7 @@ capabilities:
     - docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
     - docs/superpowers/specs/2026-04-30-cv-markdown-standards-and-consistency-enforcement-spec.md
     - docs/superpowers/specs/2026-04-30-hitl-and-extended-agentic-cv-analysis-spec.md
+    - docs/superpowers/specs/2026-05-05-education-section-visibility-and-grounding-guardrails-spec.md
     plans:
     - docs/superpowers/archive/plans/2026-03-29-structured-cv-representation-implementation.md
     - docs/superpowers/archive/plans/2026-03-30-experience-evidence-preservation-implementation.md

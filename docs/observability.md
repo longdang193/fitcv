@@ -56,28 +56,28 @@ For most debugging, start here before opening raw JSON exports.
 
 ## Two-Layer Langfuse Observability Model
 
-Wave 1 uses a two-layer contract in Langfuse:
+Observability uses two complementary layers:
 
 - **Layer 1: run-scoped summary surfaces**
-  - existing run/root trace context remains the operator entrypoint
-  - aggregate summaries such as `pipeline_complete` stay aggregate-only
-  - run-summary surfaces do not shadow-store item-level raw analysis/generation IO
+  - run/root trace context remains operator entrypoint
+  - aggregate summaries such as `pipeline_complete` remain run-level
+  - run-summary surfaces avoid duplicating full item-level raw IO
 - **Layer 2: item-level evaluable observations**
-  - `cv_analysis_item` emits one bounded item observation per candidate-job analysis attempt
-  - `cv_generation_item` emits one bounded item observation per candidate-job generation attempt
-  - both item observations are nested under the same run trace so lineage stays inspectable in one place
+  - `cv_analysis_item` captures one item observation per candidate-job analysis attempt
+  - `cv_generation_item` captures one item observation per candidate-job generation attempt
+  - item observations are nested under same run trace for lineage continuity
 
-Wave 1 item observations are designed for two audiences at once:
+Item observations support both audiences:
 
-- **reviewers/operators** see reviewer-first rendered `input` and `output` as readable markdown/text sections
-- **automation/filtering** uses structured backing payloads preserved in observation metadata rather than parsing rendered markdown
+- **reviewers/operators**: readable rendered `input`/`output`
+- **automation/filtering**: structured metadata payloads for filters and joins
 
 Bounded payload policy:
 
-- rendered `input` and `output` are intentionally capped and redacted through shared telemetry helpers
-- item observations preserve disposition-aware summaries for success, blocked, review-required, validation-failed, generation-failed, and persistence-failed paths
-- raw chain-of-thought, unbounded provider payloads, and oversized blobs are not stored in Langfuse item observations
-- telemetry degradation still must not block primary pipeline execution
+- rendered `input` and `output` are capped/redacted through telemetry helpers
+- item observations preserve disposition-aware summaries across success and failure paths
+- raw chain-of-thought, unbounded provider payloads, and oversized blobs are not stored in item observations
+- telemetry degradation must not block primary pipeline execution
 
 Wave 1 verification status:
 

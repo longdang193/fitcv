@@ -1,4 +1,5 @@
 ---
+layer: workstream
 artifact_type: spec
 spec_id: 2026-05-05-education-section-visibility-and-grounding-guardrails-spec
 title: Education Section Visibility And Grounding Guardrails
@@ -6,7 +7,6 @@ status: active
 created_at: 2026-05-05
 updated_at: 2026-05-11
 owner: fitcv
-parent_workstream: workstream-bounded-agentic-cv-quality
 parent_thread: workstream-bounded-agentic-cv-quality.education-section-visibility-and-grounding-guardrails
 related_features:
   - cv_system

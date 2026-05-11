@@ -49,10 +49,10 @@ This page is the short setup map. Use [fitcv-control-plane-setup.md](fitcv-contr
 3. start worker
 4. open `/admin/runs`
 
-### Inline execution mode (debug/lane testing)
+### Docker mode
 
-- set `FITCV_CP_INLINE_EXECUTION=true`
-- trigger runs from `/admin/runs`
+- run `docker compose up -d --build redis web worker`
+- open `/admin/runs`
 
 ## Quick Validation
 

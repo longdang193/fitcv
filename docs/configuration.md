@@ -17,15 +17,10 @@ FitCV uses layered configuration with clear ownership boundaries.
 
 ## Primary Runtime Inputs
 
-- `config/runtime/control_plane.yaml`
-  - backend type (`sqlite` or `bigquery`)
-  - provider registry
-  - model-routing parts
-  - observability flags
-- `config/runtime/pipeline.yaml`
-  - stage/runtime defaults
-- `.env` / process env
-  - secrets and env overrides
+- trigger base config file (`config_path` in `/runs` request; default `.env.yaml`)
+- persisted control-plane settings (`/admin/settings` and `/settings` surfaces)
+- per-run trigger overrides (`config_overrides` in `/runs`)
+- process environment variables for backend/provider credentials and runtime toggles
 
 ## Config Invariants
 
@@ -36,18 +31,21 @@ FitCV uses layered configuration with clear ownership boundaries.
 
 ## Effective Settings Resolution
 
-1. checked-in runtime YAML defaults
-2. persisted control-plane settings overrides
-3. run trigger-time overrides
-4. runtime env overrides
-5. run-scoped `settings-used.json` captures final effective view
+At trigger time, the control plane composes effective run settings in this order:
+
+1. load base config from `config_path` (`TriggerRequest.config_path`)
+2. load persisted active settings (`load_active_settings(...)`)
+3. apply persisted settings into base config (`apply_settings_to_config`)
+4. apply run-scoped trigger overrides (`config_overrides`) after validation/coercion
+5. recompute derived compatibility fields
+6. persist the run-scoped snapshot as `settings-used.json`/effective settings payload
 
 Interpretation rules:
 
 - `/admin/settings` edits persisted defaults for future runs only.
 - trigger-time per-run overrides do not mutate saved defaults.
-- completed-run truth belongs to the run-scoped `settings-used.json` snapshot.
-- runtime env ownership can supersede settings-owned values in agentic/live provider paths.
+- completed-run truth belongs to the run-scoped effective settings snapshot.
+- process environment variables control backend/provider credentials and runtime wiring; they are not persisted through settings-save routes.
 
 ## Settings Surface Ownership
 
@@ -63,9 +61,10 @@ Examples:
 
 ## Backend and Provider Routing
 
-- backend routing: resolved by control-plane runtime config + env override
-- model/provider routing: resolved by `control_plane.model_routing.parts`
-- provider credentials: read from process env only
+- backend routing: process env `FITCV_CP_DATA_BACKEND` selects backend mode (`sqlite` / `bigquery`) at runtime
+- model/provider routing: resolved from effective run config after settings + overrides composition
+- provider credentials: read from process env
+
 
 ## Managed Docs Note
 

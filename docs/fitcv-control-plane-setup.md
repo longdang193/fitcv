@@ -144,7 +144,8 @@ The admin UI is available at `http://localhost/admin/runs`.
 
 Notes:
 
-- The containers use `/app/.env.yaml` and `/app/config/env.yaml`
+- Compose mounts repo `.env` into both containers at `/app/.env` and sets `FITCV_LANGGRAPH_ENV_FILE=/app/.env`
+- Compose also mounts `./.env.yaml` -> `/app/.env.yaml` and `./config/env.yaml` -> `/app/config/env.yaml`
 - The service-account key is mounted inside the container as `/app/sa_key.json`
 - Do not pass Windows paths like `C:\...json` into Docker-triggered runs
 
@@ -164,8 +165,12 @@ Invoke-RestMethod `
   -Method Post `
   -Uri "http://localhost/runs" `
   -ContentType "application/json" `
-  -Body '{"jobs_path":"data/sample_jobs.json","config_path":".env.yaml","triggered_by":"admin"}'
+  -Body '{"jobs_path":"data/sample_jobs.json","config_path":".env.yaml","triggered_by":"admin","run_mode":"run_all"}'
 ```
+
+`config_path` must point to a config file resolvable by the running `web` process.
+In local mode this is typically a repo-relative path (for example `.env.yaml`).
+In Docker mode use paths available inside the container via mounted volumes.
 
 Expected run status progression:
 
