@@ -103,15 +103,7 @@ stage_participation:
   - pipeline_performance.cv-analysis-now-uses-bounded-semantic-lift-for-required-skill-and-role-channels-instead-of-reserving-semantic-work-only-for-domain-and-responsibility-alignment
   - pipeline_performance.ranked-jobs-with-authoritative-reranker-fit-label-skip-now-stop-before-evidence-retrieval-gap-computation-and-semantic-alignment-inside-cv-analysis
 refs:
-  code:
-  - src/fitcv/config.py
-  - src/fitcv/embeddings.py
-  - src/fitcv/enrich.py
-  - src/fitcv/evidence.py
-  - src/fitcv/pipeline.py
-  - src/fitcv/rule_filter.py
-  - src/fitcv_cp/bq_store.py
-  - src/fitcv_cp/worker_job.py
+  code: []
   tests:
   - tests/test_config.py
   - tests/test_embeddings.py

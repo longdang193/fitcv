@@ -58,6 +58,9 @@ while still splitting ownership by role:
 - `.agents/agents/` for optional repo-local playbooks
 - `docs/operating_system/` for human governance
 
+Execution context-pack governance for long-running session handoff is defined in:
+- `docs/operating_system/governance/execution-context-pack-governance.md`
+
 The repo also splits configuration ownership by purpose:
 
 - `repo_config/`
@@ -209,33 +212,16 @@ The normal validation and hook path should fail when the required folder
 surface is missing, while conditional folders should be required only when the
 project shape or adopted workflow actually uses them.
 
-For `starter_method_only` specifically, that means the canonical validator path
-should not quietly escalate the repo into managed architecture sync/generator
-requirements. Mode A may keep `docs/features/`, `docs/stages/`, and
-`docs/generated/` absent or prose-only until the repo explicitly adopts managed
-architecture metadata.
+For `starter_method_only`, the canonical validator path keeps starter scaffolding
+requirements separate from managed architecture surfaces.
 
-Mode A is still allowed to warn when a repo has clearly grown beyond the tiny
-starter shape. In particular, the validator may warn about missing lightweight
-prose anchors such as `docs/features/README.md` or `docs/api.md` when the file
-tree shows meaningful product/runtime or API surface. Those warnings are
-discovery debt, not managed-metadata violations.
+Mode A keeps `docs/features/`, `docs/stages/`, and `docs/generated/` absent or
+prose-only until the repo explicitly adopts managed metadata.
 
-The intended maturity ladder is:
-
-`starter_method_only -> lightweight anchors -> managed_architecture_metadata`
-
-So `docs/features/README.md` and `docs/api.md` are waypoints, not the mature
-destination for repos with durable product surface.
-
-For some repos, the starter may emit a second warning tier after those anchors
-already exist:
-
-- the repo appears to have outgrown lightweight anchors
-- migration planning toward `managed_architecture_metadata` should begin
-
-That second-tier warning is still advisory in this phase. It exists to make the
-starter more lifecycle-aware, not to declare the repo invalid overnight.
+Once a repo adopts `managed_architecture_metadata`, managed surfaces become
+strict contract requirements, and role split is expressed through
+`repo_role: source_owner | consumer_derived` rather than by changing required
+managed surface shape.
 
 Planning classification should stay explicit:
 

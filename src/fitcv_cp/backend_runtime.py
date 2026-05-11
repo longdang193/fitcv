@@ -1,4 +1,17 @@
-"""Shared control-plane backend runtime resolution."""
+"""@meta
+name: backend_runtime
+type: module
+domain: runtime
+ownership: infrastructure
+responsibility:
+  - Module metadata placeholder for src.fitcv_cp.backend_runtime.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
+"""
 
 from __future__ import annotations
 

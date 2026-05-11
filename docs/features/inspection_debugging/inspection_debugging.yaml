@@ -185,10 +185,7 @@ stage_participation:
   - inspection_debugging.stage-transition-diagnostics
   - inspection_debugging.synonym-overlay-inspection
 refs:
-  code:
-  - src/fitcv_cp/app.py
-  - src/fitcv_cp/bq_store.py
-  - src/fitcv_cp/worker_job.py
+  code: []
   tests:
   - tests/test_fitcv_cp/test_app.py
   - tests/test_fitcv_cp/test_bq_store.py

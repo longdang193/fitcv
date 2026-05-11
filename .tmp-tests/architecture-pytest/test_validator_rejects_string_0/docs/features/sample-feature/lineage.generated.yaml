@@ -1,0 +1,27 @@
+# GENERATED FILE - do not edit directly.
+feature_id: sample-feature
+source: docs/features/sample-feature/feature.source.yaml
+invariants: {}
+capabilities:
+  sample-feature.submit-job:
+    state: active
+    statement: Submit the sample job.
+    satisfies: []
+    code:
+      - docs/setup.md
+    tests:
+      - docs/setup.md
+    docs: []
+    docs_evidence: []
+    configs: []
+    config_evidence: []
+    components: []
+    component_evidence: []
+    specs: []
+    plans: []
+    evidence_gaps: []
+    allowed_evidence_gaps: []
+    lineage_exception_reason: null
+    unresolved_evidence_gaps: []
+    completeness_status: complete
+timeline: []

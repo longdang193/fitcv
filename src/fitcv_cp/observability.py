@@ -1,16 +1,16 @@
-"""
-@meta
-name: fitcv_cp_observability
-type: utility
-domain: observability
+"""@meta
+name: observability
+type: module
+domain: runtime
+ownership: infrastructure
 responsibility:
-  - Emit structured control-plane diagnostics for backend and routing behavior.
+  - Module metadata placeholder for src.fitcv_cp.observability.
 inputs:
-  - event names and diagnostic payload fields
+  - Internal runtime calls and module imports
 outputs:
-  - structured log events
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
 
 from __future__ import annotations

@@ -27,11 +27,19 @@ tests, specs, and future scenarios.
 1. Record root cause and failure boundary summary.
 2. Record applied bounded fix and scope.
 3. Record validation evidence proving resolution.
-4. Identify follow-up updates for:
+4. Audit gate:
+   - if qualifying trigger applied, confirm audit bundle path and disposition (`open | mitigated | resolved | accepted-risk`).
+   - run:
+
+   ```powershell
+   .\.venv\Scripts\python.exe scripts\audit_check.py docs/superpowers/plans/audit/<audit_id>
+   ```
+
+5. Identify follow-up updates for:
    - tests
    - specs
    - scenario catalog
-5. Decide:
+6. Decide:
    - closeout ready -> pass to thread closeout readiness prompt
    - closeout blocked -> return to scenario planning for explicit follow-ups
 
@@ -39,13 +47,16 @@ tests, specs, and future scenarios.
 
 1. Evidence gate:
    - no closeout without root cause/fix/validation evidence bundle.
-2. Learning gate:
+2. Audit closure gate:
+   - no closeout for qualifying problems without audit record (or explicit allowed bypass) and verification evidence linked.
+   - non-zero exit from `scripts/audit_check.py` is a hard fail.
+3. Learning gate:
    - at least one explicit backfeed decision is required
      (tests/specs/scenarios: update now, defer with reason, or no-change with reason).
-3. Traceability gate:
+4. Traceability gate:
    - closeout fails if linkage is missing.
 
 ## Exit Criteria
 
-- Closeout bundle is complete and actionable for lifecycle closure, or
+- Closeout bundle is complete, includes required audit linkage/disposition, passing audit_check result, and is actionable for lifecycle closure, or
 - Blockers are explicitly recorded with next correction path.

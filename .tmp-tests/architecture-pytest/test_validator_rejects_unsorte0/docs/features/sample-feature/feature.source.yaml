@@ -1,0 +1,22 @@
+feature_id: sample-feature
+name: Sample Feature
+status: active
+type: workflow
+summary: Sample summary.
+invariants: []
+domains:
+  - serving
+  - analytics
+depends_on:
+  - zeta-upstream
+  - alpha-upstream
+capabilities: []
+stage_participation:
+  - stage_id: analytics
+    role: primary
+    capability_ids:
+      - sample-feature.zeta-capability
+      - sample-feature.alpha-capability
+lineage_exceptions:
+  - refs-gap
+  - docs-gap

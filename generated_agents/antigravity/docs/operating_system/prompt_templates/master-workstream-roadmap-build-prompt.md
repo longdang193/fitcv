@@ -1,24 +1,23 @@
 ---
 name: master-workstream-roadmap-build-prompt
-description: intent is clear and a master roadmap structure must be authored or revised.
+description: Build a master workstream roadmap from intent with phase-structured deliverables.
 type: prompt
 stage: planning
 entry_points:
-- use this prompt when its title scope matches the current planning/execution need
+- intent is clear and a master roadmap structure must be authored or revised
 prerequisites:
-- relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- intent context is available
 next_steps:
-- implementation-next-action-gate-prompt.md
+- registered-workstream-set-build-prompt.md
+- downstream-reconciliation-after-roadmap-format-change.md
 related_skills:
-- planning-dispatch
+- skill-planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
+- docs/operating_system/workflows/workflow-roadmap-to-closeout.md
 tags:
-- prompt-template
+- prompt
 - planning
-- intent
-owner_layer: intent
-status: active
 ---
 
 <!--
@@ -30,25 +29,6 @@ To update: edit canonical source, then run sync.
 -->
 
 # Master Workstream Roadmap Build Prompt
-
-## Use When
-
-intent is clear and a master roadmap structure must be authored or revised
-
-## Prerequisites
-
-### Required
-
-- intent context is available
-
-### Optional
-
-- existing workstream registry
-
-## Next Prompts
-
-- registered-workstream-set-build-prompt.md
-- downstream-reconciliation-after-roadmap-format-change.md
 
 ## Not For
 
@@ -78,4 +58,3 @@ Expected output:
 - a proposed or updated master workstream roadmap
 - identified major delivery threads
 - next recommended artifact, usually the registered workstream set
-

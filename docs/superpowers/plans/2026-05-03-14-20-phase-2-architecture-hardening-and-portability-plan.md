@@ -11,10 +11,8 @@ targets:
   - src/fitcv_cp/main.py
   - src/fitcv_cp/
   - tests/test_fitcv_cp/
-related_features:
-  - none
-related_stages:
-  - none
+related_features: []
+related_stages: []
 ---
 
 # Phase 2 Architecture Hardening And Portability Implementation Plan

@@ -28,7 +28,20 @@ ALLOWED_MODES = {
     "starter_method_only",
     "managed_architecture_metadata",
     "legacy_compatibility",
+    "consumer_starter_mode",
+    "source_of_truth_owner",
+    "legacy_compatibility_mode",
 }
+ADOPTION_MODE_ALIASES = {
+    "consumer_starter_mode": "starter_method_only",
+    "source_of_truth_owner": "managed_architecture_metadata",
+    "legacy_compatibility_mode": "legacy_compatibility",
+}
+ALLOWED_REPO_ROLES = {
+    "source_owner",
+    "consumer_derived",
+}
+DEFAULT_REPO_ROLE = "source_owner"
 METHOD_FEATURE_IDS = {"repo-operating-system"}
 METHOD_FEATURE_PREFIXES = (
     "repo-",
@@ -378,3 +391,12 @@ FEATURE_METADATA_PATTERNS = (
     "capability_id:",
     "capability_ids:",
 )
+
+
+def normalize_adoption_mode(mode: str | None) -> str | None:
+    if mode is None:
+        return None
+    normalized = mode.strip()
+    if not normalized:
+        return None
+    return ADOPTION_MODE_ALIASES.get(normalized, normalized)

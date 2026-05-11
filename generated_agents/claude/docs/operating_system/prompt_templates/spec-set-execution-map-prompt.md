@@ -1,25 +1,22 @@
 ---
 name: spec-set-execution-map-prompt
-description: approved detailed specs exist and implementation sequencing/waves are
-  needed.
+description: Create an execution map that sequences multiple approved specs.
 type: prompt
 stage: planning
 entry_points:
-- use this prompt when its title scope matches the current planning/execution need
+- approved detailed specs exist and implementation sequencing/waves are needed
 prerequisites:
-- relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- approved detailed specs identified
 next_steps:
-- implementation-next-action-gate-prompt.md
+- plan-prompt.md
 related_skills:
-- planning-dispatch
+- skill-planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
+- docs/operating_system/workflows/workflow-spec-to-plan-to-execution.md
 tags:
-- prompt-template
-- planning
-- change
-owner_layer: change
-status: active
+- prompt
+- execution
 ---
 
 <!--
@@ -31,24 +28,6 @@ To update: edit canonical source, then run sync.
 -->
 
 # Spec Set To Implementation Execution Map Prompt
-
-## Use When
-
-approved detailed specs exist and implementation sequencing/waves are needed
-
-## Prerequisites
-
-### Required
-
-- approved detailed specs identified
-
-### Optional
-
-- resource/parallel constraints
-
-## Next Prompts
-
-- plan-prompt.md
 
 ## Not For
 
@@ -74,6 +53,7 @@ Please:
 4. call out shared-surface coordination risks
 5. recommend the bounded implementation-plan breakdown
 6. draft the execution map in docs/superpowers/execution_maps/
+7. include canonical execution-map metadata, including `artifact_type: execution_map`, `map_type: implementation_execution`, `layer`, `status`, `parent_workstream`, `threads`, and `name` as the preferred identity field
 ```
 
 Expected output:
@@ -82,4 +62,3 @@ Expected output:
 - execution waves
 - parallel lanes
 - recommended plan breakdown
-

@@ -43,7 +43,6 @@ refs:
   code:
   - src/fitcv/enrich.py
   - src/fitcv/pipeline.py
-  - src/fitcv_cp/settings_schema.py
   tests:
   - tests/test_enrich.py
   - tests/test_fitcv_cp/test_settings_schema.py

@@ -33,3 +33,8 @@ stage artifact files; docs/stages/*
 
 Keep supporting explanation separate from gate artifacts.
 
+## Key Deliverables
+
+- Stage-owned artifact boundaries defined with ownership expectations.
+- Handoff contract documented for deterministic downstream decisions.
+

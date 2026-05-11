@@ -7,11 +7,7 @@ capabilities:
     state: active
     statement: FastAPI web server
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -47,20 +43,18 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   admin_control_plane_core.rq-background-worker-integration:
     state: active
     statement: RQ background worker integration
     satisfies: []
-    code:
-    - path: src/fitcv_cp/queue.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_queue.py
       confidence: high
@@ -108,20 +102,18 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   admin_control_plane_core.jinja2-admin-pages:
     state: active
     statement: Jinja2 admin pages
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -187,24 +179,18 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   admin_control_plane_core.pipelinereporter-integration:
     state: active
     statement: PipelineReporter integration
     satisfies: []
-    code:
-    - path: src/fitcv_cp/reporter.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/worker_job.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_reporter.py
       confidence: high
@@ -252,24 +238,18 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   admin_control_plane_core.pipeline-runs-bigquery-table:
     state: active
     statement: pipeline_runs BigQuery table
     satisfies: []
-    code:
-    - path: src/fitcv_cp/bq_store.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/models.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_bq_store.py
       confidence: high
@@ -353,24 +333,18 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   admin_control_plane_core.pipeline-run-events-bigquery-table:
     state: active
     statement: pipeline_run_events BigQuery table
     satisfies: []
-    code:
-    - path: src/fitcv_cp/bq_store.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/models.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_bq_store.py
       confidence: high
@@ -412,20 +386,18 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   admin_control_plane_core.insert-before-enqueue-invariant:
     state: active
     statement: insert-before-enqueue invariant
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -461,11 +433,13 @@ capabilities:
     - docs/superpowers/plans/2026-04-22-13-25-phase-6-lineage-evidence-hydration-plan.md
     - docs/superpowers/plans/2026-04-22-15-37-phase-11-control-plane-evidence-completion-plan.md
     - docs/superpowers/plans/2026-04-22-20-20-architecture-metadata-cleanup-plan.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
 timeline:
 - completed_at: '2026-04-22T00:07:00+02:00'
   source_plan: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md

@@ -1,24 +1,18 @@
-"""Internal CV preset registry — single source of truth for preset configuration.
-
-This module is the internal preset owner for:
-- supported preset names
-- section ordering
-- supported section keys
-- allowed enum values
-- internal template mapping
-
-Both `cv_generator.py` and `validator.py` must import from here, not duplicate
-the mapping.
-
-Usage
------
-from fitcv.cv_presets import (
-    SUPPORTED_PRESETS,
-    PRESET_REGISTRY,
-    get_section_order,
-    get_template_path,
-    validate_composition,
-)
+"""@meta
+name: cv_presets
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.cv_presets.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
 """
 
 from typing import Any

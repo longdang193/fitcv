@@ -1,5 +1,17 @@
 """
-Validate canonical metadata schema for skills, rules, and workflows.
+@meta
+name: validate_agent_metadata_schema
+type: script
+domain: validation
+responsibility:
+  - Validate canonical metadata schema for skills, rules, and workflows.
+  - Enforce frontmatter shape and reference integrity for agent metadata surfaces.
+inputs:
+  - Skill, rule, and workflow markdown files with YAML frontmatter
+outputs:
+  - Exit status and schema validation findings
+lifecycle:
+  status: active
 """
 
 from __future__ import annotations

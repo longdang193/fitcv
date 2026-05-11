@@ -32,7 +32,7 @@ Context:
 - recently changed areas:
 - required root docs that look stale or weak:
 - whether optional root docs are also expected:
-- whether the repo is starter_method_only or managed_architecture_metadata:
+- whether the repo is `starter_method_only` or `managed_architecture_metadata`:
 
 Please:
 1. inspect the current required root docs:

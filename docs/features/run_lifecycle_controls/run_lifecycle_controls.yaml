@@ -103,13 +103,7 @@ stage_participation:
   - run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
   - run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
 refs:
-  code:
-  - src/fitcv_cp/app.py
-  - src/fitcv_cp/bq_store.py
-  - src/fitcv_cp/orchestrator.py
-  - src/fitcv_cp/queue.py
-  - src/fitcv_cp/reporter.py
-  - src/fitcv_cp/worker_job.py
+  code: []
   tests:
   - tests/test_fitcv_cp/test_app.py
   - tests/test_fitcv_cp/test_bq_store.py

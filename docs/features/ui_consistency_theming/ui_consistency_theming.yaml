@@ -37,7 +37,6 @@ capabilities:
 stage_participation: []
 refs:
   code:
-  - src/fitcv_cp/app.py
   - src/fitcv_cp/templates/base.html
   tests:
   - tests/test_fitcv_cp/test_app.py

@@ -1,40 +1,18 @@
-"""
-@meta
-name: control_plane_worker_job
-type: script
-domain: run_orchestration
+"""@meta
+name: worker_job
+type: module
+domain: runtime
+ownership: infrastructure
 responsibility:
-  - Execute one queued pipeline run and persist lifecycle state.
-  - Persist run-scoped settings-used and compact results snapshots.
+  - Module metadata placeholder for src.fitcv_cp.worker_job.
 inputs:
-  - queued run id and pipeline paths
-  - control-plane BigQuery run state
+  - Internal runtime calls and module imports
 outputs:
-  - run lifecycle updates
-  - settings-used and results-export snapshots
-capabilities:
-  - admin_control_plane_core.pipelinereporter-integration
-  - run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
-  - inspection_debugging.settings-used-export
-  - inspection_debugging.results-ledger-inspection
-  - inspection_debugging.stage-transition-diagnostics
-  - inspection_debugging.prompt-provenance-diagnostics
-  - inspection_debugging.reuse-diagnostics
-  - inspection_debugging.quality-metrics-diagnostics
-  - settings_system.settings-used-exports
-  - pipeline_performance.large-runs-avoid-some-row-scaled-layer-4-event-noise-by-relying-more-on-aggregate-stage-summaries-plus-stage-owned-artifacts
-  - pipeline_performance.results-json-now-keeps-only-compact-job-ledger-fields-instead-of-repeating-full-job-snapshots-heavy-score-explanation-internals-and-full-cv-bodies-already-represented-elsewhere
-  - trigger_run_management.shared-stage-progress
-  - trigger_run_management.run-owned-artifact-exports
-  - trigger_run_management.run-results-export
-  - trigger_run_management.reranker-fit-authority
-tags:
-  - worker
-  - control-plane
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
+
 import datetime
 import hashlib
 import json

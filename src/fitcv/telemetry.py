@@ -1,5 +1,18 @@
-"""
-Minimal OpenTelemetry runtime helpers with safe fallback behavior.
+"""@meta
+name: telemetry
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.telemetry.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
 """
 
 from __future__ import annotations

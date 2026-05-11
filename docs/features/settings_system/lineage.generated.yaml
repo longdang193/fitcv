@@ -7,11 +7,7 @@ capabilities:
     state: active
     statement: BigQuery-backed pipeline settings store
     satisfies: []
-    code:
-    - path: src/fitcv_cp/settings_store.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_settings_store.py
       confidence: high
@@ -101,20 +97,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.settings-schema-registry:
     state: active
     statement: Settings schema registry
     satisfies: []
-    code:
-    - path: src/fitcv_cp/settings_schema.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_settings_schema.py
       confidence: high
@@ -198,20 +192,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.operator-facing-agentic-settings:
     state: active
     statement: Expose a bounded operator-facing registry for editable, metadata-only, and excluded agentic defaults.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/settings_schema.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests: []
     docs:
     - docs/features/settings_system/history.md
@@ -290,8 +282,10 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
     evidence_gaps:
+    - missing_code_evidence
     - missing_test_evidence
     allowed_evidence_gaps:
+    - missing_code_evidence
     - missing_test_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
@@ -300,11 +294,7 @@ capabilities:
     state: active
     statement: Retrieval settings
     satisfies: []
-    code:
-    - path: src/fitcv_cp/settings_schema.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_settings_schema.py
       confidence: high
@@ -388,24 +378,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.run-safety-settings:
     state: active
     statement: Configure timing, throttling, and run-lifecycle timeout controls.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/settings_schema.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -489,24 +473,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.global-job-filters:
     state: active
     statement: Global job filters
     satisfies: []
-    code:
-    - path: src/fitcv/rule_filter.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/settings_schema.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_rule_filter.py
       confidence: high
@@ -590,20 +568,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.ranking-settings:
     state: active
     statement: Configure six-feature ranking weights, zero-weight semantics, and runtime-aligned copy.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/settings_schema.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_settings_schema.py
       confidence: high
@@ -687,20 +663,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.preference-fit-calibration:
     state: active
     statement: Configure preference-fit subweights and fit-label threshold guidance for reranker calibration.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/settings_schema.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -784,24 +758,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.cv-analysis-alignment-settings:
     state: active
     statement: Configure semantic-alignment enablement, model selection, and lexical-vs-semantic balance for `cv_analysis`.
     satisfies: []
-    code:
-    - path: src/fitcv/config.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/settings_schema.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_settings_schema.py
       confidence: high
@@ -885,24 +853,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.cv-generation-settings:
     state: active
     statement: CV generation settings
     satisfies: []
-    code:
-    - path: src/fitcv/config.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/settings_schema.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_config.py
       confidence: high
@@ -998,28 +960,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.cv-composition-visibility-settings:
     state: active
     statement: CV composition visibility settings
     satisfies: []
-    code:
-    - path: src/fitcv/config.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/settings_schema.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_config.py
       confidence: high
@@ -1109,28 +1061,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.warning-only-cv-max-pages-validation-setting:
     state: active
     statement: Warning-only CV max-pages validation setting
     satisfies: []
-    code:
-    - path: src/fitcv/config.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/settings_schema.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_config.py
       confidence: high
@@ -1220,20 +1162,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.task-first-settings-ui:
     state: active
     statement: Organize the admin settings surface by task with clearer current-vs-draft feedback.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -1317,20 +1257,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.advanced-settings-disclosure:
     state: active
     statement: Separate expert-only tuning controls from the basic settings surface.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -1414,20 +1352,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.metadata-only-fixed-controls:
     state: active
     statement: Render fixed single-option runtime controls and retired prompt fields as metadata rather than editable inputs.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -1511,20 +1447,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.compact-cv-visibility-controls:
     state: active
     statement: Provide denser CV composition and visibility controls for operator workflows.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -1614,24 +1548,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.grouped-form-validation:
     state: active
     statement: Grouped form validation
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
-    - path: src/fitcv_cp/settings_schema.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -1721,20 +1649,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.per-run-overrides:
     state: active
     statement: Per-run overrides
     satisfies: []
-    code:
-    - path: src/fitcv_cp/app.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_app.py
       confidence: high
@@ -1824,20 +1750,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.trigger-time-effective-settings-snapshot:
     state: active
     statement: Trigger-time effective settings snapshot
     satisfies: []
-    code:
-    - path: src/fitcv_cp/bq_store.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_bq_store.py
       confidence: high
@@ -1921,20 +1845,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.baseline-default-hydration:
     state: active
     statement: Hydrate admin defaults from the baseline config layout while preserving migration-safe compatibility behavior.
     satisfies: []
-    code:
-    - path: src/fitcv/config.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_config.py
       confidence: high
@@ -2024,20 +1946,18 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   settings_system.settings-used-exports:
     state: active
     statement: Emit canonical nested settings-used exports and isolate compatibility-era flat keys into an explicit compatibility block.
     satisfies: []
-    code:
-    - path: src/fitcv_cp/worker_job.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_fitcv_cp/test_worker_job.py
       confidence: high
@@ -2127,11 +2047,13 @@ capabilities:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-c-shared-surface-adoption.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-d-validation-and-closeout.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-h-data-plane-and-tooling-migration-path.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
 timeline:
 - completed_at: '2026-04-22T00:07:00+02:00'
   source_plan: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md

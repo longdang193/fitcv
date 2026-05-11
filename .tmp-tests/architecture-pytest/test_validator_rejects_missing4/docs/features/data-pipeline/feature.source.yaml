@@ -1,0 +1,11 @@
+feature_id: data-pipeline
+name: Data Pipeline
+status: active
+type: workflow
+summary: Pipeline summary.
+invariants: []
+domains: []
+depends_on: []
+capabilities: []
+stage_participation: []
+lineage_exceptions: []

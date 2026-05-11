@@ -1,25 +1,18 @@
-"""
-@meta
+"""@meta
 name: agentic_cv_analysis
-type: adapter
-domain: cv_analysis
-responsibility:
-  - Adapt one ranked FitCV job into a pipeline-shaped CV analysis record.
-  - Preserve original FitCV fit-gate and evidence or gap semantics for later pipeline integration.
-inputs:
-  - one ranked or enriched job row
-  - candidate profile data
-  - FitCV runtime config
-outputs:
-  - CV analysis record compatible with pipeline stage expectations
+type: module
+domain: runtime
+ownership: feature
 capabilities:
-  - cv_system.agentic-analysis-adapter
-tags:
-  - cv
-  - analysis
-  - adapter
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.agentic_cv_analysis.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
 
 from typing import Any, Final, Literal, TypedDict, cast

@@ -29,7 +29,8 @@ results are trustworthy.
 3. Validate traceability IDs are present/resolvable.
 4. Validate environment and configuration match intended run target.
 5. Confirm evidence capture paths for outputs and intermediate artifacts.
-6. Produce pass/fail readiness decision with minimal unblock actions.
+6. If session touched Python `@meta` headers, validate ownership classification and capability linkage against upstream contracts.
+7. Produce pass/fail readiness decision with minimal unblock actions.
 
 ## Decision Gates
 
@@ -41,6 +42,10 @@ results are trustworthy.
    - fail preflight if run evidence cannot be linked to scope.
 4. Environment gate:
    - fail preflight if environment is invalid for scenario intent.
+5. Metadata linkage gate (conditional on Python metadata touch):
+   - fail preflight if governed Python files omit `@meta.ownership`.
+   - fail preflight if `ownership: feature` omits `@meta.capabilities`.
+   - fail preflight if `@meta.capabilities` values are not grounded in upstream feature capability IDs.
 
 ## Exit Criteria
 

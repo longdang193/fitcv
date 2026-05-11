@@ -1,6 +1,6 @@
 ---
 name: live-run-closeout-decision-prompt
-description: you need to decide whether live-run work can close now or must continue.
+description: Guide execution for live run closeout decision prompt.
 type: prompt
 stage: closeout
 entry_points:
@@ -13,16 +13,13 @@ next_steps:
 - thread-closeout-readiness-prompt.md
 - implementation-next-action-gate-prompt.md
 related_skills:
-- verification-before-completion
-- planning-dispatch
+- skill-verification-before-completion
+- skill-planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
 tags:
-- prompt-template
+- prompt
 - closeout
-- change
-owner_layer: change
-status: active
 ---
 
 <!--
@@ -35,50 +32,12 @@ To update: edit canonical source, then run sync.
 
 # Live Run Closeout Decision Prompt
 
-## Use When
-
-you need to decide whether live-run work can close now or must continue
-
-## Prerequisites
-
-### Required
-
-- root cause, fix summary, and validation evidence are available
-- regression check result is available
-
-### Optional
-
-- downstream test/spec/scenario update proposals
-
-## Next Prompts
-
-- `thread-closeout-readiness-prompt.md`
-- `implementation-next-action-gate-prompt.md`
-
 ## Not For
 
 initial debugging before evidence capture and failure boundary identification
 
 ```text
 Decide whether this live-run lane is closure-ready.
-
-Related skills:
-- verification-before-completion (before close/pass/fix claims)
-- planning-dispatch (if closure is blocked and reroute is needed)
-
-Related workflows:
-- live-run-verification-workflow.md (closeout eligibility source)
-- live-run-closeout-workflow.md (primary closure procedure)
-- live-run-debugging-workflow.md (fallback if verification/closure fails)
-
-Context:
-- roadmap/workstream/thread in scope:
-- verification result:
-- root cause summary:
-- bounded fix summary:
-- validation evidence:
-- regression status:
-- unresolved gaps:
 
 Please:
 1. verify closure readiness against Goal and Key Deliverables in current scope

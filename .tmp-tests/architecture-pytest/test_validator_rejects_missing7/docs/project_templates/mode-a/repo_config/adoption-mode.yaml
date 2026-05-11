@@ -1,0 +1,6 @@
+adoption_mode: starter_method_only
+managed_architecture_metadata: false
+legacy_feature_contracts: false
+architecture_generator: none
+notes: >
+  Starter-method-only project template.

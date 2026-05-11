@@ -7,11 +7,7 @@ capabilities:
     state: active
     statement: Retrieve, score, and select one bounded evidence bundle for grounded downstream CV writing.
     satisfies: []
-    code:
-    - path: src/fitcv/evidence.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_pipeline.py
       confidence: high
@@ -172,11 +168,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    - docs/superpowers/plans/2026-05-05-cross-section-placeholder-guardrails-implementation-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   cv_system.fit-gate-resolution:
     state: active
     statement: Resolve whether a ranked job is eligible to continue from analysis into CV generation.
@@ -348,6 +347,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-05-cross-section-placeholder-guardrails-implementation-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -357,11 +357,7 @@ capabilities:
     state: active
     statement: Generate the structured CV artifact and rendered markdown output from the selected evidence bundle.
     satisfies: []
-    code:
-    - path: src/fitcv/cv_generator.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_architecture_metadata_generation.py
       confidence: high
@@ -520,20 +516,19 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    - docs/superpowers/plans/2026-05-05-cross-section-placeholder-guardrails-implementation-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   cv_system.analysis-grounded-validation:
     state: active
     statement: Validate hard facts and softer role or domain claims against selected analysis evidence before accepting a CV artifact.
     satisfies: []
-    code:
-    - path: src/fitcv/validator.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_validator.py
       confidence: high
@@ -699,11 +694,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    - docs/superpowers/plans/2026-05-05-cross-section-placeholder-guardrails-implementation-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
   cv_system.header-placeholder-repair:
     state: active
     statement: Reject unresolved candidate-name placeholders and allow one deterministic header-only repair when a real name is available.
@@ -865,6 +863,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-05-cross-section-placeholder-guardrails-implementation-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1031,6 +1030,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-05-cross-section-placeholder-guardrails-implementation-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1203,6 +1203,7 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
+    - docs/superpowers/plans/2026-05-05-cross-section-placeholder-guardrails-implementation-plan.md
     evidence_gaps: []
     allowed_evidence_gaps: []
     lineage_exception_reason: null
@@ -1212,11 +1213,7 @@ capabilities:
     state: active
     statement: Keep prompt and runtime ownership for active CV generation under the structured-write contract and central config layers.
     satisfies: []
-    code:
-    - path: src/fitcv/config.py
-      confidence: high
-      source:
-      - python_meta
+    code: []
     tests:
     - path: tests/test_config.py
       confidence: high
@@ -1383,11 +1380,14 @@ capabilities:
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-1-cv-generation-alignment-plan.md
     - docs/superpowers/plans/2026-04-29-agentic-shared-trace-wave-2-cv-analysis-trace-plan.md
     - docs/superpowers/plans/2026-05-02-phase-2-plan-e-stage-result-runtime-contract.md
-    evidence_gaps: []
-    allowed_evidence_gaps: []
+    - docs/superpowers/plans/2026-05-05-cross-section-placeholder-guardrails-implementation-plan.md
+    evidence_gaps:
+    - missing_code_evidence
+    allowed_evidence_gaps:
+    - missing_code_evidence
     lineage_exception_reason: null
     unresolved_evidence_gaps: []
-    completeness_status: complete
+    completeness_status: incomplete
 timeline:
 - completed_at: '2026-04-22T00:07:00+02:00'
   source_plan: docs/superpowers/plans/2026-04-22-00-07-option-b-phase-2-rollout-plan.md

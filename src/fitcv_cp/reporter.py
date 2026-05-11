@@ -1,26 +1,18 @@
-"""
-@meta
-name: control_plane_reporter
-type: utility
-domain: run_orchestration
+"""@meta
+name: reporter
+type: module
+domain: runtime
+ownership: infrastructure
 responsibility:
-  - Emit control-plane run events through the shared reporter adapter.
-  - Serialize optional event payloads before they are persisted.
+  - Module metadata placeholder for src.fitcv_cp.reporter.
 inputs:
-  - run ids and event payloads
-  - BigQuery-backed event persistence adapter
+  - Internal runtime calls and module imports
 outputs:
-  - pipeline_run_events writes
-capabilities:
-  - admin_control_plane_core.pipelinereporter-integration
-  - run_lifecycle_controls.full-audit-trail-in-pipeline-run-events
-tags:
-  - reporter
-  - control-plane
-  - lineage-owner
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
+
 import datetime
 import json
 import logging

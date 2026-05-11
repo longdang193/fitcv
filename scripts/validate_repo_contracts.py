@@ -50,6 +50,7 @@ from validator_policy import (
     GENERATED_HISTORY_END_MARKER,
     GENERATED_HISTORY_START_MARKER,
     HUMAN_NOTES_HEADING,
+    normalize_adoption_mode,
     SETUP_META_MARKER,
 )
 
@@ -121,7 +122,7 @@ def read_adoption_mode(root: Path) -> str | None:
     payload = load_adoption_mode_payload(root)
     if payload is None:
         return None
-    mode = payload.get("adoption_mode")
+    mode = normalize_adoption_mode(payload.get("adoption_mode"))
     if mode not in ALLOWED_MODES:
         return None
     return mode
@@ -133,6 +134,7 @@ IN_PROCESS_SCRIPT_NAMES = {
     "validate_template_required_sections.py",
     "validate_prompt_ladder.py",
     "validate_prompt_metadata_schema.py",
+    "validate_execution_context_pack_references.py",
     "validate_agent_metadata_schema.py",
     "validate_provider_settings_schema.py",
     "validate_generated_header_format.py",
@@ -212,11 +214,26 @@ def build_subprocess_steps(
     template_sections_script = str(root / "scripts" / "validate_template_required_sections.py")
     prompt_ladder_script = str(root / "scripts" / "validate_prompt_ladder.py")
     prompt_metadata_schema_script = str(root / "scripts" / "validate_prompt_metadata_schema.py")
+    context_pack_references_script = str(root / "scripts" / "validate_execution_context_pack_references.py")
     repo_config_script = str(root / "scripts" / "validate_repo_config.py")
     agent_metadata_schema_script = str(root / "scripts" / "validate_agent_metadata_schema.py")
     provider_settings_schema_script = str(root / "scripts" / "validate_provider_settings_schema.py")
     generated_header_script = str(root / "scripts" / "validate_generated_header_format.py")
+    env_gitignore_contract_script = str(root / "scripts" / "validate_env_gitignore_contract.py")
+    python_meta_headers_script = str(root / "scripts" / "validate_python_meta_headers.py")
     agent_runtime_drift_script = str(root / "scripts" / "validate_agent_runtime_drift.py")
+    python_meta_step = [python_executable, python_meta_headers_script]
+    if adoption_mode is None:
+        adoption_mode = read_adoption_mode(root)
+    if adoption_mode != "starter_method_only":
+        python_meta_step.extend(
+            [
+                "--enforce-capability-linkage",
+                "--require-ownership",
+                "--require-feature-capabilities",
+            ]
+        )
+
     steps: list[list[str]] = [
         [python_executable, adoption_shape_script],
         [python_executable, checkpoint_pack_script],
@@ -224,12 +241,13 @@ def build_subprocess_steps(
         [python_executable, template_sections_script],
         [python_executable, prompt_ladder_script],
         [python_executable, prompt_metadata_schema_script],
+        [python_executable, context_pack_references_script],
         [python_executable, agent_metadata_schema_script],
         [python_executable, provider_settings_schema_script],
         [python_executable, generated_header_script],
+        [python_executable, env_gitignore_contract_script],
+        python_meta_step,
     ]
-    if adoption_mode is None:
-        adoption_mode = read_adoption_mode(root)
     if adoption_mode != "starter_method_only":
         steps.append([python_executable, agent_runtime_drift_script, "--skip-deploy-check"])
     if adoption_mode != "starter_method_only":

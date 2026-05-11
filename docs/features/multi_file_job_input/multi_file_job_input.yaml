@@ -36,10 +36,7 @@ stage_participation:
   - multi_file_job_input.one-immutable-snapshot-stored-per-run
   - multi_file_job_input.per-file-server-side-validation
 refs:
-  code:
-  - src/fitcv_cp/app.py
-  - src/fitcv_cp/bq_store.py
-  - src/fitcv_cp/models.py
+  code: []
   tests:
   - tests/test_fitcv_cp/test_app.py
   - tests/test_fitcv_cp/test_bq_store.py

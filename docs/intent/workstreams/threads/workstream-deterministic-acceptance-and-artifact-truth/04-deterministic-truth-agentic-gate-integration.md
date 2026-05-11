@@ -33,3 +33,8 @@ cv_analysis/cv_generation handoffs; validator integration
 
 Coupled thread; do later.
 
+## Key Deliverables
+
+- Agentic seam integration requirements mapped to deterministic truth inputs.
+- Acceptance gate wiring expectations documented.
+

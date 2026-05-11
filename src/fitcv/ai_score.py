@@ -1,26 +1,18 @@
-"""AI reranking for the vector shortlist using Vertex AI (ML.GENERATE_TEXT).
-
-v1 design:
-- Shortlist-only: only re-rank top 20-50 jobs from VECTOR_SEARCH
-- Primary path: Python Vertex AI call (not BigQuery AI.SCORE)
-- Optional prompt evidence support exists, but the current runtime path does not
-  depend on evidence retrieval before reranking
-
-Scoring rubric (enforced in prompt):
-- Score 0.0 (no fit) → 1.0 (perfect fit)
-- Heavily weight: required skills coverage
-- Penalise: missing core technologies, seniority mismatch, years-of-experience gap
-- Reward: strong project evidence matching JD, domain relevance
-- Classify: strong (>=0.7), stretch (0.4-0.69), skip (<0.4)
-- Return JSON only, no prose
-
-Public API
-----------
-build_scoring_prompt  : build structured prompt (pure, no marker)
-parse_score_response  : parse + validate model JSON response (pure, no marker)
-score_job             : call Vertex AI + parse (integration)
-run_ai_scoring        : score at most top_n shortlisted jobs (integration)
-store_ai_scores       : persist to fitcv.ai_score_results (integration)
+"""@meta
+name: ai_score
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.ai_score.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
 """
 
 import json

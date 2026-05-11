@@ -1,0 +1,15 @@
+# @architecture
+# owner: cv_system
+# features:
+#   - cv_system
+# stages:
+#   - cv_analysis
+# capabilities:
+#   - cv_system.structured-cv-generation
+# role: config
+# canonical: true
+
+prompts:
+  cv_generation:
+    structured_write:
+      prompt_id: cv_generation.structured_write.v1

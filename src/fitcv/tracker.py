@@ -1,26 +1,18 @@
-"""Versioning and application tracking — record generated CVs and track job applications.
-
-Public API
-----------
-create_cv_version_record    : build a cv_versions record (UUID4 PK + ISO timestamp)
-store_cv_version            : insert into fitcv.cv_versions (integration)
-update_application_status   : validate status against enum; build tracker record
-store_application_status    : insert into fitcv.application_tracker (integration)
-
-Schema relationships
---------------------
-cv_versions.version_id   (UUID4 PK)
-    ↑
-application_tracker.cv_version_id  (FK)
-application_tracker.tracker_id     (UUID4 PK of the tracker row)
-
-CV markdown is stored directly in cv_versions.cv_markdown — no separate generated_cvs table.
-
-Status enum
------------
-Defined in config["application_statuses"]. Default:
-  applied | not_applied | interview | rejected | no_response
-update_application_status() raises ValueError for any status not in this list.
+"""@meta
+name: tracker
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.tracker.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
 """
 
 import json

@@ -1,0 +1,19 @@
+# GENERATED FILE - do not edit directly.
+# Source: docs/features/sample-feature/feature.source.yaml
+feature_id: sample-feature
+name: Sample Feature
+status: active
+type: workflow
+summary: Sample summary.
+invariants: []
+domains: []
+depends_on: []
+capabilities: []
+refs:
+  code: []
+  tests: []
+  specs: []
+  plans: []
+  docs: []
+  configs: []
+  components: []

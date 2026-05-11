@@ -1,25 +1,18 @@
-"""
-@meta
+"""@meta
 name: agentic_cv_generation
-type: adapter
-domain: cv_generation
-responsibility:
-  - Run one FitCV generation pass from a CV analysis record.
-  - Preserve validator-owned accept or reject semantics without taking over persistence.
-inputs:
-  - one CV analysis record
-  - candidate profile data
-  - FitCV runtime config
-outputs:
-  - generation outcome with accepted artifacts or explicit validation or generation failure
+type: module
+domain: runtime
+ownership: feature
 capabilities:
-  - cv_system.agentic-generation-adapter
-tags:
-  - cv
-  - generation
-  - adapter
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.agentic_cv_generation.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
 
 from copy import deepcopy

@@ -30,7 +30,7 @@ tags:
 open-ended refactoring or broad redesign without a concrete failure boundary
 
 ```text
-Implement this patch and run pattern detection with bounded scope control.
+Please apply this patch, then check for similar issues in related files with bounded scope control.
 
 Please:
 1. Understand the patch in context:

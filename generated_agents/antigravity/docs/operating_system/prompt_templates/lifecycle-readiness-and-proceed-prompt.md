@@ -1,8 +1,8 @@
 ---
 name: lifecycle-readiness-and-proceed-prompt
-description: Use prompt template for lifecycle readiness and proceed prompt.
+description: Assess lifecycle readiness and choose the minimal safe proceed path.
 type: prompt
-stage: drift
+stage: maintenance
 entry_points:
 - use this prompt when its title scope matches the current planning/execution need
 prerequisites:
@@ -10,15 +10,12 @@ prerequisites:
 next_steps:
 - implementation-next-action-gate-prompt.md
 related_skills:
-- planning-dispatch
+- skill-planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
 tags:
-- prompt-template
-- drift
-- operating_system
-owner_layer: operating_system
-status: active
+- prompt
+- maintenance
 ---
 
 <!--
@@ -78,4 +75,3 @@ Required output:
 
 Expected output:
 - a concrete readiness assessment and next-action execution path
-

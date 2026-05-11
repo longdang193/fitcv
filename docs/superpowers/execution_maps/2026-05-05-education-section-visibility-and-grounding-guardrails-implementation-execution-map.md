@@ -5,6 +5,8 @@ parent_workstream: workstream-bounded-agentic-cv-quality
 parent_thread: workstream-bounded-agentic-cv-quality.education-section-visibility-and-grounding-guardrails
 threads:
   - workstream-bounded-agentic-cv-quality.education-section-visibility-and-grounding-guardrails
+specs:
+  - docs/superpowers/specs/2026-05-05-education-section-visibility-and-grounding-guardrails-spec.md
 created_at: 2026-05-05
 status: active
 ---

@@ -1,26 +1,18 @@
-"""
-@meta
-name: control_plane_models
-type: utility
-domain: run_orchestration
+"""@meta
+name: models
+type: module
+domain: runtime
+ownership: infrastructure
 responsibility:
-  - Define the shared pipeline run and event contracts used by the control plane.
-  - Standardize run status enums for queue, worker, and admin surfaces.
+  - Module metadata placeholder for src.fitcv_cp.models.
 inputs:
-  - control-plane lifecycle and event fields
+  - Internal runtime calls and module imports
 outputs:
-  - typed run and event records
-capabilities:
-  - admin_control_plane_core.pipeline-runs-bigquery-table
-  - admin_control_plane_core.pipeline-run-events-bigquery-table
-  - multi_file_job_input.one-immutable-snapshot-stored-per-run
-tags:
-  - models
-  - control-plane
-  - lineage-owner
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
+
 import dataclasses
 import datetime
 from enum import Enum

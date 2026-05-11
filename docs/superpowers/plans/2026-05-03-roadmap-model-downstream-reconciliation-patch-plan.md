@@ -14,9 +14,9 @@ targets:
   - scripts/validate_template_required_sections.py
   - scripts/validate_planning_lifecycle.py
 related_features:
-  - none
+  []
 related_stages:
-  - none
+  []
 completed_at: 2026-05-03T23:59:00+02:00
 ---
 # Roadmap-Model Downstream Reconciliation Patch Plan
