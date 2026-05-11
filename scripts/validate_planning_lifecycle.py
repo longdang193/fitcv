@@ -711,7 +711,7 @@ def main() -> int:
                 adoption_mode = value.strip().lower()
 
     lifecycle_findings: list[Finding] = []
-    if adoption_mode != "starter_method_only":
+    if adoption_mode not in {"starter_method_only", "managed_architecture_metadata"}:
         lifecycle_findings = validate_lifecycle_coverage(
             root, workstreams, threads, specs, plans, maps
         )
