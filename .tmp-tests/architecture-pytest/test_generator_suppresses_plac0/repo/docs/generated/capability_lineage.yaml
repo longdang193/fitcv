@@ -1,0 +1,10 @@
+# GENERATED FILE - do not edit directly.
+features:
+  cv_system:
+    summary: Own the CV-writing lifecycle.
+    status: active
+    type: add
+    lineage_file: docs/features/cv_system/lineage.generated.yaml
+    capability_count: 1
+    capabilities:
+    - cv_system.structured-cv-generation

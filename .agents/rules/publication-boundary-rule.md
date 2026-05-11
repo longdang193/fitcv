@@ -1,13 +1,14 @@
 ---
-name: publication-boundary-rule
+name: publication-boundary
 description: Enforce private/public publication boundaries and controlled export workflow.
 alwaysApply: true
 required_reads:
-  - docs/operating_system/publication-workflow.md
+- docs/operating_system/procedures/publication-workflow.md
+- docs/operating_system/governance/repo-governance.md
 tags:
-  - rule
-  - publication
-  - privacy
+- rule
+- publication
+- boundary
 ---
 
 <!--
@@ -20,11 +21,21 @@ To update: edit canonical source, then run sync.
 
 # Publication Boundary Rule
 
-Protect private-only material during publication flows.
+Keep private-source surfaces out of public outputs and require the governed
+publication workflow for mirror/export actions.
 
-## Requirements
+## Forbidden Paths For Public Publication
 
-- Keep private operating-system and agent-core material out of public mirrors.
-- Use curated publication workflow for any repo export.
-- Review generated artifacts and adapter outputs for private references before publish.
-- Treat GitNexus artifacts, internal memory, and private governance docs as non-public by default.
+- `.agents/`
+- `.cursor/`
+- source-only generation machinery and private build inputs
+- `.codex/rules/`
+- `docs/operating_system/`
+- `docs/superpowers/`
+- `logs/`
+- `sample/`
+- `.worktrees/`
+
+## Prompt Before Execute
+
+- Any command that would publish or copy private-only paths into the public repo.

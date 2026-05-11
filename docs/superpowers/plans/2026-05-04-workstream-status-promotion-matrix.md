@@ -9,10 +9,8 @@ targets:
   - docs/intent/workstreams/
   - docs/intent/workstreams/threads/
   - docs/intent/workstreams/checkpoints/
-related_features:
-  - none
-related_stages:
-  - none
+related_features: []
+related_stages: []
 ---
 
 # Workstream Status Promotion Matrix (Closeout Hygiene)

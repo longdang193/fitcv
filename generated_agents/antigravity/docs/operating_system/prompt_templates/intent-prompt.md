@@ -1,25 +1,23 @@
 ---
 name: intent-prompt
-description: project purpose or direction is still unclear and intent must be clarified
-  before planning artifacts.
+description: Capture and refine project intent before roadmap and workstream planning.
 type: prompt
 stage: planning
 entry_points:
-- use this prompt when its title scope matches the current planning/execution need
+- project purpose or direction is still unclear and intent must be clarified before
+  planning artifacts
 prerequisites:
-- relevant in-scope roadmap/workstream/thread/spec/plan context is available
+- current problem context available
 next_steps:
-- implementation-next-action-gate-prompt.md
+- master-workstream-roadmap-build-prompt.md
+- roadmap-to-workstream-prompt.md
 related_skills:
-- planning-dispatch
+- skill-planning-dispatch
 required_reads:
 - docs/operating_system/prompt_templates/README.md
 tags:
-- prompt-template
+- prompt
 - planning
-- intent
-owner_layer: intent
-status: active
 ---
 
 <!--
@@ -31,25 +29,6 @@ To update: edit canonical source, then run sync.
 -->
 
 # Intent Prompt
-
-## Use When
-
-project purpose or direction is still unclear and intent must be clarified before planning artifacts
-
-## Prerequisites
-
-### Required
-
-- current problem context available
-
-### Optional
-
-- existing intent docs
-
-## Next Prompts
-
-- master-workstream-roadmap-build-prompt.md
-- roadmap-to-workstream-prompt.md
 
 ## Not For
 
@@ -77,5 +56,3 @@ Please:
 
 Expected output:
 - intent direction or `docs/intent/*.md` updates
-
-

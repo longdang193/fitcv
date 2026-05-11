@@ -1,27 +1,18 @@
-"""
-@meta
+"""@meta
 name: validator
-type: utility
-domain: cv_validation
-responsibility:
-  - Own deterministic and soft-claim validation for generated CV outputs.
-  - Enforce grounding, placeholder rejection, and required-section checks before acceptance.
-inputs:
-  - rendered or structured CV output
-  - candidate profile data
-  - analysis grounding context
-  - cv validation config
-outputs:
-  - validation result payloads
-  - grounding and support violation lists
+type: module
+domain: runtime
+ownership: feature
 capabilities:
-  - cv_system.analysis-grounded-validation
-tags:
-  - cv
-  - validation
-  - lineage-owner
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.validator.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
 
 import re

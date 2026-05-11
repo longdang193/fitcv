@@ -1,3 +1,20 @@
+"""@meta
+name: renderer
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.prompts.renderer.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
+"""
+
 from __future__ import annotations
 
 from string import Template

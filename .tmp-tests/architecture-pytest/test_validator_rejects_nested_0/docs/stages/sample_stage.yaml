@@ -1,0 +1,6 @@
+# GENERATED FILE - do not edit directly.
+sample_stage:
+  name: Sample Stage
+  summary: Legacy nested contract.
+  refs:
+    docs: []

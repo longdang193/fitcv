@@ -1,0 +1,26 @@
+roadmap:
+  path: docs/intent/master-workstream-roadmap.md
+  workstream_count: 1
+  completed_workstream_count: 0
+workstreams:
+- workstream_id: platform-delivery
+  status: active
+  path: docs/intent/workstreams/platform-delivery.md
+  thread_count: 2
+  completed_thread_count: 0
+  derived_completion: in_progress
+  threads:
+  - thread_id: platform-delivery.other-thread
+    status: proposed
+    path: docs/intent/workstreams/threads/platform-delivery/01-other-thread.md
+    specs: []
+    plans:
+    - docs/superpowers/plans/2026-04-25-sample-plan.md
+    derived_completion: in_progress
+  - thread_id: platform-delivery.sample-thread
+    status: proposed
+    path: docs/intent/workstreams/threads/platform-delivery/01-sample-thread.md
+    specs:
+    - docs/superpowers/specs/2026-04-25-sample-spec.md
+    plans: []
+    derived_completion: in_progress

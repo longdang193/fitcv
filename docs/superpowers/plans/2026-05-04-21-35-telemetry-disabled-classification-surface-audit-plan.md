@@ -11,7 +11,7 @@ targets:
   - tests/test_fitcv_cp/test_app.py
   - tests/test_fitcv/test_telemetry.py
 related_features:
-  - none
+  []
 related_stages:
   - cv_generation
 ---

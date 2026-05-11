@@ -6,11 +6,11 @@ description: Use when designing, updating, or auditing project docs, artifact
 allowed-tools: []
 hooks:
   pre:
-  - .\.venv\Scripts\python.exe scripts/validate_repo_contracts.py --fast
+  - python scripts/hooks/run_validator.py --fast
   post:
-  - .\.venv\Scripts\python.exe scripts/validate_repo_contracts.py --fast
+  - python scripts/hooks/run_validator.py --fast
 required_reads:
-- docs/operating_system/repo-governance.md
+- docs/operating_system/governance/repo-governance.md
 tags:
 - skill
 - skill-doc-system-lifecycle
@@ -34,10 +34,10 @@ Apply when:
 <MUST-READ>
 Before doc-system decisions, read:
 
-- `docs/operating_system/repo-governance.md`
-- `docs/operating_system/planning-dispatch.md`
-- `docs/operating_system/doc-system-lifecycle.md`
-- `docs/operating_system/feature-lifecycle.md` when feature-managed surfaces are in scope
+- `docs/operating_system/governance/repo-governance.md`
+- `docs/operating_system/planning/planning-dispatch.md`
+- `docs/operating_system/lifecycle/doc-system-lifecycle.md`
+- `docs/operating_system/lifecycle/feature-lifecycle.md` when feature-managed surfaces are in scope
 - `docs/operating_system/templates/task-start-routing-guide.md` when routing/planning artifacts are in scope
 - `docs/operating_system/templates/master-workstream-roadmap-template.md` when roadmap shape is in scope
 - `docs/operating_system/templates/registered-workstream-list-template.md` when workstream registration shape is in scope
@@ -47,12 +47,34 @@ Before doc-system decisions, read:
 - `docs/operating_system/templates/detailed-specification-template.md` when spec structure is in scope
 - `docs/operating_system/templates/implementation-execution-map-template.md` when multi-plan execution orchestration is in scope
 - `docs/operating_system/templates/implementation-plan-template.md` when implementation-plan structure is in scope
+- `repo_config/planning_artifact_schema.yaml` when planning metadata contract changes are in scope
 - `repo_config/adoption-mode.yaml` when adoption-state or managed-surface obligations may change
-- `repo_config/agent-adapter-mappings.json` or equivalent adapter mapping config when generated adapter/runtime surfaces are in scope
-- `repo_config/publication-config.json` when publication-boundary contract surfaces are in scope
+- `repo_config/agent-adapter-mappings.json` or equivalent adapter mapping config only in source repos that own adapter/runtime generation; consume-only starter-kit clones should treat this surface as absent by design
+- `repo_config/publication-config.json` only in source repos that own curated public publication; consume-only starter-kit clones should treat this surface as absent by design
 - relevant validator and sync scripts under `scripts/` when changing schema/config contracts they enforce
 - relevant tests under `tests/` when changing schema/config contracts they verify
 </MUST-READ>
+
+## Python Metadata Grounding Checklist
+
+When drafting or reviewing Python `@meta` blocks for governed files:
+
+1. Read ownership surfaces in order:
+   - `docs/features/<feature_id>/feature.source.yaml` first
+   - generated `docs/features/<feature_id>/<feature_id>.yaml` only if assembled view needed
+   - `docs/features/<feature_id>/lineage.generated.yaml` only for evidence/drift questions
+2. Set `ownership` explicitly to `feature` or `infrastructure`.
+3. If `ownership: feature`, include `@meta.capabilities` and derive entries from upstream `capability_id` values only.
+4. If `ownership: infrastructure`, omit `@meta.capabilities` only under approved infrastructure exception policy; if present, all values must resolve upstream.
+5. Do not add manual `features` list when capability IDs already encode ownership.
+6. Ensure file-level `responsibility`, `inputs`, and `outputs` reflect real behavior (no placeholders).
+7. Verify linkage markers remain consistent:
+   - file-level `@meta.capabilities`
+   - code-level `@capability`
+   - test-level `@proves`
+8. Before closure claims on metadata-touching changes, run applicable checks:
+   - `py tools/docs/generate_architecture_metadata.py --check`
+   - `py scripts/validate_repo_contracts.py --fast`
 
 ## Planning-Lineage Compliance
 

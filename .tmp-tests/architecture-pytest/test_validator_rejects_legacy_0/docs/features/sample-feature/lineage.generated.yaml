@@ -1,0 +1,14 @@
+feature_id: sample-feature
+source: docs/features/sample-feature/feature.source.yaml
+generated_contract: docs/features/sample-feature/sample-feature.yaml
+naming_policy:
+  feature_id_format: kebab
+capability_shape: structured
+capability_ids:
+  - sample-feature.submit-job
+capabilities:
+  - capability_id: sample-feature.submit-job
+refs_by_type:
+  spec: []
+timeline: []
+invariants: {}

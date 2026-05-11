@@ -1,25 +1,16 @@
-"""
-@meta
-name: fitcv_cp_orchestrator
-type: utility
-domain: run_orchestration
+"""@meta
+name: orchestrator
+type: module
+domain: runtime
+ownership: infrastructure
 responsibility:
-  - Provide orchestration adapter boundary for run lifecycle actions.
-  - Keep default queue-backed orchestration behavior stable.
+  - Module metadata placeholder for src.fitcv_cp.orchestrator.
 inputs:
-  - jobs paths, config paths, and run identifiers
-  - redis connection settings
+  - Internal runtime calls and module imports
 outputs:
-  - queued run submissions and queue cancellation outcomes
-capabilities:
-  - trigger_run_management.runs-list-management
-  - trigger_run_management.run-detail-actions
-  - run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq
-tags:
-  - orchestration
-  - adapter
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
 
 from __future__ import annotations

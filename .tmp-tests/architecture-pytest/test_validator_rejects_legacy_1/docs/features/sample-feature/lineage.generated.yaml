@@ -1,0 +1,8 @@
+# GENERATED FILE - do not edit directly.
+feature_id: sample-feature
+source: docs/features/sample-feature/feature.source.yaml
+invariants: {}
+capabilities: {}
+timeline:
+  - kind: plan
+    path: docs/superpowers/plans/2026-04-22-sample-plan.md

@@ -14,8 +14,8 @@ This is an example only. Replace `billing-insights` with the real product featur
 The project has selected Mode B:
 
 ```yaml
-adoption_mode: managed_architecture_metadata
-managed_architecture_metadata: true
+adoption_mode: source_of_truth_owner (alias: managed_architecture_metadata)
+source_of_truth_owner (alias: managed_architecture_metadata): true
 legacy_feature_contracts: false
 architecture_generator: scripts/sync_architecture_docs.py
 starter_sync:
@@ -73,7 +73,7 @@ Ownership:
 
 ## Example Sequence
 
-1. Confirm `repo_config/adoption-mode.yaml` is set to `managed_architecture_metadata`.
+1. Confirm `repo_config/adoption-mode.yaml` is set to `source_of_truth_owner (alias: managed_architecture_metadata)`.
 2. Classify `billing-insights` as a real product feature, not starter adoption or repo-method work.
 3. Diff shared repo-control files from the newer starter version and bring forward stronger repo-method changes before or alongside the feature migration. At minimum, review:
 

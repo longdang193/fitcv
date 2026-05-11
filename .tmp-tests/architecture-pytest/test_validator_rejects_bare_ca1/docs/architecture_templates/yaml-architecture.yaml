@@ -1,0 +1,10 @@
+# @architecture
+# owner: billing-insights
+# features:
+#   - billing-insights
+# stages:
+#   - analytics
+# capabilities:
+#   - billing-revenue-summary
+# role: config
+# canonical: true

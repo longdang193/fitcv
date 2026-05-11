@@ -88,8 +88,7 @@ emit a second-tier warning that the project appears to have outgrown
 lightweight anchors and should plan migration to
 `managed_architecture_metadata`.
 
-Once a repo is already in `managed_architecture_metadata`, treat "update or fix
-the managed surfaces" as a separate workflow from migration. Use the dedicated
+Once a repository is already in managed_architecture_metadata mode and metadata drift/fixes are needed, treat this as a separate workflow from migration. Use the dedicated
 managed-update prompt in `docs/operating_system/prompt_templates/` when the job
 is to edit human-owned managed sources, refresh generated outputs, and rerun
 the canonical checks in place.
@@ -193,7 +192,7 @@ When configs or AML components use `# @architecture` metadata:
 
 Use feature YAML for product/domain feature contracts only.
 
-For existing-project migrations, first choose an adoption mode in `docs/operating_system/adoption/project-adoption-migration-guide.md` and record it in `repo_config/adoption-mode.yaml`. Validate the shape with `python scripts/validate_adoption_shape.py`.
+For existing-project migrations, first choose an adoption mode and record it in `repo_config/adoption-mode.yaml`. Validate the shape with `python scripts/validate_adoption_shape.py`.
 
 Validator-owned contract policy for this adoption check and shared repo-contract
 marker strings now lives in `scripts/validator_policy.py`. Treat that module as

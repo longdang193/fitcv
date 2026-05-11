@@ -111,14 +111,7 @@ stage_participation:
   - settings_system.settings-used-exports
   - settings_system.warning-only-cv-max-pages-validation-setting
 refs:
-  code:
-  - src/fitcv/config.py
-  - src/fitcv/rule_filter.py
-  - src/fitcv_cp/app.py
-  - src/fitcv_cp/bq_store.py
-  - src/fitcv_cp/settings_schema.py
-  - src/fitcv_cp/settings_store.py
-  - src/fitcv_cp/worker_job.py
+  code: []
   tests:
   - tests/test_config.py
   - tests/test_fitcv_cp/test_app.py

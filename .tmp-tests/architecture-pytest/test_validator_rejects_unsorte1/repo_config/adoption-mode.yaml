@@ -1,0 +1,15 @@
+adoption_mode: managed_architecture_metadata
+repo_role: consumer_derived
+managed_architecture_metadata: true
+legacy_feature_contracts: false
+architecture_generator: scripts/sync_architecture_docs.py
+starter_sync:
+  starter_baseline_ref: starter@2026-04-21
+  last_shared_surface_review_at: "2026-04-21"
+  reviewed_surface_classes:
+    - repo_config
+    - operating_system_docs
+    - skills
+    - adapters
+    - generated_instruction_surfaces
+    - validation_and_sync_scripts

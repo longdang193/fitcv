@@ -1,6 +1,18 @@
+"""@meta
+name: data_plane
+type: module
+domain: runtime
+ownership: infrastructure
+responsibility:
+  - Module metadata placeholder for src.fitcv_cp.data_plane.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
 """
-Data-plane boundary contract helpers.
-"""
+
 from __future__ import annotations
 
 import os

@@ -31,7 +31,7 @@ tags:
 starting implementation before per-lane verification is complete
 
 ```text
-Orchestrate PR/merge sequencing for multi-worktree lanes and reconcile closure evidence.
+Orchestrate PR/merge sequencing for multi-worktree lanes only after closure-evidence reconciliation confirms all in-scope plans and execution-context handoff artifacts are complete: zero unresolved checklist items (`- [ ]`), no stale status fields, and no empty required sections.
 
 Please:
 1. verify each lane is merge-eligible:

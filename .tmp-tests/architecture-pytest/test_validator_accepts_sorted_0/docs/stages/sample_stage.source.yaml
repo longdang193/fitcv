@@ -1,0 +1,18 @@
+stage_id: sample_stage
+name: Sample Stage
+status: active
+purpose: Run the sample stage.
+primary_features:
+  - alpha-feature
+  - zeta-feature
+supporting_features:
+  - support-a
+  - support-z
+inputs:
+  - alpha records
+  - zeta records
+outputs:
+  - alpha outputs
+  - zeta outputs
+notes:
+  - Keep note order human-owned.

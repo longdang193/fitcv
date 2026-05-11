@@ -4,8 +4,7 @@ description: Update or repair managed architecture metadata in source-of-truth o
 type: prompt
 stage: maintenance
 entry_points:
-- repository is already in managed_architecture_metadata mode and metadata drift/fixes
-  are needed
+- "repository is already in source_of_truth_owner (alias: managed_architecture_metadata) mode and metadata drift/fixes are needed"
 - validator findings indicate managed metadata inconsistency across source and generated
   surfaces
 prerequisites:

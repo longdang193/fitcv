@@ -1,22 +1,18 @@
-"""Normalize raw LinkedIn job postings.
-
-Normalization focuses on:
-- Whitespace cleanup in text fields
-- Exact deduplication by job_url
-- Near-duplicate detection (same JD posted in multiple cities)
-- Parsing applicationsCount string to int
-- Parsing salary string to structured dict
-
-Public API
-----------
-normalize_whitespace        : collapse excessive whitespace/newlines
-deduplicate_jobs            : exact dedupe by job_url
-deduplicate_near_duplicates : group by company_id + title + SHA-256(description)
-normalize_batch_with_exclusions : normalize + dedupe while tracking dropped rows
-parse_applications_count    : "61 applicants" → 61
-parse_salary                : "€45,000/yr - €55,000/yr" → {min, max, currency, period}
-normalize_job               : orchestrate cleaning on one job dict
-normalize_batch             : apply normalization + deduplication to a full list
+"""@meta
+name: normalize
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.normalize.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
+lifecycle:
+  - status: active
 """
 
 import hashlib

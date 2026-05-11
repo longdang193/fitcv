@@ -1,0 +1,13 @@
+# GENERATED FILE - do not edit directly.
+# Source: docs/stages/data_prep.source.yaml
+stage_id: data_prep
+name: Sample Stage
+status: active
+purpose: Run the sample stage.
+feature_refs: []
+capability_refs: []
+code_refs: []
+test_refs: []
+doc_refs: []
+config_refs: []
+component_refs: []

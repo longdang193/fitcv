@@ -1,0 +1,11 @@
+stage_id: cv_analysis
+name: CV Analysis
+summary: Prepare ranked jobs for writing.
+depends_on: []
+primary_features:
+- cv_system
+related_features: []
+inputs:
+- ranked jobs
+outputs:
+- generation-ready jobs

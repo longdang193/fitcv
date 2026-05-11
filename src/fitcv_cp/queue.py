@@ -1,30 +1,18 @@
-"""
-@meta
-name: fitcv_cp_queue
-type: utility
-domain: run_orchestration
+"""@meta
+name: queue
+type: module
+domain: runtime
+ownership: infrastructure
 responsibility:
-  - Own queue enqueue and cancel helpers for control-plane run execution.
-  - Bridge manual continue requests into queued worker execution safely on Windows.
+  - Module metadata placeholder for src.fitcv_cp.queue.
 inputs:
-  - queued run IDs and config paths
-  - redis connection settings
+  - Internal runtime calls and module imports
 outputs:
-  - enqueued RQ jobs
-  - queue cancellation outcomes
-capabilities:
-  - admin_control_plane_core.rq-background-worker-integration
-  - run_lifecycle_controls.cancel-queued-runs-directly-from-the-queue-via-rq
-  - trigger_run_management.runs-list-management
-  - trigger_run_management.run-detail-actions
-  - trigger_run_management.manual-checkpoints-and-continue
-tags:
-  - queue
-  - orchestration
-  - lineage-owner
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
+
 import importlib
 import multiprocessing
 import os

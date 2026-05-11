@@ -1,33 +1,18 @@
-"""
-@meta
-name: fitcv_enrich
-type: utility
-domain: enrich
-responsibility:
-  - Parse structured job extraction responses and normalize enriched job records.
-  - Fingerprint raw jobs and enrich contracts for safe structured job reuse.
-inputs:
-  - scraped job records
-  - enrich prompt/config contracts
-  - structured LLM extraction responses
-outputs:
-  - enriched structured job records
-  - reusable structured-job lookup and persistence payloads
+"""@meta
+name: enrich
+type: module
+domain: runtime
+ownership: feature
 capabilities:
-  - pipeline_performance.gemini-structured-output-with-response-schema-and-pydantic
-  - pipeline_performance.fallback-path-for-unparseable-responses
-  - pipeline_performance.enrich-extraction-prompt-text-now-comes-from-a-centralized-prompt-registry-with-config-selected-prompt-ids
-  - pipeline_performance.enrich-stage-raw-plus-canonical-semantic-companions-for-repeated-downstream-fields
-  - pipeline_performance.canonical-skill-companion-lists-and-entity-payloads-for-required-preferred-skills
-  - pipeline_performance.enrich-stage-mapping-suggestion-capture-for-review-debug-surfaces
-  - pipeline_performance.fingerprint-based-enrich-result-reuse-happens-before-llm-enrichment-using-normalized-raw-job-inputs
-  - pipeline_performance.enrich-contract-fingerprinting-invalidates-reuse-automatically-when-prompt-model-schema-behavior-changes
-  - pipeline_performance.shared-structured-jobs-reuse-lookup-avoids-redundant-enrich-calls-while-only-fresh-rows-are-upserted-back-into-the-shared-table
-tags:
-  - enrich
-  - reuse
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Module metadata placeholder for src.fitcv.enrich.
+inputs:
+  - Internal runtime calls and module imports
+outputs:
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
 
 import json

@@ -29,3 +29,8 @@ deterministic acceptance docs; stage artifacts docs; validation and gate narrati
 
 This thread requires failure/cancel evidence expectations to be documented alongside success outcomes.
 
+## Key Deliverables
+
+- Policy-versioned StageResult envelope documented with required fields.
+- Decision and evidence ownership contract documented for Phase 2.
+

@@ -122,3 +122,10 @@ Current Langfuse behavior can present a trace URL that looks valid while no trac
 
 ## Next Artifact
 - Next artifact should be an **implementation execution map** (not another detailed spec), because the design boundary is now explicit and execution-ready with clear targets and validation commands.
+
+## Task/Wave Breakdown
+
+- Wave 1: Existing contract and baseline behavior snapshot.
+- Wave 2: Implementation deltas and validation gates.
+- Wave 3: Verification evidence and closeout readiness checks.
+

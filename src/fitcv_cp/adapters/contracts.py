@@ -1,17 +1,16 @@
-"""
-@meta
-name: fitcv_cp_adapters_contracts
-type: utility
-domain: provider_routing
+"""@meta
+name: contracts
+type: module
+domain: runtime
+ownership: infrastructure
 responsibility:
-  - Define provider-agnostic LLM and embedding client contracts.
-  - Resolve model routing by task part from control-plane config.
+  - Module metadata placeholder for src.fitcv_cp.adapters.contracts.
 inputs:
-  - control-plane routing config
+  - Internal runtime calls and module imports
 outputs:
-  - resolved provider/model selection for task parts
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
 
 from __future__ import annotations

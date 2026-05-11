@@ -1,39 +1,18 @@
-"""
-@meta
-name: control_plane_settings_schema
-type: utility
-domain: pipeline_config
+"""@meta
+name: settings_schema
+type: module
+domain: runtime
+ownership: infrastructure
 responsibility:
-  - Register admin-editable pipeline settings and grouped settings controls.
-  - Validate and apply settings overrides into canonical runtime config paths.
+  - Module metadata placeholder for src.fitcv_cp.settings_schema.
 inputs:
-  - baseline config from fitcv.config.load_config
-  - admin-provided settings override payloads
+  - Internal runtime calls and module imports
 outputs:
-  - SETTINGS_SCHEMA and grouped settings registries
-  - validated config updates
-capabilities:
-  - settings_system.run-safety-settings
-  - settings_system.global-job-filters
-  - settings_system.settings-schema-registry
-  - settings_system.operator-facing-agentic-settings
-  - settings_system.retrieval-settings
-  - settings_system.ranking-settings
-  - settings_system.preference-fit-calibration
-  - settings_system.cv-analysis-alignment-settings
-  - settings_system.cv-generation-settings
-  - settings_system.cv-composition-visibility-settings
-  - settings_system.warning-only-cv-max-pages-validation-setting
-  - settings_system.grouped-form-validation
-  - bounded_parallel_enrichment.enrichment-batch-size-setting
-  - bounded_parallel_enrichment.enrichment-concurrency-setting
-  - bounded_parallel_enrichment.conservative-defaults-batch-size-10-concurrency-1
-tags:
-  - settings
-  - admin-ui
+  - Module-level symbols and runtime behavior
 lifecycle:
-  status: active
+  - status: active
 """
+
 from __future__ import annotations
 
 from typing import Any
