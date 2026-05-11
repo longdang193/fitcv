@@ -39,10 +39,12 @@ def _resolve_min_replay_success_ratio(*, config_path: str, cli_override: float |
         return 0.95
     replay_cfg = dict(cfg.get("outbox_replay_health") or {})
     raw = replay_cfg.get("min_replay_success_ratio")
-    try:
-        return float(raw)
-    except (TypeError, ValueError):
-        return 0.95
+    if isinstance(raw, (int, float, str)):
+        try:
+            return float(raw)
+        except ValueError:
+            return 0.95
+    return 0.95
 
 
 def main() -> int:
