@@ -44,6 +44,7 @@ For multi-step procedures with decision gates, use workflow docs under:
 | Situation | Prompt |
 |---|---|
 | New bug, route unknown | [bug-intake-and-routing-prompt.md](./bug-intake-and-routing-prompt.md) |
+| Audit bundle authoring/repair for qualifying failure | [audit-report-with-evidence-prompt.md](./audit-report-with-evidence-prompt.md) |
 | Patch implementation + pattern scan | [patch-and-pattern-detection-prompt.md](./patch-and-pattern-detection-prompt.md) |
 | Post-patch regression scope decision | [post-patch-regression-scope-prompt.md](./post-patch-regression-scope-prompt.md) |
 | Deferred likely/risk finding capture | [known-issue-capture-prompt.md](./known-issue-capture-prompt.md) |
@@ -180,6 +181,7 @@ Live-run + multi-worktree integration:
 - [provider-history-sync-prompt.md](./provider-history-sync-prompt.md)
 - [runtime-deploy-and-verify-prompt.md](./runtime-deploy-and-verify-prompt.md)
 - [gitnexus-refresh-prompt.md](./gitnexus-refresh-prompt.md)
+- [audit-report-with-evidence-prompt.md](./audit-report-with-evidence-prompt.md)
 - [patch-and-pattern-detection-prompt.md](./patch-and-pattern-detection-prompt.md)
 - [planning-readiness-gate-prompt.md](./planning-readiness-gate-prompt.md)
 - [execution-readiness-gate-prompt.md](./execution-readiness-gate-prompt.md)

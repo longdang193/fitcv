@@ -31,9 +31,14 @@ import argparse
 from dataclasses import dataclass
 from pathlib import Path
 import re
+import sys
 from typing import Any
 
 import yaml
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
 
 from planning_artifact_schema import get_allowed_values, get_required_values
 
@@ -696,9 +701,24 @@ def main() -> int:
     plans = discover_plans(root)
     maps = discover_execution_maps(root)
 
+    adoption_mode_path = root / "repo_config" / "adoption-mode.yaml"
+    adoption_mode = None
+    if adoption_mode_path.exists():
+        payload = yaml.safe_load(adoption_mode_path.read_text(encoding="utf-8"))
+        if isinstance(payload, dict):
+            value = payload.get("adoption_mode")
+            if isinstance(value, str):
+                adoption_mode = value.strip().lower()
+
+    lifecycle_findings: list[Finding] = []
+    if adoption_mode != "starter_method_only":
+        lifecycle_findings = validate_lifecycle_coverage(
+            root, workstreams, threads, specs, plans, maps
+        )
+
     findings = [
         *validate_execution_map_integrity(root, workstreams, threads, specs, maps),
-        *validate_lifecycle_coverage(root, workstreams, threads, specs, plans, maps),
+        *lifecycle_findings,
     ]
     if findings:
         print("Planning lifecycle validation findings:")
