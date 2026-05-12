@@ -17,7 +17,7 @@ FitCV uses layered configuration with clear ownership boundaries.
 
 ## Primary Runtime Inputs
 
-- trigger base config file (`config_path` in `/runs` request; default `.env.yaml`)
+- trigger base config file (`config_path` in `/runs` request; default `config/env.yaml`)
 - persisted control-plane settings (`/admin/settings` and `/settings` surfaces)
 - per-run trigger overrides (`config_overrides` in `/runs`)
 - process environment variables for backend/provider credentials and runtime toggles
