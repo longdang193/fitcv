@@ -1,0 +1,44 @@
+audit_id: 20260512-2058-env-config-sot-drift
+status: resolved
+severity: medium
+owner: agent
+created_at: 2026-05-12T20:58:55+02:00
+updated_at: 2026-05-12T21:31:00+02:00
+boundary:
+  stage: config-resolution
+  component: settings_system
+  contract: single-source-of-truth environment configuration
+trigger:
+  rule: docs/operating_system/rules/audit-evidence-mandate-rule.md
+  qualification: contract/invariant drift where failure boundary is unclear
+artifacts:
+  - path: report.md
+    type: report
+  - path: manifest.yaml
+    type: manifest
+  - path: evidence/results/env_config_findings.md
+    type: evidence
+  - path: evidence/results/pattern_scan_classification.md
+    type: evidence
+  - path: repro/repro_steps.md
+    type: repro
+evidence:
+  - id: E-001
+    type: markdown
+    path: evidence/results/env_config_findings.md
+    sha256: f61b7b419c988ee7476eab6213b0ce0f185b89864dc343f7c32677fc0b6abad7
+    captured_at: 2026-05-12T20:58:55+02:00
+    producer: source-and-reference-audit
+  - id: E-002
+    type: markdown
+    path: evidence/results/pattern_scan_classification.md
+    sha256: 84f0fb3b9861205b2315f268cfda779947a62b98fb56c048fa2e10c4ce4808bd
+    captured_at: 2026-05-12T21:28:11+02:00
+    producer: rg-pattern-classification
+repro:
+  - id: R-001
+    path: repro/repro_steps.md
+verification:
+  gate_command: .\.venv\Scripts\python.exe scripts\audit_check.py docs/superpowers/plans/audit/20260512-2058-env-config-sot-drift
+  last_run: 2026-05-12T21:31:00+02:00
+  result: passed
