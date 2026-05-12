@@ -13,6 +13,7 @@ allowed-tools: []
 required_outputs:
 - docs/superpowers/specs/
 - docs/superpowers/plans/
+distribution_tier: starter_kit
 ---
 
 # Spec To Plan To Execution Workflow

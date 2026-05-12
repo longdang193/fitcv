@@ -10,6 +10,7 @@ required_sections:
 - Registered Workstreams
 - Traceability
 - Completion Criteria
+distribution_tier: starter_kit
 ---
 
 # Registered Workstream List Template

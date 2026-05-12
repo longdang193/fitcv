@@ -1,5 +1,17 @@
 """
-Run the repo-contract validator from a stable repo-root entrypoint.
+@meta
+name: run_validator
+type: script
+domain: validation
+distribution_tier: starter_kit
+responsibility:
+  - Run repo-contract validation from stable repo-root hook entrypoint.
+inputs:
+  - Optional validator CLI args
+outputs:
+  - Validator exit code passthrough
+lifecycle:
+  status: active
 """
 
 from __future__ import annotations

@@ -12,6 +12,7 @@ required_sections:
 required_frontmatter:
   artifact_type: execution_map
   map_type: implementation_execution
+distribution_tier: starter_kit
 ---
 
 # Implementation Execution Map Template

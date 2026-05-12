@@ -13,6 +13,7 @@ tags:
 - skill
 - skill-using-superpowers
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 <SUBAGENT-STOP>

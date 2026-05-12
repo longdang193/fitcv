@@ -12,6 +12,7 @@ tags:
 - skill
 - skill-python-refactoring-expert
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Python Refactoring Expert

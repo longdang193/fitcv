@@ -1,5 +1,13 @@
 """
-Validate prompt-template metadata schema for operating-system prompt templates.
+@meta
+name: validate_prompt_metadata_schema
+type: script
+domain: validation
+distribution_tier: starter_kit
+responsibility:
+  - Validate prompt-template metadata schema for operating-system prompt templates.
+lifecycle:
+  status: active
 """
 
 from __future__ import annotations

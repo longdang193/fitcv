@@ -13,6 +13,7 @@ tags:
 - skill
 - skill-finishing-a-development-branch
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Finishing a Development Branch

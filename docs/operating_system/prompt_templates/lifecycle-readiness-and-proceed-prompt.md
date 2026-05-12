@@ -16,6 +16,7 @@ required_reads:
 tags:
 - prompt
 - maintenance
+distribution_tier: starter_kit
 ---
 
 # Lifecycle Readiness And Proceed Prompt

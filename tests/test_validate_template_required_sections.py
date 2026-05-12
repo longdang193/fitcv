@@ -1,5 +1,6 @@
 """
 @meta
+# distribution_tier: starter_kit
 name: test_validate_template_required_sections
 type: test
 scope: unit

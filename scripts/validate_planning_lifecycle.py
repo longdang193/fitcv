@@ -3,6 +3,7 @@
 name: validate_planning_lifecycle
 type: script
 domain: docs
+distribution_tier: starter_kit
 responsibility:
   - Validate planning lifecycle integrity across workstreams, threads, specs, execution maps, and plans.
   - Enforce execution-map metadata and cross-reference integrity.

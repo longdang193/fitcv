@@ -18,6 +18,7 @@ required_reads:
 tags:
 - prompt
 - drift
+distribution_tier: starter_kit
 ---
 
 # Roadmap Vs Execution Divergence Prompt

@@ -9,6 +9,7 @@ required_sections:
 - Task/Wave Breakdown
 - Workstream Index
 - Completion Criteria
+distribution_tier: starter_kit
 ---
 
 # Master Workstream Roadmap Template

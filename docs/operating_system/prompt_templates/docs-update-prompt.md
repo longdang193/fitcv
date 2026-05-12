@@ -19,6 +19,7 @@ tags:
 - prompt
 - documentation
 - reconciliation
+distribution_tier: starter_kit
 ---
 
 Bring docs/ into alignment with current shipped implementation and intended outcomes, so docs are accurate, navigable, and maintainable.

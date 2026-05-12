@@ -14,6 +14,7 @@ tags:
 - skill
 - skill-central-config-layer
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Central Config Layer

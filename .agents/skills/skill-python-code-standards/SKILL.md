@@ -12,6 +12,7 @@ tags:
 - skill
 - skill-python-code-standards
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Python Code Standards

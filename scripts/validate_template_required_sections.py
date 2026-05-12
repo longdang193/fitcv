@@ -3,6 +3,7 @@
 name: validate_template_required_sections
 type: script
 domain: docs
+distribution_tier: starter_kit
 responsibility:
   - Validate that generated planning documents include required sections from template metadata.
   - Enforce non-empty required sections and template-specific frontmatter constraints.

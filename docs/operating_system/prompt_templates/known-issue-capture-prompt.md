@@ -19,6 +19,7 @@ required_reads:
 tags:
 - prompt
 - maintenance
+distribution_tier: starter_kit
 ---
 
 # Known-Issue Capture Prompt

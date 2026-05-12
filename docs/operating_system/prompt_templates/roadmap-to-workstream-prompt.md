@@ -17,6 +17,7 @@ required_reads:
 tags:
 - prompt
 - planning
+distribution_tier: starter_kit
 ---
 
 # Roadmap To Workstream Prompt

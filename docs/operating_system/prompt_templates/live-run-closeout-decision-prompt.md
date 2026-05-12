@@ -20,6 +20,7 @@ required_reads:
 tags:
 - prompt
 - closeout
+distribution_tier: starter_kit
 ---
 
 # Live Run Closeout Decision Prompt

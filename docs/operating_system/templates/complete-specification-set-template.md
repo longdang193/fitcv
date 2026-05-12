@@ -13,6 +13,7 @@ required_sections:
 required_frontmatter:
   artifact_type: execution_map
   map_type: complete_spec_set
+distribution_tier: starter_kit
 ---
 
 # Complete Specification Set Template

@@ -22,6 +22,7 @@ required_reads:
 tags:
 - prompt
 - closeout
+distribution_tier: starter_kit
 ---
 
 # Multi-Worktree Merge And Reconcile Prompt

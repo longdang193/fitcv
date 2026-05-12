@@ -12,6 +12,7 @@ tags:
 - skill
 - skill-writing-skills
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Writing Skills

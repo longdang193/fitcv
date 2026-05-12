@@ -1,3 +1,4 @@
+# distribution_tier: starter_kit
 param(
   [Parameter(Mandatory=$true)][string]$AuditId,
   [Parameter(Mandatory=$true)][string]$SourceFile,

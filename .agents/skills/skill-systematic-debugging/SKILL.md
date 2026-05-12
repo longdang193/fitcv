@@ -19,6 +19,7 @@ tags:
 - root-cause
 - skill-systematic-debugging
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Systematic Debugging

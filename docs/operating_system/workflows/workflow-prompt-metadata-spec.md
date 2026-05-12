@@ -13,6 +13,7 @@ allowed-tools: []
 required_outputs:
 - docs/operating_system/workflows/
 - .agents/skills/
+distribution_tier: starter_kit
 ---
 
 # Workflow And Prompt Metadata Specification

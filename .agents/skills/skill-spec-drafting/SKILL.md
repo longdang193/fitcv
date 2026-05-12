@@ -19,6 +19,7 @@ tags:
 - skill-spec-drafting
 required_outputs:
 - docs/superpowers/specs/YYYY-MM-DD-HH-MM-<topic>-spec.md
+distribution_tier: starter_kit
 ---
 
 # Spec Drafting

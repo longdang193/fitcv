@@ -13,6 +13,7 @@ tags:
 - skill
 - skill-receiving-code-review
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Code Review Reception

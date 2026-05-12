@@ -23,6 +23,7 @@ tags:
 - prompt
 - maintenance
 - gitnexus
+distribution_tier: starter_kit
 ---
 
 # GitNexus Refresh Prompt

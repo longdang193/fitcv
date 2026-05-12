@@ -19,6 +19,7 @@ tags:
 - prompt
 - readme
 - documentation
+distribution_tier: starter_kit
 ---
 
 Revise `README.md` so it accurately reflects the current project state and is easy for new contributors to follow and reproduce.

@@ -25,6 +25,7 @@ tags:
 - prompt
 - maintenance
 - metadata
+distribution_tier: starter_kit
 ---
 
 # Managed Metadata Update Prompt

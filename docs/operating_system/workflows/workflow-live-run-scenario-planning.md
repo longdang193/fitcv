@@ -4,15 +4,17 @@ description: Run the live run scenario planning workflow procedure.
 required_reads:
 - docs/operating_system/governance/repo-governance.md
 related_skills:
-- skill-brainstorming
 - skill-planning-dispatch
+- skill-brainstorming
 tags:
 - workflow
 - planning
+- execution
 - change
 allowed-tools: []
 required_outputs:
 - docs/superpowers/plans/
+distribution_tier: starter_kit
 ---
 
 # Live Run Scenario Planning Workflow

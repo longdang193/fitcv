@@ -22,6 +22,7 @@ tags:
 - prompt
 - audit
 - evidence
+distribution_tier: starter_kit
 ---
 
 # Audit Report With Evidence Prompt

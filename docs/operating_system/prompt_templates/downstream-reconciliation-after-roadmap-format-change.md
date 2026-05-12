@@ -18,6 +18,7 @@ required_reads:
 tags:
 - prompt
 - planning
+distribution_tier: starter_kit
 ---
 
 # Downstream Reconciliation After Roadmap Format Change

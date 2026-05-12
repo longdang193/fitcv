@@ -18,6 +18,7 @@ tags:
 - routing
 - skill-planning-dispatch
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Planning Dispatch

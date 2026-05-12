@@ -16,6 +16,7 @@ required_reads:
 tags:
 - prompt
 - closeout
+distribution_tier: starter_kit
 ---
 
 # Workstream Closeout Readiness Prompt

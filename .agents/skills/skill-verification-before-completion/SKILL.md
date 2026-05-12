@@ -15,6 +15,7 @@ tags:
 - skill
 - skill-verification-before-completion
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Verification Before Completion

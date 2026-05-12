@@ -10,6 +10,7 @@ tags:
 - rule
 - python
 - contracts
+distribution_tier: starter_kit
 ---
 
 <!--

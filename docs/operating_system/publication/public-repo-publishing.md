@@ -50,6 +50,8 @@ Publish workflow should enforce:
 3. assert required public paths exist
 4. block private references/absolute local links
 5. block forbidden metadata markers configured in publication policy config
+6. block forbidden filename markers configured in publication policy config
+7. do not treat `distribution_tier: starter_kit` as deny marker
 
 ## Pre-Publish Review Checklist
 

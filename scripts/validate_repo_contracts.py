@@ -3,6 +3,7 @@
 name: validate_repo_contracts
 type: script
 domain: docs
+distribution_tier: starter_kit
 responsibility:
   - Validate the repo contract graph across source-owned, generated, and partially generated surfaces.
   - Orchestrate architecture checks, adoption-shape validation, repo-config validation, and governed metadata coverage checks through one canonical command.
@@ -39,10 +40,12 @@ import importlib.util
 import inspect
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 from types import ModuleType
 
+import json
 import yaml
 from validator_policy import (
     ALLOWED_MODES,
@@ -52,6 +55,8 @@ from validator_policy import (
     HUMAN_NOTES_HEADING,
     normalize_adoption_mode,
     SETUP_META_MARKER,
+    STARTER_KIT_CLASSIFICATION_ENFORCEMENT,
+    STARTER_KIT_DISTRIBUTION_TIER,
 )
 
 
@@ -90,6 +95,14 @@ def build_parser() -> argparse.ArgumentParser:
             "Run the hook-facing validation subset. This still runs the "
             "architecture sync check path and skips only the extra validator-"
             "specific pytest pass."
+        ),
+    )
+    parser.add_argument(
+        "--sync-starter-kit-tier",
+        action="store_true",
+        help=(
+            "Auto-apply distribution_tier marker on metadata-capable manifest files "
+            "before classification validation"
         ),
     )
     return parser
@@ -434,6 +447,158 @@ def validate_required_metadata_coverage(root: Path) -> list[ValidationIssue]:
     return issues
 
 
+def _load_starter_kit_manifest(root: Path) -> dict | None:
+    path = root / "repo_config" / "starter-kit-manifest.json"
+    if not path.exists():
+        return None
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return payload if isinstance(payload, dict) else None
+
+
+def _is_metadata_capable(path: Path) -> bool:
+    if path.suffix == ".py":
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        return "@meta" in "\n".join(text.splitlines()[:30])
+    if path.suffix == ".md":
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        return text.startswith("---\n")
+    return False
+
+
+def _has_distribution_tier(path: Path, tier: str) -> bool:
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    pattern = re.compile(
+        rf"^\s*(?:#\s*)?distribution_tier:\s*{re.escape(tier)}\s*$",
+        re.MULTILINE,
+    )
+    return bool(pattern.search(text))
+
+
+def sync_starter_kit_distribution_tier(root: Path) -> int:
+    manifest = _load_starter_kit_manifest(root)
+    if manifest is None:
+        return 0
+
+    copy_paths = manifest.get("copyPaths", [])
+    if not isinstance(copy_paths, list):
+        return 0
+
+    in_kit: set[str] = set()
+    for item in copy_paths:
+        if not isinstance(item, str):
+            continue
+        rel = item.replace("\\", "/")
+        target = root / rel
+        if target.is_file():
+            in_kit.add(rel)
+        elif target.is_dir():
+            for file in target.rglob("*"):
+                if file.is_file():
+                    in_kit.add(relative_path(file, root))
+
+    patched = 0
+    for rel in sorted(in_kit):
+        if rel.startswith("docs/operating_system/templates/"):
+            continue
+        file_path = root / rel
+        if not file_path.exists() or not _is_metadata_capable(file_path):
+            continue
+        if _has_distribution_tier(file_path, STARTER_KIT_DISTRIBUTION_TIER):
+            continue
+
+        text = file_path.read_text(encoding="utf-8", errors="ignore")
+        if file_path.suffix == ".md":
+            lines = text.splitlines()
+            if lines and lines[0].strip() == "---":
+                try:
+                    end = lines.index("---", 1)
+                except ValueError:
+                    continue
+                lines.insert(end, f"distribution_tier: {STARTER_KIT_DISTRIBUTION_TIER}")
+                file_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                patched += 1
+        elif file_path.suffix == ".py":
+            if "@meta" in text and "distribution_tier:" not in text:
+                lines = text.splitlines()
+                for idx, line in enumerate(lines[:30]):
+                    if line.strip().startswith("#") and "@meta" in line:
+                        insert_at = idx + 1
+                        while insert_at < len(lines) and lines[insert_at].strip().startswith("#"):
+                            if "distribution_tier:" in lines[insert_at]:
+                                break
+                            insert_at += 1
+                        else:
+                            lines.insert(insert_at, f"# distribution_tier: {STARTER_KIT_DISTRIBUTION_TIER}")
+                            file_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                            patched += 1
+                        break
+    return patched
+
+
+def validate_starter_kit_classification(root: Path) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    manifest = _load_starter_kit_manifest(root)
+    if manifest is None:
+        return issues
+
+    copy_paths = manifest.get("copyPaths", [])
+    if not isinstance(copy_paths, list):
+        return issues
+
+    in_kit: set[str] = set()
+    for item in copy_paths:
+        if not isinstance(item, str):
+            continue
+        rel = item.replace("\\", "/")
+        target = root / rel
+        if target.is_file():
+            in_kit.add(rel)
+        elif target.is_dir():
+            for file in target.rglob("*"):
+                if file.is_file():
+                    in_kit.add(relative_path(file, root))
+
+    for rel in sorted(in_kit):
+        file_path = root / rel
+        if not file_path.exists() or not _is_metadata_capable(file_path):
+            continue
+        if not _has_distribution_tier(file_path, STARTER_KIT_DISTRIBUTION_TIER):
+            issues.append(
+                ValidationIssue(
+                    category="starter_kit_classification_drift",
+                    path=rel,
+                    message=(
+                        "metadata-capable file is in starter-kit manifest but missing "
+                        f"`distribution_tier: {STARTER_KIT_DISTRIBUTION_TIER}`"
+                    ),
+                )
+            )
+
+    for path in root.rglob("*"):
+        if not path.is_file() or not _is_metadata_capable(path):
+            continue
+        rel = relative_path(path, root)
+        if rel.startswith("generated_exports/"):
+            continue
+        if rel.startswith("generated_agents/"):
+            continue
+        if rel in in_kit:
+            continue
+        if _has_distribution_tier(path, STARTER_KIT_DISTRIBUTION_TIER):
+            issues.append(
+                ValidationIssue(
+                    category="starter_kit_classification_drift",
+                    path=rel,
+                    message=(
+                        "file declares starter-kit distribution tier but is not included "
+                        "in starter-kit manifest copyPaths"
+                    ),
+                )
+            )
+
+    return issues
+
+
 def report_issues(issues: list[ValidationIssue]) -> int:
     if not issues:
         return 0
@@ -447,13 +612,27 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     root = Path(args.repo_root).resolve()
 
-    issues = [
+    if args.sync_starter_kit_tier:
+        patched = sync_starter_kit_distribution_tier(root)
+        if patched:
+            print(f"Starter-kit distribution tier sync patched {patched} file(s).")
+
+    base_issues = [
         *validate_required_metadata_coverage(root),
         *validate_history_boundaries(root),
     ]
-    status = report_issues(issues)
+    classification_issues = validate_starter_kit_classification(root)
+
+    status = report_issues(base_issues)
     if status != 0:
         return status
+
+    if classification_issues:
+        if STARTER_KIT_CLASSIFICATION_ENFORCEMENT == "fail":
+            return report_issues(classification_issues)
+        print("Repo contract warning:")
+        for issue in classification_issues:
+            print(f"- {issue.category}: {issue.path} - {issue.message}")
 
     for step in build_subprocess_steps(
         root=root,

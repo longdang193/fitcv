@@ -3,6 +3,7 @@
 name: validate_agent_metadata_schema
 type: script
 domain: validation
+distribution_tier: starter_kit
 responsibility:
   - Validate canonical metadata schema for skills, rules, and workflows.
   - Enforce frontmatter shape and reference integrity for agent metadata surfaces.

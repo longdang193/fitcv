@@ -1,9 +1,9 @@
 """
 @meta
-repo: private
 name: planning_lineage_support
 type: utility
 domain: docs
+distribution_tier: starter_kit
 responsibility:
   - Assemble the planning-lineage graph from roadmap, workstream, thread, spec, and plan surfaces.
   - Provide stable derived planning-lineage output for validation and generation workflows.
@@ -33,6 +33,8 @@ import re
 from typing import Any
 
 import yaml
+
+from planning_artifact_schema import get_artifact_schema, get_required_values
 
 
 @dataclass(frozen=True)
@@ -114,17 +116,33 @@ def iter_superpowers_docs(root: Path, folder_name: str) -> list[Path]:
     return sorted(path for path in folder.glob("*.md") if path.name != "README.md")
 
 
+def _resolve_identity(payload: dict[str, Any], root: Path, artifact_type: str) -> str | None:
+    artifact_schema = get_artifact_schema(root, artifact_type)
+    identity = artifact_schema.get("identity", {})
+    if not isinstance(identity, dict):
+        return None
+    canonical_field = identity.get("canonical_field")
+    legacy_field = identity.get("legacy_field")
+    for field_name in (canonical_field, legacy_field):
+        if not isinstance(field_name, str) or field_name == "none":
+            continue
+        value = payload.get(field_name)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
 def discover_workstreams(root: Path) -> dict[str, WorkstreamRecord]:
     records: dict[str, WorkstreamRecord] = {}
     for path in iter_workstream_docs(root):
         payload = read_frontmatter(path)
         if not isinstance(payload, dict):
             continue
-        workstream_id = payload.get("workstream_id")
+        workstream_name = _resolve_identity(payload, root, "workstream")
         status = payload.get("status")
-        if isinstance(workstream_id, str) and isinstance(status, str):
-            records[workstream_id] = WorkstreamRecord(
-                workstream_id=workstream_id,
+        if isinstance(workstream_name, str) and isinstance(status, str):
+            records[workstream_name] = WorkstreamRecord(
+                workstream_id=workstream_name,
                 status=status,
                 path=relpath(path, root),
             )
@@ -138,16 +156,16 @@ def discover_threads(root: Path) -> dict[str, ThreadRecord]:
         payload = read_frontmatter(path)
         if not isinstance(payload, dict):
             continue
-        thread_id = payload.get("thread_id")
+        thread_name = _resolve_identity(payload, root, "bounded_change_thread")
         status = payload.get("status")
-        if not isinstance(thread_id, str) or not isinstance(status, str):
+        if not isinstance(thread_name, str) or not isinstance(status, str):
             continue
         try:
             workstream_id = path.relative_to(threads_root).parts[0]
         except (ValueError, IndexError):
             continue
-        records[thread_id] = ThreadRecord(
-            thread_id=thread_id,
+        records[thread_name] = ThreadRecord(
+            thread_id=thread_name,
             status=status,
             path=relpath(path, root),
             workstream_id=workstream_id,
@@ -157,14 +175,18 @@ def discover_threads(root: Path) -> dict[str, ThreadRecord]:
 
 def discover_superpowers_artifacts(root: Path, folder_name: str) -> list[ArtifactRecord]:
     artifact_type = folder_name.removesuffix("s")
+    expected_artifact_type = get_required_values(root, artifact_type).get("artifact_type", artifact_type)
     records: list[ArtifactRecord] = []
     for path in iter_superpowers_docs(root, folder_name):
         payload = read_frontmatter(path)
         if not isinstance(payload, dict):
             continue
+        actual_artifact_type = payload.get("artifact_type")
+        if isinstance(actual_artifact_type, str) and actual_artifact_type != expected_artifact_type:
+            continue
         records.append(
             ArtifactRecord(
-                artifact_type=artifact_type,
+                artifact_type=expected_artifact_type,
                 layer=payload.get("layer") if isinstance(payload.get("layer"), str) else None,
                 status=payload.get("status") if isinstance(payload.get("status"), str) else None,
                 path=relpath(path, root),

@@ -22,6 +22,7 @@ tags:
 - prompt
 - verification
 - deliverables
+distribution_tier: starter_kit
 ---
 
 # Deliverable Verdict Gate Prompt
