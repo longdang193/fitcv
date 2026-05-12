@@ -1,6 +1,5 @@
 """
 @meta
-repo: private
 name: validate_agent_runtime_drift
 type: script
 domain: validation

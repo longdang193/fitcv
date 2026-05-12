@@ -1,6 +1,5 @@
 """
 @meta
-repo: private
 name: validate_adoption_shape
 type: script
 domain: docs

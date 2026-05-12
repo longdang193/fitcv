@@ -1,17 +1,5 @@
 """
-@meta
-repo: private
-name: run_validator
-type: script
-domain: docs
-responsibility:
-  - Run repo-contract validator from stable repo-root entrypoint.
-inputs:
-  - CLI args forwarded to validate_repo_contracts.py
-outputs:
-  - Exit code from validate_repo_contracts.py
-lifecycle:
-  status: active
+Run the repo-contract validator from a stable repo-root entrypoint.
 """
 
 from __future__ import annotations

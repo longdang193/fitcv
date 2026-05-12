@@ -1,6 +1,5 @@
 """
 @meta
-repo: private
 name: validate_repo_config
 type: script
 domain: config

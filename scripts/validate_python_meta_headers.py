@@ -1,6 +1,5 @@
 """
 @meta
-repo: private
 name: validate_python_meta_headers
 type: script
 domain: validation
@@ -84,18 +83,14 @@ def _parse_meta_lines(docstring: str) -> dict[str, object]:
         if not line:
             continue
         if line.startswith("- ") and current_key:
-            existing = result.get(current_key)
-            if isinstance(existing, list):
-                existing.append(line[2:].strip())
-            else:
-                result[current_key] = [line[2:].strip()]
+            result.setdefault(current_key, [])
+            if isinstance(result[current_key], list):
+                result[current_key].append(line[2:].strip())
             continue
         if current_key and raw.startswith((" ", "\t")) and ":" in line:
-            existing = result.get(current_key)
-            if isinstance(existing, list):
-                existing.append(line)
-            else:
-                result[current_key] = [line]
+            result.setdefault(current_key, [])
+            if isinstance(result[current_key], list):
+                result[current_key].append(line)
             continue
         if ":" in line:
             key, value = line.split(":", 1)

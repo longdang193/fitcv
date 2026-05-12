@@ -1,6 +1,5 @@
 """
 @meta
-repo: private
 name: validate_env_gitignore_contract
 type: script
 domain: security
@@ -26,7 +25,7 @@ import argparse
 from pathlib import Path
 
 
-REQUIRED_ENTRIES = (".env", ".env.*")
+REQUIRED_ENTRIES = (".env", ".env.*", "*.private.*", "*.local.*")
 EXAMPLE_ALLOWLIST_ENTRY = "!.env.example"
 
 
