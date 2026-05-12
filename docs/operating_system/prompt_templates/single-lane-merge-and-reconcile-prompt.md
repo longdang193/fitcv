@@ -31,7 +31,7 @@ tags:
 multi-lane merge sequencing (use multi-worktree merge/reconcile prompt)
 
 ```text
-Orchestrate PR/merge for current lane only after closure-evidence reconciliation confirms all in-scope plans and execution-context handoff artifacts are complete: zero unresolved checklist items (`- [ ]`), no stale status fields, and no empty required sections.
+Orchestrate PR/merge for current lane only after closure-evidence reconciliation confirms all in-scope plans and execution-context handoff artifacts are complete: mark completed steps/verification lines `- [x]`, zero unresolved checklist items (`- [ ]`), no stale status fields, and no empty required sections.
 
 Context:
 - roadmap/workstream/thread in scope:
@@ -48,17 +48,24 @@ Please:
    - use `doc-lifecycle-bounded-scope-check-prompt.md`
    - keep checks concise (no repo-wide expansion)
    - block merge on lifecycle `fail` verdict
-3. decide merge path:
+3. enforce closure-evidence precedence for in-scope plans:
+   - treat lane-active/current plan as closure source of truth
+   - allow superseded predecessor plans to be closed by reference to successor evidence when criteria are satisfied
+4. run concrete closure validators before merge decision:
+   - `py scripts/validate_planning_lifecycle.py --strict`
+   - `py scripts/validate_checkpoint_packs.py`
+   - add `py scripts/validate_template_required_sections.py` only when template-governed docs are in changed scope
+5. decide merge path:
    - open/update PR
    - merge now
    - hold/defer with reason
-4. after merge, run required post-merge verification and report impact
-5. reconcile lifecycle/status/evidence:
+6. after merge, run required post-merge verification and report impact
+7. reconcile lifecycle/status/evidence:
    - thread/workstream status updates
    - checkpoint/result-pack evidence linkage
    - unresolved risk log
-6. if blockers remain, return the minimal prerequisite action needed to unblock
-7. return one selected next action and why alternatives are not yet eligible
+8. if blockers remain, return the minimal prerequisite action needed to unblock
+9. return one selected next action and why alternatives are not yet eligible
    - if closure criteria are already satisfied, select `close now` and explain why further actions are not eligible
 ```
 

@@ -1,3 +1,6 @@
+# @meta
+# repo: private
+
 [CmdletBinding()]
 param(
     [ValidateSet('exploration', 'debugging', 'high-risk')]

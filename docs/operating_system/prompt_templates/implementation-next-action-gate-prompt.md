@@ -44,10 +44,11 @@ Please:
    - template: `docs/operating_system/templates/execution-context-pack-template.md`
    - canonical path: `docs/superpowers/execution_context_packs/<lane-id>/latest.md`
    - governance: `docs/operating_system/governance/execution-context-pack-governance.md`
+   - if selected action is `close now` and no new evidence landed, do not rewrite files; explicitly report "unchanged with reason"
 9. if execution cannot proceed safely, return exact blocker and required user input/approval
 ```
 
 Expected output:
 - one constrained next action grounded in existing planning artifacts
 - smallest concrete execution step performed now, or explicit blocker with required unblock input
-- confirmation that plan state and canonical context pack state were updated or explicitly unchanged with reason
+- confirmation that plan state and canonical context pack state were updated, or explicitly unchanged with reason

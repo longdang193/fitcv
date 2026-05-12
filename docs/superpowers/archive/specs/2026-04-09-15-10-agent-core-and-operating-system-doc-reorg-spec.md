@@ -25,8 +25,8 @@ Invariants:
 Dependencies:
 - `.agents/skills/`
 - `.cursor/rules/`
-- `docs/public-repo-publication-policy.md`
-- `docs/public-repo-publishing.md`
+- `docs/operating_system/publication/public-repo-publication-policy.md`
+- `docs/operating_system/publication/public-repo-publishing.md`
 - `docs/features/*`
 - `docs/generated/*`
 - future root and nested `AGENTS.md`
@@ -41,8 +41,8 @@ Affected docs:
   feature_history: none
   feature_docs: none
   cross_cutting_docs:
-    - `docs/public-repo-publication-policy.md`
-    - `docs/public-repo-publishing.md`
+    - `docs/operating_system/publication/public-repo-publication-policy.md`
+    - `docs/operating_system/publication/public-repo-publishing.md`
     - `docs/operating_system/*.md`
   readme: none
   generated: none
@@ -415,3 +415,4 @@ Write an implementation plan that defines:
 4. what initial Codex rules should exist under `codex/rules/`
 5. whether `.agents/skills/` or `agent-core/skills/` is canonical in phase 1
 6. what sync/validation script is required to keep generated adapters trustworthy
+

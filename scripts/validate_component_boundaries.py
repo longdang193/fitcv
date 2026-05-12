@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: validate_component_boundaries
 type: script
 domain: architecture

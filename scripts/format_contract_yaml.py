@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: format_contract_yaml
 type: script
 domain: docs

@@ -1,69 +1,37 @@
 {
   "publicPaths": [
-    ".dockerignore",
-    ".gitignore",
-    "Dockerfile",
-    "README.md",
-    "assets",
-    "config",
-    "data",
-    "docker-compose.yml",
-    "docs/architecture.md",
-    "docs/configuration.md",
-    "docs/features",
-    "docs/generated/architecture_dag.yaml",
-    "docs/generated/capability_lineage.yaml",
-    "docs/FitCV-pipeline.md",
-    "docs/fitcv-control-plane-setup.md",
-    "docs/pipeline.md",
-    "docs/setup.md",
-    "docs/stages",
-    "docs/usage.md",
-    "pyproject.toml",
-    "requirements.txt",
-    "scripts/bootstrap_bigquery.py",
-    "scripts/download_cvs.py",
-    "src",
-    "start_web.ps1",
-    "start_worker.ps1",
-    "stop_fitcv.ps1",
-    "templates",
-    "tests",
-    "uv.lock"
+    "README.md"
   ],
   "forbiddenPaths": [
     "AGENTS.md",
     ".agents",
+    ".codex",
     ".cursor",
     "agent-core",
-    "codex",
+    "docs/AGENTS.md",
+    "docs/features",
+    "docs/generated",
+    "docs/intent",
     "docs/operating_system",
+    "docs/stages",
     "docs/superpowers",
+    "docs/workflows",
     "logs",
+    "tmp",
+    "tools",
     "sample",
     ".worktrees"
   ],
   "requiredPaths": [
-    "README.md",
-    "docs/architecture.md",
-    "docs/FitCV-pipeline.md",
-    "docs/pipeline.md",
-    "docs/setup.md",
-    "docs/fitcv-control-plane-setup.md",
-    "docs/usage.md",
-    "src"
+    "README.md"
   ],
-  "omittedPublicPaths": [
-    "docs/features/*/history.md",
-    "docs/features/*/lineage.generated.yaml",
-    "docs/features/*/migration-checklist.md"
-  ],
-  "allowedGeneratedPaths": [
-    "docs/generated/architecture_dag.yaml",
-    "docs/generated/capability_lineage.yaml"
-  ],
+  "allowedGeneratedPaths": [],
   "scrubPrivateReferencePaths": [
+    "README.md",
     "docs/features",
     "docs/stages"
+  ],
+  "forbiddenMetadataMarkers": [
+    "repo: private"
   ]
 }

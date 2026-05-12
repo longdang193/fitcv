@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: validate_agent_metadata_schema
 type: script
 domain: validation

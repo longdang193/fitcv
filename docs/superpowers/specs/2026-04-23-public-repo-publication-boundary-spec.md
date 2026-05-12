@@ -1,4 +1,4 @@
-﻿---
+---
 layer: operating_system
 artifact_type: spec
 status: proposed
@@ -167,8 +167,8 @@ These should remain private in the current model:
 - `docs/operating_system/*`
 - `docs/superpowers/*`
 - `docs/features/*/history.md`
-- `docs/public-repo-publication-policy.md`
-- `docs/public-repo-publishing.md`
+- `docs/operating_system/publication/public-repo-publication-policy.md`
+- `docs/operating_system/publication/public-repo-publishing.md`
 - internal migration checklists such as
   `docs/features/inspection_debugging/migration-checklist.md`
 
@@ -264,3 +264,4 @@ family being exported.
 - Top-level docs like `configuration.md` may need real rewriting rather than
   simple allowlist changes because they currently mix public runtime guidance
   with private repo-governance detail.
+

@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: validate_prompt_ladder
 type: script
 domain: docs

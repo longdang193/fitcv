@@ -144,8 +144,8 @@ Likely targets:
 
 - `docs/operating_system/repo-governance.md`
 - `docs/operating_system/publication-workflow.md`
-- `docs/public-repo-publication-policy.md`
-- `docs/public-repo-publishing.md`
+- `docs/operating_system/publication/public-repo-publication-policy.md`
+- `docs/operating_system/publication/public-repo-publishing.md`
 
 Outcome:
 
@@ -176,3 +176,4 @@ Phase 2 is complete when:
 - `.agents/skills/` is explicitly and intentionally canonical
 - the skill library is aligned with the Codex Skills model
 - adapter sync and verification are part of normal maintenance
+

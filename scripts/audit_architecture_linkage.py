@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: audit_architecture_linkage
 type: script
 domain: docs
