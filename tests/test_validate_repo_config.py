@@ -1,5 +1,6 @@
 """
 @meta
+# distribution_tier: starter_kit
 type: test
 scope: unit
 domain: config

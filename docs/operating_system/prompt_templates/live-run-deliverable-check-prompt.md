@@ -23,6 +23,7 @@ tags:
 - prompt
 - live-run
 - verification
+distribution_tier: starter_kit
 ---
 
 # Live Run Deliverable Check Prompt

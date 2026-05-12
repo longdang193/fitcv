@@ -1,5 +1,6 @@
 """
 @meta
+# distribution_tier: starter_kit
 name: test_validate_prompt_ladder
 type: test
 scope: unit

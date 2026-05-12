@@ -3,6 +3,7 @@
 name: validator_policy
 type: module
 domain: docs
+distribution_tier: starter_kit
 responsibility:
   - Centralize validator-owned adoption-shape policy constants and field registries.
   - Keep schema, template, and canonical-style rule data separate from validator flow logic.
@@ -313,6 +314,8 @@ GENERATED_HISTORY_END_MARKER = "<!-- GENERATED HISTORY END -->"
 HUMAN_NOTES_HEADING = "## Human Notes"
 ARCHITECTURE_METADATA_MARKER_LINE = "# @architecture"
 SETUP_META_MARKER = "@meta"
+STARTER_KIT_DISTRIBUTION_TIER = "starter_kit"
+STARTER_KIT_CLASSIFICATION_ENFORCEMENT = "fail"
 FORBIDDEN_MANUAL_REFS_FIELD = "manual_refs"
 MANUAL_REFS_REMEDIATION = (
     "add ownership metadata to code, tests, docs, specs, plans, configs, or "

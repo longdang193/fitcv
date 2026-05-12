@@ -21,6 +21,7 @@ required_reads:
 tags:
 - prompt
 - execution
+distribution_tier: starter_kit
 ---
 
 # Patch + Pattern Detection Prompt

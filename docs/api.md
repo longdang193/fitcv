@@ -32,6 +32,7 @@ while automation and programmatic inspection usually start with the JSON routes.
 ### `GET /healthz`
 
 Purpose:
+
 - lightweight service health check
 
 Typical response:
@@ -58,9 +59,11 @@ Behavior:
 ### `POST /runs`
 
 Purpose:
+
 - create a run through the JSON API
 
 Behavior:
+
 - captures input source
 - snapshots effective settings
 - inserts the run row before enqueue
@@ -79,10 +82,12 @@ Typical payload shape:
 ```
 
 `run_mode` supports:
+
 - `run_all`
 - `manual_staged`
 
 Typical response:
+
 - `201 Created`
 - JSON object containing run identifier:
 
@@ -95,25 +100,31 @@ Typical response:
 ### `GET /runs`
 
 Purpose:
+
 - list pipeline runs in JSON form
 
 Typical response:
+
 - array of run objects with status, lifecycle, and summary fields
 
 ### `GET /runs/{run_id}`
 
 Purpose:
+
 - fetch one run in JSON form
 
 Typical response:
+
 - one run object, or `404` if missing
 
 ### `GET /runs/{run_id}/events`
 
 Purpose:
+
 - fetch the raw persisted event stream for one run
 
 Typical response:
+
 - ordered array of event objects
 
 Event shape includes:
@@ -129,27 +140,31 @@ Event shape includes:
 }
 ```
 
-
 ## Settings API
 
 ### `GET /settings`
 
 Purpose:
+
 - fetch the current active settings view
 
 Typical response:
+
 - JSON object of active settings values
 
 ### `POST /settings/{key}`
 
 Purpose:
+
 - update one settings key through the JSON API
 
 Behavior:
+
 - coerces value to schema type
 - validates before persistence
 
 Typical response:
+
 - `200 OK`
 
 ## Operator HTML Surfaces
@@ -157,14 +172,17 @@ Typical response:
 ### `GET /admin/runs`
 
 Purpose:
+
 - runs list UI
 
 ### `GET /admin/outbox-replay-health.json`
 
 Purpose:
+
 - machine-readable aggregate outbox/dead-letter replay health for a runs view
 
 Query params:
+
 - `view` = `active` | `all` | `archived` (default `active`)
 
 Typical response shape:
@@ -190,9 +208,11 @@ Typical response shape:
 ### `POST /admin/outbox-replay-health/check`
 
 Purpose:
+
 - evaluate outbox replay health against threshold policy and emit auditable control-plane event
 
 Query params:
+
 - `view` = `active` | `all` | `archived` (default `active`)
 - `min_replay_success_ratio` (default `0.95`)
 - `emit_event` (default `true`)
@@ -219,6 +239,7 @@ Typical response shape:
 ### `GET /admin/runs/{run_id}`
 
 Purpose:
+
 - run detail UI
 
 This is the main human-facing inspection surface for:
@@ -233,6 +254,7 @@ This is the main human-facing inspection surface for:
 ### `GET /admin/settings`
 
 Purpose:
+
 - settings UI
 
 ## Run Lifecycle Action Routes
@@ -328,6 +350,7 @@ inspection.
 - `POST /admin/runs/{run_id}/synonym-proposals/triage-refresh`
 
 Purpose:
+
 - execute HITL review actions in the context of one run
 - support repeated batch review submissions
 - explicitly apply approved pairs into the current run snapshot for downstream stages
@@ -387,6 +410,7 @@ Triage refresh behavior:
 - `POST /admin/synonym-proposals/{proposal_id}/defer`
 
 Purpose:
+
 - move a persisted proposal through the review workflow
 
 Typical form fields:
@@ -409,6 +433,7 @@ Typical response shape:
 ### `GET /admin/cvs/{version_id}/download`
 
 Purpose:
+
 - download one generated CV as Markdown
 
 ## Notes On Payload Expectations

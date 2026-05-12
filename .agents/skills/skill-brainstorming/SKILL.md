@@ -16,6 +16,7 @@ tags:
 - skill-brainstorming
 required_outputs:
 - docs/superpowers/specs/
+distribution_tier: starter_kit
 ---
 
 # Brainstorming Ideas Into Designs

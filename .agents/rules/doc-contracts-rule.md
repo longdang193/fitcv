@@ -10,6 +10,7 @@ tags:
 - rule
 - docs
 - contracts
+distribution_tier: starter_kit
 ---
 
 <!--

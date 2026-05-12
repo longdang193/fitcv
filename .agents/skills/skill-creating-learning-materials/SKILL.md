@@ -13,6 +13,7 @@ tags:
 - skill
 - skill-creating-learning-materials
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Creating Learning Materials

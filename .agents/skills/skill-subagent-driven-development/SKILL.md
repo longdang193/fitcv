@@ -12,6 +12,7 @@ tags:
 - skill
 - skill-subagent-driven-development
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Subagent-Driven Development

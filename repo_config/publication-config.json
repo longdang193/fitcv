@@ -65,5 +65,13 @@
   "scrubPrivateReferencePaths": [
     "docs/features",
     "docs/stages"
+  ],
+  "forbiddenMetadataMarkers": [
+    "repo: private",
+    "distribution_tier: starter_kit"
+  ],
+  "forbiddenFilenameMarkers": [
+    ".private.",
+    ".local."
   ]
 }

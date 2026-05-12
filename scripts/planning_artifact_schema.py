@@ -3,6 +3,7 @@
 name: planning_artifact_schema
 type: utility
 domain: docs
+distribution_tier: starter_kit
 responsibility:
   - Load the canonical planning artifact schema from repo_config.
   - Provide narrow helpers for validators that need shared planning metadata rules.

@@ -3,6 +3,7 @@
 name: validate_prompt_ladder
 type: script
 domain: docs
+distribution_tier: starter_kit
 responsibility:
   - Validate prompt ladder metadata sections and next-prompt linkage integrity.
   - Enforce non-standalone prompt routing for canonical ladder prompts.

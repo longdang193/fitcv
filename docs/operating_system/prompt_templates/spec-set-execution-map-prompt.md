@@ -17,6 +17,7 @@ required_reads:
 tags:
 - prompt
 - execution
+distribution_tier: starter_kit
 ---
 
 # Spec Set To Implementation Execution Map Prompt

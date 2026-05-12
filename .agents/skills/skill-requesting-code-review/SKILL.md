@@ -12,6 +12,7 @@ tags:
 - skill
 - skill-requesting-code-review
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Requesting Code Review

@@ -10,6 +10,7 @@ required_sections:
 - Scope
 - Dependencies
 - Completion Criteria
+distribution_tier: starter_kit
 ---
 
 # Bounded Change Thread Template

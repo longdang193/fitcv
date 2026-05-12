@@ -73,6 +73,8 @@ Case-by-case review. Examples:
 - deny policy always overrides allowlist inclusion
 - denylisted paths must not appear in export
 - forbidden metadata markers (example: `repo: private`) must fail export
+- forbidden filename markers (example: `.private.`, `.local.`) must fail export
+- `distribution_tier: starter_kit` is classification metadata only, not secrecy marker
 - missing/malformed boundary policy must fail closed
 
 ## Public README Rule
@@ -84,7 +86,7 @@ Public README must stand alone for external reader and must not depend on privat
 Publication workflow must include:
 
 1. curated export
-2. policy validation (paths + metadata markers)
+2. policy validation (paths + metadata markers + forbidden filename markers)
 3. required-path checks
 4. reviewer inspection
 5. publication

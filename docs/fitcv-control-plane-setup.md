@@ -145,8 +145,7 @@ The admin UI is available at `http://localhost/admin/runs`.
 Notes:
 
 - Compose mounts repo `.env` into both containers at `/app/.env` and sets `FITCV_LANGGRAPH_ENV_FILE=/app/.env`
-- Compose mounts `./config/env.yaml` -> `/app/config/env.yaml` as canonical runtime config
-- Optional local override files can also be mounted when explicitly used via `config_path`
+- Compose also mounts `./.env.yaml` -> `/app/.env.yaml` and `./config/env.yaml` -> `/app/config/env.yaml`
 - The service-account key is mounted inside the container as `/app/sa_key.json`
 - Do not pass Windows paths like `C:\...json` into Docker-triggered runs
 
@@ -166,11 +165,11 @@ Invoke-RestMethod `
   -Method Post `
   -Uri "http://localhost/runs" `
   -ContentType "application/json" `
-  -Body '{"jobs_path":"data/sample_jobs.json","config_path":"config/env.yaml","triggered_by":"admin","run_mode":"run_all"}'
+  -Body '{"jobs_path":"data/sample_jobs.json","config_path":".env.yaml","triggered_by":"admin","run_mode":"run_all"}'
 ```
 
 `config_path` must point to a config file resolvable by the running `web` process.
-In local mode use repo-relative canonical default `config/env.yaml` unless you intentionally provide an override path.
+In local mode this is typically a repo-relative path (for example `.env.yaml`).
 In Docker mode use paths available inside the container via mounted volumes.
 
 Expected run status progression:
@@ -238,7 +237,7 @@ docker compose up -d --build redis web worker
 | `src/fitcv_cp/app.py` | FastAPI routes, templates, and queue integration |
 | `src/fitcv_cp/worker_job.py` | Background job entrypoint |
 | `src/fitcv_cp/queue.py` | Redis and worker setup |
-| `config/env.yaml` | Canonical runtime config |
+| `.env.yaml` | Runtime config |
 | `docker-compose.yml` | Docker services for `redis`, `web`, and `worker` |
 | `Dockerfile` | Shared image for the web and worker containers |
 

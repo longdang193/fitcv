@@ -13,6 +13,7 @@ tags:
 allowed-tools: []
 required_outputs:
 - docs/superpowers/plans/
+distribution_tier: starter_kit
 ---
 
 # Live Run Verification Workflow

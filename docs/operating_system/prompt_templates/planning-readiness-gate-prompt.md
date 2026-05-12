@@ -23,6 +23,7 @@ required_reads:
 tags:
 - prompt
 - planning
+distribution_tier: starter_kit
 ---
 
 # Planning Readiness Gate Prompt

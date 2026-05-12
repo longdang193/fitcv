@@ -3,6 +3,7 @@
 name: validate_env_gitignore_contract
 type: script
 domain: security
+distribution_tier: starter_kit
 responsibility:
   - Validate .gitignore contains mandatory environment ignore entries.
   - Require `!.env.example` when `.env.example` exists in repository root.

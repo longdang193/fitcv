@@ -3,6 +3,7 @@
 name: validate_python_meta_headers
 type: script
 domain: validation
+distribution_tier: starter_kit
 responsibility:
   - Validate module-level Python @meta docstring blocks for governed source folders.
   - Enforce required metadata keys and basic shape constraints.
@@ -71,8 +72,8 @@ def _extract_module_docstring(path: Path) -> str | None:
     return ast.get_docstring(module, clean=False)
 
 
-def _parse_meta_lines(docstring: str) -> dict[str, object]:
-    result: dict[str, object] = {}
+def _parse_meta_lines(docstring: str) -> dict[str, str | list[str]]:
+    result: dict[str, str | list[str]] = {}
     lines = [line.rstrip() for line in docstring.splitlines()]
     if not lines or lines[0].strip() != "@meta":
         return result

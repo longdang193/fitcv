@@ -15,6 +15,7 @@ tags:
 - skill
 - skill-doc-system-lifecycle
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Doc System Lifecycle

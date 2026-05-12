@@ -12,6 +12,7 @@ tags:
 - skill
 - skill-python-file-metadata
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Python File Metadata

@@ -9,6 +9,7 @@ tags:
 - rule
 - publication
 - boundary
+distribution_tier: starter_kit
 ---
 
 <!--

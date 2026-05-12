@@ -12,6 +12,7 @@ tags:
 - skill
 - skill-dispatching-parallel-agents
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Dispatching Parallel Agents

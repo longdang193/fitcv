@@ -12,6 +12,7 @@ tags:
 - skill
 - skill-test-driven-development
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Test-Driven Development (TDD)

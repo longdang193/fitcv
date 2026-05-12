@@ -10,6 +10,7 @@ tags:
 - cross-tool
 - governance
 - rule
+distribution_tier: starter_kit
 ---
 
 # Global Baseline Contract Rule

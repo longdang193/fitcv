@@ -13,6 +13,7 @@ tags:
 - skill
 - skill-private-public-repo-governance
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Private / Public Repo Governance

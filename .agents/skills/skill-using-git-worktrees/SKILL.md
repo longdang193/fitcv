@@ -13,6 +13,7 @@ tags:
 - skill
 - skill-using-git-worktrees
 required_outputs: []
+distribution_tier: starter_kit
 ---
 
 # Using Git Worktrees

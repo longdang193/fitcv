@@ -13,6 +13,7 @@ required_sections:
 - Completion Criteria
 required_frontmatter:
   artifact_type: spec
+distribution_tier: starter_kit
 ---
 
 # Detailed Specification Template

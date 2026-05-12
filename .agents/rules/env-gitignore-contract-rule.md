@@ -9,6 +9,7 @@ tags:
 - rule
 - security
 - gitignore
+distribution_tier: starter_kit
 ---
 
 <!--

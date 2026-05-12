@@ -23,6 +23,7 @@ tags:
 - docs
 - lifecycle
 - compliance
+distribution_tier: starter_kit
 ---
 
 # Doc Lifecycle Bounded Scope Check Prompt

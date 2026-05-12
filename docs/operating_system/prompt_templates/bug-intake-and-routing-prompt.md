@@ -21,6 +21,7 @@ required_reads:
 tags:
 - prompt
 - drift
+distribution_tier: starter_kit
 ---
 
 # Bug Intake And Routing Prompt

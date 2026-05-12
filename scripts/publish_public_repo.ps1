@@ -1,6 +1,5 @@
-# @meta
 # repo: private
-
+# distribution_tier: starter_kit
 [CmdletBinding()]
 param(
     [string]$ExportRoot = (Join-Path $env:TEMP "project-public-export"),
@@ -79,6 +78,55 @@ function Copy-PublicPath {
     $destination = Join-Path $DestinationRoot $RelativePath
     Ensure-ParentDirectory -Path $destination
     Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
+
+    if (Test-Path -LiteralPath $destination) {
+        $item = Get-Item -LiteralPath $destination -ErrorAction Stop
+        if ($item.PSIsContainer) {
+            $cacheDirs = Get-ChildItem -LiteralPath $destination -Recurse -Directory -Filter '__pycache__' -ErrorAction SilentlyContinue
+            foreach ($dir in $cacheDirs) {
+                Remove-Item -LiteralPath $dir.FullName -Recurse -Force
+            }
+
+            $pycFiles = Get-ChildItem -LiteralPath $destination -Recurse -File -Filter '*.pyc' -ErrorAction SilentlyContinue
+            foreach ($file in $pycFiles) {
+                Remove-Item -LiteralPath $file.FullName -Force
+            }
+        }
+    }
+}
+
+function Get-RelativePathCompat {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BasePath,
+        [Parameter(Mandatory = $true)]
+        [string]$TargetPath
+    )
+
+    $baseFull = [System.IO.Path]::GetFullPath($BasePath)
+    $targetFull = [System.IO.Path]::GetFullPath($TargetPath)
+
+    if ($baseFull -eq $targetFull) {
+        return '.'
+    }
+
+    try {
+        return [System.IO.Path]::GetRelativePath($baseFull, $targetFull)
+    } catch {
+        # PowerShell 5 / older runtime: fall back to URI-based relative path logic below.
+    }
+
+    $baseWithSep = if ($baseFull.EndsWith([System.IO.Path]::DirectorySeparatorChar) -or $baseFull.EndsWith([System.IO.Path]::AltDirectorySeparatorChar)) {
+        $baseFull
+    } else {
+        $baseFull + [System.IO.Path]::DirectorySeparatorChar
+    }
+
+    $baseUri = New-Object System.Uri($baseWithSep)
+    $targetUri = New-Object System.Uri($targetFull)
+    $relativeUri = $baseUri.MakeRelativeUri($targetUri)
+    $relative = [System.Uri]::UnescapeDataString($relativeUri.ToString())
+    return $relative.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
 }
 
 function Assert-ForbiddenPathAbsent {
@@ -92,6 +140,20 @@ function Assert-ForbiddenPathAbsent {
     $path = Join-Path $DestinationRoot $RelativePath
     if (Test-Path -LiteralPath $path) {
         throw "Forbidden path present in public export: $RelativePath"
+    }
+}
+
+function Remove-ForbiddenPathIfPresent {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$RelativePath
+    )
+
+    $path = Join-Path $DestinationRoot $RelativePath
+    if (Test-Path -LiteralPath $path) {
+        Remove-Item -LiteralPath $path -Recurse -Force
     }
 }
 
@@ -162,6 +224,90 @@ function Assert-NoLocalAbsoluteLinks {
     }
 }
 
+function Assert-NoForbiddenMetadataMarkers {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationRoot,
+        [string[]]$Markers
+    )
+
+    if (-not $Markers -or $Markers.Count -eq 0) {
+        return
+    }
+
+    $files = Get-ChildItem -LiteralPath $DestinationRoot -Recurse -File -Include *.md,*.yaml,*.yml,*.txt,*.json,*.ps1,*.py,*.sh
+    foreach ($file in $files) {
+        $content = Get-Content -Raw -LiteralPath $file.FullName
+        foreach ($marker in $Markers) {
+            if (-not [string]::IsNullOrWhiteSpace($marker) -and $content -match [regex]::Escape($marker)) {
+                throw "Forbidden metadata marker found in public export: $($file.FullName) -> $marker"
+            }
+        }
+    }
+}
+
+function Remove-ForbiddenMetadataMarkedFiles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationRoot,
+        [string[]]$Markers,
+        [string[]]$RequiredPaths
+    )
+
+    if (-not $Markers -or $Markers.Count -eq 0) {
+        return
+    }
+
+    $required = @{}
+    foreach ($path in $RequiredPaths) {
+        if (-not [string]::IsNullOrWhiteSpace($path)) {
+            $required[$path.Replace('\\', '/').ToLowerInvariant()] = $true
+        }
+    }
+
+    $files = Get-ChildItem -LiteralPath $DestinationRoot -Recurse -File -Include *.md,*.yaml,*.yml,*.txt,*.json,*.ps1,*.py,*.sh
+    foreach ($file in $files) {
+        $relative = (Get-RelativePathCompat -BasePath $DestinationRoot -TargetPath $file.FullName).Replace('\\', '/').ToLowerInvariant()
+        if ($required.ContainsKey($relative)) {
+            continue
+        }
+
+        $content = Get-Content -Raw -LiteralPath $file.FullName
+        foreach ($marker in $Markers) {
+            if (-not [string]::IsNullOrWhiteSpace($marker) -and $content -match [regex]::Escape($marker)) {
+                Remove-Item -LiteralPath $file.FullName -Force
+                break
+            }
+        }
+    }
+}
+
+function Assert-NoForbiddenFilenameMarkers {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationRoot,
+        [string[]]$Markers
+    )
+
+    if (-not $Markers -or $Markers.Count -eq 0) {
+        return
+    }
+
+    $files = Get-ChildItem -LiteralPath $DestinationRoot -Recurse -File
+    foreach ($file in $files) {
+        $name = $file.Name.ToLowerInvariant()
+        foreach ($marker in $Markers) {
+            if ([string]::IsNullOrWhiteSpace($marker)) {
+                continue
+            }
+            $needle = $marker.ToLowerInvariant()
+            if ($name.Contains($needle)) {
+                throw "Forbidden filename marker found in public export: $($file.FullName) -> $marker"
+            }
+        }
+    }
+}
+
 function Remove-UnlistedGeneratedDocs {
     param(
         [Parameter(Mandatory = $true)]
@@ -181,7 +327,7 @@ function Remove-UnlistedGeneratedDocs {
 
     $generatedFiles = Get-ChildItem -LiteralPath $generatedRoot -Recurse -File
     foreach ($file in $generatedFiles) {
-        $relative = [System.IO.Path]::GetRelativePath($DestinationRoot, $file.FullName).Replace('\', '/').ToLowerInvariant()
+        $relative = (Get-RelativePathCompat -BasePath $DestinationRoot -TargetPath $file.FullName).Replace('\', '/').ToLowerInvariant()
         if (-not $allowed.ContainsKey($relative)) {
             Remove-Item -LiteralPath $file.FullName -Force
         }
@@ -251,6 +397,8 @@ $forbiddenPaths = @($config.forbiddenPaths)
 $requiredPaths = @($config.requiredPaths)
 $allowedGeneratedPaths = @($config.allowedGeneratedPaths)
 $scrubPrivateReferencePaths = @($config.scrubPrivateReferencePaths)
+$forbiddenMetadataMarkers = @($config.forbiddenMetadataMarkers)
+$forbiddenFilenameMarkers = @($config.forbiddenFilenameMarkers)
 
 $remoteUrl = $null
 if ($Push) {
@@ -282,9 +430,14 @@ foreach ($relativePath in $publicPaths) {
 
 Remove-UnlistedGeneratedDocs -DestinationRoot $ExportRoot -AllowedGeneratedPaths $allowedGeneratedPaths
 Remove-PrivateAdapterFiles -DestinationRoot $ExportRoot
+Remove-ForbiddenMetadataMarkedFiles -DestinationRoot $ExportRoot -Markers $forbiddenMetadataMarkers -RequiredPaths $requiredPaths
 
 foreach ($relativePath in $scrubPrivateReferencePaths) {
     Remove-PrivateReferenceLines -DestinationRoot $ExportRoot -RelativePath $relativePath
+}
+
+foreach ($relativePath in $forbiddenPaths) {
+    Remove-ForbiddenPathIfPresent -DestinationRoot $ExportRoot -RelativePath $relativePath
 }
 
 foreach ($relativePath in $forbiddenPaths) {
@@ -297,6 +450,8 @@ foreach ($relativePath in $requiredPaths) {
 
 Assert-NoPrivateReferences -DestinationRoot $ExportRoot
 Assert-NoLocalAbsoluteLinks -DestinationRoot $ExportRoot
+Assert-NoForbiddenMetadataMarkers -DestinationRoot $ExportRoot -Markers $forbiddenMetadataMarkers
+Assert-NoForbiddenFilenameMarkers -DestinationRoot $ExportRoot -Markers $forbiddenFilenameMarkers
 
 Write-Host "Public export prepared at: $ExportRoot"
 

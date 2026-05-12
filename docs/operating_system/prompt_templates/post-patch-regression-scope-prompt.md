@@ -21,6 +21,7 @@ required_reads:
 tags:
 - prompt
 - execution
+distribution_tier: starter_kit
 ---
 
 # Post-Patch Regression Scope Prompt

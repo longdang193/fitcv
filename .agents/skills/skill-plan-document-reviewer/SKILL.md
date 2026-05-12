@@ -18,6 +18,7 @@ tags:
 - review
 - planning
 - skill-plan-document-reviewer
+distribution_tier: starter_kit
 ---
 
 # Plan Document Reviewer

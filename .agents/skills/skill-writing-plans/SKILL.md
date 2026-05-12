@@ -20,6 +20,7 @@ tags:
 - skill-writing-plans
 required_outputs:
 - docs/superpowers/plans/YYYY-MM-DD-HH-MM-<topic>-plan.md
+distribution_tier: starter_kit
 ---
 
 # Writing Plans

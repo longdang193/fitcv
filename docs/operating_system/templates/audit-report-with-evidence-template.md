@@ -14,6 +14,7 @@ required_sections:
 - Risk And Disposition
 - Artifact Index
 - Completion Checklist
+distribution_tier: starter_kit
 ---
 
 # Audit Report With Evidence Template

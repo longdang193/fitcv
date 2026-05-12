@@ -1,3 +1,20 @@
+"""
+@meta
+name: test_validate_agent_metadata_schema
+type: test
+scope: unit
+domain: validation
+distribution_tier: starter_kit
+covers:
+  - Agent metadata schema validator accepts minimal valid surfaces.
+  - Validator reports missing required fields.
+tags:
+  - fast
+  - ci-safe
+lifecycle:
+  status: active
+"""
+
 from __future__ import annotations
 
 import importlib.util

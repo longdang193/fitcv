@@ -250,6 +250,8 @@ def test_validate_env_gitignore_contract_passes_with_required_entries(tmp_path: 
         """.env
 .env.*
 !.env.example
+*.private.*
+*.local.*
 """,
     )
     write_text(tmp_path / ".env.example", "API_KEY=placeholder\n")
@@ -267,4 +269,53 @@ def test_validate_env_gitignore_contract_reports_missing_entries(tmp_path: Path)
 
     assert "missing required .gitignore entry: .env" in issues
     assert "missing required .gitignore entry: .env.*" in issues
+    assert "missing required .gitignore entry: *.private.*" in issues
+    assert "missing required .gitignore entry: *.local.*" in issues
     assert "missing required .gitignore entry when .env.example exists: !.env.example" in issues
+
+
+def test_starter_kit_classification_detects_missing_distribution_tier(tmp_path: Path) -> None:
+    write_text(
+        tmp_path / "repo_config" / "starter-kit-manifest.json",
+        """{
+  "copyPaths": ["scripts"]
+}
+""",
+    )
+    write_text(
+        tmp_path / "scripts" / "demo.py",
+        """\"\"\"
+@meta
+name: demo
+type: script
+\"\"\"
+""",
+    )
+
+    issues = VALIDATOR.validate_starter_kit_classification(tmp_path)
+
+    assert any("missing `distribution_tier: starter_kit`" in issue.message for issue in issues)
+
+
+def test_starter_kit_classification_detects_out_of_manifest_tier(tmp_path: Path) -> None:
+    write_text(
+        tmp_path / "repo_config" / "starter-kit-manifest.json",
+        """{
+  "copyPaths": ["docs"]
+}
+""",
+    )
+    write_text(
+        tmp_path / "scripts" / "demo.py",
+        """\"\"\"
+@meta
+name: demo
+type: script
+distribution_tier: starter_kit
+\"\"\"
+""",
+    )
+
+    issues = VALIDATOR.validate_starter_kit_classification(tmp_path)
+
+    assert any("not included in starter-kit manifest" in issue.message for issue in issues)

@@ -17,6 +17,7 @@ required_reads:
 tags:
 - prompt
 - drift
+distribution_tier: starter_kit
 ---
 
 # Validate Or Drift Prompt

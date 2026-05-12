@@ -3,6 +3,7 @@
 name: validate_adoption_shape
 type: script
 domain: docs
+distribution_tier: starter_kit
 responsibility:
   - Validate the explicit starter adoption mode and architecture-doc shape.
   - Catch mixed legacy/managed feature metadata states and method-layer pseudo-features.

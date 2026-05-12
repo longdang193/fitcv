@@ -12,6 +12,7 @@ required_sections:
 required_frontmatter:
   artifact_type: execution_map
   map_type: spec_authoring
+distribution_tier: starter_kit
 ---
 
 # Spec-Authoring Map Template
