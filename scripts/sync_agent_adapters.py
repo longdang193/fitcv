@@ -1,6 +1,5 @@
 """
 @meta
-repo: private
 name: sync_agent_adapters
 type: script
 domain: governance

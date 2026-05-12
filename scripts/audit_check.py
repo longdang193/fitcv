@@ -1,6 +1,5 @@
 """
 @meta
-repo: private
 name: audit_check
 type: script
 domain: governance

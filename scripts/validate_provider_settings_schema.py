@@ -1,18 +1,5 @@
 """
-@meta
-repo: private
-name: validate_provider_settings_schema
-type: script
-domain: docs
-responsibility:
-  - Validate provider settings schema, hook contracts, and capability compatibility.
-inputs:
-  - docs/operating_system/provider_settings/*.yaml
-  - repo_config/adoption-mode.yaml
-outputs:
-  - Exit status and schema validation report
-lifecycle:
-  status: active
+Validate provider settings schema, hook contracts, and capability compatibility.
 """
 
 from __future__ import annotations

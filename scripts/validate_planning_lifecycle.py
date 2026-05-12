@@ -1,6 +1,5 @@
 """
 @meta
-repo: private
 name: validate_planning_lifecycle
 type: script
 domain: docs

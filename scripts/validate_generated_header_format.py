@@ -1,17 +1,5 @@
 """
-@meta
-repo: private
-name: validate_generated_header_format
-type: script
-domain: docs
-responsibility:
-  - Validate generated artifact header format for text/markdown and JSON outputs.
-inputs:
-  - generated_agents/**/*
-outputs:
-  - Exit status and header validation report
-lifecycle:
-  status: active
+Validate generated artifact header format for text/markdown and JSON outputs.
 """
 
 from __future__ import annotations
