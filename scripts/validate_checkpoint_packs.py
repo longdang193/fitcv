@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: validate_checkpoint_packs
 type: script
 domain: docs

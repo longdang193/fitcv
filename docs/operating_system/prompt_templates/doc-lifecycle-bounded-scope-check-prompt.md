@@ -49,9 +49,10 @@ Please:
    - wrong ownership layer
    - generated-surface manual edits
    - required schema/validator mismatch directly tied to changed files
-3. Run minimal validator set:
-   - always: `py scripts/validate_repo_contracts.py --fast`
-   - add extra checks only when directly required by changed paths
+3. Run minimal validator set based on changed paths:
+   - run `py scripts/validate_repo_contracts.py --fast` only when changed scope touches governed docs/rules/workflows/scripts or contract-sensitive surfaces
+   - otherwise run only directly triggered validators for touched artifacts
+   - escalate to additional checks only when a concrete path-linked risk is found
 4. Return concise verdict per changed area:
    - pass
    - warn

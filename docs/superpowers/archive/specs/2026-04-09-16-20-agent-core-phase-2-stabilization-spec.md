@@ -50,8 +50,8 @@ Affected docs:
     - `docs/operating_system/doc-system-lifecycle.md`
     - `docs/operating_system/planning-dispatch.md`
     - `docs/operating_system/publication-workflow.md`
-    - `docs/public-repo-publication-policy.md`
-    - `docs/public-repo-publishing.md`
+    - `docs/operating_system/publication/public-repo-publication-policy.md`
+    - `docs/operating_system/publication/public-repo-publishing.md`
   readme: none
   generated: none
 Generated refresh required: no
@@ -207,3 +207,4 @@ Write the phase 2 implementation plan around:
 4. explicit phase-2 skill canon wording
 5. workflow integration for adapter verification
 6. the exact Codex Skills-aligned expectations the repo will enforce for skill shape and ownership
+

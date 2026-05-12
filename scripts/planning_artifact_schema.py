@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: planning_artifact_schema
 type: utility
 domain: docs

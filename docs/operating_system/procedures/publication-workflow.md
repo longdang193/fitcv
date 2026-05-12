@@ -51,73 +51,25 @@ Treat these as separate workflows:
 For exact maintainer rebuild and validation steps, use
 [Starter-Kit Workflow](starter-kit-workflow.md).
 
-## Private-Only Paths
+## Publication Boundary Reference
 
-The publication workflow must exclude internal-only material such as:
+Boundary rules and deny policy are authoritative in:
 
-- `docs/adoption_guide.md`
-- `docs/operating_system/`
-- `docs/operating_system/agent_memory/`
-- source-only generation machinery and private build inputs
-- `.codex/`
-- `AGENTS.md`
-- `.agents/`
-- `.cursor/`
-- `docs/superpowers/`
-- `logs/`
-- `sample/`
+- [Public Repo Publication Policy](../publication/public-repo-publication-policy.md)
 
-Starter adoption/bootstrap docs are private-only by default. They explain how
-to adapt the private starter repo, not how to use the public product-facing
-repo.
+Doc sanitization and keep/sanitize/omit patterns are defined in:
 
-That means:
+- [Public-Safe Doc Rewrite Guide](../publication/public-safe-doc-rewrite-guide.md)
 
-- do not publish `docs/adoption_guide.md`
-- do not publish starter migration runbooks or bootstrap checklists by default
-- do not publish "how to customize the private starter repo" guidance unless it
-  has been intentionally rewritten as public-facing documentation
-
-This boundary does **not** mean every cross-cutting doc under `docs/` is
-private. Public-facing setup, usage, architecture, or API docs may still be
-published when they are written for product users or contributors rather than
-private starter adopters.
-
-For concrete rewrite guidance before publishing cross-cutting docs such as
-`README.md`, `docs/setup.md`, `docs/configuration.md`, `docs/usage.md`,
-`docs/pipeline.md`, or `docs/architecture.md`, use
-[Public-Safe Doc Rewrite Guide](public-safe-doc-rewrite-guide.md).
-
-When reviewing a candidate file, choose one treatment explicitly:
+When reviewing candidate files, classify each as:
 
 - keep as-is
 - keep and sanitize
 - omit entirely
 
-Prefer "keep and sanitize" when the file's visible structure helps the public
-mirror remain reproducible, navigable, or trustworthy and the sensitive parts
-can be safely removed.
+Do not duplicate boundary rule lists in this procedure doc; update policy doc when boundary rules change.
 
-Do not over-trim files whose headings, schema, artifact slots, or metadata keys
-help a downstream reader understand what exists upstream.
-
-Lifecycle documentation now follows a stricter public-safe boundary:
-
-- publish generated current-state feature contracts when they help explain the
-  product-facing system
-- publish generated stage contracts when they help explain the workflow stages
-- do not publish `docs/features/*/feature.source.yaml`
-- do not publish `docs/stages/*.source.yaml`
-- do not publish feature-local `lineage.generated.yaml`
-- do not publish feature `history.md` by default, because it may contain
-  partially generated internal plan lineage
-- do not publish aggregate `docs/generated/*` outputs unless they are
-  explicitly allowlisted and reviewed as public-safe
-
-In this repo, `.codex/` is the private Codex config/generated root.
-It contains generated rules output and optional repo-local Codex subagent
-config, but it is still not the canonical home for Codex skills or agent
-memory.
+In this repo, `.codex/` is private Codex config/generated root and stays excluded from public export.
 
 ## Review Standard
 

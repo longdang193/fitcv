@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: sync_architecture_docs
 type: script
 domain: docs

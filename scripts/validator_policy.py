@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: validator_policy
 type: module
 domain: docs

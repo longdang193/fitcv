@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: planning_lineage_support
 type: utility
 domain: docs

@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: validate_env_gitignore_contract
 type: script
 domain: security

@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: generate_planning_lineage
 type: script
 domain: docs

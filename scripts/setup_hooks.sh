@@ -1,4 +1,7 @@
 #!/usr/bin/env sh
+# @meta
+# repo: private
+
 set -eu
 
 repo_root="$(git rev-parse --show-toplevel)"

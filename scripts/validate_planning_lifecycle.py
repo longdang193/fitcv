@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: validate_planning_lifecycle
 type: script
 domain: docs
@@ -711,7 +712,7 @@ def main() -> int:
                 adoption_mode = value.strip().lower()
 
     lifecycle_findings: list[Finding] = []
-    if adoption_mode not in {"starter_method_only", "managed_architecture_metadata"}:
+    if adoption_mode != "starter_method_only":
         lifecycle_findings = validate_lifecycle_coverage(
             root, workstreams, threads, specs, plans, maps
         )

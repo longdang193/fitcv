@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: validate_template_required_sections
 type: script
 domain: docs

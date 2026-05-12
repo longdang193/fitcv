@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: sync_agent_adapters
 type: script
 domain: governance
@@ -321,6 +322,17 @@ def parse_args() -> argparse.Namespace:
         default="adapters",
         help="Adapters directory relative to repo root.",
     )
+    parser.add_argument(
+        "--platform",
+        action="append",
+        default=[],
+        help="Platform to sync (repeatable). Overrides mode-driven defaults unless --all-platforms is set.",
+    )
+    parser.add_argument(
+        "--all-platforms",
+        action="store_true",
+        help="Process all adapter mappings regardless of adoption-mode policy.",
+    )
     return parser.parse_args()
 
 
@@ -453,6 +465,54 @@ def _read_adoption_config(root: Path) -> tuple[str, str]:
     normalized_mode = mode if isinstance(mode, str) and mode.strip() else "managed_architecture_metadata"
     normalized_role = repo_role if isinstance(repo_role, str) and repo_role.strip() else DEFAULT_REPO_ROLE
     return normalized_mode, normalized_role
+
+
+def _read_adapter_sync_policy(root: Path) -> tuple[list[str], dict[str, dict[str, list[str]]]]:
+    policy_file = root / "repo_config" / "adapter-sync-policy.yaml"
+    if not policy_file.exists():
+        return ["codex"], {}
+    payload = yaml.safe_load(policy_file.read_text(encoding="utf-8")) or {}
+    if not isinstance(payload, dict):
+        return ["codex"], {}
+    defaults_raw = payload.get("default_platforms", ["codex"])
+    defaults = [str(item).strip() for item in defaults_raw if str(item).strip()] if isinstance(defaults_raw, list) else ["codex"]
+    mode_role_raw = payload.get("mode_role_platforms", {})
+    mode_role: dict[str, dict[str, list[str]]] = {}
+    if isinstance(mode_role_raw, dict):
+        for role, by_mode in mode_role_raw.items():
+            if not isinstance(by_mode, dict):
+                continue
+            mode_map: dict[str, list[str]] = {}
+            for mode, platforms in by_mode.items():
+                if not isinstance(platforms, list):
+                    continue
+                cleaned = [str(item).strip() for item in platforms if str(item).strip()]
+                if cleaned:
+                    mode_map[str(mode).strip()] = cleaned
+            if mode_map:
+                mode_role[str(role).strip()] = mode_map
+    return defaults or ["codex"], mode_role
+
+
+def _resolve_platform_selection(root: Path, args: argparse.Namespace) -> tuple[set[str], str]:
+    if args.all_platforms:
+        return set(), "all-platforms"
+    cli_platforms = {item.strip() for item in (args.platform or []) if isinstance(item, str) and item.strip()}
+    if cli_platforms:
+        return cli_platforms, "cli-platform"
+    adoption_mode, repo_role = _read_adoption_config(root)
+    defaults, mode_role = _read_adapter_sync_policy(root)
+    selected = set(mode_role.get(repo_role, {}).get(adoption_mode, []))
+    if not selected:
+        selected = set(defaults)
+    return selected, f"mode-policy(adoption_mode={adoption_mode},repo_role={repo_role})"
+
+
+def _mapping_files_for_selection(adapters_root: Path, selected_platforms: set[str]) -> list[Path]:
+    all_mappings = sorted(adapters_root.glob("*/mapping.yaml"))
+    if not selected_platforms:
+        return all_mappings
+    return [path for path in all_mappings if path.parent.name in selected_platforms]
 
 
 def _is_optional_provider_settings_source(root: Path, source_path: Path) -> bool:
@@ -696,10 +756,17 @@ def run() -> int:
     args = parse_args()
     root = repo_root()
     adapters_root = root / args.adapters_root
-    mapping_files = sorted(adapters_root.glob("*/mapping.yaml"))
+    selected_platforms, selector = _resolve_platform_selection(root, args)
+    mapping_files = _mapping_files_for_selection(adapters_root, selected_platforms)
     if not mapping_files:
-        print("No adapter mappings found.")
+        selected_display = ",".join(sorted(selected_platforms)) if selected_platforms else "all"
+        print(
+            f"No adapter mappings found for selection={selected_display} under {adapters_root.as_posix()} "
+            f"(selector={selector})."
+        )
         return 1
+    selected_display = ",".join(sorted(selected_platforms)) if selected_platforms else "all"
+    print(f"Adapter selection: {selected_display} (selector={selector})")
     issues: list[str] = []
     destination_preserve_paths: dict[Path, set[Path]] = defaultdict(set)
     loaded_mappings: list[tuple[str, list[Mapping]]] = []
@@ -779,7 +846,7 @@ def run() -> int:
             else:
                 issues.extend(_sync_file(root, mapping, platform=platform, check=args.check))
         print(f"Processed adapter: {platform}")
-    if args.check:
+    if args.check and not selected_platforms:
         issues.extend(
             f"Orphan generated surface: {path.as_posix()}"
             for path in _find_orphan_generated_surfaces(root, all_mappings)

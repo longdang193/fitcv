@@ -103,7 +103,7 @@ Plan needed: yes | no
 ## Routing
 
 - roadmap/workstream/thread ownership unclear -> stay at higher planning layer using canonical roadmap/workstream/thread templates
-- design ambiguity remains -> `skill-brainstorming`
+- design ambiguity remains -> `skill-spec-drafting` (or `skill-brainstorming` for broader multi-artifact design exploration)
 - design is approved and executable -> `skill-writing-plans`
 - multiple specs need sequencing -> `skill-brainstorming` using complete-spec-set/spec-authoring-map templates
 - multiple plans or lanes need sequencing -> `skill-brainstorming` or equivalent orchestration step using implementation-execution-map template before execution

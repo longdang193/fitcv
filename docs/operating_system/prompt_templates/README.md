@@ -181,6 +181,8 @@ Live-run + multi-worktree integration:
 
 - [thread-checkpoint-result-pack-prompt.md](./thread-checkpoint-result-pack-prompt.md)
 - [required-root-doc-update-prompt.md](./required-root-doc-update-prompt.md)
+- [readme-update-prompt.md](./readme-update-prompt.md)
+- [docs-update-prompt.md](./docs-update-prompt.md)
 - [starter-baseline-sync-prompt.md](./starter-baseline-sync-prompt.md)
 - [managed-metadata-update-prompt.md](./managed-metadata-update-prompt.md)
 - [mode-migration-prompt.md](./mode-migration-prompt.md)

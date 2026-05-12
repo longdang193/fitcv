@@ -1,5 +1,17 @@
 """
-Validate prompt-template metadata schema for operating-system prompt templates.
+@meta
+repo: private
+name: validate_prompt_metadata_schema
+type: script
+domain: docs
+responsibility:
+  - Validate prompt-template metadata schema for operating-system prompt templates.
+inputs:
+  - docs/operating_system/prompt_templates/*.md
+outputs:
+  - Exit status and schema validation report
+lifecycle:
+  status: active
 """
 
 from __future__ import annotations

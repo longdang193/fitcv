@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: validate_repo_config
 type: script
 domain: config
@@ -30,29 +31,13 @@ from typing import Any
 import yaml
 
 
-def _load_adoption_mode(repo_root: Path) -> dict[str, Any]:
-    path = repo_root / "repo_config" / "adoption-mode.yaml"
-    if not path.exists():
-        return {}
-    try:
-        payload = load_yaml(path)
-    except yaml.YAMLError:
-        return {}
-    return payload if isinstance(payload, dict) else {}
-
-
-def _is_consumer_derived_mode(payload: dict[str, Any]) -> bool:
-    repo_role = str(payload.get("repo_role") or "").strip().lower()
-    adoption_mode = str(payload.get("adoption_mode") or "").strip().lower()
-    return repo_role == "consumer_derived" or adoption_mode == "starter_method_only"
-
-
 REQUIRED_PUBLICATION_KEYS = {
     "publicPaths",
     "forbiddenPaths",
     "requiredPaths",
     "allowedGeneratedPaths",
     "scrubPrivateReferencePaths",
+    "forbiddenMetadataMarkers",
 }
 REQUIRED_STARTER_KIT_KEYS = {
     "outputRoot",
@@ -245,23 +230,18 @@ def main() -> int:
     starter_kit_manifest_path = Path(args.starter_kit_manifest).resolve()
     runtime_config_root = Path(args.runtime_config_root).resolve()
     repo_root = infer_repo_root(args.repo_root, publication_config_path, adapter_mappings_path)
-    adoption_mode_payload = _load_adoption_mode(repo_root)
-    consumer_derived_mode = _is_consumer_derived_mode(adoption_mode_payload)
 
     errors: list[str] = []
 
-    required_paths = [
+    for path, label in (
         (publication_config_path, "Publication config"),
         (adapter_mappings_path, "Adapter mappings"),
-    ]
-    if not consumer_derived_mode:
-        required_paths.append((starter_kit_manifest_path, "Starter-kit manifest"))
-
-    for path, label in required_paths:
+        (starter_kit_manifest_path, "Starter-kit manifest"),
+    ):
         if not path.exists():
             errors.append(f"{label} path does not exist: {path}")
 
-    if not runtime_config_root.exists() and not consumer_derived_mode:
+    if not runtime_config_root.exists():
         errors.append(f"Runtime config root does not exist: {runtime_config_root}")
 
     if errors:
@@ -281,12 +261,11 @@ def main() -> int:
         errors.append(f"Adapter mappings could not be parsed: {exc}")
         adapter_mappings = None
 
-    starter_kit_manifest = None
-    if not consumer_derived_mode and starter_kit_manifest_path.exists():
-        try:
-            starter_kit_manifest = load_json(starter_kit_manifest_path)
-        except json.JSONDecodeError as exc:
-            errors.append(f"Starter-kit manifest could not be parsed: {exc}")
+    try:
+        starter_kit_manifest = load_json(starter_kit_manifest_path)
+    except json.JSONDecodeError as exc:
+        errors.append(f"Starter-kit manifest could not be parsed: {exc}")
+        starter_kit_manifest = None
 
     if publication_config is not None:
         validate_publication_config(publication_config, errors)
@@ -295,10 +274,7 @@ def main() -> int:
     if starter_kit_manifest is not None:
         validate_starter_kit_manifest(starter_kit_manifest, errors)
 
-    if runtime_config_root.exists():
-        validate_runtime_configs(runtime_config_root, errors)
-    elif consumer_derived_mode:
-        print("SKIP:validate_repo_config:runtime configs optional for starter_method_only or consumer_derived mode")
+    validate_runtime_configs(runtime_config_root, errors)
 
     if errors:
         for error in errors:

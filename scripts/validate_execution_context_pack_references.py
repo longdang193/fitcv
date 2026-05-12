@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: validate_execution_context_pack_references
 type: script
 domain: docs

@@ -1,3 +1,6 @@
+# @meta
+# repo: private
+
 param(
   [Parameter(Mandatory=$true)][string]$AuditId,
   [Parameter(Mandatory=$true)][string]$SourceFile,

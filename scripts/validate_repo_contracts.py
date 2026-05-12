@@ -1,5 +1,6 @@
 """
 @meta
+repo: private
 name: validate_repo_contracts
 type: script
 domain: docs

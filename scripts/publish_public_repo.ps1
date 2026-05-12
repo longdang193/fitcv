@@ -1,3 +1,6 @@
+# @meta
+# repo: private
+
 [CmdletBinding()]
 param(
     [string]$ExportRoot = (Join-Path $env:TEMP "project-public-export"),

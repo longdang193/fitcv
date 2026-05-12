@@ -23,8 +23,8 @@ Invariants:
 - The pilot must be removable without affecting normal development or publication
 - Any later reusable skill should be based on verified usage patterns from the pilot, not assumptions
 Dependencies:
-- `docs/public-repo-publication-policy.md`
-- `docs/public-repo-publishing.md`
+- `docs/operating_system/publication/public-repo-publication-policy.md`
+- `docs/operating_system/publication/public-repo-publishing.md`
 - `.agents/skills/private-public-repo-governance/`
 - internal repo workflow docs
 - optional local GitNexus install/config assets
@@ -38,8 +38,8 @@ Affected docs:
   feature_history: none
   feature_docs: none
   cross_cutting_docs:
-    - `docs/public-repo-publication-policy.md`
-    - `docs/public-repo-publishing.md`
+    - `docs/operating_system/publication/public-repo-publication-policy.md`
+    - `docs/operating_system/publication/public-repo-publishing.md`
   readme: none
   generated: none
 Generated refresh required: no
@@ -216,3 +216,4 @@ Write a short implementation plan that covers:
 3. success/failure criteria
 4. any publication-boundary updates needed to keep GitNexus private-only
 5. the review checkpoint where adoption is accepted or rejected
+

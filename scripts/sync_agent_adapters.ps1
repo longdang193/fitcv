@@ -1,3 +1,6 @@
+# @meta
+# repo: private
+
 [CmdletBinding()]
 param(
     [string]$ConfigPath = 'repo_config/agent-adapter-mappings.json'
