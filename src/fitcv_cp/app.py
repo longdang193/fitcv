@@ -4047,7 +4047,7 @@ def _stage_download_label(stage_id: str | None) -> str:
 
 class TriggerRequest(BaseModel):
     jobs_path: str = "data/sample_jobs.json"
-    config_path: str = ".env.yaml"
+    config_path: str = "config/env.yaml"
     triggered_by: str = "admin"
     config_overrides: dict[str, Any] = {}
     run_mode: str = "run_all"
@@ -5018,7 +5018,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         jobs_path: str = Form("data/sample_jobs.json"),
         jobs_input_mode: str = Form("path"),      # "path" | "upload" | "paste"
         jobs_text: str = Form(""),
-        config_path: str = Form(".env.yaml"),
+        config_path: str = Form("config/env.yaml"),
         run_mode: str = Form("run_all"),
         candidate_profile_mode: str = Form("default_config"),  # "default_config" | "upload" | "paste"
         candidate_profile_file: UploadFile | None = File(None),

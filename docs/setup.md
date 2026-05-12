@@ -12,53 +12,132 @@ explains:
 
 # Setup
 
-FitCV is a `managed_architecture_metadata` repo with two runtime surfaces:
+This guide targets first-run success: clone repo, start web + worker, open
+`/admin/runs`, trigger one run.
 
-- control plane app (`src/fitcv_cp/`)
-- staged pipeline runtime (`src/fitcv/`)
+Use [fitcv-control-plane-setup.md](fitcv-control-plane-setup.md) for deeper
+operator runbook detail.
 
-This page is the short setup map. Use [fitcv-control-plane-setup.md](fitcv-control-plane-setup.md) for deeper runbook detail.
+## 1) Prerequisites
 
-## Prerequisites
+- Python 3.11+
+- Git
+- Optional Docker Desktop (recommended easiest path)
+- Redis (needed for local queue mode)
 
-- Python environment with repo dependencies
-- Redis when using queue mode
-- Optional Docker Desktop for containerized startup
-- Runtime credentials/secrets via process env or local `.env` (untracked)
+Quick checks:
 
-## Supported Backend Modes
+```powershell
+python --version
+git --version
+docker --version
+```
 
-### SQLite mode (recommended for local)
+## 2) Clone And Install
 
-- set `FITCV_CP_DATA_BACKEND=sqlite`
-- set sqlite path via `FITCV_CP_SQLITE_PATH` if needed
-- start app + worker (or inline mode)
+```powershell
+git clone https://github.com/longdang193/fitcv-public.git
+cd fitcv-public
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
 
-### BigQuery mode
+## 3) Runtime Config Contract (Single Source Of Truth)
 
-- set `FITCV_CP_DATA_BACKEND=bigquery`
-- provide `GCP_PROJECT`, `BIGQUERY_DATASET`
-- provide `GOOGLE_APPLICATION_CREDENTIALS`
+Canonical runtime config file:
 
-## Startup Shapes
+- `config/env.yaml`
 
-### Local app + worker
+Secrets and runtime env vars file:
 
-1. start Redis (if queue mode)
-2. start web app
-3. start worker
-4. open `/admin/runs`
+- `.env` (untracked)
 
-### Docker mode
+Notes:
 
-- run `docker compose up -d --build redis web worker`
-- open `/admin/runs`
+- Do not depend on `.env.yaml.example`.
+- `.env.yaml` may exist as local override in some setups, but canonical default
+  for control-plane runs is `config/env.yaml`.
 
-## Quick Validation
+Minimum backend env for local SQLite mode:
 
-- `GET /healthz`
+```powershell
+$env:FITCV_CP_DATA_BACKEND = "sqlite"
+```
+
+Optional SQLite path override:
+
+```powershell
+$env:FITCV_CP_SQLITE_PATH = ".\data\fitcv_local.db"
+```
+
+## 4) Start Application (Choose One)
+
+### Track A: Docker (recommended)
+
+```powershell
+docker compose up -d --build redis web worker
+```
+
+Open:
+
+- `http://localhost:8000/admin/runs`
+
+### Track B: Local web + worker
+
+Terminal 1:
+
+```powershell
+.\start_web.ps1
+```
+
+Terminal 2:
+
+```powershell
+.\start_worker.ps1
+```
+
+Open:
+
+- `http://localhost:8000/admin/runs`
+
+## 5) Validate Health + First Run
+
+- `GET /healthz` should return HTTP 200
 - trigger one run from `/admin/runs`
-- verify run detail artifacts and events are visible
+- confirm run transitions queued -> running -> succeeded/failed
+- confirm run detail shows artifacts/events
+
+## 6) Backend Modes
+
+### SQLite (recommended local default)
+
+- `FITCV_CP_DATA_BACKEND=sqlite`
+- optional `FITCV_CP_SQLITE_PATH`
+
+### BigQuery (advanced)
+
+Use after SQLite path works.
+
+Required env:
+
+- `FITCV_CP_DATA_BACKEND=bigquery`
+- `GCP_PROJECT`
+- `BIGQUERY_DATASET`
+- `GOOGLE_APPLICATION_CREDENTIALS`
+
+## 7) Troubleshooting
+
+- `/admin/runs` not opening:
+  - check web process/container running
+  - check port 8000 conflict
+- run stuck queued:
+  - check worker running
+  - check Redis reachable
+- `/healthz` fails:
+  - inspect web logs
+  - re-check env/backend values
 
 ## Related Docs
 
