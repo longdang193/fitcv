@@ -63,6 +63,7 @@ hooks:
   pre: []
   post: []
 required_reads: []
+required_outputs: []
 tags: []
 ---
 # Demo
@@ -71,10 +72,11 @@ tags: []
         _write(
             root / "docs/operating_system/rules/demo.md",
             """---
-name: demo-rule
+name: demo
 description: demo
 alwaysApply: true
 required_reads: []
+required_outputs: []
 tags: []
 ---
 # Demo
@@ -83,9 +85,11 @@ tags: []
         _write(
             root / "docs/operating_system/workflows/demo.md",
             """---
-name: demo-workflow
+name: demo
 description: demo
+allowed-tools: []
 required_reads: []
+required_outputs: []
 related_skills: []
 tags: []
 ---
