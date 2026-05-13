@@ -400,7 +400,6 @@ foreach ($relativePath in $publicPaths) {
 
 Remove-UnlistedGeneratedDocs -DestinationRoot $ExportRoot -AllowedGeneratedPaths $allowedGeneratedPaths
 Remove-PrivateAdapterFiles -DestinationRoot $ExportRoot
-Remove-ForbiddenMetadataMarkedFiles -DestinationRoot $ExportRoot -Markers $forbiddenMetadataMarkers
 
 foreach ($relativePath in $scrubPrivateReferencePaths) {
     Remove-PrivateReferenceLines -DestinationRoot $ExportRoot -RelativePath $relativePath
