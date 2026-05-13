@@ -35,7 +35,7 @@ GENERATED_FILE_PREFIX = "# GENERATED FILE - do not edit directly."
 
 class IndentedSafeDumper(yaml.SafeDumper):
     def increase_indent(self, flow: bool = False, indentless: bool = False) -> None:
-        super().increase_indent(flow, False)
+        return super().increase_indent(flow, False)
 
 
 def repo_root() -> Path:

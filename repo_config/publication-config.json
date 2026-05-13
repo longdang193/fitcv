@@ -67,7 +67,8 @@
     "docs/stages"
   ],
   "forbiddenMetadataMarkers": [
-    "repo: private"
+    "repo: private",
+    "distribution_tier: starter_kit"
   ],
   "forbiddenFilenameMarkers": [
     ".private.",
