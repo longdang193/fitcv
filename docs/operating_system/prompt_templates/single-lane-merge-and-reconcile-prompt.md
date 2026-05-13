@@ -40,6 +40,13 @@ Context:
 - verification evidence:
 - open blockers/conflicts:
 
+Entry gate (all required before merge orchestration):
+- lane has implementation commits
+- lane-active/current plan exists and is execution-complete candidate
+- in-scope verification evidence exists
+- no active implementation steps remain
+If any gate fails: return one minimal unblock action and stop.
+
 Please:
 1. verify lane is merge-eligible:
    - bounded scope respected
@@ -56,6 +63,7 @@ Please:
    - `py scripts/validate_planning_lifecycle.py --strict`
    - `py scripts/validate_checkpoint_packs.py`
    - add `py scripts/validate_template_required_sections.py` only when template-governed docs are in changed scope
+   - validator dedupe rule: if same validator already passed and no relevant file changed since pass, reuse prior evidence
 5. decide merge path:
    - open/update PR
    - merge now
@@ -68,6 +76,9 @@ Please:
 8. if blockers remain, return the minimal prerequisite action needed to unblock
 9. return one selected next action and why alternatives are not yet eligible
    - if closure criteria are already satisfied, select `close now` and explain why further actions are not eligible
+
+Output rule:
+- return one next action only.
 ```
 
 Expected output:

@@ -265,3 +265,113 @@ def test_validator_fails_when_starter_kit_manifest_is_missing_required_keys() ->
         assert "starter-kit manifest is missing required keys" in result.stdout.lower()
     finally:
         rmtree(test_root, ignore_errors=True)
+
+
+def test_validator_accepts_optional_public_exclude_controls() -> None:
+    test_root = make_test_root()
+    try:
+        publication_config = test_root / "repo_config" / "publication-config.json"
+        adapter_mappings = test_root / "repo_config" / "agent-adapter-mappings.json"
+        starter_kit_manifest = test_root / "repo_config" / "starter-kit-manifest.json"
+        runtime_config = test_root / "configs" / "train.yaml"
+
+        write_json(
+            publication_config,
+            {
+                "publicPaths": ["README.md", "docs"],
+                "forbiddenPaths": [".codex"],
+                "requiredPaths": ["README.md"],
+                "allowedGeneratedPaths": [],
+                "scrubPrivateReferencePaths": ["README.md"],
+                "forbiddenMetadataMarkers": ["repo: private"],
+                "publicExcludeGlobs": ["docs/*"],
+                "publicIncludeOverridesExcludes": False,
+            },
+        )
+        write_json(
+            adapter_mappings,
+            [
+                {
+                    "source": "docs/operating_system/templates/agents/root-AGENTS.template.md",
+                    "destination": "AGENTS.md",
+                    "prefix": "#",
+                }
+            ],
+        )
+        write_json(starter_kit_manifest, valid_starter_kit_manifest())
+        write_text(runtime_config, "training:\n  experiment_name: train-prod\n")
+        write_text(test_root / "README.md", "# readme\n")
+        write_text(
+            test_root / "docs" / "operating_system" / "templates" / "agents" / "root-AGENTS.template.md",
+            "# template\n",
+        )
+
+        result = run_validator(
+            "--publication-config",
+            str(publication_config),
+            "--adapter-mappings",
+            str(adapter_mappings),
+            "--starter-kit-manifest",
+            str(starter_kit_manifest),
+            "--runtime-config-root",
+            str(test_root / "configs"),
+        )
+
+        assert result.returncode == 0
+    finally:
+        rmtree(test_root, ignore_errors=True)
+
+
+def test_validator_fails_when_public_exclude_globs_type_invalid() -> None:
+    test_root = make_test_root()
+    try:
+        publication_config = test_root / "repo_config" / "publication-config.json"
+        adapter_mappings = test_root / "repo_config" / "agent-adapter-mappings.json"
+        starter_kit_manifest = test_root / "repo_config" / "starter-kit-manifest.json"
+        runtime_config = test_root / "configs" / "train.yaml"
+
+        write_json(
+            publication_config,
+            {
+                "publicPaths": ["README.md"],
+                "forbiddenPaths": [".codex"],
+                "requiredPaths": ["README.md"],
+                "allowedGeneratedPaths": [],
+                "scrubPrivateReferencePaths": ["README.md"],
+                "forbiddenMetadataMarkers": ["repo: private"],
+                "publicExcludeGlobs": True,
+            },
+        )
+        write_json(
+            adapter_mappings,
+            [
+                {
+                    "source": "docs/operating_system/templates/agents/root-AGENTS.template.md",
+                    "destination": "AGENTS.md",
+                    "prefix": "#",
+                }
+            ],
+        )
+        write_json(starter_kit_manifest, valid_starter_kit_manifest())
+        write_text(runtime_config, "training:\n  experiment_name: train-prod\n")
+        write_text(test_root / "README.md", "# readme\n")
+        write_text(
+            test_root / "docs" / "operating_system" / "templates" / "agents" / "root-AGENTS.template.md",
+            "# template\n",
+        )
+
+        result = run_validator(
+            "--publication-config",
+            str(publication_config),
+            "--adapter-mappings",
+            str(adapter_mappings),
+            "--starter-kit-manifest",
+            str(starter_kit_manifest),
+            "--runtime-config-root",
+            str(test_root / "configs"),
+        )
+
+        assert result.returncode == 1
+        assert "publicexcludeglobs" in result.stdout.lower()
+    finally:
+        rmtree(test_root, ignore_errors=True)

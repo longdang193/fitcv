@@ -27,7 +27,11 @@ function Get-PublicationConfig {
         [string]$ConfigPath
     )
 
-    $configFullPath = Join-Path $RepoRoot $ConfigPath
+    $configFullPath = if ([System.IO.Path]::IsPathRooted($ConfigPath)) {
+        $ConfigPath
+    } else {
+        Join-Path $RepoRoot $ConfigPath
+    }
     if (-not (Test-Path -LiteralPath $configFullPath)) {
         throw "Publication config not found: $configFullPath"
     }
@@ -75,9 +79,28 @@ function Copy-PublicPath {
         return
     }
 
+    $sourceItem = Get-Item -LiteralPath $source -ErrorAction Stop
     $destination = Join-Path $DestinationRoot $RelativePath
     Ensure-ParentDirectory -Path $destination
-    Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
+
+    if ($sourceItem.PSIsContainer) {
+        Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
+    } else {
+        $relativeDirectory = Split-Path -Parent $RelativePath
+        $destinationDirectory = if ([string]::IsNullOrWhiteSpace($relativeDirectory) -or $relativeDirectory -eq '.') {
+            $DestinationRoot
+        } else {
+            Join-Path $DestinationRoot $relativeDirectory
+        }
+        if (-not (Test-Path -LiteralPath $destinationDirectory)) {
+            New-Item -ItemType Directory -Force -Path $destinationDirectory | Out-Null
+        }
+        Copy-Item -LiteralPath $source -Destination $destinationDirectory -Force
+        if (-not (Test-Path -LiteralPath $destination)) {
+            $bytes = [System.IO.File]::ReadAllBytes([System.IO.Path]::GetFullPath($source))
+            [System.IO.File]::WriteAllBytes([System.IO.Path]::GetFullPath($destination), $bytes)
+        }
+    }
 
     if (Test-Path -LiteralPath $destination) {
         $cacheDirs = Get-ChildItem -LiteralPath $destination -Recurse -Directory -Filter '__pycache__' -ErrorAction SilentlyContinue
@@ -124,6 +147,83 @@ function Get-RelativePathCompat {
     $relativeUri = $baseUri.MakeRelativeUri($targetUri)
     $relative = [System.Uri]::UnescapeDataString($relativeUri.ToString())
     return $relative.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
+}
+
+function Normalize-RelativePath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path
+    )
+
+    $normalized = $Path.Replace('\', '/')
+    if ($normalized.StartsWith('./')) {
+        $normalized = $normalized.Substring(2)
+    }
+    if ($normalized.StartsWith('/')) {
+        $normalized = $normalized.Substring(1)
+    }
+    return $normalized
+}
+
+function Resolve-PublicPathSeeds {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourceRoot,
+        [Parameter(Mandatory = $true)]
+        [string[]]$PublicPaths
+    )
+
+    $resolved = New-Object System.Collections.Generic.HashSet[string] ([System.StringComparer]::OrdinalIgnoreCase)
+
+    foreach ($relativePath in $PublicPaths) {
+        $source = Join-Path $SourceRoot $relativePath
+        if (-not (Test-Path -LiteralPath $source)) {
+            throw "Configured public path does not exist: $relativePath"
+        }
+
+        $item = Get-Item -LiteralPath $source -ErrorAction Stop
+        if ($item.PSIsContainer) {
+            $files = Get-ChildItem -LiteralPath $source -Recurse -File
+            foreach ($file in $files) {
+                $rel = Get-RelativePathCompat -BasePath $SourceRoot -TargetPath $file.FullName
+                $null = $resolved.Add((Normalize-RelativePath -Path $rel))
+            }
+        } else {
+            $rel = Get-RelativePathCompat -BasePath $SourceRoot -TargetPath $item.FullName
+            $null = $resolved.Add((Normalize-RelativePath -Path $rel))
+        }
+    }
+
+    return @($resolved | Sort-Object)
+}
+
+function Apply-PublicExcludeGlobs {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$Paths,
+        [Parameter(Mandatory = $false)]
+        [string[]]$ExcludeGlobs
+    )
+
+    if (-not $ExcludeGlobs -or $ExcludeGlobs.Count -eq 0) {
+        return $Paths
+    }
+
+    $kept = New-Object System.Collections.Generic.List[string]
+    foreach ($path in $Paths) {
+        $isExcluded = $false
+        foreach ($pattern in $ExcludeGlobs) {
+            if ($path -like $pattern) {
+                $isExcluded = $true
+                break
+            }
+        }
+        if (-not $isExcluded) {
+            $kept.Add($path) | Out-Null
+        }
+    }
+
+    return @($kept | Sort-Object)
 }
 
 function Assert-PublicPathIsFile {
@@ -323,6 +423,48 @@ function Remove-UnlistedGeneratedDocs {
     }
 }
 
+function Remove-PythonBuildArtifacts {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationRoot
+    )
+
+    if (-not (Test-Path -LiteralPath $DestinationRoot)) {
+        return
+    }
+
+    $cacheDirs = Get-ChildItem -LiteralPath $DestinationRoot -Recurse -Directory -Filter '__pycache__' -ErrorAction SilentlyContinue
+    foreach ($dir in $cacheDirs) {
+        Remove-Item -LiteralPath $dir.FullName -Recurse -Force
+    }
+
+    $pycFiles = Get-ChildItem -LiteralPath $DestinationRoot -Recurse -File -Filter '*.pyc' -ErrorAction SilentlyContinue
+    foreach ($file in $pycFiles) {
+        Remove-Item -LiteralPath $file.FullName -Force
+    }
+}
+
+function Remove-PythonBuildArtifacts {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationRoot
+    )
+
+    if (-not (Test-Path -LiteralPath $DestinationRoot)) {
+        return
+    }
+
+    $cacheDirs = Get-ChildItem -LiteralPath $DestinationRoot -Recurse -Directory -Filter '__pycache__' -ErrorAction SilentlyContinue
+    foreach ($dir in $cacheDirs) {
+        Remove-Item -LiteralPath $dir.FullName -Recurse -Force
+    }
+
+    $pycFiles = Get-ChildItem -LiteralPath $DestinationRoot -Recurse -File -Filter '*.pyc' -ErrorAction SilentlyContinue
+    foreach ($file in $pycFiles) {
+        Remove-Item -LiteralPath $file.FullName -Force
+    }
+}
+
 function Remove-PrivateAdapterFiles {
     param(
         [Parameter(Mandatory = $true)]
@@ -388,6 +530,9 @@ $allowedGeneratedPaths = @($config.allowedGeneratedPaths)
 $scrubPrivateReferencePaths = @($config.scrubPrivateReferencePaths)
 $forbiddenMetadataMarkers = @($config.forbiddenMetadataMarkers)
 $forbiddenFilenameMarkers = @($config.forbiddenFilenameMarkers)
+$publicExcludeGlobs = if ($null -ne $config.publicExcludeGlobs) { @($config.publicExcludeGlobs) } else { @() }
+$effectivePublicPaths = Resolve-PublicPathSeeds -SourceRoot $repoRoot -PublicPaths $publicPaths
+$effectivePublicPaths = Apply-PublicExcludeGlobs -Paths $effectivePublicPaths -ExcludeGlobs $publicExcludeGlobs
 
 $remoteUrl = $null
 if ($Push) {
@@ -413,11 +558,22 @@ if ($Push) {
     }
 }
 
-foreach ($relativePath in $publicPaths) {
-    Assert-PublicPathIsFile -SourceRoot $repoRoot -RelativePath $relativePath
-    Copy-PublicPath -SourceRoot $repoRoot -DestinationRoot $ExportRoot -RelativePath $relativePath
+foreach ($relativePath in $effectivePublicPaths) {
+    $source = Join-Path $repoRoot $relativePath
+    if (-not (Test-Path -LiteralPath $source)) {
+        throw "Resolved public path does not exist at copy time: $relativePath"
+    }
+
+    $destination = Join-Path $ExportRoot $relativePath
+    Ensure-ParentDirectory -Path $destination
+    [System.IO.File]::Copy(
+        [System.IO.Path]::GetFullPath($source),
+        [System.IO.Path]::GetFullPath($destination),
+        $true
+    )
 }
 
+Remove-PythonBuildArtifacts -DestinationRoot $ExportRoot
 Remove-UnlistedGeneratedDocs -DestinationRoot $ExportRoot -AllowedGeneratedPaths $allowedGeneratedPaths
 Remove-PrivateAdapterFiles -DestinationRoot $ExportRoot
 # Keep exported allowlist output intact until required-path checks run.

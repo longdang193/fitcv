@@ -39,6 +39,13 @@ REQUIRED_PUBLICATION_KEYS = {
     "scrubPrivateReferencePaths",
     "forbiddenMetadataMarkers",
 }
+OPTIONAL_PUBLICATION_LIST_KEYS = {
+    "forbiddenFilenameMarkers",
+    "publicExcludeGlobs",
+}
+OPTIONAL_PUBLICATION_BOOL_KEYS = {
+    "publicIncludeOverridesExcludes",
+}
 REQUIRED_STARTER_KIT_KEYS = {
     "outputRoot",
     "copyPaths",
@@ -127,6 +134,17 @@ def validate_publication_config(payload: Any, errors: list[str]) -> None:
             isinstance(item, str) and item.strip() for item in value
         ):
             errors.append(f"Publication config key `{key}` must be a list of strings.")
+
+    for key in OPTIONAL_PUBLICATION_LIST_KEYS & set(payload.keys()):
+        value = payload[key]
+        if not isinstance(value, list) or not all(
+            isinstance(item, str) and item.strip() for item in value
+        ):
+            errors.append(f"Publication config key `{key}` must be a list of strings.")
+
+    for key in OPTIONAL_PUBLICATION_BOOL_KEYS & set(payload.keys()):
+        if not isinstance(payload[key], bool):
+            errors.append(f"Publication config key `{key}` must be a boolean.")
 
 
 def validate_starter_kit_manifest(payload: Any, errors: list[str]) -> None:

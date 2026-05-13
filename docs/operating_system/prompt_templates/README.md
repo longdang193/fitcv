@@ -56,19 +56,21 @@ Use in this order:
 
 1. [planning-readiness-gate-prompt.md](./planning-readiness-gate-prompt.md)
 2. [multi-worktree-dispatch-prompt.md](./multi-worktree-dispatch-prompt.md)
-3. [execution-readiness-gate-prompt.md](./execution-readiness-gate-prompt.md)
-4. [implementation-next-action-gate-prompt.md](./implementation-next-action-gate-prompt.md)
-5. [execute-prompt.md](./execute-prompt.md)
-6. [patch-and-pattern-detection-prompt.md](./patch-and-pattern-detection-prompt.md) (when selected action is a patch)
-7. [single-lane-merge-and-reconcile-prompt.md](./single-lane-merge-and-reconcile-prompt.md)
-8. [thread-closeout-readiness-prompt.md](./thread-closeout-readiness-prompt.md)
-9. [workstream-closeout-readiness-prompt.md](./workstream-closeout-readiness-prompt.md)
-10. [roadmap-closeout-readiness-prompt.md](./roadmap-closeout-readiness-prompt.md) (if roadmap closure is in scope)
+3. [git-worktree-preflight-and-create-prompt.md](./git-worktree-preflight-and-create-prompt.md)
+4. [execution-readiness-gate-prompt.md](./execution-readiness-gate-prompt.md)
+5. [implementation-next-action-gate-prompt.md](./implementation-next-action-gate-prompt.md)
+6. [execute-prompt.md](./execute-prompt.md)
+7. [patch-and-pattern-detection-prompt.md](./patch-and-pattern-detection-prompt.md) (when selected action is a patch)
+8. [single-lane-merge-and-reconcile-prompt.md](./single-lane-merge-and-reconcile-prompt.md)
+9. [thread-closeout-readiness-prompt.md](./thread-closeout-readiness-prompt.md)
+10. [workstream-closeout-readiness-prompt.md](./workstream-closeout-readiness-prompt.md)
+11. [roadmap-closeout-readiness-prompt.md](./roadmap-closeout-readiness-prompt.md) (if roadmap closure is in scope)
 
 ```mermaid
 flowchart TD
   P["planning-readiness-gate-prompt.md"] --> A["multi-worktree-dispatch-prompt.md"]
-  A --> R["execution-readiness-gate-prompt.md"]
+  A --> W["git-worktree-preflight-and-create-prompt.md"]
+  W --> R["execution-readiness-gate-prompt.md"]
   R --> B
   B --> C["execute-prompt.md"]
   C --> D{"Selected action is patch?"}
@@ -164,6 +166,7 @@ Use in this order:
 - [deliverable-verdict-gate-prompt.md](./deliverable-verdict-gate-prompt.md)
 - [execution-readiness-gate-prompt.md](./execution-readiness-gate-prompt.md)
 - [multi-worktree-dispatch-prompt.md](./multi-worktree-dispatch-prompt.md)
+- [git-worktree-preflight-and-create-prompt.md](./git-worktree-preflight-and-create-prompt.md)
 - [single-lane-merge-and-reconcile-prompt.md](./single-lane-merge-and-reconcile-prompt.md)
 - [multi-worktree-merge-and-reconcile-prompt.md](./multi-worktree-merge-and-reconcile-prompt.md)
 
