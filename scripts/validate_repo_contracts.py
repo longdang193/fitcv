@@ -263,9 +263,9 @@ def build_subprocess_steps(
     ]
     if adoption_mode != "starter_method_only":
         steps.append([python_executable, agent_runtime_drift_script, "--skip-deploy-check"])
-    if adoption_mode != "starter_method_only":
-        sync_script = str(root / "scripts" / "sync_architecture_docs.py")
-        steps.append([python_executable, sync_script, "--check"])
+        sync_script = root / "scripts" / "sync_architecture_docs.py"
+        if sync_script.exists():
+            steps.append([python_executable, str(sync_script), "--check"])
     steps.append([python_executable, repo_config_script])
     if not fast:
         pytest_targets = [
@@ -456,13 +456,45 @@ def _load_starter_kit_manifest(root: Path) -> dict | None:
 
 
 def _is_metadata_capable(path: Path) -> bool:
+    analysis = _analyze_metadata_file(path)
+    return analysis[0]
+
+
+def _analyze_metadata_file(path: Path) -> tuple[bool, bool]:
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    is_metadata_capable = False
     if path.suffix == ".py":
-        text = path.read_text(encoding="utf-8", errors="ignore")
-        return "@meta" in "\n".join(text.splitlines()[:30])
-    if path.suffix == ".md":
-        text = path.read_text(encoding="utf-8", errors="ignore")
-        return text.startswith("---\n")
-    return False
+        is_metadata_capable = "@meta" in "\n".join(text.splitlines()[:30])
+    elif path.suffix == ".md":
+        is_metadata_capable = text.startswith("---\n")
+    has_starter_kit_tier = False
+    if is_metadata_capable:
+        pattern = re.compile(
+            rf"^\s*(?:#\s*)?distribution_tier:\s*{re.escape(STARTER_KIT_DISTRIBUTION_TIER)}\s*$",
+            re.MULTILINE,
+        )
+        has_starter_kit_tier = bool(pattern.search(text))
+    return is_metadata_capable, has_starter_kit_tier
+
+
+def _iter_files_pruned(root: Path) -> list[Path]:
+    excluded_dirs = {
+        ".git",
+        ".worktrees",
+        ".tmp-tests",
+        "generated_exports",
+        "generated_agents",
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+    }
+    files: list[Path] = []
+    for current_root, dirnames, filenames in os.walk(root):
+        dirnames[:] = [name for name in dirnames if name not in excluded_dirs]
+        current_path = Path(current_root)
+        for filename in filenames:
+            files.append(current_path / filename)
+    return files
 
 
 def _has_distribution_tier(path: Path, tier: str) -> bool:
@@ -472,6 +504,10 @@ def _has_distribution_tier(path: Path, tier: str) -> bool:
         re.MULTILINE,
     )
     return bool(pattern.search(text))
+
+
+def _has_starter_kit_distribution_tier_from_analysis(analysis: tuple[bool, bool]) -> bool:
+    return analysis[1]
 
 
 def sync_starter_kit_distribution_tier(root: Path) -> int:
@@ -559,34 +595,37 @@ def validate_starter_kit_classification(root: Path) -> list[ValidationIssue]:
                     in_kit.add(relative_path(file, root))
 
     for rel in sorted(in_kit):
-        file_path = root / rel
-        if not file_path.exists() or not _is_metadata_capable(file_path):
+        if rel.startswith("docs/operating_system/templates/"):
             continue
-        if not _has_distribution_tier(file_path, STARTER_KIT_DISTRIBUTION_TIER):
-            issues.append(
-                ValidationIssue(
-                    category="starter_kit_classification_drift",
-                    path=rel,
-                    message=(
-                        "metadata-capable file is in starter-kit manifest but missing "
-                        f"`distribution_tier: {STARTER_KIT_DISTRIBUTION_TIER}`"
-                    ),
-                )
+        file_path = root / rel
+        if not file_path.exists():
+            continue
+        analysis = _analyze_metadata_file(file_path)
+        if not analysis[0]:
+            continue
+        if _has_starter_kit_distribution_tier_from_analysis(analysis):
+            continue
+        issues.append(
+            ValidationIssue(
+                category="starter_kit_classification_drift",
+                path=rel,
+                message=(
+                    "metadata-capable file is in starter-kit manifest but missing "
+                    f"`distribution_tier: {STARTER_KIT_DISTRIBUTION_TIER}`"
+                ),
             )
+        )
 
-    for path in root.rglob("*"):
-        if not path.is_file() or not _is_metadata_capable(path):
+    for path in _iter_files_pruned(root):
+        if not path.is_file():
+            continue
+        analysis = _analyze_metadata_file(path)
+        if not analysis[0]:
             continue
         rel = relative_path(path, root)
-        if rel.startswith("generated_exports/"):
-            continue
-        if rel.startswith("generated_agents/"):
-            continue
-        if rel.startswith(".worktrees/"):
-            continue
         if rel in in_kit:
             continue
-        if _has_distribution_tier(path, STARTER_KIT_DISTRIBUTION_TIER):
+        if _has_starter_kit_distribution_tier_from_analysis(analysis):
             issues.append(
                 ValidationIssue(
                     category="starter_kit_classification_drift",

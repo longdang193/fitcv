@@ -1,13 +1,8 @@
-# Candidate profile compatibility scaffold for FitCV pipeline.
+# Candidate profile template for FitCV pipeline.
+# Copy values you want to personalize into `candidate_profile.private.yaml`.
 #
-# Canonical split:
-# - `candidate_profile.template.yaml` = public-safe reusable scaffold
-# - `candidate_profile.private.yaml` = local-only personal data source
-#
-# Compatibility role:
-# Keep this file path available for existing loaders/tests/config that still read
-# `data/candidate_profile.yaml`. Do not store real personal data here.
-# Copy real values into `candidate_profile.private.yaml` instead.
+# This file is public-safe scaffold only.
+# Keep structure, comments, and placeholder patterns stable for reuse.
 # All fields are optional unless marked REQUIRED.
 # Sections rendered in CV depend on cv.yaml composition settings.
 

@@ -9,7 +9,7 @@ responsibility:
   - Validate runtime config YAML files under configs/ as parseable top-level mappings.
 inputs:
   - repo_config/publication-config.json
-  - repo_config/agent-adapter-mappings.json
+  - repo_config/starter-kit-manifest.json (optional; validated when present)
   - configs/*.yaml
 outputs:
   - Exit status and human-readable validation results.
@@ -59,7 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Validate repo config ownership surfaces, publication boundaries, "
-            "adapter mappings, and runtime config YAML shape."
+            "optional adapter mappings, starter-kit manifest, and runtime config YAML shape."
         )
     )
     parser.add_argument(
@@ -75,7 +75,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--starter-kit-manifest",
         default="repo_config/starter-kit-manifest.json",
-        help="Path to starter-kit-manifest.json.",
+        help=(
+            "Path to starter-kit-manifest.json. Optional in consumer repos; "
+            "validated when present."
+        ),
     )
     parser.add_argument(
         "--runtime-config-root",
@@ -103,12 +106,12 @@ def load_yaml(path: Path) -> Any:
 def infer_repo_root(
     repo_root_arg: str | None,
     publication_config: Path,
-    adapter_mappings: Path,
+    starter_kit_manifest: Path,
 ) -> Path:
     if repo_root_arg:
         return Path(repo_root_arg).resolve()
 
-    for candidate in (publication_config, adapter_mappings):
+    for candidate in (publication_config, starter_kit_manifest):
         parts = candidate.resolve().parts
         if len(parts) >= 2 and parts[-2] == "repo_config":
             return candidate.resolve().parent.parent
@@ -247,15 +250,11 @@ def main() -> int:
     adapter_mappings_path = Path(args.adapter_mappings).resolve()
     starter_kit_manifest_path = Path(args.starter_kit_manifest).resolve()
     runtime_config_root = Path(args.runtime_config_root).resolve()
-    repo_root = infer_repo_root(args.repo_root, publication_config_path, adapter_mappings_path)
+    repo_root = infer_repo_root(args.repo_root, publication_config_path, starter_kit_manifest_path)
 
     errors: list[str] = []
 
-    for path, label in (
-        (publication_config_path, "Publication config"),
-        (adapter_mappings_path, "Adapter mappings"),
-        (starter_kit_manifest_path, "Starter-kit manifest"),
-    ):
+    for path, label in ((publication_config_path, "Publication config"),):
         if not path.exists():
             errors.append(f"{label} path does not exist: {path}")
 
@@ -273,17 +272,19 @@ def main() -> int:
         errors.append(f"Publication config could not be parsed: {exc}")
         publication_config = None
 
-    try:
-        adapter_mappings = load_json(adapter_mappings_path)
-    except json.JSONDecodeError as exc:
-        errors.append(f"Adapter mappings could not be parsed: {exc}")
-        adapter_mappings = None
+    adapter_mappings = None
+    if adapter_mappings_path.exists():
+        try:
+            adapter_mappings = load_json(adapter_mappings_path)
+        except json.JSONDecodeError as exc:
+            errors.append(f"Adapter mappings could not be parsed: {exc}")
 
-    try:
-        starter_kit_manifest = load_json(starter_kit_manifest_path)
-    except json.JSONDecodeError as exc:
-        errors.append(f"Starter-kit manifest could not be parsed: {exc}")
-        starter_kit_manifest = None
+    starter_kit_manifest = None
+    if starter_kit_manifest_path.exists():
+        try:
+            starter_kit_manifest = load_json(starter_kit_manifest_path)
+        except json.JSONDecodeError as exc:
+            errors.append(f"Starter-kit manifest could not be parsed: {exc}")
 
     if publication_config is not None:
         validate_publication_config(publication_config, errors)

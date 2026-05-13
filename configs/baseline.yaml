@@ -1,0 +1,4 @@
+# @architecture
+default_runtime:
+  mode: consumer_derived
+  enabled: true

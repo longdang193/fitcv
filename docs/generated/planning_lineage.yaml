@@ -261,9 +261,11 @@ workstreams:
   - thread_id: workstream-fitcv-semantic-spine.semantic-spine-checkpoint-and-continue-truth
     status: proposed
     path: docs/intent/workstreams/threads/workstream-fitcv-semantic-spine/03-semantic-spine-checkpoint-and-continue-truth.md
-    specs: []
-    plans: []
-    derived_completion: not_started
+    specs:
+    - docs/superpowers/specs/2026-05-14-candidate-profile-private-surface-spec.md
+    plans:
+    - docs/superpowers/plans/2026-05-13-23-31-candidate-profile-template-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-fitcv-semantic-spine.semantic-spine-replay-drift-removal
     status: proposed
     path: docs/intent/workstreams/threads/workstream-fitcv-semantic-spine/04-semantic-spine-replay-drift-removal.md
