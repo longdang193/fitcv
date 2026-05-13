@@ -6,7 +6,7 @@
     "README.md",
     "assets",
     "config",
-    "data/candidate_profile.private.yaml",
+    "data/candidate_profile.template.yaml",
     "data/sample_data_engineer_jobs.json",
     "data/sample_jobs.json",
     "data/images",
