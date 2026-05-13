@@ -23,8 +23,7 @@
     "start_worker.ps1",
     "stop_fitcv.ps1",
     "templates",
-    "tests",
-    "uv.lock"
+    "tests"
   ],
   "forbiddenPaths": [
     "AGENTS.md",
