@@ -1,6 +1,5 @@
 """
 @meta
-repo: private
 name: format_contract_yaml
 type: script
 domain: docs
@@ -16,6 +15,7 @@ tags:
   - yaml
   - docs
   - formatting
+distribution_tier: starter_kit
 lifecycle:
   status: active
 """
@@ -34,8 +34,8 @@ GENERATED_FILE_PREFIX = "# GENERATED FILE - do not edit directly."
 
 
 class IndentedSafeDumper(yaml.SafeDumper):
-    def increase_indent(self, flow: bool = False, indentless: bool = False) -> object:
-        return super().increase_indent(flow, False)
+    def increase_indent(self, flow: bool = False, indentless: bool = False) -> None:
+        super().increase_indent(flow, False)
 
 
 def repo_root() -> Path:

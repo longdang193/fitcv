@@ -515,6 +515,18 @@ def _mapping_files_for_selection(adapters_root: Path, selected_platforms: set[st
     return [path for path in all_mappings if path.parent.name in selected_platforms]
 
 
+def _has_explicit_platform_selection(args: argparse.Namespace) -> bool:
+    if args.all_platforms:
+        return True
+    cli_platforms = [
+        item.strip()
+        for item in (args.platform or [])
+        if isinstance(item, str) and item.strip()
+    ]
+    return bool(cli_platforms)
+
+
+
 def _is_optional_provider_settings_source(root: Path, source_path: Path) -> bool:
     try:
         rel = source_path.resolve().relative_to(root.resolve()).as_posix()
@@ -760,9 +772,17 @@ def run() -> int:
     mapping_files = _mapping_files_for_selection(adapters_root, selected_platforms)
     if not mapping_files:
         selected_display = ",".join(sorted(selected_platforms)) if selected_platforms else "all"
+        adoption_mode, repo_role = _read_adoption_config(root)
+        explicit_selection = _has_explicit_platform_selection(args)
+        if repo_role == "consumer_derived" and not explicit_selection:
+            print(
+                "SKIP:sync_agent_adapters:no mappings for consumer_derived default mode-policy selection "
+                f"(selection={selected_display}, selector={selector}, adoption_mode={adoption_mode}, repo_role={repo_role})."
+            )
+            return 0
         print(
             f"No adapter mappings found for selection={selected_display} under {adapters_root.as_posix()} "
-            f"(selector={selector})."
+            f"(selector={selector}, adoption_mode={adoption_mode}, repo_role={repo_role})."
         )
         return 1
     selected_display = ",".join(sorted(selected_platforms)) if selected_platforms else "all"

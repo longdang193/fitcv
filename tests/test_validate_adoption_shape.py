@@ -11,6 +11,7 @@ excludes:
   - Full downstream project migration
   - Architecture metadata generation
   - CI workflow wiring
+
 tags:
   - fast
   - ci-safe
@@ -27,8 +28,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 VALIDATOR = REPO_ROOT / "scripts" / "validate_adoption_shape.py"
 POLICY = REPO_ROOT / "scripts" / "validator_policy.py"
-PLANNING_LINEAGE_GENERATOR = REPO_ROOT / \
-    "scripts" / "generate_planning_lineage.py"
+PLANNING_LINEAGE_GENERATOR = REPO_ROOT / "scripts" / "generate_planning_lineage.py"
 
 
 def load_module(name: str, path: Path):
@@ -41,8 +41,7 @@ def load_module(name: str, path: Path):
     return module
 
 
-SHARED_POLICY = load_module(
-    "validator_policy_for_adoption_shape_tests", POLICY)
+SHARED_POLICY = load_module("validator_policy_for_adoption_shape_tests", POLICY)
 
 
 def write_text(path: Path, text: str) -> None:
@@ -73,8 +72,7 @@ def run_validator(repo_root: Path) -> subprocess.CompletedProcess[str]:
 
 def run_planning_lineage_generator(repo_root: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        [sys.executable, str(PLANNING_LINEAGE_GENERATOR),
-         "--repo-root", str(repo_root)],
+        [sys.executable, str(PLANNING_LINEAGE_GENERATOR), "--repo-root", str(repo_root)],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -374,8 +372,7 @@ def test_validator_passes_for_minimal_managed_feature_folder(tmp_path: Path) -> 
 
 
 def test_validator_rejects_mode_boolean_mismatch(tmp_path: Path) -> None:
-    write_adoption_mode(
-        tmp_path, "managed_architecture_metadata", managed=False, legacy=False)
+    write_adoption_mode(tmp_path, "managed_architecture_metadata", managed=False, legacy=False)
 
     result = run_validator(tmp_path)
 
@@ -384,8 +381,7 @@ def test_validator_rejects_mode_boolean_mismatch(tmp_path: Path) -> None:
 
 
 def test_validator_rejects_method_layer_pseudo_feature(tmp_path: Path) -> None:
-    write_adoption_mode(tmp_path, "legacy_compatibility",
-                        managed=False, legacy=True)
+    write_adoption_mode(tmp_path, "legacy_compatibility", managed=False, legacy=True)
     write_text(
         tmp_path / "docs" / "features" / "repo-operating-system.yaml",
         """repo-operating-system:
@@ -410,8 +406,7 @@ def test_validator_rejects_flat_feature_yaml_in_managed_mode(tmp_path: Path) -> 
         generator="scripts/sync_architecture_docs.py",
         starter_sync=managed_starter_sync_block(),
     )
-    write_text(tmp_path / "docs" / "features" /
-               "data-pipeline.yaml", "depends_on: []\n")
+    write_text(tmp_path / "docs" / "features" / "data-pipeline.yaml", "depends_on: []\n")
 
     result = run_validator(tmp_path)
 
@@ -509,8 +504,7 @@ refs:
     result = run_validator(tmp_path)
 
     assert result.returncode == 1
-    assert "generated feature contract capabilities[0] must be a mapping" in result.stdout.lower(
-    )
+    assert "generated feature contract capabilities[0] must be a mapping" in result.stdout.lower()
 
 
 def test_validator_rejects_generated_feature_contract_missing_freshness_with_empty_timeline(
@@ -740,8 +734,7 @@ def test_validator_rejects_managed_contract_beside_flat_contract_in_legacy_mode(
   target: docs/superpowers/plans/migrate.md
 """,
     )
-    write_text(tmp_path / "docs" / "features" /
-               "data-pipeline.yaml", "depends_on: []\n")
+    write_text(tmp_path / "docs" / "features" / "data-pipeline.yaml", "depends_on: []\n")
     write_text(
         tmp_path / "docs" / "features" / "data-pipeline" / "data-pipeline.yaml",
         "depends_on: []\n",
@@ -792,8 +785,7 @@ def test_validator_rejects_invalid_repo_role_value(tmp_path: Path) -> None:
 
 
 def test_validator_rejects_invalid_capability_ids(tmp_path: Path) -> None:
-    write_adoption_mode(tmp_path, "legacy_compatibility",
-                        managed=False, legacy=True)
+    write_adoption_mode(tmp_path, "legacy_compatibility", managed=False, legacy=True)
     write_text(
         tmp_path / "docs" / "features" / "data-pipeline.yaml",
         """depends_on: []
@@ -832,12 +824,9 @@ stage_participation: []
 lineage_exceptions: []
 """,
     )
-    write_text(tmp_path / "docs" / "features" /
-               "data-pipeline" / "history.md", "# History\n")
-    write_text(tmp_path / "docs" / "features" / "data-pipeline" /
-               "lineage.generated.yaml", "features: {}\n")
-    write_text(tmp_path / "docs" / "features" / "data-pipeline" /
-               "data-pipeline.yaml", "feature_id: data-pipeline\n")
+    write_text(tmp_path / "docs" / "features" / "data-pipeline" / "history.md", "# History\n")
+    write_text(tmp_path / "docs" / "features" / "data-pipeline" / "lineage.generated.yaml", "features: {}\n")
+    write_text(tmp_path / "docs" / "features" / "data-pipeline" / "data-pipeline.yaml", "feature_id: data-pipeline\n")
 
     result = run_validator(tmp_path)
 
@@ -1061,8 +1050,7 @@ def seed_required_starter_docs(root: Path) -> None:
         "docs/pipeline.md",
         "docs/architecture.md",
     ):
-        write_text(root / relative_path,
-                   required_root_doc_text(relative_path).split("---\n", 2)[-1])
+        write_text(root / relative_path, required_root_doc_text(relative_path).split("---\n", 2)[-1])
 
 
 def seed_workstream_registry_entry(root: Path, workstream_id: str = "platform-delivery") -> None:
@@ -1194,8 +1182,7 @@ MODE_A_TEMPLATE_FILES = (
 
 def seed_mode_a_template_pack(root: Path) -> None:
     write_text(
-        root / "docs" / "superpowers" / "specs" /
-        "2026-04-23-mode-a-project-template-pack-spec.md",
+        root / "docs" / "superpowers" / "specs" / "2026-04-23-mode-a-project-template-pack-spec.md",
         """---
 layer: operating_system
 artifact_type: spec
@@ -1224,23 +1211,19 @@ notes: >
 """,
             )
         elif relative_path == "repo_config/publication-config.json":
-            write_text(template_root / relative_path,
-                       '{"publicPaths":["README.md"]}\n')
+            write_text(template_root / relative_path, '{"publicPaths":["README.md"]}\n')
         elif relative_path == "repo_config/agent-adapter-mappings.json":
             write_text(template_root / relative_path, "[]\n")
         elif relative_path == "configs/starter-runtime.yaml":
-            write_text(template_root / relative_path,
-                       "runtime:\n  environment: dev\n")
+            write_text(template_root / relative_path, "runtime:\n  environment: dev\n")
         else:
-            write_text(template_root / relative_path,
-                       "# Template\n\nFill this project-specific template.\n")
+            write_text(template_root / relative_path, "# Template\n\nFill this project-specific template.\n")
 
 
 def test_validator_rejects_missing_mode_a_template_pack_file(tmp_path: Path) -> None:
     seed_required_folder_surface(tmp_path)
     seed_mode_a_template_pack(tmp_path)
-    (tmp_path / "docs" / "project_templates" /
-     "mode-a" / "docs" / "usage.md").unlink()
+    (tmp_path / "docs" / "project_templates" / "mode-a" / "docs" / "usage.md").unlink()
 
     result = run_validator(tmp_path)
 
@@ -1253,8 +1236,7 @@ def test_validator_rejects_wrong_mode_a_template_adoption_mode(tmp_path: Path) -
     seed_required_folder_surface(tmp_path)
     seed_mode_a_template_pack(tmp_path)
     write_text(
-        tmp_path / "docs" / "project_templates" /
-        "mode-a" / "repo_config" / "adoption-mode.yaml",
+        tmp_path / "docs" / "project_templates" / "mode-a" / "repo_config" / "adoption-mode.yaml",
         """adoption_mode: managed_architecture_metadata
 managed_architecture_metadata: true
 legacy_feature_contracts: false
@@ -1348,8 +1330,7 @@ lineage_exceptions: []
     assert result.returncode == 1
     assert "feature.source.yaml domains contains duplicate value" in result.stdout.lower()
     assert "feature.source.yaml depends_on contains duplicate value" in result.stdout.lower()
-    assert "feature.source.yaml stage_participation[0].capability_ids contains duplicate value" in result.stdout.lower(
-    )
+    assert "feature.source.yaml stage_participation[0].capability_ids contains duplicate value" in result.stdout.lower()
     assert "feature.source.yaml stage_participation[0].capability_ids[2] must be a non-empty canonical string item" in result.stdout.lower()
 
 
@@ -1553,8 +1534,7 @@ lineage_exceptions:
     assert result.returncode == 1
     assert "feature.source.yaml domains must use canonical lexical order" in result.stdout.lower()
     assert "feature.source.yaml depends_on must use canonical lexical order" in result.stdout.lower()
-    assert "feature.source.yaml stage_participation[0].capability_ids must use canonical lexical order" in result.stdout.lower(
-    )
+    assert "feature.source.yaml stage_participation[0].capability_ids must use canonical lexical order" in result.stdout.lower()
     assert "feature.source.yaml lineage_exceptions must use canonical lexical order" in result.stdout.lower()
 
 
@@ -1726,8 +1706,7 @@ def test_validator_accepts_complete_mode_a_template_pack(tmp_path: Path) -> None
         "docs/pipeline.md",
         "docs/architecture.md",
     ):
-        write_text(tmp_path / relative_path,
-                   required_root_doc_text(relative_path))
+        write_text(tmp_path / relative_path, required_root_doc_text(relative_path))
     seed_mode_a_template_pack(tmp_path)
 
     result = run_validator(tmp_path)
@@ -1885,8 +1864,7 @@ def test_starter_method_only_allows_missing_feature_folders(tmp_path: Path) -> N
         "docs/pipeline.md",
         "docs/architecture.md",
     ):
-        write_text(tmp_path / relative_path,
-                   required_root_doc_text(relative_path).split("---\n", 2)[-1])
+        write_text(tmp_path / relative_path, required_root_doc_text(relative_path).split("---\n", 2)[-1])
 
     result = run_validator(tmp_path)
 
@@ -1903,10 +1881,8 @@ def test_starter_method_only_allows_prose_only_feature_readme(tmp_path: Path) ->
         "docs/pipeline.md",
         "docs/architecture.md",
     ):
-        write_text(tmp_path / relative_path,
-                   required_root_doc_text(relative_path).split("---\n", 2)[-1])
-    write_text(tmp_path / "docs" / "features" /
-               "README.md", "# Feature Notes\n")
+        write_text(tmp_path / relative_path, required_root_doc_text(relative_path).split("---\n", 2)[-1])
+    write_text(tmp_path / "docs" / "features" / "README.md", "# Feature Notes\n")
 
     result = run_validator(tmp_path)
 
@@ -1917,10 +1893,8 @@ def test_starter_method_only_does_not_emit_lightweight_migration_warnings(tmp_pa
     seed_required_folder_surface(tmp_path)
     seed_required_starter_docs(tmp_path)
     seed_mature_runtime_surface(tmp_path)
-    write_text(tmp_path / "docs" / "features" /
-               "README.md", "# Feature Index\n")
-    write_text(tmp_path / "docs" / "api.md",
-               "# API\nDocument the external interface.\n")
+    write_text(tmp_path / "docs" / "features" / "README.md", "# Feature Index\n")
+    write_text(tmp_path / "docs" / "api.md", "# API\nDocument the external interface.\n")
 
     result = run_validator(tmp_path)
 
@@ -2160,10 +2134,8 @@ related_stages: []
 def test_validator_rejects_change_plan_when_parent_spec_thread_does_not_match(tmp_path: Path) -> None:
     seed_required_folder_surface(tmp_path)
     seed_required_starter_docs(tmp_path)
-    thread_id = seed_thread_registry_entry(
-        tmp_path, thread_slug="sample-thread")
-    other_thread_id = seed_thread_registry_entry(
-        tmp_path, thread_slug="other-thread")
+    thread_id = seed_thread_registry_entry(tmp_path, thread_slug="sample-thread")
+    other_thread_id = seed_thread_registry_entry(tmp_path, thread_slug="other-thread")
     write_text(
         tmp_path / "docs" / "superpowers" / "specs" / "2026-04-25-sample-spec.md",
         f"""---
@@ -2335,8 +2307,7 @@ def test_validator_rejects_incomplete_starter_sync_record_in_managed_mode(tmp_pa
     assert "starter_sync.starter_baseline_ref must be a non-empty string" in result.stdout
     assert "starter_sync.last_shared_surface_review_at must be an iso-8601 date or timestamp" in result.stdout.lower()
     assert "starter_sync.reviewed_surface_classes is missing required mode b surface classes" in result.stdout.lower()
-    assert "starter_sync.divergences[0].class must be one of the reviewed surface classes" in result.stdout.lower(
-    )
+    assert "starter_sync.divergences[0].class must be one of the reviewed surface classes" in result.stdout.lower()
 
 
 def test_validator_rejects_legacy_lineage_generated_shape_in_managed_mode(tmp_path: Path) -> None:
@@ -2418,8 +2389,7 @@ latest_change_id: 2026-04-22-sample-change
 last_updated_at: "2026-04-22T10:30:00+02:00"
 """,
     )
-    write_text(tmp_path / "docs" / "sample.md",
-               "# Sample Doc\nMeaningful doc body.\n")
+    write_text(tmp_path / "docs" / "sample.md", "# Sample Doc\nMeaningful doc body.\n")
     thread_id = seed_thread_registry_entry(
         tmp_path,
         workstream_id="sample-delivery",
@@ -2735,3 +2705,4 @@ roadmap_id: master-workstream-roadmap
     result = run_validator(tmp_path)
 
     assert result.returncode == 0, result.stdout
+
