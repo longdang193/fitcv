@@ -72,7 +72,34 @@ Optional SQLite path override:
 $env:FITCV_CP_SQLITE_PATH = ".\data\fitcv_local.db"
 ```
 
-## 4) Start Application (Choose One)
+## 4) Candidate Profile Contract (Template + Private)
+
+Use these files with strict role boundaries:
+
+- `data/candidate_profile.template.yaml`
+  - public-safe scaffold only
+  - no private values or PII
+  - edit only when profile contract/schema changes
+- `data/candidate_profile.private.yaml`
+  - local private candidate values
+  - keep real data here only
+  - file is ignored and must never be committed
+- `data/candidate_profile.yaml`
+  - compatibility surface for existing consumers
+  - do not treat as primary source for new private fields
+
+Recommended workflow:
+
+1. Review required keys in `data/candidate_profile.template.yaml`.
+2. Fill real values in `data/candidate_profile.private.yaml`.
+3. Run checks:
+
+```powershell
+git check-ignore data/candidate_profile.private.yaml
+pytest -q tests/test_candidate_profile_template_contract.py
+```
+
+## 5) Start Application (Choose One)
 
 ### Track A: Docker (recommended)
 
