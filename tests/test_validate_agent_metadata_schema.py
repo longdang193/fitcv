@@ -1,3 +1,18 @@
+"""
+@meta
+# distribution_tier: starter_kit
+type: test
+scope: unit
+domain: metadata
+covers:
+  - Agent metadata schema validation for skills, rules, and workflows
+excludes:
+  - End-to-end adapter generation and publish flows
+tags:
+  - fast
+  - ci-safe
+"""
+
 from __future__ import annotations
 
 import importlib.util

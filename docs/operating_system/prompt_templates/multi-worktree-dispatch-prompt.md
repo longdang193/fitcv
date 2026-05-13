@@ -10,6 +10,7 @@ prerequisites:
 - in-scope roadmap/workstream/thread/spec/plan context is identified
 - candidate lane boundaries and blockers are available
 next_steps:
+- git-worktree-preflight-and-create-prompt.md
 - implementation-next-action-gate-prompt.md
 - patch-and-pattern-detection-prompt.md
 - thread-closeout-readiness-prompt.md

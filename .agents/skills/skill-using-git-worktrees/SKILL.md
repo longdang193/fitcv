@@ -85,6 +85,31 @@ Per Jesse's rule "Fix broken things immediately":
 
 No .gitignore verification needed - outside project entirely.
 
+## Branch Freshness Preflight (Required Before `git worktree add`)
+
+Run these checks on the base branch before creating or reusing any worktree:
+
+```bash
+# 1) Must be clean
+git status --short
+
+# 2) Must be freshly compared with remote
+git fetch origin
+
+# 3) Ahead/behind gate
+git rev-list --left-right --count origin/main...main
+
+# 4) Record exact base for traceability
+git rev-parse --short main
+```
+
+Decision gates:
+
+- If `git status --short` is non-empty: stop and ask user to commit/stash/discard.
+- If ahead count is greater than `0`: ask user whether to push now (recommended) or continue from local-only commits.
+- If behind count is greater than `0`: ask user whether to pull/rebase first or continue knowingly.
+- Always capture and report base branch SHA before `git worktree add`.
+
 ## Creation Steps
 
 ### 1. Detect Project Name
@@ -150,6 +175,10 @@ go test ./...
 
 ```
 Worktree ready at <full-path>
+Base branch: <branch-name>
+Base SHA: <short-sha>
+Ahead/behind vs origin/main: <ahead>/<behind>
+Decision record: <pushed | local-only-approved | no-divergence>
 Tests passing (<N> tests, 0 failures)
 Ready to implement <feature-name>
 ```
@@ -158,6 +187,9 @@ Ready to implement <feature-name>
 
 | Situation | Action |
 |-----------|--------|
+| Branch dirty before preflight | Stop and ask commit/stash/discard |
+| Ahead of origin/main | Ask push now (recommended) or local-only continue |
+| Behind origin/main | Ask pull/rebase first or continue knowingly |
 | `.worktrees/` exists | Use it (verify ignored) |
 | `worktrees/` exists | Use it (verify ignored) |
 | Both exist | Use `.worktrees/` |
@@ -167,6 +199,11 @@ Ready to implement <feature-name>
 | No package.json/Cargo.toml | Skip dependency install |
 
 ## Common Mistakes
+
+### Skipping freshness preflight
+
+- **Problem:** Worktree created from stale or unpublished base, causing hidden drift
+- **Fix:** Always run status/fetch/ahead-behind/base-SHA sequence before `git worktree add`
 
 ### Skipping ignore verification
 
@@ -193,6 +230,10 @@ Ready to implement <feature-name>
 ```
 You: I'm using the skill-using-git-worktrees skill to set up an isolated workspace.
 
+[Run git status --short - clean]
+[Run git fetch origin]
+[Run git rev-list --left-right --count origin/main...main - 0 0]
+[Run git rev-parse --short main - 4293f96]
 [Check .worktrees/ - exists]
 [Verify ignored - git check-ignore confirms .worktrees/ is ignored]
 [Create worktree: git worktree add .worktrees/auth -b feature/auth]
@@ -200,6 +241,10 @@ You: I'm using the skill-using-git-worktrees skill to set up an isolated workspa
 [Run npm test - 47 passing]
 
 Worktree ready at /Users/jesse/myproject/.worktrees/auth
+Base branch: main
+Base SHA: 4293f96
+Ahead/behind vs origin/main: 0/0
+Decision record: no-divergence
 Tests passing (47 tests, 0 failures)
 Ready to implement auth feature
 ```
@@ -207,6 +252,7 @@ Ready to implement auth feature
 ## Red Flags
 
 **Never:**
+- Create worktree without freshness preflight (status/fetch/divergence/base-SHA)
 - Create worktree without verifying it's ignored (project-local)
 - Skip baseline test verification
 - Proceed with failing tests without asking
@@ -214,10 +260,12 @@ Ready to implement auth feature
 - Skip CLAUDE.md check
 
 **Always:**
+- Run branch freshness preflight before `git worktree add`
 - Follow directory priority: existing > CLAUDE.md > ask
 - Verify directory is ignored for project-local
 - Auto-detect and run project setup
 - Verify clean test baseline
+- Report base SHA and divergence decision record
 
 ## Integration
 

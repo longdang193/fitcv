@@ -27,6 +27,46 @@ Do not develop normally in the public repo.
 .\scripts\publish_public_repo.ps1 -Push
 ```
 
+## Single-Field DAG Resolver Contract (`publicPaths`)
+
+`publicPaths` is resolver input and may contain:
+
+- explicit file paths
+- directory seed paths
+
+Publication must resolve `publicPaths` into an effective file-only export set using this stage order:
+
+1. seed collect
+   - load every `publicPaths` entry
+   - fail fast if any seed path does not exist
+2. expand
+   - file seed -> keep file
+   - directory seed -> recursively enumerate files under that directory
+3. normalize
+   - convert to deterministic repo-relative paths
+   - de-duplicate
+4. exclude
+   - apply deny rules (`forbiddenPaths` and configured publication excludes)
+   - record exclusion reason for operator visibility
+5. enforce file-only boundary
+   - effective set must contain only files
+   - copy loop must iterate effective file set only
+6. downstream boundary checks
+   - required paths present
+   - forbidden paths absent
+   - private-reference checks
+   - forbidden marker checks (fail-fast assertions, not silent deletion)
+
+### Precedence Rules
+
+Use strict precedence unless explicitly changed by config:
+
+1. deny rules win (`forbiddenPaths`, forbidden markers, filename markers)
+2. required-path assertions must pass after copy
+3. include expansion from `publicPaths` applies only after deny filters
+
+This keeps deterministic publication while minimizing operator maintenance overhead.
+
 ## Starter-Kit Generation vs Public Publication
 
 `project-OS-starter-kit` is not public-mirror publication output. It is a
