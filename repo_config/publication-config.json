@@ -10,7 +10,6 @@
     "docker-compose.yml",
     "docs/architecture.md",
     "docs/configuration.md",
-    "docs/features",
     "docs/generated/architecture_dag.yaml",
     "docs/generated/capability_lineage.yaml",
     "docs/FitCV-pipeline.md",
