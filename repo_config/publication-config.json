@@ -10,13 +10,10 @@
     "docker-compose.yml",
     "docs/architecture.md",
     "docs/configuration.md",
-    "docs/generated/architecture_dag.yaml",
-    "docs/generated/capability_lineage.yaml",
     "docs/FitCV-pipeline.md",
     "docs/fitcv-control-plane-setup.md",
     "docs/pipeline.md",
     "docs/setup.md",
-    "docs/stages",
     "docs/usage.md",
     "pyproject.toml",
     "requirements.txt",
@@ -70,8 +67,7 @@
     "docs/stages"
   ],
   "forbiddenMetadataMarkers": [
-    "repo: private",
-    "distribution_tier: starter_kit"
+    "repo: private"
   ],
   "forbiddenFilenameMarkers": [
     ".private.",
