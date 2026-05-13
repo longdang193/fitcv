@@ -75,7 +75,8 @@
     ".env",
     "fitcv-491123-51c030d71e07.json",
     "repo_config",
-    "scripts/__pycache__"
+    "scripts/__pycache__",
+    "data/candidate_profile.private.yaml"
   ],
   "requiredPaths": [
     "README.md",
