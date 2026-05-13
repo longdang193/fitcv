@@ -126,6 +126,25 @@ function Get-RelativePathCompat {
     return $relative.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
 }
 
+function Assert-PublicPathIsFile {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourceRoot,
+        [Parameter(Mandatory = $true)]
+        [string]$RelativePath
+    )
+
+    $source = Join-Path $SourceRoot $RelativePath
+    if (-not (Test-Path -LiteralPath $source)) {
+        throw "Configured public path does not exist: $RelativePath"
+    }
+
+    $item = Get-Item -LiteralPath $source
+    if ($item.PSIsContainer) {
+        throw "Directory-level publicPaths entry is not allowed: $RelativePath. Use explicit file paths only."
+    }
+}
+
 function Assert-ForbiddenPathAbsent {
     param(
         [Parameter(Mandatory = $true)]
@@ -395,12 +414,14 @@ if ($Push) {
 }
 
 foreach ($relativePath in $publicPaths) {
+    Assert-PublicPathIsFile -SourceRoot $repoRoot -RelativePath $relativePath
     Copy-PublicPath -SourceRoot $repoRoot -DestinationRoot $ExportRoot -RelativePath $relativePath
 }
 
 Remove-UnlistedGeneratedDocs -DestinationRoot $ExportRoot -AllowedGeneratedPaths $allowedGeneratedPaths
 Remove-PrivateAdapterFiles -DestinationRoot $ExportRoot
-Remove-ForbiddenMetadataMarkedFiles -DestinationRoot $ExportRoot -Markers $forbiddenMetadataMarkers
+# Keep exported allowlist output intact until required-path checks run.
+# Marker policy enforcement remains fail-fast at Assert-NoForbiddenMetadataMarkers.
 
 foreach ($relativePath in $scrubPrivateReferencePaths) {
     Remove-PrivateReferenceLines -DestinationRoot $ExportRoot -RelativePath $relativePath

@@ -582,6 +582,8 @@ def validate_starter_kit_classification(root: Path) -> list[ValidationIssue]:
             continue
         if rel.startswith("generated_agents/"):
             continue
+        if rel.startswith(".worktrees/"):
+            continue
         if rel in in_kit:
             continue
         if _has_distribution_tier(path, STARTER_KIT_DISTRIBUTION_TIER):
