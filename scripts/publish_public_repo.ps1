@@ -75,29 +75,19 @@ function Copy-PublicPath {
         return
     }
 
-    $sourceItem = Get-Item -LiteralPath $source -ErrorAction Stop
     $destination = Join-Path $DestinationRoot $RelativePath
-
-    if ($sourceItem.PSIsContainer) {
-        Ensure-ParentDirectory -Path $destination
-        Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
-    } else {
-        Ensure-ParentDirectory -Path $destination
-        Copy-Item -LiteralPath $source -Destination $destination -Force
-    }
+    Ensure-ParentDirectory -Path $destination
+    Copy-Item -LiteralPath $source -Destination $destination -Recurse -Force
 
     if (Test-Path -LiteralPath $destination) {
-        $item = Get-Item -LiteralPath $destination -ErrorAction Stop
-        if ($item.PSIsContainer) {
-            $cacheDirs = Get-ChildItem -LiteralPath $destination -Recurse -Directory -Filter '__pycache__' -ErrorAction SilentlyContinue
-            foreach ($dir in $cacheDirs) {
-                Remove-Item -LiteralPath $dir.FullName -Recurse -Force
-            }
+        $cacheDirs = Get-ChildItem -LiteralPath $destination -Recurse -Directory -Filter '__pycache__' -ErrorAction SilentlyContinue
+        foreach ($dir in $cacheDirs) {
+            Remove-Item -LiteralPath $dir.FullName -Recurse -Force
+        }
 
-            $pycFiles = Get-ChildItem -LiteralPath $destination -Recurse -File -Filter '*.pyc' -ErrorAction SilentlyContinue
-            foreach ($file in $pycFiles) {
-                Remove-Item -LiteralPath $file.FullName -Force
-            }
+        $pycFiles = Get-ChildItem -LiteralPath $destination -Recurse -File -Filter '*.pyc' -ErrorAction SilentlyContinue
+        foreach ($file in $pycFiles) {
+            Remove-Item -LiteralPath $file.FullName -Force
         }
     }
 }
@@ -410,6 +400,7 @@ foreach ($relativePath in $publicPaths) {
 
 Remove-UnlistedGeneratedDocs -DestinationRoot $ExportRoot -AllowedGeneratedPaths $allowedGeneratedPaths
 Remove-PrivateAdapterFiles -DestinationRoot $ExportRoot
+Remove-ForbiddenMetadataMarkedFiles -DestinationRoot $ExportRoot -Markers $forbiddenMetadataMarkers
 
 foreach ($relativePath in $scrubPrivateReferencePaths) {
     Remove-PrivateReferenceLines -DestinationRoot $ExportRoot -RelativePath $relativePath
