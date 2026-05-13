@@ -1,6 +1,5 @@
 """
 @meta
-repo: private
 name: generate_planning_lineage
 type: script
 domain: docs
@@ -19,6 +18,7 @@ tags:
   - lineage
   - generation
   - ci-safe
+distribution_tier: starter_kit
 lifecycle:
   status: active
 """

@@ -21,8 +21,7 @@
     "docs/usage.md",
     "pyproject.toml",
     "requirements.txt",
-    "scripts/bootstrap_bigquery.py",
-    "scripts/download_cvs.py",
+    "scripts",
     "src",
     "start_web.ps1",
     "start_worker.ps1",
@@ -34,14 +33,26 @@
   "forbiddenPaths": [
     "AGENTS.md",
     ".agents",
+    ".codex",
     ".cursor",
     "agent-core",
-    "codex",
+    "docs/AGENTS.md",
+    "docs/features",
+    "docs/generated",
+    "docs/intent",
     "docs/operating_system",
+    "docs/stages",
     "docs/superpowers",
+    "docs/workflows",
     "logs",
+    "tmp",
+    "tools",
     "sample",
-    ".worktrees"
+    ".worktrees",
+    ".env",
+    "fitcv-491123-51c030d71e07.json",
+    "repo_config",
+    "scripts/__pycache__"
   ],
   "requiredPaths": [
     "README.md",
@@ -53,16 +64,9 @@
     "docs/usage.md",
     "src"
   ],
-  "omittedPublicPaths": [
-    "docs/features/*/history.md",
-    "docs/features/*/lineage.generated.yaml",
-    "docs/features/*/migration-checklist.md"
-  ],
-  "allowedGeneratedPaths": [
-    "docs/generated/architecture_dag.yaml",
-    "docs/generated/capability_lineage.yaml"
-  ],
+  "allowedGeneratedPaths": [],
   "scrubPrivateReferencePaths": [
+    "README.md",
     "docs/features",
     "docs/stages"
   ],
