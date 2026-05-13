@@ -20,7 +20,6 @@
     "scripts/check_outbox_replay_health.py",
     "scripts/download_cvs.py",
     "scripts/filter_langfuse_export.py",
-    "scripts/get_gitnexus_freshness.ps1",
     "scripts/migrate_pipeline_runs_orchestration_columns.py",
     "scripts/route_outbox_replay_health_alert.py",
     "scripts/verify_fitcv_orchestration_modes.ps1",
@@ -51,7 +50,6 @@
     "tests/test_route_outbox_replay_health_alert.py",
     "tests/test_rule_filter.py",
     "tests/test_tracker.py",
-    "tests/test_validate_agent_metadata_schema.py",
     "tests/test_validator.py",
     "tests/test_vector_search.py"
   ],
