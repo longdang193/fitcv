@@ -60,22 +60,25 @@ Get-Content src/fitcv_cp/app.py | Select-Object -Skip 3135 -First 10
 
 ## Fix And Verification
 
-- Fix summary: `Pending. Need to extract prompt into src/fitcv/prompts/templates/ and update registry/loader.`
+- Fix summary: `Extracted synonym-triage prompt to src/fitcv/prompts/templates/synonym_triage_recommendation_v1.md, registered prompt id synonym_triage.recommendation.v1 in src/fitcv/prompts/registry.py, and refactored src/fitcv_cp/app.py to call render_prompt(...) with proposal_json and now_iso context.`
 - Verification commands:
 
 ```powershell
-# exact verification commands
+pytest -q tests/test_prompts.py -k synonym_triage
+pytest -q tests/test_fitcv_cp/test_app.py -k "synonym_triage"
 python scripts/audit_check.py docs/superpowers/plans/audit/20260514-hardcoded-prompts
 ```
 
 - Verification evidence links:
-  - `none yet`
+  - `command output: pytest -q tests/test_prompts.py -k synonym_triage (2 passed)`
+  - `command output: pytest -q tests/test_fitcv_cp/test_app.py -k "synonym_triage" (1 passed)`
+  - `command output: python scripts/audit_check.py docs/superpowers/plans/audit/20260514-hardcoded-prompts (AUDIT_CHECK_PASSED)`
 
 ## Risk And Disposition
 
-- Residual risk: `Inconsistent prompt versioning and inability to manage this prompt via standard configuration.`
-- Disposition decision: `open`
-- Follow-ups: `Extract the prompt and update app.py.`
+- Residual risk: `Low. Prompt text now versioned in centralized registry/template flow; remaining risk is ordinary future drift if new inline prompts are introduced outside this patch boundary.`
+- Disposition decision: `resolved`
+- Follow-ups: `Run broader app test lane separately; unrelated current failures in synonym-overlay upload tests are outside this audit fingerprint.`
 
 ## Artifact Index
 
