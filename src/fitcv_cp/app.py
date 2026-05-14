@@ -41,6 +41,7 @@ from fitcv.config import (
     parse_runtime_synonym_overlay_yaml,
     parse_skill_synonym_overlay_yaml,
 )
+from fitcv.prompts import render_prompt
 from fitcv.pipeline import (
     _infer_last_completed_stage_from_state,
     _restore_pipeline_state,
@@ -3133,12 +3134,14 @@ def _call_synonym_triage_provider(
             if str(item).strip()
         ],
     }
-    prompt = (
-        "You are a synonym triage assistant. Return strict JSON only with keys: "
-        "recommended_action (approve|defer|reject), recommendation_confidence (0..1), "
-        "recommendation_rationale (short string), recommendation_risk_flags (array of short strings). "
-        f"Proposal: {_json.dumps(proposal_view, ensure_ascii=False)}. Timestamp: {now_iso}."
+    rendered = render_prompt(
+        "synonym_triage.recommendation.v1",
+        {
+            "proposal_json": _json.dumps(proposal_view, ensure_ascii=False),
+            "now_iso": now_iso,
+        },
     )
+    prompt = rendered.text
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
