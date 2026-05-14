@@ -84,6 +84,26 @@ def test_validate_profile_rejects_dangling_evidence_ref() -> None:
     assert any("proj_99" in e for e in errors)
 
 
+def test_validate_profile_accepts_certification_evidence_ref() -> None:
+    """Skills may reference certification IDs without being flagged as dangling."""
+    profile = {
+        "experiences": [],
+        "projects": [],
+        "achievements": [],
+        "certifications": [
+            {
+                "id": "cert_1",
+                "name": "Azure AI Engineer Associate",
+                "issuer": "Microsoft",
+            }
+        ],
+        "skills": [{"name": "Azure AI", "evidence_refs": ["cert_1"]}],
+        "preferences": {},
+    }
+    errors = validate_profile(profile)
+    assert errors == [], f"Unexpected errors: {errors}"
+
+
 def test_validate_profile_accepts_education_evidence_ref() -> None:
     """Skills may reference education IDs without being flagged as dangling."""
     profile = {
