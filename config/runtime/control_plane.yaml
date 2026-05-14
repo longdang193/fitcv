@@ -20,7 +20,9 @@ control_plane:
 
   providers:
     openai_compatible:
-      base_url: http://localhost:20128/v1
+      base_url: http://host.docker.internal:20128/v1
+      wire_api: chat_completions
+      timeout_seconds: 30
     openai:
       base_url: https://api.openai.com/v1
 

@@ -18,8 +18,8 @@ services:
       - FITCV_LANGGRAPH_REPO_ROOT=/opt/fitcv-langgraph
     volumes:
       - ./.env:/app/.env:ro
-      - ./.env.yaml:/app/.env.yaml:ro
       - ./config/env.yaml:/app/config/env.yaml:ro
+      - ./config/runtime/control_plane.yaml:/app/config/runtime/control_plane.yaml:ro
       - ${GCP_SA_KEY_PATH:-./fitcv-491123-51c030d71e07.json}:/app/sa_key.json:ro
       - ${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}:/opt/fitcv-langgraph:ro
       - fitcv_uploads:/app/data/uploads
@@ -39,8 +39,8 @@ services:
       - FITCV_LANGGRAPH_REPO_ROOT=/opt/fitcv-langgraph
     volumes:
       - ./.env:/app/.env:ro
-      - ./.env.yaml:/app/.env.yaml:ro
       - ./config/env.yaml:/app/config/env.yaml:ro
+      - ./config/runtime/control_plane.yaml:/app/config/runtime/control_plane.yaml:ro
       - ${GCP_SA_KEY_PATH:-./fitcv-491123-51c030d71e07.json}:/app/sa_key.json:ro
       - ${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}:/opt/fitcv-langgraph:ro
       - fitcv_uploads:/app/data/uploads
