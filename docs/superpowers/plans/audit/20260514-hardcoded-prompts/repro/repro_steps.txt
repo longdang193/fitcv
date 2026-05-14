@@ -1,0 +1,2 @@
+1. Inspect src/fitcv_cp/app.py at line 3136.
+2. Note the hardcoded LLM prompt instead of template loading.
