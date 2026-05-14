@@ -125,6 +125,29 @@ def test_render_prompt_raises_for_missing_required_variables() -> None:
 def test_get_prompt_definition_rejects_unknown_prompt_id() -> None:
     with pytest.raises(KeyError):
         get_prompt_definition("enrich.extraction.v999")
+
+
+def test_get_prompt_definition_returns_synonym_triage_metadata() -> None:
+    definition = get_prompt_definition("synonym_triage.recommendation.v1")
+
+    assert definition.prompt_id == "synonym_triage.recommendation.v1"
+    assert definition.stage_id == "synonym_triage"
+    assert definition.version == "v1"
+    assert definition.template_path.name == "synonym_triage_recommendation_v1.md"
+
+
+def test_render_prompt_synonym_triage_includes_proposal_and_timestamp() -> None:
+    rendered = render_prompt(
+        "synonym_triage.recommendation.v1",
+        {
+            "proposal_json": '{"proposal_id":"proposal-a","alias":"gcp"}',
+            "now_iso": "2026-05-14T10:35:00Z",
+        },
+    )
+
+    assert "You are a synonym triage assistant." in rendered.text
+    assert '"proposal_id":"proposal-a"' in rendered.text
+    assert "2026-05-14T10:35:00Z" in rendered.text
 """
 @meta
 type: test
