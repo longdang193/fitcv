@@ -22,6 +22,83 @@ This page is the front-door guide for operators and developers who want to
 understand what the system did, why it did it, and where the agentic behavior
 is visible.
 
+## Setup Observability (Quick Start)
+
+Use this section when bootstrapping local/dev observability from zero.
+
+### 1) Prerequisites
+
+- Running FitCV control plane and worker environment
+- Python environment with project dependencies installed
+- Optional: local OTLP collector endpoint (example: `http://localhost:4318/v1/traces`)
+
+### 2) Set environment variables
+
+Minimum useful baseline:
+
+```powershell
+$env:FITCV_LANGFUSE_ENABLED="true"
+$env:FITCV_LANGFUSE_BASE_URL="http://localhost:3000"
+$env:FITCV_LANGFUSE_RICH_IO_ENABLED="true"
+$env:FITCV_OTEL_ENABLED="true"
+$env:FITCV_OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318/v1/traces"
+$env:FITCV_OTEL_SERVICE_NAME="fitcv-control-plane"
+```
+
+If Langfuse/OTel not needed, you may disable with:
+
+```powershell
+$env:FITCV_LANGFUSE_ENABLED="false"
+$env:FITCV_OTEL_ENABLED="false"
+```
+
+You can also run mixed mode (one enabled, one disabled). In that case,
+**Telemetry Export Health** may show `disabled` or `degraded` status for the
+disabled/misconfigured side while pipeline execution still continues.
+
+### 3) Start stack
+
+Use normal project startup flow (web + worker). After boot, open:
+
+- `/admin/runs`
+- `/admin/runs/{run_id}`
+
+### 4) Validate telemetry health
+
+From run detail page, confirm **Telemetry Export Health** card status.
+
+Expected:
+
+- healthy path: no degradation reason
+- fallback path: degraded status with explicit reason, while pipeline still runs
+
+### 5) Validate outbox replay monitoring
+
+Run checker script:
+
+```powershell
+python scripts/check_outbox_replay_health.py --base-url http://localhost:8010 --view active --min-replay-success-ratio 0.95
+```
+
+Exit code meaning:
+
+- `0`: healthy
+- `2`: alert
+- `3`: checker runtime/request failure
+
+### 6) Validate effective runtime environment
+
+If status looks wrong, print effective values from process shell:
+
+```powershell
+Write-Host "FITCV_LANGFUSE_ENABLED=$env:FITCV_LANGFUSE_ENABLED"
+Write-Host "FITCV_LANGFUSE_BASE_URL=$env:FITCV_LANGFUSE_BASE_URL"
+Write-Host "FITCV_LANGFUSE_RICH_IO_ENABLED=$env:FITCV_LANGFUSE_RICH_IO_ENABLED"
+Write-Host "FITCV_OTEL_ENABLED=$env:FITCV_OTEL_ENABLED"
+Write-Host "FITCV_OTEL_EXPORTER_OTLP_ENDPOINT=$env:FITCV_OTEL_EXPORTER_OTLP_ENDPOINT"
+Write-Host "FITCV_OTEL_SERVICE_NAME=$env:FITCV_OTEL_SERVICE_NAME"
+```
+
 ## Core Observation Surfaces
 
 ### Runs list
@@ -133,17 +210,10 @@ Environment precedence note:
 
 - run-detail health cards reflect the process environment used by the active web/worker processes
 - shell/system env overrides startup-script defaults
-- startup scripts now default `FITCV_LANGFUSE_RICH_IO_ENABLED=true` for local/dev observability unless explicitly overridden
-- if Langfuse/OTel status looks unexpected, print effective env values first:
+- startup scripts currently default `FITCV_LANGFUSE_RICH_IO_ENABLED=true` for local/dev observability unless explicitly overridden
+- if Langfuse/OTel status looks unexpected, see **Setup Observability (Quick Start) -> 6) Validate effective runtime environment**
 
-```powershell
-Write-Host "FITCV_LANGFUSE_ENABLED=$env:FITCV_LANGFUSE_ENABLED"
-Write-Host "FITCV_LANGFUSE_BASE_URL=$env:FITCV_LANGFUSE_BASE_URL"
-Write-Host "FITCV_LANGFUSE_RICH_IO_ENABLED=$env:FITCV_LANGFUSE_RICH_IO_ENABLED"
-Write-Host "FITCV_OTEL_ENABLED=$env:FITCV_OTEL_ENABLED"
-Write-Host "FITCV_OTEL_EXPORTER_OTLP_ENDPOINT=$env:FITCV_OTEL_EXPORTER_OTLP_ENDPOINT"
-Write-Host "FITCV_OTEL_SERVICE_NAME=$env:FITCV_OTEL_SERVICE_NAME"
-```
+
 
 Langfuse export consumption lanes:
 

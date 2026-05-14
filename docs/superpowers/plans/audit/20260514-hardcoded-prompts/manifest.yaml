@@ -1,0 +1,7 @@
+schema_version: 1
+audit_id: 20260514-hardcoded-prompts
+artifacts:
+  - path: evidence/app_snippet.py
+    sha256: 74c7b01800bad1206e38a22aef05f826a807c963d5c7d027c1d701539eba7130
+repro:
+  - path: repro/repro_steps.txt
