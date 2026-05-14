@@ -442,6 +442,7 @@ def validate_profile(profile: dict[str, Any]) -> list[str]:
         [str(e.get("id", "")) for e in profile.get("experiences", [])]
         + [str(p.get("id", "")) for p in profile.get("projects", [])]
         + [str(a.get("id", "")) for a in profile.get("achievements", [])]
+        + [str(cert.get("id", "")) for cert in profile.get("certifications", [])]
         + [str(ed.get("id", "")) for ed in profile.get("education", [])]
     )
     seen_ids: set[str] = set()
