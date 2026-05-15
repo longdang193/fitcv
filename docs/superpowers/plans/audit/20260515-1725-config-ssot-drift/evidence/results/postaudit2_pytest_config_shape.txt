@@ -1,0 +1,8 @@
+..                                                                       [100%]
+============================== warnings summary ===============================
+tests/test_config.py::test_load_config_defaults_to_repo_config_shape
+  C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\config-ssot-fix\tests\test_config.py:191: UserWarning: legacy config path in use: config\env.yaml
+    cfg = load_config()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+2 passed, 59 deselected, 1 warning in 0.13s

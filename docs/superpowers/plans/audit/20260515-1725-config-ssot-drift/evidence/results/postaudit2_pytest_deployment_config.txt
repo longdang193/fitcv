@@ -1,0 +1,18 @@
+F.                                                                       [100%]
+================================== FAILURES ===================================
+_______________ test_docker_compose_mounts_runtime_config_files _______________
+
+    def test_docker_compose_mounts_runtime_config_files() -> None:
+        compose = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+        services = compose["services"]
+    
+        for service_name in ("web", "worker"):
+            volumes = services[service_name]["volumes"]
+>           assert any("/app/.env.yaml:ro" in volume for volume in volumes)
+E           assert False
+E            +  where False = any(<generator object test_docker_compose_mounts_runtime_config_files.<locals>.<genexpr> at 0x0000022CCFF8C790>)
+
+tests\test_deployment_config.py:29: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/test_deployment_config.py::test_docker_compose_mounts_runtime_config_files
+1 failed, 1 passed in 0.20s

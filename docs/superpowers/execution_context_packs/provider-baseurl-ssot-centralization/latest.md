@@ -61,13 +61,14 @@
 
 - Closeout strict gate remains globally noisy due pre-existing deprecated manual thread-linkage warnings.
 - No bounded-scope blocker for implementation correctness.
+- PR #27 CI blocker: GitHub Actions jobs did not start due account billing/spending-limit issue (`gh run view 25943632105`), so required checks are red for infrastructure reason.
 
 ## 7) Next Exact Action
 
-- **Action type:** closeout
+- **Action type:** external-unblock
 - **Target:** plan lane `provider-baseurl-ssot-centralization`
-- **Exact command or edit intent:** proceed to lane closeout/PR orchestration using existing closure evidence.
-- **Why this is next:** all in-scope tasks and bounded verification are complete.
+- **Exact command or edit intent:** restore GitHub Actions billing/spending-limit, then rerun PR checks for #27.
+- **Why this is next:** merge eligibility depends on required PR checks; current failures are infrastructure-gated, not code-gated.
 
 ## 8) Resume Prompt (Copy/Paste)
 

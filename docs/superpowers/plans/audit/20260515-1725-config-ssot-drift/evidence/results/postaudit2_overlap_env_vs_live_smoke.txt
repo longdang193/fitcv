@@ -1,0 +1,9 @@
+config/env.yaml:1:gcp_project: "fitcv-491123"
+config/env.yaml:2:bigquery_dataset: "fitcv"
+config/env.yaml:3:service_account_key: "sa_key.json"
+config/env.yaml:5:location: "us-central1"
+config/env.yaml:8:enrichment_max_retries: 3     # retry attempts on ResourceExhausted before failing
+config/env.yaml:23:paths:
+config/env.yaml:24:  candidate_profile: "data/candidate_profile.yaml"
+config/env.yaml:27:seniority_ladder:
+config/env.yaml:38:application_statuses:

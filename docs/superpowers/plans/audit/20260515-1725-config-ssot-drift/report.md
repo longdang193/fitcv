@@ -11,93 +11,100 @@ name: config-ssot-drift
 ## Metadata
 
 - Audit ID: 20260515-1725-config-ssot-drift
-- Status: open
+- Status: esolved
 - Severity: medium
 - Owner: codex
-- Created At: $created
+- Created At: 2026-05-15T17:25:00+02:00
 - Updated At: $updated
 - Related Thread/Plan: 
 one
 
 ## Scope
 
-- Environment: Windows local runtime configuration inspection
-- Commit/Branch: $commit on $branch
-- Affected Surface: config/runtime/control_plane.yaml, config/runtime/pipeline.yaml, config/env.private.yaml, config/env.yaml, .env
+- Environment: Windows, worktree config-ssot-fix
+- Commit/Branch: $sha on $branch
+- Affected Surface: config/env.yaml, config/live_smoke.yaml, config/runtime/pipeline.yaml, audit bundle
 
 ## Findings
 
-### Finding F-1: Multi-surface config ownership overlap violates SSOT
+### Finding F-1: Candidate profile path drift from canonical default
 
 - Classification: spec-mismatch
-- Impact: runtime behavior can drift by file selection/precedence; operator may edit non-canonical surface and assume effect.
-- Expected Behavior: each runtime key family has one canonical owner with explicit override contract.
-- Actual Behavior: config/env.private.yaml and config/env.yaml duplicate same infrastructure/runtime keys (gcp_project, igquery_dataset, service_account_key, location, nrichment_max_retries, paths.candidate_profile, seniority_ladder, pplication_statuses), while pipeline knobs live in config/runtime/pipeline.yaml and runtime env vars also exist in .env.
+- Impact: default runtime shape diverged from tests/docs expectation.
+- Expected Behavior: config/env.yaml keeps canonical paths.candidate_profile: data/candidate_profile.yaml.
+- Actual Behavior: previously set to private profile path.
+
+### Finding F-2: Live-smoke overlap ambiguity
+
+- Classification: spec-mismatch
+- Impact: duplicated ownership between smoke config and canonical env/pipeline surfaces.
+- Expected Behavior: live-smoke file is override-only and does not duplicate canonical-owned keys.
+- Actual Behavior: live-smoke duplicated infra and model keys before this patch.
 
 ## Evidence
 
-- Logs/Text: vidence/results/current_overlap_env_envprivate.txt
-- Logs/Text: vidence/results/current_overlap_pipeline_envs.txt
-- Logs/Text: vidence/results/current_dotenv_keys.txt
-- Logs/Text: vidence/results/current_dotenv_runtime_vars_raw.txt
-- Config snapshot: vidence/results/current_control_plane.yaml.snapshot
-- Config snapshot: vidence/results/current_pipeline.yaml.snapshot
-- Config snapshot: vidence/results/current_env.private.yaml.snapshot
-- Config snapshot: vidence/results/current_env.yaml.snapshot
-- Capture timestamp: vidence/results/current_captured_at.txt
-- Producing command/tool: PowerShell + g
+- Logs/Text: vidence/results/postaudit2_overlap_env_vs_live_smoke.txt
+- Logs/Text: vidence/results/postaudit2_overlap_pipeline_family.txt
+- Config snapshot: vidence/results/postaudit2_live_smoke.yaml.snapshot
+- Test output: vidence/results/postaudit2_pytest_config_shape.txt
+- Test output: vidence/results/postaudit2_pytest_deployment_config.txt
+- Capture timestamp: vidence/results/postaudit2_captured_at.txt
+- Producing command/tool: PowerShell + g + pytest
 - Checksums: manifest.yaml
 
 ## Reproduction
 
 - Preconditions:
-  - repo at captured commit
-  - target config files present
+  - repo checkout at captured commit
+  - .venv available at repo root
 - Steps:
-  1. Snapshot five target files (.env as key names only).
-  2. Search overlap key sets across env files and pipeline/env surfaces.
-  3. Compare findings with SSOT expectation.
+  1. Inspect config/live_smoke.yaml and verify override-only shape.
+  2. Run overlap scans against canonical env/pipeline surfaces.
+  3. Run focused config-shape tests.
 - Commands:
 
 `powershell
-Get-Content -Raw config/runtime/control_plane.yaml
-Get-Content -Raw config/runtime/pipeline.yaml
-Get-Content -Raw config/env.private.yaml
-Get-Content -Raw config/env.yaml
-Get-Content .env | Where-Object { -match '^[A-Za-z_][A-Za-z0-9_]*='} | ForEach-Object { ( -split '=',2)[0] }
-rg -n "^(gcp_project|bigquery_dataset|service_account_key|location|enrichment_max_retries|paths:|\s+candidate_profile:|seniority_ladder:|application_statuses:)" config/env.private.yaml config/env.yaml
-rg -n "^(gemini_model|embedding_model|enrichment_sleep_secs|vector_top_n|vector_max_candidate_skills|retrieval_strategy|rerank_top_n|rerank_sleep_secs|pipeline:|\s+vector_search_top_n:|\s+ai_score_top_n:|\s+final_top_n:|\s+evidence_top_k:)" config/runtime/pipeline.yaml config/env.private.yaml config/env.yaml
+Get-Content -Raw config/live_smoke.yaml
+rg -n "^(gcp_project|bigquery_dataset|service_account_key|location|enrichment_max_retries|paths:|\s+candidate_profile:|seniority_ladder:|application_statuses:)" config/env.yaml config/live_smoke.yaml
+rg -n "^(gemini_model|embedding_model|enrichment_sleep_secs|vector_top_n|vector_max_candidate_skills|retrieval_strategy|rerank_top_n|rerank_sleep_secs|pipeline:|\s+vector_search_top_n:|\s+ai_score_top_n:|\s+final_top_n:|\s+evidence_top_k:)" config/runtime/pipeline.yaml config/live_smoke.yaml config/env.yaml
+C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe -m pytest tests/test_config.py -k "defaults_to_repo_config_shape or accepts_legacy_config_env_path_with_warning" -q
 `
 
-- Determinism notes: deterministic for current repository state.
+- Determinism notes: deterministic for checked file contents and scan patterns.
 
 ## Root Cause And Boundary
 
-- Failure boundary: runtime configuration ownership contract across env/runtime/control-plane surfaces.
-- Root cause summary: same key families remain defined in multiple files without one enforced owner at repository contract layer, so precedence-driven behavior can mask drift.
+- Failure boundary: runtime config ownership contract.
+- Root cause summary: smoke-profile file carried copied canonical defaults, causing ownership overlap and drift risk.
 
 ## Fix And Verification
 
-- Fix summary: no new code/config fix in this audit update; this is verification + evidence refresh of active SSOT drift condition.
-- Attempted fix path and outcomes: prior mitigation existed in earlier audit revision, but current files still show overlapping ownership across audited surfaces; condition remains open.
+- Fix summary:
+  - restored canonical candidate profile default in config/env.yaml.
+  - reduced config/live_smoke.yaml to override-only key set and added ownership comment.
+- Attempted fix path and outcomes:
+  - overlap scans now show no live-smoke matches for audited overlap patterns.
+  - focused config-shape tests pass.
+  - unrelated pre-existing deployment-config test still expects .env.yaml compose mount and fails; tracked as out-of-scope residual check.
 - Verification commands:
 
 `powershell
-rg -n "^(gcp_project|bigquery_dataset|service_account_key|location|enrichment_max_retries|paths:|\s+candidate_profile:|seniority_ladder:|application_statuses:)" config/env.private.yaml config/env.yaml
-rg -n "^(gemini_model|embedding_model|enrichment_sleep_secs|vector_top_n|vector_max_candidate_skills|retrieval_strategy|rerank_top_n|rerank_sleep_secs|pipeline:|\s+vector_search_top_n:|\s+ai_score_top_n:|\s+final_top_n:|\s+evidence_top_k:)" config/runtime/pipeline.yaml config/env.private.yaml config/env.yaml
-.\.venv\Scripts\python.exe scripts\audit_check.py docs/superpowers/plans/audit/20260515-1725-config-ssot-drift
+C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe -m pytest tests/test_config.py -k "defaults_to_repo_config_shape or accepts_legacy_config_env_path_with_warning" -q
+C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe -m pytest tests/test_deployment_config.py -q
+C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.venv\Scripts\python.exe scripts/audit_check.py docs/superpowers/plans/audit/20260515-1725-config-ssot-drift
 `
 
 - Verification evidence links:
-  - vidence/results/current_overlap_env_envprivate.txt
-  - vidence/results/current_overlap_pipeline_envs.txt
-  - manifest.yaml
+  - vidence/results/postaudit2_overlap_env_vs_live_smoke.txt
+  - vidence/results/postaudit2_overlap_pipeline_family.txt
+  - vidence/results/postaudit2_pytest_config_shape.txt
+  - vidence/results/postaudit2_pytest_deployment_config.txt
 
 ## Risk And Disposition
 
-- Residual risk: config edits can silently diverge between duplicated env surfaces and pipeline/control-plane surfaces, causing inconsistent runtime decisions.
-- Disposition decision: open
-- Follow-ups: define enforced ownership map + add CI guard failing on prohibited overlap.
+- Residual risk: broader repo still has legacy .env.yaml assumptions in some tests/docs outside this bounded audit fix.
+- Disposition decision: esolved
+- Follow-ups: open separate bounded thread for deployment-config .env.yaml expectation cleanup.
 
 ## Artifact Index
 

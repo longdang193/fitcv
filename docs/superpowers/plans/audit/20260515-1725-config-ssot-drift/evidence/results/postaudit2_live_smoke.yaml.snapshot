@@ -11,3 +11,4 @@
 # Live-smoke config is override-only. Inherit canonical defaults from config/env.yaml
 # and config/runtime/pipeline.yaml to preserve SSOT ownership.
 ai_score_model: "gemini-2.5-flash"
+
