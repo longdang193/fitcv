@@ -255,10 +255,62 @@ def resolve_model_routing_part(
     provider_cfg = dict(providers.get(provider_name) or {})
     model_name = str(part_cfg.get("model") or "").strip() or str(model_fallback or "").strip()
     base_url = str(provider_cfg.get("base_url") or "").strip()
+    wire_api = str(provider_cfg.get("wire_api") or "").strip()
     return {
         "provider": provider_name,
         "model": model_name,
         "base_url": base_url,
+        "wire_api": wire_api,
+    }
+
+def resolve_langgraph_runtime_expectation(
+    *,
+    part_name: str = "cv_generation_structured_write",
+) -> dict[str, str]:
+    """Resolve provider/model/base_url/wire_api with env-override then control-plane fallback."""
+    routed = resolve_model_routing_part(part_name)
+    provider = str(routed.get("provider") or "").strip().lower()
+    model = str(routed.get("model") or "").strip()
+    base_url = str(routed.get("base_url") or "").strip()
+    wire_api = str(routed.get("wire_api") or "").strip()
+    source = "control_plane"
+
+    env_provider = str(os.environ.get("FITCV_LANGGRAPH_PROVIDER") or "").strip().lower()
+    env_model = str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
+    env_base_url = str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL") or "").strip()
+    env_wire_api = str(os.environ.get("FITCV_LANGGRAPH_WIRE_API") or "").strip()
+    if any((env_provider, env_model, env_base_url, env_wire_api)):
+        if env_provider:
+            provider = env_provider
+        if env_model:
+            model = env_model
+        if env_base_url:
+            base_url = env_base_url
+        if env_wire_api:
+            wire_api = env_wire_api
+        source = "env_override"
+
+    missing: list[str] = []
+    if not provider:
+        missing.append("provider")
+    if not model:
+        missing.append("model")
+    if not base_url:
+        missing.append("base_url")
+    if not wire_api:
+        missing.append("wire_api")
+    if missing:
+        raise ValueError(
+            "Missing resolved LangGraph runtime routing fields: "
+            + ", ".join(missing)
+        )
+
+    return {
+        "provider": provider,
+        "model": model,
+        "base_url": base_url,
+        "wire_api": wire_api,
+        "source": source,
     }
 
 
