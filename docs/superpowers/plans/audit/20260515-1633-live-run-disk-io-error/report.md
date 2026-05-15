@@ -2,7 +2,7 @@
 layer: audit
 artifact_type: report
 template_id: audit-report-with-evidence
-status: open
+status: mitigated
 name: live-run-disk-io-error
 ---
 

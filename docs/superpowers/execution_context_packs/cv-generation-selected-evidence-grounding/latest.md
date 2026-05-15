@@ -76,17 +76,14 @@
 - Transient sqlite/disk error observed once during rerun; treat as infra flake unless repeated.
 - Audit opened for recurring live-run `disk I/O error`: `docs/superpowers/plans/audit/20260515-1633-live-run-disk-io-error/report.md`.
 - Mitigation applied: sqlite WAL + busy timeout + retry in key persistence paths; post-fix verification: 3/3 live runs succeeded (`449820b5-0382-4dba-b8c8-a9f72ed75088`, `35cc209e-686c-4f86-861c-68dbcd75f0fe`, `7b5f3ce3-f1bf-4c90-a08f-628c9c04f388`).
-- Closeout strict gate blocked: planning lifecycle strict mode fails on deprecated manual thread linkage warnings in multiple thread docs outside this workstream’s in-scope deliverables.
+- Closeout strict-gate exception approved by user: skip out-of-scope planning-lifecycle warnings for deprecated manual thread-linkage in `docs/intent/workstreams/threads/*` for this lane closure.
 
 ## 7) Next Exact Action
 
-- **Action type:** decision / unblock
-- **Target:** closeout policy for `python scripts/validate_planning_lifecycle.py --strict`
-- **Exact command or edit intent:** decide one:
-  - open new workstream to remediate deprecated manual thread linkage blocks across the warned `docs/intent/workstreams/threads/*` files until strict passes, or
-  - accept closeout with strict gate failing as out-of-scope for this lane (requires explicit user approval), or
-  - relax this plan’s completion criteria to not require strict pass (requires explicit user approval + doc updates).
-- **Why this is next:** no more in-scope implementation/verification steps unblock strict closeout gate; next needs governance decision or separate remediation scope.
+- **Action type:** closeout
+- **Target:** merge/closeout orchestration for `cv-generation-selected-evidence-grounding`
+- **Exact command or edit intent:** close now using explicit user-approved exception for out-of-scope strict lifecycle warnings; keep exception noted in closure evidence.
+- **Why this is next:** lane deliverables, bounded verification, and audit disposition are complete; only remaining strict warnings are out-of-scope and explicitly waived by user for this closure.
 
 ## 8) Resume Prompt (Copy/Paste)
 
