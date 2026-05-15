@@ -87,7 +87,7 @@ Implement Option A routing centralization so `config/runtime/control_plane.yaml`
 
 **Verification:**
 - [x] `pytest -q tests/test_fitcv_cp/test_control_plane_config.py`
-- [ ] `pytest -q tests/test_config.py -k "control_plane or routing"` (no matching tests in current suite; replace in follow-up with concrete selector)
+- [x] `pytest -q tests/test_config.py -k "control_plane or routing or legacy or config or path"`
 
 **Exit Criteria:**
 - Tests prove precedence and fail-fast semantics described in spec.
@@ -135,8 +135,8 @@ Implement Option A routing centralization so `config/runtime/control_plane.yaml`
 
 **Verification:**
 - [x] `pytest -q tests/test_fitcv_cp/test_control_plane_config.py`
-- [ ] `pytest -q tests/test_config.py -k "control_plane or routing or legacy config path"`
-- [ ] `python scripts/hooks/run_validator.py --fast`
+- [x] `pytest -q tests/test_config.py -k "control_plane or routing or legacy or config or path"`
+- [x] `python scripts/hooks/run_validator.py --fast`
 
 **Exit Criteria:**
 - Bounded changes are verified, no unresolved high-risk ambiguity remains.
@@ -144,7 +144,7 @@ Implement Option A routing centralization so `config/runtime/control_plane.yaml`
 ## Verification
 
 - `pytest -q tests/test_fitcv_cp/test_control_plane_config.py`
-- `pytest -q tests/test_config.py -k "control_plane or routing or legacy config path"`
+- `pytest -q tests/test_config.py -k "control_plane or routing or legacy or config or path"`
 - `python scripts/hooks/run_validator.py --fast`
 
 ## Completion Criteria
