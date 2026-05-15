@@ -92,7 +92,10 @@ guessing.
 3. Recommend a design direction.
 4. Present brainstorming output first.
 5. Ask user: "Do you want a more detailed report using the brainstorming report template?"
-6. If user says yes, generate report using `brainstorming-detailed-report-template.md` in this skill folder.
+6. If user says yes, save report using canonical bundle path `docs/superpowers/plans/brainstorming/<report_id>/` and:
+   - scaffold with `.\\scripts\\new_brainstorming_report.ps1 -ReportId <report_id>`
+   - write report to `docs/superpowers/plans/brainstorming/<report_id>/report.md` using `docs/operating_system/templates/brainstorming-detailed-report-template.md`
+   - optionally capture supporting artifacts with `.\\scripts\\brainstorming_capture.ps1 -ReportId <report_id> -SourceFile <path> -Type input`
 7. Author required roadmap/workstream/thread/spec/execution-map artifact using matching canonical template when requested.
 8. Request approval before any implementation planning.
 </MUST-DO>
@@ -101,6 +104,7 @@ guessing.
 
 - specs -> `docs/superpowers/specs/`
 - execution maps -> `docs/superpowers/execution_maps/`
+- detailed brainstorming reports -> `docs/superpowers/plans/brainstorming/<report_id>/report.md`
 - higher planning layers stay in their canonical docs/intent or docs/superpowers locations defined by the routing guide
 
 ## Guardrails
