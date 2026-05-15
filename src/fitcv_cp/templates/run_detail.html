@@ -78,6 +78,35 @@
   {% endif %}
 </div>
 
+<!-- ── Outputs Action (persistent) ───────────────────────────────────────── -->
+<div class="card" id="outputs-action">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Outputs</h3>
+    <span class="badge badge-{{ 'success' if output_availability.state == 'available' else ('warning' if output_availability.state == 'mismatch' else 'neutral') }}">
+      {{ output_availability.state }}
+    </span>
+  </div>
+  <div class="meta">
+    generated={{ output_availability.generated_count }}, version_rows={{ output_availability.version_row_count }}, downloadables={{ output_availability.downloadable_count }}
+  </div>
+  <div style="margin-top:0.75rem;display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center">
+    {% if output_availability.downloadable_count > 0 %}
+      <a class="btn-secondary" href="#generated-outputs">⬇ Download Outputs</a>
+    {% else %}
+      <span class="meta">
+        {% if output_availability.state == 'not_ready' %}
+          Outputs not available until run succeeds.
+        {% elif output_availability.state == 'mismatch' %}
+          Outputs were generated but no downloadable rows are currently visible.
+        {% else %}
+          No outputs available.
+        {% endif %}
+      </span>
+      <button class="btn-secondary" disabled aria-disabled="true" title="No downloadable outputs">⬇ Download Outputs</button>
+    {% endif %}
+  </div>
+</div>
+
 {% if stage_result_summary_rows %}
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
@@ -735,19 +764,18 @@
 {% endif %}
 
 <!-- ── CV Results Banner ─────────────────────────────────────────────────── -->
-{% if run.status.value == 'succeeded' and run.cvs_generated is not none %}
-<div class="results-card">
+<div class="results-card" id="generated-outputs">
   <h3>Pipeline Results</h3>
-  {% if run.cvs_generated > 0 %}
+  {% if output_availability.state == 'available' %}
     <p style="font-size:0.9rem;color:var(--badge-success-fg)">
-      <strong>{{ run.cvs_generated }}</strong> candidate CV(s) were successfully generated.
-      Persisted to the <strong>cv_versions</strong> BigQuery table.
+      <strong>{{ output_availability.downloadable_count }}</strong> downloadable CV(s) available.
     </p>
     {% if cv_versions %}
       <div style="margin-top:1rem;border-top:1px solid var(--accent);padding-top:1rem">
         <h4 class="section-title" style="font-size:0.95rem;margin:0 0 0.75rem">Generated Outputs:</h4>
         <div style="display:flex;flex-direction:column;gap:0.75rem">
         {% for cv in cv_versions %}
+          {% if cv.version_id %}
           <div class="cv-row">
             <div style="display:flex;align-items:center;gap:0.8rem">
               <span class="badge badge-success">{{ cv.fit_classification }}</span>
@@ -755,10 +783,20 @@
             </div>
             <a href="/admin/cvs/{{ cv.version_id }}/download" class="btn-secondary">⬇ Download Markdown</a>
           </div>
+          {% endif %}
         {% endfor %}
         </div>
       </div>
     {% endif %}
+  {% elif output_availability.state == 'mismatch' %}
+    <p style="font-size:0.9rem;color:var(--badge-warning-fg)">
+      <strong>{{ output_availability.generated_count }}</strong> CV(s) were generated, but no downloadable rows are currently visible.
+    </p>
+    <div class="meta">State: <code>mismatch</code>. Refresh later; if persists, inspect persistence/logs for `cv_versions` write delay or query mismatch.</div>
+  {% elif output_availability.state == 'not_ready' %}
+    <p style="font-size:0.9rem;color:var(--badge-info-fg)">
+      Outputs not ready. Run status: <strong>{{ run.status.value }}</strong>.
+    </p>
   {% else %}
     <p style="font-size:0.9rem;color:var(--badge-error-fg)">
       <strong>0</strong> candidate CVs were generated.
@@ -776,7 +814,6 @@
     </p>
   {% endif %}
 </div>
-{% endif %}
 
 <div class="inspection-card">
 <!-- ── Inspection Tab Bar ────────────────────────────────────────────────── -->

@@ -2607,8 +2607,7 @@ def test_admin_run_detail_success_banner():
     patch("fitcv_cp.app.list_cvs_for_run", return_value=[{"version_id": "v123", "job_url": "mock.com", "fit_classification": "strong", "generated_at": datetime.now(timezone.utc)}]):
         resp = TestClient(_app()).get("/admin/runs/test-123")
     assert resp.status_code == 200
-    assert "candidate CV(s) were successfully generated." in resp.text
-    assert "Persisted to the <strong>cv_versions</strong> BigQuery table." in resp.text
+    assert "downloadable CV(s) available." in resp.text
     assert 'href="/admin/cvs/v123/download"' in resp.text
     assert 'href="/admin/runs/test-123"' in resp.text
     assert "Refresh Status" in resp.text  # still present on run_detail page
