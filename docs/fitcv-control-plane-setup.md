@@ -145,7 +145,8 @@ The admin UI is available at `http://localhost/admin/runs`.
 Notes:
 
 - Compose mounts repo `.env` into both containers at `/app/.env` and sets `FITCV_LANGGRAPH_ENV_FILE=/app/.env`
-- Compose mounts `./config/env.yaml` -> `/app/config/env.yaml` as canonical runtime config
+- Compose mounts `./config/env.yaml` -> `/app/config/env.yaml` as base runtime config entrypoint
+- `config/runtime/pipeline.yaml` remains canonical owner for pipeline/ranking/retrieval knobs loaded by `load_config(...)`
 - Optional local override files can also be mounted when explicitly used via `config_path`
 - The service-account key is mounted inside the container as `/app/sa_key.json`
 - Do not pass Windows paths like `C:\...json` into Docker-triggered runs
@@ -238,7 +239,8 @@ docker compose up -d --build redis web worker
 | `src/fitcv_cp/app.py` | FastAPI routes, templates, and queue integration |
 | `src/fitcv_cp/worker_job.py` | Background job entrypoint |
 | `src/fitcv_cp/queue.py` | Redis and worker setup |
-| `config/env.yaml` | Canonical runtime config |
+| `config/env.yaml` | Base runtime config entrypoint (`config_path` default) |
+| `config/runtime/pipeline.yaml` | Canonical pipeline/ranking/retrieval config owner |
 | `docker-compose.yml` | Docker services for `redis`, `web`, and `worker` |
 | `Dockerfile` | Shared image for the web and worker containers |
 

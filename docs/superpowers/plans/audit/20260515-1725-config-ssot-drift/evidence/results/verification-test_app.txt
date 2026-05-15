@@ -1,0 +1,185 @@
+........................................................................ [ 91%]
+.......                                                                  [100%]
+============================== warnings summary ===============================
+tests/test_fitcv_cp/test_app.py::test_post_runs_rejects_invalid_config_overrides
+  C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv_cp\app.py:4860: UserWarning: legacy config path in use: config\env.yaml
+    base_config = load_config(config_path)
+
+tests/test_fitcv_cp/test_app.py::test_run_detail_tab3_null_source_shows_not_recorded_not_default_config
+tests/test_fitcv_cp/test_app.py::test_admin_upload_trigger_candidate_profile_modes_share_canonical_runtime_payload
+tests/test_fitcv_cp/test_app.py::test_run_detail_tab3_legacy_fallback_does_not_mention_default_config_limitation
+tests/test_fitcv_cp/test_app.py::test_run_detail_tab3_legacy_fallback_does_not_mention_default_config_limitation
+tests/test_fitcv_cp/test_app.py::test_get_settings_page_includes_cv_groups
+  C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\pipeline.py:3803: UserWarning: legacy config path in use: config\env.yaml
+    config = load_config(config_path)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+79 passed, 289 deselected, 6 warnings in 16.01s
+[run_id=631bc54d-051f-4ff8-bcf4-89c8614494ba] Pipeline failed: Config-routed HTTP provider for enrich_extraction requires API key in env (FITCV_LLM_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY).
+Traceback (most recent call last):
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv_cp\worker_job.py", line 1900, in execute_pipeline_run
+    summary = run_pipeline(
+        jobs_path=jobs_path,
+    ...<9 lines>...
+        stage_progress_callback=_stage_progress_callback if run_mode == "run_all" else None,
+    )
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\pipeline.py", line 3946, in run_pipeline
+    enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(
+                                    ~~~~~~~~~~~~~~~~~~~~~~~^
+        surviving_normalized,
+        ^^^^^^^^^^^^^^^^^^^^^
+        config,
+        ^^^^^^^
+        pipeline_store=pipeline_store,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\pipeline.py", line 379, in _enrich_jobs_with_reuse
+    fresh_rows = enrich_batch(fresh_jobs, config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1493, in enrich_batch
+    chunk_results[idx] = future.result()
+                         ~~~~~~~~~~~~~^^
+  File "C:\Users\HOANG PHI LONG DANG\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\_base.py", line 456, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\HOANG PHI LONG DANG\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Users\HOANG PHI LONG DANG\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1419, in _enrich_chunk
+    enriched = enrich_job(job, config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1346, in enrich_job
+    client = _make_genai_client(config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1292, in _make_genai_client
+    openai_client = _build_openai_compat_client(config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1215, in _build_openai_compat_client
+    raise RuntimeError(
+    ...<2 lines>...
+    )
+RuntimeError: Config-routed HTTP provider for enrich_extraction requires API key in env (FITCV_LLM_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY).
+[run_id=dfcc95ea-d87e-4be4-9ad2-703fb8daecea] Pipeline failed: Config-routed HTTP provider for enrich_extraction requires API key in env (FITCV_LLM_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY).
+Traceback (most recent call last):
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv_cp\worker_job.py", line 1900, in execute_pipeline_run
+    summary = run_pipeline(
+        jobs_path=jobs_path,
+    ...<9 lines>...
+        stage_progress_callback=_stage_progress_callback if run_mode == "run_all" else None,
+    )
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\pipeline.py", line 3946, in run_pipeline
+    enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(
+                                    ~~~~~~~~~~~~~~~~~~~~~~~^
+        surviving_normalized,
+        ^^^^^^^^^^^^^^^^^^^^^
+        config,
+        ^^^^^^^
+        pipeline_store=pipeline_store,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\pipeline.py", line 379, in _enrich_jobs_with_reuse
+    fresh_rows = enrich_batch(fresh_jobs, config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1493, in enrich_batch
+    chunk_results[idx] = future.result()
+                         ~~~~~~~~~~~~~^^
+  File "C:\Users\HOANG PHI LONG DANG\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\_base.py", line 456, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\HOANG PHI LONG DANG\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Users\HOANG PHI LONG DANG\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1419, in _enrich_chunk
+    enriched = enrich_job(job, config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1346, in enrich_job
+    client = _make_genai_client(config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1292, in _make_genai_client
+    openai_client = _build_openai_compat_client(config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1215, in _build_openai_compat_client
+    raise RuntimeError(
+    ...<2 lines>...
+    )
+RuntimeError: Config-routed HTTP provider for enrich_extraction requires API key in env (FITCV_LLM_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY).
+[run_id=fe838f18-ce1c-4654-bae5-6dfa98342230] Pipeline failed: Config-routed HTTP provider for enrich_extraction requires API key in env (FITCV_LLM_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY).
+Traceback (most recent call last):
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv_cp\worker_job.py", line 1900, in execute_pipeline_run
+    summary = run_pipeline(
+        jobs_path=jobs_path,
+    ...<9 lines>...
+        stage_progress_callback=_stage_progress_callback if run_mode == "run_all" else None,
+    )
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\pipeline.py", line 3946, in run_pipeline
+    enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(
+                                    ~~~~~~~~~~~~~~~~~~~~~~~^
+        surviving_normalized,
+        ^^^^^^^^^^^^^^^^^^^^^
+        config,
+        ^^^^^^^
+        pipeline_store=pipeline_store,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\pipeline.py", line 379, in _enrich_jobs_with_reuse
+    fresh_rows = enrich_batch(fresh_jobs, config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1493, in enrich_batch
+    chunk_results[idx] = future.result()
+                         ~~~~~~~~~~~~~^^
+  File "C:\Users\HOANG PHI LONG DANG\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\_base.py", line 456, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\HOANG PHI LONG DANG\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Users\HOANG PHI LONG DANG\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1419, in _enrich_chunk
+    enriched = enrich_job(job, config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1346, in enrich_job
+    client = _make_genai_client(config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1292, in _make_genai_client
+    openai_client = _build_openai_compat_client(config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1215, in _build_openai_compat_client
+    raise RuntimeError(
+    ...<2 lines>...
+    )
+RuntimeError: Config-routed HTTP provider for enrich_extraction requires API key in env (FITCV_LLM_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY).
+[run_id=ae081c31-1134-421f-8839-249098526bfc] Pipeline failed: Config-routed HTTP provider for enrich_extraction requires API key in env (FITCV_LLM_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY).
+Traceback (most recent call last):
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv_cp\worker_job.py", line 1900, in execute_pipeline_run
+    summary = run_pipeline(
+        jobs_path=jobs_path,
+    ...<9 lines>...
+        stage_progress_callback=_stage_progress_callback if run_mode == "run_all" else None,
+    )
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\pipeline.py", line 3946, in run_pipeline
+    enriched, fresh_enriched_rows = _enrich_jobs_with_reuse(
+                                    ~~~~~~~~~~~~~~~~~~~~~~~^
+        surviving_normalized,
+        ^^^^^^^^^^^^^^^^^^^^^
+        config,
+        ^^^^^^^
+        pipeline_store=pipeline_store,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\pipeline.py", line 379, in _enrich_jobs_with_reuse
+    fresh_rows = enrich_batch(fresh_jobs, config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1493, in enrich_batch
+    chunk_results[idx] = future.result()
+                         ~~~~~~~~~~~~~^^
+  File "C:\Users\HOANG PHI LONG DANG\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\_base.py", line 456, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\HOANG PHI LONG DANG\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Users\HOANG PHI LONG DANG\AppData\Local\Programs\Python\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1419, in _enrich_chunk
+    enriched = enrich_job(job, config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1346, in enrich_job
+    client = _make_genai_client(config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1292, in _make_genai_client
+    openai_client = _build_openai_compat_client(config)
+  File "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\src\fitcv\enrich.py", line 1215, in _build_openai_compat_client
+    raise RuntimeError(
+    ...<2 lines>...
+    )
+RuntimeError: Config-routed HTTP provider for enrich_extraction requires API key in env (FITCV_LLM_API_KEY or OPENAI_API_KEY or OPENAI_COMPATIBLE_API_KEY).

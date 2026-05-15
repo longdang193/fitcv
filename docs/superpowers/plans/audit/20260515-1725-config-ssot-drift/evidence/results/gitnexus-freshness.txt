@@ -1,0 +1,8 @@
+GitNexus status: stale
+Task tier: exploration
+HEAD: 3045fafd0e14
+Indexed commit: a9f750651eb5
+Indexed at: 05/15/2026 13:43:20
+Recommended action: advisory-only
+Recommendation: GitNexus is stale; it is still acceptable as an advisory lookup layer for exploration.
+Details: Indexed commit does not match HEAD.
