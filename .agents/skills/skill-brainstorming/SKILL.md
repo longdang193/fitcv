@@ -86,11 +86,16 @@ guessing.
 
 ## Minimal Workflow
 
+<MUST-DO>
 1. Use `skill-planning-dispatch` triage (or verify it already exists).
 2. Explore options and tradeoffs.
 3. Recommend a design direction.
-4. Author the required roadmap/workstream/thread/spec/execution-map artifact using the matching canonical template.
-5. Request approval before any implementation planning.
+4. Present brainstorming output first.
+5. Ask user: "Do you want a more detailed report using the brainstorming report template?"
+6. If user says yes, generate report using `brainstorming-detailed-report-template.md` in this skill folder.
+7. Author required roadmap/workstream/thread/spec/execution-map artifact using matching canonical template when requested.
+8. Request approval before any implementation planning.
+</MUST-DO>
 
 ## Output Paths
 
@@ -102,3 +107,4 @@ guessing.
 
 - Keep this skill focused on design decisions.
 - Avoid duplicating lifecycle policy text already defined in templates/validators.
+- Do not auto-generate detailed report unless user explicitly asks for it after brainstorming output.
