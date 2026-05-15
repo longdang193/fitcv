@@ -1,0 +1,13 @@
+Run f840d981-4872-4698-83ef-99facb23c74b
+- Source: data/fitcv_cp_event_history/f840d981-4872-4698-83ef-99facb23c74b.jsonl
+- Capture timestamp: 2026-05-15T10:26:05+02:00
+- Producing command/tool: Get-Content -Tail 20
+- Relevant telemetry excerpt:
+  missing_sections=["Certifications"]
+  validation_keys_present=["deterministic_grounding_violations","grounding_violations","markdown_quality_blocking_issues","markdown_quality_review_flags","missing_sections","semantic_grounding_violations","skill_violations","support_source_summary","valid","warnings"]
+  selected_evidence_count=5
+  validation_status=failed
+
+Interpretation:
+- Repeat run reproduced same structural rejection.
+- Failure fingerprint stable across separate pipeline runs.

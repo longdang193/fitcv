@@ -21,6 +21,10 @@ from typing import Any, TypedDict
 
 from fitcv.candidate import flatten_skills, infer_role_family
 from fitcv.config import CV_SECTION_KEY_TO_NAME, get_required_structured_section_keys
+from fitcv.section_policy import (
+    certification_policy_decisions,
+    is_meaningful_certification_row,
+)
 from fitcv.rule_filter import _canonicalise_skill
 
 # ── constants ─────────────────────────────────────────────────────────────────
@@ -346,11 +350,15 @@ def _structured_section_has_content(section_key: str, section_value: Any) -> boo
             if isinstance(items, list) and any(isinstance(item, str) and item.strip() for item in items):
                 return True
         return False
+    if section_key == "certifications":
+        if not isinstance(section_value, list):
+            return False
+        certification_rows = [row for row in section_value if isinstance(row, dict)]
+        return any(is_meaningful_certification_row(row) for row in certification_rows)
     if section_key in {
         "experience",
         "projects",
         "education",
-        "certifications",
         "publications",
         "languages",
     }:
@@ -380,6 +388,14 @@ def _find_missing_required_structured_sections(
             has_profile_education = bool(list((profile or {}).get("education") or []))
             if not has_profile_education:
                 # Do not hard-fail Education when the candidate profile has no education records.
+                continue
+        if section_key == "certifications":
+            cert_policy = certification_policy_decisions(
+                config=config,
+                profile=profile,
+                evidence_selected_certifications=[],
+            )
+            if not cert_policy.get("required"):
                 continue
         section_value = sections.get(section_key)
         if not _structured_section_has_content(section_key, section_value):
@@ -986,6 +1002,18 @@ def run_all_validations(
     block validity.
     """
     required_sections: list[str] = list(config["required_cv_sections"])
+    cert_policy = certification_policy_decisions(
+        config=config,
+        profile=profile,
+        evidence_selected_certifications=[],
+    )
+    effective_required_sections = list(required_sections)
+    if not cert_policy.get("required"):
+        effective_required_sections = [
+            section
+            for section in effective_required_sections
+            if section.strip().lower() != "certifications"
+        ]
     # Read max_pages: prefer nested cv.validation.max_pages, fall back to flat cv_max_pages
     cv_cfg = config.get("cv") or {}
     max_pages: int = int(
@@ -994,7 +1022,7 @@ def run_all_validations(
     )
 
     # Structural section check
-    section_result = validate_output(cv_text, required_sections)
+    section_result = validate_output(cv_text, effective_required_sections)
     missing_sections = list(section_result["missing_sections"])
     missing_sections.extend(_find_missing_required_structured_sections(structured_cv, config, profile))
     missing_sections = list(dict.fromkeys(missing_sections))
