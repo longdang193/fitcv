@@ -1068,7 +1068,10 @@ def lookup_reusable_structured_jobs(
             f"WHERE job_url IN ({placeholders})"
         )
         reusable_rows: dict[str, dict[str, Any]] = {}
-        with sqlite3.connect(_sqlite_path()) as conn:
+        with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA synchronous=NORMAL;")
+            conn.execute("PRAGMA busy_timeout=30000;")
             _ensure_sqlite_structured_jobs_table(conn)
             for job_url, raw_fingerprint, contract_fingerprint, payload_json in conn.execute(sql, job_urls).fetchall():
                 if not isinstance(job_url, str) or not job_url:
@@ -1593,7 +1596,10 @@ def load_structured_jobs(
         Number of rows upserted.
     """
     if sqlite_mode_enabled(config):
-        with sqlite3.connect(_sqlite_path()) as conn:
+        with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA synchronous=NORMAL;")
+            conn.execute("PRAGMA busy_timeout=30000;")
             _ensure_sqlite_structured_jobs_table(conn)
             rows = []
             for row in enriched:

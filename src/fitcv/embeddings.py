@@ -438,7 +438,10 @@ def embed_and_store_jobs(
                     "embedding_input_signature_payload_json": signature_record["payload_json"],
                 }
             )
-        with sqlite3.connect(_sqlite_path()) as conn:
+        with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA synchronous=NORMAL;")
+            conn.execute("PRAGMA busy_timeout=30000;")
             _ensure_sqlite_embedding_tables(conn)
             conn.executemany(
                 """
@@ -556,7 +559,10 @@ def embed_and_store_candidate(
                     now,
                 )
             )
-        with sqlite3.connect(_sqlite_path()) as conn:
+        with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA synchronous=NORMAL;")
+            conn.execute("PRAGMA busy_timeout=30000;")
             _ensure_sqlite_embedding_tables(conn)
             conn.executemany(
                 """

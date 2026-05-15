@@ -39,6 +39,11 @@ _EVENT_APPEND_RETRY_DELAY_SECONDS = 0.2
 def _local_sqlite_path() -> str:
     return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
 
+def _configure_sqlite_connection(conn: sqlite3.Connection) -> None:
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
+    conn.execute("PRAGMA busy_timeout=30000;")
+
 def _sqlite_mode_enabled() -> bool:
     return str(os.environ.get("FITCV_CP_DATA_BACKEND") or "").strip().lower() == "sqlite"
 
@@ -59,7 +64,6 @@ def _ensure_local_cv_versions_table(conn: sqlite3.Connection) -> None:
         )
         """
     )
-    conn.commit()
 
 def _ensure_local_pipeline_runs_table(conn: sqlite3.Connection) -> None:
     conn.execute(
@@ -71,7 +75,6 @@ def _ensure_local_pipeline_runs_table(conn: sqlite3.Connection) -> None:
         )
         """
     )
-    conn.commit()
 
 def _pipeline_run_to_json(run: PipelineRun) -> str:
     payload = dataclasses.asdict(run)
@@ -153,25 +156,40 @@ def _pipeline_run_from_json(run_json: str) -> Optional[PipelineRun]:
 def _upsert_local_pipeline_run(run: PipelineRun) -> None:
     db_path = Path(_local_sqlite_path())
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(db_path) as conn:
-        _ensure_local_pipeline_runs_table(conn)
-        conn.execute(
-            """
-            INSERT INTO local_pipeline_runs(run_id, run_json, created_at)
-            VALUES (?, ?, ?)
-            ON CONFLICT(run_id) DO UPDATE SET
-              run_json = excluded.run_json,
-              created_at = excluded.created_at
-            """,
-            (run.run_id, _pipeline_run_to_json(run), run.created_at.isoformat()),
-        )
-        conn.commit()
+    last_error: Exception | None = None
+    for attempt in range(_PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS):
+        try:
+            with sqlite3.connect(db_path, timeout=30) as conn:
+                _configure_sqlite_connection(conn)
+                _ensure_local_pipeline_runs_table(conn)
+                conn.execute(
+                    """
+                    INSERT INTO local_pipeline_runs(run_id, run_json, created_at)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(run_id) DO UPDATE SET
+                      run_json = excluded.run_json,
+                      created_at = excluded.created_at
+                    """,
+                    (run.run_id, _pipeline_run_to_json(run), run.created_at.isoformat()),
+                )
+                conn.commit()
+            return
+        except sqlite3.OperationalError as exc:
+            last_error = exc
+            if "disk I/O error" not in str(exc):
+                raise
+            if attempt >= _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS - 1:
+                raise
+            time.sleep(_PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS * (attempt + 1))
+    if last_error is not None:
+        raise last_error
 
 def _load_local_pipeline_run(run_id: str) -> Optional[PipelineRun]:
     db_path = Path(_local_sqlite_path())
     if not db_path.exists():
         return None
-    with sqlite3.connect(db_path) as conn:
+    with sqlite3.connect(db_path, timeout=30) as conn:
+        _configure_sqlite_connection(conn)
         _ensure_local_pipeline_runs_table(conn)
         row = conn.execute(
             "SELECT run_json FROM local_pipeline_runs WHERE run_id = ? LIMIT 1",
@@ -188,7 +206,8 @@ def _list_local_pipeline_runs() -> list[PipelineRun]:
     db_path = Path(_local_sqlite_path())
     if not db_path.exists():
         return []
-    with sqlite3.connect(db_path) as conn:
+    with sqlite3.connect(db_path, timeout=30) as conn:
+        _configure_sqlite_connection(conn)
         _ensure_local_pipeline_runs_table(conn)
         rows = conn.execute(
             "SELECT run_json FROM local_pipeline_runs ORDER BY created_at DESC"
@@ -202,9 +221,11 @@ def _list_local_pipeline_runs() -> list[PipelineRun]:
     return runs
 
 def _local_get_run(run_id: str) -> Optional[PipelineRun]:
-    cached = _LOCAL_RUNS.get(run_id)
-    if cached is not None:
-        return dataclasses.replace(cached)
+    # Always consult sqlite source-of-truth first.
+    #
+    # When `web` and `worker` run in separate processes/containers (common in
+    # docker-compose), relying on in-process cache can cause stale reads for
+    # status/timestamps written by the other process.
     run = _load_local_pipeline_run(run_id)
     return dataclasses.replace(run) if run is not None else None
 
@@ -1213,10 +1234,11 @@ def _row_to_event(row: Any) -> RunEvent:
 
 
 def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> list[dict[str, Any]]:
-    if _sqlite_mode_enabled():
+    if bq is None:
         db_path = Path(_local_sqlite_path())
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(db_path) as conn:
+        with sqlite3.connect(db_path, timeout=30) as conn:
+            _configure_sqlite_connection(conn)
             _ensure_local_cv_versions_table(conn)
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
@@ -1249,9 +1271,6 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
                 row_dict["cv_structured"] = None
             results.append(row_dict)
         return results
-
-    if bq is None:
-        return []
     table = f"{project}.{dataset}.cv_versions"
     sql = f"""
         SELECT
@@ -1317,10 +1336,11 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
 
 
 def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> Optional[str]:
-    if _sqlite_mode_enabled():
+    if bq is None:
         db_path = Path(_local_sqlite_path())
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(db_path) as conn:
+        with sqlite3.connect(db_path, timeout=30) as conn:
+            _configure_sqlite_connection(conn)
             _ensure_local_cv_versions_table(conn)
             row = conn.execute(
                 "SELECT cv_markdown FROM cv_versions WHERE version_id = ? LIMIT 1",
@@ -1329,9 +1349,6 @@ def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> 
         if row is None:
             return None
         return str(row[0] or "")
-
-    if bq is None:
-        return None
     table = f"{project}.{dataset}.cv_versions"
     sql = f"""
         SELECT cv_markdown
@@ -1460,40 +1477,54 @@ def list_filter_results_for_run(
 
 
 def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset: str) -> list[Any]:
-    if _sqlite_mode_enabled():
+    if bq is None:
         db_path = Path(_local_sqlite_path())
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(db_path) as conn:
-            _ensure_local_cv_versions_table(conn)
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO cv_versions (
-                    version_id,
-                    run_id,
-                    job_url,
-                    fit_classification,
-                    generated_at,
-                    cv_generation_model,
-                    cv_prompt_version,
-                    cv_schema_version,
-                    cv_structured_json,
-                    cv_markdown
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    str(row.get("version_id") or ""),
-                    str(row.get("run_id") or ""),
-                    str(row.get("job_url") or ""),
-                    str(row.get("fit_classification") or ""),
-                    str(row.get("generated_at") or ""),
-                    str(row.get("cv_generation_model") or ""),
-                    str(row.get("cv_prompt_version") or ""),
-                    str(row.get("cv_schema_version") or ""),
-                    str(row.get("cv_structured_json") or ""),
-                    str(row.get("cv_markdown") or ""),
-                ),
-            )
-            conn.commit()
+        last_error: Exception | None = None
+        for attempt in range(_PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS):
+            try:
+                with sqlite3.connect(db_path, timeout=30) as conn:
+                    _configure_sqlite_connection(conn)
+                    _ensure_local_cv_versions_table(conn)
+                    conn.execute(
+                        """
+                        INSERT OR REPLACE INTO cv_versions (
+                            version_id,
+                            run_id,
+                            job_url,
+                            fit_classification,
+                            generated_at,
+                            cv_generation_model,
+                            cv_prompt_version,
+                            cv_schema_version,
+                            cv_structured_json,
+                            cv_markdown
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            str(row.get("version_id") or ""),
+                            str(row.get("run_id") or ""),
+                            str(row.get("job_url") or ""),
+                            str(row.get("fit_classification") or ""),
+                            str(row.get("generated_at") or ""),
+                            str(row.get("cv_generation_model") or ""),
+                            str(row.get("cv_prompt_version") or ""),
+                            str(row.get("cv_schema_version") or ""),
+                            str(row.get("cv_structured_json") or ""),
+                            str(row.get("cv_markdown") or ""),
+                        ),
+                    )
+                    conn.commit()
+                return []
+            except sqlite3.OperationalError as exc:
+                last_error = exc
+                if "disk I/O error" not in str(exc):
+                    raise
+                if attempt >= _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS - 1:
+                    raise
+                time.sleep(_PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS * (attempt + 1))
+        if last_error is not None:
+            raise last_error
         return []
 
     table = f"{project}.{dataset}.cv_versions"
