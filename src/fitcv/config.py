@@ -306,6 +306,23 @@ def _merge_missing_keys(base: dict[str, Any], extra: dict[str, Any]) -> dict[str
             base[key] = value
     return base
 
+def _detect_pipeline_ssot_overlap(
+    env_cfg: dict[str, Any],
+    pipeline_policy_cfg: dict[str, Any],
+) -> list[str]:
+    overlaps: list[str] = []
+    for key in sorted(pipeline_policy_cfg.keys()):
+        if key in env_cfg:
+            overlaps.append(key)
+
+    env_pipeline = env_cfg.get("pipeline")
+    policy_pipeline = pipeline_policy_cfg.get("pipeline")
+    if isinstance(env_pipeline, dict) and isinstance(policy_pipeline, dict):
+        for subkey in sorted(policy_pipeline.keys()):
+            if subkey in env_pipeline:
+                overlaps.append(f"pipeline.{subkey}")
+    return overlaps
+
 
 def _normalize_skill_synonyms(raw_synonyms: Any) -> dict[str, str]:
     if not isinstance(raw_synonyms, dict):
@@ -780,6 +797,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
 
     cfg = _normalize_config_keys(cfg)
     cfg = _apply_infra_env_overrides(cfg)
+    env_cfg_snapshot = dict(cfg)
 
     backend = resolve_data_backend(cfg)
     required_keys = _REQUIRED_KEYS if backend == "bigquery" else []
@@ -790,14 +808,24 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
         )
 
     loaded_policy_paths: dict[str, Path] = {}
+    pipeline_policy_snapshot: dict[str, Any] = {}
 
     # Merge policy YAML files — later files add keys; .env.yaml keys take priority
     for policy_name, rel_paths in _POLICY_FILE_CANDIDATES:
         policy, resolved_policy_path = _load_policy_file(config_dir, rel_paths)
+        if policy_name == "pipeline":
+            pipeline_policy_snapshot = dict(policy)
         loaded_policy_paths[policy_name] = resolved_policy_path
         for key, value in policy.items():
             if key not in cfg:  # never overwrite .env.yaml values
                 cfg[key] = value
+
+    overlaps = _detect_pipeline_ssot_overlap(env_cfg_snapshot, pipeline_policy_snapshot)
+    if overlaps:
+        logger.warning(
+            "Config SSOT overlap detected between env config and runtime/pipeline policy: %s",
+            ", ".join(overlaps),
+        )
     cfg = _apply_prompt_defaults(cfg)
 
     base_skill_synonyms = _normalize_skill_synonyms(cfg.get("skill_synonyms"))

@@ -46,9 +46,14 @@ pip install -r requirements.txt
 
 ## 3) Runtime Config Contract (Single Source Of Truth)
 
-Canonical runtime config file:
+Canonical config ownership:
 
 - `config/env.yaml`
+  - base runtime entry config for control-plane runs
+  - infra/environment keys and local candidate-profile path
+- `config/runtime/pipeline.yaml`
+  - canonical owner for pipeline/ranking/retrieval model+limit knobs
+  - stage behavior defaults used by `src/fitcv/*` runtime modules
 
 Secrets and runtime env vars file:
 
@@ -59,6 +64,8 @@ Notes:
 - Do not depend on `.env.yaml.example`.
 - `.env.yaml` may exist as local override in some setups, but canonical default
   for control-plane runs is `config/env.yaml`.
+- Do not duplicate runtime/pipeline knobs in `config/env.yaml` when they are
+  already owned by `config/runtime/pipeline.yaml`.
 
 Minimum backend env for local SQLite mode:
 
