@@ -1,6 +1,1 @@
-# Execution Context Pack (Mirror)
-
-Mirror of canonical context pack:
-
-- `docs/superpowers/execution_context_packs/cv-generation-selected-evidence-grounding/latest.md`
-
+See canonical: docs/superpowers/execution_context_packs/provider-baseurl-ssot-centralization/latest.md

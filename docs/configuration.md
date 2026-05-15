@@ -62,7 +62,20 @@ Examples:
 ## Backend and Provider Routing
 
 - backend routing: process env `FITCV_CP_DATA_BACKEND` selects backend mode (`sqlite` / `bigquery`) at runtime
-- model/provider routing: resolved from effective run config after settings + overrides composition
+- model/provider routing defaults: canonical owner is `config/runtime/control_plane.yaml`
+  - `control_plane.providers.*.base_url`
+  - `control_plane.providers.*.wire_api`
+  - `control_plane.model_routing.parts.*.provider`
+  - `control_plane.model_routing.parts.*.model`
+- env overrides for LangGraph runtime expectation are optional and override-only:
+  - `FITCV_LANGGRAPH_PROVIDER`
+  - `FITCV_LANGGRAPH_MODEL`
+  - `FITCV_LANGGRAPH_OPENAI_BASE_URL`
+  - `FITCV_LANGGRAPH_WIRE_API`
+- precedence for routing expectation:
+  1. non-empty `FITCV_LANGGRAPH_*` env values (override-only path)
+  2. control-plane defaults from `config/runtime/control_plane.yaml`
+  3. fail fast if required fields remain unresolved
 - provider credentials: read from process env
 
 ## Related Docs
