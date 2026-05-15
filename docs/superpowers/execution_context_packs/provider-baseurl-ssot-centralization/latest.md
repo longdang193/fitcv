@@ -26,6 +26,7 @@
   - Task 3 docs alignment (`docs/configuration.md`, `docs/setup.md`)
   - Task 4 bounded verification + repo hook subset verification
 - **In Progress:** none
+- **In Progress:** none
 - **Deferred / Dropped:** none in-scope
 - **Known divergence from plan (if any):** `tests/test_config.py -k "control_plane or routing"` selector has no matching tests in current suite.
 
@@ -42,12 +43,14 @@
 
 - **Last commands run:**
   - `python -m pytest -q tests/test_fitcv_cp/test_control_plane_config.py`
+  - `python -m pytest -q tests/test_config.py -k "control_plane or routing or legacy or config or path"`
   - `python scripts/hooks/run_validator.py --fast`
   - `python scripts/validate_planning_lifecycle.py --strict`
   - `python scripts/validate_checkpoint_packs.py`
   - `python scripts/validate_repo_contracts.py --fast`
 - **Result summary:**
   - targeted control-plane tests pass (`7 passed`)
+  - `tests/test_config.py` selector passes (`61 passed`)
   - hook subset validation passes
   - strict lifecycle gate returns non-zero due pre-existing global manual thread-linkage warnings
   - checkpoint and repo fast contract checks pass
@@ -57,14 +60,14 @@
 ## 6) Open Blockers / Risks
 
 - Closeout strict gate remains globally noisy due pre-existing deprecated manual thread-linkage warnings.
-- No blocker for bounded implementation correctness.
+- No bounded-scope blocker for implementation correctness.
 
 ## 7) Next Exact Action
 
 - **Action type:** closeout
 - **Target:** plan lane `provider-baseurl-ssot-centralization`
-- **Exact command or edit intent:** close now with recorded strict-gate exception context (pre-existing global warnings).
-- **Why this is next:** all in-scope tasks and verification are complete.
+- **Exact command or edit intent:** proceed to lane closeout/PR orchestration using existing closure evidence.
+- **Why this is next:** all in-scope tasks and bounded verification are complete.
 
 ## 8) Resume Prompt (Copy/Paste)
 
