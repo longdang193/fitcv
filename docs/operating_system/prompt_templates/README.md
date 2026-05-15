@@ -160,6 +160,7 @@ Use in this order:
 - [roadmap-to-workstream-prompt.md](./roadmap-to-workstream-prompt.md)
 - [workstream-to-spec-prompt.md](./workstream-to-spec-prompt.md)
 - [workstream-alignment-review-prompt.md](./workstream-alignment-review-prompt.md)
+- [brainstorming-detailed-report-generation-prompt.md](./brainstorming-detailed-report-generation-prompt.md)
 - [roadmap-gap-prompt.md](./roadmap-gap-prompt.md)
 - [parallel-bounded-change-planning-prompt.md](./parallel-bounded-change-planning-prompt.md)
 - [planning-readiness-gate-prompt.md](./planning-readiness-gate-prompt.md)
