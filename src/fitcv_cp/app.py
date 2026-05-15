@@ -40,6 +40,7 @@ from fitcv.config import (
     load_control_plane_config,
     parse_runtime_synonym_overlay_yaml,
     parse_skill_synonym_overlay_yaml,
+    resolve_langgraph_runtime_expectation,
 )
 from fitcv.prompts import render_prompt
 from fitcv.pipeline import (
@@ -696,12 +697,7 @@ def _apply_trigger_runtime_envelope(
     if candidate_profile_json:
         runtime_inputs["candidate_profile_json"] = candidate_profile_json
     # Capture trigger-time agentic runtime expectation to avoid later interpretation drift.
-    runtime_inputs["agentic_runtime_expectation"] = {
-        "provider": str(os.environ.get("FITCV_LANGGRAPH_PROVIDER", "") or "").strip() or None,
-        "model": str(os.environ.get("FITCV_LANGGRAPH_MODEL", "") or "").strip() or None,
-        "base_url": str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL", "") or "").strip() or None,
-        "wire_api": str(os.environ.get("FITCV_LANGGRAPH_WIRE_API", "") or "").strip() or None,
-    }
+    runtime_inputs["agentic_runtime_expectation"] = resolve_langgraph_runtime_expectation()
     effective_config["trigger_runtime_envelope"] = {
         "jobs_input_source": jobs_input_source,
         "candidate_profile_source": candidate_profile_source,
