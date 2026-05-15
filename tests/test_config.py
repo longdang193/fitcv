@@ -32,14 +32,14 @@ from fitcv.config import (
 
 
 def test_load_config_returns_dict() -> None:
-    cfg = load_config(Path(__file__).parent.parent / ".env.yaml")
+    cfg = load_config(Path(__file__).parent.parent / "config" / "env.yaml")
     assert isinstance(cfg, dict)
     assert "gcp_project" in cfg
     assert "bigquery_dataset" in cfg
 
 
 def test_load_config_has_required_keys() -> None:
-    cfg = load_config(Path(__file__).parent.parent / ".env.yaml")
+    cfg = load_config(Path(__file__).parent.parent / "config" / "env.yaml")
     assert cfg["gcp_project"] == "fitcv-491123"
     assert cfg["bigquery_dataset"] == "fitcv"
     assert "service_account_key" in cfg
