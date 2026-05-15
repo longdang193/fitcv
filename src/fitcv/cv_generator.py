@@ -43,6 +43,10 @@ from fitcv.contracts import (
     STRUCTURED_CV_SCHEMA_VERSION,
 )
 from fitcv.prompts import render_prompt
+from fitcv.section_policy import (
+    certification_evidence_lines,
+    certification_policy_decisions,
+)
 
 # ── template variant map ─────────────────────────────────────────────────────
 # Maps job_family values (populated by enrichment) to styling hints.
@@ -730,7 +734,12 @@ def _build_generation_prompt_context(
     filtered_template = _filter_template_by_enabled_sections(template, enabled_section_names)
     section_evidence_lines: list[str] = []
     if "Certifications" in enabled_section_names:
-        certification_lines = _format_certification_lines(profile)
+        cert_policy = certification_policy_decisions(
+            config=config,
+            profile=profile,
+            evidence_selected_certifications=[],
+        )
+        certification_lines = certification_evidence_lines(cert_policy)
         if certification_lines:
             section_evidence_lines.append(
                 "Use these candidate certifications when filling the Certifications section:\n"

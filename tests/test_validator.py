@@ -725,6 +725,102 @@ def test_run_all_validations_flags_synthetic_education_rows() -> None:
         for message in result["grounding_violations"]
     )
 
+def test_run_all_validations_skips_missing_certifications_when_profile_has_no_meaningful_rows() -> None:
+    profile = {
+        "experiences": [{"role": "Data Analyst", "company": "ACME"}],
+        "projects": [],
+        "skills": ["SQL", "Python"],
+        "certifications": [{"name": "None", "issuer": "None", "year": "None"}],
+    }
+    cv_text = (
+        "# Jane Doe\n"
+        "## Summary\nGrounded summary.\n"
+        "## Skills\nSQL, Python\n"
+        "## Experience\n"
+        "### Data Analyst — ACME (2022–2024)\n"
+        "- Built reporting workflows.\n"
+    )
+    structured_cv = {
+        "sections": {
+            "summary": {"text": "Grounded summary."},
+            "skills": {"groups": [{"label": "Core", "items": ["SQL", "Python"]}]},
+            "experience": [{"role": "Data Analyst", "company": "ACME"}],
+            "certifications": [],
+        }
+    }
+    config = {
+        "cv": {
+            "composition": {
+                "summary": {"enabled": True, "required": True},
+                "skills": {"enabled": True, "required": True},
+                "experience": {"enabled": True, "required": True},
+                "certifications": {"enabled": True, "required": True},
+            },
+            "validation": {"max_pages": 2},
+            "content_rules": {"evidence_grounded_only": True},
+        },
+        "required_cv_sections": ["Summary", "Skills", "Experience", "Certifications"],
+        "cv_max_pages": 2,
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=config,
+        structured_cv=structured_cv,
+    )
+
+    assert "Certifications" not in result["missing_sections"]
+
+
+def test_run_all_validations_flags_missing_certifications_when_profile_has_meaningful_rows() -> None:
+    profile = {
+        "experiences": [{"role": "Data Analyst", "company": "ACME"}],
+        "projects": [],
+        "skills": ["SQL", "Python"],
+        "certifications": [{"name": "Google Data Analytics", "issuer": "Google", "year": "2023"}],
+    }
+    cv_text = (
+        "# Jane Doe\n"
+        "## Summary\nGrounded summary.\n"
+        "## Skills\nSQL, Python\n"
+        "## Experience\n"
+        "### Data Analyst — ACME (2022–2024)\n"
+        "- Built reporting workflows.\n"
+    )
+    structured_cv = {
+        "sections": {
+            "summary": {"text": "Grounded summary."},
+            "skills": {"groups": [{"label": "Core", "items": ["SQL", "Python"]}]},
+            "experience": [{"role": "Data Analyst", "company": "ACME"}],
+            "certifications": [{"name": "None", "issuer": "None", "year": "None"}],
+        }
+    }
+    config = {
+        "cv": {
+            "composition": {
+                "summary": {"enabled": True, "required": True},
+                "skills": {"enabled": True, "required": True},
+                "experience": {"enabled": True, "required": True},
+                "certifications": {"enabled": True, "required": True},
+            },
+            "validation": {"max_pages": 2},
+            "content_rules": {"evidence_grounded_only": True},
+        },
+        "required_cv_sections": ["Summary", "Skills", "Experience", "Certifications"],
+        "cv_max_pages": 2,
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=config,
+        structured_cv=structured_cv,
+    )
+
+    assert "Certifications" in result["missing_sections"]
+
+
 def test_run_all_validations_flags_synthetic_non_education_rows() -> None:
     profile = {
         "experiences": [{"role": "Data Analyst", "company": "ACME"}],

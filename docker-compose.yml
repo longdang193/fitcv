@@ -22,6 +22,7 @@ services:
       - ./config/runtime/control_plane.yaml:/app/config/runtime/control_plane.yaml:ro
       - ${GCP_SA_KEY_PATH:-./fitcv-491123-51c030d71e07.json}:/app/sa_key.json:ro
       - ${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}:/opt/fitcv-langgraph:ro
+      - ./data:/app/data
       - fitcv_uploads:/app/data/uploads
     depends_on: [redis]
 
@@ -43,6 +44,7 @@ services:
       - ./config/runtime/control_plane.yaml:/app/config/runtime/control_plane.yaml:ro
       - ${GCP_SA_KEY_PATH:-./fitcv-491123-51c030d71e07.json}:/app/sa_key.json:ro
       - ${FITCV_LANGGRAPH_REPO_PATH:-../fitcv-langgraph}:/opt/fitcv-langgraph:ro
+      - ./data:/app/data
       - fitcv_uploads:/app/data/uploads
     depends_on: [redis]
 

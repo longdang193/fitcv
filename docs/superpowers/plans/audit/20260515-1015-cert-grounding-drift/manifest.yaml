@@ -1,0 +1,11 @@
+schema_version: 1
+audit_id: 20260515-1015-cert-grounding-drift
+artifacts:
+  - path: evidence/run_89577d8a_validation_excerpt.txt
+    sha256: 908836d132da450debff04bcc416c00171a1537e4fff6495214c30b102108e50
+  - path: evidence/run_f840d981_validation_excerpt.txt
+    sha256: 02bc16d47ed0ead4528d5650da62132b7a0bb95d5dae9d546016774aa835ae57
+  - path: repro/repro_steps.txt
+    sha256: 15633d5702a14fceb539c8dbe1782b0d2b50e0fe7501e43421a3956353e057b7
+repro:
+  - path: repro/repro_steps.txt
