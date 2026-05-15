@@ -112,8 +112,12 @@ def _load_yaml_file(path: Path) -> dict[str, Any]:
     if not path.exists():
         logger.warning("Config file not found (skipping): %s", path)
         return {}
-    with open(path) as f:
-        data = yaml.safe_load(f)
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+    except PermissionError:
+        logger.warning("Config file not readable (skipping): %s", path)
+        return {}
     return data if isinstance(data, dict) else {}
 
 def _iter_nested_mapping_keys(payload: Any) -> list[str]:
@@ -749,8 +753,19 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
             stacklevel=2,
         )
 
-    with open(env_path) as f:
-        cfg: dict[str, Any] = yaml.safe_load(f) or {}
+    try:
+        with open(env_path, encoding="utf-8") as f:
+            cfg: dict[str, Any] = yaml.safe_load(f) or {}
+    except PermissionError:
+        # On some hosts the repo-root `.env.yaml` may exist but be unreadable due to ACLs.
+        # Fall back to legacy `config/env.yaml` when present to keep local tooling/tests usable.
+        fallback_path = Path("config") / "env.yaml"
+        if env_path.name == ".env.yaml" and fallback_path.exists():
+            with open(fallback_path, encoding="utf-8") as f:
+                cfg = yaml.safe_load(f) or {}
+            env_path = fallback_path
+        else:
+            raise
 
     resolved_env_path = env_path.resolve()
     config_dir = _find_config_dir(resolved_env_path)

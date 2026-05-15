@@ -1,0 +1,1 @@
+{"run_id": "2d769998-557e-42f0-a6ac-2e90b74b80e9", "event_id": "062ba176-032b-4bdf-80c5-6266648d4d29", "stage": "pipeline_failed", "level": "error", "message": "disk I/O error", "payload_json": null, "created_at": "2026-05-15T14:42:31.039817+00:00"}

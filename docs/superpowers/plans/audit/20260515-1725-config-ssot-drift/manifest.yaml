@@ -1,0 +1,32 @@
+audit_id: 20260515-1725-config-ssot-drift
+captured_at: 2026-05-15T18:13:43.0516500+02:00
+artifacts:
+  - path: evidence\results\analysis.txt
+    sha256: 90ea3045bd7a8454b5062610c5da761ab8ce15d7a0af4e53cc6b681999f1c421
+  - path: evidence\results\captured_at.txt
+    sha256: d33d71e64ab7c05d756adb123ac903e50ea230293cc45e2cdc9127bf5fe43cc3
+  - path: evidence\results\commit.txt
+    sha256: 8a04d1fb96e0f3933a3b249f90cc36170addb7b73938e0d371c70029e78a0c6e
+  - path: evidence\results\control_plane.yaml.snapshot
+    sha256: 19dc121a5dfdce98f06c68dfd980f2d8c7c925a42a47955bcb48ad731c369a6f
+  - path: evidence\results\env.private.yaml.snapshot
+    sha256: edc42df2ab0991a4168df6ee7dc042dda972909dc8a8674bc614bff2fa4568c0
+  - path: evidence\results\key-overlap-rg.txt
+    sha256: 62e0ad77910ccd2cfa6e48a9a8fe8b4ba80c7e9f0b1fc6bdaa99a3daa26cce80
+  - path: evidence\results\pipeline.yaml.snapshot
+    sha256: 2ecb631f467918c440f245e714c47834e169020c0ee7f80f54ddd44604191184
+files:
+  - path: evidence\results\analysis.txt
+    sha256: 90ea3045bd7a8454b5062610c5da761ab8ce15d7a0af4e53cc6b681999f1c421
+  - path: evidence\results\captured_at.txt
+    sha256: d33d71e64ab7c05d756adb123ac903e50ea230293cc45e2cdc9127bf5fe43cc3
+  - path: evidence\results\commit.txt
+    sha256: 8a04d1fb96e0f3933a3b249f90cc36170addb7b73938e0d371c70029e78a0c6e
+  - path: evidence\results\control_plane.yaml.snapshot
+    sha256: 19dc121a5dfdce98f06c68dfd980f2d8c7c925a42a47955bcb48ad731c369a6f
+  - path: evidence\results\env.private.yaml.snapshot
+    sha256: edc42df2ab0991a4168df6ee7dc042dda972909dc8a8674bc614bff2fa4568c0
+  - path: evidence\results\key-overlap-rg.txt
+    sha256: 62e0ad77910ccd2cfa6e48a9a8fe8b4ba80c7e9f0b1fc6bdaa99a3daa26cce80
+  - path: evidence\results\pipeline.yaml.snapshot
+    sha256: 2ecb631f467918c440f245e714c47834e169020c0ee7f80f54ddd44604191184

@@ -1,0 +1,20 @@
+config/env.private.yaml:4:embedding_model: "text-embedding-005"
+config/env.private.yaml:5:gemini_model: "gemini-2.5-flash"
+config/env.private.yaml:8:enrichment_sleep_secs: 3
+config/env.private.yaml:11:vector_top_n: 50
+config/env.private.yaml:13:retrieval_strategy: "job_summary_v1"
+config/env.private.yaml:21:pipeline:
+config/env.private.yaml:22:  vector_search_top_n: 50
+config/env.private.yaml:23:  ai_score_top_n: 50
+config/env.private.yaml:24:  final_top_n: 10
+config/env.private.yaml:25:  evidence_top_k: 5
+config/runtime/pipeline.yaml:19:gemini_model: gemini-2.5-flash         # used by enrich.py and ai_score.py
+config/runtime/pipeline.yaml:20:embedding_model: text-embedding-005    # used by embeddings.py
+config/runtime/pipeline.yaml:24:enrichment_sleep_secs: 1.0             # sleep between Gemini calls (free-tier: 1 req/s)
+config/runtime/pipeline.yaml:30:pipeline:
+config/runtime/pipeline.yaml:31:  vector_search_top_n: 50              # canonical shortlist top-N for vector search
+config/runtime/pipeline.yaml:32:  ai_score_top_n: 50                   # canonical ranking top-N for AI scoring
+config/runtime/pipeline.yaml:33:  final_top_n: 10                      # canonical final ranked list size
+config/runtime/pipeline.yaml:34:  evidence_top_k: 5                    # canonical cv_analysis evidence bundle size
+config/runtime/pipeline.yaml:42:vector_top_n: 50                       # top-N returned by VECTOR_SEARCH
+config/runtime/pipeline.yaml:44:retrieval_strategy: job_summary_v1     # stored in vector_shortlist.retrieval_strategy

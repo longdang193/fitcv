@@ -74,17 +74,17 @@ Get-Content -Path "data/fitcv_cp_event_history/f840d981-4872-4698-83ef-99facb23c
 - Verification commands and outcomes:
 
 ```powershell
-python -m pytest tests/test_cv_generator.py -k "certification or grounding_policy or section"   # 12 passed
-python -m pytest tests/test_validator.py -k "certification or required_structured_sections or meaningful"   # 2 passed
-python -m pytest tests/test_pipeline_agentic_late_stage.py -k "certification or validation_failed or review_required"   # 2 passed
+python -m pytest tests/test_cv_generator.py -k "certification or grounding_policy or section"   # ERROR (WinError 5 PermissionError: tmp_path basetemp under user Temp denied on this host)
+python -m pytest tests/test_validator.py -k "certification or required_structured_sections or meaningful"   # passed (2 selected)
+python -m pytest tests/test_pipeline_agentic_late_stage.py -k "certification or validation_failed or review_required"   # passed (2 selected)
 python scripts/validate_repo_contracts.py --fast   # passed
-python scripts/audit_check.py docs/superpowers/plans/audit/20260515-1015-cert-grounding-drift
+python scripts/audit_check.py docs/superpowers/plans/audit/20260515-1015-cert-grounding-drift   # AUDIT_CHECK_PASSED
 ```
 
 - Verification evidence links:
   - `tests/test_validator.py` regression coverage confirms `missing_sections=["Certifications"]` is only emitted when shared policy marks Certifications required for meaningful rows.
   - `src/fitcv/validator.py` (`run_all_validations`) now computes effective required sections using `certification_policy_decisions(...)` before markdown-structure validation.
-  - Focused late-stage and validator/generator subsets pass with no unrelated validator-family regressions.
+  - Focused late-stage + validator subsets pass with no unrelated validator-family regressions; `tests/test_cv_generator.py` subset is currently blocked by OS temp-directory ACLs on this Windows host (WinError 5).
 
 ## Risk And Disposition
 

@@ -23,7 +23,7 @@ import os
 import uuid
 import zipfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, TypedDict
 from urllib.parse import urlencode
 
 import httpx
@@ -87,6 +87,42 @@ ORCHESTRATION_ADAPTER = get_orchestration_adapter()
 _RUN_SUBMISSION_CACHE: dict[str, RunSubmission] = {}
 _CP_STORE: ControlPlaneStore | None = None
 logger = logging.getLogger(__name__)
+
+
+class OutputAvailability(TypedDict):
+    generated_count: int
+    version_row_count: int
+    downloadable_count: int
+    state: Literal["available", "not_ready", "none_generated", "mismatch"]
+
+
+def _build_output_availability(
+    run: PipelineRun,
+    cv_versions: list[dict[str, Any]],
+) -> OutputAvailability:
+    generated_count = int(run.cvs_generated or 0)
+    version_row_count = len(cv_versions)
+    downloadable_count = sum(
+        1
+        for row in cv_versions
+        if isinstance(row, dict) and str(row.get("version_id") or "").strip()
+    )
+
+    if downloadable_count > 0:
+        state: Literal["available", "not_ready", "none_generated", "mismatch"] = "available"
+    elif run.status != RunStatus.SUCCEEDED:
+        state = "not_ready"
+    elif generated_count > 0:
+        state = "mismatch"
+    else:
+        state = "none_generated"
+
+    return {
+        "generated_count": generated_count,
+        "version_row_count": version_row_count,
+        "downloadable_count": downloadable_count,
+        "state": state,
+    }
 
 
 def get_run(run_id: str, bq: Any, *, project: str, dataset: str) -> PipelineRun | None:
@@ -6224,6 +6260,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 }
             )
         cv_versions = list_cvs_for_run(run_id, bq, project=project, dataset=dataset)
+        output_availability = _build_output_availability(run, cv_versions)
         results_rows = _results_export_rows(run)
         ranked_cv_outcome_summary = _build_ranked_cv_outcome_summary(results_rows)
         reranker_blocked_ranked_count = sum(
@@ -6258,6 +6295,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "timeline_has_more": len(events) > timeline_limit,
                 "timeline_next_limit": min(timeline_limit + 25, 200),
                 "cv_versions": cv_versions,
+                "output_availability": output_availability,
                 "stage_quality_metrics": stage_quality_metrics,
                 "stage_quality_metric_rows": stage_quality_metric_rows,
                 "late_stage_reuse_metrics": late_stage_reuse_metrics,
