@@ -773,7 +773,7 @@ def test_run_all_validations_skips_missing_certifications_when_profile_has_no_me
     assert "Certifications" not in result["missing_sections"]
 
 
-def test_run_all_validations_flags_missing_certifications_when_profile_has_meaningful_rows() -> None:
+def test_run_all_validations_skips_missing_certifications_when_profile_has_meaningful_rows_but_no_selected_evidence() -> None:
     profile = {
         "experiences": [{"role": "Data Analyst", "company": "ACME"}],
         "projects": [],
@@ -818,7 +818,7 @@ def test_run_all_validations_flags_missing_certifications_when_profile_has_meani
         structured_cv=structured_cv,
     )
 
-    assert "Certifications" in result["missing_sections"]
+    assert "Certifications" not in result["missing_sections"]
 
 
 def test_run_all_validations_flags_synthetic_non_education_rows() -> None:

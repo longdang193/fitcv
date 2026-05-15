@@ -47,6 +47,7 @@ from fitcv.section_policy import (
     certification_evidence_lines,
     certification_policy_decisions,
 )
+from fitcv.rule_filter import _canonicalise_skill
 
 # ── template variant map ─────────────────────────────────────────────────────
 # Maps job_family values (populated by enrichment) to styling hints.
@@ -591,6 +592,20 @@ def _build_generation_prompt_context(
     candidate_name = _resolved_candidate_profile_name(profile)
 
     enabled_section_names = _get_enabled_section_names(config)
+
+    allowed_skill_set: set[str] = set()
+    for item in evidence:
+        for raw_skill in item.get("skills") or []:
+            text = str(raw_skill or "").strip()
+            if not text:
+                continue
+            allowed_skill_set.add(_canonicalise_skill(text, config or {}))
+    allowed_skills = sorted(skill for skill in allowed_skill_set if skill)
+
+    allowed_certifications: list[str] = []
+    if "Certifications" in enabled_section_names and not allowed_certifications:
+        enabled_section_names = [name for name in enabled_section_names if name != "Certifications"]
+
     evidence_lines = _build_selected_evidence_lines(
         evidence,
         jd_skills=required_skills,
@@ -625,7 +640,6 @@ def _build_generation_prompt_context(
             constraint_lines.append(
                 "Do not output placeholder names such as Candidate Name, [Candidate Name], Your Name, or [Your Name]."
             )
-        approved_skills = flatten_skills(profile)
         known_employers = [
             str(exp.get("company") or "")
             for exp in (profile.get("experiences") or [])
@@ -646,10 +660,12 @@ def _build_generation_prompt_context(
                 "Do not invent project names. Only use project names from the candidate profile: "
                 + ", ".join(known_projects)
             )
-        if approved_skills:
+        if allowed_skills:
             constraint_lines.append(
-                "In the Skills section, only use skills from this approved list: "
-                + ", ".join(approved_skills)
+                "Allowed Skills (selected-evidence only): " + ", ".join(allowed_skills)
+            )
+            constraint_lines.append(
+                "In the Skills section, list only skills from Allowed Skills. Do not add profile-only skills."
             )
     if enabled_section_names:
         constraint_lines.append(
@@ -791,6 +807,8 @@ def _build_generation_prompt_context(
         "evidence_usage_guidance": evidence_usage_guidance,
         "analysis_summary": analysis_summary,
         "constraints": constraints,
+        "allowed_skills": ", ".join(allowed_skills) or "(none)",
+        "allowed_certifications": ", ".join(allowed_certifications) or "(none)",
         "section_evidence": section_evidence,
         "output_template": filtered_template,
     }

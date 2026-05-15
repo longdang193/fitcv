@@ -38,6 +38,24 @@ from fitcv.cv_generator import (
 
 # ── build_generation_prompt ───────────────────────────────────────────────────
 
+def test_build_structured_generation_prompt_includes_allow_lists() -> None:
+    prompt = build_structured_generation_prompt(
+        jd={"title": "Data Engineer", "required_skills": ["SQL"]},
+        evidence=[{"name": "GA4 Project", "skills": ["SQL", "Power BI"]}],
+        gap={"matched": ["SQL"], "missing": []},
+        template="",
+        profile={
+            "skills": [{"name": "SQL"}, {"name": "Power BI"}, {"name": "Observability"}],
+            "experiences": [],
+            "projects": [],
+        },
+        config={},
+    )
+    assert "Allowed Skills (selected-evidence only)" in prompt
+    assert "sql" in prompt.lower()
+    assert "power bi" in prompt.lower()
+    assert "observability" not in prompt.lower()
+
 def test_build_generation_prompt_contains_evidence() -> None:
     prompt = build_generation_prompt(
         jd={"title": "Data Engineer", "required_skills": ["SQL"]},
@@ -127,8 +145,10 @@ def test_build_generation_prompt_restricts_skills_section_to_candidate_skill_whi
             "projects": [],
         },
     )
-    assert "In the Skills section, only use skills from this approved list" in prompt
-    assert "SQL, Python" in prompt
+    assert "Allowed Skills (selected-evidence only):" in prompt
+    assert "SQL" in prompt
+    assert "Python" not in prompt
+    assert "Do not add profile-only skills" in prompt
 
 
 def test_build_generation_prompt_includes_grouped_experience_blocks() -> None:
@@ -1044,12 +1064,11 @@ def test_build_generation_prompt_requires_enabled_sections_and_filters_template(
         template=template,
         config=config,
     )
-    assert "The generated CV MUST include these sections in this order: Summary, Experience, Certifications, Projects, Languages" in prompt
+    assert "The generated CV MUST include these sections in this order: Summary, Experience, Projects, Languages" in prompt
     assert "Use markdown headings exactly: '# {Candidate Name}', optional one-line subtitle, then each required section as '## Section'." in prompt
     assert "Use '- ' as the only bullet marker and keep exactly one blank line between top-level sections." in prompt
     assert "## Summary" in prompt
     assert "## Experience" in prompt
-    assert "## Certifications" in prompt
     assert "## Projects" in prompt
     assert "## Languages" in prompt
     assert "## Education" not in prompt
@@ -1082,8 +1101,8 @@ def test_build_generation_prompt_includes_certification_and_language_evidence() 
         profile=profile,
         config=config,
     )
-    assert "Use these candidate certifications when filling the Certifications section" in prompt
-    assert "Google Professional Data Engineer — Google Cloud (2023)" in prompt
+    assert "Use these candidate certifications when filling the Certifications section" not in prompt
+    assert "Google Professional Data Engineer" not in prompt
     assert "Use these candidate languages when filling the Languages section" in prompt
     assert "English (read: C2, write: C2, speak: C2)" in prompt
 

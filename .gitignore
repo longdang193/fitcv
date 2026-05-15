@@ -23,3 +23,7 @@ data/uploads/
 .env.*
 *.private.*
 *.local.*
+
+# SQLite WAL/SHM sidecars (created when WAL enabled)
+*.sqlite3-wal
+*.sqlite3-shm

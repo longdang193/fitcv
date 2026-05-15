@@ -98,8 +98,11 @@ def certification_policy_decisions(
     evidence_rows = [row for row in (evidence_selected_certifications or []) if isinstance(row, dict)]
     meaningful_evidence_rows = meaningful_certification_rows(evidence_rows)
 
-    admissible_rows = meaningful_evidence_rows or meaningful_profile_rows
-    admissible_via = "evidence" if meaningful_evidence_rows else ("profile_fallback" if meaningful_profile_rows else "none")
+    # Selected-evidence grounding contract:
+    # certifications are admissible only when they are explicitly present in
+    # selected evidence. Profile-only certifications are treated as unsupported.
+    admissible_rows = meaningful_evidence_rows
+    admissible_via = "evidence" if meaningful_evidence_rows else "none"
 
     required = bool(enabled and admissible_rows)
 

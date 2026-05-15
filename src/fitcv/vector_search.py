@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import sqlite3
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -41,6 +42,13 @@ logger = logging.getLogger(__name__)
 
 def _sqlite_path() -> str:
     return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+
+
+def _configure_sqlite_connection(conn: sqlite3.Connection) -> None:
+    # Reduce transient sqlite failures on Docker Desktop Windows bind mounts.
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
+    conn.execute("PRAGMA busy_timeout=30000;")
 
 
 def _ensure_sqlite_vector_tables(conn: sqlite3.Connection) -> None:
@@ -381,7 +389,8 @@ def resolve_candidate_query_embedding(
     contract_record = build_candidate_query_embedding_contract_fingerprint(config)
     sqlite_mode = sqlite_mode_enabled(config)
     if sqlite_mode:
-        with sqlite3.connect(_sqlite_path()) as conn:
+        with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
+            _configure_sqlite_connection(conn)
             _ensure_sqlite_vector_tables(conn)
             row = conn.execute(
                 """
@@ -627,7 +636,8 @@ def run_vector_search(
         candidate_embedding = list(candidate_query_record.get("embedding") or [])
         placeholders = ",".join(["?"] * len(passed_job_urls))
         rows: list[tuple[Any, ...]] = []
-        with sqlite3.connect(_sqlite_path()) as conn:
+        with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
+            _configure_sqlite_connection(conn)
             query = f"""
             SELECT je.job_url, je.embedding_json
             FROM job_embeddings je
@@ -737,25 +747,39 @@ def store_shortlist(
     if sqlite_mode_enabled(config):
         effective_strategy = retrieval_strategy or str(config.get("retrieval_strategy", "job_summary_v1"))
         now = datetime.now(tz=timezone.utc).isoformat()
-        with sqlite3.connect(_sqlite_path()) as conn:
-            _ensure_sqlite_vector_tables(conn)
-            conn.executemany(
-                """
-                INSERT INTO vector_shortlist(job_url, vector_rank, vector_similarity, retrieval_strategy, retrieved_at)
-                VALUES (?, ?, ?, ?, ?)
-                """,
-                [
-                    (
-                        str(item["job_url"]),
-                        int(item["vector_rank"]),
-                        float(item["vector_similarity"]),
-                        effective_strategy,
-                        now,
+        last_error: Exception | None = None
+        for attempt in range(3):
+            try:
+                with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
+                    _configure_sqlite_connection(conn)
+                    _ensure_sqlite_vector_tables(conn)
+                    conn.executemany(
+                        """
+                        INSERT INTO vector_shortlist(job_url, vector_rank, vector_similarity, retrieval_strategy, retrieved_at)
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        [
+                            (
+                                str(item["job_url"]),
+                                int(item["vector_rank"]),
+                                float(item["vector_similarity"]),
+                                effective_strategy,
+                                now,
+                            )
+                            for item in shortlist
+                        ],
                     )
-                    for item in shortlist
-                ],
-            )
-            conn.commit()
+                    conn.commit()
+                return
+            except sqlite3.OperationalError as exc:
+                last_error = exc
+                if "disk I/O error" not in str(exc):
+                    raise
+                if attempt >= 2:
+                    raise
+                time.sleep(0.5 * (attempt + 1))
+        if last_error is not None:
+            raise last_error
         return
 
     effective_strategy = retrieval_strategy or str(config.get("retrieval_strategy", "job_summary_v1"))
