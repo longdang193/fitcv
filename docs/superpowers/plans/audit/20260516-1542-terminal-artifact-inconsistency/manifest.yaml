@@ -1,0 +1,279 @@
+audit_id: 20260516-1542-terminal-artifact-inconsistency
+created_at: 2026-05-16T16:12:03.5849265+02:00
+artifacts:
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6.endpoint_probe.json
+    sha256: 48606a00d8ae57c0a05ce5d896e4d7509231ce4adbe74cbb463ac5444a45992d
+    size_bytes: 1316
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6.run_status.json
+    sha256: c8bc479449d7bcaf5ccda6fdf815f4b41480a34cd12ba3bd6697956af9d5fae3
+    size_bytes: 908
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/agentic-live-trace.json
+    sha256: 05bc341082d9a318505adca58aa85a0f42c3d470855c27f68c782e3bab8a7b51
+    size_bytes: 591
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/cv_1d495a47-fb55-40e2-8215-f9c7ea4d87bb.md
+    sha256: 11c19705615314afafc66e663c663da10641179e96f76a49fe76e16ae42d4108
+    size_bytes: 2597
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/cv_27e6da8a-589d-4b36-9157-5a962abfc2ed.md
+    sha256: ea8bd5eb4d49239cf7f624680813df22efe86f82f2a9cc8ca9d448049c9a88b3
+    size_bytes: 3114
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/cv_analysis.json
+    sha256: 32ba936e0bdd5260b496bed59f32fb9ae4ba1c7aae99cdeade741705b6bc88f3
+    size_bytes: 48136
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/cv_c290ce67-5f2c-45ba-a65e-cade806bab11.md
+    sha256: 054ff7979c3a36c504c104d1aa0195a7a16a96bdea068d5ef2244a1fccd1db8f
+    size_bytes: 3401
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/cv_generation.json
+    sha256: fb45c441772e11648b7e5448a2a3a685678f1be527b8b9f69ce34017d7799af3
+    size_bytes: 1101
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/cv-analysis-trace.json
+    sha256: f5a4f7c1f8e0a88699a8499de9ccc116469b7ed7dbf91cf72fc8587beaf60657
+    size_bytes: 587
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/cv-debug.json
+    sha256: 64c10e1766ff5efc24caad659c989ee538de5d1f6ab66c3b599aa385556cac35
+    size_bytes: 99748
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/cv-generation-review-required.json
+    sha256: b35df865934844ba762fb396fbfcd6e8e969d506a05005caccb9d19c44235d86
+    size_bytes: 3045
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/enrich.json
+    sha256: 5a428216d10b3be5d32c2847a27d45d70a8e81eb22364ec8e2ea7551881971b4
+    size_bytes: 37124
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/hitl-review-audit.json
+    sha256: 18fd10045be727a868179d3d86fa52c28629c46eebee9c9aedbdcfe89e8ae3eb
+    size_bytes: 10997
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/manifest.json
+    sha256: a1939002e465e6184203ee122a003aa4b85e1d4a7640a7fd3db2346055163ac7
+    size_bytes: 2076
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/mapping-suggestions.json
+    sha256: 762df7bb0fcc05f5e625fd60d0076fff624498f20febe54c5e600c22a86a5c42
+    size_bytes: 4448
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/normalize.json
+    sha256: 0532ec6f49b9346972607f9b8777bad7f0d8fe8753df9a750160ec48e7487220
+    size_bytes: 5207
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/ranking.json
+    sha256: 168a24a9884f098d7386e2d7cb5a6504db227ef2dba4cb1f97cadca834d584a9
+    size_bytes: 27353
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/rule_filter.json
+    sha256: 48d774806598203d263a9ea0803c0c9dc72b6c5c20493bfea1ad8490caea1fdf
+    size_bytes: 53141
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/shortlist.json
+    sha256: 50fd24c3c9b6d507de7826e90a5a171c28d40b757bd49ca07349ede03718f3f3
+    size_bytes: 26463
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/stage-artifacts.json
+    sha256: 821988ff7baf0b01587fd9387b967691680042095f0b379e77da335cdbaca575
+    size_bytes: 219662
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/synonym-proposals-trace.json
+    sha256: 5b3d2c099b59bc841670baa4d567f85ae49aafe05da3fa928192879cd8739b6a
+    size_bytes: 8331
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/synonym-proposals.json
+    sha256: e801ac82d0edf6e62c61a07021ae04f4b2394a0dd857e6f247529d32b2c26251
+    size_bytes: 19558
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts_unzipped/synonym-suppression-diff.json
+    sha256: 37eece59520f15bda11b4e7e58f7737f4cb8cbca43a6d765de0ce2410661253c
+    size_bytes: 1547
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/artifacts.zip
+    sha256: e87514473fe2670c41ec740f9b54b1ec8c646a725dcb394d7562c0c4bff07a07
+    size_bytes: 77485
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/cv-debug.json
+    sha256: 64c10e1766ff5efc24caad659c989ee538de5d1f6ab66c3b599aa385556cac35
+    size_bytes: 99748
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/events.json
+    sha256: 3e59e907619d51fa40fb369a091f156fd3941e863a3e726524061b3122d6726f
+    size_bytes: 23331
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/mapping-suggestions.json
+    sha256: 762df7bb0fcc05f5e625fd60d0076fff624498f20febe54c5e600c22a86a5c42
+    size_bytes: 4448
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/run_detail.json
+    sha256: 63e954854acaf71becfb97aab2da1e8fa41f66935e33e585c0989f36df6037d6
+    size_bytes: 103920
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/stage-artifacts.json
+    sha256: 821988ff7baf0b01587fd9387b967691680042095f0b379e77da335cdbaca575
+    size_bytes: 219662
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/synonym-proposals-trace.json
+    sha256: 5b3d2c099b59bc841670baa4d567f85ae49aafe05da3fa928192879cd8739b6a
+    size_bytes: 8331
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/57aac5b2-9f13-4991-b0f2-92d98c3d4ae6/synonym-proposals.json
+    sha256: e801ac82d0edf6e62c61a07021ae04f4b2394a0dd857e6f247529d32b2c26251
+    size_bytes: 19558
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/87050a4b-e274-4c49-8406-748894f44728.endpoint_probe.json
+    sha256: 38f6a709566ece0b4c5ed088f7c1917b8bc426f855c3bb87e5e9e191015e623c
+    size_bytes: 1316
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/87050a4b-e274-4c49-8406-748894f44728.run_status.json
+    sha256: 0a122b911c89621df69e994055a152b7c0d1d592140bbe2959f7f29ce6b4b175
+    size_bytes: 894
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/87050a4b-e274-4c49-8406-748894f44728/cv-debug.json
+    sha256: d8affa4f0bda18483005d6a6084b314815b04fb99aeb08436939996f40d9d27f
+    size_bytes: 89788
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/87050a4b-e274-4c49-8406-748894f44728/mapping-suggestions.json
+    sha256: 7e236247302c0508ac1008cef6b73beb558e938d350dee761fa6c6f6b9449229
+    size_bytes: 4448
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/87050a4b-e274-4c49-8406-748894f44728/stage-artifacts.json
+    sha256: 6937c362c2f691c5689f7cf6a64dcc226fc4e2559f321d471f83f0815d020c22
+    size_bytes: 219662
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/87050a4b-e274-4c49-8406-748894f44728/synonym-proposals-trace.json
+    sha256: 959c1f3c2aaaf81da4d7c49a65b5393fcdf200eae18d2542a33b8fe90050a217
+    size_bytes: 8331
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/87050a4b-e274-4c49-8406-748894f44728/synonym-proposals.json
+    sha256: 68ceecd9eeb3a789f5088572dd973052404adbefa6c59f558de97d880c0c27a8
+    size_bytes: 19558
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/post_fix/live_rerun_blocked/container_app_listing.txt
+    sha256: f636e44cc9471cca668d06f7c3787df26783fe9cf2ed9efad1f3052c45269d93
+    size_bytes: 559
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/post_fix/live_rerun_blocked/container_config_inventory.txt
+    sha256: fb23695dd1dd94f565e3dbbb23f66fd6c831b7088e26db119c4cda271bd3cba0
+    size_bytes: 427
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/post_fix/live_rerun_blocked/trigger_attempt_dot_env_yaml.json
+    sha256: 9a5217825fede635ac5091f433f224f18026386a8b39a0a5864838e77d7d1723
+    size_bytes: 90
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/post_fix/live_rerun_blocked/trigger_attempt_env_yaml.json
+    sha256: 79546ceb9053364bdb025808706d61bbfcf7397e3dbec1a333ad7d36ef160691
+    size_bytes: 96
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/post_fix/live_rerun_blocked/web_logs_since_10m.log
+    sha256: 732775fc48ed4a3ea1a3d3c26aa5e5f4d3e1265d6c4b4a5c817e667597291e68
+    size_bytes: 24336
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/post_fix/pytest_full_target_suite.txt
+    sha256: 7011bb84e27f1473ba8a92ab8df1bb18295346618094c74ff83ceb447ff6b0c1
+    size_bytes: 1809
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/post_fix/pytest_worker_fix_targeted.txt
+    sha256: ec902a752cc917fcd97cdeb07f4526fe14504d7263ef47e695f6126b4244cc5b
+    size_bytes: 115
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: repro/repro_commands.ps1.txt
+    sha256: 4268e61151c1040855a14eb0dafc88444e38dbf48f4a9861aa935cab5e2b3866
+    size_bytes: 954
+    captured_at: 2026-05-16T16:12:03.5849265+02:00
+  - path: evidence/post_fix/live_rerun_patched/trigger_response.json
+    sha256: 4aad7725392a21f63566ac9b4a321acdf682d51bdeb06e9e9fdf8ccbdcf35dea
+    size_bytes: 58
+    captured_at: 2026-05-16T16:24:00.1633532+02:00
+  - path: evidence/post_fix/live_rerun_patched/run_final.json
+    sha256: 54c211b318e9d37e5d267d5c0cb5e26a52e02c1a8333d120c0f0dbe6d061bc0d
+    size_bytes: 886
+    captured_at: 2026-05-16T16:24:00.1633532+02:00
+  - path: evidence/post_fix/live_rerun_patched/run_final_after_continue.json
+    sha256: 54c211b318e9d37e5d267d5c0cb5e26a52e02c1a8333d120c0f0dbe6d061bc0d
+    size_bytes: 886
+    captured_at: 2026-05-16T16:24:00.1633532+02:00
+  - path: evidence/post_fix/live_rerun_patched/admin_runs_a9bdad07-bd8b-4b41-8f3e-9a67ff58d4b1_stage-artifacts.json.json
+    sha256: 5223b26c7f32ee689310b03a5626f9b34e1a31723bef5ee3df825da8a82f39c4
+    size_bytes: 267721
+    captured_at: 2026-05-16T16:24:00.1633532+02:00
+  - path: evidence/post_fix/live_rerun_patched/admin_runs_a9bdad07-bd8b-4b41-8f3e-9a67ff58d4b1_stage-artifacts.after_continue.json
+    sha256: 5223b26c7f32ee689310b03a5626f9b34e1a31723bef5ee3df825da8a82f39c4
+    size_bytes: 267721
+    captured_at: 2026-05-16T16:24:00.1633532+02:00
+  - path: evidence/post_fix/live_rerun_patched/web_logs_since_15m.log
+    sha256: 8b57380dfb129a1adcc4304d17eba69b9b495c55b2b204d9adf68fa6973da35f
+    size_bytes: 14103
+    captured_at: 2026-05-16T16:24:00.1633532+02:00
+  - path: evidence/post_fix/live_rerun_patched_after_status_fix/trigger_response.json
+    sha256: 16c18bd6e23f13238e38668491e21edf54c8fe42ffd74c09a5bd39b7fea4b201
+    size_bytes: 58
+    captured_at: 2026-05-16T16:31:28.3690254+02:00
+  - path: evidence/post_fix/live_rerun_patched_after_status_fix/run_final.json
+    sha256: aa82fa52daf171c91c83b2273a7d70975b675b25ead01682477a1d8b28087c3a
+    size_bytes: 897
+    captured_at: 2026-05-16T16:31:28.3690254+02:00
+  - path: evidence/post_fix/live_rerun_patched_after_status_fix/stage-artifacts.json
+    sha256: 976cd5fda51cce7d650b1907995b28b59e19daaab8d0b35218dde46a6a72d0e0
+    size_bytes: 224794
+    captured_at: 2026-05-16T16:31:28.3690254+02:00
+  - path: evidence/post_fix/live_rerun_patched_after_status_fix/stage-artifacts.after_settle.json
+    sha256: 01761d1c4b062d7f52082bd124f0f48b4d7fd1c43d9b03ce85e2231169431501
+    size_bytes: 301619
+    captured_at: 2026-05-16T16:31:28.3690254+02:00
+  - path: evidence/post_fix/live_rerun_patched_after_status_fix/settings-used.error.json
+    sha256: 13d58539c2b3ef9bae9539dd8b65e215ae6c2a59a2e5617349d4225467ed40c3
+    size_bytes: 155
+    captured_at: 2026-05-16T16:31:28.3690254+02:00
+  - path: evidence/post_fix/live_rerun_succeeded_path/trigger_response.json
+    sha256: 9784c793a7115b25a860b09d3215f6f0dd7fc4a14bfbf36d45eb38a172edf34d
+    size_bytes: 58
+    captured_at: 2026-05-16T16:45:07.1175567+02:00
+  - path: evidence/post_fix/live_rerun_succeeded_path/run_final.json
+    sha256: 9fcee540ce79cabecf613bed8a2c221752a929168cb7140ebbdc5ec20f92b923
+    size_bytes: 913
+    captured_at: 2026-05-16T16:45:07.1175567+02:00
+  - path: evidence/post_fix/live_rerun_succeeded_path/stage-artifacts.json
+    sha256: 9132a7b70941bf69b9233bb108b0e4429c485a7f7678249755541e9ee1d58556
+    size_bytes: 243540
+    captured_at: 2026-05-16T16:45:07.1175567+02:00
+  - path: evidence/post_fix/live_rerun_succeeded_path/settings-used.json
+    sha256: 58bd866e2ce4507721e06ad81585a18c205bf5f0876098786173c4c91c303b07
+    size_bytes: 71526
+    captured_at: 2026-05-16T16:45:07.1175567+02:00
+  - path: evidence/post_fix/live_rerun_succeeded_path/export.json
+    sha256: 941f59a087a3ecb4a7a5347d6f1d3831d72db7e14ac05d22913199646cc7c2c9
+    size_bytes: 12368
+    captured_at: 2026-05-16T16:45:07.1175567+02:00
+  - path: evidence/post_fix/live_rerun_succeeded_path/consistency_check_after_settle.json
+    sha256: 715b6cd43a5fff79ff046003736d8711a08806d33ff35653c76a8472910d4d77
+    size_bytes: 435
+    captured_at: 2026-05-16T16:45:07.1175567+02:00
+  - path: evidence/post_fix/live_review_closure_stage_refresh_after_store_fix/trigger_response.json
+    sha256: 7f8a619d73dafba8b254557da77cb1d63df60094ae99f649cc7673a0721b1823
+    size_bytes: 58
+    captured_at: 2026-05-16T16:45:07.1175567+02:00
+  - path: evidence/post_fix/live_review_closure_stage_refresh_after_store_fix/run_before_close.json
+    sha256: acfc7628d7872d17dcfe8c6f6d5337238c00d8fc64bd0ad79a7b7f6c9a33bfad
+    size_bytes: 906
+    captured_at: 2026-05-16T16:45:07.1175567+02:00
+  - path: evidence/post_fix/live_review_closure_stage_refresh_after_store_fix/review_job_urls.json
+    sha256: e7a067b2cdb7864af12b09ae1c23806837be70be21a8afe1ab08b72062efe66c
+    size_bytes: 274
+    captured_at: 2026-05-16T16:45:07.1175567+02:00
+  - path: evidence/post_fix/live_review_closure_stage_refresh_after_store_fix/run_final.json
+    sha256: 7753fa81be12554e237eecb837474ba28f8861014bb06fc3bf6a4e0fa87d351f
+    size_bytes: 922
+    captured_at: 2026-05-16T16:45:07.1175567+02:00
+  - path: evidence/post_fix/live_review_closure_stage_refresh_after_store_fix/stage-artifacts.final.json
+    sha256: 206732b788b725eeefb77ca46ccb0c6aba98a945f6800971d1698c945811a459
+    size_bytes: 243559
+    captured_at: 2026-05-16T16:45:07.1175567+02:00
+  - path: evidence/post_fix/live_review_closure_stage_refresh_after_store_fix/consistency_summary.json
+    sha256: 9ee9e126b560019fe06aaf1054bdc8fe3f6e8dd895292949b53a77b104d1490c
+    size_bytes: 217
+    captured_at: 2026-05-16T16:45:07.1175567+02:00

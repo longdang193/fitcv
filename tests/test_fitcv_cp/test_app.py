@@ -618,10 +618,18 @@ def test_post_runs_with_config_overrides(tmp_path):
 
 def test_post_runs_rejects_invalid_config_overrides():
     """@proves settings_system.per-run-overrides"""
-    resp = TestClient(_app()).post("/runs", json={
-        "jobs_path": "data/sample_jobs.json",
-        "config_overrides": {"pipeline.final_top_n": 0},  # violates >= 1
-    })
+    with patch("fitcv_cp.app.load_active_settings", return_value={}), \
+         patch("fitcv_cp.app.load_config", return_value={
+             "gcp_project": "p",
+             "bigquery_dataset": "d",
+             "service_account_key": "k",
+             "pipeline": {"final_top_n": 10},
+             "paths": {"candidate_profile": "data/candidate_profile.yaml"},
+         }):
+        resp = TestClient(_app()).post("/runs", json={
+            "jobs_path": "data/sample_jobs.json",
+            "config_overrides": {"pipeline.final_top_n": 0},  # violates >= 1
+        })
     assert resp.status_code == 422
 
 

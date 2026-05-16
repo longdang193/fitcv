@@ -80,7 +80,7 @@ workstreams:
   status: active
   path: docs/intent/workstreams/workstream-agentic-synonym-management.md
   thread_count: 6
-  completed_thread_count: 1
+  completed_thread_count: 2
   derived_completion: in_progress
   threads:
   - thread_id: workstream-agentic-synonym-management.agentic-synonym-unmatched-term-detection
@@ -97,8 +97,10 @@ workstreams:
     - docs/superpowers/specs/2026-05-02-run-scoped-multi-field-synonym-overlay-parity-spec.md
     - docs/superpowers/specs/2026-05-02-updated-synonym-management-domain-role-family-spec.md
     - docs/superpowers/specs/2026-05-03-triage-recommendation-two-layer-auto-and-reuse-control-spec.md
-    plans: []
-    derived_completion: in_progress
+    - docs/superpowers/specs/2026-05-16-14-20-option-b-shared-structural-principles-spec.md
+    plans:
+    - docs/superpowers/plans/2026-05-16-15-10-option-b-shared-structural-principles-plan.md
+    derived_completion: completed
   - thread_id: workstream-agentic-synonym-management.agentic-synonym-review-queue-and-approval
     status: proposed
     path: docs/intent/workstreams/threads/workstream-agentic-synonym-management/03-agentic-synonym-review-queue-and-approval.md
@@ -291,9 +293,7 @@ workstreams:
     path: docs/intent/workstreams/threads/workstream-fitcv-semantic-spine/05-semantic-spine-phase-2-source-of-truth-boundary.md
     specs:
     - docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
-    - docs/superpowers/specs/2026-05-16-00-44-config-ssot-option-b-spec.md
-    plans:
-    - docs/superpowers/plans/2026-05-16-00-47-config-ssot-option-b-plan.md
+    plans: []
     derived_completion: completed
   - thread_id: workstream-fitcv-semantic-spine.semantic-spine-prefect-orchestration-adoption
     status: completed

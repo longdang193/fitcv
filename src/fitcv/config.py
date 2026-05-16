@@ -63,7 +63,7 @@ _DEFAULT_CONTROL_PLANE_CONFIG_PATH = Path("config/runtime/control_plane.yaml")
 _DEFAULT_ENRICH_PROMPT_ID = "enrich.extraction.v1"
 _DEFAULT_RANKING_AI_SCORE_PROMPT_ID = "ranking.ai_score.v1"
 _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID = "cv_generation.structured_write.v1"
-_DEFAULT_CV_ACCEPTANCE_POLICY = {
+_DEFAULT_CV_REQUIRED_MATCH_POLICY = {
     "required_match": {
         "min_ratio_by_fit": {
             "strong": 0.8,
@@ -74,7 +74,7 @@ _DEFAULT_CV_ACCEPTANCE_POLICY = {
             "stretch": 1,
         },
     },
-    "force_review_when_any_required_missing_for_fits": [],
+    "force_review_when_any_required_missing_for_fits": ["stretch"],
 }
 _INFRA_ENV_OVERRIDES = {
     "gcp_project": "GCP_PROJECT",
@@ -888,9 +888,9 @@ def _normalize_config_keys(cfg: dict[str, Any]) -> dict[str, Any]:
     return cfg
 
 
-def _normalize_cv_acceptance_policy(cfg: dict[str, Any]) -> dict[str, Any]:
+def _normalize_cv_acceptance_policy_config(cfg: dict[str, Any]) -> dict[str, Any]:
     policy_cfg = dict(cfg.get("cv_acceptance_policy") or {})
-    default_required_match = dict(_DEFAULT_CV_ACCEPTANCE_POLICY["required_match"])
+    default_required_match = dict(_DEFAULT_CV_REQUIRED_MATCH_POLICY["required_match"])
     required_match_cfg = dict(policy_cfg.get("required_match") or {})
 
     default_min_ratio = dict(default_required_match["min_ratio_by_fit"])
@@ -1072,7 +1072,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     cfg["prompts_runtime"] = _build_prompts_runtime(cfg)
 
     cfg = _normalize_config_keys(cfg)
-    cfg = _normalize_cv_acceptance_policy(cfg)
+    cfg = _normalize_cv_acceptance_policy_config(cfg)
     _validate_nested_cv_config(cfg)
     cfg = apply_cv_compatibility_projection(cfg)
     return cfg
@@ -1287,13 +1287,34 @@ def get_cv_acceptance_policy(config: dict[str, Any]) -> dict[str, Any]:
     if not policy:
         policy = deepcopy_policy = {
             "required_match": {
-                "min_ratio_by_fit": dict(_DEFAULT_CV_ACCEPTANCE_POLICY["required_match"]["min_ratio_by_fit"]),
-                "max_missing_by_fit": dict(_DEFAULT_CV_ACCEPTANCE_POLICY["required_match"]["max_missing_by_fit"]),
+                "min_ratio_by_fit": dict(_DEFAULT_CV_REQUIRED_MATCH_POLICY["required_match"]["min_ratio_by_fit"]),
+                "max_missing_by_fit": dict(_DEFAULT_CV_REQUIRED_MATCH_POLICY["required_match"]["max_missing_by_fit"]),
             },
             "force_review_when_any_required_missing_for_fits": list(
-                _DEFAULT_CV_ACCEPTANCE_POLICY["force_review_when_any_required_missing_for_fits"]
+                _DEFAULT_CV_REQUIRED_MATCH_POLICY["force_review_when_any_required_missing_for_fits"]
             ),
         }
         return deepcopy_policy
-    return _normalize_cv_acceptance_policy({"cv_acceptance_policy": policy})["cv_acceptance_policy"]
+    required_match = dict(policy.get("required_match") or {})
+    min_ratio = dict(required_match.get("min_ratio_by_fit") or {})
+    max_missing = dict(required_match.get("max_missing_by_fit") or {})
+    default_required_match = _DEFAULT_CV_REQUIRED_MATCH_POLICY["required_match"]
+    normalized = {
+        "required_match": {
+            "min_ratio_by_fit": {
+                "strong": float(min_ratio.get("strong", default_required_match["min_ratio_by_fit"]["strong"])),
+                "stretch": float(min_ratio.get("stretch", default_required_match["min_ratio_by_fit"]["stretch"])),
+            },
+            "max_missing_by_fit": {
+                "strong": int(max_missing.get("strong", default_required_match["max_missing_by_fit"]["strong"])),
+                "stretch": int(max_missing.get("stretch", default_required_match["max_missing_by_fit"]["stretch"])),
+            },
+        },
+        "force_review_when_any_required_missing_for_fits": [
+            str(item).strip().lower()
+            for item in (policy.get("force_review_when_any_required_missing_for_fits") or [])
+            if str(item).strip()
+        ],
+    }
+    return normalized
 

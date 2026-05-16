@@ -827,7 +827,7 @@ def test_update_run_effective_settings_updates_only_effective_settings_field() -
 def test_update_run_effective_settings_local_mode_updates_in_memory_run() -> None:
     from fitcv_cp import bq_store
     run = _make_run()
-    bq_store._LOCAL_RUNS[run.run_id] = run
+    bq_store._local_save_run(run)
     update_run_effective_settings(
         run.run_id,
         '{"skill_synonyms":{"gcp":"google cloud"}}',
@@ -1005,7 +1005,7 @@ def test_update_run_checkpoint_uses_parameterized_query() -> None:
 def test_update_run_checkpoint_local_mode_updates_in_memory_run() -> None:
     from fitcv_cp import bq_store
     run = _make_run()
-    bq_store._LOCAL_RUNS[run.run_id] = run
+    bq_store._local_save_run(run)
     update_run_checkpoint(
         run.run_id,
         None,
