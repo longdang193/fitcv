@@ -21,6 +21,7 @@ data/uploads/
 .worktrees/
 .env
 .env.*
+!.env.example
 *.private.*
 *.local.*
 

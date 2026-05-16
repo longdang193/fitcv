@@ -1,0 +1,67 @@
+src/fitcv_cp/worker_job.py:49:    update_run_stage_transition_artifacts,
+src/fitcv_cp/worker_job.py:343:    stage_transition_artifacts = dict(summary.get("stage_transition_artifacts") or {})
+src/fitcv_cp/worker_job.py:344:    stage_blocks = dict(stage_transition_artifacts.get("stages") or {})
+src/fitcv_cp/worker_job.py:370:        "results_schema_version": "results_job_ledger_v3",
+src/fitcv_cp/worker_job.py:411:        "schema_version": "late_stage_reuse_v1",
+src/fitcv_cp/worker_job.py:532:        "debug_schema_version": "cv_generation_debug_v3",
+src/fitcv_cp/worker_job.py:551:def _build_stage_transition_artifacts_payload(
+src/fitcv_cp/worker_job.py:559:    stage_artifacts = dict(summary.get("stage_transition_artifacts") or {})
+src/fitcv_cp/worker_job.py:568:        "artifact_schema_version": "stage_transition_artifacts_run_v1",
+src/fitcv_cp/worker_job.py:586:        "checkpoint_schema_version": "manual_checkpoint_v1",
+src/fitcv_cp/worker_job.py:624:        "settings_schema_version": "settings_used_v2",
+src/fitcv_cp/worker_job.py:674:        "mapping_suggestions_schema_version": "mapping_suggestions_v1",
+src/fitcv_cp/worker_job.py:897:            "trace_schema_version": "agentic_step_trace_run_v1",
+src/fitcv_cp/worker_job.py:930:                "trace_schema_version": "agentic_step_trace_record_v1",
+src/fitcv_cp/worker_job.py:980:        "trace_schema_version": "agentic_step_trace_run_v1",
+src/fitcv_cp/worker_job.py:1022:    stage_transition_artifacts = summary.get("stage_transition_artifacts")
+src/fitcv_cp/worker_job.py:1023:    if not isinstance(stage_transition_artifacts, dict):
+src/fitcv_cp/worker_job.py:1025:    artifacts = stage_transition_artifacts.get("artifacts")
+src/fitcv_cp/worker_job.py:1026:    stage_root = artifacts if isinstance(artifacts, dict) else stage_transition_artifacts
+src/fitcv_cp/worker_job.py:1465:    update_run_stage_transition_artifacts(
+src/fitcv_cp/worker_job.py:1467:        _build_stage_transition_artifacts_payload(
+src/fitcv_cp/worker_job.py:1820:                    update_run_stage_transition_artifacts(
+src/fitcv_cp/worker_job.py:1822:                        _build_stage_transition_artifacts_payload(
+src/fitcv_cp/worker_job.py:2068:                    update_run_stage_transition_artifacts(
+src/fitcv_cp/worker_job.py:2070:                        _build_stage_transition_artifacts_payload(
+src/fitcv/pipeline.py:583:                "schema_version": (
+src/fitcv/pipeline.py:585:                ).get("schema_version") if isinstance(cv_row.get("structured_cv"), dict) else None,
+src/fitcv/pipeline.py:841:        "schema_version": "late_stage_reuse_v1",
+src/fitcv/pipeline.py:1071:    stage_transition_artifacts = _build_stage_transition_artifacts(
+src/fitcv/pipeline.py:1105:        "stage_transition_artifacts": stage_transition_artifacts,
+src/fitcv/pipeline.py:2407:            "trace_schema_version": "agentic_step_trace_run_v1",
+src/fitcv/pipeline.py:2459:        "trace_schema_version": "agentic_step_trace_run_v1",
+src/fitcv/pipeline.py:2488:            "trace_schema_version": "agentic_step_trace_run_v1",
+src/fitcv/pipeline.py:2517:                "trace_schema_version": "agentic_step_trace_record_v1",
+src/fitcv/pipeline.py:2575:        "trace_schema_version": "agentic_step_trace_run_v1",
+src/fitcv/pipeline.py:2813:def _collect_stage_quality_metrics(stage_transition_artifacts: dict[str, Any]) -> dict[str, Any]:
+src/fitcv/pipeline.py:2815:    for stage_id, block in dict(stage_transition_artifacts.get("stages") or {}).items():
+src/fitcv/pipeline.py:3142:def _build_stage_transition_artifacts(
+src/fitcv/pipeline.py:3362:        "schema_version": "stage_transition_artifacts_v6",
+src/fitcv/pipeline.py:5574:        stage_transition_artifacts = _build_stage_transition_artifacts(
+src/fitcv/pipeline.py:5631:            "stage_transition_artifacts": stage_transition_artifacts,
+src/fitcv_cp/app.py:182:def update_run_stage_transition_artifacts(
+src/fitcv_cp/app.py:184:    stage_transition_artifacts_json: str,
+src/fitcv_cp/app.py:191:        _CP_STORE.update_run_stage_transition_artifacts(run_id, stage_transition_artifacts_json)
+src/fitcv_cp/app.py:193:    bq_store_module.update_run_stage_transition_artifacts(
+src/fitcv_cp/app.py:195:        stage_transition_artifacts_json,
+src/fitcv_cp/app.py:920:def _load_stage_transition_artifacts_payload(run: PipelineRun) -> dict[str, Any]:
+src/fitcv_cp/app.py:921:    if not run.stage_transition_artifacts_json:
+src/fitcv_cp/app.py:924:        payload = _json.loads(run.stage_transition_artifacts_json)
+src/fitcv_cp/app.py:941:    if run is None or not run.stage_transition_artifacts_json:
+src/fitcv_cp/app.py:943:    payload = _load_stage_transition_artifacts_payload(run)
+src/fitcv_cp/app.py:950:    update_run_stage_transition_artifacts(
+src/fitcv_cp/app.py:970:    payload = _load_stage_transition_artifacts_payload(run)
+src/fitcv_cp/app.py:1530:    artifact_payload = _load_stage_transition_artifacts_payload(run)
+src/fitcv_cp/app.py:1541:        "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+src/fitcv_cp/app.py:1550:    stage_transition_artifact_payload = _load_stage_transition_artifacts_payload(run)
+src/fitcv_cp/app.py:1939:        "schema_version": "cv_generation_review_required_v1",
+src/fitcv_cp/app.py:2167:        "schema_version": "hitl_review_audit_v1",
+src/fitcv_cp/app.py:2503:        "trace_schema_version": f"{trace_name}_run_v1",
+src/fitcv_cp/app.py:2593:        "schema_version": "synonym_suppression_diff_v1",
+src/fitcv_cp/app.py:2702:        "bundle_schema_version": "run_artifact_bundle_v6",
+src/fitcv_cp/app.py:2976:        "mapping_suggestions_schema_version": "mapping_suggestions_aggregate_v1",
+src/fitcv_cp/app.py:3014:        "synonym_proposals_schema_version": "synonym_proposals_queue_v1",
+src/fitcv_cp/app.py:4202:        update_run_stage_transition_artifacts_fn=bq_store_module.update_run_stage_transition_artifacts,
+src/fitcv_cp/app.py:7662:    def download_run_stage_transition_artifacts_json(run_id: str) -> Response:
+src/fitcv_cp/app.py:7666:        if not run.stage_transition_artifacts_json:
+src/fitcv_cp/app.py:7668:        pretty_json = _json.dumps(_json.loads(run.stage_transition_artifacts_json), ensure_ascii=False, indent=2)

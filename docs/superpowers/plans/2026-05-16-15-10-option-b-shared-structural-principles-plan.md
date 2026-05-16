@@ -4,8 +4,8 @@ artifact_type: plan
 status: completed
 template_id: implementation-plan
 name: option-b-shared-structural-principles-incremental-consolidation-plan
-parent_thread: workstream-agentic-synonym-management.agentic-synonym-proposal-engine
-parent_spec: docs/superpowers/specs/2026-05-16-14-20-option-b-shared-structural-principles-spec.md
+parent_thread: workstream-fitcv-semantic-spine.semantic-spine-component-boundary-and-interface-contract
+parent_spec: docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
 targets:
   - src/fitcv_cp/synonym_proposals.py
   - src/fitcv_cp/worker_job.py
@@ -57,7 +57,7 @@ Focused `test_fitcv_cp` suites include coverage proving proposal payload equival
 - Verify: `tests/test_fitcv_cp/test_worker_job.py`
 
 **Preconditions:**
-- approved parent spec exists at `docs/superpowers/specs/2026-05-16-14-20-option-b-shared-structural-principles-spec.md`
+- approved parent spec exists at `docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md`
 - worktree baseline validators pass
 
 **Steps:**
@@ -169,7 +169,7 @@ Focused `test_fitcv_cp` suites include coverage proving proposal payload equival
 - Modify: `tests/test_fitcv_cp/test_worker_job.py`
 - Modify: `tests/test_fitcv_cp/test_app.py`
 - Modify: `tests/test_fitcv_cp/test_bq_store.py`
-- Verify: `docs/superpowers/specs/2026-05-16-14-20-option-b-shared-structural-principles-spec.md`
+- Verify: `docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md`
 
 **Preconditions:**
 - Tasks 1 through 4 complete
