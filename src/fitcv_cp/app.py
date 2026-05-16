@@ -79,7 +79,10 @@ from fitcv_cp.settings_schema import (
     validate_settings,
 )
 from fitcv_cp.settings_store import load_active_settings, save_setting, save_settings_group
-from fitcv_cp.synonym_proposals import build_synonym_proposals_payload
+from fitcv_cp.synonym_proposals import (
+    build_synonym_proposals_payload,
+    transition_synonym_proposal_status,
+)
 from fitcv_cp.data_plane import data_plane_contract_payload
 from fitcv_cp.observability import emit_observability_event
 from fitcv_cp.store import ControlPlaneStore
@@ -175,6 +178,25 @@ def update_run_checkpoint(run_id: str, bq: Any, *, project: str, dataset: str, *
         _CP_STORE.update_run_checkpoint(run_id, **kwargs)
         return
     bq_store_module.update_run_checkpoint(run_id, bq, project=project, dataset=dataset, **kwargs)
+
+def update_run_stage_transition_artifacts(
+    run_id: str,
+    stage_transition_artifacts_json: str,
+    bq: Any,
+    *,
+    project: str,
+    dataset: str,
+) -> None:
+    if _CP_STORE is not None:
+        _CP_STORE.update_run_stage_transition_artifacts(run_id, stage_transition_artifacts_json)
+        return
+    bq_store_module.update_run_stage_transition_artifacts(
+        run_id,
+        stage_transition_artifacts_json,
+        bq,
+        project=project,
+        dataset=dataset,
+    )
 
 
 def request_run_cancel(
@@ -903,6 +925,35 @@ def _load_stage_transition_artifacts_payload(run: PipelineRun) -> dict[str, Any]
     except (_json.JSONDecodeError, TypeError):
         return {}
     return payload if isinstance(payload, dict) else {}
+
+def _persist_stage_artifacts_terminal_snapshot(
+    *,
+    run_id: str,
+    bq: Any,
+    project: str,
+    dataset: str,
+    terminal_status: RunStatus,
+    snapshot_at: datetime.datetime,
+    snapshot_complete: bool,
+    degradation_reason: str,
+) -> None:
+    run = get_run(run_id, bq, project=project, dataset=dataset)
+    if run is None or not run.stage_transition_artifacts_json:
+        return
+    payload = _load_stage_transition_artifacts_payload(run)
+    if not payload:
+        return
+    payload["status"] = terminal_status.value
+    payload["created_at"] = snapshot_at.isoformat()
+    payload["snapshot_complete"] = bool(snapshot_complete)
+    payload["degradation_reason"] = str(degradation_reason or "").strip()
+    update_run_stage_transition_artifacts(
+        run_id,
+        _json.dumps(payload, ensure_ascii=False),
+        bq,
+        project=project,
+        dataset=dataset,
+    )
 
 
 def _load_json_object(raw_payload: str | None) -> dict[str, Any] | None:
@@ -2985,33 +3036,6 @@ def _find_run_and_synonym_proposal(
     return None
 
 
-def _transition_synonym_proposal_status(
-    current_status: str,
-    action: str,
-) -> str | None:
-    transitions = {
-        "start_review": {
-            "proposed_unreviewed": "in_review",
-            "deferred": "in_review",
-        },
-        "approve_for_run_overlay": {
-            "proposed_unreviewed": "approved_for_run_overlay",
-            "in_review": "approved_for_run_overlay",
-            "deferred": "approved_for_run_overlay",
-        },
-        "reject": {
-            "proposed_unreviewed": "rejected",
-            "in_review": "rejected",
-            "deferred": "rejected",
-        },
-        "defer": {
-            "proposed_unreviewed": "deferred",
-            "in_review": "deferred",
-        },
-    }
-    return transitions.get(action, {}).get(str(current_status or "").strip())
-
-
 def _approved_synonym_overlay_payload(proposals: list[dict[str, Any]]) -> tuple[dict[str, str], list[str]]:
     overlay: dict[str, str] = {}
     proposal_ids: list[str] = []
@@ -3455,7 +3479,7 @@ def _auto_apply_synonym_recommendations(
             skipped += 1
             reason_counts["unsupported_recommendation"] = int(reason_counts.get("unsupported_recommendation", 0)) + 1
             continue
-        next_status = _transition_synonym_proposal_status(status, action)
+        next_status = transition_synonym_proposal_status(status, action)
         if not next_status:
             failed += 1
             reason_counts["invalid_transition"] = int(reason_counts.get("invalid_transition", 0)) + 1
@@ -4175,6 +4199,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         update_run_effective_settings_fn=bq_store_module.update_run_effective_settings,
         update_run_synonym_proposals_fn=bq_store_module.update_run_synonym_proposals,
         update_run_cv_generation_debug_fn=bq_store_module.update_run_cv_generation_debug,
+        update_run_stage_transition_artifacts_fn=bq_store_module.update_run_stage_transition_artifacts,
         insert_cv_version_row_fn=bq_store_module.insert_cv_version_row,
     )
     app = FastAPI(title="FitCV Admin Control Plane")
@@ -6474,6 +6499,16 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 dataset=dataset,
                 finished_at=now,
             )
+            _persist_stage_artifacts_terminal_snapshot(
+                run_id=run_id,
+                bq=bq,
+                project=project,
+                dataset=dataset,
+                terminal_status=RunStatus.SUCCEEDED,
+                snapshot_at=now,
+                snapshot_complete=True,
+                degradation_reason="",
+            )
             last_completed_stage, completed_stages, checkpoint_payload_json = _checkpoint_truth_for_review_closure(run)
             update_run_checkpoint(
                 run_id,
@@ -6707,6 +6742,16 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 project=project,
                 dataset=dataset,
                 finished_at=finished_at,
+            )
+            _persist_stage_artifacts_terminal_snapshot(
+                run_id=run_id,
+                bq=bq,
+                project=project,
+                dataset=dataset,
+                terminal_status=RunStatus.SUCCEEDED,
+                snapshot_at=finished_at,
+                snapshot_complete=True,
+                degradation_reason="",
             )
             last_completed_stage, completed_stages, checkpoint_payload_json = _checkpoint_truth_for_review_closure(run)
             update_run_checkpoint(
@@ -7883,7 +7928,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if not isinstance(proposal, dict):
             raise HTTPException(status_code=404, detail="Synonym proposal not found")
         proposal_id = str(proposal.get("proposal_id") or "").strip()
-        next_status = _transition_synonym_proposal_status(
+        next_status = transition_synonym_proposal_status(
             str(proposal.get("proposal_status") or ""),
             action,
         )
@@ -8069,3 +8114,4 @@ def _run_to_dict(run: PipelineRun) -> dict:
         "orchestration_backend": run.orchestration_backend,
         "orchestration_run_id": run.orchestration_run_id,
     }
+

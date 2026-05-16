@@ -20,6 +20,32 @@ import hashlib
 import json
 from typing import Any
 
+_NON_SKILL_MIN_SUPPORT_FOR_PROPOSAL = 2
+
+
+def transition_synonym_proposal_status(current_status: str, action: str) -> str | None:
+    transitions = {
+        "start_review": {
+            "proposed_unreviewed": "in_review",
+            "deferred": "in_review",
+        },
+        "approve_for_run_overlay": {
+            "proposed_unreviewed": "approved_for_run_overlay",
+            "in_review": "approved_for_run_overlay",
+            "deferred": "approved_for_run_overlay",
+        },
+        "reject": {
+            "proposed_unreviewed": "rejected",
+            "in_review": "rejected",
+            "deferred": "rejected",
+        },
+        "defer": {
+            "proposed_unreviewed": "deferred",
+            "in_review": "deferred",
+        },
+    }
+    return transitions.get(action, {}).get(str(current_status or "").strip())
+
 
 def build_synonym_proposals_payload(
     *,
@@ -90,6 +116,8 @@ def build_synonym_proposals_payload(
             if str(alias).strip() and str(canonical).strip()
         }
     suppressed_as_already_global_count = 0
+    suppressed_count_by_field: dict[str, int] = {}
+    suppressed_reason_counts_by_field: dict[str, dict[str, int]] = {}
     suppressed_examples: list[dict[str, str]] = []
     for (_field_alias_key, bucket) in grouped.items():
         field = str(bucket.get("field") or "skill")
@@ -104,12 +132,24 @@ def build_synonym_proposals_payload(
         proposal_family = "conflict_bundle" if has_conflict else "alias_to_canonical_mapping"
         occurrence_count = int(bucket["occurrence_count"])
         avg_confidence = float(bucket["confidence_sum"]) / occurrence_count if occurrence_count else 0.0
+        if field in {"domain", "role_family"} and occurrence_count < _NON_SKILL_MIN_SUPPORT_FOR_PROPOSAL:
+            suppressed_count_by_field[field] = suppressed_count_by_field.get(field, 0) + 1
+            reason_bucket = suppressed_reason_counts_by_field.setdefault(field, {})
+            reason_bucket["insufficient_non_skill_support"] = (
+                reason_bucket.get("insufficient_non_skill_support", 0) + 1
+            )
+            if len(suppressed_examples) < 10:
+                suppressed_examples.append({"field": field, "alias": alias, "canonical": primary_canonical})
+            continue
         identity_seed = f"{run_id}:{field}:{alias}:{'|'.join(candidate_canonicals)}:{proposal_family}"
         proposal_id = f"synprop-{hashlib.sha1(identity_seed.encode('utf-8')).hexdigest()[:12]}"
         existing_proposal = existing_proposals_by_id.get(proposal_id) or {}
         global_canonical = normalized_global_synonyms.get(alias) if field == "skill" else None
         if global_canonical and global_canonical == primary_canonical:
             suppressed_as_already_global_count += 1
+            suppressed_count_by_field[field] = suppressed_count_by_field.get(field, 0) + 1
+            reason_bucket = suppressed_reason_counts_by_field.setdefault(field, {})
+            reason_bucket["already_global_exact"] = reason_bucket.get("already_global_exact", 0) + 1
             if len(suppressed_examples) < 10:
                 suppressed_examples.append({"field": field, "alias": alias, "canonical": primary_canonical})
             continue
@@ -166,6 +206,8 @@ def build_synonym_proposals_payload(
         suppression_summary={
             "suppressed_as_already_global_count": suppressed_as_already_global_count,
             "generated_for_review_count": len(proposals),
+            "suppressed_count_by_field": suppressed_count_by_field,
+            "suppressed_reason_counts_by_field": suppressed_reason_counts_by_field,
             "suppressed_examples": suppressed_examples,
             "suppression_source": (
                 "run_effective_skill_synonyms"
@@ -203,6 +245,12 @@ def _build_synonym_proposals_trace_payload(
                 ),
                 "generated_for_review_count": int(
                     (suppression_summary or {}).get("generated_for_review_count") or 0
+                ),
+                "suppressed_count_by_field": dict(
+                    (suppression_summary or {}).get("suppressed_count_by_field") or {}
+                ),
+                "suppressed_reason_counts_by_field": dict(
+                    (suppression_summary or {}).get("suppressed_reason_counts_by_field") or {}
                 ),
                 "suppression_source": str((suppression_summary or {}).get("suppression_source") or "none"),
             },
@@ -284,6 +332,12 @@ def _build_synonym_proposals_trace_payload(
             ),
             "generated_for_review_count": int(
                 (suppression_summary or {}).get("generated_for_review_count") or len(proposals)
+            ),
+            "suppressed_count_by_field": dict(
+                (suppression_summary or {}).get("suppressed_count_by_field") or {}
+            ),
+            "suppressed_reason_counts_by_field": dict(
+                (suppression_summary or {}).get("suppressed_reason_counts_by_field") or {}
             ),
             "suppression_source": str((suppression_summary or {}).get("suppression_source") or "none"),
         },

@@ -63,6 +63,7 @@ class RunStore(Protocol):
         self, run_id: str, synonym_proposals_json: str
     ) -> dict[str, str]: ...
     def update_run_cv_generation_debug(self, run_id: str, cv_generation_debug_json: str) -> None: ...
+    def update_run_stage_transition_artifacts(self, run_id: str, stage_transition_artifacts_json: str) -> None: ...
     def insert_cv_version_row(self, row: dict[str, Any]) -> list[Any]: ...
 
 
@@ -91,6 +92,7 @@ class ControlPlaneStore:
     update_run_effective_settings_fn: Any | None = None
     update_run_synonym_proposals_fn: Any | None = None
     update_run_cv_generation_debug_fn: Any | None = None
+    update_run_stage_transition_artifacts_fn: Any | None = None
     insert_cv_version_row_fn: Any | None = None
 
     def insert_run(self, run: PipelineRun) -> None:
@@ -222,6 +224,14 @@ class ControlPlaneStore:
     def update_run_cv_generation_debug(self, run_id: str, cv_generation_debug_json: str) -> None:
         fn = self.update_run_cv_generation_debug_fn or bq_store.update_run_cv_generation_debug
         fn(run_id, cv_generation_debug_json, self.bq, project=self.project, dataset=self.dataset)
+
+    def update_run_stage_transition_artifacts(
+        self,
+        run_id: str,
+        stage_transition_artifacts_json: str,
+    ) -> None:
+        fn = self.update_run_stage_transition_artifacts_fn or bq_store.update_run_stage_transition_artifacts
+        fn(run_id, stage_transition_artifacts_json, self.bq, project=self.project, dataset=self.dataset)
 
     def insert_cv_version_row(self, row: dict[str, Any]) -> list[Any]:
         fn = self.insert_cv_version_row_fn or bq_store.insert_cv_version_row

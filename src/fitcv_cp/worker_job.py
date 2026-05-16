@@ -51,6 +51,10 @@ from fitcv_cp.bq_store import (
 )
 from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.data_plane import data_plane_contract_payload
+from fitcv_cp.synonym_proposals import (
+    build_synonym_proposals_payload,
+    transition_synonym_proposal_status,
+)
 
 logger = logging.getLogger(__name__)
 _MAX_DEBUG_MARKDOWN_CHARS = 4000
@@ -674,6 +678,7 @@ def _build_mapping_suggestions_payload(
     return json.dumps(payload, ensure_ascii=False)
 
 
+
 def _build_synonym_proposals_payload(
     *,
     run_id: str,
@@ -682,179 +687,14 @@ def _build_synonym_proposals_payload(
     existing_payload_json: str | None = None,
     global_synonyms: dict[str, str] | None = None,
 ) -> str:
-    existing_proposals_by_id: dict[str, dict[str, Any]] = {}
-    if existing_payload_json:
-        try:
-            existing_payload = json.loads(existing_payload_json)
-        except (TypeError, json.JSONDecodeError):
-            existing_payload = None
-        if isinstance(existing_payload, dict):
-            for existing_proposal in list(existing_payload.get("proposals") or []):
-                if not isinstance(existing_proposal, dict):
-                    continue
-                proposal_id = str(existing_proposal.get("proposal_id") or "").strip()
-                if proposal_id:
-                    existing_proposals_by_id[proposal_id] = existing_proposal
-
-    grouped: dict[tuple[str, str], dict[str, Any]] = {}
-    for suggestion in list(summary.get("mapping_suggestions") or []):
-        if not isinstance(suggestion, dict):
-            continue
-        field = str(suggestion.get("field") or "skill").strip().lower() or "skill"
-        alias = str(suggestion.get("alias") or "").strip().lower()
-        canonical = str(suggestion.get("canonical") or "").strip().lower()
-        if not alias or not canonical:
-            continue
-        bucket = grouped.setdefault(
-            (field, alias),
-            {
-                "field": field,
-                "alias": alias,
-                "candidate_canonicals": {},
-                "must_have_skills": set(),
-                "job_refs": [],
-                "occurrence_count": 0,
-                "confidence_sum": 0.0,
-            },
-        )
-        bucket["occurrence_count"] += 1
-        confidence = float(suggestion.get("confidence") or 0.0)
-        bucket["confidence_sum"] += confidence
-        bucket["candidate_canonicals"][canonical] = (
-            bucket["candidate_canonicals"].get(canonical, 0) + 1
-        )
-        must_have_skill = str(suggestion.get("must_have_skill") or "").strip().lower()
-        if must_have_skill:
-            bucket["must_have_skills"].add(must_have_skill)
-        job_url = str(suggestion.get("job_url") or "").strip()
-        if job_url and len(bucket["job_refs"]) < 5:
-            bucket["job_refs"].append(
-                {
-                    "job_url": job_url,
-                    "job_title": str(suggestion.get("job_title") or "").strip(),
-                    "confidence": confidence,
-                }
-            )
-
-    proposals: list[dict[str, Any]] = []
-    normalized_global_synonyms: dict[str, str] = {}
-    if isinstance(global_synonyms, dict):
-        normalized_global_synonyms = {
-            str(alias).strip().lower(): str(canonical).strip().lower()
-            for alias, canonical in global_synonyms.items()
-            if str(alias).strip() and str(canonical).strip()
-        }
-    suppressed_as_already_global_count = 0
-    suppressed_count_by_field: dict[str, int] = {}
-    suppressed_reason_counts_by_field: dict[str, dict[str, int]] = {}
-    suppressed_examples: list[dict[str, str]] = []
-    for (_field_alias_key, bucket) in grouped.items():
-        field = str(bucket.get("field") or "skill")
-        alias = str(bucket.get("alias") or "")
-        ranked_canonicals = sorted(
-            bucket["candidate_canonicals"].items(),
-            key=lambda item: (-int(item[1]), item[0]),
-        )
-        candidate_canonicals = [canonical for canonical, _count in ranked_canonicals]
-        primary_canonical = candidate_canonicals[0]
-        has_conflict = len(candidate_canonicals) > 1
-        proposal_family = "conflict_bundle" if has_conflict else "alias_to_canonical_mapping"
-        occurrence_count = int(bucket["occurrence_count"])
-        avg_confidence = (
-            float(bucket["confidence_sum"]) / occurrence_count if occurrence_count else 0.0
-        )
-        if field in {"domain", "role_family"} and occurrence_count < _NON_SKILL_MIN_SUPPORT_FOR_PROPOSAL:
-            suppressed_count_by_field[field] = suppressed_count_by_field.get(field, 0) + 1
-            reason_bucket = suppressed_reason_counts_by_field.setdefault(field, {})
-            reason_bucket["insufficient_non_skill_support"] = (
-                reason_bucket.get("insufficient_non_skill_support", 0) + 1
-            )
-            if len(suppressed_examples) < 10:
-                suppressed_examples.append(
-                    {
-                        "field": field,
-                        "alias": alias,
-                        "canonical": primary_canonical,
-                    }
-                )
-            continue
-        identity_seed = f"{run_id}:{field}:{alias}:{'|'.join(candidate_canonicals)}:{proposal_family}"
-        proposal_id = f"synprop-{hashlib.sha1(identity_seed.encode('utf-8')).hexdigest()[:12]}"
-        existing_proposal = existing_proposals_by_id.get(proposal_id) or {}
-        global_canonical = normalized_global_synonyms.get(alias) if field == "skill" else None
-        if global_canonical and global_canonical == primary_canonical:
-            suppressed_as_already_global_count += 1
-            suppressed_count_by_field[field] = suppressed_count_by_field.get(field, 0) + 1
-            reason_bucket = suppressed_reason_counts_by_field.setdefault(field, {})
-            reason_bucket["already_global_exact"] = reason_bucket.get("already_global_exact", 0) + 1
-            if len(suppressed_examples) < 10:
-                suppressed_examples.append({"field": field, "alias": alias, "canonical": primary_canonical})
-            continue
-        proposals.append(
-            {
-                "proposal_id": proposal_id,
-                "run_id": run_id,
-                "field": field,
-                "alias": alias,
-                "canonical": primary_canonical,
-                "candidate_aliases": [alias],
-                "candidate_canonicals": candidate_canonicals,
-                "confidence": round(avg_confidence, 6),
-                "rationale": {
-                    "kind": "alias_conflict" if has_conflict else "repeated_alias_mapping",
-                    "occurrence_count": occurrence_count,
-                    "distinct_canonical_count": len(candidate_canonicals),
-                },
-                "evidence_summary": {
-                    "occurrence_count": occurrence_count,
-                    "average_confidence": round(avg_confidence, 6),
-                    "must_have_skills": sorted(bucket["must_have_skills"]),
-                    "sample_job_refs": list(bucket["job_refs"]),
-                },
-                "conflict_summary": {
-                    "has_conflict": has_conflict,
-                    "conflicting_canonicals": candidate_canonicals[1:],
-                },
-                "proposal_status": str(existing_proposal.get("proposal_status") or "proposed_unreviewed"),
-                "proposal_scope": "run_scoped_overlay_candidate",
-                "proposal_family": proposal_family,
-                "source_artifact_refs": {
-                    "run_id": run_id,
-                    "artifact_type": "mapping_suggestions",
-                },
-                "review_history": list(existing_proposal.get("review_history") or []),
-            }
-        )
-    proposals.sort(key=lambda item: (-float(item["confidence"]), str(item["alias"])))
-    payload = {
-        "run_id": run_id,
-        "synonym_proposals_schema_version": "synonym_proposals_v1",
-        "created_at": created_at.isoformat(),
-        "proposal_generation_status": "generated" if proposals else "not_applicable",
-        "persistence_status": "persisted" if proposals else "not_applicable",
-        "proposals": proposals,
-    }
-    payload["synonym_proposals_trace"] = _build_synonym_proposals_trace_payload(
+    # Backwards-compatible shim for existing test/import callers.
+    return build_synonym_proposals_payload(
         run_id=run_id,
+        summary=summary,
         created_at=created_at,
-        proposal_generation_status=str(payload["proposal_generation_status"] or ""),
-        persistence_status=str(payload["persistence_status"] or ""),
-        proposals=proposals,
-        suppression_summary={
-            "suppressed_as_already_global_count": suppressed_as_already_global_count,
-            "generated_for_review_count": len(proposals),
-            "suppressed_count_by_field": suppressed_count_by_field,
-            "suppressed_reason_counts_by_field": suppressed_reason_counts_by_field,
-            "suppressed_examples": suppressed_examples,
-            "suppression_source": (
-                "run_effective_skill_synonyms"
-                if normalized_global_synonyms
-                else "none"
-            ),
-        },
+        existing_payload_json=existing_payload_json,
+        global_synonyms=global_synonyms,
     )
-    return json.dumps(payload, ensure_ascii=False)
-
 def _effective_skill_synonyms_from_run_record(run_record: Any) -> dict[str, str]:
     if run_record is None:
         return {}
@@ -949,25 +789,6 @@ def _synonym_management_mode_from_run_record(run_record: Any) -> dict[str, bool]
 def _stable_sha256_json(payload: dict[str, Any]) -> str:
     raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
-
-def _transition_synonym_proposal_status(current_status: str, action: str) -> str | None:
-    transitions = {
-        "approve_for_run_overlay": {
-            "proposed_unreviewed": "approved_for_run_overlay",
-            "in_review": "approved_for_run_overlay",
-            "deferred": "approved_for_run_overlay",
-        },
-        "reject": {
-            "proposed_unreviewed": "rejected",
-            "in_review": "rejected",
-            "deferred": "rejected",
-        },
-        "defer": {
-            "proposed_unreviewed": "deferred",
-            "in_review": "deferred",
-        },
-    }
-    return transitions.get(action, {}).get(str(current_status or "").strip())
 
 def _triage_synonym_proposal_recommendation_builtin(proposal: dict[str, Any], *, now_iso: str) -> dict[str, Any]:
     alias = str(proposal.get("alias") or "").strip().lower()
@@ -1416,7 +1237,7 @@ def _run_synonym_automation_for_payload(
                 auto_apply_counts["skipped"] += 1
                 auto_apply_counts["reason_counts"]["missing_recommendation"] = int(auto_apply_counts["reason_counts"].get("missing_recommendation", 0)) + 1
                 continue
-            next_status = _transition_synonym_proposal_status(status, action)
+            next_status = transition_synonym_proposal_status(status, action)
             if not next_status:
                 auto_apply_counts["failed"] += 1
                 auto_apply_counts["reason_counts"]["invalid_transition"] = int(auto_apply_counts["reason_counts"].get("invalid_transition", 0)) + 1
@@ -1655,47 +1476,104 @@ def _persist_shared_progress_snapshot(
         dataset=dataset,
     )
     if _summary_has_reached_stage(summary, "enrich"):
-        update_run_mapping_suggestions(
-            run_id,
-            _build_mapping_suggestions_payload(
-                run_id=run_id,
-                summary=summary,
-                created_at=snapshot_at,
-            ),
-            bq,
+        _persist_mapping_suggestions_snapshot(
+            run_id=run_id,
+            summary=summary,
+            created_at=snapshot_at,
+            bq=bq,
             project=project,
             dataset=dataset,
         )
         if _synonym_propose_enabled_from_run_record(run_record):
-            synonym_payload_json = _build_synonym_proposals_payload(
+            _persist_synonym_proposals_snapshot(
                 run_id=run_id,
+                run_record=run_record,
                 summary=summary,
                 created_at=snapshot_at,
-                existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
-                global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
-            )
-            synonym_status = update_run_synonym_proposals(
-                run_id,
-                synonym_payload_json,
-                bq,
-                project=project,
-                dataset=dataset,
-            )
-            _append_synonym_suppression_summary_event(
-                run_id=run_id,
-                synonym_payload_json=synonym_payload_json,
+                run_status=run_status,
                 bq=bq,
                 project=project,
                 dataset=dataset,
             )
-            _append_degraded_snapshot_persistence_warning(
-                run_id=run_id,
-                snapshot_name="synonym_proposals",
-                persistence_status=synonym_status,
-                bq=bq,
-                project=project,
-                dataset=dataset,
-            )
+
+
+def _persist_mapping_suggestions_snapshot(
+    *,
+    run_id: str,
+    summary: dict[str, Any],
+    created_at: datetime.datetime,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> None:
+    update_run_mapping_suggestions(
+        run_id,
+        _build_mapping_suggestions_payload(
+            run_id=run_id,
+            summary=summary,
+            created_at=created_at,
+        ),
+        bq,
+        project=project,
+        dataset=dataset,
+    )
+
+
+def _persist_synonym_proposals_snapshot(
+    *,
+    run_id: str,
+    run_record: Any,
+    summary: dict[str, Any],
+    created_at: datetime.datetime,
+    run_status: RunStatus,
+    bq: Any,
+    project: str,
+    dataset: str,
+) -> str:
+    """Persist run-scoped synonym proposals snapshot with shared behavior."""
+    synonym_payload_json = build_synonym_proposals_payload(
+        run_id=run_id,
+        summary=summary,
+        created_at=created_at,
+        existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
+        global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
+    )
+    synonym_payload = json.loads(synonym_payload_json)
+    if isinstance(synonym_payload, dict):
+        _run_synonym_automation_for_payload(
+            run_id=run_id,
+            run_record=run_record,
+            payload=synonym_payload,
+            run_status=run_status,
+            bq=bq,
+            project=project,
+            dataset=dataset,
+        )
+        synonym_payload_json = json.dumps(synonym_payload, ensure_ascii=False)
+
+    synonym_status = update_run_synonym_proposals(
+        run_id,
+        synonym_payload_json,
+        bq,
+        project=project,
+        dataset=dataset,
+    )
+    _append_synonym_suppression_summary_event(
+        run_id=run_id,
+        synonym_payload_json=synonym_payload_json,
+        bq=bq,
+        project=project,
+        dataset=dataset,
+    )
+    _append_degraded_snapshot_persistence_warning(
+        run_id=run_id,
+        snapshot_name="synonym_proposals",
+        persistence_status=synonym_status,
+        bq=bq,
+        project=project,
+        dataset=dataset,
+    )
+    return str(synonym_status or "")
 
 
 def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
@@ -1960,14 +1838,11 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                     )
                 if _summary_has_reached_stage(summary, "enrich"):
                     try:
-                        update_run_mapping_suggestions(
-                            run_id,
-                            _build_mapping_suggestions_payload(
-                                run_id=run_id,
-                                summary=summary,
-                                created_at=checkpoint_time,
-                            ),
-                            bq,
+                        _persist_mapping_suggestions_snapshot(
+                            run_id=run_id,
+                            summary=summary,
+                            created_at=checkpoint_time,
+                            bq=bq,
                             project=project,
                             dataset=dataset,
                         )
@@ -1992,43 +1867,12 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                             )
                     if _synonym_propose_enabled_from_run_record(run_record):
                         try:
-                            synonym_payload_json = _build_synonym_proposals_payload(
+                            _persist_synonym_proposals_snapshot(
                                 run_id=run_id,
+                                run_record=run_record,
                                 summary=summary,
                                 created_at=checkpoint_time,
-                                existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
-                                global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
-                            )
-                            synonym_payload = json.loads(synonym_payload_json)
-                            if isinstance(synonym_payload, dict):
-                                _run_synonym_automation_for_payload(
-                                    run_id=run_id,
-                                    run_record=run_record,
-                                    payload=synonym_payload,
-                                    run_status=RunStatus.AWAITING_CONTINUE,
-                                    bq=bq,
-                                    project=project,
-                                    dataset=dataset,
-                                )
-                                synonym_payload_json = json.dumps(synonym_payload, ensure_ascii=False)
-                            synonym_status = update_run_synonym_proposals(
-                                run_id,
-                                synonym_payload_json,
-                                bq,
-                                project=project,
-                                dataset=dataset,
-                            )
-                            _append_synonym_suppression_summary_event(
-                                run_id=run_id,
-                                synonym_payload_json=synonym_payload_json,
-                                bq=bq,
-                                project=project,
-                                dataset=dataset,
-                            )
-                            _append_degraded_snapshot_persistence_warning(
-                                run_id=run_id,
-                                snapshot_name="synonym_proposals",
-                                persistence_status=synonym_status,
+                                run_status=RunStatus.AWAITING_CONTINUE,
                                 bq=bq,
                                 project=project,
                                 dataset=dataset,
@@ -2186,6 +2030,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                         completed_stages=completed_stages,
                     )
                 export_results = list(summary.get("export_results") or [])
+                artifact_snapshot_at = finished_at or datetime.datetime.now(datetime.timezone.utc)
                 try:
                         update_run_results_export(
                             run_id,
@@ -2195,7 +2040,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                                 effective_config=effective_config,
                                 summary=summary,
                                 export_results=export_results,
-                                finished_at=finished_at,
+                                finished_at=artifact_snapshot_at,
                                 replay_context=replay_context,
                             ),
                             bq,
@@ -2225,8 +2070,8 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                         _build_stage_transition_artifacts_payload(
                             run_id=run_id,
                             summary=summary,
-                            finished_at=finished_at,
-                            run_status=RunStatus.SUCCEEDED,
+                            finished_at=artifact_snapshot_at,
+                            run_status=terminal_status,
                         ),
                         bq,
                         project=project,
@@ -2242,7 +2087,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                             run_record=run_record,
                             effective_config=effective_config,
                             config_path=config_path,
-                            finished_at=finished_at,
+                            finished_at=artifact_snapshot_at,
                             replay_context=replay_context,
                         ),
                         bq,
@@ -2254,14 +2099,11 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 if _summary_has_reached_stage(summary, "enrich"):
                     snapshot_created_at = finished_at or datetime.datetime.now(datetime.timezone.utc)
                     try:
-                        update_run_mapping_suggestions(
-                            run_id,
-                            _build_mapping_suggestions_payload(
-                                run_id=run_id,
-                                summary=summary,
-                                created_at=snapshot_created_at,
-                            ),
-                            bq,
+                        _persist_mapping_suggestions_snapshot(
+                            run_id=run_id,
+                            summary=summary,
+                            created_at=snapshot_created_at,
+                            bq=bq,
                             project=project,
                             dataset=dataset,
                         )
@@ -2282,43 +2124,12 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                             )
                     if _synonym_propose_enabled_from_run_record(run_record):
                         try:
-                            synonym_payload_json = _build_synonym_proposals_payload(
+                            _persist_synonym_proposals_snapshot(
                                 run_id=run_id,
+                                run_record=run_record,
                                 summary=summary,
                                 created_at=snapshot_created_at,
-                                existing_payload_json=getattr(run_record, "synonym_proposals_json", None),
-                                global_synonyms=_effective_skill_synonyms_from_run_record(run_record),
-                            )
-                            synonym_payload = json.loads(synonym_payload_json)
-                            if isinstance(synonym_payload, dict):
-                                _run_synonym_automation_for_payload(
-                                    run_id=run_id,
-                                    run_record=run_record,
-                                    payload=synonym_payload,
-                                    run_status=terminal_status,
-                                    bq=bq,
-                                    project=project,
-                                    dataset=dataset,
-                                )
-                                synonym_payload_json = json.dumps(synonym_payload, ensure_ascii=False)
-                            synonym_status = update_run_synonym_proposals(
-                                run_id,
-                                synonym_payload_json,
-                                bq,
-                                project=project,
-                                dataset=dataset,
-                            )
-                            _append_synonym_suppression_summary_event(
-                                run_id=run_id,
-                                synonym_payload_json=synonym_payload_json,
-                                bq=bq,
-                                project=project,
-                                dataset=dataset,
-                            )
-                            _append_degraded_snapshot_persistence_warning(
-                                run_id=run_id,
-                                snapshot_name="synonym_proposals",
-                                persistence_status=synonym_status,
+                                run_status=terminal_status,
                                 bq=bq,
                                 project=project,
                                 dataset=dataset,
@@ -2432,4 +2243,8 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 os.environ.pop("FITCV_CP_SQLITE_PATH", None)
             else:
                 os.environ["FITCV_CP_SQLITE_PATH"] = previous_sqlite_path_env
+
+
+
+
 

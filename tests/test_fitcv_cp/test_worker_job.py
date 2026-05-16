@@ -1128,6 +1128,57 @@ def test_worker_run_all_keeps_awaiting_review_for_high_risk_review_required() ->
     final_status = mock_update.call_args_list[-1].args[1]
     assert final_status.value == "awaiting_continue"
 
+
+def test_worker_awaiting_review_persists_terminal_snapshots_without_finished_at() -> None:
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(
+        effective_settings_json=json.dumps(
+            {"synonym_management": {"auto_accept_ai_action_enabled": True}}
+        )
+    )
+    mock_run.cancel_requested_at = None
+    mock_run.checkpoint_payload_json = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+    mock_run.synonym_proposals_json = None
+    mock_run.run_mode = "run_all"
+
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r-awaiting-review-persist",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 0,
+        "completed_stages": ["normalize", "enrich", "rule_filter", "shortlist", "ranking", "cv_analysis", "cv_generation"],
+        "cv_generation_debug_records": [
+            {"status": "review_required", "job_url": "https://example.com/1", "error": {"stage": "validation", "message": "validation failed"}}
+        ],
+        "mapping_suggestions": [{"field": "skill", "alias": "py", "canonical": "python", "confidence": 0.8}],
+        "stage_transition_artifacts": {"artifacts": {"stages": {"enrich": {"status": "completed"}}}},
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_status") as mock_update_status, \
+       patch("fitcv_cp.worker_job.update_run_results_export") as mock_store_export, \
+       patch("fitcv_cp.worker_job.update_run_settings_used") as mock_store_settings, \
+       patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts") as mock_store_stage_artifacts:
+        execute_pipeline_run(run_id="r-awaiting-review-persist", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    final_status = mock_update_status.call_args_list[-1].args[1]
+    assert final_status.value == "awaiting_continue"
+    assert mock_store_export.called
+    assert mock_store_settings.called
+    assert mock_store_stage_artifacts.called
+    stage_payload = json.loads(mock_store_stage_artifacts.call_args.args[1])
+    assert stage_payload["status"] == "awaiting_continue"
+    assert stage_payload["snapshot_complete"] is False
+    assert stage_payload["degradation_reason"] == "partial_snapshot_non_terminal_success"
+    assert isinstance(stage_payload.get("created_at"), str) and stage_payload["created_at"]
+
 def test_worker_run_all_executes_synonym_automation_when_enabled() -> None:
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])
