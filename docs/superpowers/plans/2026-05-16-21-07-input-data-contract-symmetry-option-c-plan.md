@@ -1,9 +1,10 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: input-data-contract-symmetry-option-c
+parent_thread: workstream-fitcv-semantic-spine.semantic-spine-input-mode-parity
 parent_spec: docs/superpowers/specs/2026-05-16-21-02-input-data-contract-symmetry-option-c-spec.md
 targets:
   - src/fitcv_cp/app.py
@@ -14,7 +15,7 @@ targets:
 related_features: []
 related_stages:
   - normalize
-  - layer2_candidate
+  - enrich
   - rule_filter
 ---
 
@@ -56,13 +57,13 @@ Tests prove mode symmetry/invariance, and trigger UI copy/accept metadata aligns
 - Existing trigger runtime envelope contract fields are confirmed (`jobs_input_json`, `candidate_profile_json`)
 
 **Steps:**
-- [ ] Step 1: Define canonical helper entrypoints for artifact parsing/validation in control-plane boundary.
-- [ ] Step 2: Extend candidate parsing support to representation-equivalent ingestion (YAML/JSON where spec requires) while preserving existing schema validation.
-- [ ] Step 3: Keep synonym overlay normalization path delegated to existing runtime overlay parser/normalizer.
-- [ ] Step 4: Ensure helper outputs are canonicalized for downstream envelope insertion.
+- [x] Step 1: Define canonical helper entrypoints for artifact parsing/validation in control-plane boundary.
+- [x] Step 2: Extend candidate parsing support to representation-equivalent ingestion (YAML/JSON where spec requires) while preserving existing schema validation.
+- [x] Step 3: Keep synonym overlay normalization path delegated to existing runtime overlay parser/normalizer.
+- [x] Step 4: Ensure helper outputs are canonicalized for downstream envelope insertion.
 
 **Verification:**
-- [ ] New/updated helper-level tests or focused assertions prove candidate representation equivalence and canonical output shape.
+- [x] New/updated helper-level tests or focused assertions prove candidate representation equivalence and canonical output shape.
 
 **Exit Criteria:**
 - Artifact-level helper contracts exist and expose no mode-specific parser divergence.
@@ -81,13 +82,13 @@ Tests prove mode symmetry/invariance, and trigger UI copy/accept metadata aligns
 - Task 1 complete
 
 **Steps:**
-- [ ] Step 1: Refactor jobs/candidate/synonym mode branches to use artifact contract helpers for parse/validate/normalize.
-- [ ] Step 2: Keep source metadata (`jobs_input_source`, `candidate_profile_source`, overlay source metadata) intact for observability.
-- [ ] Step 3: Preserve trigger-time runtime envelope shape and downstream orchestration payload boundaries.
-- [ ] Step 4: Normalize error handling to artifact-level validation outcomes instead of mode-specific parser exceptions.
+- [x] Step 1: Refactor jobs/candidate/synonym mode branches to use artifact contract helpers for parse/validate/normalize.
+- [x] Step 2: Keep source metadata (`jobs_input_source`, `candidate_profile_source`, overlay source metadata) intact for observability.
+- [x] Step 3: Preserve trigger-time runtime envelope shape and downstream orchestration payload boundaries.
+- [x] Step 4: Normalize error handling to artifact-level validation outcomes instead of mode-specific parser exceptions.
 
 **Verification:**
-- [ ] Existing mode-behavior tests pass and new assertions confirm equivalent acceptance/rejection by artifact semantics.
+- [x] Existing mode-behavior tests pass and new assertions confirm equivalent acceptance/rejection by artifact semantics.
 
 **Exit Criteria:**
 - Trigger mode selection affects source acquisition only, not artifact parsing semantics.
@@ -106,12 +107,12 @@ Tests prove mode symmetry/invariance, and trigger UI copy/accept metadata aligns
 - Task 2 complete
 
 **Steps:**
-- [ ] Step 1: Update candidate profile labels/help text to representation-neutral wording consistent with backend contract.
-- [ ] Step 2: Update candidate input `accept` hints to match supported representation set.
-- [ ] Step 3: Preserve jobs and synonym UI guidance consistency with their final artifact contracts.
+- [x] Step 1: Update candidate profile labels/help text to representation-neutral wording consistent with backend contract.
+- [x] Step 2: Update candidate input `accept` hints to match supported representation set.
+- [x] Step 3: Preserve jobs and synonym UI guidance consistency with their final artifact contracts.
 
 **Verification:**
-- [ ] Template-focused tests/assertions validate expected labels, helper text, and accept attributes.
+- [x] Template-focused tests/assertions validate expected labels, helper text, and accept attributes.
 
 **Exit Criteria:**
 - UI no longer encodes contradictory parser restrictions relative to backend behavior.
@@ -132,13 +133,13 @@ Tests prove mode symmetry/invariance, and trigger UI copy/accept metadata aligns
 - Tasks 1-3 complete
 
 **Steps:**
-- [ ] Step 1: Add/adjust mode matrix tests for jobs/candidate/synonym inputs.
-- [ ] Step 2: Add equivalence tests for semantically-equal candidate YAML/JSON payloads producing equal canonical runtime snapshots.
-- [ ] Step 3: Add assertions that synonym overlay normalization/merge behavior remains unchanged for valid inputs.
-- [ ] Step 4: Run targeted suite and capture pass evidence.
+- [x] Step 1: Add/adjust mode matrix tests for jobs/candidate/synonym inputs.
+- [x] Step 2: Add equivalence tests for semantically-equal candidate YAML/JSON payloads producing equal canonical runtime snapshots.
+- [x] Step 3: Add assertions that synonym overlay normalization/merge behavior remains unchanged for valid inputs.
+- [x] Step 4: Run targeted suite and capture pass evidence.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "candidate_profile_mode or upload_trigger or synonym_overlay"`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "candidate_profile_mode or upload_trigger or synonym_overlay"`
 
 **Exit Criteria:**
 - Plan-scoped tests demonstrate symmetry, invariance, equivalence, and no unintended trigger contract regressions.
@@ -163,3 +164,4 @@ Canonical source-of-truth:
 - `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
 </LINK>
+

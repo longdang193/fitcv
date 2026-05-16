@@ -9018,10 +9018,30 @@ def test_admin_upload_trigger_candidate_profile_modes_share_canonical_runtime_pa
                 "candidate_profile_text": json.dumps(profile_payload),
             },
         )
+        upload_yaml_resp = TestClient(_app()).post(
+            "/admin/upload-trigger",
+            data={
+                "jobs_input_mode": "path",
+                "jobs_path": str(jobs_file),
+                "candidate_profile_mode": "upload",
+            },
+            files={"candidate_profile_file": ("profile.yaml", _minimal_valid_profile_yaml().encode("utf-8"), "application/x-yaml")},
+        )
+        paste_yaml_resp = TestClient(_app()).post(
+            "/admin/upload-trigger",
+            data={
+                "jobs_input_mode": "path",
+                "jobs_path": str(jobs_file),
+                "candidate_profile_mode": "paste",
+                "candidate_profile_text": _minimal_valid_profile_yaml(),
+            },
+        )
 
     assert default_resp.status_code == 201, default_resp.text
     assert upload_resp.status_code == 201, upload_resp.text
     assert paste_resp.status_code == 201, paste_resp.text
+    assert upload_yaml_resp.status_code == 201, upload_yaml_resp.text
+    assert paste_yaml_resp.status_code == 201, paste_yaml_resp.text
 
     for source in ("default_config", "upload", "paste"):
         run = captured_runs[source]
@@ -9424,6 +9444,18 @@ def test_settings_page_cv_sections_no_raw_yaml():
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     assert '<textarea name="required_cv_sections"' not in resp.text
+
+def test_runs_list_candidate_profile_controls_accept_json_and_yaml() -> None:
+    with patch("fitcv_cp.app.list_runs", return_value=[]), \
+         patch("fitcv_cp.app.get_pipeline_runs_schema_status", return_value={"status": "complete", "missing_columns": [], "warning": None}):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Upload Profile" in html
+    assert "Paste Profile" in html
+    assert "JSON or YAML file matching the FitCV candidate profile schema" in html
+    assert 'id="candidate_profile_file"' in html
+    assert '.json,.yaml,.yml,application/json,text/yaml,application/x-yaml' in html
 
 
 def test_settings_page_cv_max_pages_is_numeric_input():
