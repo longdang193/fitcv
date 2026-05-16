@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-operator-control-plane.operator-control-plane-agentic-review-actions
 status: proposed
 ---
@@ -21,15 +21,8 @@ semantic-spine authority; agentic synonym review flow
 
 operator run detail or review queues
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Do not design this before review objects exist.
+
 

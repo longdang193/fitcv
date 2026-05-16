@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-operator-diagnostics
 status: proposed
 ---
@@ -21,15 +21,8 @@ exact-match contract
 
 results.json; inspection UI
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Truthful reuse narration only.
+
 

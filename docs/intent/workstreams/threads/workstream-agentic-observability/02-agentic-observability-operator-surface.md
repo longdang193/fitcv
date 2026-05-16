@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-agentic-observability.agentic-observability-operator-surface
 status: proposed
 ---
@@ -21,15 +21,8 @@ event contract
 
 inspection_debugging UI; exports
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Keep private reasoning out.
+
 

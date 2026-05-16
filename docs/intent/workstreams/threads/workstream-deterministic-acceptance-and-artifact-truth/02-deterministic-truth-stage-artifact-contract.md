@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-stage-artifact-contract
 status: completed
 ---
@@ -21,14 +21,6 @@ stage authority contract
 
 stage artifact files; docs/stages/*
 
-## Linked Spec
-
-- docs/superpowers/specs/2026-05-03-deterministic-truth-stage-artifact-contract-bootstrap-spec.md
-
-## Linked Plan
-
-- docs/superpowers/plans/2026-05-03-deterministic-truth-stage-artifact-contract-bootstrap-plan.md
-
 ## Notes
 
 Keep supporting explanation separate from gate artifacts.
@@ -37,4 +29,5 @@ Keep supporting explanation separate from gate artifacts.
 
 - Stage-owned artifact boundaries defined with ownership expectations.
 - Handoff contract documented for deterministic downstream decisions.
+
 

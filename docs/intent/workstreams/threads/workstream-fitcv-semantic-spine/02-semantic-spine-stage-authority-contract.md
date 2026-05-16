@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-fitcv-semantic-spine.semantic-spine-stage-authority-contract
 status: proposed
 ---
@@ -21,15 +21,8 @@ original FitCV runtime contracts; stage docs
 
 src/fitcv/pipeline.py; results artifacts; docs/stages/*
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 This is the recommended first dedicated thread spec.
+
 

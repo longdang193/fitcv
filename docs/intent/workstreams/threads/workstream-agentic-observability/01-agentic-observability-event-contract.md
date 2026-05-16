@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-agentic-observability.agentic-observability-event-contract
 status: completed
 ---
@@ -21,15 +21,8 @@ deterministic outcome contract
 
 stage artifacts; persisted diagnostics
 
-## Linked Spec
-
-- docs/superpowers/specs/2026-04-28-agentic-observability-event-contract-spec.md
-
-## Linked Plan
-
-- docs/superpowers/plans/2026-04-28-fitcv-wave-2-operator-observability-truth-plan.md
-
 ## Notes
 
 First-wave observability spec.
+
 

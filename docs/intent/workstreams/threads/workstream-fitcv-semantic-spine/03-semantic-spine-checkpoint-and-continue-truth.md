@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-fitcv-semantic-spine.semantic-spine-checkpoint-and-continue-truth
 status: proposed
 ---
@@ -21,15 +21,8 @@ run-state persistence; operator run detail
 
 src/fitcv_cp/; pipeline checkpoint persistence
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Keep status vocabulary aligned with stage authority.
+
 

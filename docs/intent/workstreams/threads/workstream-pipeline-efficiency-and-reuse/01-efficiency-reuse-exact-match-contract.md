@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-exact-match-contract
 status: proposed
 ---
@@ -21,15 +21,8 @@ semantic-spine and deterministic truth
 
 reuse fingerprints; ranking or cv_analysis rows
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Contract first.
+
 

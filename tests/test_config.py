@@ -21,6 +21,7 @@ import pytest
 from fitcv.config import (
     apply_runtime_synonym_overlay,
     apply_runtime_skill_synonym_overlay,
+    get_cv_acceptance_policy,
     get_cv_generation_structured_prompt_id,
     get_gemini_model,
     get_ranking_prompt_id,
@@ -28,7 +29,14 @@ from fitcv.config import (
     load_config,
     parse_runtime_synonym_overlay_yaml,
     parse_skill_synonym_overlay_yaml,
+    resolve_data_backend,
 )
+
+
+def test_get_cv_acceptance_policy_defaults_when_missing() -> None:
+    policy = get_cv_acceptance_policy({})
+    assert policy["enabled"] is False
+    assert policy["review_reason_code"] == "policy_acceptance"
 
 
 def test_load_config_returns_dict() -> None:
@@ -207,6 +215,90 @@ def test_load_config_accepts_legacy_config_env_path_with_warning() -> None:
         cfg = load_config(legacy_path)
     assert cfg["gemini_model"] == "gemini-2.5-flash"
     assert cfg["vertex_location"] == "us-central1"
+
+def test_load_config_warns_when_legacy_compatibility_keys_present(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\n"
+        "bigquery_dataset: ds\n"
+        "service_account_key: /dev/null\n"
+        "seniority_ladder:\n"
+        "  - intern\n"
+        "  - senior\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    cfg = load_config(env_yaml)
+    assert cfg["seniority"]["ladder"] == ["intern", "senior"]
+    assert "Legacy compatibility keys detected in env config" in caplog.text
+
+def test_load_config_legacy_and_canonical_inputs_are_equivalent_for_pipeline_projection(tmp_path: Path) -> None:
+    cfg_dir = tmp_path / "config"
+    (cfg_dir / "runtime").mkdir(parents=True)
+    (cfg_dir / "policy").mkdir(parents=True)
+    (cfg_dir / "taxonomy").mkdir(parents=True)
+
+    root_env = tmp_path / ".env.yaml"
+    root_env.write_text(
+        "gcp_project: test\n"
+        "bigquery_dataset: ds\n"
+        "service_account_key: /dev/null\n"
+        "vector_top_n: 50\n"
+        "rerank_top_n: 40\n"
+    )
+    (cfg_dir / "env.yaml").write_text(
+        "gcp_project: test\n"
+        "bigquery_dataset: ds\n"
+        "service_account_key: /dev/null\n"
+    )
+    (cfg_dir / "runtime" / "pipeline.yaml").write_text(
+        "pipeline:\n"
+        "  vector_search_top_n: 50\n"
+        "  ai_score_top_n: 40\n"
+        "  final_top_n: 10\n"
+        "  evidence_top_k: 5\n"
+        "gemini_model: gemini-2.5-flash\n"
+    )
+    (cfg_dir / "policy" / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    (cfg_dir / "taxonomy" / "taxonomy.yaml").write_text("seniority:\n  ladder:\n    - intern\n")
+
+    cfg_from_root = load_config(root_env)
+    cfg_from_legacy = load_config(cfg_dir / "env.yaml")
+
+    assert cfg_from_root["pipeline"]["vector_search_top_n"] == cfg_from_legacy["pipeline"]["vector_search_top_n"]
+    assert cfg_from_root["pipeline"]["ai_score_top_n"] == cfg_from_legacy["pipeline"]["ai_score_top_n"]
+    assert cfg_from_root["vector_top_n"] == cfg_from_legacy["vector_top_n"]
+    assert cfg_from_root["rerank_top_n"] == cfg_from_legacy["rerank_top_n"]
+
+def test_resolve_data_backend_env_override_is_invariant(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    cfg_a = {"gcp_project": "p1", "bigquery_dataset": "d1"}
+    cfg_b = {"control_plane": {"data_backend": {"type": "bigquery"}}}
+    assert resolve_data_backend(cfg_a) == "sqlite"
+    assert resolve_data_backend(cfg_b) == "sqlite"
 
 
 def test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_files(tmp_path: Path) -> None:

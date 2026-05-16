@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-agentic-observability.agentic-observability-provider-provenance
 status: completed
 ---
@@ -21,15 +21,8 @@ event contract
 
 provider bridge; diagnostics artifacts
 
-## Linked Spec
-
-- docs/superpowers/specs/2026-04-29-persisted-run-scoped-agentic-live-trace-surface-spec.md
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Bounded provenance only.
+
 

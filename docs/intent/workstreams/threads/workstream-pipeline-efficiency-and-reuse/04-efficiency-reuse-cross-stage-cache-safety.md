@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-cross-stage-cache-safety
 status: proposed
 ---
@@ -21,15 +21,8 @@ semantic-spine and deterministic truth contracts
 
 cache keys; late-stage reuse inputs
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Coupled safety thread; later wave.
+
 
