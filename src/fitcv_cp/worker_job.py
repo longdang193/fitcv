@@ -26,6 +26,10 @@ from typing import Any
 from google.cloud import bigquery
 
 from fitcv.config import apply_runtime_skill_synonym_overlay, parse_skill_synonym_overlay_yaml
+from fitcv.contracts import (
+    MAPPING_SUGGESTIONS_SCHEMA_VERSION,
+    STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION,
+)
 from fitcv.pipeline import PipelineCancelled, run_pipeline
 from fitcv.telemetry import (
     build_langfuse_trace_attributes,
@@ -52,6 +56,7 @@ from fitcv_cp.bq_store import (
 from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.data_plane import data_plane_contract_payload
 from fitcv_cp.synonym_proposals import (
+    resolve_synonym_management_mode,
     build_synonym_proposals_payload,
     transition_synonym_proposal_status,
 )
@@ -565,7 +570,7 @@ def _build_stage_transition_artifacts_payload(
     payload = {
         "run_id": run_id,
         "status": run_status.value,
-        "artifact_schema_version": "stage_transition_artifacts_run_v1",
+        "artifact_schema_version": STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION,
         "created_at": finished_at.isoformat(),
         "snapshot_complete": snapshot_complete,
         "degradation_reason": resolved_reason,
@@ -671,7 +676,7 @@ def _build_mapping_suggestions_payload(
 ) -> str:
     payload = {
         "run_id": run_id,
-        "mapping_suggestions_schema_version": "mapping_suggestions_v1",
+        "mapping_suggestions_schema_version": MAPPING_SUGGESTIONS_SCHEMA_VERSION,
         "created_at": created_at.isoformat(),
         "suggestions": list(summary.get("mapping_suggestions") or []),
     }
@@ -717,73 +722,35 @@ def _effective_skill_synonyms_from_run_record(run_record: Any) -> dict[str, str]
     }
 
 def _synonym_propose_enabled_from_run_record(run_record: Any) -> bool:
-    if run_record is None:
-        return True
-    raw_payload = getattr(run_record, "effective_settings_json", None)
-    if not raw_payload:
-        return True
-    try:
-        settings_payload = json.loads(raw_payload)
-    except (TypeError, json.JSONDecodeError):
-        return True
-    if not isinstance(settings_payload, dict):
-        return True
-    block = dict(settings_payload.get("synonym_management") or {})
-    return bool(block.get("propose_enabled", True))
+    return bool(_synonym_management_mode_from_run_record(run_record).get("propose_enabled", True))
 
 
 def _auto_accept_ai_action_enabled_from_run_record(run_record: Any) -> bool:
-    if run_record is None:
-        return True
-    raw_payload = getattr(run_record, "effective_settings_json", None)
-    if not raw_payload:
-        return True
-    try:
-        settings_payload = json.loads(raw_payload)
-    except (TypeError, json.JSONDecodeError):
-        return True
-    if not isinstance(settings_payload, dict):
-        return True
-    block = dict(settings_payload.get("synonym_management") or {})
-    return bool(block.get("auto_accept_ai_action_enabled", True))
+    return bool(_synonym_management_mode_from_run_record(run_record).get("auto_accept_ai_action_enabled", True))
 
 def _synonym_management_mode_from_run_record(run_record: Any) -> dict[str, bool]:
     if run_record is None:
-        return {
-            "propose_enabled": True,
-            "apply_to_run_enabled": True,
-            "promote_global_enabled": True,
-            "auto_triage_recommendation_enabled": True,
-            "triage_recommendation_reuse_enabled": True,
-            "auto_apply_recommendation_enabled": False,
-            "auto_promote_global_enabled": False,
-        }
-    raw_payload = getattr(run_record, "effective_settings_json", None)
-    if not raw_payload:
-        return {
-            "propose_enabled": True,
-            "apply_to_run_enabled": True,
-            "promote_global_enabled": True,
-            "auto_triage_recommendation_enabled": True,
-            "triage_recommendation_reuse_enabled": True,
-            "auto_apply_recommendation_enabled": False,
-            "auto_promote_global_enabled": False,
-        }
-    try:
-        settings_payload = json.loads(raw_payload)
-    except (TypeError, json.JSONDecodeError):
-        settings_payload = {}
-    if not isinstance(settings_payload, dict):
-        settings_payload = {}
-    block = dict(settings_payload.get("synonym_management") or {})
+        settings_payload: dict[str, Any] | None = None
+    else:
+        raw_payload = getattr(run_record, "effective_settings_json", None)
+        if not raw_payload:
+            settings_payload = None
+        else:
+            try:
+                parsed = json.loads(raw_payload)
+            except (TypeError, json.JSONDecodeError):
+                parsed = None
+            settings_payload = parsed if isinstance(parsed, dict) else None
+    resolved = resolve_synonym_management_mode(settings_payload)
     return {
-        "propose_enabled": bool(block.get("propose_enabled", True)),
-        "apply_to_run_enabled": bool(block.get("apply_to_run_enabled", True)),
-        "promote_global_enabled": bool(block.get("promote_global_enabled", True)),
-        "auto_triage_recommendation_enabled": bool(block.get("auto_triage_recommendation_enabled", True)),
-        "triage_recommendation_reuse_enabled": bool(block.get("triage_recommendation_reuse_enabled", True)),
-        "auto_apply_recommendation_enabled": bool(block.get("auto_apply_recommendation_enabled", False)),
-        "auto_promote_global_enabled": bool(block.get("auto_promote_global_enabled", False)),
+        "propose_enabled": bool(resolved.get("propose_enabled", True)),
+        "apply_to_run_enabled": bool(resolved.get("apply_to_run_enabled", True)),
+        "promote_global_enabled": bool(resolved.get("promote_global_enabled", True)),
+        "auto_triage_recommendation_enabled": bool(resolved.get("auto_triage_recommendation_enabled", True)),
+        "triage_recommendation_reuse_enabled": bool(resolved.get("triage_recommendation_reuse_enabled", True)),
+        "auto_apply_recommendation_enabled": bool(resolved.get("auto_apply_recommendation_enabled", False)),
+        "auto_promote_global_enabled": bool(resolved.get("auto_promote_global_enabled", False)),
+        "auto_accept_ai_action_enabled": bool(resolved.get("auto_accept_ai_action_enabled", True)),
     }
 
 def _stable_sha256_json(payload: dict[str, Any]) -> str:
@@ -880,130 +847,6 @@ def _map_review_required_reason_code(record: dict[str, Any]) -> str:
     if stage in {"provider", "llm"} or "provider" in message or "response unusable" in message:
         return "provider_response_unusable"
     return "manual_review_other"
-
-
-def _build_synonym_proposals_trace_payload(
-    *,
-    run_id: str,
-    created_at: datetime.datetime,
-    proposal_generation_status: str,
-    persistence_status: str,
-    proposals: list[dict[str, Any]],
-    suppression_summary: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    if proposal_generation_status == "not_applicable":
-        return {
-            "run_id": run_id,
-            "trace_schema_version": "agentic_step_trace_run_v1",
-            "trace_family": "agentic_step_trace",
-            "step_id": "synonym_proposals",
-            "created_at": created_at.isoformat(),
-            "trace_status": "not_applicable",
-            "trace_summary": {
-                "records_total": 0,
-                "present_records": 0,
-                "proposal_count": 0,
-                "suppressed_as_already_global_count": int(
-                    (suppression_summary or {}).get("suppressed_as_already_global_count") or 0
-                ),
-                "generated_for_review_count": int(
-                    (suppression_summary or {}).get("generated_for_review_count") or 0
-                ),
-                "suppression_source": str((suppression_summary or {}).get("suppression_source") or "none"),
-                "suppressed_count_by_field": dict((suppression_summary or {}).get("suppressed_count_by_field") or {}),
-                "suppressed_reason_counts_by_field": dict((suppression_summary or {}).get("suppressed_reason_counts_by_field") or {}),
-            },
-            "records": [],
-            "degradation": {},
-            "artifact_refs": {},
-            "suppression_examples": list((suppression_summary or {}).get("suppressed_examples") or []),
-        }
-
-    trace_records: list[dict[str, Any]] = []
-    for proposal in proposals:
-        if not isinstance(proposal, dict):
-            continue
-        proposal_id = str(proposal.get("proposal_id") or "").strip()
-        alias = str(proposal.get("alias") or "").strip()
-        trace_records.append(
-            {
-                "trace_schema_version": "agentic_step_trace_record_v1",
-                "trace_family": "agentic_step_trace",
-                "step_id": "synonym_proposals",
-                "trace_status": "completed",
-                "record_id": proposal_id or alias,
-                "scope_type": "alias",
-                "scope_key": alias,
-                "status": str(proposal.get("proposal_status") or "proposed_unreviewed"),
-                "runtime_provenance": {
-                    "runtime_path": "fitcv_synonym_proposal_builder_builtin",
-                    "provider": "fitcv_builtin",
-                    "mode_source": "mapping_suggestions_to_synonym_proposals",
-                },
-                "attempts": [
-                    {
-                        "attempt_index": 1,
-                        "attempt_type": "proposal_generation",
-                        "attempt_status": "completed",
-                        "provider_status": "completed",
-                    }
-                ],
-                "input_summary": {
-                    "alias": alias,
-                    "candidate_canonicals_count": len(list(proposal.get("candidate_canonicals") or [])),
-                },
-                "output_summary": {
-                    "proposal_family": str(proposal.get("proposal_family") or ""),
-                    "proposal_scope": str(proposal.get("proposal_scope") or ""),
-                    "confidence": float(proposal.get("confidence") or 0.0),
-                },
-                "validation_summary": {"status": "not_run"},
-                "repair_summary": {"repair_attempted": False, "repair_attempts": 0},
-                "error_summary": None,
-            }
-        )
-
-    trace_status = "completed"
-    degradation: dict[str, Any] = {}
-    if persistence_status == "bundle_only_degraded":
-        trace_status = "degraded"
-        degradation = {"reason": "synonym_proposals_bundle_only_degraded"}
-    elif persistence_status == "failed":
-        trace_status = "degraded"
-        degradation = {"reason": "synonym_proposals_persistence_failed"}
-    elif not trace_records:
-        trace_status = "partial"
-        degradation = {"reason": "proposal_generation_without_trace_records"}
-
-    return {
-        "run_id": run_id,
-        "trace_schema_version": "agentic_step_trace_run_v1",
-        "trace_family": "agentic_step_trace",
-        "step_id": "synonym_proposals",
-        "created_at": created_at.isoformat(),
-        "trace_status": trace_status,
-        "trace_summary": {
-            "records_total": len(proposals),
-            "present_records": len(trace_records),
-            "proposal_count": len(proposals),
-            "suppressed_as_already_global_count": int(
-                (suppression_summary or {}).get("suppressed_as_already_global_count") or 0
-            ),
-            "generated_for_review_count": int(
-                (suppression_summary or {}).get("generated_for_review_count") or len(proposals)
-            ),
-            "suppression_source": str((suppression_summary or {}).get("suppression_source") or "none"),
-            "suppressed_count_by_field": dict((suppression_summary or {}).get("suppressed_count_by_field") or {}),
-            "suppressed_reason_counts_by_field": dict((suppression_summary or {}).get("suppressed_reason_counts_by_field") or {}),
-        },
-        "records": trace_records,
-        "degradation": degradation,
-        "artifact_refs": {
-            "proposal_artifact": "synonym-proposals.json",
-            "stage_artifact": "enrich.json",
-        },
-        "suppression_examples": list((suppression_summary or {}).get("suppressed_examples") or []),
-    }
 
 
 def _summary_has_reached_stage(summary: dict[str, Any], stage_id: str) -> bool:
@@ -2243,6 +2086,7 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 os.environ.pop("FITCV_CP_SQLITE_PATH", None)
             else:
                 os.environ["FITCV_CP_SQLITE_PATH"] = previous_sqlite_path_env
+
 
 
 

@@ -239,6 +239,7 @@
     <tbody>
       {% for run in runs %}
       {% set orch = run_orchestration_diagnostics.get(run.run_id, {}) %}
+      {% set status_projection = run_status_projection.get(run.run_id, {}) %}
       <tr>
         <td>
           <input
@@ -252,11 +253,11 @@
         <td><a href="/admin/runs/{{ run.run_id }}"><code>{{ run.run_id[:8] }}…</code></a></td>
         <td>
           <span class="run-status-text" data-status="{{ run.status.value }}">{{ run.status.value }}</span>
-          {% if run.archived_at %}<div class="meta" style="margin-top:0.15rem">archived</div>{% endif %}
+          {% if status_projection.is_archived %}<div class="meta" style="margin-top:0.15rem">archived</div>{% endif %}
         </td>
         <td class="meta">
           <span class="run-mode-text">{{ 'Stage by Stage' if run.run_mode == 'manual_staged' else 'Run All' }}</span>
-          {% if run.status.value == 'awaiting_continue' and run.next_stage %}
+          {% if status_projection.is_awaiting_continue and run.next_stage %}
           <div class="run-next-stage"><code>next: {{ run.next_stage }}</code></div>
           {% endif %}
         </td>
