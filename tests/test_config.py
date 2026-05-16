@@ -27,6 +27,7 @@ from fitcv.config import (
     get_ranking_prompt_id,
     get_vertex_location,
     load_config,
+    load_control_plane_config,
     parse_runtime_synonym_overlay_yaml,
     parse_skill_synonym_overlay_yaml,
     resolve_data_backend,
@@ -945,6 +946,48 @@ def test_load_config_cv_acceptance_policy_defaults_when_env_missing(tmp_path: Pa
     assert max_missing["strong"] == 0
     assert max_missing["stretch"] == 1
     assert runtime["force_review_when_any_required_missing_for_fits"] == []
+
+def test_env_yaml_has_single_cv_acceptance_policy_declaration() -> None:
+    env_yaml = (Path(__file__).parent.parent / "config" / "env.yaml").read_text(encoding="utf-8")
+    assert env_yaml.count("\ncv_acceptance_policy:") == 1
+
+def test_control_plane_config_does_not_expose_dead_cv_analysis_semantic_alignment_part() -> None:
+    control_plane = load_control_plane_config()
+    parts = (((control_plane.get("model_routing") or {}).get("parts")) or {})
+    assert "cv_analysis_semantic_alignment" not in parts
+
+def test_load_config_preserves_legacy_compatibility_projection_for_seniority_ladder(tmp_path: Path) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\n"
+        "bigquery_dataset: ds\n"
+        "service_account_key: /dev/null\n"
+        "seniority_ladder:\n"
+        "  - junior\n"
+        "  - senior\n",
+        encoding="utf-8",
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "    experience:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(env_yaml)
+    seniority = dict(cfg.get("seniority") or {})
+    assert seniority.get("ladder") == ["junior", "senior"]
 
 
 def test_load_config_nested_cv_validation_max_pages_positive(tmp_path: Path) -> None:

@@ -4,7 +4,6 @@ artifact_type: spec
 status: proposed
 template_id: detailed-specification
 name: config-ssot-overlap-dead-settings-remediation
-parent_workstream: workstream-fitcv-semantic-spine
 parent_thread: workstream-fitcv-semantic-spine.semantic-spine-component-boundary-and-interface-contract
 targets:
   - config/env.yaml
