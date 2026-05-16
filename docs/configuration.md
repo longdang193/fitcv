@@ -41,22 +41,34 @@ This matrix defines current SSOT ownership for migration execution.
 - canonical-infra bridge (kept until loader migration complete): `gcp_project`, `bigquery_dataset`, `service_account_key`, `location`
 - removable private surface: `config/env.private.yaml` (no active tracked consumer in this worktree baseline)
 
+### Task 1 Ownership And Disposition Decisions
+
+| Candidate | Canonical owner | Decision | Consumer evidence |
+| --- | --- | --- | --- |
+| `config/env.yaml:cv_acceptance_policy` duplicate block | `config/env.yaml` (single block only) | remove duplicate declaration, keep one canonical block | `src/fitcv/pipeline.py` + `src/fitcv/config.py:get_cv_acceptance_policy` |
+| `max_cv_jobs`, `cv_analysis_min_score`, `required_skill_overlap_min`, `preferred_skill_overlap_min`, `language_match_min`, `summary_quality_min` in `config/env.yaml` | `config/runtime/pipeline.yaml` | drain from `env.yaml`; keep compatibility mapping only where active runtime still needs bridge | overlap warnings and compatibility projection in `src/fitcv/config.py` |
+| `seniority_ladder` in `config/env.yaml` | `config/taxonomy/taxonomy.yaml` | keep temporary compatibility-only bridge; block expansion | consumer in `src/fitcv/rule_filter.py` |
+| `application_statuses` in `config/env.yaml` | `config/taxonomy/taxonomy.yaml` | keep temporary compatibility-only bridge; block expansion | consumer in `src/fitcv/tracker.py` |
+| `control_plane.model_routing.parts.cv_analysis_semantic_alignment` | none (no active runtime consumer) | remove key from `config/runtime/control_plane.yaml` | no source consumer found; only config declaration present |
+| `config/live_smoke.yaml` | non-runtime support config (explicit non-canonical) | keep file, classify non-runtime smoke/support surface | file exists; not canonical runtime owner |
+| `config/env.private.yaml` | none (not tracked) | classify as deprecated local-only override; do not add tracked runtime dependency | file missing in tracked worktree baseline |
+
 ### CV Acceptance Strictness Policy (Option B)
 
-Canonical policy owner in this lane: config/env.yaml key cv_acceptance_policy.
+Canonical policy owner in this lane: `config/env.yaml` key `cv_acceptance_policy`.
 
 Policy meaning:
 
-- equired_match.min_ratio_by_fit.<fit>: minimum matched_required / matchable_required_count ratio to remain eligible for auto-accept.
-- equired_match.max_missing_by_fit.<fit>: maximum missing required items allowed for auto-accept.
-- orce_review_when_any_required_missing_for_fits: fit classes that must route to eview_required when any required item is missing.
+- `required_match.min_ratio_by_fit.<fit>`: minimum `matched_required / matchable_required_count` ratio to remain eligible for auto-accept.
+- `required_match.max_missing_by_fit.<fit>`: maximum missing required items allowed for auto-accept.
+- `force_review_when_any_required_missing_for_fits`: fit classes that must route to `review_required` when any required item is missing.
 
-eview_required semantics in this contract:
+`review_required` semantics in this contract:
 
 - non-fatal HITL branch
 - generation/validation output can exist
 - auto-accept is blocked by policy and requires operator decision (ccept/reject/edit)
-- hard-failure statuses remain reserved for alidation_failed, generation_failed, persistence_failed
+- hard-failure statuses remain reserved for `validation_failed`, `generation_failed`, `persistence_failed`
 ### Planned Deprecation Boundaries
 
 1. `config/env.yaml` remains accepted as trigger default during transition, but ownership must shift to canonical runtime/policy/taxonomy files.

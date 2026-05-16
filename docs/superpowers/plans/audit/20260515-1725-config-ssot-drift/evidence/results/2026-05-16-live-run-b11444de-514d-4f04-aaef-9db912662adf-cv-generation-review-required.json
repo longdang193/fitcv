@@ -1,0 +1,29 @@
+{
+  "run_id": "b11444de-514d-4f04-aaef-9db912662adf",
+  "schema_version": "cv_generation_review_required_v1",
+  "rows": [
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+      "job_title": "Data Analyst - Retail Banking",
+      "reason_code": "policy_required_ratio_fail",
+      "review_target": "other",
+      "operator_prompt": "Review this CV outcome and choose approve as-is, regenerate once, or reject.",
+      "unsupported_requirements": [
+        "Data Vault",
+        "3NF",
+        "Redshift",
+        "Jira",
+        "Confluence"
+      ],
+      "generated_draft_present": true,
+      "accepted_cv_artifact_present": false,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Policy acceptance blocked (policy_required_ratio_fail): policy_required_ratio_below_threshold. Manual review required.",
+      "provider_name": "openai_compatible",
+      "model_name": "cx/gpt-5.2",
+      "request_id": null
+    }
+  ]
+}
