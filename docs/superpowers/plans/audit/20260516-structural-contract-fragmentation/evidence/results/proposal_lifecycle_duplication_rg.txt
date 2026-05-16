@@ -1,0 +1,11 @@
+src/fitcv_cp/synonym_proposals.py:26:def transition_synonym_proposal_status(current_status: str, action: str) -> str | None:
+src/fitcv_cp/synonym_proposals.py:50:def build_synonym_proposals_payload(
+src/fitcv_cp/synonym_proposals.py:222:def _build_synonym_proposals_trace_payload(
+src/fitcv_cp/worker_job.py:55:    build_synonym_proposals_payload,
+src/fitcv_cp/worker_job.py:56:    transition_synonym_proposal_status,
+src/fitcv_cp/worker_job.py:682:def _build_synonym_proposals_payload(
+src/fitcv_cp/worker_job.py:691:    return build_synonym_proposals_payload(
+src/fitcv_cp/worker_job.py:885:def _build_synonym_proposals_trace_payload(
+src/fitcv_cp/worker_job.py:1240:            next_status = transition_synonym_proposal_status(status, action)
+src/fitcv_cp/worker_job.py:1522:def _persist_synonym_proposals_snapshot(
+src/fitcv_cp/worker_job.py:1534:    synonym_payload_json = build_synonym_proposals_payload(
