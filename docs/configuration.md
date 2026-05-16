@@ -40,6 +40,7 @@ This matrix defines current SSOT ownership for migration execution.
 - compatibility-only (to be drained from `config/env.yaml`): `seniority_ladder`, `application_statuses`, `cv_analysis_min_score`, overlap with runtime knobs that already live in `config/runtime/pipeline.yaml`
 - canonical-infra bridge (kept until loader migration complete): `gcp_project`, `bigquery_dataset`, `service_account_key`, `location`
 - removable private surface: `config/env.private.yaml` (no active tracked consumer in this worktree baseline)
+- removable smoke surface: `config/live_smoke.yaml` (duplicates infra/model ownership outside canonical runtime files)
 
 ### Task 1 Ownership And Disposition Decisions
 
@@ -50,7 +51,7 @@ This matrix defines current SSOT ownership for migration execution.
 | `seniority_ladder` in `config/env.yaml` | `config/taxonomy/taxonomy.yaml` | keep temporary compatibility-only bridge; block expansion | consumer in `src/fitcv/rule_filter.py` |
 | `application_statuses` in `config/env.yaml` | `config/taxonomy/taxonomy.yaml` | keep temporary compatibility-only bridge; block expansion | consumer in `src/fitcv/tracker.py` |
 | `control_plane.model_routing.parts.cv_analysis_semantic_alignment` | none (no active runtime consumer) | remove key from `config/runtime/control_plane.yaml` | no source consumer found; only config declaration present |
-| `config/live_smoke.yaml` | non-runtime support config (explicit non-canonical) | keep file, classify non-runtime smoke/support surface | file exists; not canonical runtime owner |
+| `config/live_smoke.yaml` | none (retired in Razor+SSOT lane) | delete file; no runtime dependency allowed | current file duplicates infra/model keys and increases ownership ambiguity |
 | `config/env.private.yaml` | none (not tracked) | classify as deprecated local-only override; do not add tracked runtime dependency | file missing in tracked worktree baseline |
 
 ### CV Acceptance Strictness Policy (Option B)
@@ -67,7 +68,7 @@ Policy meaning:
 
 - non-fatal HITL branch
 - generation/validation output can exist
-- auto-accept is blocked by policy and requires operator decision (ccept/reject/edit)
+- auto-accept is blocked by policy and requires operator decision (accept/reject/edit)
 - hard-failure statuses remain reserved for `validation_failed`, `generation_failed`, `persistence_failed`
 ### Planned Deprecation Boundaries
 
