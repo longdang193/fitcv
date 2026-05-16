@@ -5,21 +5,21 @@
 <div class="page-header">
   <h1>Run <code>{{ run.run_id }}</code></h1>
   <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
-    {% if run.archived_at %}
+    {% if run_status_projection.is_archived %}
       <span class="badge badge-warning">Archived</span>
     {% endif %}
     {% if can_continue_manual_run %}
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'continue', this)">Run Next Stage</button>
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'stop', this)">Stop Run</button>
-    {% elif run.status.value in ('queued', 'running') %}
+    {% elif run_status_projection.is_active and run_status_projection.status != 'cancelling' %}
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'stop', this)">Stop Run</button>
     {% elif is_stale_cancelling(run) %}
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'repair-cancellation', this)">Repair Status</button>
-    {% elif run.status.value == 'cancelling' %}
+    {% elif run_status_projection.status == 'cancelling' %}
       <span class="meta" title="Waiting for next pipeline checkpoint">Cancellation pending…</span>
-    {% elif run.status.value in ('succeeded', 'failed', 'cancelled') and not run.archived_at %}
+    {% elif run_status_projection.is_terminal and not run_status_projection.is_archived %}
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'archive', this)">Archive Run</button>
-    {% elif run.archived_at %}
+    {% elif run_status_projection.is_archived %}
       <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'unarchive', this)">Unarchive Run</button>
     {% endif %}
     <a href="/admin/runs/{{ run.run_id }}" class="btn-secondary" id="manual-refresh-link">⟳ Refresh Status</a>

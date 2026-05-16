@@ -73,7 +73,10 @@ from fitcv.config import (
     load_config,
     resolve_model_routing_part,
 )
-from fitcv.contracts import normalize_analysis_channel_mapping
+from fitcv.contracts import (
+    STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION,
+    normalize_analysis_channel_mapping,
+)
 from fitcv.cv_generator import generate_cv, render_cv_markdown
 from fitcv.embeddings import embed_and_store_candidate, embed_and_store_jobs
 from fitcv.enrich import (
@@ -3359,7 +3362,7 @@ def _build_stage_transition_artifacts(
     agentic_late_stage_enabled = _agentic_late_stage_enabled(config)
 
     return {
-        "schema_version": "stage_transition_artifacts_v6",
+        "schema_version": STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION,
         "stages": {
             "normalize": _stage_block(
                 stage_id="normalize",

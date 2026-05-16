@@ -42,6 +42,11 @@ from fitcv.config import (
     parse_skill_synonym_overlay_yaml,
     resolve_langgraph_runtime_expectation,
 )
+from fitcv.contracts import (
+    MAPPING_SUGGESTIONS_AGGREGATE_SCHEMA_VERSION,
+    STAGE_TRANSITION_ARTIFACTS_STAGE_SCHEMA_VERSION,
+    SYNONYM_PROPOSALS_QUEUE_SCHEMA_VERSION,
+)
 from fitcv.prompts import render_prompt
 from fitcv.pipeline import (
     _infer_last_completed_stage_from_state,
@@ -80,6 +85,7 @@ from fitcv_cp.settings_schema import (
 )
 from fitcv_cp.settings_store import load_active_settings, save_setting, save_settings_group
 from fitcv_cp.synonym_proposals import (
+    apply_synonym_management_defaults,
     build_synonym_proposals_payload,
     transition_synonym_proposal_status,
 )
@@ -631,7 +637,22 @@ RUN_MODE_LABELS = {
     "run_all": "Run All",
     "manual_staged": "Stage by Stage",
 }
+RUN_STATUS_GROUPS = {
+    "active": {RunStatus.QUEUED.value, RunStatus.RUNNING.value, RunStatus.CANCELLING.value},
+    "terminal": {RunStatus.SUCCEEDED.value, RunStatus.FAILED.value, RunStatus.CANCELLED.value},
+    "awaiting_continue": {RunStatus.AWAITING_CONTINUE.value},
+}
 REPLAY_MODES = {"strict", "policy_replay"}
+
+def _run_status_projection(run: PipelineRun) -> dict[str, Any]:
+    status_value = run.status.value
+    return {
+        "status": status_value,
+        "is_active": status_value in RUN_STATUS_GROUPS["active"],
+        "is_terminal": status_value in RUN_STATUS_GROUPS["terminal"],
+        "is_awaiting_continue": status_value in RUN_STATUS_GROUPS["awaiting_continue"],
+        "is_archived": bool(run.archived_at),
+    }
 
 def _policy_registry_version_from_config(config_payload: dict[str, Any] | None) -> str:
     cfg = dict(config_payload or {})
@@ -702,16 +723,7 @@ def _apply_trigger_runtime_envelope(
     candidate_profile_json: str | None,
     run_mode: str,
 ) -> dict[str, Any]:
-    synonym_management = dict(effective_config.get("synonym_management") or {})
-    synonym_management.setdefault("propose_enabled", True)
-    synonym_management.setdefault("apply_to_run_enabled", True)
-    synonym_management.setdefault("promote_global_enabled", True)
-    synonym_management.setdefault("auto_triage_recommendation_enabled", True)
-    synonym_management.setdefault("triage_recommendation_reuse_enabled", True)
-    synonym_management.setdefault("auto_apply_recommendation_enabled", False)
-    synonym_management.setdefault("auto_promote_global_enabled", False)
-    synonym_management.setdefault("auto_accept_ai_action_enabled", True)
-    effective_config["synonym_management"] = synonym_management
+    effective_config = apply_synonym_management_defaults(effective_config)
 
     runtime_inputs = effective_config.setdefault("runtime_inputs", {})
     if jobs_input_json:
@@ -1538,7 +1550,7 @@ def _build_stage_slice_payload(run: PipelineRun, stage_id: str) -> dict[str, Any
     return {
         "run_id": run.run_id,
         "stage_id": stage_id,
-        "artifact_schema_version": "stage_transition_artifacts_stage_v1",
+        "artifact_schema_version": STAGE_TRANSITION_ARTIFACTS_STAGE_SCHEMA_VERSION,
         "created_at": artifact_payload.get("created_at"),
         "stage_artifact": stage_artifact,
     }
@@ -2744,30 +2756,16 @@ def _load_run_effective_config_snapshot(
     *,
     fallback_to_runtime_config: bool = True,
 ) -> dict[str, Any]:
-    def _with_synonym_defaults(payload: dict[str, Any]) -> dict[str, Any]:
-        normalized = dict(payload or {})
-        block = dict(normalized.get("synonym_management") or {})
-        block.setdefault("propose_enabled", True)
-        block.setdefault("apply_to_run_enabled", True)
-        block.setdefault("promote_global_enabled", True)
-        block.setdefault("auto_triage_recommendation_enabled", True)
-        block.setdefault("triage_recommendation_reuse_enabled", True)
-        block.setdefault("auto_apply_recommendation_enabled", False)
-        block.setdefault("auto_promote_global_enabled", False)
-        block.setdefault("auto_accept_ai_action_enabled", True)
-        normalized["synonym_management"] = block
-        return normalized
-
     if run.effective_settings_json:
         try:
             payload = _json.loads(run.effective_settings_json)
             if isinstance(payload, dict):
-                return _with_synonym_defaults(payload)
+                return apply_synonym_management_defaults(payload)
         except (_json.JSONDecodeError, TypeError):
             pass
     if fallback_to_runtime_config:
         try:
-            return _with_synonym_defaults(load_config(run.config_path))
+            return apply_synonym_management_defaults(load_config(run.config_path))
         except (FileNotFoundError, ValueError):
             return {}
     return {}
@@ -2973,7 +2971,7 @@ def _aggregate_mapping_suggestion_payloads(runs: list[PipelineRun]) -> dict[str,
         )
     suggestions.sort(key=lambda item: (-int(item["occurrences"]), str(item["alias"])))
     return {
-        "mapping_suggestions_schema_version": "mapping_suggestions_aggregate_v1",
+        "mapping_suggestions_schema_version": MAPPING_SUGGESTIONS_AGGREGATE_SCHEMA_VERSION,
         "suggestions": suggestions,
     }
 
@@ -3011,7 +3009,7 @@ def _aggregate_synonym_proposal_payloads(runs: list[PipelineRun]) -> dict[str, A
         )
     )
     return {
-        "synonym_proposals_schema_version": "synonym_proposals_queue_v1",
+        "synonym_proposals_schema_version": SYNONYM_PROPOSALS_QUEUE_SCHEMA_VERSION,
         "proposals": proposals,
     }
 
@@ -5523,6 +5521,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             project=project,
             dataset=dataset,
         )
+        run_status_projection = {run.run_id: _run_status_projection(run) for run in runs}
         return templates.TemplateResponse(
             request=request, name="runs_list.html",
             context={
@@ -5531,6 +5530,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "pipeline_runs_schema_status": pipeline_runs_schema_status,
                 "run_orchestration_diagnostics": run_orchestration_diagnostics,
                 "dead_letter_replay_health": dead_letter_replay_health,
+                "run_status_projection": run_status_projection,
             }
         )
 
@@ -6311,6 +6311,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
                 "run": run,
+                "run_status_projection": _run_status_projection(run),
                 "run_mode_label": RUN_MODE_LABELS.get(run.run_mode, run.run_mode),
                 "events": timeline_events,
                 "timeline_has_more": len(events) > timeline_limit,

@@ -24,6 +24,13 @@ from typing import Any, Mapping
 RANKING_AI_SCORE_PROMPT_SCHEMA_VERSION = "ranking_ai_score_prompt_v1"
 STRUCTURED_CV_SCHEMA_VERSION = "cv_doc_v1"
 CV_ANALYSIS_REUSE_SCHEMA_VERSION = "cv_analysis_reuse_v1"
+STAGE_TRANSITION_ARTIFACTS_PIPELINE_SCHEMA_VERSION = "stage_transition_artifacts_v6"
+STAGE_TRANSITION_ARTIFACTS_RUN_SCHEMA_VERSION = "stage_transition_artifacts_run_v1"
+STAGE_TRANSITION_ARTIFACTS_STAGE_SCHEMA_VERSION = "stage_transition_artifacts_stage_v1"
+MAPPING_SUGGESTIONS_SCHEMA_VERSION = "mapping_suggestions_v1"
+MAPPING_SUGGESTIONS_AGGREGATE_SCHEMA_VERSION = "mapping_suggestions_aggregate_v1"
+SYNONYM_PROPOSALS_SCHEMA_VERSION = "synonym_proposals_v1"
+SYNONYM_PROPOSALS_QUEUE_SCHEMA_VERSION = "synonym_proposals_queue_v1"
 
 REQUIRED_SKILL_SUPPORT_CHANNEL = "required_skill_support"
 ROLE_ALIGNMENT_CHANNEL = "role_alignment"

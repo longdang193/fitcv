@@ -3353,6 +3353,31 @@ def test_run_detail_timeline_hides_stage_download_when_stage_artifact_json_is_ma
     assert 'href="/admin/runs/run-stage-link-bad-json/stage-artifacts/ranking.json"' not in resp.text
 
 
+
+def test_load_stage_transition_artifacts_payload_accepts_legacy_schema_tags() -> None:
+    from fitcv_cp.app import _load_stage_transition_artifacts_payload
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    legacy_payload = {
+        "run_id": "legacy-schema-run",
+        "artifact_schema_version": "stage_transition_artifacts_stage_v0",
+        "artifacts": {"stages": {"enrich": {"status": "completed"}}},
+    }
+    run = PipelineRun(
+        run_id="legacy-schema-run",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        stage_transition_artifacts_json=json.dumps(legacy_payload),
+    )
+
+    payload = _load_stage_transition_artifacts_payload(run)
+    assert payload["artifact_schema_version"] == "stage_transition_artifacts_stage_v0"
+    assert payload["artifacts"]["stages"]["enrich"]["status"] == "completed"
 def test_run_detail_timeline_hides_stage_download_for_unmapped_event():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
@@ -7864,6 +7889,21 @@ def test_run_detail_succeeded_shows_archive_run():
     assert "Archive Run" in resp.text
 
 
+
+def test_run_detail_terminal_statuses_show_archive_run() -> None:
+    """@proves trigger_run_management.run-detail-actions"""
+    for status in ("failed", "cancelled"):
+        run = _make_full_run_mock(status=status)
+        with patch("fitcv_cp.app.get_run", return_value=run), \
+             patch("fitcv_cp.app.get_events", return_value=[]), \
+             patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+             patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+             patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+            resp = TestClient(_app()).get("/admin/runs/run-ui-1")
+        assert resp.status_code == 200
+        assert "Archive Run" in resp.text
+        assert "Unarchive Run" not in resp.text
+
 def test_run_detail_archived_shows_unarchive_and_badge():
     """@proves admin_control_plane_core.jinja2-admin-pages"""
     import datetime
@@ -7917,7 +7957,27 @@ def test_run_detail_started_stale_cancelling_shows_repair_status() -> None:
     assert "Repair Status" in resp.text
 
 
-# ── Component 1: app.py server-side enrichment ───────────────────────────────
+
+def test_runs_list_projection_shows_awaiting_next_stage_and_archived_marker() -> None:
+    """@proves admin_control_plane_core.jinja2-admin-pages"""
+    import datetime
+
+    awaiting = _make_full_run_mock(status="awaiting_continue", run_id="run-awaiting-next")
+    awaiting.run_mode = "manual_staged"
+    awaiting.next_stage = "ranking"
+    archived = _make_full_run_mock(
+        status="succeeded",
+        run_id="run-archived-marker",
+        archived_at=datetime.datetime(2026, 3, 26, 13, 0, 0, tzinfo=datetime.timezone.utc),
+    )
+
+    with patch("fitcv_cp.app.list_runs", return_value=[awaiting, archived]):
+        resp = TestClient(_app()).get("/admin/runs")
+    assert resp.status_code == 200
+    assert "next: ranking" in resp.text
+    assert "archived" in resp.text
+
+
 
 def _run_detail_patches(
     status="succeeded",
@@ -10217,4 +10277,6 @@ def test_admin_replay_dead_letter_events_keeps_failed_rows(tmp_path):
     assert body["replay_success_ratio"] == 0.0
     content = dead_letter_file.read_text(encoding="utf-8")
     assert "event-replay-2" in content
+
+
 

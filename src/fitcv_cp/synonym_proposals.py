@@ -20,7 +20,31 @@ import hashlib
 import json
 from typing import Any
 
+from fitcv.contracts import SYNONYM_PROPOSALS_SCHEMA_VERSION
+
 _NON_SKILL_MIN_SUPPORT_FOR_PROPOSAL = 2
+_SYNONYM_MANAGEMENT_DEFAULTS: dict[str, bool] = {
+    "propose_enabled": True,
+    "apply_to_run_enabled": True,
+    "promote_global_enabled": True,
+    "auto_triage_recommendation_enabled": True,
+    "triage_recommendation_reuse_enabled": True,
+    "auto_apply_recommendation_enabled": False,
+    "auto_promote_global_enabled": False,
+    "auto_accept_ai_action_enabled": True,
+}
+
+def resolve_synonym_management_mode(settings_payload: dict[str, Any] | None) -> dict[str, bool]:
+    block = dict((settings_payload or {}).get("synonym_management") or {})
+    return {
+        key: bool(block.get(key, default_value))
+        for key, default_value in _SYNONYM_MANAGEMENT_DEFAULTS.items()
+    }
+
+def apply_synonym_management_defaults(settings_payload: dict[str, Any] | None) -> dict[str, Any]:
+    normalized = dict(settings_payload or {})
+    normalized["synonym_management"] = resolve_synonym_management_mode(normalized)
+    return normalized
 
 
 def transition_synonym_proposal_status(current_status: str, action: str) -> str | None:
@@ -191,7 +215,7 @@ def build_synonym_proposals_payload(
     proposals.sort(key=lambda item: (-float(item["confidence"]), str(item["alias"])))
     payload = {
         "run_id": run_id,
-        "synonym_proposals_schema_version": "synonym_proposals_v1",
+        "synonym_proposals_schema_version": SYNONYM_PROPOSALS_SCHEMA_VERSION,
         "created_at": created_at.isoformat(),
         "proposal_generation_status": "generated" if proposals else "not_applicable",
         "persistence_status": "persisted" if proposals else "not_applicable",
@@ -349,4 +373,5 @@ def _build_synonym_proposals_trace_payload(
         },
         "suppression_examples": list((suppression_summary or {}).get("suppressed_examples") or []),
     }
+
 
