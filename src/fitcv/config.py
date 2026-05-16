@@ -63,6 +63,19 @@ _DEFAULT_CONTROL_PLANE_CONFIG_PATH = Path("config/runtime/control_plane.yaml")
 _DEFAULT_ENRICH_PROMPT_ID = "enrich.extraction.v1"
 _DEFAULT_RANKING_AI_SCORE_PROMPT_ID = "ranking.ai_score.v1"
 _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID = "cv_generation.structured_write.v1"
+_DEFAULT_CV_ACCEPTANCE_POLICY = {
+    "required_match": {
+        "min_ratio_by_fit": {
+            "strong": 0.8,
+            "stretch": 0.5,
+        },
+        "max_missing_by_fit": {
+            "strong": 0,
+            "stretch": 1,
+        },
+    },
+    "force_review_when_any_required_missing_for_fits": [],
+}
 _INFRA_ENV_OVERRIDES = {
     "gcp_project": "GCP_PROJECT",
     "bigquery_dataset": "BIGQUERY_DATASET",
@@ -875,6 +888,45 @@ def _normalize_config_keys(cfg: dict[str, Any]) -> dict[str, Any]:
     return cfg
 
 
+def _normalize_cv_acceptance_policy(cfg: dict[str, Any]) -> dict[str, Any]:
+    policy_cfg = dict(cfg.get("cv_acceptance_policy") or {})
+    default_required_match = dict(_DEFAULT_CV_ACCEPTANCE_POLICY["required_match"])
+    required_match_cfg = dict(policy_cfg.get("required_match") or {})
+
+    default_min_ratio = dict(default_required_match["min_ratio_by_fit"])
+    min_ratio_cfg = dict(required_match_cfg.get("min_ratio_by_fit") or {})
+    normalized_min_ratio = {
+        "strong": float(min_ratio_cfg.get("strong", default_min_ratio["strong"])),
+        "stretch": float(min_ratio_cfg.get("stretch", default_min_ratio["stretch"])),
+    }
+
+    default_max_missing = dict(default_required_match["max_missing_by_fit"])
+    max_missing_cfg = dict(required_match_cfg.get("max_missing_by_fit") or {})
+    normalized_max_missing = {
+        "strong": int(max_missing_cfg.get("strong", default_max_missing["strong"])),
+        "stretch": int(max_missing_cfg.get("stretch", default_max_missing["stretch"])),
+    }
+
+    force_review_raw = policy_cfg.get("force_review_when_any_required_missing_for_fits") or []
+    force_review: list[str] = []
+    if isinstance(force_review_raw, list):
+        for fit in force_review_raw:
+            fit_name = str(fit).strip().lower()
+            if fit_name in {"strong", "stretch"} and fit_name not in force_review:
+                force_review.append(fit_name)
+
+    normalized_policy = {
+        "required_match": {
+            "min_ratio_by_fit": normalized_min_ratio,
+            "max_missing_by_fit": normalized_max_missing,
+        },
+        "force_review_when_any_required_missing_for_fits": force_review,
+    }
+    cfg["cv_acceptance_policy"] = normalized_policy
+    cfg["cv_acceptance_policy_runtime"] = normalized_policy
+    return cfg
+
+
 def _apply_infra_env_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
     """Prefer standard environment variables for portable runtime configuration."""
     for cfg_key, env_key in _INFRA_ENV_OVERRIDES.items():
@@ -1020,6 +1072,7 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     cfg["prompts_runtime"] = _build_prompts_runtime(cfg)
 
     cfg = _normalize_config_keys(cfg)
+    cfg = _normalize_cv_acceptance_policy(cfg)
     _validate_nested_cv_config(cfg)
     cfg = apply_cv_compatibility_projection(cfg)
     return cfg
@@ -1227,4 +1280,20 @@ def get_cv_generation_model(config: dict[str, Any]) -> str:
 
 def get_cv_generation_prompt_version(config: dict[str, Any]) -> str:
     return str((((config.get("cv") or {}).get("generation") or {}).get("prompt_version")) or config.get("prompt_version") or "v1")
+
+
+def get_cv_acceptance_policy(config: dict[str, Any]) -> dict[str, Any]:
+    policy = dict(config.get("cv_acceptance_policy_runtime") or config.get("cv_acceptance_policy") or {})
+    if not policy:
+        policy = deepcopy_policy = {
+            "required_match": {
+                "min_ratio_by_fit": dict(_DEFAULT_CV_ACCEPTANCE_POLICY["required_match"]["min_ratio_by_fit"]),
+                "max_missing_by_fit": dict(_DEFAULT_CV_ACCEPTANCE_POLICY["required_match"]["max_missing_by_fit"]),
+            },
+            "force_review_when_any_required_missing_for_fits": list(
+                _DEFAULT_CV_ACCEPTANCE_POLICY["force_review_when_any_required_missing_for_fits"]
+            ),
+        }
+        return deepcopy_policy
+    return _normalize_cv_acceptance_policy({"cv_acceptance_policy": policy})["cv_acceptance_policy"]
 
