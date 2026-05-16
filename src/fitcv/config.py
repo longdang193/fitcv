@@ -60,6 +60,9 @@ _POLICY_FILE_CANDIDATES = [
 
 _DEFAULT_ENV_CANDIDATES = (".env.yaml", "config/env.yaml")
 _DEFAULT_CONTROL_PLANE_CONFIG_PATH = Path("config/runtime/control_plane.yaml")
+_RETIRED_CONFIG_SURFACES = (
+    "live_smoke.yaml",
+)
 _DEFAULT_ENRICH_PROMPT_ID = "enrich.extraction.v1"
 _DEFAULT_RANKING_AI_SCORE_PROMPT_ID = "ranking.ai_score.v1"
 _DEFAULT_CV_GENERATION_STRUCTURED_WRITE_PROMPT_ID = "cv_generation.structured_write.v1"
@@ -973,6 +976,14 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
 
     resolved_env_path = env_path.resolve()
     config_dir = _find_config_dir(resolved_env_path)
+    for retired_name in _RETIRED_CONFIG_SURFACES:
+        retired_path = config_dir / retired_name
+        if retired_path.exists():
+            logger.warning(
+                "Retired config surface detected and ignored: %s. "
+                "Use canonical runtime/control-plane config owners instead.",
+                retired_path,
+            )
     if env_path.name == ".env.yaml":
         legacy_env_path = config_dir / "env.yaml"
         if legacy_env_path.exists():

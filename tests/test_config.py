@@ -30,6 +30,7 @@ from fitcv.config import (
     load_control_plane_config,
     parse_runtime_synonym_overlay_yaml,
     parse_skill_synonym_overlay_yaml,
+    resolve_model_routing_part,
     resolve_data_backend,
 )
 
@@ -988,6 +989,50 @@ def test_load_config_preserves_legacy_compatibility_projection_for_seniority_lad
     cfg = load_config(env_yaml)
     seniority = dict(cfg.get("seniority") or {})
     assert seniority.get("ladder") == ["junior", "senior"]
+
+def test_load_config_ignores_retired_live_smoke_surface(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\n"
+        "bigquery_dataset: ds\n"
+        "service_account_key: /dev/null\n",
+        encoding="utf-8",
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "live_smoke.yaml").write_text(
+        "gemini_model: SHOULD_NOT_BE_OWNER\n",
+        encoding="utf-8",
+    )
+    (cfg_dir / "pipeline.yaml").write_text(
+        "gemini_model: canonical-fallback\n",
+        encoding="utf-8",
+    )
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "    experience:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n",
+        encoding="utf-8",
+    )
+
+    cfg = load_config(env_yaml)
+
+    assert cfg.get("gemini_model") == "canonical-fallback"
+    assert "Retired config surface detected and ignored" in caplog.text
+
+def test_model_routing_part_owner_is_control_plane_not_pipeline_fallback() -> None:
+    routing = resolve_model_routing_part("ranking_ai_score", model_fallback="fallback-only")
+    assert routing["provider"] == "openai_compatible"
+    assert routing["model"] == "cx/gpt-5.2"
 
 
 def test_load_config_nested_cv_validation_max_pages_positive(tmp_path: Path) -> None:
