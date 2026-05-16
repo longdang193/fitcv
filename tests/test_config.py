@@ -902,6 +902,50 @@ def test_load_config_compatibility_projection_required_cv_sections() -> None:
     assert isinstance(cfg["required_cv_sections"], list)
     assert len(cfg["required_cv_sections"]) > 0
 
+def test_load_config_exposes_cv_acceptance_policy_runtime() -> None:
+    cfg = load_config()
+    assert "cv_acceptance_policy" in cfg
+    runtime = cfg.get("cv_acceptance_policy_runtime")
+    assert isinstance(runtime, dict)
+    min_ratio = (((runtime.get("required_match") or {}).get("min_ratio_by_fit")) or {})
+    max_missing = (((runtime.get("required_match") or {}).get("max_missing_by_fit")) or {})
+    assert min_ratio.get("strong") == 0.8
+    assert min_ratio.get("stretch") == 0.5
+    assert max_missing.get("strong") == 0
+    assert max_missing.get("stretch") == 1
+    assert runtime.get("force_review_when_any_required_missing_for_fits") == ["stretch"]
+
+def test_load_config_cv_acceptance_policy_defaults_when_env_missing(tmp_path: Path) -> None:
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\nbigquery_dataset: ds\nservice_account_key: /dev/null\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "    experience:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    cfg = load_config(env_yaml)
+    runtime = cfg["cv_acceptance_policy_runtime"]
+    min_ratio = runtime["required_match"]["min_ratio_by_fit"]
+    max_missing = runtime["required_match"]["max_missing_by_fit"]
+    assert min_ratio["strong"] == 0.8
+    assert min_ratio["stretch"] == 0.5
+    assert max_missing["strong"] == 0
+    assert max_missing["stretch"] == 1
+    assert runtime["force_review_when_any_required_missing_for_fits"] == []
+
 
 def test_load_config_nested_cv_validation_max_pages_positive(tmp_path: Path) -> None:
     """@proves settings_system.warning-only-cv-max-pages-validation-setting

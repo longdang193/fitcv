@@ -420,32 +420,35 @@ def test_review_required_reason_code_mapping_for_markdown_review() -> None:
     assert reason_code == "markdown_structure_violation"
 
 
-def test_review_required_reason_code_mapping_for_policy_acceptance() -> None:
+def test_review_required_reason_code_mapping_for_policy_ratio_fail() -> None:
     reason_code = _normalize_review_required_reason_code(
         status="review_required",
-        error={"stage": "policy_acceptance", "message": "CV acceptance policy requires manual review"},
+        error={"stage": "policy_acceptance", "message": "Policy acceptance blocked (policy_required_ratio_fail): ratio"},
     )
-    assert reason_code == "policy_acceptance"
+    assert reason_code == "policy_required_ratio_fail"
 
 
-def test_evaluate_cv_acceptance_policy_downgrades_stretch_when_below_thresholds() -> None:
-    decision = _evaluate_cv_acceptance_policy(
+def test_evaluate_cv_acceptance_policy_downgrades_stretch_when_missing_above_threshold() -> None:
+    policy = {
+        "required_match": {
+            "min_ratio_by_fit": {"strong": 0.8, "stretch": 0.5},
+            "max_missing_by_fit": {"strong": 0, "stretch": 1},
+        },
+        "force_review_when_any_required_missing_for_fits": [],
+    }
+    pass_result = _evaluate_cv_acceptance_policy(
         fit_classification="stretch",
-        gap_summary={
-            "matched": ["sql", "python"],
-            "partial": [],
-            "matchable_required_count": 8,
-        },
-        policy={
-            "enabled": True,
-            "enforce_for_fit_labels": ["stretch"],
-            "min_required_match_score": 0.50,
-            "min_required_skill_support_ratio": 0.50,
-        },
+        gap_summary={"matched": ["sql"], "missing": ["excel"], "matchable_required_count": 2},
+        policy=policy,
     )
-    assert decision["downgrade_to_review_required"] is True
-    assert decision["required_match_score"] == pytest.approx(0.25)
-    assert decision["required_skill_support_ratio"] == pytest.approx(0.25)
+    fail_result = _evaluate_cv_acceptance_policy(
+        fit_classification="stretch",
+        gap_summary={"matched": ["sql"], "missing": ["excel", "jira"], "matchable_required_count": 3},
+        policy=policy,
+    )
+    assert pass_result[0] is True
+    assert fail_result[0] is False
+    assert fail_result[1] == "policy_missing_required_fail"
 
 def test_hitl_review_reason_for_unsupported_requirements_is_actionable() -> None:
     reason = _hitl_review_reason_for_agentic_case(
