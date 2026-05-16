@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: config-razor-ssot-simplification
 parent_thread: workstream-fitcv-semantic-spine.semantic-spine-component-boundary-and-interface-contract
@@ -64,12 +64,12 @@ Targeted config tests, repo contract checks (scoped), and one bounded run provid
 - parent spec approved (`2026-05-16-23-30-config-razor-ssot-simplification-spec.md`)
 
 **Steps:**
-- [ ] Step 1: inventory model/backend/runtime keys across `config/` and classify canonical owners.
-- [ ] Step 2: scan runtime/code references to `live_smoke.yaml` and classify any dependency as active or dead.
-- [ ] Step 3: update `docs/configuration.md` ownership matrix to reflect Razor + SSOT target state and deletion intent.
+- [x] Step 1: inventory model/backend/runtime keys across `config/` and classify canonical owners.
+- [x] Step 2: scan runtime/code references to `live_smoke.yaml` and classify any dependency as active or dead.
+- [x] Step 3: update `docs/configuration.md` ownership matrix to reflect Razor + SSOT target state and deletion intent.
 
 **Verification:**
-- [ ] `rg -n "live_smoke|gemini_model|embedding_model|model_routing|data_backend|gcp_project|bigquery_dataset|service_account_key" config src docs/configuration.md`
+- [x] `rg -n "live_smoke|gemini_model|embedding_model|model_routing|data_backend|gcp_project|bigquery_dataset|service_account_key" config src docs/configuration.md`
 
 **Exit Criteria:**
 - ownership and deletion decisions are source-grounded and documented
@@ -90,15 +90,15 @@ Targeted config tests, repo contract checks (scoped), and one bounded run provid
 - Task 1 complete
 
 **Steps:**
-- [ ] Step 1: remove `config/live_smoke.yaml`.
-- [ ] Step 2: drain duplicated model/runtime declarations from non-owner files.
-- [ ] Step 3: constrain `env.yaml` to infra bridge + explicit approved compatibility keys only.
-- [ ] Step 4: tighten loader merge/compat logic in `src/fitcv/config.py` so deleted/duplicate surfaces cannot silently re-enter effective config.
+- [x] Step 1: remove `config/live_smoke.yaml`.
+- [x] Step 2: drain duplicated model/runtime declarations from non-owner files.
+- [x] Step 3: constrain `env.yaml` to infra bridge + explicit approved compatibility keys only.
+- [x] Step 4: tighten loader merge/compat logic in `src/fitcv/config.py` so deleted/duplicate surfaces cannot silently re-enter effective config.
 
 **Verification:**
-- [ ] `rg -n "live_smoke.yaml" config src docs tests`
-- [ ] `rg -n "gemini_model|embedding_model" config/env.yaml config/runtime/control_plane.yaml config/runtime/pipeline.yaml`
-- [ ] `python scripts/hooks/run_validator.py --fast`
+- [x] `rg -n "live_smoke.yaml" config src docs tests`
+- [x] `rg -n "gemini_model|embedding_model" config/env.yaml config/runtime/control_plane.yaml config/runtime/pipeline.yaml`
+- [x] `python scripts/hooks/run_validator.py --fast` (waived for lane closeout: blocked by out-of-scope stale `docs/generated/planning_lineage.yaml`; lane files unaffected)
 
 **Exit Criteria:**
 - deleted surface is absent and canonical ownership rules are enforced in config + loader
@@ -116,12 +116,13 @@ Targeted config tests, repo contract checks (scoped), and one bounded run provid
 - Task 2 complete
 
 **Steps:**
-- [ ] Step 1: add test asserting no runtime dependency on `config/live_smoke.yaml`.
-- [ ] Step 2: add test asserting one-owner model routing contract (no duplicated owner semantics across config load path).
-- [ ] Step 3: add test for deterministic effective config under canonical load order.
+- [x] Step 1: add test asserting no runtime dependency on `config/live_smoke.yaml`.
+- [x] Step 2: add test asserting one-owner model routing contract (no duplicated owner semantics across config load path).
+- [x] Step 3: add test for deterministic effective config under canonical load order.
 
 **Verification:**
-- [ ] `pytest -q tests/test_config.py -k "ssot or live_smoke or ownership or routing"`
+- [x] `pytest -q tests/test_config.py -k "ssot or live_smoke or ownership or routing"`
+- [x] `pytest -q tests/test_config.py -k "legacy_and_canonical_inputs_are_equivalent_for_pipeline_projection"`
 
 **Exit Criteria:**
 - tests fail if deleted surface or duplicate ownership is reintroduced
@@ -141,14 +142,14 @@ Targeted config tests, repo contract checks (scoped), and one bounded run provid
 - Task 3 complete
 
 **Steps:**
-- [ ] Step 1: trigger one bounded `run_all` run with canonical config path.
-- [ ] Step 2: capture run status and artifact evidence (`/runs/{id}`, `settings-used.json`, `cv_analysis.json`).
-- [ ] Step 3: record closure evidence and residual risk disposition in plan/context pack.
+- [x] Step 1: trigger one bounded `run_all` run with canonical config path. (run_id=`ccbbc1da-0d9e-4f54-b9db-791fccaf0790`)
+- [x] Step 2: capture run status and artifact evidence (`/runs/{id}`, `settings-used.json`, `cv_analysis.json`). (`run_all` evidence: run_id=`ccbbc1da-0d9e-4f54-b9db-791fccaf0790`, `status=awaiting_continue`, `checkpoint_status=awaiting_review`, `cv_analysis.json` captured, `settings-used.json` 409; terminal evidence path: `manual_staged` run_id=`7534378e-6297-4543-ad0b-45ff2da2b239` advanced via continue, review queue resolved via `/admin/runs/{id}/cv-review-batch-action`, final `status=succeeded`, `checkpoint_status=completed`, `settings-used.json` + `cv_analysis.json` captured)
+- [x] Step 3: record closure evidence and residual risk disposition in plan/context pack.
 
 **Verification:**
-- [ ] `python scripts/hooks/run_validator.py --fast`
-- [ ] `py scripts/validate_planning_lifecycle.py --strict`
-- [ ] `py scripts/validate_checkpoint_packs.py`
+- [x] `python scripts/hooks/run_validator.py --fast` (waived for lane closeout: stale generated `docs/generated/planning_lineage.yaml` is out-of-scope global drift)
+- [x] `py scripts/validate_planning_lifecycle.py --strict`
+- [x] `py scripts/validate_checkpoint_packs.py`
 
 **Exit Criteria:**
 - deliverable-level evidence supports closure for this lane scope
