@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-cross-seam-calibration
 status: proposed
 ---
@@ -21,15 +21,8 @@ analysis grounding; generation repair
 
 analysis to generation handoff; validator thresholds
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Coupled calibration thread.
+
 

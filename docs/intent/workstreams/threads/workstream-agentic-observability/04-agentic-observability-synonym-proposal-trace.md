@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-agentic-observability.agentic-observability-synonym-proposal-trace
 status: proposed
 ---
@@ -21,15 +21,8 @@ agentic synonym review flow
 
 review queue artifacts; impact preview surfaces
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Do after synonym management primitives exist.
+
 

@@ -29,6 +29,7 @@ from fitcv.pipeline import (
     _build_stage_transition_artifacts,
     _build_cv_analysis_record,
     _build_cv_generation_debug_record,
+    _evaluate_cv_acceptance_policy,
     _hitl_review_reason_for_agentic_case,
     _normalize_review_required_reason_code,
     _collect_mapping_suggestions,
@@ -417,6 +418,34 @@ def test_review_required_reason_code_mapping_for_markdown_review() -> None:
         error={"stage": "markdown_quality_review", "message": "Markdown quality requires review"},
     )
     assert reason_code == "markdown_structure_violation"
+
+
+def test_review_required_reason_code_mapping_for_policy_acceptance() -> None:
+    reason_code = _normalize_review_required_reason_code(
+        status="review_required",
+        error={"stage": "policy_acceptance", "message": "CV acceptance policy requires manual review"},
+    )
+    assert reason_code == "policy_acceptance"
+
+
+def test_evaluate_cv_acceptance_policy_downgrades_stretch_when_below_thresholds() -> None:
+    decision = _evaluate_cv_acceptance_policy(
+        fit_classification="stretch",
+        gap_summary={
+            "matched": ["sql", "python"],
+            "partial": [],
+            "matchable_required_count": 8,
+        },
+        policy={
+            "enabled": True,
+            "enforce_for_fit_labels": ["stretch"],
+            "min_required_match_score": 0.50,
+            "min_required_skill_support_ratio": 0.50,
+        },
+    )
+    assert decision["downgrade_to_review_required"] is True
+    assert decision["required_match_score"] == pytest.approx(0.25)
+    assert decision["required_skill_support_ratio"] == pytest.approx(0.25)
 
 def test_hitl_review_reason_for_unsupported_requirements_is_actionable() -> None:
     reason = _hitl_review_reason_for_agentic_case(

@@ -22,6 +22,61 @@ FitCV uses layered configuration with clear ownership boundaries.
 - per-run trigger overrides (`config_overrides` in `/runs`)
 - process environment variables for backend/provider credentials and runtime toggles
 
+## Canonical Ownership Matrix (Option B Baseline)
+
+This matrix defines current SSOT ownership for migration execution.
+
+| Config surface | Canonical ownership | Notes |
+| --- | --- | --- |
+| `config/runtime/control_plane.yaml` | control-plane backend/provider/model routing defaults | Includes `control_plane.data_backend.*`, `control_plane.providers.*`, `control_plane.model_routing.*`, feature flags, observability toggles. |
+| `config/runtime/pipeline.yaml` | pipeline execution knobs | Owns enrichment/rerank timing, top-N controls, lifecycle limits, replay health thresholds, model defaults used by runtime pipeline stages. |
+| `config/policy/cv.yaml` | CV generation and validation policy | Owns nested `cv.*` contract (`preset`, composition, validation, generation defaults). |
+| `config/taxonomy/taxonomy.yaml` | shared business taxonomy and enum families | Owns seniority taxonomy, location/contract/experience enums, role taxonomy maps. |
+| `config/env.yaml` | legacy compatibility base input + infra bridge | Current default `config_path`; still carries infra keys and some legacy policy/runtime-adjacent keys during migration window. |
+| `config/env.private.yaml` | no active canonical owner in this worktree | File not present in tracked worktree; treat as deprecated/removed unless explicitly reintroduced as local-only untracked override. |
+
+### Legacy-Duplicate Classification (Current Baseline)
+
+- compatibility-only (to be drained from `config/env.yaml`): `seniority_ladder`, `application_statuses`, `cv_analysis_min_score`, overlap with runtime knobs that already live in `config/runtime/pipeline.yaml`
+- canonical-infra bridge (kept until loader migration complete): `gcp_project`, `bigquery_dataset`, `service_account_key`, `location`
+- removable private surface: `config/env.private.yaml` (no active tracked consumer in this worktree baseline)
+
+### CV Acceptance Strictness Policy (Option B)
+
+Canonical policy owner in this lane: config/env.yaml key cv_acceptance_policy.
+
+Policy meaning:
+
+- equired_match.min_ratio_by_fit.<fit>: minimum matched_required / matchable_required_count ratio to remain eligible for auto-accept.
+- equired_match.max_missing_by_fit.<fit>: maximum missing required items allowed for auto-accept.
+- orce_review_when_any_required_missing_for_fits: fit classes that must route to eview_required when any required item is missing.
+
+eview_required semantics in this contract:
+
+- non-fatal HITL branch
+- generation/validation output can exist
+- auto-accept is blocked by policy and requires operator decision (ccept/reject/edit)
+- hard-failure statuses remain reserved for alidation_failed, generation_failed, persistence_failed
+### Planned Deprecation Boundaries
+
+1. `config/env.yaml` remains accepted as trigger default during transition, but ownership must shift to canonical runtime/policy/taxonomy files.
+2. `config/env.private.yaml` is treated as deprecated in tracked repo state; no new runtime dependency may be introduced.
+3. Legacy `.env.yaml` references in scripts/tests/control-plane UI remain compatibility targets until explicit removal gates pass.
+
+### Legacy Removal Gates
+
+Remove legacy compatibility behavior only when all gates pass:
+
+1. reference gate:
+   - repo scan shows no required runtime entrypoint depends on removed legacy key/path shape
+   - command: `rg -n "\\.env\\.yaml|config/env\\.yaml|seniority_ladder|application_statuses" src scripts tests docs -S`
+2. parity gate:
+   - legacy and canonical config inputs produce equivalent agreed projections in tests
+   - command: `pytest tests/test_config.py -q`
+3. contract gate:
+   - repo contract checks pass after any deprecation-path removal patch
+   - command: `python scripts/hooks/run_validator.py --fast`
+
 ## Config Invariants
 
 - secrets are env-only
@@ -83,3 +138,4 @@ Examples:
 - [setup.md](setup.md)
 - [usage.md](usage.md)
 - [architecture.md](architecture.md)
+

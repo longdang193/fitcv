@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-generation-repair
 status: proposed
 ---
@@ -21,15 +21,8 @@ analysis grounding signals
 
 src/fitcv/agentic_cv_generation.py; validator bridge
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Keep deterministic validation final.
+
 

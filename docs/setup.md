@@ -89,26 +89,29 @@ Optional SQLite path override:
 $env:FITCV_CP_SQLITE_PATH = ".\data\fitcv_local.db"
 ```
 
-## 4) Candidate Profile Contract (Template + Private)
+## 4) Candidate Profile Contract (Canonical + Optional Private Source)
 
-Use these files with strict role boundaries:
+Current default runtime path in `config/env.yaml`:
+
+- `paths.candidate_profile: data/candidate_profile.yaml`
+
+Use these files with strict boundaries:
 
 - `data/candidate_profile.template.yaml`
   - public-safe scaffold only
   - no private values or PII
   - edit only when profile contract/schema changes
-- `data/candidate_profile.private.yaml`
-  - local private candidate values
-  - keep real data here only
-  - file is ignored and must never be committed
 - `data/candidate_profile.yaml`
-  - compatibility surface for existing consumers
-  - do not treat as primary source for new private fields
+  - canonical runtime candidate profile source for current defaults
+  - keep this synchronized with your local private profile workflow
+- `data/candidate_profile.private.yaml` (optional local workflow)
+  - local private candidate values
+  - ignored/untracked helper surface when teams choose private-source workflow
 
 Recommended workflow:
 
 1. Review required keys in `data/candidate_profile.template.yaml`.
-2. Fill real values in `data/candidate_profile.private.yaml`.
+2. Fill real values in `data/candidate_profile.yaml` (or generate/sync it from a private local source).
 3. Run checks:
 
 ```powershell

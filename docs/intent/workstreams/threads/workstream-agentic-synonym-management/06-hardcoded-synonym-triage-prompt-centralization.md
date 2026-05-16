@@ -24,10 +24,3 @@ Audit `20260514-hardcoded-prompts` confirmed hardcoded prompt drift risk in cont
 - `src/fitcv_cp/app.py`
 - `docs/superpowers/plans/audit/20260514-hardcoded-prompts/`
 
-## Linked Spec
-
-- `docs/superpowers/specs/2026-05-14-hardcoded-synonym-triage-prompt-centralization-spec.md`
-
-## Linked Plan
-
-- `docs/superpowers/plans/2026-05-14-11-15-hardcoded-synonym-triage-prompt-centralization-plan.md`

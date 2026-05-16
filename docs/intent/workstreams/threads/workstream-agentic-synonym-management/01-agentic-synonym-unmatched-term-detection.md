@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-agentic-synonym-management.agentic-synonym-unmatched-term-detection
 status: proposed
 ---
@@ -21,15 +21,8 @@ semantic-spine synonym authority rules
 
 enrich outputs; rule_filter/shortlist matching evidence
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Safe first synonym thread.
+
 

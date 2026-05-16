@@ -21,17 +21,10 @@ semantic-spine-stage-authority-contract
 
 src/fitcv_cp/app.py; templates; run events
 
-## Linked Spec
-
-- docs/superpowers/specs/2026-04-28-operator-control-plane-run-detail-truth-spec.md
-
-## Linked Plan
-
-- docs/superpowers/plans/2026-05-03-operator-control-plane-run-detail-truth-bootstrap-plan.md
-
 ## Notes
 
 Outcome truth wins over convenience copy.
 
 Latest checkpoint evidence:
 - docs/intent/workstreams/checkpoints/workstream-operator-control-plane/operator-control-plane-run-detail-truth/20260509-0848.md
+
