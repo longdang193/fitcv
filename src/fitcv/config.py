@@ -123,12 +123,6 @@ _CANONICAL_TAXONOMY_TOP_LEVEL_KEYS = {
 _LEGACY_COMPATIBILITY_KEYS = {
     "seniority_ladder",
     "application_statuses",
-    "cv_analysis_min_score",
-    "required_skill_overlap_min",
-    "preferred_skill_overlap_min",
-    "language_match_min",
-    "summary_quality_min",
-    "max_cv_jobs",
 }
 _CONTROL_PLANE_FORBIDDEN_KEY_TOKENS = (
     "secret",
@@ -1250,10 +1244,6 @@ def _normalize_cv_acceptance_policy(raw: Any) -> dict[str, Any]:
     return policy
 
 
-def get_cv_acceptance_policy(config: dict[str, Any]) -> dict[str, Any]:
-    return _normalize_cv_acceptance_policy(config.get("cv_acceptance_policy"))
-
-
 def get_embedding_model(config: dict[str, Any]) -> str:
     return str(config.get("embedding_model") or "text-embedding-005")
 
@@ -1283,23 +1273,17 @@ def get_cv_generation_prompt_version(config: dict[str, Any]) -> str:
 
 
 def get_cv_acceptance_policy(config: dict[str, Any]) -> dict[str, Any]:
-    policy = dict(config.get("cv_acceptance_policy_runtime") or config.get("cv_acceptance_policy") or {})
-    if not policy:
-        policy = deepcopy_policy = {
-            "required_match": {
-                "min_ratio_by_fit": dict(_DEFAULT_CV_REQUIRED_MATCH_POLICY["required_match"]["min_ratio_by_fit"]),
-                "max_missing_by_fit": dict(_DEFAULT_CV_REQUIRED_MATCH_POLICY["required_match"]["max_missing_by_fit"]),
-            },
-            "force_review_when_any_required_missing_for_fits": list(
-                _DEFAULT_CV_REQUIRED_MATCH_POLICY["force_review_when_any_required_missing_for_fits"]
-            ),
-        }
-        return deepcopy_policy
-    required_match = dict(policy.get("required_match") or {})
+    runtime_policy = dict(
+        config.get("cv_acceptance_policy_runtime")
+        or config.get("cv_acceptance_policy")
+        or {}
+    )
+    merged_policy = _normalize_cv_acceptance_policy(config.get("cv_acceptance_policy"))
+    required_match = dict(runtime_policy.get("required_match") or {})
     min_ratio = dict(required_match.get("min_ratio_by_fit") or {})
     max_missing = dict(required_match.get("max_missing_by_fit") or {})
     default_required_match = _DEFAULT_CV_REQUIRED_MATCH_POLICY["required_match"]
-    normalized = {
+    merged_policy.update({
         "required_match": {
             "min_ratio_by_fit": {
                 "strong": float(min_ratio.get("strong", default_required_match["min_ratio_by_fit"]["strong"])),
@@ -1312,9 +1296,9 @@ def get_cv_acceptance_policy(config: dict[str, Any]) -> dict[str, Any]:
         },
         "force_review_when_any_required_missing_for_fits": [
             str(item).strip().lower()
-            for item in (policy.get("force_review_when_any_required_missing_for_fits") or [])
+            for item in (runtime_policy.get("force_review_when_any_required_missing_for_fits") or [])
             if str(item).strip()
         ],
-    }
-    return normalized
+    })
+    return merged_policy
 
