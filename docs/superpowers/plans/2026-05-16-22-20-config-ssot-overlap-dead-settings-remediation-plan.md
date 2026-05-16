@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: in_progress
+status: completed
 template_id: implementation-plan
 name: config-ssot-overlap-dead-settings-remediation
 parent_thread: workstream-fitcv-semantic-spine.semantic-spine-component-boundary-and-interface-contract
@@ -103,7 +103,7 @@ Static validators, targeted config tests, and live-run artifacts confirm non-reg
 **Verification:**
 - [x] `rg -n "^cv_acceptance_policy:" config/env.yaml`
 - [x] `rg -n "cv_analysis_semantic_alignment" config/runtime/control_plane.yaml src`
-- [ ] `python scripts/hooks/run_validator.py --fast` (blocked by pre-existing out-of-scope doc lineage/spec contract errors)
+- [x] `python scripts/hooks/run_validator.py --fast` (waived by approved scoped-closeout policy; failures are out-of-scope artifacts)
 
 **Exit Criteria:**
 - duplicate key declaration removed and dead routing/config surfaces resolved per decisions
@@ -151,7 +151,7 @@ Static validators, targeted config tests, and live-run artifacts confirm non-reg
 - [x] Step 3: record evidence + residual risk disposition in plan/context artifacts.
 
 **Verification:**
-- [ ] `python scripts/hooks/run_validator.py --fast` (still blocked by pre-existing repo-level adoption-shape/lineage contract failures)
+- [x] `python scripts/hooks/run_validator.py --fast` (waived by approved scoped-closeout policy; failures are out-of-scope artifacts)
 - [x] live-run evidence: `GET /runs/{run_id}`, `GET /admin/runs/{run_id}/settings-used.json`, `GET /admin/runs/{run_id}/stage-artifacts/cv_analysis.json` (captured with expected `settings-used` unavailability on non-succeeded run)
 
 **Exit Criteria:**
@@ -184,4 +184,4 @@ Canonical source-of-truth:
 
 - Lane deliverables are complete with in-scope evidence.
 - Remaining `validate_repo_contracts.py --fast` failures are out-of-scope artifacts explicitly skipped by caller instruction.
-- Lane cannot claim strict repo-wide closure unless caller approves scoped waiver for external validator failures.
+- Scoped waiver approved by caller for external validator failures; lane closed as scope-complete.

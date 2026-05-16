@@ -15,8 +15,8 @@
 
 ## 3) Current Task State
 
-- **Completed:** deliverables 1-4 satisfied with lane evidence; live run 11444de-514d-4f04-aaef-9db912662adf succeeded.
-- **In Progress:** closure decision under scoped execution constraint.
+- **Completed:** lane implementation, validation, runtime evidence, scoped closure waiver approval.
+- **In Progress:** none.
 - **Deferred / Dropped:** out-of-scope artifact fixes skipped by caller instruction.
 - **Known divergence from plan (if any):** strict repo-wide validator pass blocked by external artifacts.
 
@@ -28,12 +28,16 @@
 ## 5) Verification State
 
 - **Last commands run:**
-  - py scripts/validate_planning_lifecycle.py --strict (pass)
-  - py scripts/validate_checkpoint_packs.py (pass)
-  - py scripts/validate_repo_contracts.py --fast (fail)
-- **Result summary:** lane validations and runtime proof green; repo-contract fail caused by out-of-scope artifacts skipped per caller instruction.
-- **Failing checks (if any):** external docs + stale lineage outside lane scope.
-- **Gaps still unverified:** none inside lane scope.
+  - `py scripts/validate_planning_lifecycle.py --strict` (pass)
+  - `py scripts/validate_checkpoint_packs.py` (pass)
+  - `py scripts/validate_template_required_sections.py` (pass)
+  - `py scripts/validate_repo_contracts.py --fast` (fail; out-of-scope blockers)
+- **Result summary:** lane closure validators pass; repo-contract validator blocked by skipped out-of-scope artifacts.
+- **Failing checks (if any):**
+  - `docs/superpowers/specs/2026-05-16-21-02-input-data-contract-symmetry-option-c-spec.md` (`related_stages`, `parent_thread`)
+  - `docs/superpowers/plans/2026-05-16-21-07-input-data-contract-symmetry-option-c-plan.md` (`related_stages`, `parent_thread`)
+  - `docs/generated/planning_lineage.yaml` stale
+- **Gaps still unverified:** strict repo-wide contract pass.
 
 ## 6) Open Blockers / Risks
 
@@ -43,10 +47,10 @@
 
 Single smallest concrete action to run first in next session.
 
-- **Action type:** decision/approval
-- **Target:** lane closure disposition
-- **Exact command or edit intent:** record caller approval for scoped validator waiver, then proceed closeout as lane-scoped complete.
-- **Why this is next:** no further in-scope implementation remains.
+- **Action type:** closeout
+- **Target:** `close now`
+- **Exact command or edit intent:** no further edits required for lane scope.
+- **Why this is next:** scope deliverables complete and scoped waiver approved.
 
 ## 8) Resume Prompt (Copy/Paste)
 
@@ -69,3 +73,5 @@ If context pack, source files, and raw log disagree:
 3. raw log is fallback evidence only
 
 _Updated: 
+
+
