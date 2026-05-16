@@ -790,6 +790,143 @@ _PREFERENCE_WEIGHT_KEYS: frozenset[str] = frozenset(
 )
 
 
+_IA_LAYER_GENERAL = "general"
+_IA_LAYER_WORKFLOW_CONTROLS = "workflow_controls"
+_IA_LAYER_ADVANCED_TUNING = "advanced_tuning"
+_IA_LAYER_GOVERNANCE_METADATA = "governance_metadata"
+
+_IA_STAGE_RETRIEVE = "retrieve"
+_IA_STAGE_RULE_FILTER = "rule_filter"
+_IA_STAGE_RERANK = "rerank"
+_IA_STAGE_EVIDENCE = "evidence"
+_IA_STAGE_CV_COMPOSE = "cv_compose"
+_IA_STAGE_VALIDATE = "validate"
+_IA_STAGE_RUN_LIFECYCLE = "run_lifecycle"
+
+_GROUP_TO_IA_LAYER: dict[str, str] = {
+    "retrieval": _IA_LAYER_WORKFLOW_CONTROLS,
+    "global_job_filters": _IA_LAYER_WORKFLOW_CONTROLS,
+    "rule_filter": _IA_LAYER_WORKFLOW_CONTROLS,
+    "run_lifecycle": _IA_LAYER_WORKFLOW_CONTROLS,
+    "ranking": _IA_LAYER_ADVANCED_TUNING,
+    "timing": _IA_LAYER_ADVANCED_TUNING,
+    "agentic": _IA_LAYER_ADVANCED_TUNING,
+    "cv_composition": _IA_LAYER_GENERAL,
+    "cv_validation": _IA_LAYER_GENERAL,
+    "cv_preset": _IA_LAYER_GENERAL,
+}
+
+_GROUP_TO_IA_STAGES: dict[str, tuple[str, ...]] = {
+    "retrieval": (
+        _IA_STAGE_RETRIEVE,
+        _IA_STAGE_RULE_FILTER,
+        _IA_STAGE_RERANK,
+        _IA_STAGE_EVIDENCE,
+    ),
+    "global_job_filters": (_IA_STAGE_RULE_FILTER,),
+    "rule_filter": (_IA_STAGE_RULE_FILTER,),
+    "run_lifecycle": (_IA_STAGE_RUN_LIFECYCLE,),
+    "ranking": (_IA_STAGE_RERANK, _IA_STAGE_VALIDATE),
+    "timing": (_IA_STAGE_RETRIEVE, _IA_STAGE_RERANK, _IA_STAGE_EVIDENCE),
+    "agentic": (_IA_STAGE_EVIDENCE, _IA_STAGE_CV_COMPOSE),
+    "cv_composition": (_IA_STAGE_CV_COMPOSE,),
+    "cv_validation": (_IA_STAGE_VALIDATE,),
+    "cv_preset": (_IA_STAGE_CV_COMPOSE,),
+}
+
+_GROUP_TO_APPLIES_WHEN: dict[str, str] = {
+    "retrieval": "Used while constructing and narrowing candidate sets before final scoring and synthesis.",
+    "global_job_filters": "Used when deterministic global filters evaluate enriched jobs.",
+    "rule_filter": "Used when rule-filter stage decides reject vs pass marks.",
+    "run_lifecycle": "Used by control-plane timeout guard for queued/running/manual-wait runs.",
+    "ranking": "Used during reranking, fit labeling, and gap classification.",
+    "timing": "Used by enrichment and reranking runtime throttling/concurrency controls.",
+    "agentic": "Used only when agentic late-stage path or synonym-management controls are active.",
+    "cv_composition": "Used when CV generation decides section visibility and output composition intent.",
+    "cv_validation": "Used by post-generation CV validation checks.",
+    "cv_preset": "Used when resolving CV preset/model defaults for generation.",
+}
+
+_HIGH_RISK_GROUPS: frozenset[str] = frozenset({"ranking", "timing"})
+_MEDIUM_RISK_GROUPS: frozenset[str] = frozenset(
+    {"retrieval", "agentic", "run_lifecycle", "global_job_filters", "rule_filter"}
+)
+
+def _risk_for_entry(entry: dict[str, Any]) -> str:
+    group = str(entry.get("group") or "")
+    key = str(entry.get("key") or "")
+    entry_type = str(entry.get("type") or "")
+    if key in _METADATA_ONLY_KEYS:
+        return "low"
+    if group in _HIGH_RISK_GROUPS:
+        return "high"
+    if group in _MEDIUM_RISK_GROUPS:
+        return "medium"
+    if entry_type == "float":
+        return "high"
+    return "low"
+
+def _default_ia_layer(entry: dict[str, Any]) -> str:
+    key = str(entry.get("key") or "")
+    if key in _METADATA_ONLY_KEYS:
+        return _IA_LAYER_GOVERNANCE_METADATA
+    group = str(entry.get("group") or "")
+    return _GROUP_TO_IA_LAYER.get(group, _IA_LAYER_ADVANCED_TUNING)
+
+def _build_settings_ia_metadata() -> dict[str, dict[str, Any]]:
+    metadata: dict[str, dict[str, Any]] = {}
+    for entry in SETTINGS_SCHEMA:
+        key = str(entry["key"])
+        group = str(entry.get("group") or "")
+        metadata[key] = {
+            "intent_layer": _default_ia_layer(entry),
+            "workflow_stages": list(_GROUP_TO_IA_STAGES.get(group, ())),
+            "risk": _risk_for_entry(entry),
+            "runtime_used": key not in _METADATA_ONLY_KEYS,
+            "metadata_only": key in _METADATA_ONLY_KEYS,
+            "applies_when": _GROUP_TO_APPLIES_WHEN.get(
+                group,
+                "Used in advanced runtime flow according to this setting group.",
+            ),
+        }
+    return metadata
+
+SETTINGS_IA_METADATA_BY_KEY: dict[str, dict[str, Any]] = _build_settings_ia_metadata()
+
+def _validate_settings_ia_metadata_coverage() -> None:
+    schema_keys = {entry["key"] for entry in SETTINGS_SCHEMA}
+    metadata_keys = set(SETTINGS_IA_METADATA_BY_KEY.keys())
+    missing = schema_keys - metadata_keys
+    extra = metadata_keys - schema_keys
+    if missing:
+        raise RuntimeError(f"SETTINGS_IA_METADATA_BY_KEY missing keys: {sorted(missing)!r}")
+    if extra:
+        raise RuntimeError(f"SETTINGS_IA_METADATA_BY_KEY has unknown keys: {sorted(extra)!r}")
+
+_validate_settings_ia_metadata_coverage()
+
+def settings_ia_metadata_by_key() -> dict[str, dict[str, Any]]:
+    return {key: dict(value) for key, value in SETTINGS_IA_METADATA_BY_KEY.items()}
+
+def settings_keys_for_intent_layer(layer: str) -> list[str]:
+    return sorted(
+        key
+        for key, meta in SETTINGS_IA_METADATA_BY_KEY.items()
+        if str(meta.get("intent_layer")) == layer
+    )
+
+def settings_keys_for_workflow_stage(stage: str) -> list[str]:
+    return sorted(
+        key
+        for key, meta in SETTINGS_IA_METADATA_BY_KEY.items()
+        if stage in list(meta.get("workflow_stages") or [])
+    )
+
+def settings_ia_contract_for_key(key: str) -> dict[str, Any]:
+    if key not in SETTINGS_IA_METADATA_BY_KEY:
+        raise KeyError(key)
+    return dict(SETTINGS_IA_METADATA_BY_KEY[key])
+
 def metadata_only_settings_keys() -> set[str]:
     return set(_METADATA_ONLY_KEYS)
 

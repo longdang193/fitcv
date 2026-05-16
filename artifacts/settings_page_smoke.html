@@ -1,0 +1,3028 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <!-- Apply saved theme before CSS renders — prevents flash -->
+  <script>
+    (function() {
+      var t = localStorage.getItem('fitcv-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pipeline Settings — FitCV Admin</title>
+  <style>
+    /* ── CSS Custom Properties (tokens) ──────────────────────────────────── */
+    :root[data-theme="dark"] {
+      --bg:          #0f1117;
+      --surface-1:   #1a1d2e;
+      --surface-2:   #1e2235;
+      --border:      #2d3148;
+      --border-soft: #1e2235;
+      --text-primary:   #e2e8f0;
+      --text-secondary: #94a3b8;
+      --text-muted:     #64748b;
+      --accent:      #6366f1;
+      --accent-hover:#4f46e5;
+      --accent-dim:  #312e81;
+      --accent-text: #a5b4fc;
+      --success-fg:  #4ade80;
+      --badge-success-bg: #14532d; --badge-success-fg: #4ade80;
+      --badge-error-bg:   #450a0a; --badge-error-fg:   #f87171;
+      --badge-warning-bg: #422006; --badge-warning-fg: #fb923c;
+      --badge-info-bg:    #1e3a5f; --badge-info-fg:    #60a5fa;
+      --badge-neutral-bg: #334155; --badge-neutral-fg: #94a3b8;
+      --table-header-bg: var(--surface-2);
+      --table-row-hover: #1a1e30;
+      --input-bg:    var(--surface-2);
+      --code-bg:     #0f0f1a;
+      --code-color:  #c7d2fe;
+      --code-border: #312e81;
+      --divider:     #1e293b;
+    }
+    :root[data-theme="light"] {
+      --bg:          #f8fafc;
+      --surface-1:   #ffffff;
+      --surface-2:   #f1f5f9;
+      --border:      #e2e8f0;
+      --border-soft: #f1f5f9;
+      --text-primary:   #0f172a;
+      --text-secondary: #475569;
+      --text-muted:     #94a3b8;
+      --accent:      #4f46e5;
+      --accent-hover:#3730a3;
+      --accent-dim:  #e0e7ff;
+      --accent-text: #4338ca;
+      --success-fg:  #166534;
+      --badge-success-bg: #dcfce7; --badge-success-fg: #166534;
+      --badge-error-bg:   #fee2e2; --badge-error-fg:   #991b1b;
+      --badge-warning-bg: #ffedd5; --badge-warning-fg: #9a3412;
+      --badge-info-bg:    #dbeafe; --badge-info-fg:    #1e40af;
+      --badge-neutral-bg: #f1f5f9; --badge-neutral-fg: #475569;
+      --table-header-bg: #f8fafc;
+      --table-row-hover: #f1f5f9;
+      --input-bg:    #ffffff;
+      --code-bg:     #f1f5f9;
+      --code-color:  #4338ca;
+      --code-border: #c7d2fe;
+      --divider:     #e2e8f0;
+    }
+
+    /* ── Reset & base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* ── Navigation ───────────────────────────────────────────────────────── */
+    nav {
+      background: var(--surface-1);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    nav a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+    nav a:hover { color: var(--text-primary); }
+    .brand { color: var(--accent); font-weight: 700; font-size: 1.05rem; }
+    .nav-actions {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────────────── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1.5rem; }
+    h2 { font-size: 1.1rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 1rem; }
+    .page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .page-header h1 { margin-bottom: 0; }
+
+    /* ── Card & section ───────────────────────────────────────────────────── */
+    .card, .section-card {
+      background: var(--surface-1);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .section-title  { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+    .section-helper { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.25rem; }
+    .section-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 1rem;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    /* ── Sub-card (grouped sibling forms inside a section-card) ─────────────── */
+    /* Used by the three ranking groups inside the Ranking section.              */
+    .sub-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface-1);
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+    /* Last sub-card in a group: no bottom margin (flush with section bottom) */
+    .sub-card:last-child {
+      margin-bottom: 0;
+    }
+    .sub-card-header {
+      padding: 0.75rem 1rem 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .sub-card-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .sub-card-helper {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+    .sub-card-body {
+      padding: 0.75rem 1rem;
+    }
+    /* Pairs label + value in a row (scoped to sub-card internals — does not
+       override the existing .kv shared rule used by run-detail metadata grids) */
+    .sub-card .kv { display: grid; grid-template-columns: 12rem 1fr; gap: 0.25rem 0.5rem; font-size: 0.8rem; }
+    .sub-card-footer {
+      padding: 0.75rem 1rem;
+      border-top: 1px solid var(--border-soft);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
+    /* ── Inspection card with attached tab bar ────────────────────────────────── */
+    /* Used by the run-detail inspection area.                                      */
+    /* One shared container for tab bar + pane body.                               */
+    .inspection-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface-1);
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+
+    /* Tab bar sits flush on the top edge of the inspection card.                   */
+    .tab-bar--attached {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-1);
+      padding: 0 0.75rem;
+    }
+    .tab-bar--attached .tab-btn {
+      padding: 0.6rem 1rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      margin-bottom: -1px;    /* overlaps the card top border */
+    }
+    .tab-bar--attached .tab-btn:hover {
+      color: var(--text-primary);
+    }
+    .tab-bar--attached .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Pane container — one consistent border/radius/padding for all three panes.  */
+    .pane-container {
+      border: none;
+      border-top: none;
+      background: var(--surface-1);
+      padding: 1rem;
+    }
+    /* Default: hidden; .active: shown */
+    .pane-container.tab-pane {
+      display: none;
+    }
+    .pane-container.tab-pane.active {
+      display: block;
+    }
+    .pane-container .card { padding: 0; border: none; }
+    /* ── Table ────────────────────────────────────────────────────────────── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    th {
+      background: var(--table-header-bg);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-align: left;
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+    }
+    td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border-soft); color: var(--text-secondary); }
+    tr:hover td { background: var(--table-row-hover); }
+    .empty-row td { color: var(--text-muted); text-align: center; padding: 2rem; }
+
+    /* ── Links ────────────────────────────────────────────────────────────── */
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Buttons ──────────────────────────────────────────────────────────── */
+    /* Primary — main CTA (Trigger Run, grouped ranking saves) */
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0.5rem 1.1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+
+    /* Secondary — supporting actions (Refresh, theme toggle, mode tabs) */
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      padding: 0.4rem 0.9rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-secondary[data-active="true"] {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent-text);
+      font-weight: 600;
+    }
+
+    /* Section — settings section saves (Save Retrieval Settings, etc.) */
+    .btn-section {
+      background: var(--surface-2);
+      color: var(--accent);
+      border: 1px solid var(--border);
+      padding: 0.45rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-section:hover { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* Legacy fallback — default button style (same as primary) */
+    button { background: var(--accent); color: #fff; border: none; padding: 0.5rem 1.1rem; border-radius: 6px; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    button:hover { background: var(--accent-hover); }
+
+    /* ── Badges ───────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 99px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-queued    { background: var(--badge-neutral-bg); color: var(--badge-neutral-fg); }
+    .badge-running   { background: var(--badge-info-bg);    color: var(--badge-info-fg); }
+    .badge-succeeded { background: var(--badge-success-bg); color: var(--badge-success-fg); }
+    .badge-failed    { background: var(--badge-error-bg);   color: var(--badge-error-fg); }
+    .badge-info      { background: var(--badge-info-bg);    color: var(--badge-info-fg); }
+    .badge-warning   { background: var(--badge-warning-bg); color: var(--badge-warning-fg); }
+    .badge-error     { background: var(--badge-error-bg);   color: var(--badge-error-fg); }
+
+    /* ── Forms & inputs ───────────────────────────────────────────────────── */
+    input[type="text"],
+    input[type="number"],
+    input[type="file"],
+    textarea,
+    select {
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 0.5rem 0.85rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    input[type="text"]   { width: 360px; }
+    input[type="number"] { width: 96px; }
+    textarea { width: 100%; }
+    input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+    *:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* ── Code ─────────────────────────────────────────────────────────────── */
+    code, .code-area {
+      background: var(--code-bg);
+      color: var(--code-color);
+      border: 1px solid var(--code-border);
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-family: monospace;
+    }
+    code { padding: 0.1rem 0.35rem; }
+    .code-area { padding: 0.5rem; }
+
+    /* ── State helpers ────────────────────────────────────────────────────── */
+    .meta          { font-size: 0.8rem; color: var(--text-muted); }
+    .current-value { color: var(--success-fg); font-weight: 600; }
+    .empty-value   { color: var(--text-muted); }
+    .field-error   { font-size: 0.78rem; color: var(--badge-error-fg); margin-top: 0.2rem; }
+
+    /* ── Error box ──────────────────────────────────────────────────────────*/
+    .error-box {
+      background: var(--badge-error-bg);
+      border: 1px solid var(--badge-error-fg);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .error-box strong { color: var(--badge-error-fg); display: block; margin-bottom: 0.35rem; }
+
+    /* ── KV grid ──────────────────────────────────────────────────────────── */
+    .kv { display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 1.25rem; font-size: 0.875rem; }
+    .kv .k { color: var(--text-muted); }
+    .kv .v { color: var(--text-primary); font-weight: 500; }
+
+    /* ── Divider ──────────────────────────────────────────────────────────── */
+    hr { border: none; border-top: 1px solid var(--divider); margin: 1rem 0; }
+
+    /* ── Details / summary ────────────────────────────────────────────────── */
+    /* Hide browser-native disclosure triangle — we use our own ▾ character. */
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
+
+    /* ── Tab bar ──────────────────────────────────────────────────────────── */
+    .tab-bar { display: flex; gap: 0.5rem; margin-bottom: 0; border-bottom: 2px solid var(--border); padding-bottom: 0; }
+    .tab-btn {
+      background: var(--surface-2); color: var(--text-muted);
+      border: 1px solid var(--border); border-bottom: none;
+      border-radius: 6px 6px 0 0;
+      padding: 0.5rem 1rem; font-size: 0.85rem; cursor: pointer;
+      transition: all 0.15s; position: relative; top: 2px;
+    }
+    .tab-btn:hover { background: var(--surface-1); color: var(--text-primary); }
+    .tab-btn.active { background: var(--surface-1); color: var(--accent-text); border-color: var(--accent); border-bottom-color: var(--surface-1); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    .tab-pane > .card { border-top-left-radius: 0; border-top: none; }
+
+    /* ── Results card ─────────────────────────────────────────────────────── */
+    .results-card {
+      background: var(--accent-dim); border: 1px solid var(--accent);
+      border-radius: 10px; padding: 1.5rem; margin-bottom: 2rem;
+    }
+    .results-card h3 { color: var(--accent-text); font-size: 1.05rem; margin: 0 0 0.5rem; }
+    .cv-row {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface-1); border: 1px solid var(--accent);
+      padding: 0.6rem 0.8rem; border-radius: 6px;
+    }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .container { padding: 1rem; }
+      .page-header { flex-direction: column; align-items: flex-start; }
+      nav { padding: 0 1rem; gap: 1rem; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="brand">⚡ FitCV Admin</span>
+    <a href="/admin/runs">Runs</a>
+    <a href="/admin/settings">Settings</a>
+    <a href="/healthz">Health</a>
+    <div class="nav-actions">
+      <button class="btn-secondary" id="theme-toggle" aria-label="Toggle theme" onclick="toggleTheme()">
+        <span id="theme-icon">☀️</span> <span id="theme-label">Light</span>
+      </button>
+    </div>
+  </nav>
+  <div class="container">
+    
+
+<style>
+  .settings-shell { display: grid; gap: 1.5rem; }
+  .settings-truth-panel {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-1);
+    padding: 1rem;
+  }
+  .settings-truth-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.45rem;
+  }
+  .settings-truth-list {
+    margin: 0;
+    padding-left: 1.1rem;
+    display: grid;
+    gap: 0.35rem;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+  }
+  .settings-mode-strip {
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-1);
+    padding: 0.85rem 1rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.6rem 1rem;
+    font-size: 0.82rem;
+  }
+  .settings-mode-item .k {
+    color: var(--text-muted);
+    margin-right: 0.4rem;
+  }
+  .settings-mode-item .v {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  .settings-toolbar {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .settings-global-summary {
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-1);
+    padding: 0.7rem 0.9rem;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+  .settings-quick-nav {
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-1);
+    padding: 0.65rem 0.9rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.6rem;
+  }
+  .settings-quick-nav a {
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+  }
+  .task-section {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-1);
+    padding: 1rem;
+  }
+  .task-section-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+  }
+  .task-section-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .task-section-helper {
+    font-size: 0.86rem;
+    color: var(--text-muted);
+    margin-top: 0.3rem;
+    max-width: 70ch;
+  }
+  .task-section-grid {
+    display: grid;
+    gap: 1rem;
+  }
+  .settings-panel {
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-0);
+    overflow: hidden;
+  }
+  .settings-panel-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+    padding: 1rem 1rem 0.75rem;
+  }
+  .settings-panel-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .settings-panel-helper {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    max-width: 64ch;
+  }
+  .settings-card-status {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .settings-panel-body {
+    padding: 0 1rem 1rem;
+  }
+  .settings-field-list {
+    display: grid;
+    gap: 0;
+  }
+  .settings-field-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) 10.5rem minmax(220px, 260px);
+    gap: 0.9rem;
+    align-items: center;
+    padding: 0.85rem 0;
+    border-top: 1px solid var(--border-soft);
+  }
+  .settings-field-row:first-child {
+    border-top: none;
+  }
+  .settings-field-row.is-dirty {
+    background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+    box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 65%, white);
+  }
+  .settings-field-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .settings-field-description {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    max-width: 64ch;
+  }
+  .settings-field-meta {
+    display: grid;
+    gap: 0.2rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .settings-field-meta .current-value {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  .settings-field-control select,
+  .settings-field-control input[type="number"],
+  .settings-field-control input[type="text"] {
+    width: 100%;
+  }
+  .settings-field-note {
+    margin-top: 0.35rem;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  .settings-field-note.is-fixed {
+    color: var(--badge-info-fg);
+  }
+  .settings-checkbox-list {
+    display: grid;
+    gap: 0.3rem;
+  }
+  .settings-checkbox-option {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.84rem;
+    color: var(--text-primary);
+  }
+  .sub-card-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    padding: 0 1rem 1rem;
+  }
+  .error-box {
+    margin: 0 1rem 1rem;
+  }
+  .settings-advanced-details {
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-0);
+  }
+  .settings-advanced-details summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 1rem;
+  }
+  .settings-advanced-details summary::-webkit-details-marker {
+    display: none;
+  }
+  .settings-advanced-summary-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .settings-advanced-summary-helper {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+  }
+  .composition-matrix {
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .composition-matrix-header,
+  .composition-matrix-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) 8rem minmax(120px, 180px);
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.75rem 0.9rem;
+  }
+  .composition-matrix-header {
+    background: color-mix(in srgb, var(--surface-2) 80%, transparent);
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .composition-matrix-row + .composition-matrix-row {
+    border-top: 1px solid var(--border-soft);
+  }
+  .composition-matrix-row.is-dirty {
+    background: color-mix(in srgb, var(--surface-2) 78%, transparent);
+  }
+  .composition-row-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .composition-row-helper {
+    font-size: 0.77rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+  }
+  .composition-current {
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  .composition-toggle {
+    justify-self: start;
+  }
+  @media (max-width: 980px) {
+    .settings-field-row,
+    .composition-matrix-header,
+    .composition-matrix-row {
+      grid-template-columns: 1fr;
+    }
+    .settings-panel-header,
+    .task-section-header {
+      flex-direction: column;
+    }
+    .settings-card-status {
+      white-space: normal;
+    }
+  }
+</style>
+
+
+
+
+
+<div class="page-header">
+  <div>
+    <h1>Pipeline Settings</h1>
+    <p class="meta">Changes apply to future runs only. The default view highlights the settings operators tune most often; advanced tuning stays available when you need deeper control.</p>
+  </div>
+</div>
+
+<div class="settings-shell">
+  
+  <section class="settings-truth-panel">
+    <div class="settings-truth-title">How To Read This Page</div>
+    <ul class="settings-truth-list">
+      
+        <li>This page edits future-run defaults only.</li>
+      
+        <li>Per-run overrides are captured at trigger time and do not change these saved defaults.</li>
+      
+        <li>Use settings-used.json on a completed run as the historical source of truth for what that run actually used.</li>
+      
+        <li>Use run detail observability to inspect what a specific run did stage by stage.</li>
+      
+    </ul>
+  </section>
+  <section class="settings-mode-strip">
+    <div class="settings-mode-item"><span class="k">Agentic Mode:</span><span class="v">OFF</span></div>
+    <div class="settings-mode-item"><span class="k">Live Provider:</span><span class="v">—</span></div>
+    <div class="settings-mode-item"><span class="k">Live Model:</span><span class="v">—</span></div>
+    <div class="settings-mode-item"><span class="k">CV Model (Settings):</span><span class="v">gemini-2.5-flash</span></div>
+  </section>
+  <section class="settings-truth-panel">
+    <div class="settings-truth-title">Run Truth Check</div>
+    <ul class="settings-truth-list">
+      <li>To confirm what actually ran, open Run Detail and check Agentic Runtime Alignment.</li>
+    </ul>
+  </section>
+  <section class="settings-toolbar">
+    <div class="settings-global-summary" data-global-dirty-summary="settings-page">All sections saved</div>
+    <nav class="settings-quick-nav" data-settings-quick-nav="true" aria-label="Settings quick navigation">
+      
+        <a href="#task-selection">Selection</a>
+      
+        <a href="#task-agentic">Agentic</a>
+      
+        <a href="#task-ranking">Ranking</a>
+      
+        <a href="#task-cv-output">CV Output</a>
+      
+        <a href="#task-run-safety">Run Safety</a>
+      
+        <a href="#task-advanced">Advanced</a>
+      
+    </nav>
+  </section>
+  
+    <section class="task-section" data-task-section="selection" id="task-selection">
+      <div class="task-section-header">
+        <div>
+          <div class="task-section-title">Selection</div>
+          <div class="task-section-helper">Shape how many jobs enter each expensive stage and which deterministic filters block them early.</div>
+        </div>
+      </div>
+      <div class="task-section-grid">
+        
+          
+            <div class="settings-panel">
+              <div class="settings-panel-header">
+                <div>
+                  <div class="settings-panel-title">Retrieval Settings</div>
+                  <div class="settings-panel-helper">Set the future-run candidate funnel before jobs move into ranking and later CV stages.</div>
+                </div>
+                <div class="settings-card-status" data-dirty-summary="form-selection-funnel">
+                  No changes
+                </div>
+              </div>
+              
+              <form id="form-selection-funnel" method="post" action="/admin/settings/section/retrieval-core" data-dirty-card="form-selection-funnel">
+                <div class="settings-panel-body">
+                  
+                    <div class="settings-field-list">
+                      
+                        
+  <div class="settings-field-row" data-entry-key="pipeline.vector_search_top_n" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Initial Candidate Pool Size</div>
+      <div class="settings-field-description">Higher values broaden recall after deterministic filtering, but they also increase shortlist and downstream ranking latency.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">50</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="number"
+        name="pipeline.vector_search_top_n"
+        min="1"
+        value="50"
+        data-value-type="int"
+        data-default-value="50"
+        data-current-value="50">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="pipeline.ai_score_top_n" data-dirty="false">
+    <div>
+      <div class="settings-field-label">AI Reranking Pool Size</div>
+      <div class="settings-field-description">Higher values improve semantic coverage, but they increase LLM reranking time and cost.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">50</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="number"
+        name="pipeline.ai_score_top_n"
+        min="1"
+        value="50"
+        data-value-type="int"
+        data-default-value="50"
+        data-current-value="50">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="pipeline.final_top_n" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Final Output Count</div>
+      <div class="settings-field-description">Bounds how many ranked jobs reach the final output set and late CV stages.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">10</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="number"
+        name="pipeline.final_top_n"
+        min="1"
+        value="10"
+        data-value-type="int"
+        data-default-value="10"
+        data-current-value="10">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="pipeline.evidence_top_k" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Final Evidence Items Per Job</div>
+      <div class="settings-field-description">Controls how much bounded evidence cv_analysis keeps per ranked job after merge, dedupe, and final selection.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">5</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="number"
+        name="pipeline.evidence_top_k"
+        min="1"
+        value="5"
+        data-value-type="int"
+        data-default-value="5"
+        data-current-value="5">
+    
+    
+  </div>
+  </div>
+                      
+                    </div>
+                  
+                </div>
+                <div class="sub-card-footer">
+                  <button type="button" class="btn-secondary" data-reset-form="form-selection-funnel">Use Defaults</button>
+                  <button type="submit" class="btn-section">Save Retrieval Settings</button>
+                </div>
+              </form>
+            </div>
+          
+        
+          
+            <div class="settings-panel">
+              <div class="settings-panel-header">
+                <div>
+                  <div class="settings-panel-title">Global Job Filters</div>
+                  <div class="settings-panel-helper">Reject jobs before enrichment so low-value candidates never reach later stages.</div>
+                </div>
+                <div class="settings-card-status" data-dirty-summary="form-selection-global-filters">
+                  No changes
+                </div>
+              </div>
+              
+              <form id="form-selection-global-filters" method="post" action="/admin/settings/section/global-job-filters" data-dirty-card="form-selection-global-filters">
+                <div class="settings-panel-body">
+                  
+                    <div class="settings-field-list">
+                      
+                        
+  <div class="settings-field-row" data-entry-key="global_job_filters.applications_count_max" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Maximum Applicant Count</div>
+      <div class="settings-field-description">Reject jobs before enrichment when the applicant count exceeds this threshold.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">200</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="number"
+        name="global_job_filters.applications_count_max"
+        min="1"
+        value="200"
+        data-value-type="int"
+        data-default-value="200"
+        data-current-value="200">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="global_job_filters.max_age_days" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Maximum Posting Age (Days)</div>
+      <div class="settings-field-description">Reject jobs before enrichment when the posting is older than this many days. Missing posted date still passes.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">30</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="number"
+        name="global_job_filters.max_age_days"
+        min="1"
+        value="30"
+        data-value-type="int"
+        data-default-value="30"
+        data-current-value="30">
+    
+    
+  </div>
+  </div>
+                      
+                    </div>
+                  
+                </div>
+                <div class="sub-card-footer">
+                  <button type="button" class="btn-secondary" data-reset-form="form-selection-global-filters">Use Defaults</button>
+                  <button type="submit" class="btn-section">Save Global Job Filters</button>
+                </div>
+              </form>
+            </div>
+          
+        
+          
+            <div class="settings-panel">
+              <div class="settings-panel-header">
+                <div>
+                  <div class="settings-panel-title">Rule Filter Settings</div>
+                  <div class="settings-panel-helper">Choose which post-enrichment checks reject jobs versus only record downstream marks.</div>
+                </div>
+                <div class="settings-card-status" data-dirty-summary="form-selection-rule-filter">
+                  No changes
+                </div>
+              </div>
+              
+              <form id="form-selection-rule-filter" method="post" action="/admin/settings/section/rule-filter" data-dirty-card="form-selection-rule-filter">
+                <div class="settings-panel-body">
+                  
+                    <div class="settings-field-list">
+                      
+                        
+  <div class="settings-field-row" data-entry-key="rule_filter.selected_filters" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Blocking Rule Filters</div>
+      <div class="settings-field-description">Choose which post-enrichment deterministic rule filters reject jobs. Unselected filters are still evaluated and recorded as marks.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">seniority_mismatch, location_type_excluded, contract_type_excluded, experience_level_excluded</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      
+      <div class="settings-checkbox-list">
+        
+          <label class="settings-checkbox-option">
+            <input
+              type="checkbox"
+              name="rule_filter.selected_filters"
+              value="seniority_mismatch"
+              data-default-checked="true"
+              data-current-checked="true"
+              checked>
+            <span>Seniority Mismatch</span>
+          </label>
+        
+          <label class="settings-checkbox-option">
+            <input
+              type="checkbox"
+              name="rule_filter.selected_filters"
+              value="location_type_excluded"
+              data-default-checked="true"
+              data-current-checked="true"
+              checked>
+            <span>Location Type Excluded</span>
+          </label>
+        
+          <label class="settings-checkbox-option">
+            <input
+              type="checkbox"
+              name="rule_filter.selected_filters"
+              value="contract_type_excluded"
+              data-default-checked="true"
+              data-current-checked="true"
+              checked>
+            <span>Contract Type Excluded</span>
+          </label>
+        
+          <label class="settings-checkbox-option">
+            <input
+              type="checkbox"
+              name="rule_filter.selected_filters"
+              value="experience_level_excluded"
+              data-default-checked="true"
+              data-current-checked="true"
+              checked>
+            <span>Experience Level Excluded</span>
+          </label>
+        
+          <label class="settings-checkbox-option">
+            <input
+              type="checkbox"
+              name="rule_filter.selected_filters"
+              value="must_have_skill_missing"
+              data-default-checked="false"
+              data-current-checked="false"
+              >
+            <span>Must Have Skill Missing</span>
+          </label>
+        
+          <label class="settings-checkbox-option">
+            <input
+              type="checkbox"
+              name="rule_filter.selected_filters"
+              value="domain_not_preferred"
+              data-default-checked="false"
+              data-current-checked="false"
+              >
+            <span>Domain Not Preferred</span>
+          </label>
+        
+      </div>
+    
+    
+  </div>
+  </div>
+                      
+                    </div>
+                  
+                </div>
+                <div class="sub-card-footer">
+                  <button type="button" class="btn-secondary" data-reset-form="form-selection-rule-filter">Use Defaults</button>
+                  <button type="submit" class="btn-section">Save Rule Filter Settings</button>
+                </div>
+              </form>
+            </div>
+          
+        
+      </div>
+    </section>
+  
+    <section class="task-section" data-task-section="agentic" id="task-agentic">
+      <div class="task-section-header">
+        <div>
+          <div class="task-section-title">Agentic</div>
+          <div class="task-section-helper">Control bounded future-run agentic defaults without turning this page into a historical run-inspection view.</div>
+        </div>
+      </div>
+      <div class="task-section-grid">
+        
+          
+            <div class="settings-panel">
+              <div class="settings-panel-header">
+                <div>
+                  <div class="settings-panel-title">Agentic Controls</div>
+                  <div class="settings-panel-helper">Enable the late-stage agentic path and the semantic-alignment gate used by future runs.</div>
+                </div>
+                <div class="settings-card-status" data-dirty-summary="form-agentic-controls">
+                  No changes
+                </div>
+              </div>
+              
+              <form id="form-agentic-controls" method="post" action="/admin/settings/section/agentic-core" data-dirty-card="form-agentic-controls">
+                <div class="settings-panel-body">
+                  
+                    <div class="settings-field-list">
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv.agentic_late_stage.enabled" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Agentic Late Stage Enabled</div>
+      <div class="settings-field-description">Enable the bounded agentic late-stage analysis and generation path for future runs.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">No</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="cv.agentic_late_stage.enabled" value="false" data-default-value="false">
+      <input
+        type="checkbox"
+        name="cv.agentic_late_stage.enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="false"
+        data-default-value="false"
+        
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="synonym_management.propose_enabled" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Synonym Proposals Enabled</div>
+      <div class="settings-field-description">Enable generation and regeneration of synonym proposals from mapping suggestions.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">Yes</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="synonym_management.propose_enabled" value="true" data-default-value="true">
+      <input
+        type="checkbox"
+        name="synonym_management.propose_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="true"
+        data-default-value="true"
+        checked
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="synonym_management.apply_to_run_enabled" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Synonym Apply-to-Run Enabled</div>
+      <div class="settings-field-description">Allow review actions and apply-approved-to-run overlay writes for synonym proposals.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">No</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="synonym_management.apply_to_run_enabled" value="false" data-default-value="false">
+      <input
+        type="checkbox"
+        name="synonym_management.apply_to_run_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="false"
+        data-default-value="false"
+        
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="synonym_management.promote_global_enabled" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Synonym Promote-Global Enabled</div>
+      <div class="settings-field-description">Allow promotion of approved synonym proposals into the global synonym map.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">No</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="synonym_management.promote_global_enabled" value="false" data-default-value="false">
+      <input
+        type="checkbox"
+        name="synonym_management.promote_global_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="false"
+        data-default-value="false"
+        
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="synonym_management.auto_triage_recommendation_enabled" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Auto Triage Recommendation</div>
+      <div class="settings-field-description">Automatically generate synonym triage recommendations for pending proposals.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">Yes</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="synonym_management.auto_triage_recommendation_enabled" value="true" data-default-value="true">
+      <input
+        type="checkbox"
+        name="synonym_management.auto_triage_recommendation_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="true"
+        data-default-value="true"
+        checked
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="synonym_management.triage_recommendation_reuse_enabled" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Reuse Triage Recommendation</div>
+      <div class="settings-field-description">Reuse compatible prior triage recommendations; disable to force fresh recompute.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">Yes</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="synonym_management.triage_recommendation_reuse_enabled" value="true" data-default-value="true">
+      <input
+        type="checkbox"
+        name="synonym_management.triage_recommendation_reuse_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="true"
+        data-default-value="true"
+        checked
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="synonym_management.auto_apply_recommendation_enabled" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Auto Apply Recommendation</div>
+      <div class="settings-field-description">Automatically apply recommended synonym proposal actions after triage refresh when safety checks pass.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">No</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="synonym_management.auto_apply_recommendation_enabled" value="false" data-default-value="false">
+      <input
+        type="checkbox"
+        name="synonym_management.auto_apply_recommendation_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="false"
+        data-default-value="false"
+        
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="synonym_management.auto_promote_global_enabled" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Auto Promote to Global</div>
+      <div class="settings-field-description">Automatically promote approved synonym proposals to global map only after validation and conflict checks pass.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">No</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="synonym_management.auto_promote_global_enabled" value="false" data-default-value="false">
+      <input
+        type="checkbox"
+        name="synonym_management.auto_promote_global_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="false"
+        data-default-value="false"
+        
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="synonym_management.auto_accept_ai_action_enabled" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Auto Accept AI Action</div>
+      <div class="settings-field-description">Allow run-all low-risk AI review-required records to be auto-accepted as final CV artifacts by policy.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">Yes</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="synonym_management.auto_accept_ai_action_enabled" value="true" data-default-value="true">
+      <input
+        type="checkbox"
+        name="synonym_management.auto_accept_ai_action_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="true"
+        data-default-value="true"
+        checked
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_analysis.semantic_alignment.enabled" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Semantic Alignment Enabled</div>
+      <div class="settings-field-description">Enable hybrid lexical-plus-semantic scoring for cv_analysis required-skill, role, domain, and responsibility alignment.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">Yes</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="cv_analysis.semantic_alignment.enabled" value="true" data-default-value="true">
+      <input
+        type="checkbox"
+        name="cv_analysis.semantic_alignment.enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="true"
+        data-default-value="true"
+        checked
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+  </div>
+                      
+                    </div>
+                  
+                </div>
+                <div class="sub-card-footer">
+                  <button type="button" class="btn-secondary" data-reset-form="form-agentic-controls">Use Defaults</button>
+                  <button type="submit" class="btn-section">Save Agentic Settings</button>
+                </div>
+              </form>
+            </div>
+          
+        
+          
+            <details class="settings-advanced-details">
+              <summary>
+                <div class="settings-advanced-summary-title">Advanced Agentic Tuning</div>
+                <div class="settings-advanced-summary-helper">Semantic channel weights and pool sizing stay behind disclosure; fixed runtime metadata remains explanatory.</div>
+              </summary>
+              <div class="settings-panel">
+                <form id="form-agentic-advanced" method="post" action="/admin/settings/section/agentic-advanced" data-dirty-card="form-agentic-advanced">
+                  
+                  <div class="settings-panel-body" style="padding-top:1rem">
+                    <div class="settings-field-list">
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_analysis.semantic_alignment.model" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Semantic Alignment Model</div>
+      <div class="settings-field-description">Embedding model used for cv_analysis semantic skill, role, domain, and responsibility similarity.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">text-embedding-005</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Runtime Contract</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <div class="settings-field-note is-fixed">Currently fixed by the active runtime contract</div>
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_analysis.semantic_alignment.required_skill_lexical_weight" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Required Skill Lexical Weight</div>
+      <div class="settings-field-description">Relative weight of lexical overlap inside cv_analysis required-skill support.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.7</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="cv_analysis.semantic_alignment.required_skill_lexical_weight"
+        value="0.7"
+        data-value-type="float"
+        data-default-value="0.7"
+        data-current-value="0.7">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_analysis.semantic_alignment.required_skill_semantic_weight" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Required Skill Semantic Weight</div>
+      <div class="settings-field-description">Relative weight of embedding similarity inside cv_analysis required-skill support.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.3</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="cv_analysis.semantic_alignment.required_skill_semantic_weight"
+        value="0.3"
+        data-value-type="float"
+        data-default-value="0.3"
+        data-current-value="0.3">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_analysis.semantic_alignment.role_lexical_weight" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Role Lexical Weight</div>
+      <div class="settings-field-description">Relative weight of lexical overlap and role-family heuristics inside cv_analysis role alignment.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.6</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="cv_analysis.semantic_alignment.role_lexical_weight"
+        value="0.6"
+        data-value-type="float"
+        data-default-value="0.6"
+        data-current-value="0.6">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_analysis.semantic_alignment.role_semantic_weight" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Role Semantic Weight</div>
+      <div class="settings-field-description">Relative weight of embedding similarity inside cv_analysis role alignment.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.4</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="cv_analysis.semantic_alignment.role_semantic_weight"
+        value="0.4"
+        data-value-type="float"
+        data-default-value="0.4"
+        data-current-value="0.4">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_analysis.semantic_alignment.responsibility_lexical_weight" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Responsibility Lexical Weight</div>
+      <div class="settings-field-description">Relative weight of lexical overlap inside cv_analysis responsibility alignment.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.25</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="cv_analysis.semantic_alignment.responsibility_lexical_weight"
+        value="0.25"
+        data-value-type="float"
+        data-default-value="0.25"
+        data-current-value="0.25">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_analysis.semantic_alignment.responsibility_semantic_weight" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Responsibility Semantic Weight</div>
+      <div class="settings-field-description">Relative weight of embedding similarity inside cv_analysis responsibility alignment.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.75</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="cv_analysis.semantic_alignment.responsibility_semantic_weight"
+        value="0.75"
+        data-value-type="float"
+        data-default-value="0.75"
+        data-current-value="0.75">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_analysis.semantic_alignment.domain_lexical_weight" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Domain Lexical Weight</div>
+      <div class="settings-field-description">Relative weight of lexical overlap inside cv_analysis domain alignment.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.4</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="cv_analysis.semantic_alignment.domain_lexical_weight"
+        value="0.4"
+        data-value-type="float"
+        data-default-value="0.4"
+        data-current-value="0.4">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_analysis.semantic_alignment.domain_semantic_weight" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Domain Semantic Weight</div>
+      <div class="settings-field-description">Relative weight of embedding similarity inside cv_analysis domain alignment.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.6</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="cv_analysis.semantic_alignment.domain_semantic_weight"
+        value="0.6"
+        data-value-type="float"
+        data-default-value="0.6"
+        data-current-value="0.6">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_analysis.semantic_alignment.channel_pool_size" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Semantic Channel Pool Size</div>
+      <div class="settings-field-description">Maximum number of candidates retained per cv_analysis retrieval channel before merge and final bounded selection.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">4</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="number"
+        name="cv_analysis.semantic_alignment.channel_pool_size"
+        min="1"
+        value="4"
+        data-value-type="int"
+        data-default-value="4"
+        data-current-value="4">
+    
+    
+  </div>
+  </div>
+                      
+                    </div>
+                  </div>
+                  <div class="sub-card-footer">
+                    <div class="settings-card-status" data-dirty-summary="form-agentic-advanced">
+                      No changes
+                    </div>
+                    <button type="button" class="btn-secondary" data-reset-form="form-agentic-advanced">Use Defaults</button>
+                    <button type="submit" class="btn-section">Save Advanced Agentic Settings</button>
+                  </div>
+                </form>
+              </div>
+            </details>
+          
+        
+      </div>
+    </section>
+  
+    <section class="task-section" data-task-section="ranking" id="task-ranking">
+      <div class="task-section-header">
+        <div>
+          <div class="task-section-title">Ranking</div>
+          <div class="task-section-helper">Tune how shortlisted jobs are scored, labeled, and gap-penalized.</div>
+        </div>
+      </div>
+      <div class="task-section-grid">
+        
+          
+            <div class="settings-panel">
+              <div class="settings-panel-header">
+                <div>
+                  <div class="settings-panel-title">Ranking Weights</div>
+                  <div class="settings-panel-helper">All six weights must sum to 1.0 (±0.01).</div>
+                </div>
+                <div class="settings-card-status" data-dirty-summary="form-ranking-weights">
+                  No changes
+                </div>
+              </div>
+              
+              <form id="form-ranking-weights" method="post" action="/admin/settings/group/ranking-weights" data-dirty-card="form-ranking-weights">
+                <div class="settings-panel-body">
+                  
+                    <div class="settings-field-list">
+                      
+                        
+  <div class="settings-field-row" data-entry-key="ranking_weights.ai_score" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Weight: AI Score</div>
+      <div class="settings-field-description">How much influence the LLM-evaluated fit score has on the final candidate ranking.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.4</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="ranking_weights.ai_score"
+        value="0.4"
+        data-value-type="float"
+        data-default-value="0.4"
+        data-current-value="0.4">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="ranking_weights.must_have_match" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Weight: Must-Have Skills</div>
+      <div class="settings-field-description">How much influence the strict matching of required skills has on the final ranking.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.2</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="ranking_weights.must_have_match"
+        value="0.2"
+        data-value-type="float"
+        data-default-value="0.2"
+        data-current-value="0.2">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="ranking_weights.vector_similarity" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Weight: Vector Similarity</div>
+      <div class="settings-field-description">How much influence the embedding-based vector similarity score has on the final ranking.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.15</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="ranking_weights.vector_similarity"
+        value="0.15"
+        data-value-type="float"
+        data-default-value="0.15"
+        data-current-value="0.15">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="ranking_weights.title_relevance" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Weight: Title Relevance</div>
+      <div class="settings-field-description">How much influence semantic role alignment between the job title and the candidate&#39;s target role has on the final ranking.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.1</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="ranking_weights.title_relevance"
+        value="0.1"
+        data-value-type="float"
+        data-default-value="0.1"
+        data-current-value="0.1">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="ranking_weights.seniority_fit" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Weight: Seniority Alignment</div>
+      <div class="settings-field-description">How much influence the match between job seniority requirements and candidate experience has.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.1</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="ranking_weights.seniority_fit"
+        value="0.1"
+        data-value-type="float"
+        data-default-value="0.1"
+        data-current-value="0.1">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="ranking_weights.preference_fit" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Weight: Preference Alignment</div>
+      <div class="settings-field-description">How much influence weighted candidate preference alignment across domain, role family, and location type has on the final candidate ranking.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.05</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="ranking_weights.preference_fit"
+        value="0.05"
+        data-value-type="float"
+        data-default-value="0.05"
+        data-current-value="0.05">
+    
+    
+  </div>
+  </div>
+                      
+                    </div>
+                  
+                </div>
+                <div class="sub-card-footer">
+                  <button type="button" class="btn-secondary" data-reset-form="form-ranking-weights">Use Defaults</button>
+                  <button type="submit" class="btn-section">Save Ranking Weights</button>
+                </div>
+              </form>
+            </div>
+          
+        
+          
+            <div class="settings-panel">
+              <div class="settings-panel-header">
+                <div>
+                  <div class="settings-panel-title">Preference Fit Mix</div>
+                  <div class="settings-panel-helper">Split preference alignment across domain, role family, and location type.</div>
+                </div>
+                <div class="settings-card-status" data-dirty-summary="form-preference-fit-weights">
+                  No changes
+                </div>
+              </div>
+              
+              <form id="form-preference-fit-weights" method="post" action="/admin/settings/group/preference-fit-weights" data-dirty-card="form-preference-fit-weights">
+                <div class="settings-panel-body">
+                  
+                    <div class="settings-field-list">
+                      
+                        
+  <div class="settings-field-row" data-entry-key="preference_fit_weights.domain" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Preference Weight: Domain</div>
+      <div class="settings-field-description">Relative importance of explicit domain preference alignment within the preference-fit feature.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.5</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="preference_fit_weights.domain"
+        value="0.5"
+        data-value-type="float"
+        data-default-value="0.5"
+        data-current-value="0.5">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="preference_fit_weights.role_family" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Preference Weight: Role Family</div>
+      <div class="settings-field-description">Relative importance of explicit role-family preference alignment within the preference-fit feature.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.3</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="preference_fit_weights.role_family"
+        value="0.3"
+        data-value-type="float"
+        data-default-value="0.3"
+        data-current-value="0.3">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="preference_fit_weights.location_type" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Preference Weight: Location Type</div>
+      <div class="settings-field-description">Relative importance of explicit location-type preference alignment within the preference-fit feature.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.2</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="preference_fit_weights.location_type"
+        value="0.2"
+        data-value-type="float"
+        data-default-value="0.2"
+        data-current-value="0.2">
+    
+    
+  </div>
+  </div>
+                      
+                    </div>
+                  
+                </div>
+                <div class="sub-card-footer">
+                  <button type="button" class="btn-secondary" data-reset-form="form-preference-fit-weights">Use Defaults</button>
+                  <button type="submit" class="btn-section">Save Preference Fit Mix</button>
+                </div>
+              </form>
+            </div>
+          
+        
+          
+            <div class="settings-panel">
+              <div class="settings-panel-header">
+                <div>
+                  <div class="settings-panel-title">Fit Label Thresholds</div>
+                  <div class="settings-panel-helper">Set the score boundaries for Strong and Stretch fit labels.</div>
+                </div>
+                <div class="settings-card-status" data-dirty-summary="form-fit-label-thresholds">
+                  No changes
+                </div>
+              </div>
+              
+              <form id="form-fit-label-thresholds" method="post" action="/admin/settings/group/fit-label-thresholds" data-dirty-card="form-fit-label-thresholds">
+                <div class="settings-panel-body">
+                  
+                    <div class="settings-field-list">
+                      
+                        
+  <div class="settings-field-row" data-entry-key="fit_label_thresholds.strong" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Threshold: Strong Overall Fit</div>
+      <div class="settings-field-description">The minimum AI reranker score required to categorize a shortlisted job as a &#39;Strong&#39; fit.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.7</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="fit_label_thresholds.strong"
+        value="0.7"
+        data-value-type="float"
+        data-default-value="0.7"
+        data-current-value="0.7">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="fit_label_thresholds.stretch" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Threshold: Stretch Overall Fit</div>
+      <div class="settings-field-description">The minimum AI reranker score required to categorize a shortlisted job as a &#39;Stretch&#39; fit.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.4</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="fit_label_thresholds.stretch"
+        value="0.4"
+        data-value-type="float"
+        data-default-value="0.4"
+        data-current-value="0.4">
+    
+    
+  </div>
+  </div>
+                      
+                    </div>
+                  
+                </div>
+                <div class="sub-card-footer">
+                  <button type="button" class="btn-secondary" data-reset-form="form-fit-label-thresholds">Use Defaults</button>
+                  <button type="submit" class="btn-section">Save Fit Label Thresholds</button>
+                </div>
+              </form>
+            </div>
+          
+        
+          
+            <div class="settings-panel">
+              <div class="settings-panel-header">
+                <div>
+                  <div class="settings-panel-title">Gap Thresholds</div>
+                  <div class="settings-panel-helper">Control when missing-skill ratios start degrading Strong and Stretch classifications.</div>
+                </div>
+                <div class="settings-card-status" data-dirty-summary="form-gap-thresholds">
+                  No changes
+                </div>
+              </div>
+              
+              <form id="form-gap-thresholds" method="post" action="/admin/settings/group/gap-thresholds" data-dirty-card="form-gap-thresholds">
+                <div class="settings-panel-body">
+                  
+                    <div class="settings-field-list">
+                      
+                        
+  <div class="settings-field-row" data-entry-key="gap_thresholds.strong_min_matched_ratio" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Skill Ratio Limit: Strong Match</div>
+      <div class="settings-field-description">The minimum percentage of required skills a candidate must possess to avoid a &#39;Strong&#39; gap penalty.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.8</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="gap_thresholds.strong_min_matched_ratio"
+        value="0.8"
+        data-value-type="float"
+        data-default-value="0.8"
+        data-current-value="0.8">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="gap_thresholds.stretch_min_matched_ratio" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Skill Ratio Limit: Stretch Match</div>
+      <div class="settings-field-description">The minimum percentage of required skills a candidate must possess to avoid a &#39;Stretch&#39; gap penalty.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.5</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="gap_thresholds.stretch_min_matched_ratio"
+        value="0.5"
+        data-value-type="float"
+        data-default-value="0.5"
+        data-current-value="0.5">
+    
+    
+  </div>
+  </div>
+                      
+                    </div>
+                  
+                </div>
+                <div class="sub-card-footer">
+                  <button type="button" class="btn-secondary" data-reset-form="form-gap-thresholds">Use Defaults</button>
+                  <button type="submit" class="btn-section">Save Gap Thresholds</button>
+                </div>
+              </form>
+            </div>
+          
+        
+      </div>
+    </section>
+  
+    <section class="task-section" data-task-section="cv-output" id="task-cv-output">
+      <div class="task-section-header">
+        <div>
+          <div class="task-section-title">CV Output</div>
+          <div class="task-section-helper">Choose the generation model, control section visibility, and bound output length.</div>
+        </div>
+      </div>
+      <div class="task-section-grid">
+        
+          
+            <div class="settings-panel">
+              <div class="settings-panel-header">
+                <div>
+                  <div class="settings-panel-title">Template &amp; Model</div>
+                  <div class="settings-panel-helper">Fixed preset metadata plus the active generation model for future runs.</div>
+                </div>
+                <div class="settings-card-status" data-dirty-summary="form-cv-preset">
+                  No changes
+                </div>
+              </div>
+              
+              <form id="form-cv-preset" method="post" action="/admin/settings/group/cv-preset" data-dirty-card="form-cv-preset">
+                <div class="settings-panel-body">
+                  
+                    <div class="settings-field-list">
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_preset" data-dirty="false">
+    <div>
+      <div class="settings-field-label">CV Preset</div>
+      <div class="settings-field-description">The CV preset to use for generation. Controls template, section order, and supported composition options.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">europass</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <div class="settings-field-note is-fixed">Currently fixed by the active runtime contract</div>
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_generation_model" data-dirty="false">
+    <div>
+      <div class="settings-field-label">CV Generation Model</div>
+      <div class="settings-field-description">Choose the model that writes final CV content for future runs.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">gemini-2.5-flash</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings (non-agentic path)</span>
+      <span>Active: Yes (agentic mode OFF)</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <select name="cv_generation_model" data-value-type="str" data-default-value="gemini-2.5-flash" data-current-value="gemini-2.5-flash">
+        
+          <option value="gemini-2.5-flash" selected>Gemini-2.5-Flash</option>
+        
+          <option value="gemini-2.5-flash-lite" >Gemini-2.5-Flash-Lite</option>
+        
+          <option value="gemini-2.5-pro" >Gemini-2.5-Pro</option>
+        
+      </select>
+    
+    
+  </div>
+  </div>
+                      
+                    </div>
+                  
+                </div>
+                <div class="sub-card-footer">
+                  <button type="button" class="btn-secondary" data-reset-form="form-cv-preset">Use Defaults</button>
+                  <button type="submit" class="btn-section">Save Preset Settings</button>
+                </div>
+              </form>
+            </div>
+          
+        
+          
+            <div class="settings-panel">
+              <div class="settings-panel-header">
+                <div>
+                  <div class="settings-panel-title">Section Visibility</div>
+                  <div class="settings-panel-helper">Decide which sections appear in generated CVs without exposing retired formatting-only knobs.</div>
+                </div>
+                <div class="settings-card-status" data-dirty-summary="form-cv-composition">
+                  No changes
+                </div>
+              </div>
+              
+              <form id="form-cv-composition" method="post" action="/admin/settings/group/cv-composition" data-dirty-card="form-cv-composition">
+                <div class="settings-panel-body">
+                  
+                    <div class="composition-matrix">
+                      <div class="composition-matrix-header">
+                        <div>Section</div>
+                        <div>Current</div>
+                        <div>Edit</div>
+                      </div>
+                      
+                      
+                        
+                        
+                        <div class="composition-matrix-row" data-entry-key="cv_summary_enabled" data-dirty="false">
+                          <div>
+                            <div class="composition-row-title">Summary</div>
+                            <div class="composition-row-helper">Whether to include a professional summary section in generated CVs.</div>
+                          </div>
+                          <div class="composition-current">Included</div>
+                          <div class="composition-toggle">
+                            
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="cv_summary_enabled" value="true" data-default-value="true">
+      <input
+        type="checkbox"
+        name="cv_summary_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="true"
+        data-default-value="true"
+        checked
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+                          </div>
+                        </div>
+                      
+                        
+                        
+                        <div class="composition-matrix-row" data-entry-key="cv_education_enabled" data-dirty="false">
+                          <div>
+                            <div class="composition-row-title">Education</div>
+                            <div class="composition-row-helper">Visibility intent for Education. Effective inclusion also depends on meaningful profile education data.</div>
+                          </div>
+                          <div class="composition-current">Included</div>
+                          <div class="composition-toggle">
+                            
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="cv_education_enabled" value="true" data-default-value="true">
+      <input
+        type="checkbox"
+        name="cv_education_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="true"
+        data-default-value="true"
+        checked
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+                          </div>
+                        </div>
+                      
+                        
+                        
+                        <div class="composition-matrix-row" data-entry-key="cv_experience_enabled" data-dirty="false">
+                          <div>
+                            <div class="composition-row-title">Experience</div>
+                            <div class="composition-row-helper">Whether to include a Work Experience section in generated CVs.</div>
+                          </div>
+                          <div class="composition-current">Included</div>
+                          <div class="composition-toggle">
+                            
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="cv_experience_enabled" value="true" data-default-value="true">
+      <input
+        type="checkbox"
+        name="cv_experience_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="true"
+        data-default-value="true"
+        checked
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+                          </div>
+                        </div>
+                      
+                        
+                        
+                        <div class="composition-matrix-row" data-entry-key="cv_skills_enabled" data-dirty="false">
+                          <div>
+                            <div class="composition-row-title">Skills</div>
+                            <div class="composition-row-helper">Whether to include a Skills section in generated CVs.</div>
+                          </div>
+                          <div class="composition-current">Included</div>
+                          <div class="composition-toggle">
+                            
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="cv_skills_enabled" value="true" data-default-value="true">
+      <input
+        type="checkbox"
+        name="cv_skills_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="true"
+        data-default-value="true"
+        checked
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+                          </div>
+                        </div>
+                      
+                        
+                        
+                        <div class="composition-matrix-row" data-entry-key="cv_certifications_enabled" data-dirty="false">
+                          <div>
+                            <div class="composition-row-title">Certifications</div>
+                            <div class="composition-row-helper">Visibility intent for Certifications. Effective inclusion depends on eligible selected-evidence certifications.</div>
+                          </div>
+                          <div class="composition-current">Included</div>
+                          <div class="composition-toggle">
+                            
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="cv_certifications_enabled" value="true" data-default-value="true">
+      <input
+        type="checkbox"
+        name="cv_certifications_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="true"
+        data-default-value="true"
+        checked
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+                          </div>
+                        </div>
+                      
+                        
+                        
+                        <div class="composition-matrix-row" data-entry-key="cv_projects_enabled" data-dirty="false">
+                          <div>
+                            <div class="composition-row-title">Projects</div>
+                            <div class="composition-row-helper">Whether to include a Projects section in generated CVs.</div>
+                          </div>
+                          <div class="composition-current">Included</div>
+                          <div class="composition-toggle">
+                            
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="cv_projects_enabled" value="true" data-default-value="true">
+      <input
+        type="checkbox"
+        name="cv_projects_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="true"
+        data-default-value="true"
+        checked
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+                          </div>
+                        </div>
+                      
+                        
+                        
+                        <div class="composition-matrix-row" data-entry-key="cv_publications_enabled" data-dirty="false">
+                          <div>
+                            <div class="composition-row-title">Publications</div>
+                            <div class="composition-row-helper">Whether to include a Publications section in generated CVs.</div>
+                          </div>
+                          <div class="composition-current">Hidden</div>
+                          <div class="composition-toggle">
+                            
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="cv_publications_enabled" value="false" data-default-value="false">
+      <input
+        type="checkbox"
+        name="cv_publications_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="false"
+        data-default-value="false"
+        
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+                          </div>
+                        </div>
+                      
+                        
+                        
+                        <div class="composition-matrix-row" data-entry-key="cv_languages_enabled" data-dirty="false">
+                          <div>
+                            <div class="composition-row-title">Languages</div>
+                            <div class="composition-row-helper">Visibility intent for Languages. Effective inclusion also depends on meaningful profile language data.</div>
+                          </div>
+                          <div class="composition-current">Included</div>
+                          <div class="composition-toggle">
+                            
+  <div class="settings-field-control">
+    
+      <input type="hidden" name="cv_languages_enabled" value="true" data-default-value="true">
+      <input
+        type="checkbox"
+        name="cv_languages_enabled"
+        value="true"
+        data-value-type="bool"
+        data-current-value="true"
+        data-default-value="true"
+        checked
+        onchange="this.previousElementSibling.value = this.checked ? 'true' : 'false'">
+    
+    
+  </div>
+                          </div>
+                        </div>
+                      
+                    </div>
+                  
+                </div>
+                <div class="sub-card-footer">
+                  <button type="button" class="btn-secondary" data-reset-form="form-cv-composition">Use Defaults</button>
+                  <button type="submit" class="btn-section">Save Composition Settings</button>
+                </div>
+              </form>
+            </div>
+          
+        
+          
+            <div class="settings-panel">
+              <div class="settings-panel-header">
+                <div>
+                  <div class="settings-panel-title">Validation</div>
+                  <div class="settings-panel-helper">Keep the warning-only page budget visible and easy to tune.</div>
+                </div>
+                <div class="settings-card-status" data-dirty-summary="form-cv-validation">
+                  No changes
+                </div>
+              </div>
+              
+              <form id="form-cv-validation" method="post" action="/admin/settings/group/cv-validation" data-dirty-card="form-cv-validation">
+                <div class="settings-panel-body">
+                  
+                    <div class="settings-field-list">
+                      
+                        
+  <div class="settings-field-row" data-entry-key="cv_max_pages" data-dirty="false">
+    <div>
+      <div class="settings-field-label">CV Maximum Pages</div>
+      <div class="settings-field-description">Warning-only page budget for generated CV documents.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">2</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="number"
+        name="cv_max_pages"
+        min="1"
+        value="2"
+        data-value-type="int"
+        data-default-value="2"
+        data-current-value="2">
+    
+    
+  </div>
+  </div>
+                      
+                    </div>
+                  
+                </div>
+                <div class="sub-card-footer">
+                  <button type="button" class="btn-secondary" data-reset-form="form-cv-validation">Use Defaults</button>
+                  <button type="submit" class="btn-section">Save Validation Settings</button>
+                </div>
+              </form>
+            </div>
+          
+        
+      </div>
+    </section>
+  
+    <section class="task-section" data-task-section="run-safety" id="task-run-safety">
+      <div class="task-section-header">
+        <div>
+          <div class="task-section-title">Run Safety</div>
+          <div class="task-section-helper">Control server-owned protections that keep stuck runs from drifting indefinitely.</div>
+        </div>
+      </div>
+      <div class="task-section-grid">
+        
+          
+            <div class="settings-panel">
+              <div class="settings-panel-header">
+                <div>
+                  <div class="settings-panel-title">Run Lifecycle Settings</div>
+                  <div class="settings-panel-helper">Safety guard for queued, running, and Stage by Stage manual-wait runs. Higher values reduce false timeouts but allow longer zombie-run windows.</div>
+                </div>
+                <div class="settings-card-status" data-dirty-summary="form-run-safety-timeout">
+                  No changes
+                </div>
+              </div>
+              
+              <form id="form-run-safety-timeout" method="post" action="/admin/settings/section/run-lifecycle" data-dirty-card="form-run-safety-timeout">
+                <div class="settings-panel-body">
+                  
+                    <div class="settings-field-list">
+                      
+                        
+  <div class="settings-field-row" data-entry-key="run_lifecycle.max_runtime_minutes" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Maximum Run Duration (Minutes)</div>
+      <div class="settings-field-description">Safety guard for unfinished runs. Lower values fail or cancel stuck runs sooner; higher values allow longer recovery windows.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">240</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="number"
+        name="run_lifecycle.max_runtime_minutes"
+        min="1"
+        value="240"
+        data-value-type="int"
+        data-default-value="240"
+        data-current-value="240">
+    
+    
+  </div>
+  </div>
+                      
+                    </div>
+                  
+                </div>
+                <div class="sub-card-footer">
+                  <button type="button" class="btn-secondary" data-reset-form="form-run-safety-timeout">Use Defaults</button>
+                  <button type="submit" class="btn-section">Save Run Lifecycle Settings</button>
+                </div>
+              </form>
+            </div>
+          
+        
+      </div>
+    </section>
+  
+    <section class="task-section" data-task-section="advanced" id="task-advanced">
+      <div class="task-section-header">
+        <div>
+          <div class="task-section-title">Advanced</div>
+          <div class="task-section-helper">Expert-only tuning for semantic alignment, batching, concurrency, and throttle behavior.</div>
+        </div>
+      </div>
+      <div class="task-section-grid">
+        
+          
+            <details class="settings-advanced-details">
+              <summary>
+                <div class="settings-advanced-summary-title">Advanced Runtime Tuning</div>
+                <div class="settings-advanced-summary-helper">Timing and throttling controls. Higher concurrency does not bypass global rate limits, so use carefully.</div>
+              </summary>
+              <div class="settings-panel">
+                <form id="form-advanced-runtime" method="post" action="/admin/settings/section/timing" data-dirty-card="form-advanced-runtime">
+                  
+                  <div class="settings-panel-body" style="padding-top:1rem">
+                    <div class="settings-field-list">
+                      
+                        
+  <div class="settings-field-row" data-entry-key="enrichment_sleep_secs" data-dirty="false">
+    <div>
+      <div class="settings-field-label">API Delay: Data Enrichment</div>
+      <div class="settings-field-description">Seconds to wait between calls to the web scraping/enrichment API to avoid rate limiting.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">1.0</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="enrichment_sleep_secs"
+        value="1.0"
+        data-value-type="float"
+        data-default-value="1.0"
+        data-current-value="1.0">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="rerank_sleep_secs" data-dirty="false">
+    <div>
+      <div class="settings-field-label">API Delay: AI Reranking</div>
+      <div class="settings-field-description">Seconds to wait between concurrent/sequential LLM calls during candidate scoring.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">0.5</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="text"
+        name="rerank_sleep_secs"
+        value="0.5"
+        data-value-type="float"
+        data-default-value="0.5"
+        data-current-value="0.5">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="enrichment_batch_size" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Enrichment Batch Size</div>
+      <div class="settings-field-description">How many jobs each enrich worker batch handles at once before the next scheduling boundary.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">10</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="number"
+        name="enrichment_batch_size"
+        min="1"
+        value="10"
+        data-value-type="int"
+        data-default-value="10"
+        data-current-value="10">
+    
+    
+  </div>
+  </div>
+                      
+                        
+  <div class="settings-field-row" data-entry-key="enrichment_concurrency" data-dirty="false">
+    <div>
+      <div class="settings-field-label">Enrichment Concurrency</div>
+      <div class="settings-field-description">How many enrich batches may run concurrently. Higher values can improve throughput, but the stage still uses shared rate limiting so gains are not linear.</div>
+    </div>
+    <div class="settings-field-meta">
+      <span>Current: <span class="current-value">1</span></span>
+      <span>Source: Baseline default</span>
+      <span>Owner: Settings</span>
+      <span>Active: Yes</span>
+    </div>
+    
+  <div class="settings-field-control">
+    
+      <input
+        type="number"
+        name="enrichment_concurrency"
+        min="1"
+        value="1"
+        data-value-type="int"
+        data-default-value="1"
+        data-current-value="1">
+    
+    
+      <div class="settings-field-note">Higher concurrency does not bypass the enrich-stage global rate lock, so gains may be modest.</div>
+    
+  </div>
+  </div>
+                      
+                    </div>
+                  </div>
+                  <div class="sub-card-footer">
+                    <div class="settings-card-status" data-dirty-summary="form-advanced-runtime">
+                      No changes
+                    </div>
+                    <button type="button" class="btn-secondary" data-reset-form="form-advanced-runtime">Use Defaults</button>
+                    <button type="submit" class="btn-section">Save Timing Settings</button>
+                  </div>
+                </form>
+              </div>
+            </details>
+          
+        
+      </div>
+    </section>
+  
+</div>
+
+<script type="application/json" id="ranking-weight-keys-data">["ranking_weights.ai_score", "ranking_weights.must_have_match", "ranking_weights.vector_similarity", "ranking_weights.title_relevance", "ranking_weights.seniority_fit", "ranking_weights.preference_fit"]</script>
+<script>
+  function updateWeightsTotal() {
+    const keysNode = document.getElementById('ranking-weight-keys-data');
+    const keys = keysNode ? JSON.parse(keysNode.textContent) : [];
+    let total = 0;
+    keys.forEach(function(k) {
+      const el = document.querySelector('[name="' + k + '"]');
+      if (el) total += parseFloat(el.value) || 0;
+    });
+    const card = document.getElementById('form-ranking-weights');
+    if (!card) return;
+    let target = card.parentElement.querySelector('.settings-panel-helper');
+    if (target) {
+      const formatted = total.toFixed(3);
+      target.innerHTML = 'All six weights must sum to 1.0 (±0.01). Current total: <strong style="color:' +
+        (Math.abs(total - 1.0) < 0.011 ? 'var(--badge-success-fg)' : 'var(--badge-error-fg)') +
+        ';">' + formatted + '</strong>';
+    }
+  }
+
+  function applyDefaultToField(field) {
+    const defaultValue = field.dataset.defaultValue;
+    if (field.dataset.defaultChecked !== undefined) {
+      field.checked = field.dataset.defaultChecked === 'true';
+      return;
+    }
+    if (defaultValue === undefined) {
+      return;
+    }
+    if (field.type === 'checkbox') {
+      const checked = defaultValue === 'true';
+      field.checked = checked;
+      const hidden = field.previousElementSibling;
+      if (hidden && hidden.type === 'hidden') {
+        hidden.value = checked ? 'true' : 'false';
+      }
+      return;
+    }
+    field.value = defaultValue;
+  }
+
+  function isRowDirty(row) {
+    function normalizeComparableValue(field, rawValue) {
+      const valueType = field.dataset.valueType;
+      if (valueType === 'int') {
+        const parsed = parseInt(rawValue, 10);
+        return Number.isNaN(parsed) ? String(rawValue) : String(parsed);
+      }
+      if (valueType === 'float') {
+        const parsed = parseFloat(rawValue);
+        return Number.isNaN(parsed) ? String(rawValue) : String(parsed);
+      }
+      if (valueType === 'bool') {
+        return rawValue === true || rawValue === 'true' ? 'true' : 'false';
+      }
+      return String(rawValue);
+    }
+
+    const fields = row.querySelectorAll('input, select, textarea');
+    for (const field of fields) {
+      if (field.type === 'hidden' && field.dataset.currentValue === undefined) {
+        continue;
+      }
+      if (field.dataset.currentChecked !== undefined) {
+        if ((field.checked ? 'true' : 'false') !== field.dataset.currentChecked) {
+          return true;
+        }
+        continue;
+      }
+      if (field.dataset.currentValue !== undefined) {
+        const current = normalizeComparableValue(field, field.dataset.currentValue);
+        const value = field.type === 'checkbox' ? (field.checked ? 'true' : 'false') : field.value;
+        if (normalizeComparableValue(field, value) !== current) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function updateRowDirtyState(row) {
+    const dirty = isRowDirty(row);
+    row.classList.toggle('is-dirty', dirty);
+    row.dataset.dirty = dirty ? 'true' : 'false';
+  }
+
+  function updateCardDirtyState(form) {
+    const rows = form.querySelectorAll('[data-entry-key]');
+    rows.forEach(updateRowDirtyState);
+    const dirtyCount = Array.from(rows).filter((row) => row.dataset.dirty === 'true').length;
+    const summary = document.querySelector('[data-dirty-summary="' + form.id + '"]');
+    if (summary) {
+      if (dirtyCount === 0) summary.textContent = 'No changes';
+      else if (dirtyCount === 1) summary.textContent = '1 unsaved edit';
+      else summary.textContent = dirtyCount + ' unsaved edits';
+    }
+    updateGlobalDirtySummary();
+    updateWeightsTotal();
+  }
+
+  function updateGlobalDirtySummary() {
+    const summary = document.querySelector('[data-global-dirty-summary="settings-page"]');
+    if (!summary) return;
+    const forms = document.querySelectorAll('form[data-dirty-card]');
+    let dirtyForms = 0;
+    forms.forEach(function(form) {
+      const hasDirtyRow = form.querySelector('[data-entry-key][data-dirty="true"]') !== null;
+      if (hasDirtyRow) dirtyForms += 1;
+    });
+    if (dirtyForms === 0) summary.textContent = 'All sections saved';
+    else if (dirtyForms === 1) summary.textContent = '1 section has unsaved edits';
+    else summary.textContent = dirtyForms + ' sections have unsaved edits';
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form[data-dirty-card]').forEach(function(form) {
+      updateCardDirtyState(form);
+      form.querySelectorAll('input, select, textarea').forEach(function(field) {
+        field.addEventListener('input', function() { updateCardDirtyState(form); });
+        field.addEventListener('change', function() { updateCardDirtyState(form); });
+      });
+    });
+
+    document.querySelectorAll('[data-reset-form]').forEach(function(button) {
+      button.addEventListener('click', function() {
+        const form = document.getElementById(button.dataset.resetForm);
+        if (!form) return;
+        form.querySelectorAll('input, select, textarea').forEach(applyDefaultToField);
+        updateCardDirtyState(form);
+      });
+    });
+  });
+</script>
+
+
+  </div>
+  <script>
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    localStorage.setItem('fitcv-theme', t);
+    var icon  = document.getElementById('theme-icon');
+    var label = document.getElementById('theme-label');
+    if (icon && label) {
+      icon.textContent  = t === 'dark' ? '☀️' : '🌙';
+      label.textContent = t === 'dark' ? 'Light' : 'Dark';
+    }
+  }
+  function toggleTheme() {
+    applyTheme(
+      document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'
+    );
+  }
+  // Sync toggle label on every page load
+  applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
+  </script>
+</body>
+</html>

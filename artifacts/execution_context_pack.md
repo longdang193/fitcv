@@ -1,50 +1,74 @@
-# Execution Context Pack
-
 ## 1) Objective
 
-- **Workstream / Plan:** `docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md`
-- **Lane ID:** `config-razor-ssot-simplification`
-- **Goal:** Razor + SSOT simplification for `config/` with runtime closure evidence.
+- **Workstream / Plan:** `docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md`
+- **Goal:** Implement two-axis Settings IA (intent layers + workflow-stage filters) with clarity contract and guardrails.
+- **Bounded Scope (in-scope only):** `src/fitcv_cp/settings_schema.py`, `src/fitcv_cp/app.py`, `src/fitcv_cp/templates/settings.html`, related CP tests.
+- **Out of Scope (explicit):** Settings key renames/removals, unrelated admin pages, backend behavior rewrites.
 
-## 2) Deliverable Verdict
+## 2) Canonical Inputs (Source of Truth)
 
-- **D1 Canonical ownership enforceable:** met.
-- **D2 `live_smoke.yaml` retired:** met.
-- **D3 Model-key ambiguity removed:** met.
-- **D4 Validation + runtime evidence:** met.
+- **Primary plan:** `docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md`
+- **Specs / maps / thread docs:** `docs/superpowers/specs/2026-05-17-00-20-settings-two-axis-ia-redesign-spec.md`
+- **Governance / workflow rules used:** `docs/operating_system/prompt_templates/implementation-next-action-gate-prompt.md`, `docs/operating_system/governance/execution-context-pack-governance.md`
 
-## 3) Latest Live-Run Debugging Evidence (workflow-live-run-debugging)
+## 3) Current Task State
 
-- `run_all` probe: `01e99594-1e49-485d-abb5-7095121b7d49`
-  - final: `status=awaiting_continue`, `checkpoint_status=awaiting_review`
-  - `cv_analysis.json`: available
-  - `settings-used.json`: unavailable (`409`) while non-succeeded (expected contract)
-- `manual_staged` probe: `e836b740-72a5-45bf-ba77-42bf9366bba8`
-  - final: `status=succeeded`, `checkpoint_status=completed`
-  - `settings-used.json`: available
-  - `cv_analysis.json`: available
-  - `hitl-review-audit.json`: available
+- **Completed:** Tasks 1-5 complete (schema mapping, backend view-model, template two-axis filters, guardrails, regression tests).
+- **In Progress:** none.
+- **Deferred / Dropped:** none.
+- **Known divergence from plan (if any):** none.
 
-Artifact paths:
-- `logs/fitcv-run-01e99594-1e49-485d-abb5-7095121b7d49-artifacts/`
-- `logs/fitcv-run-e836b740-72a5-45bf-ba77-42bf9366bba8-artifacts/`
+## 4) Files Changed This Session
 
-## 4) Problem Check Result
+- `src/fitcv_cp/settings_schema.py` — added IA metadata registry, layer/stage/risk/applies-when contract, helper accessors.
+- `src/fitcv_cp/app.py` — added IA imports, per-entry contract payload, intent-layer/stage collections, card risk/guarded-save metadata.
+- `src/fitcv_cp/templates/settings.html` — added two-axis filter controls, badge/contract rendering, filter logic, guardrail preflight checks, guarded-save confirm.
+- `tests/test_fitcv_cp/test_settings_schema.py` — added IA coverage/helper tests.
+- `tests/test_fitcv_cp/test_app.py` — added settings-page IA UI/guardrail presence tests.
+- `docs/superpowers/plans/2026-05-17-00-28-settings-two-axis-ia-redesign-plan.md` — execution state updated to completed.
 
-- No runtime crash/failure observed in either mode.
-- No new contract anomalies detected in config ownership/routing behavior.
-- `run_all` review pause and succeeded-only `settings-used` gating behave per documented control-plane contract.
+## 5) Verification State
 
-## 5) Verification Snapshot
+- **Last commands run:**
+  - `pytest tests/test_fitcv_cp/test_settings_schema.py -q`
+  - `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q -k "settings or ia_contract or guarded_save"`
+  - `python scripts/validate_planning_lifecycle.py --strict`
+  - `python scripts/validate_checkpoint_packs.py`
+  - `python scripts/validate_repo_contracts.py --fast`
+- **Result summary:** passed (schema/tests/closeout validators all green).
+- **Failing checks (if any):** none.
+- **Gaps still unverified:** full end-to-end browser interaction test not run in this pass.
 
-- `pytest -q tests/test_config.py -k "ssot or live_smoke or ownership or routing"` -> pass.
-- `pytest -q tests/test_config.py -k "legacy_and_canonical_inputs_are_equivalent_for_pipeline_projection"` -> pass.
-- `py scripts/validate_planning_lifecycle.py --strict` -> pass.
-- `py scripts/validate_checkpoint_packs.py` -> pass.
-- `python scripts/hooks/run_validator.py --fast` -> out-of-scope stale lineage drift (deferred by user instruction).
+## 6) Open Blockers / Risks
 
-## 6) Next Exact Action
+- GitNexus index stale (advisory-only freshness). Source-first validation used.
+- Existing dirty file `start_web.ps1` predates this lane and remains untouched.
 
-- Lane closure orchestration (bounded scope) or commit/push lane changes.
+## 7) Next Exact Action
 
-_Updated: 2026-05-16_
+Single smallest concrete action to run first in next session.
+
+- **Action type:** verification
+- **Target:** `/admin/settings` interactive smoke
+- **Exact command or edit intent:** run in-app manual smoke to validate filters/chips/guardrail UX behavior.
+- **Why this is next:** code/tests validated; only manual UX confidence remains.
+
+## 8) Resume Prompt (Copy/Paste)
+
+```text
+Read this execution context pack first. Verify its state against listed source files. Then execute the Next Exact Action immediately. Do not re-plan unless blocker is found.
+```
+
+## 9) Optional Deep Context (Consult Only)
+
+- **conversation_id:** not recorded
+- **overview_log:** not set
+- **consult_if:** only if source files/context pack disagree
+- **notes_from_log (optional, concise):** none
+
+## Source-Truth Rule
+
+If context pack, source files, and raw log disagree:
+1. source files and current tests/checks win
+2. then context pack
+3. raw log is fallback evidence only

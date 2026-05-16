@@ -81,6 +81,10 @@ from fitcv_cp.settings_schema import (
     coerce_value,
     editable_settings_keys,
     metadata_only_settings_keys,
+    settings_ia_contract_for_key,
+    settings_ia_metadata_by_key,
+    settings_keys_for_intent_layer,
+    settings_keys_for_workflow_stage,
     validate_settings,
 )
 from fitcv_cp.settings_store import load_active_settings, save_setting, save_settings_group
@@ -4084,8 +4088,15 @@ def _timeline_stage_summary_message(
             return f"CV analysis complete: {ready} ready, {blocked} blocked, {skipped} skipped, {failed} failed"
     if event.stage == "layer4_cv_validation_failed":
         job_url = str(payload.get("job_url") or "").strip()
+        deterministic_outcome = str(payload.get("deterministic_outcome") or "").strip().lower()
+        stage_owned_subreason = str(payload.get("stage_owned_subreason") or "").strip().lower()
+        if deterministic_outcome == "rejected" and stage_owned_subreason == "validation_failed":
+            qualifier = "expected policy rejection"
+        else:
+            qualifier = "unexpected; investigate"
         if job_url:
-            return f"CV validation failed for {job_url}"
+            return f"CV validation failed ({qualifier}) for {job_url}"
+        return f"CV validation failed ({qualifier})"
     if event.stage == "pipeline_complete":
         accepted = outputs.get("accepted")
         validation_failed = outputs.get("validation_failed")
@@ -4103,6 +4114,35 @@ def _timeline_stage_summary_message(
         if details:
             return f"CV generation complete: {', '.join(details)}"
     return event.message
+
+def _collapse_timeline_noise(events: list[RunEvent]) -> list[RunEvent]:
+    """Collapse repeated informational noise rows with identical payloads."""
+    collapsed: list[RunEvent] = []
+    last_triage_fingerprint: str | None = None
+    for event in events:
+        if str(event.stage or "") == "synonym_proposal_triage_completed":
+            payload = _event_payload(event)
+            fingerprint = _stable_sha256_json(
+                {
+                    "triaged_count": payload.get("triaged_count"),
+                    "reused_count": payload.get("reused_count"),
+                    "fresh_count": payload.get("fresh_count"),
+                    "fallback_count": payload.get("fallback_count"),
+                    "skipped_count": payload.get("skipped_count"),
+                    "failed_count": payload.get("failed_count"),
+                    "reuse_reason": payload.get("reuse_reason"),
+                    "provider": payload.get("provider"),
+                    "model": payload.get("model"),
+                    "wire_api": payload.get("wire_api"),
+                }
+            )
+            if last_triage_fingerprint == fingerprint:
+                continue
+            last_triage_fingerprint = fingerprint
+        else:
+            last_triage_fingerprint = None
+        collapsed.append(event)
+    return collapsed
 
 
 def _stage_download_label(stage_id: str | None) -> str:
@@ -4606,6 +4646,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         section_draft = extra.get("section_draft") or {}
         group_error = extra.get("group_error") or {}
         section_errors = extra.get("section_errors") or {}
+        ia_metadata_by_key = settings_ia_metadata_by_key()
 
         def _display_value_for_settings(value: Any, entry_type: str) -> str:
             if entry_type == "bool":
@@ -4705,11 +4746,33 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                             str(entry["type"]),
                         ),
                         "is_metadata_only": key in metadata_only_keys,
+                        "ia_contract": settings_ia_contract_for_key(key),
                         "owner_label": owner_label,
                         "active_label": active_label,
                     }
                 )
             dirty_count = sum(1 for item in entries if item["is_dirty"])
+            card_intent_layers = sorted(
+                {
+                    str(item["ia_contract"].get("intent_layer") or "")
+                    for item in entries
+                    if str(item["ia_contract"].get("intent_layer") or "")
+                }
+            )
+            card_stages = sorted(
+                {
+                    stage
+                    for item in entries
+                    for stage in list(item["ia_contract"].get("workflow_stages") or [])
+                    if isinstance(stage, str) and stage
+                }
+            )
+            risk_rank = {"low": 1, "medium": 2, "high": 3}
+            card_risk = "low"
+            for item in entries:
+                item_risk = str(item["ia_contract"].get("risk") or "low")
+                if risk_rank.get(item_risk, 1) > risk_rank.get(card_risk, 1):
+                    card_risk = item_risk
             return {
                 "id": card_spec["id"],
                 "title": card_spec["title"],
@@ -4725,6 +4788,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "error_message": _card_error_for(submit_kind, submit_slug, list(card_spec["keys"])),
                 "layout": card_spec.get("layout", "list"),
                 "is_advanced": bool(card_spec.get("is_advanced", False)),
+                "intent_layers": card_intent_layers,
+                "workflow_stages": card_stages,
+                "risk": card_risk,
+                "guarded_save": bool(card_spec.get("is_advanced", False)) or card_risk == "high",
             }
 
         settings_page_task_sections = [
@@ -4735,6 +4802,37 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "cards": [_build_card(card) for card in section["cards"]],
             }
             for section in settings_page_sections
+        ]
+        intent_layer_titles = {
+            "general": "General",
+            "workflow_controls": "Workflow Controls",
+            "advanced_tuning": "Advanced Tuning",
+            "governance_metadata": "Governance/Metadata",
+        }
+        workflow_stage_titles = {
+            "retrieve": "Retrieve",
+            "rule_filter": "Rule Filter",
+            "rerank": "Rerank",
+            "evidence": "Evidence",
+            "cv_compose": "CV Compose",
+            "validate": "Validate",
+            "run_lifecycle": "Run Lifecycle",
+        }
+        settings_intent_layers = [
+            {
+                "id": layer_id,
+                "title": title,
+                "keys": settings_keys_for_intent_layer(layer_id),
+            }
+            for layer_id, title in intent_layer_titles.items()
+        ]
+        settings_stage_filters = [
+            {
+                "id": stage_id,
+                "title": title,
+                "keys": settings_keys_for_workflow_stage(stage_id),
+            }
+            for stage_id, title in workflow_stage_titles.items()
         ]
         agentic_runtime_provider = str(os.environ.get("FITCV_LANGGRAPH_PROVIDER", "") or "").strip()
         agentic_runtime_model = str(os.environ.get("FITCV_LANGGRAPH_MODEL", "") or "").strip()
@@ -4775,6 +4873,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "settings_metadata_note": "Currently fixed by the active runtime contract",
             "settings_truth_notes": settings_truth_notes,
             "settings_mode_summary": mode_summary,
+            "settings_intent_layers": settings_intent_layers,
+            "settings_stage_filters": settings_stage_filters,
+            "settings_ia_metadata_by_key": ia_metadata_by_key,
         }
         context.update(extra)
         return context
@@ -6253,7 +6354,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             stage_artifacts_by_id,
         )
         timeline_events: list[dict[str, Any]] = []
-        visible_events = events[-timeline_limit:]
+        visible_events = _collapse_timeline_noise(events[-timeline_limit:])
         for ev in visible_events:
             stage_id = _timeline_stage_download_for_event(ev.stage)
             stage_download_url = None

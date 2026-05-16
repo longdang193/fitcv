@@ -71,6 +71,49 @@
     border-radius: 999px;
     padding: 0.2rem 0.55rem;
   }
+  .settings-axis-toolbar {
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-1);
+    padding: 0.75rem 0.9rem;
+    display: grid;
+    gap: 0.65rem;
+  }
+  .axis-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .axis-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-right: 0.2rem;
+  }
+  .axis-chip,
+  .badge-chip {
+    border: 1px solid var(--border-soft);
+    border-radius: 999px;
+    background: var(--surface-0);
+    color: var(--text-primary);
+    font-size: 0.75rem;
+    padding: 0.2rem 0.55rem;
+    line-height: 1.2;
+  }
+  .axis-chip[aria-pressed="true"] {
+    border-color: color-mix(in srgb, var(--accent) 50%, var(--border-soft));
+    background: color-mix(in srgb, var(--accent) 14%, var(--surface-0));
+  }
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.35rem;
+  }
+  .badge-chip.badge-risk-high { border-color: var(--badge-error-fg); color: var(--badge-error-fg); }
+  .badge-chip.badge-risk-medium { border-color: var(--badge-warning-fg); color: var(--badge-warning-fg); }
+  .badge-chip.badge-risk-low { border-color: var(--badge-success-fg); color: var(--badge-success-fg); }
+  .is-filter-hidden { display: none !important; }
   .task-section {
     border: 1px solid var(--border);
     border-radius: 12px;
@@ -166,6 +209,13 @@
     gap: 0.2rem;
     font-size: 0.8rem;
     color: var(--text-muted);
+  }
+  .settings-field-contract {
+    margin-top: 0.4rem;
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    display: grid;
+    gap: 0.15rem;
   }
   .settings-field-meta .current-value {
     color: var(--text-primary);
@@ -353,16 +403,32 @@
 
 {% macro render_settings_row(item, settings_metadata_note) -%}
   {% set entry = item.entry %}
-  <div class="settings-field-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}">
+  {% set ia = item.ia_contract %}
+  <div class="settings-field-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-intent-layer="{{ ia.intent_layer }}" data-workflow-stages="{{ ia.workflow_stages | join('|') }}">
     <div>
       <div class="settings-field-label">{{ entry.label }}</div>
       <div class="settings-field-description">{{ entry.description }}</div>
+      <div class="badge-row">
+        <span class="badge-chip">Layer: {{ ia.intent_layer }}</span>
+        <span class="badge-chip">Stages: {{ ia.workflow_stages | join(', ') if ia.workflow_stages else 'none' }}</span>
+        <span class="badge-chip">Runtime-used: {{ "Yes" if ia.runtime_used else "No" }}</span>
+        <span class="badge-chip">Metadata-only: {{ "Yes" if ia.metadata_only else "No" }}</span>
+        <span class="badge-chip badge-risk-{{ ia.risk }}">Risk: {{ ia.risk | title }}</span>
+      </div>
     </div>
     <div class="settings-field-meta">
       <span>Current: <span class="current-value">{{ item.effective_display }}</span></span>
       <span>Source: {{ item.current_source_label }}</span>
       <span>Owner: {{ item.owner_label }}</span>
       <span>Active: {{ item.active_label }}</span>
+      <div class="settings-field-contract">
+        <span><strong>What:</strong> {{ entry.label }}</span>
+        <span><strong>Effect:</strong> {{ entry.description }}</span>
+        <span><strong>Applies when:</strong> {{ ia.applies_when }}</span>
+        <span><strong>Dependencies:</strong> Backend settings validation and stage-specific consumers.</span>
+        <span><strong>Default source:</strong> {{ entry.config_path | join('.') }}</span>
+        <span><strong>Observed in:</strong> settings registry/runtime consumers</span>
+      </div>
     </div>
     {{ render_field_control(item, settings_metadata_note) }}
   </div>
@@ -410,6 +476,22 @@
       {% endfor %}
     </nav>
   </section>
+  <section class="settings-axis-toolbar">
+    <div class="axis-row">
+      <span class="axis-label">Intent Layer</span>
+      <button type="button" class="axis-chip" data-layer-filter="all" aria-pressed="true">All</button>
+      {% for layer in settings_intent_layers %}
+        <button type="button" class="axis-chip" data-layer-filter="{{ layer.id }}" aria-pressed="false">{{ layer.title }}</button>
+      {% endfor %}
+    </div>
+    <div class="axis-row">
+      <span class="axis-label">Workflow Stage</span>
+      <button type="button" class="axis-chip" data-stage-filter="all" aria-pressed="true">All</button>
+      {% for stage in settings_stage_filters %}
+        <button type="button" class="axis-chip" data-stage-filter="{{ stage.id }}" aria-pressed="false">{{ stage.title }}</button>
+      {% endfor %}
+    </div>
+  </section>
   {% for section in settings_page_task_sections %}
     <section class="task-section" data-task-section="{{ section.id }}" id="task-{{ section.id }}">
       <div class="task-section-header">
@@ -426,8 +508,8 @@
                 <div class="settings-advanced-summary-title">{{ card.title }}</div>
                 <div class="settings-advanced-summary-helper">{{ card.helper }}</div>
               </summary>
-              <div class="settings-panel">
-                <form id="{{ card.form_id }}" method="post" action="{{ card.action }}" data-dirty-card="{{ card.form_id }}">
+              <div class="settings-panel" data-card-risk="{{ card.risk }}" data-card-intent-layers="{{ card.intent_layers | join('|') }}" data-card-stages="{{ card.workflow_stages | join('|') }}">
+                <form id="{{ card.form_id }}" method="post" action="{{ card.action }}" data-dirty-card="{{ card.form_id }}" data-guarded-save="{{ 'true' if card.guarded_save else 'false' }}">
                   {% if card.error_message %}
                     <div class="error-box" style="margin-top:1rem">
                       <strong>Validation error</strong>
@@ -452,7 +534,7 @@
               </div>
             </details>
           {% else %}
-            <div class="settings-panel">
+            <div class="settings-panel" data-card-risk="{{ card.risk }}" data-card-intent-layers="{{ card.intent_layers | join('|') }}" data-card-stages="{{ card.workflow_stages | join('|') }}">
               <div class="settings-panel-header">
                 <div>
                   <div class="settings-panel-title">{{ card.title }}</div>
@@ -468,7 +550,7 @@
                   <span>{{ card.error_message }}</span>
                 </div>
               {% endif %}
-              <form id="{{ card.form_id }}" method="post" action="{{ card.action }}" data-dirty-card="{{ card.form_id }}">
+              <form id="{{ card.form_id }}" method="post" action="{{ card.action }}" data-dirty-card="{{ card.form_id }}" data-guarded-save="{{ 'true' if card.guarded_save else 'false' }}">
                 <div class="settings-panel-body">
                   {% if card.layout == "composition_matrix" %}
                     <div class="composition-matrix">
@@ -479,7 +561,7 @@
                       </div>
                       {% for item in card.entries %}
                         {% set entry = item.entry %}
-                        <div class="composition-matrix-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}">
+                        <div class="composition-matrix-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-intent-layer="{{ item.ia_contract.intent_layer }}" data-workflow-stages="{{ item.ia_contract.workflow_stages | join('|') }}">
                           <div>
                             <div class="composition-row-title">{{ entry.label | replace('Include ', '') }}</div>
                             <div class="composition-row-helper">{{ entry.description }}</div>
@@ -627,12 +709,124 @@
     else summary.textContent = dirtyForms + ' sections have unsaved edits';
   }
 
+  function setActiveChip(chips, activeValue, attrName) {
+    chips.forEach(function(chip) {
+      const pressed = chip.getAttribute(attrName) === activeValue;
+      chip.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+    });
+  }
+
+  function entryMatchesFilters(row, layer, stage) {
+    const rowLayer = row.dataset.intentLayer || '';
+    const rowStages = (row.dataset.workflowStages || '').split('|').filter(Boolean);
+    const layerOk = layer === 'all' || rowLayer === layer;
+    const stageOk = stage === 'all' || rowStages.includes(stage);
+    return layerOk && stageOk;
+  }
+
+  function applyAxisFilters(layer, stage) {
+    document.querySelectorAll('[data-entry-key]').forEach(function(row) {
+      const visible = entryMatchesFilters(row, layer, stage);
+      row.classList.toggle('is-filter-hidden', !visible);
+    });
+    document.querySelectorAll('.settings-panel').forEach(function(panel) {
+      const hasVisible = panel.querySelector('[data-entry-key]:not(.is-filter-hidden)') !== null;
+      panel.classList.toggle('is-filter-hidden', !hasVisible);
+    });
+    document.querySelectorAll('.settings-advanced-details').forEach(function(details) {
+      const panel = details.querySelector('.settings-panel');
+      const hidden = panel ? panel.classList.contains('is-filter-hidden') : false;
+      details.classList.toggle('is-filter-hidden', hidden);
+    });
+    document.querySelectorAll('[data-task-section]').forEach(function(section) {
+      const hasVisiblePanel = section.querySelector('.settings-panel:not(.is-filter-hidden)') !== null;
+      section.classList.toggle('is-filter-hidden', !hasVisiblePanel);
+    });
+  }
+
+  function readNumber(form, name) {
+    const el = form.querySelector('[name="' + name + '"]');
+    if (!el) return null;
+    const value = parseFloat(el.value);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  function runPreflightGuardrails(form) {
+    const issues = [];
+    const rankingKeys = [
+      'ranking_weights.ai_score',
+      'ranking_weights.must_have_match',
+      'ranking_weights.vector_similarity',
+      'ranking_weights.title_relevance',
+      'ranking_weights.seniority_fit',
+      'ranking_weights.preference_fit',
+    ];
+    const rankingInputs = rankingKeys.map((k) => form.querySelector('[name="' + k + '"]')).filter(Boolean);
+    if (rankingInputs.length === rankingKeys.length) {
+      const total = rankingInputs.reduce((sum, el) => sum + (parseFloat(el.value) || 0), 0);
+      if (Math.abs(total - 1.0) > 0.01) issues.push('ranking_weights total must equal 1.0 (±0.01).');
+    }
+    const prefKeys = [
+      'preference_fit_weights.domain',
+      'preference_fit_weights.role_family',
+      'preference_fit_weights.location_type',
+    ];
+    const prefInputs = prefKeys.map((k) => form.querySelector('[name="' + k + '"]')).filter(Boolean);
+    if (prefInputs.length === prefKeys.length) {
+      const total = prefInputs.reduce((sum, el) => sum + (parseFloat(el.value) || 0), 0);
+      if (Math.abs(total - 1.0) > 0.01) issues.push('preference_fit_weights total must equal 1.0 (±0.01).');
+    }
+    const strongFit = readNumber(form, 'fit_label_thresholds.strong');
+    const stretchFit = readNumber(form, 'fit_label_thresholds.stretch');
+    if (strongFit !== null && stretchFit !== null && strongFit <= stretchFit) {
+      issues.push('fit_label_thresholds.strong must be greater than fit_label_thresholds.stretch.');
+    }
+    const strongGap = readNumber(form, 'gap_thresholds.strong_min_matched_ratio');
+    const stretchGap = readNumber(form, 'gap_thresholds.stretch_min_matched_ratio');
+    if (strongGap !== null && stretchGap !== null && strongGap <= stretchGap) {
+      issues.push('gap_thresholds.strong_min_matched_ratio must be greater than gap_thresholds.stretch_min_matched_ratio.');
+    }
+    return issues;
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
+    let activeLayer = 'all';
+    let activeStage = 'all';
+    const layerChips = document.querySelectorAll('[data-layer-filter]');
+    const stageChips = document.querySelectorAll('[data-stage-filter]');
+    layerChips.forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        activeLayer = chip.getAttribute('data-layer-filter') || 'all';
+        setActiveChip(layerChips, activeLayer, 'data-layer-filter');
+        applyAxisFilters(activeLayer, activeStage);
+      });
+    });
+    stageChips.forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        activeStage = chip.getAttribute('data-stage-filter') || 'all';
+        setActiveChip(stageChips, activeStage, 'data-stage-filter');
+        applyAxisFilters(activeLayer, activeStage);
+      });
+    });
+    applyAxisFilters(activeLayer, activeStage);
+
     document.querySelectorAll('form[data-dirty-card]').forEach(function(form) {
       updateCardDirtyState(form);
       form.querySelectorAll('input, select, textarea').forEach(function(field) {
         field.addEventListener('input', function() { updateCardDirtyState(form); });
         field.addEventListener('change', function() { updateCardDirtyState(form); });
+      });
+      form.addEventListener('submit', function(event) {
+        const issues = runPreflightGuardrails(form);
+        if (issues.length > 0) {
+          event.preventDefault();
+          window.alert('Pre-save guardrail:\n- ' + issues.join('\n- '));
+          return;
+        }
+        if (form.dataset.guardedSave === 'true') {
+          const ok = window.confirm('This section includes high-impact settings. Continue save?');
+          if (!ok) event.preventDefault();
+        }
       });
     });
 
