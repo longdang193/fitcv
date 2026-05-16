@@ -4,7 +4,7 @@ artifact_type: spec
 status: proposed
 template_id: detailed-specification
 name: input-data-contract-symmetry-option-c
-parent_workstream: none
+parent_thread: workstream-fitcv-semantic-spine.semantic-spine-input-mode-parity
 targets:
   - src/fitcv_cp/app.py
   - src/fitcv/candidate.py
@@ -14,7 +14,7 @@ targets:
 related_features: []
 related_stages:
   - normalize
-  - layer2_candidate
+  - enrich
   - rule_filter
 ---
 
