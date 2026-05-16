@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-outcome-contract
 status: completed
 ---
@@ -21,14 +21,6 @@ semantic-spine-stage-authority-contract
 
 results.json; pipeline statuses; UI outcome labels
 
-## Linked Spec
-
-- docs/superpowers/specs/2026-04-28-deterministic-truth-outcome-contract-spec.md
-
-## Linked Plan
-
-- docs/superpowers/plans/2026-04-28-fitcv-wave-1-semantic-runtime-core-plan.md
-
 ## Notes
 
 This is a first-wave spec candidate.
@@ -37,4 +29,5 @@ This is a first-wave spec candidate.
 
 - Canonical outcome taxonomy defined (accepted, held, blocked, rejected, skipped).
 - Outcome semantics mapped to lifecycle transitions and acceptance gates.
+
 

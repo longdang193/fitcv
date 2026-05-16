@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-results-ledger-contract
 status: completed
 ---
@@ -21,14 +21,6 @@ outcome contract
 
 results.json exports; inspection surfaces
 
-## Linked Spec
-
-- docs/superpowers/specs/2026-05-03-deterministic-truth-results-ledger-contract-bootstrap-spec.md
-
-## Linked Plan
-
-- docs/superpowers/plans/2026-05-03-deterministic-truth-results-ledger-contract-bootstrap-plan.md
-
 ## Notes
 
 Avoid duplicated unofficial summaries.
@@ -37,4 +29,5 @@ Avoid duplicated unofficial summaries.
 
 - Canonical results ledger chain requirements documented.
 - Export truth constraints documented for reviewer-visible evidence.
+
 

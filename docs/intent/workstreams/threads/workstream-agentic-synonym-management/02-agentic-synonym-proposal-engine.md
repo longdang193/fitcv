@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-agentic-synonym-management.agentic-synonym-proposal-engine
 status: proposed
 ---
@@ -21,15 +21,8 @@ unmatched-term detection
 
 proposal artifacts; candidate term sets
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Keep proposals review-first.
+
 

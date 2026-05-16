@@ -66,6 +66,7 @@ from fitcv.candidate import (
 )
 from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
+    get_cv_acceptance_policy,
     get_cv_generation_model,
     get_cv_generation_prompt_version,
     get_gemini_model,
@@ -185,6 +186,7 @@ CV_REVIEW_REQUIRED_REASON_CODES = {
     "post_validation_failed",
     "persistence_failed",
     "unknown",
+    "policy_acceptance",
 }
 PIPELINE_STAGE_SEQUENCE = (
     "normalize",
@@ -2206,11 +2208,58 @@ def _normalize_review_required_reason_code(
         return "markdown_structure_violation"
     if stage == "validation":
         return "post_validation_failed"
+    if stage == "policy_acceptance":
+        return "policy_acceptance"
     if "template" in stage or "template" in message:
         return "template_contract_violation"
     if "empty" in message:
         return "empty_output"
     return "unknown"
+
+
+def _evaluate_cv_acceptance_policy(
+    *,
+    fit_classification: str | None,
+    gap_summary: dict[str, Any] | None,
+    policy: dict[str, Any],
+) -> dict[str, Any]:
+    normalized_fit = str(fit_classification or "").strip().lower()
+    enforce_labels = {
+        str(item).strip().lower()
+        for item in list(policy.get("enforce_for_fit_labels") or [])
+        if str(item).strip()
+    }
+    matchable_required_count = int((gap_summary or {}).get("matchable_required_count") or 0)
+    matched_count = len(list((gap_summary or {}).get("matched") or []))
+    partial_count = len(list((gap_summary or {}).get("partial") or []))
+    required_match_score = (
+        float(matched_count) / float(matchable_required_count)
+        if matchable_required_count > 0 else 0.0
+    )
+    required_skill_support_ratio = (
+        float(matched_count + partial_count) / float(matchable_required_count)
+        if matchable_required_count > 0 else 0.0
+    )
+    min_required_match_score = float(policy.get("min_required_match_score") or 0.0)
+    min_required_skill_support_ratio = float(policy.get("min_required_skill_support_ratio") or 0.0)
+    is_enabled = bool(policy.get("enabled", False))
+    is_target_fit = normalized_fit in enforce_labels if enforce_labels else False
+    downgrade = (
+        is_enabled and is_target_fit and (
+            required_match_score < min_required_match_score
+            or required_skill_support_ratio < min_required_skill_support_ratio
+        )
+    )
+    return {
+        "enabled": is_enabled,
+        "fit_classification": normalized_fit,
+        "enforced_for_fit": is_target_fit,
+        "required_match_score": required_match_score,
+        "required_skill_support_ratio": required_skill_support_ratio,
+        "min_required_match_score": min_required_match_score,
+        "min_required_skill_support_ratio": min_required_skill_support_ratio,
+        "downgrade_to_review_required": downgrade,
+    }
 
 def _extract_failed_rule_ids(validation: dict[str, Any] | None) -> list[str]:
     if not isinstance(validation, dict):
@@ -3759,7 +3808,7 @@ def build_ranking_features(
 
 def run_pipeline(
     jobs_path: str,
-    config_path: str = ".env.yaml",
+    config_path: str = "config/env.yaml",
     reporter: object = None,  # Optional[PipelineReporter] — avoids circular import
     config: dict | None = None,  # If provided, skips load_config(config_path)
     run_id: str | None = None,
@@ -4870,6 +4919,7 @@ def run_pipeline(
             record for record in cv_analysis_results
             if str(record.get("status") or "") == "ready_for_generation"
         ]
+        cv_acceptance_policy = get_cv_acceptance_policy(config)
         for analysis_record in generation_ready_records:
             with observe_span(
                 "pipeline.cv_generation",
@@ -5316,6 +5366,51 @@ def run_pipeline(
                         },
                         agentic_live_trace=job_agentic_live_trace,
                     )
+                    cv_generation_debug_records.append(review_required_debug_record)
+                    _emit_cv_generation_item_observation(
+                        run_id=run_id,
+                        analysis_record=analysis_record,
+                        debug_record=review_required_debug_record,
+                    )
+                    continue
+
+                policy_diagnostics = _evaluate_cv_acceptance_policy(
+                    fit_classification=fit,
+                    gap_summary=cast(dict[str, Any] | None, gap),
+                    policy=cv_acceptance_policy,
+                )
+                if bool(policy_diagnostics.get("downgrade_to_review_required")):
+                    _emit_cv_generation_result_event(
+                        status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                        attempt_count=1,
+                        retry_count=0,
+                        latency_ms=int((time.monotonic() - cv_generation_started_monotonic) * 1000),
+                    )
+                    review_required_debug_record = _build_cv_generation_debug_record(
+                        job=job,
+                        status=CV_GENERATION_REVIEW_REQUIRED_STATUS,
+                        fit_classification=fit,
+                        evidence_used=evidence_used,
+                        evidence_selection_summary=evidence_selection_summary,
+                        analysis_input_summary=analysis_input_summary,
+                        gap_summary=gap,
+                        structured_cv_initial=structured_cv_initial,
+                        validation_initial=validation_initial,
+                        repair_attempt=repair_attempt,
+                        structured_cv_final=structured_cv,
+                        markdown_final=cv,
+                        enabled_sections=enabled_cv_sections,
+                        cv_generation_model=job_cv_generation_model_value,
+                        runtime_provenance=job_runtime_provenance,
+                        cv_prompt_id=cv_prompt_id_value,
+                        cv_prompt_template_path=cv_prompt_template_path_value,
+                        error={
+                            "stage": "policy_acceptance",
+                            "message": "CV acceptance policy requires manual review",
+                        },
+                        agentic_live_trace=job_agentic_live_trace,
+                    )
+                    review_required_debug_record["policy_diagnostics"] = dict(policy_diagnostics)
                     cv_generation_debug_records.append(review_required_debug_record)
                     _emit_cv_generation_item_observation(
                         run_id=run_id,

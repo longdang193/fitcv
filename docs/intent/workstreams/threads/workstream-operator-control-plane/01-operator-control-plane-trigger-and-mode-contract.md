@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-operator-control-plane.operator-control-plane-trigger-and-mode-contract
 status: proposed
 ---
@@ -21,15 +21,8 @@ semantic-spine-input-mode-parity
 
 src/fitcv_cp trigger forms; snapshot payloads
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Do not add new run concepts here.
+
 

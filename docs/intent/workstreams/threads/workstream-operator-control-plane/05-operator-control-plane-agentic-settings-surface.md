@@ -24,14 +24,6 @@ quality seams; deterministic late-stage truth
 settings UI; settings schema; run-scoped settings-used snapshots; agentic
 inspection surfaces
 
-## Linked Spec
-
-- docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
-
-## Linked Plan
-
-- docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
-
 ## Notes
 
 Expose only real operator-tunable agentic controls. Do not surface agentic
@@ -41,3 +33,4 @@ deployment.
 The first bounded implementation centers the new `/admin/settings` `Agentic`
 section on late-stage agentic enablement plus semantic-alignment defaults,
 while leaving run-history truth in run detail and `settings-used.json`.
+

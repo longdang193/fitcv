@@ -25,15 +25,8 @@ master roadmap phase-2 section; stage authority contract; checkpoint truth contr
 
 master roadmap; semantic-spine workstream docs; stage source contracts
 
-## Linked Spec
-
-- docs/superpowers/specs/2026-05-02-phase-2-semantic-spine-flow-authority-spec.md
-
-## Linked Plan
-
-- docs/superpowers/plans/2026-05-03-phase-2-master-closeout-matrix.md
-
 ## Notes
 
 This thread is boundary-setting only. It does not redesign stages or replay behavior.
 Boundary is now enforced by Phase 2 closure artifacts and downstream completed implementation threads.
+

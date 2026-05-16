@@ -71,6 +71,52 @@ _INFRA_ENV_OVERRIDES = {
 _CONTROL_PLANE_ENV_OVERRIDES = {
     "FITCV_CP_DATA_BACKEND": ("data_backend", "type"),
 }
+_CANONICAL_INFRA_KEYS = {
+    "gcp_project",
+    "bigquery_dataset",
+    "service_account_key",
+    "location",
+    "vertex_location",
+}
+_CANONICAL_PIPELINE_TOP_LEVEL_KEYS = {
+    "gemini_model",
+    "embedding_model",
+    "enrichment_version",
+    "enrichment_sleep_secs",
+    "enrichment_max_retries",
+    "embedding_batch_size",
+    "run_lifecycle",
+    "outbox_replay_health",
+    "vector_top_n",
+    "vector_max_candidate_skills",
+    "retrieval_strategy",
+    "rerank_top_n",
+    "rerank_sleep_secs",
+    "pipeline",
+}
+_CANONICAL_POLICY_TOP_LEVEL_KEYS = {
+    "cv",
+}
+_CANONICAL_TAXONOMY_TOP_LEVEL_KEYS = {
+    "seniority",
+    "valid_location_types",
+    "valid_seniority_enrich",
+    "valid_contract_types",
+    "valid_experience_levels",
+    "role_taxonomy",
+}
+# Legacy keys are still accepted during transition, but should not be used as
+# canonical owners in new config edits.
+_LEGACY_COMPATIBILITY_KEYS = {
+    "seniority_ladder",
+    "application_statuses",
+    "cv_analysis_min_score",
+    "required_skill_overlap_min",
+    "preferred_skill_overlap_min",
+    "language_match_min",
+    "summary_quality_min",
+    "max_cv_jobs",
+}
 _CONTROL_PLANE_FORBIDDEN_KEY_TOKENS = (
     "secret",
     "token",
@@ -79,6 +125,14 @@ _CONTROL_PLANE_FORBIDDEN_KEY_TOKENS = (
     "api_key",
     "key_env",
 )
+_DEFAULT_CV_ACCEPTANCE_POLICY: dict[str, Any] = {
+    "enabled": False,
+    "enforce_for_fit_labels": ["stretch"],
+    "min_required_match_score": 0.50,
+    "min_required_skill_support_ratio": 0.50,
+    "downgrade_status": "review_required",
+    "review_reason_code": "policy_acceptance",
+}
 CV_STRUCTURED_SECTION_KEYS = (
     "header",
     "summary",
@@ -374,6 +428,38 @@ def _detect_pipeline_ssot_overlap(
             if subkey in env_pipeline:
                 overlaps.append(f"pipeline.{subkey}")
     return overlaps
+
+def _detect_env_canonical_ownership_overlaps(
+    env_cfg: dict[str, Any],
+) -> list[str]:
+    overlaps: list[str] = []
+    for key in sorted(env_cfg.keys()):
+        if key in _CANONICAL_INFRA_KEYS:
+            continue
+        if key in _CANONICAL_POLICY_TOP_LEVEL_KEYS:
+            overlaps.append(f"{key} (policy)")
+            continue
+        if key in _CANONICAL_PIPELINE_TOP_LEVEL_KEYS:
+            overlaps.append(f"{key} (runtime/pipeline)")
+            continue
+        if key in _CANONICAL_TAXONOMY_TOP_LEVEL_KEYS:
+            overlaps.append(f"{key} (taxonomy)")
+            continue
+        if key in _LEGACY_COMPATIBILITY_KEYS:
+            overlaps.append(f"{key} (legacy-compat)")
+    return overlaps
+
+def _detect_legacy_compatibility_keys(env_cfg: dict[str, Any]) -> list[str]:
+    return sorted(key for key in env_cfg.keys() if key in _LEGACY_COMPATIBILITY_KEYS)
+
+def _apply_legacy_env_compatibility_projection(cfg: dict[str, Any]) -> dict[str, Any]:
+    """Project legacy env keys into canonical structures when needed."""
+    if "seniority" not in cfg and isinstance(cfg.get("seniority_ladder"), list):
+        cfg["seniority"] = {
+            "ladder": [str(item) for item in cfg.get("seniority_ladder", []) if str(item).strip()],
+            "aliases": {},
+        }
+    return cfg
 
 
 def _normalize_skill_synonyms(raw_synonyms: Any) -> dict[str, str]:
@@ -812,6 +898,9 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
         FileNotFoundError: If .env.yaml does not exist.
         ValueError: If required infrastructure keys are missing from .env.yaml.
     """
+    # Precedence for env-source selection:
+    # 1) explicit caller path
+    # 2) default env candidates in _DEFAULT_ENV_CANDIDATES
     env_path = _resolve_env_path(path)
     if not env_path.exists():
         raise FileNotFoundError(f"Config file not found: {env_path}")
@@ -850,6 +939,20 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     cfg = _normalize_config_keys(cfg)
     cfg = _apply_infra_env_overrides(cfg)
     env_cfg_snapshot = dict(cfg)
+    env_ownership_overlaps = _detect_env_canonical_ownership_overlaps(env_cfg_snapshot)
+    if env_ownership_overlaps:
+        logger.warning(
+            "Config SSOT ownership overlap detected in env config: %s",
+            ", ".join(env_ownership_overlaps),
+        )
+    legacy_keys = _detect_legacy_compatibility_keys(env_cfg_snapshot)
+    if legacy_keys:
+        logger.warning(
+            "Legacy compatibility keys detected in env config: %s. "
+            "Move ownership to canonical runtime/policy/taxonomy files before deprecation window closes.",
+            ", ".join(legacy_keys),
+        )
+    cfg = _apply_legacy_env_compatibility_projection(cfg)
 
     backend = resolve_data_backend(cfg)
     required_keys = _REQUIRED_KEYS if backend == "bigquery" else []
@@ -862,6 +965,9 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     loaded_policy_paths: dict[str, Path] = {}
     pipeline_policy_snapshot: dict[str, Any] = {}
 
+    # Precedence for merge stage:
+    # env cfg remains highest compatibility source; policy/runtime/taxonomy files
+    # only backfill missing keys during Option B transition window.
     # Merge policy YAML files — later files add keys; .env.yaml keys take priority
     for policy_name, rel_paths in _POLICY_FILE_CANDIDATES:
         policy, resolved_policy_path = _load_policy_file(config_dir, rel_paths)
@@ -1060,6 +1166,39 @@ def get_vertex_location(config: dict[str, Any]) -> str:
 
 def get_gemini_model(config: dict[str, Any]) -> str:
     return str(config.get("gemini_model") or "gemini-2.5-flash")
+
+
+def _normalize_cv_acceptance_policy(raw: Any) -> dict[str, Any]:
+    policy = dict(_DEFAULT_CV_ACCEPTANCE_POLICY)
+    if not isinstance(raw, dict):
+        return policy
+    policy["enabled"] = bool(raw.get("enabled", policy["enabled"]))
+    labels = raw.get("enforce_for_fit_labels")
+    if isinstance(labels, list):
+        normalized = [str(item).strip().lower() for item in labels if str(item).strip()]
+        if normalized:
+            policy["enforce_for_fit_labels"] = normalized
+    try:
+        policy["min_required_match_score"] = float(raw.get("min_required_match_score", policy["min_required_match_score"]))
+    except (TypeError, ValueError):
+        pass
+    try:
+        policy["min_required_skill_support_ratio"] = float(
+            raw.get("min_required_skill_support_ratio", policy["min_required_skill_support_ratio"])
+        )
+    except (TypeError, ValueError):
+        pass
+    downgrade_status = str(raw.get("downgrade_status") or policy["downgrade_status"]).strip().lower()
+    if downgrade_status:
+        policy["downgrade_status"] = downgrade_status
+    reason_code = str(raw.get("review_reason_code") or policy["review_reason_code"]).strip().lower()
+    if reason_code:
+        policy["review_reason_code"] = reason_code
+    return policy
+
+
+def get_cv_acceptance_policy(config: dict[str, Any]) -> dict[str, Any]:
+    return _normalize_cv_acceptance_policy(config.get("cv_acceptance_policy"))
 
 
 def get_embedding_model(config: dict[str, Any]) -> str:

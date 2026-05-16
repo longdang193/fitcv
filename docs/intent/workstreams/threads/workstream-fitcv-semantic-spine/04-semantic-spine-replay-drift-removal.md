@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-fitcv-semantic-spine.semantic-spine-replay-drift-removal
 status: proposed
 ---
@@ -21,15 +21,8 @@ semantic-spine-stage-authority-contract
 
 docs/intent/; operator phrasing; any replay-era UI or docs
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Do this only after stage authority is explicit.
+
 

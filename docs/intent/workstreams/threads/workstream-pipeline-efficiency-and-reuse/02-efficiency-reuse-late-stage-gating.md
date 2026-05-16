@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating
 status: proposed
 ---
@@ -21,15 +21,8 @@ outcome contract
 
 ranking thresholds; late-stage invocation gates
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Preserve expensive-work discipline.
+
 

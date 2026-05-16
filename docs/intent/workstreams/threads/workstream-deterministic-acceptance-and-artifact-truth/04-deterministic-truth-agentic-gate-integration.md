@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-deterministic-acceptance-and-artifact-truth.deterministic-truth-agentic-gate-integration
 status: completed
 ---
@@ -21,14 +21,6 @@ agentic seams; observability event contract
 
 cv_analysis/cv_generation handoffs; validator integration
 
-## Linked Spec
-
-- docs/superpowers/specs/2026-05-03-deterministic-truth-agentic-gate-integration-bootstrap-spec.md
-
-## Linked Plan
-
-- docs/superpowers/plans/2026-05-03-deterministic-truth-agentic-gate-integration-bootstrap-plan.md
-
 ## Notes
 
 Coupled thread; do later.
@@ -37,4 +29,5 @@ Coupled thread; do later.
 
 - Agentic seam integration requirements mapped to deterministic truth inputs.
 - Acceptance gate wiring expectations documented.
+
 

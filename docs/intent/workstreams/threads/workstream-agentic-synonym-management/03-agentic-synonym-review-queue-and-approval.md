@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-agentic-synonym-management.agentic-synonym-review-queue-and-approval
 status: proposed
 ---
@@ -21,15 +21,8 @@ proposal engine; operator control-plane review actions
 
 operator review UI; run-scoped overlay artifacts
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Recommended early spec.
+
 

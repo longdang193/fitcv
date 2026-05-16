@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-provider-bridge
 status: proposed
 ---
@@ -21,15 +21,8 @@ late-stage seam contract
 
 provider config loading; pipeline seam gating
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Bridge, not new runtime identity.
+
 

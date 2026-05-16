@@ -23,15 +23,8 @@ event contract; operator surface; provider provenance
 
 run artifacts; bundle manifest; operator downloads; bounded agentic traces
 
-## Linked Spec
-
-- docs/superpowers/specs/2026-04-29-agentic-shared-trace-standard-spec.md
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 The existing CV-generation live trace is the first implementation slice, not
 the final scope boundary.
+

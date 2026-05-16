@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-agentic-synonym-management.agentic-synonym-canonical-promotion-flow
 status: proposed
 ---
@@ -21,15 +21,8 @@ review or approval flow; semantic authority contract
 
 canonical synonym files or loaders
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Do after review flow is stable.
+
 

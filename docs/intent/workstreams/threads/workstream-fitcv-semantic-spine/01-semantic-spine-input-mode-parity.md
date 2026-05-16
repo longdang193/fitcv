@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-fitcv-semantic-spine.semantic-spine-input-mode-parity
 status: proposed
 ---
@@ -21,15 +21,8 @@ original FitCV input contracts; stage-source truth
 
 src/fitcv/pipeline.py; trigger input parsers; docs/stages/*.source.yaml
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Keep this slice semantic-first, not UI-first.
+
 

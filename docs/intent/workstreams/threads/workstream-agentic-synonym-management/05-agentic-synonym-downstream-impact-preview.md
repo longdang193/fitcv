@@ -1,4 +1,4 @@
-﻿---
+---
 thread_id: workstream-agentic-synonym-management.agentic-synonym-downstream-impact-preview
 status: proposed
 ---
@@ -21,15 +21,8 @@ review flow; observability surfaces
 
 impact preview artifacts; review UI
 
-## Linked Spec
-
-- none yet
-
-## Linked Plan
-
-- none yet
-
 ## Notes
 
 Coupled thread; later wave.
+
 
