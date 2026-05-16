@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: settings-page-v2-progressive-disclosure-implementation
 parent_thread: workstream-fitcv-semantic-spine.semantic-spine-component-boundary-and-interface-contract
@@ -57,12 +57,12 @@ Rare/destructive controls are isolated under `Advanced`/`Danger Zone` with guard
 - V2 spec approved (`2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md`)
 
 **Steps:**
-- [ ] Step 1: extend per-key IA metadata to include V2 domains, workflow stages, risk tier, and override policy flags.
-- [ ] Step 2: add helper accessors for domain groups, stage groups, and danger-zone key selection.
-- [ ] Step 3: add mapping coverage tests to fail on orphan/duplicate taxonomy assignments.
+- [x] Step 1: extend per-key IA metadata to include V2 domains, workflow stages, risk tier, and override policy flags.
+- [x] Step 2: add helper accessors for domain groups, stage groups, and danger-zone key selection.
+- [x] Step 3: add mapping coverage tests to fail on orphan/duplicate taxonomy assignments.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_settings_schema.py -q`
+- [x] `pytest tests/test_fitcv_cp/test_settings_schema.py -q`
 
 **Exit Criteria:**
 - all settings keys are mapped to exactly one V2 domain and at least one stage tag
@@ -81,12 +81,12 @@ Rare/destructive controls are isolated under `Advanced`/`Danger Zone` with guard
 - Task 1 complete
 
 **Steps:**
-- [ ] Step 1: construct domain navigation model and stage-filter model in settings context payload.
-- [ ] Step 2: emit per-row summary fields (`effective_value`, `source_label`, `override_state`, `has_error`, `is_modified`).
-- [ ] Step 3: emit advanced/danger-zone partitions and guarded-save requirements.
+- [x] Step 1: construct domain navigation model and stage-filter model in settings context payload.
+- [x] Step 2: emit per-row summary fields (`effective_value`, `source_label`, `override_state`, `has_error`, `is_modified`).
+- [x] Step 3: emit advanced/danger-zone partitions and guarded-save requirements.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -q -k settings`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -q -k settings`
 
 **Exit Criteria:**
 - backend context supports compact default rendering and contextual expansion workflows
@@ -105,12 +105,12 @@ Rare/destructive controls are isolated under `Advanced`/`Danger Zone` with guard
 - Task 2 complete
 
 **Steps:**
-- [ ] Step 1: add domain nav rail, stage chips, search/filter bar, and section summary cards.
-- [ ] Step 2: implement collapsed-by-default rows with inline expand and contextual detail panel patterns.
-- [ ] Step 3: move long explanatory copy into tooltip/help/learn-more expanders; keep row copy compact.
+- [x] Step 1: add domain nav rail, stage chips, search/filter bar, and section summary cards.
+- [x] Step 2: implement collapsed-by-default rows with inline expand and contextual detail panel patterns.
+- [x] Step 3: move long explanatory copy into tooltip/help/learn-more expanders; keep row copy compact.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -q -k "settings and (render or template)"`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -q -k "settings and (render or template)"`
 
 **Exit Criteria:**
 - default page is compact; users can navigate/edit without full-page expansion
@@ -130,12 +130,12 @@ Rare/destructive controls are isolated under `Advanced`/`Danger Zone` with guard
 - Task 3 complete
 
 **Steps:**
-- [ ] Step 1: render effective/source badges and hide direct override inputs until `Enable override` activation.
-- [ ] Step 2: add modified/error/override chips at row and section summaries.
-- [ ] Step 3: add reset actions (`Reset field`, `Reset section`) while preserving backend payload semantics.
+- [x] Step 1: render effective/source badges and hide direct override inputs until `Enable override` activation.
+- [x] Step 2: add modified/error/override chips at row and section summaries.
+- [x] Step 3: add reset actions (`Reset field`, `Reset section`) while preserving backend payload semantics.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -q -k "override or modified or error"`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -q -k "override or modified or error"`
 
 **Exit Criteria:**
 - users can clearly distinguish inherited defaults from active overrides before editing
@@ -156,12 +156,12 @@ Rare/destructive controls are isolated under `Advanced`/`Danger Zone` with guard
 - Tasks 1-4 complete
 
 **Steps:**
-- [ ] Step 1: mark dangerous/rare keys in taxonomy and route them to dedicated Advanced/Danger sections.
-- [ ] Step 2: add confirmation/preflight guardrails for risky saves and keep backend validation canonical.
-- [ ] Step 3: verify risky controls are absent from default high-frequency views.
+- [x] Step 1: mark dangerous/rare keys in taxonomy and route them to dedicated Advanced/Danger sections.
+- [x] Step 2: add confirmation/preflight guardrails for risky saves and keep backend validation canonical.
+- [x] Step 3: verify risky controls are absent from default high-frequency views.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q -k "danger or advanced or guardrail"`
+- [x] `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q -k "danger or advanced or guardrail"`
 
 **Exit Criteria:**
 - destructive/rare settings are isolated and guarded without changing backend validation outcomes
@@ -182,12 +182,12 @@ Rare/destructive controls are isolated under `Advanced`/`Danger Zone` with guard
 - Tasks 1-5 complete
 
 **Steps:**
-- [ ] Step 1: add tests for key discoverability via both domain and stage filters.
-- [ ] Step 2: add tests for compact default render (not fully expanded) and contextual disclosure behavior.
-- [ ] Step 3: run full settings-focused regression checks and document any residual manual smoke gaps.
+- [x] Step 1: add tests for key discoverability via both domain and stage filters.
+- [x] Step 2: add tests for compact default render (not fully expanded) and contextual disclosure behavior.
+- [x] Step 3: run full settings-focused regression checks and document any residual manual smoke gaps.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
+- [x] `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
 
 **Exit Criteria:**
 - automated evidence confirms V2 navigation clarity and contract preservation
@@ -214,3 +214,5 @@ Canonical source-of-truth:
 - `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
 </LINK>
+
+

@@ -46,6 +46,25 @@
     display: grid;
     gap: 0.75rem;
   }
+  .settings-search {
+    width: 100%;
+    max-width: 380px;
+  }
+  .domain-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.65rem;
+  }
+  .domain-summary-card {
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    background: var(--surface-1);
+    padding: 0.65rem 0.75rem;
+    display: grid;
+    gap: 0.3rem;
+  }
+  .domain-summary-title { font-size: 0.8rem; font-weight: 700; color: var(--text-primary); }
+  .domain-summary-meta { font-size: 0.75rem; color: var(--text-muted); }
   .settings-global-summary {
     border: 1px solid var(--border-soft);
     border-radius: 12px;
@@ -210,13 +229,14 @@
     font-size: 0.8rem;
     color: var(--text-muted);
   }
-  .settings-field-contract {
+  .settings-field-help {
     margin-top: 0.4rem;
     font-size: 0.74rem;
     color: var(--text-muted);
-    display: grid;
-    gap: 0.15rem;
   }
+  .settings-field-help details { border: 1px solid var(--border-soft); border-radius: 8px; padding: 0.25rem 0.45rem; }
+  .settings-field-help summary { cursor: pointer; font-weight: 600; color: var(--text-secondary); }
+  .settings-field-help-body { display: grid; gap: 0.15rem; margin-top: 0.35rem; }
   .settings-field-meta .current-value {
     color: var(--text-primary);
     font-weight: 600;
@@ -404,12 +424,12 @@
 {% macro render_settings_row(item, settings_metadata_note) -%}
   {% set entry = item.entry %}
   {% set ia = item.ia_contract %}
-  <div class="settings-field-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-intent-layer="{{ ia.intent_layer }}" data-workflow-stages="{{ ia.workflow_stages | join('|') }}">
+  <div class="settings-field-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-intent-layer="{{ ia.domain }}" data-workflow-stages="{{ ia.workflow_stages | join('|') }}">
     <div>
       <div class="settings-field-label">{{ entry.label }}</div>
       <div class="settings-field-description">{{ entry.description }}</div>
       <div class="badge-row">
-        <span class="badge-chip">Layer: {{ ia.intent_layer }}</span>
+        <span class="badge-chip">Domain: {{ ia.domain }}</span>
         <span class="badge-chip">Stages: {{ ia.workflow_stages | join(', ') if ia.workflow_stages else 'none' }}</span>
         <span class="badge-chip">Runtime-used: {{ "Yes" if ia.runtime_used else "No" }}</span>
         <span class="badge-chip">Metadata-only: {{ "Yes" if ia.metadata_only else "No" }}</span>
@@ -421,13 +441,18 @@
       <span>Source: {{ item.current_source_label }}</span>
       <span>Owner: {{ item.owner_label }}</span>
       <span>Active: {{ item.active_label }}</span>
-      <div class="settings-field-contract">
-        <span><strong>What:</strong> {{ entry.label }}</span>
-        <span><strong>Effect:</strong> {{ entry.description }}</span>
-        <span><strong>Applies when:</strong> {{ ia.applies_when }}</span>
-        <span><strong>Dependencies:</strong> Backend settings validation and stage-specific consumers.</span>
-        <span><strong>Default source:</strong> {{ entry.config_path | join('.') }}</span>
-        <span><strong>Observed in:</strong> settings registry/runtime consumers</span>
+      <div class="settings-field-help">
+        <details>
+          <summary>Help</summary>
+          <div class="settings-field-help-body">
+            <span><strong>What:</strong> {{ entry.label }}</span>
+            <span><strong>Effect:</strong> {{ entry.description }}</span>
+            <span><strong>Applies when:</strong> {{ ia.applies_when }}</span>
+            <span><strong>Dependencies:</strong> Backend settings validation and stage-specific consumers.</span>
+            <span><strong>Default source:</strong> {{ entry.config_path | join('.') }}</span>
+            <span><strong>Observed in:</strong> settings registry/runtime consumers</span>
+          </div>
+        </details>
       </div>
     </div>
     {{ render_field_control(item, settings_metadata_note) }}
@@ -469,7 +494,17 @@
     </ul>
   </section>
   <section class="settings-toolbar">
+    <input class="settings-search" type="search" id="settings-search" placeholder="Search settings..." aria-label="Search settings">
     <div class="settings-global-summary" data-global-dirty-summary="settings-page">All sections saved</div>
+    <div class="domain-summary-grid">
+      {% for summary in settings_domain_summaries %}
+        <div class="domain-summary-card" data-domain-summary="{{ summary.id }}">
+          <div class="domain-summary-title">{{ summary.title }}</div>
+          <div class="domain-summary-meta">{{ summary.total }} total</div>
+          <div class="domain-summary-meta">{{ summary.modified }} modified · {{ summary.errors }} errors · {{ summary.overrides }} overrides</div>
+        </div>
+      {% endfor %}
+    </div>
     <nav class="settings-quick-nav" data-settings-quick-nav="true" aria-label="Settings quick navigation">
       {% for section in settings_page_task_sections %}
         <a href="#task-{{ section.id }}">{{ section.title }}</a>
@@ -561,7 +596,7 @@
                       </div>
                       {% for item in card.entries %}
                         {% set entry = item.entry %}
-                        <div class="composition-matrix-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-intent-layer="{{ item.ia_contract.intent_layer }}" data-workflow-stages="{{ item.ia_contract.workflow_stages | join('|') }}">
+                        <div class="composition-matrix-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-intent-layer="{{ item.ia_contract.domain }}" data-workflow-stages="{{ item.ia_contract.workflow_stages | join('|') }}">
                           <div>
                             <div class="composition-row-title">{{ entry.label | replace('Include ', '') }}</div>
                             <div class="composition-row-helper">{{ entry.description }}</div>
@@ -592,6 +627,20 @@
       </div>
     </section>
   {% endfor %}
+  <section class="task-section" data-task-section="danger-zone" id="task-danger-zone">
+    <div class="task-section-header">
+      <div>
+        <div class="task-section-title">Danger Zone</div>
+        <div class="task-section-helper">Rare/high-impact settings. Review carefully before saving.</div>
+      </div>
+    </div>
+    <div class="task-section-grid">
+      <div class="settings-global-summary">
+        {{ settings_danger_zone_keys | length }} key(s) flagged as danger-zone:
+        <code>{{ settings_danger_zone_keys | join(', ') }}</code>
+      </div>
+    </div>
+  </section>
 </div>
 
 <script type="application/json" id="ranking-weight-keys-data">{{ ranking_weight_keys | tojson }}</script>
@@ -809,6 +858,32 @@
       });
     });
     applyAxisFilters(activeLayer, activeStage);
+
+    const searchInput = document.getElementById('settings-search');
+    function applySearchFilter(term) {
+      const q = (term || '').trim().toLowerCase();
+      document.querySelectorAll('[data-entry-key]').forEach(function(row) {
+        const text = row.textContent.toLowerCase();
+        const match = q.length === 0 || text.includes(q);
+        if (!match) row.classList.add('is-filter-hidden');
+      });
+      document.querySelectorAll('.settings-panel').forEach(function(panel) {
+        const hasVisible = panel.querySelector('[data-entry-key]:not(.is-filter-hidden)') !== null;
+        panel.classList.toggle('is-filter-hidden', !hasVisible);
+      });
+      document.querySelectorAll('[data-task-section]').forEach(function(section) {
+        const hasVisiblePanel = section.querySelector('.settings-panel:not(.is-filter-hidden)') !== null;
+        if (section.getAttribute('data-task-section') !== 'danger-zone') {
+          section.classList.toggle('is-filter-hidden', !hasVisiblePanel);
+        }
+      });
+    }
+    if (searchInput) {
+      searchInput.addEventListener('input', function() {
+        applyAxisFilters(activeLayer, activeStage);
+        applySearchFilter(searchInput.value);
+      });
+    }
 
     document.querySelectorAll('form[data-dirty-card]').forEach(function(form) {
       updateCardDirtyState(form);

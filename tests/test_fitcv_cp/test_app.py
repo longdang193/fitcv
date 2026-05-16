@@ -10364,12 +10364,16 @@ def test_admin_settings_renders_two_axis_filter_controls() -> None:
     assert resp.status_code == 200
     html = resp.text
     assert 'data-layer-filter="general"' in html
-    assert 'data-layer-filter="workflow_controls"' in html
-    assert 'data-layer-filter="advanced_tuning"' in html
-    assert 'data-layer-filter="governance_metadata"' in html
-    assert 'data-stage-filter="retrieve"' in html
-    assert 'data-stage-filter="cv_compose"' in html
-    assert 'data-stage-filter="run_lifecycle"' in html
+    assert 'data-layer-filter="layers"' in html
+    assert 'data-layer-filter="stages"' in html
+    assert 'data-layer-filter="rules"' in html
+    assert 'data-layer-filter="integrations"' in html
+    assert 'data-layer-filter="advanced"' in html
+    assert 'data-stage-filter="setup"' in html
+    assert 'data-stage-filter="draft"' in html
+    assert 'data-stage-filter="review"' in html
+    assert 'data-stage-filter="approved"' in html
+    assert 'data-stage-filter="archived"' in html
 
 
 def test_admin_settings_renders_ia_contract_fields_and_badges() -> None:

@@ -79,11 +79,12 @@ from fitcv_cp.settings_schema import (
     ValidationError,
     apply_settings_to_config,
     coerce_value,
+    danger_zone_settings_keys,
     editable_settings_keys,
     metadata_only_settings_keys,
     settings_ia_contract_for_key,
     settings_ia_metadata_by_key,
-    settings_keys_for_intent_layer,
+    settings_keys_for_domain,
     settings_keys_for_workflow_stage,
     validate_settings,
 )
@@ -4758,6 +4759,24 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                             effective_value,
                             str(entry["type"]),
                         ),
+                        "is_modified": _normalize_for_dirty(comparison_value, str(entry["type"])) != _normalize_for_dirty(
+                            effective_value,
+                            str(entry["type"]),
+                        ),
+                        "effective_value": effective_value,
+                        "source_label": "Persisted override" if key in active else "Baseline default",
+                        "override_state": "overridden" if key in active else "inherited",
+                        "has_error": bool(
+                            (
+                                submit_kind == "group"
+                                and str(group_error.get(submit_slug) or "").strip()
+                            )
+                            or (
+                                submit_kind == "section"
+                                and active_section_name == submit_slug
+                                and key in section_errors
+                            )
+                        ),
                         "is_metadata_only": key in metadata_only_keys,
                         "ia_contract": settings_ia_contract_for_key(key),
                         "owner_label": owner_label,
@@ -4816,28 +4835,44 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             }
             for section in settings_page_sections
         ]
-        intent_layer_titles = {
+        domain_stats: dict[str, dict[str, int]] = {}
+        for section in settings_page_task_sections:
+            for card in section["cards"]:
+                for item in card["entries"]:
+                    domain = str(item["ia_contract"].get("domain") or "advanced")
+                    stats = domain_stats.setdefault(
+                        domain,
+                        {"total": 0, "modified": 0, "errors": 0, "overrides": 0},
+                    )
+                    stats["total"] += 1
+                    if bool(item["is_modified"]):
+                        stats["modified"] += 1
+                    if bool(item["has_error"]):
+                        stats["errors"] += 1
+                    if str(item.get("override_state") or "") == "overridden":
+                        stats["overrides"] += 1
+        domain_titles = {
             "general": "General",
-            "workflow_controls": "Workflow Controls",
-            "advanced_tuning": "Advanced Tuning",
-            "governance_metadata": "Governance/Metadata",
+            "layers": "Layers",
+            "stages": "Stages",
+            "rules": "Rules",
+            "integrations": "Integrations",
+            "advanced": "Advanced",
         }
         workflow_stage_titles = {
-            "retrieve": "Retrieve",
-            "rule_filter": "Rule Filter",
-            "rerank": "Rerank",
-            "evidence": "Evidence",
-            "cv_compose": "CV Compose",
-            "validate": "Validate",
-            "run_lifecycle": "Run Lifecycle",
+            "setup": "Setup",
+            "draft": "Draft",
+            "review": "Review",
+            "approved": "Approved",
+            "archived": "Archived",
         }
-        settings_intent_layers = [
+        settings_domains = [
             {
-                "id": layer_id,
+                "id": domain_id,
                 "title": title,
-                "keys": settings_keys_for_intent_layer(layer_id),
+                "keys": settings_keys_for_domain(domain_id),
             }
-            for layer_id, title in intent_layer_titles.items()
+            for domain_id, title in domain_titles.items()
         ]
         settings_stage_filters = [
             {
@@ -4847,6 +4882,15 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             }
             for stage_id, title in workflow_stage_titles.items()
         ]
+        settings_domain_summaries = [
+            {
+                "id": domain["id"],
+                "title": domain["title"],
+                **domain_stats.get(str(domain["id"]), {"total": 0, "modified": 0, "errors": 0, "overrides": 0}),
+            }
+            for domain in settings_domains
+        ]
+        danger_zone_keys = danger_zone_settings_keys()
         agentic_runtime_provider = str(os.environ.get("FITCV_LANGGRAPH_PROVIDER", "") or "").strip()
         agentic_runtime_model = str(os.environ.get("FITCV_LANGGRAPH_MODEL", "") or "").strip()
         agentic_runtime_note = ""
@@ -4886,9 +4930,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "settings_metadata_note": "Currently fixed by the active runtime contract",
             "settings_truth_notes": settings_truth_notes,
             "settings_mode_summary": mode_summary,
-            "settings_intent_layers": settings_intent_layers,
+            "settings_domains": settings_domains,
+            "settings_intent_layers": settings_domains,
             "settings_stage_filters": settings_stage_filters,
             "settings_ia_metadata_by_key": ia_metadata_by_key,
+            "settings_danger_zone_keys": danger_zone_keys,
+            "settings_domain_summaries": settings_domain_summaries,
         }
         context.update(extra)
         return context
