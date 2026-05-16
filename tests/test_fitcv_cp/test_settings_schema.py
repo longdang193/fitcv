@@ -26,6 +26,10 @@ from fitcv_cp.settings_schema import (
     excluded_agentic_settings_keys,
     metadata_only_agentic_settings_keys,
     metadata_only_settings_keys,
+    settings_ia_contract_for_key,
+    settings_ia_metadata_by_key,
+    settings_keys_for_intent_layer,
+    settings_keys_for_workflow_stage,
     validate_settings,
     ValidationError,
 )
@@ -48,6 +52,48 @@ def test_all_expected_keys_present():
     assert "gap_thresholds.strong_min_matched_ratio" in keys
     # excluded key — internal fallback only, not admin-editable
     assert "rerank_top_n" not in keys
+
+def test_settings_ia_metadata_covers_all_schema_keys_without_orphans() -> None:
+    schema_keys = {s["key"] for s in SETTINGS_SCHEMA}
+    ia_keys = set(settings_ia_metadata_by_key().keys())
+    assert ia_keys == schema_keys
+
+def test_settings_ia_metadata_marks_metadata_only_runtime_usage_consistently() -> None:
+    meta = settings_ia_metadata_by_key()
+    for key in metadata_only_settings_keys():
+        assert meta[key]["metadata_only"] is True
+        assert meta[key]["runtime_used"] is False
+    assert meta["pipeline.final_top_n"]["runtime_used"] is True
+    assert meta["pipeline.final_top_n"]["metadata_only"] is False
+
+def test_settings_ia_intent_layer_filter_returns_expected_keys() -> None:
+    general_keys = set(settings_keys_for_intent_layer("general"))
+    assert "cv_summary_enabled" in general_keys
+    assert "cv_max_pages" in general_keys
+    governance_keys = set(settings_keys_for_intent_layer("governance_metadata"))
+    assert "cv_preset" in governance_keys
+    assert "cv_analysis.semantic_alignment.model" in governance_keys
+
+def test_settings_ia_stage_filter_returns_expected_keys() -> None:
+    cv_compose_keys = set(settings_keys_for_workflow_stage("cv_compose"))
+    assert "cv_generation_model" in cv_compose_keys
+    assert "cv_summary_enabled" in cv_compose_keys
+    rerank_keys = set(settings_keys_for_workflow_stage("rerank"))
+    assert "ranking_weights.ai_score" in rerank_keys
+    assert "enrichment_sleep_secs" in rerank_keys
+
+def test_settings_ia_contract_for_key_contains_required_fields() -> None:
+    contract = settings_ia_contract_for_key("cv_certifications_enabled")
+    assert set(contract.keys()) == {
+        "intent_layer",
+        "workflow_stages",
+        "risk",
+        "runtime_used",
+        "metadata_only",
+        "applies_when",
+    }
+    assert contract["intent_layer"] == "general"
+    assert "cv_compose" in contract["workflow_stages"]
 
 
 def test_schema_has_required_fields():
