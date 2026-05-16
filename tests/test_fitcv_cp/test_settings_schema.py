@@ -26,9 +26,10 @@ from fitcv_cp.settings_schema import (
     excluded_agentic_settings_keys,
     metadata_only_agentic_settings_keys,
     metadata_only_settings_keys,
+    danger_zone_settings_keys,
+    settings_keys_for_domain,
     settings_ia_contract_for_key,
     settings_ia_metadata_by_key,
-    settings_keys_for_intent_layer,
     settings_keys_for_workflow_stage,
     validate_settings,
     ValidationError,
@@ -66,34 +67,48 @@ def test_settings_ia_metadata_marks_metadata_only_runtime_usage_consistently() -
     assert meta["pipeline.final_top_n"]["runtime_used"] is True
     assert meta["pipeline.final_top_n"]["metadata_only"] is False
 
-def test_settings_ia_intent_layer_filter_returns_expected_keys() -> None:
-    general_keys = set(settings_keys_for_intent_layer("general"))
+def test_settings_ia_domain_filter_returns_expected_keys() -> None:
+    general_keys = set(settings_keys_for_domain("general"))
     assert "cv_summary_enabled" in general_keys
-    assert "cv_max_pages" in general_keys
-    governance_keys = set(settings_keys_for_intent_layer("governance_metadata"))
-    assert "cv_preset" in governance_keys
-    assert "cv_analysis.semantic_alignment.model" in governance_keys
+    assert "cv_skills_enabled" in general_keys
+    rules_keys = set(settings_keys_for_domain("rules"))
+    assert "ranking_weights.ai_score" in rules_keys
+    assert "rule_filter.selected_filters" in rules_keys
 
 def test_settings_ia_stage_filter_returns_expected_keys() -> None:
-    cv_compose_keys = set(settings_keys_for_workflow_stage("cv_compose"))
-    assert "cv_generation_model" in cv_compose_keys
-    assert "cv_summary_enabled" in cv_compose_keys
-    rerank_keys = set(settings_keys_for_workflow_stage("rerank"))
-    assert "ranking_weights.ai_score" in rerank_keys
-    assert "enrichment_sleep_secs" in rerank_keys
+    draft_keys = set(settings_keys_for_workflow_stage("draft"))
+    assert "cv_generation_model" in draft_keys
+    assert "cv_summary_enabled" in draft_keys
+    review_keys = set(settings_keys_for_workflow_stage("review"))
+    assert "ranking_weights.ai_score" in review_keys
+    assert "rule_filter.selected_filters" in review_keys
 
 def test_settings_ia_contract_for_key_contains_required_fields() -> None:
     contract = settings_ia_contract_for_key("cv_certifications_enabled")
     assert set(contract.keys()) == {
-        "intent_layer",
+        "domain",
         "workflow_stages",
         "risk",
         "runtime_used",
         "metadata_only",
+        "override_policy",
+        "can_override",
+        "is_dangerous",
         "applies_when",
     }
-    assert contract["intent_layer"] == "general"
-    assert "cv_compose" in contract["workflow_stages"]
+    assert contract["domain"] == "general"
+    assert "draft" in contract["workflow_stages"]
+
+def test_settings_ia_contract_marks_metadata_only_as_non_overrideable() -> None:
+    contract = settings_ia_contract_for_key("cv_preset")
+    assert contract["metadata_only"] is True
+    assert contract["can_override"] is False
+    assert contract["override_policy"] == "disabled"
+
+def test_danger_zone_settings_keys_contains_high_risk_groups() -> None:
+    keys = set(danger_zone_settings_keys())
+    assert "enrichment_concurrency" in keys
+    assert "run_lifecycle.max_runtime_minutes" in keys
 
 
 def test_schema_has_required_fields():
