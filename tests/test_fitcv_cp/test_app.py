@@ -3279,7 +3279,53 @@ def test_run_detail_timeline_keeps_validation_failed_job_message_from_payload():
         resp = TestClient(_app()).get("/admin/runs/run-cv-validation-row")
 
     assert resp.status_code == 200
-    assert "CV validation failed for https://jobs.example.com/1" in resp.text
+    assert "CV validation failed (expected policy rejection) for https://jobs.example.com/1" in resp.text
+    assert "unexpected; investigate" not in resp.text
+    assert "CV generation complete:" not in resp.text
+
+def test_run_detail_timeline_marks_validation_failed_as_unexpected_when_contract_fields_missing():
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-cv-validation-row-unexpected",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    events = [
+        RunEvent(
+            run_id="run-cv-validation-row-unexpected",
+            event_id="e1",
+            stage="layer4_cv_validation_failed",
+            level="warning",
+            message="legacy validation copy",
+            created_at=datetime.now(timezone.utc),
+            payload_json=json.dumps(
+                {
+                    "event_name": "cv_generation_decision",
+                    "event_family": "decision",
+                    "source_stage": "cv_generation",
+                    "job_url": "https://jobs.example.com/2",
+                    "event_status": "completed",
+                    "deterministic_outcome": None,
+                    "stage_owned_subreason": None,
+                }
+            ),
+        )
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-cv-validation-row-unexpected")
+
+    assert resp.status_code == 200
+    assert "CV validation failed (unexpected; investigate) for https://jobs.example.com/2" in resp.text
     assert "CV generation complete:" not in resp.text
 
 
