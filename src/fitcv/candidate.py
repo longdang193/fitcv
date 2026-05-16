@@ -180,17 +180,44 @@ def load_profile_json_text(payload: str) -> dict[str, Any]:
         profile = json.loads(payload)
     except json.JSONDecodeError as exc:
         raise ValueError(f"Invalid JSON in candidate profile: {exc}") from exc
+    return _validate_profile_payload(profile, "JSON")
 
+def _validate_profile_payload(profile: Any, source_format: str) -> dict[str, Any]:
     if not isinstance(profile, dict):
         raise ValueError(
-            f"Candidate profile must be a JSON object, got {type(profile).__name__}"
+            f"Candidate profile must be a {source_format} object, got {type(profile).__name__}"
         )
-
     errors = validate_profile(profile)
     if errors:
         raise ValueError(f"Candidate profile validation failed: {'; '.join(errors)}")
-
     return _normalize_profile_alignment_metadata(profile)  # type: ignore[return-value]
+
+def load_profile_text(payload: str, *, format_hint: str = "auto") -> dict[str, Any]:
+    """Parse and validate a candidate profile from JSON or YAML text.
+
+    `format_hint` may be "json", "yaml", or "auto" (default).
+    """
+    hint = str(format_hint or "auto").strip().lower()
+    if hint not in {"json", "yaml", "auto"}:
+        raise ValueError(f"Unsupported candidate profile format_hint: {format_hint!r}")
+
+    import json
+
+    if hint in {"json", "auto"}:
+        try:
+            return _validate_profile_payload(json.loads(payload), "JSON")
+        except json.JSONDecodeError:
+            if hint == "json":
+                raise ValueError("Invalid JSON in candidate profile")
+
+    if hint in {"yaml", "auto"}:
+        try:
+            parsed_yaml = yaml.safe_load(payload)
+        except yaml.YAMLError as exc:
+            raise ValueError("Invalid YAML in candidate profile") from exc
+        return _validate_profile_payload(parsed_yaml, "YAML")
+
+    raise ValueError("Candidate profile must be valid JSON or YAML")
 def _normalize_text(value: str | None) -> str:
     if not value:
         return ""

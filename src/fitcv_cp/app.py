@@ -787,6 +787,15 @@ def _resolve_default_candidate_profile_snapshot(config_path: str) -> str:
         )
     return _json.dumps(resolved_profile, ensure_ascii=False, indent=2)
 
+def _resolve_candidate_profile_snapshot_from_text(raw_text: str) -> str:
+    from fitcv.candidate import load_profile_text as _load_profile_text
+
+    try:
+        resolved_profile = _load_profile_text(raw_text, format_hint="auto")
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return _json.dumps(resolved_profile, ensure_ascii=False, indent=2)
+
 
 def _canonical_continue_next_stage(run: PipelineRun) -> str | None:
     def _safe_next_stage(stage_name: str | None) -> str | None:
@@ -5085,8 +5094,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         overlay_upload_scope: str = Form("combined"),
         synonym_overlay_file: UploadFile | None = File(None),
     ) -> dict:
-        from fitcv.candidate import load_profile_json_text as _load_json_profile
-
         _MAX_FILES = 20
         _MAX_TOTAL_BYTES = 50 * 1024 * 1024  # 50 MB
 
@@ -5196,22 +5203,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 raise HTTPException(status_code=422, detail="candidate_profile_file required for upload mode")
             raw_bytes = await candidate_profile_file.read()
             raw_text = raw_bytes.decode("utf-8")
-            try:
-                _load_json_profile(raw_text)  # validate
-            except ValueError as exc:
-                raise HTTPException(status_code=422, detail=str(exc))
-            candidate_json_snapshot = _json.dumps(_json.loads(raw_text), ensure_ascii=False, indent=2)
+            candidate_json_snapshot = _resolve_candidate_profile_snapshot_from_text(raw_text)
             candidate_profile_source = "upload"
         elif candidate_profile_mode == "paste":
             if not candidate_profile_text or not candidate_profile_text.strip():
                 raise HTTPException(status_code=422, detail="candidate_profile_text required for paste mode")
-            try:
-                _load_json_profile(candidate_profile_text)  # validate
-            except ValueError as exc:
-                raise HTTPException(status_code=422, detail=str(exc))
-            candidate_json_snapshot = _json.dumps(
-                _json.loads(candidate_profile_text), ensure_ascii=False, indent=2
-            )
+            candidate_json_snapshot = _resolve_candidate_profile_snapshot_from_text(candidate_profile_text)
             candidate_profile_source = "paste"
         else:
             raise HTTPException(status_code=422, detail=f"Unknown candidate_profile_mode: {candidate_profile_mode!r}")
