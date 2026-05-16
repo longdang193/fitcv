@@ -477,14 +477,25 @@
                         <div>Current</div>
                         <div>Edit</div>
                       </div>
+                      {% set last_policy_group = namespace(value='') %}
                       {% for item in card.entries %}
                         {% set entry = item.entry %}
+                        {% if item.composition_policy_group and item.composition_policy_group != last_policy_group.value %}
+                          {% set last_policy_group.value = item.composition_policy_group %}
+                          <div class="composition-matrix-row">
+                            <div>
+                              <div class="composition-row-title">{{ item.composition_policy_group }}</div>
+                            </div>
+                            <div class="composition-current">—</div>
+                            <div class="composition-toggle">—</div>
+                          </div>
+                        {% endif %}
                         <div class="composition-matrix-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}">
                           <div>
                             <div class="composition-row-title">{{ entry.label | replace('Include ', '') }}</div>
                             <div class="composition-row-helper">{{ entry.description }}</div>
                           </div>
-                          <div class="composition-current">{{ "Included" if item.effective_value else "Hidden" }}</div>
+                          <div class="composition-current">{{ item.composition_current_label if item.composition_current_label else ("Included" if item.effective_value else "Hidden") }}</div>
                           <div class="composition-toggle">
                             {{ render_field_control(item, settings_metadata_note) }}
                           </div>

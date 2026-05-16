@@ -67,14 +67,14 @@ Automated tests cover full 3-state behavior for both groups, including no-data a
 - no unresolved grouping changes pending
 
 **Steps:**
-- [ ] Add explicit section-group registry for all 8 composition sections.
-- [ ] Add normalized policy decision object fields: `group`, `state`, `reason_code`, `required`.
-- [ ] Encode Group A rules (`Education`, `Languages`) using profile-meaningful-data eligibility.
-- [ ] Encode Group B rules with eligibility tied to section contract (selected evidence where applicable).
-- [ ] Keep decision outputs MECE and deterministic.
+- [x] Add explicit section-group registry for all 8 composition sections.
+- [x] Add normalized policy decision object fields: `group`, `state`, `reason_code`, `required`.
+- [x] Encode Group A rules (`Education`, `Languages`) using profile-meaningful-data eligibility.
+- [x] Encode Group B rules with eligibility tied to section contract (selected evidence where applicable).
+- [x] Keep decision outputs MECE and deterministic.
 
 **Verification:**
-- [ ] Add/adjust unit tests asserting exact group partition and single-state resolution per section.
+- [x] Add/adjust unit tests asserting exact group partition and single-state resolution per section.
 
 **Exit Criteria:**
 - policy layer can evaluate any section with one stable decision payload
@@ -93,13 +93,13 @@ Automated tests cover full 3-state behavior for both groups, including no-data a
 - Task 1 complete
 
 **Steps:**
-- [ ] Replace local section filtering branches with policy-driven inclusion checks.
-- [ ] Drive prompt section constraints and section-evidence blocks from policy outcomes.
-- [ ] Ensure certifications path uses shared eligibility state instead of ad hoc empty-list behavior.
-- [ ] Ensure Group A sections respect profile-baseline contract and reason codes.
+- [x] Replace local section filtering branches with policy-driven inclusion checks.
+- [x] Drive prompt section constraints and section-evidence blocks from policy outcomes.
+- [x] Ensure certifications path uses shared eligibility state instead of ad hoc empty-list behavior.
+- [x] Ensure Group A sections respect profile-baseline contract and reason codes.
 
 **Verification:**
-- [ ] Update generator tests for ON/OFF + no-data + eligible-data scenarios across both groups.
+- [x] Update generator tests for ON/OFF + no-data + eligible-data scenarios across both groups.
 
 **Exit Criteria:**
 - generated template scope and prompt contract match shared policy decisions exactly
@@ -119,13 +119,13 @@ Automated tests cover full 3-state behavior for both groups, including no-data a
 - Task 2 behavior contract established
 
 **Steps:**
-- [ ] Replace section-specific exceptions with grouped policy decision checks.
-- [ ] Make `Education` and `Languages` follow same Group A contract behavior.
-- [ ] Ensure required-section pruning relies on `state`/`required` from policy payload.
-- [ ] Preserve existing synthetic-row safety checks.
+- [x] Replace section-specific exceptions with grouped policy decision checks.
+- [x] Make `Education` and `Languages` follow same Group A contract behavior.
+- [x] Ensure required-section pruning relies on `state`/`required` from policy payload.
+- [x] Preserve existing synthetic-row safety checks.
 
 **Verification:**
-- [ ] Add parity tests that compare generator inclusion outcomes vs validator missing-section outcomes for same fixtures.
+- [x] Add parity tests that compare generator inclusion outcomes vs validator missing-section outcomes for same fixtures.
 
 **Exit Criteria:**
 - validator does not contradict generator on section presence expectations
@@ -146,13 +146,13 @@ Automated tests cover full 3-state behavior for both groups, including no-data a
 - Task 1 policy payload includes human-readable reason/state fields
 
 **Steps:**
-- [ ] Update helper text to distinguish visibility intent from effective inclusion.
-- [ ] Render effective `Current` labels from policy state (`Included`, `Hidden (toggle)`, `Hidden (no data)`, `Hidden (eligibility)`).
-- [ ] Group composition rows visually/semantically into Group A vs Group B.
-- [ ] Surface omission reason code in run diagnostics payload path for operator inspection.
+- [x] Update helper text to distinguish visibility intent from effective inclusion.
+- [x] Render effective `Current` labels from policy state (`Included`, `Hidden (toggle)`, `Hidden (no data)`, `Hidden (eligibility)`).
+- [x] Group composition rows visually/semantically into Group A vs Group B.
+- [x] Surface omission reason code in run diagnostics payload path for operator inspection.
 
 **Verification:**
-- [ ] Add UI tests asserting effective-state labels and grouped section arrangement.
+- [x] Add UI tests asserting effective-state labels and grouped section arrangement.
 
 **Exit Criteria:**
 - UI current-state text is equivalent to runtime policy state
@@ -173,13 +173,13 @@ Automated tests cover full 3-state behavior for both groups, including no-data a
 - Tasks 1-4 complete
 
 **Steps:**
-- [ ] Run targeted test suites for generator, validator, settings schema, and settings UI.
-- [ ] Run fast validator hook and address repo-level blockers.
-- [ ] Capture proof mapping from acceptance criteria to test evidence.
+- [x] Run targeted test suites for generator, validator, settings schema, and settings UI.
+- [x] Run fast validator hook and address repo-level blockers.
+- [x] Capture proof mapping from acceptance criteria to test evidence.
 
 **Verification:**
-- [ ] `python -m pytest tests/test_cv_generator.py tests/test_validator.py tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py`
-- [ ] `python scripts/hooks/run_validator.py --fast`
+- [x] `python -m pytest tests/test_cv_generator.py tests/test_validator.py tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py`
+- [x] `python scripts/hooks/run_validator.py --fast`
 
 **Exit Criteria:**
 - all acceptance criteria from parent spec have concrete passing evidence
@@ -204,3 +204,4 @@ Canonical source-of-truth:
 - `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
 </LINK>
+

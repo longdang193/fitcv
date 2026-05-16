@@ -44,8 +44,11 @@ from fitcv.contracts import (
 )
 from fitcv.prompts import render_prompt
 from fitcv.section_policy import (
+    SECTION_POLICY_GROUP_BY_KEY,
+    SECTION_POLICY_STATE_INCLUDED,
     certification_evidence_lines,
     certification_policy_decisions,
+    section_policy_decisions,
 )
 from fitcv.rule_filter import _canonicalise_skill
 
@@ -188,14 +191,34 @@ def select_template_variant(jd: dict[str, Any]) -> str:
     return _TEMPLATE_VARIANTS.get(family, _DEFAULT_VARIANT)
 
 
-def _get_enabled_section_names(config: dict[str, Any] | None) -> list[str]:
+def _get_enabled_section_names(
+    config: dict[str, Any] | None,
+    profile: dict[str, Any] | None = None,
+    *,
+    apply_policy: bool = False,
+) -> list[str]:
     if config is None:
         return []
     composition = (config.get("cv") or {}).get("composition") or {}
     enabled_sections: list[str] = []
     for section_key, section_cfg in composition.items():
-        if isinstance(section_cfg, dict) and section_cfg.get("enabled", True):
-            enabled_sections.append(CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title()))
+        if not isinstance(section_cfg, dict):
+            continue
+        if not section_cfg.get("enabled", True):
+            continue
+        if apply_policy:
+            if profile is None and SECTION_POLICY_GROUP_BY_KEY.get(section_key) == "profile_baseline":
+                enabled_sections.append(CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title()))
+                continue
+            policy = section_policy_decisions(
+                section_key=section_key,
+                config=config,
+                profile=profile,
+                evidence_selected_certifications=[],
+            )
+            if policy.get("state") != SECTION_POLICY_STATE_INCLUDED:
+                continue
+        enabled_sections.append(CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title()))
     return enabled_sections
 
 
@@ -591,7 +614,7 @@ def _build_generation_prompt_context(
     required_skills = list(jd.get("required_skills") or [])
     candidate_name = _resolved_candidate_profile_name(profile)
 
-    enabled_section_names = _get_enabled_section_names(config)
+    enabled_section_names = _get_enabled_section_names(config, profile=profile, apply_policy=True)
 
     allowed_skill_set: set[str] = set()
     for item in evidence:
@@ -603,8 +626,6 @@ def _build_generation_prompt_context(
     allowed_skills = sorted(skill for skill in allowed_skill_set if skill)
 
     allowed_certifications: list[str] = []
-    if "Certifications" in enabled_section_names and not allowed_certifications:
-        enabled_section_names = [name for name in enabled_section_names if name != "Certifications"]
 
     evidence_lines = _build_selected_evidence_lines(
         evidence,
@@ -1587,3 +1608,6 @@ def generate_cv(
         "structured_cv": structured_cv,
         "markdown": markdown,
     }
+
+
+

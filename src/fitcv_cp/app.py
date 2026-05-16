@@ -48,6 +48,10 @@ from fitcv.contracts import (
     SYNONYM_PROPOSALS_QUEUE_SCHEMA_VERSION,
 )
 from fitcv.prompts import render_prompt
+from fitcv.section_policy import (
+    section_effective_state_label,
+    section_policy_decisions,
+)
 from fitcv.pipeline import (
     _infer_last_completed_stage_from_state,
     _restore_pipeline_state,
@@ -4325,6 +4329,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "title": "Summary",
             "helper": "Whether a professional summary section appears in generated CVs.",
             "include_key": "cv_summary_enabled",
+            "policy_group": "Role-tailored sections",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_summary_enabled"]},
             ],
@@ -4334,6 +4339,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "title": "Education",
             "helper": "Whether an education section appears in generated CVs.",
             "include_key": "cv_education_enabled",
+            "policy_group": "Profile baseline sections",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_education_enabled"]},
             ],
@@ -4343,6 +4349,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "title": "Experience",
             "helper": "Whether a work experience section appears in generated CVs.",
             "include_key": "cv_experience_enabled",
+            "policy_group": "Role-tailored sections",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_experience_enabled"]},
             ],
@@ -4352,6 +4359,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "title": "Skills",
             "helper": "Whether a skills section appears in generated CVs.",
             "include_key": "cv_skills_enabled",
+            "policy_group": "Role-tailored sections",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_skills_enabled"]},
             ],
@@ -4361,6 +4369,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "title": "Certifications",
             "helper": "Whether certifications are shown.",
             "include_key": "cv_certifications_enabled",
+            "policy_group": "Role-tailored sections",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_certifications_enabled"]},
             ],
@@ -4370,6 +4379,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "title": "Projects",
             "helper": "Visibility settings for projects.",
             "include_key": "cv_projects_enabled",
+            "policy_group": "Role-tailored sections",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_projects_enabled"]},
             ],
@@ -4379,6 +4389,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "title": "Publications",
             "helper": "Whether a publications section appears in generated CVs.",
             "include_key": "cv_publications_enabled",
+            "policy_group": "Role-tailored sections",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_publications_enabled"]},
             ],
@@ -4388,6 +4399,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "title": "Languages",
             "helper": "Whether a languages section appears in generated CVs.",
             "include_key": "cv_languages_enabled",
+            "policy_group": "Profile baseline sections",
             "groups": [
                 {"title": "Visibility", "keys": ["cv_languages_enabled"]},
             ],
@@ -4600,6 +4612,23 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             entry["key"]: active.get(entry["key"], entry["default"])
             for entry in SETTINGS_SCHEMA
         }
+        effective_config = apply_cv_compatibility_projection(load_config())
+        apply_settings_to_config(effective_config, effective)
+        effective_profile: dict[str, Any] | None = None
+        try:
+            effective_profile = _json.loads(_resolve_default_candidate_profile_snapshot(config_path))
+        except Exception:
+            effective_profile = None
+
+        composition_policy_by_key: dict[str, dict[str, Any]] = {}
+        for section in composition_sections:
+            section_key = str(section["id"])
+            composition_policy_by_key[section_key] = section_policy_decisions(
+                section_key=section_key,
+                config=effective_config,
+                profile=effective_profile,
+                evidence_selected_certifications=[],
+            )
         active_group_name = extra.get("active_group_name")
         active_section_name = extra.get("active_section_name")
         group_draft = extra.get("group_draft") or {}
@@ -4726,6 +4755,30 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "layout": card_spec.get("layout", "list"),
                 "is_advanced": bool(card_spec.get("is_advanced", False)),
             }
+
+        composition_index_by_key = {
+            section["include_key"]: section
+            for section in composition_sections
+        }
+        for section_card in settings_page_sections:
+            if section_card.get("id") != "cv-output":
+                continue
+            for card in section_card.get("cards", []):
+                if card.get("layout") != "composition_matrix":
+                    continue
+                for item in card.get("entries", []):
+                    entry_key = str((item.get("entry") or {}).get("key") or "")
+                    section = composition_index_by_key.get(entry_key)
+                    if not section:
+                        continue
+                    policy = composition_policy_by_key.get(str(section["id"])) or {}
+                    item["composition_policy_state"] = str(policy.get("state") or "")
+                    item["composition_policy_reason"] = str(policy.get("reason_code") or "")
+                    item["composition_policy_group"] = str(section.get("policy_group") or "")
+                    item["composition_current_label"] = section_effective_state_label(
+                        item["composition_policy_state"],
+                        item["composition_policy_reason"],
+                    )
 
         settings_page_task_sections = [
             {
@@ -8112,4 +8165,5 @@ def _run_to_dict(run: PipelineRun) -> dict:
         "orchestration_backend": run.orchestration_backend,
         "orchestration_run_id": run.orchestration_run_id,
     }
+
 

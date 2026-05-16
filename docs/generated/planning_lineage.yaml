@@ -308,11 +308,17 @@ workstreams:
     path: docs/intent/workstreams/threads/workstream-fitcv-semantic-spine/07-semantic-spine-component-boundary-and-interface-contract.md
     specs:
     - docs/superpowers/specs/2026-05-02-phase-2-component-boundary-interface-contract-spec.md
+    - docs/superpowers/specs/2026-05-16-19-40-config-ssot-overlap-dead-settings-remediation-spec.md
     - docs/superpowers/specs/2026-05-16-20-10-structural-contract-consolidation-spec.md
+    - docs/superpowers/specs/2026-05-16-23-30-config-razor-ssot-simplification-spec.md
+    - docs/superpowers/specs/2026-05-16-23-58-cv-composition-grouped-principle-contract-spec.md
     plans:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-16-15-10-option-b-shared-structural-principles-plan.md
     - docs/superpowers/plans/2026-05-16-20-20-structural-contract-consolidation-plan.md
+    - docs/superpowers/plans/2026-05-16-22-20-config-ssot-overlap-dead-settings-remediation-plan.md
+    - docs/superpowers/plans/2026-05-16-23-45-config-razor-ssot-simplification-plan.md
+    - docs/superpowers/plans/2026-05-16-23-59-cv-composition-grouped-principle-contract-plan.md
     derived_completion: completed
 - workstream_id: workstream-operator-control-plane
   status: active
