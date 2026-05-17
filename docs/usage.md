@@ -26,6 +26,29 @@ Entry point: `/admin/runs`
 4. inspect run detail tabs and stage artifacts
 5. export evidence (`export.json`, `cv-debug.json`, `settings-used.json`, stage artifacts, artifacts zip)
 
+### Run Detail Overview Navigation
+
+Run detail is now decision-first. Default view emphasizes status, outcome, warnings, next actions, stage snapshot, and effective-settings delta.
+
+Workflow entry routes:
+
+- synonym review workspace: `GET /admin/runs/{run_id}/synonym-review`
+- artifacts workspace: `GET /admin/runs/{run_id}/artifacts`
+
+Diagnostics access:
+
+- diagnostics section entry: `#diag-synonym-fingerprints`
+- advanced diagnostics container: `#advanced-diagnostics`
+- exports workspace anchor: `#run-exports-workspace`
+
+Tooltip glossary semantics:
+
+- `confidence`: model certainty for suggested mapping
+- `triage mode`: freshness/reuse mode for recommendation decisions
+- `suppressed`: proposal hidden by suppression policy or duplicate resolution
+- `alias conflict`: alias already mapped to a different canonical value
+- `run-scoped overlay`: override applies only to this run, not global defaults
+
 Artifact truth note:
 
 - run-scoped persisted artifacts/endpoints are source of truth
