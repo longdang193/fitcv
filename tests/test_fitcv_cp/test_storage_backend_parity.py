@@ -140,6 +140,7 @@ def test_run_events_contract_parity_sqlite_vs_bigquery(tmp_path, monkeypatch) ->
         payload_json=json.dumps({"fresh": 1, "reused": 2}, ensure_ascii=False),
     )
 
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv_cp.sqlite3"))
     monkeypatch.setenv("FITCV_CP_LOCAL_EVENT_HISTORY_DIR", str(tmp_path / "events"))
     append_event(event, None, project="p", dataset="d")
     sqlite_events = get_events(run_id, None, project="p", dataset="d")

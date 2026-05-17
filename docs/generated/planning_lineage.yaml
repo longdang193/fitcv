@@ -379,6 +379,8 @@ workstreams:
     - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
     - docs/superpowers/plans/2026-05-17-14-39-settings-page-deprecated-surface-removal-plan.md
     - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
+    - docs/superpowers/plans/2026-05-17-16-30-agentic-mode-ssot-drift-remediation-plan.md
+    - docs/superpowers/plans/2026-05-17-17-20-sqlite-run-event-persistence-parity-plan.md
     derived_completion: in_progress
   - thread_id: workstream-operator-control-plane.operator-control-plane-phase-2-degraded-mode-and-portability-surface
     status: completed

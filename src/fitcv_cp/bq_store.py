@@ -29,7 +29,6 @@ from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 
 logger = logging.getLogger(__name__)
 _LOCAL_RUNS: dict[str, PipelineRun] = {}
-_LOCAL_EVENTS: dict[str, list[RunEvent]] = {}
 
 _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS = 3
 _PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS = 0.25
@@ -71,6 +70,21 @@ def _ensure_local_pipeline_runs_table(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS local_pipeline_runs (
             run_id TEXT PRIMARY KEY,
             run_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+
+def _ensure_local_pipeline_run_events_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS local_pipeline_run_events (
+            run_id TEXT NOT NULL,
+            event_id TEXT NOT NULL,
+            stage TEXT NOT NULL,
+            level TEXT NOT NULL,
+            message TEXT NOT NULL,
+            payload_json TEXT,
             created_at TEXT NOT NULL
         )
         """
@@ -245,6 +259,69 @@ def _local_event_history_dir() -> Path:
 def _local_event_history_file(run_id: str) -> Path:
     safe_run_id = "".join(ch for ch in str(run_id) if ch.isalnum() or ch in {"-", "_"})
     return _local_event_history_dir() / f"{safe_run_id}.jsonl"
+
+def _append_local_pipeline_run_event(event: RunEvent) -> None:
+    db_path = Path(_local_sqlite_path())
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path, timeout=30) as conn:
+        _configure_sqlite_connection(conn)
+        _ensure_local_pipeline_run_events_table(conn)
+        conn.execute(
+            """
+            INSERT INTO local_pipeline_run_events(
+                run_id, event_id, stage, level, message, payload_json, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event.run_id,
+                event.event_id,
+                event.stage,
+                event.level,
+                event.message,
+                event.payload_json,
+                event.created_at.isoformat(),
+            ),
+        )
+        conn.commit()
+
+def _list_local_pipeline_run_events(run_id: str) -> list[RunEvent]:
+    db_path = Path(_local_sqlite_path())
+    if not db_path.exists():
+        return []
+    with sqlite3.connect(db_path, timeout=30) as conn:
+        _configure_sqlite_connection(conn)
+        conn.row_factory = sqlite3.Row
+        _ensure_local_pipeline_run_events_table(conn)
+        rows = conn.execute(
+            """
+            SELECT run_id, event_id, stage, level, message, payload_json, created_at
+            FROM local_pipeline_run_events
+            WHERE run_id = ?
+            ORDER BY created_at ASC, rowid ASC
+            """,
+            (run_id,),
+        ).fetchall()
+    events: list[RunEvent] = []
+    for row in rows:
+        created_raw = str(row["created_at"] or "").strip()
+        created_at = (
+            datetime.datetime.fromisoformat(created_raw)
+            if created_raw
+            else datetime.datetime.now(datetime.timezone.utc)
+        )
+        events.append(
+            RunEvent(
+                run_id=str(row["run_id"] or run_id),
+                event_id=str(row["event_id"] or ""),
+                stage=str(row["stage"] or ""),
+                level=str(row["level"] or ""),
+                message=str(row["message"] or ""),
+                created_at=created_at,
+                payload_json=row["payload_json"],
+            )
+        )
+    return events
 
 
 def _is_concurrent_pipeline_runs_update_error(exc: Exception) -> bool:
@@ -558,27 +635,34 @@ def _append_event_dead_letter(row: dict[str, Any]) -> str:
 
 def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dict[str, str]:
     if bq is None:
-        _LOCAL_EVENTS.setdefault(event.run_id, []).append(dataclasses.replace(event))
         try:
-            event_file = _local_event_history_file(event.run_id)
-            event_file.parent.mkdir(parents=True, exist_ok=True)
-            record = {
-                "run_id": event.run_id,
-                "event_id": event.event_id,
-                "stage": event.stage,
-                "level": event.level,
-                "message": event.message,
-                "payload_json": event.payload_json,
-                "created_at": event.created_at.isoformat(),
-            }
-            with event_file.open("a", encoding="utf-8") as handle:
-                handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+            _append_local_pipeline_run_event(event)
         except Exception as exc:
             logger.warning(
-                "local append_event file persistence degraded for run_id=%s: %s",
+                "local append_event sqlite persistence degraded for run_id=%s: %s",
                 event.run_id,
                 exc,
             )
+            try:
+                event_file = _local_event_history_file(event.run_id)
+                event_file.parent.mkdir(parents=True, exist_ok=True)
+                record = {
+                    "run_id": event.run_id,
+                    "event_id": event.event_id,
+                    "stage": event.stage,
+                    "level": event.level,
+                    "message": event.message,
+                    "payload_json": event.payload_json,
+                    "created_at": event.created_at.isoformat(),
+                }
+                with event_file.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+            except Exception as file_exc:
+                logger.warning(
+                    "local append_event file fallback degraded for run_id=%s: %s",
+                    event.run_id,
+                    file_exc,
+                )
         return {"persistence_status": "persisted", "degradation_reason": "none"}
     table = f"{project}.{dataset}.pipeline_run_events"
     row = {
@@ -1104,46 +1188,48 @@ def unarchive_run(
 
 def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunEvent]:
     if bq is None:
+        events = _list_local_pipeline_run_events(run_id)
+        if events:
+            return events
         event_file = _local_event_history_file(run_id)
-        if event_file.exists():
-            file_events: list[RunEvent] = []
-            try:
-                with event_file.open("r", encoding="utf-8") as handle:
-                    for line in handle:
-                        raw = line.strip()
-                        if not raw:
-                            continue
-                        try:
-                            record = json.loads(raw)
-                            created_raw = str(record.get("created_at") or "").strip()
-                            created_at = (
-                                datetime.datetime.fromisoformat(created_raw)
-                                if created_raw
-                                else datetime.datetime.now(datetime.timezone.utc)
+        if not event_file.exists():
+            return []
+        file_events: list[RunEvent] = []
+        try:
+            with event_file.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    raw = line.strip()
+                    if not raw:
+                        continue
+                    try:
+                        record = json.loads(raw)
+                        created_raw = str(record.get("created_at") or "").strip()
+                        created_at = (
+                            datetime.datetime.fromisoformat(created_raw)
+                            if created_raw
+                            else datetime.datetime.now(datetime.timezone.utc)
+                        )
+                        file_events.append(
+                            RunEvent(
+                                run_id=str(record.get("run_id") or run_id),
+                                event_id=str(record.get("event_id") or ""),
+                                stage=str(record.get("stage") or ""),
+                                level=str(record.get("level") or ""),
+                                message=str(record.get("message") or ""),
+                                created_at=created_at,
+                                payload_json=record.get("payload_json"),
                             )
-                            file_events.append(
-                                RunEvent(
-                                    run_id=str(record.get("run_id") or run_id),
-                                    event_id=str(record.get("event_id") or ""),
-                                    stage=str(record.get("stage") or ""),
-                                    level=str(record.get("level") or ""),
-                                    message=str(record.get("message") or ""),
-                                    created_at=created_at,
-                                    payload_json=record.get("payload_json"),
-                                )
-                            )
-                        except Exception:
-                            continue
-            except Exception as exc:
-                logger.warning(
-                    "local get_events file read degraded for run_id=%s: %s",
-                    run_id,
-                    exc,
-                )
-            file_events.sort(key=lambda ev: ev.created_at)
-            return file_events
-        events = _LOCAL_EVENTS.get(run_id) or []
-        return [dataclasses.replace(event) for event in events]
+                        )
+                    except Exception:
+                        continue
+        except Exception as exc:
+            logger.warning(
+                "local get_events file read degraded for run_id=%s: %s",
+                run_id,
+                exc,
+            )
+        file_events.sort(key=lambda ev: ev.created_at)
+        return file_events
     sql = (
         f"SELECT * FROM `{project}.{dataset}.pipeline_run_events` "
         f"WHERE run_id = @run_id ORDER BY created_at ASC"

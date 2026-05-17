@@ -183,6 +183,7 @@ def test_request_run_cancel_local_mode_updates_run_state(tmp_path, monkeypatch) 
 
 
 def test_get_events_local_mode_reads_file_without_memory_state(tmp_path, monkeypatch):
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(tmp_path / "fitcv_cp.sqlite3"))
     monkeypatch.setenv("FITCV_CP_LOCAL_EVENT_HISTORY_DIR", str(tmp_path / "events"))
     ev = RunEvent(
         run_id="rid-local-2",
@@ -193,9 +194,6 @@ def test_get_events_local_mode_reads_file_without_memory_state(tmp_path, monkeyp
         created_at=datetime.datetime.now(datetime.timezone.utc),
     )
     append_event(ev, None, project="local", dataset="local")
-    from fitcv_cp import bq_store
-
-    bq_store._LOCAL_EVENTS.clear()
     events = get_events("rid-local-2", None, project="local", dataset="local")
     assert len(events) == 1
     assert events[0].stage == "ranking"
