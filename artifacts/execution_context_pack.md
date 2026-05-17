@@ -2,52 +2,51 @@
 
 ## 1) Objective
 
-- **Workstream / Plan:** `workstream-operator-control-plane.operator-control-plane-run-detail-truth` / `docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md`
-- **Goal:** Deliver decision-first run overview with SSOT visibility registry and progressive disclosure.
-- **Bounded Scope (in-scope only):** Task 1 complete, Task 2 complete, Task 3 complete, Task 4 complete, Task 5 complete, Task 6 complete, Task 7 step 1+2 complete.
-- **Out of Scope (explicit):** merge orchestration until Task 7 step 3 (final closure checks) is complete.
+- **Workstream / Plan:** `workstream-operator-control-plane.operator-control-plane-run-detail-truth` / `docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md`
+- **Goal:** Execute run-detail fixed layout and synonym-mode redesign from approved spec.
+- **Bounded Scope (in-scope only):** Run detail layout/order, synonym section behavior, artifacts ownership move, diagnostics simplification, tests/docs sync.
+- **Out of Scope (explicit):** new orchestration backends, pipeline semantics changes, artifacts-page IA redesign.
 
 ## 2) Canonical Inputs (Source of Truth)
 
-- **Primary plan:** `docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md`
-- **Specs / maps / thread docs:** `docs/superpowers/specs/2026-05-17-19-06-run-detail-overview-progressive-disclosure-ssot-spec.md`
+- **Primary plan:** `docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md`
+- **Specs / maps / thread docs:** `docs/superpowers/specs/2026-05-17-20-25-run-detail-decision-first-layout-synonym-mode-spec.md`
 - **Governance / workflow rules used:**
   - `docs/operating_system/prompt_templates/implementation-next-action-gate-prompt.md`
-  - `docs/operating_system/governance/execution-context-pack-governance.md`
   - `docs/operating_system/templates/execution-context-pack-template.md`
+  - `docs/operating_system/governance/execution-context-pack-governance.md`
 
 ## 3) Current Task State
 
-- **Completed:** Task 1 complete. Task 2 complete. Task 3 complete. Task 4 complete. Task 5 complete. Task 6 complete. Task 7 step 1 and step 2 complete.
-- **In Progress:** Task 7 step 3 (run hook validator and resolve planning/documentation drift).
+- **Completed:** plan/spec drafting.
+- **In Progress:** Task 1 (`fixed section shell + overview dedupe`).
 - **Deferred / Dropped:** none.
-- **Known divergence from plan (if any):** dedicated workflow surfaces are route+anchor based, not separate full templates.
+- **Known divergence from plan (if any):** repository currently has unrelated dirty files; execution constrained to in-scope targets.
 
 ## 4) Files Changed This Session
 
-- `docs/usage.md` — documented diagnostics access path anchors and tooltip glossary semantics.
-- `docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md` — Task 7 step 2 marked complete.
+- `docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md` — set status `active`.
+- `docs/superpowers/execution_context_packs/run-detail-decision-first-layout-synonym-mode/latest.md` — initialized canonical context pack.
+- `artifacts/execution_context_pack.md` — synced mirror.
 
 ## 5) Verification State
 
 - **Last commands run:**
   - `python scripts/hooks/run_validator.py --fast`
-- **Result summary:** pass (all hook-subset validators green).
+- **Result summary:** pass before implementation edits.
 - **Failing checks (if any):** none.
-- **Gaps still unverified:** final explicit Task 7 step 3 completion mark and final closure gate run sequence.
+- **Gaps still unverified:** task-level tests after code edits.
 
 ## 6) Open Blockers / Risks
 
-- no technical blocker; closure still gated by final plan/task completion bookkeeping.
+- run-detail sources include prior local changes; edits must avoid regressing unrelated user modifications.
 
 ## 7) Next Exact Action
 
-Single smallest concrete action to run first in next session.
-
-- **Action type:** verification + plan-state sync
-- **Target:** `docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md`
-- **Exact command or edit intent:** complete Task 7 step 3 by marking validator step done (evidence already passed), then run final required closure validators set (`py scripts/validate_planning_lifecycle.py --strict`, `py scripts/validate_checkpoint_packs.py`, and template-required-sections validator for changed template-governed docs).
-- **Why this is next:** it is the only remaining plan step before closure eligibility.
+- **Action type:** edit
+- **Target:** `src/fitcv_cp/templates/run_detail.html`
+- **Exact command or edit intent:** implement Task 1 section reorder + remove duplicate overview shell.
+- **Why this is next:** first eligible task by dependency order and plan gate.
 
 ## 8) Resume Prompt (Copy/Paste)
 
@@ -59,7 +58,7 @@ Read this execution context pack first. Verify its state against listed source f
 
 - **conversation_id:** current-thread
 - **overview_log:** `.gemini/antigravity/brain/<conversation-id>/.system_generated/logs/overview.txt`
-- **consult_if:** uncertainty about closure validator dedupe eligibility.
+- **consult_if:** ambiguity about prior lane behavior.
 - **notes_from_log (optional, concise):** n/a
 
 ## Source-Truth Rule

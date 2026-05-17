@@ -91,9 +91,7 @@ from fitcv_cp.settings_schema import (
     metadata_only_settings_keys,
     settings_ia_contract_for_key,
     settings_ia_metadata_by_key,
-    settings_keys_for_control_surface,
     settings_keys_for_domain,
-    settings_keys_for_stage,
     settings_keys_for_workflow_stage,
     validate_settings,
 )
@@ -666,103 +664,6 @@ def _run_status_projection(run: PipelineRun) -> dict[str, Any]:
         "is_terminal": status_value in RUN_STATUS_GROUPS["terminal"],
         "is_awaiting_continue": status_value in RUN_STATUS_GROUPS["awaiting_continue"],
         "is_archived": bool(run.archived_at),
-    }
-
-
-RUN_DETAIL_FIELD_REGISTRY: dict[str, dict[str, str]] = {
-    "status": {"tier": "core", "surface": "overview", "source_key": "run.status", "explanation_mode": "none"},
-    "outcome": {"tier": "core", "surface": "overview", "source_key": "output_availability.state", "explanation_mode": "none"},
-    "warnings_blockers": {"tier": "core", "surface": "overview", "source_key": "run.error_message", "explanation_mode": "none"},
-    "next_actions": {"tier": "core", "surface": "overview", "source_key": "run_status_projection", "explanation_mode": "none"},
-    "stage_snapshot": {
-        "tier": "core",
-        "surface": "overview",
-        "source_key": "stage_result_summary_rows",
-        "explanation_mode": "none",
-    },
-    "effective_settings_delta": {
-        "tier": "core",
-        "surface": "overview",
-        "source_key": "run.settings_used_json",
-        "explanation_mode": "none",
-    },
-    "orchestration_diagnostics": {
-        "tier": "advanced",
-        "surface": "run_detail",
-        "source_key": "orchestration_diagnostics",
-        "explanation_mode": "none",
-    },
-    "event_delivery_health": {
-        "tier": "advanced",
-        "surface": "run_detail",
-        "source_key": "event_delivery_health",
-        "explanation_mode": "none",
-    },
-    "synonym_fingerprints": {
-        "tier": "diagnostic",
-        "surface": "diagnostics",
-        "source_key": "synonym_fingerprints",
-        "explanation_mode": "none",
-    },
-    "raw_payload_exports": {
-        "tier": "diagnostic",
-        "surface": "diagnostics",
-        "source_key": "run_export_links",
-        "explanation_mode": "none",
-    },
-}
-
-
-def _run_detail_visibility_registry() -> dict[str, list[dict[str, str]]]:
-    grouped: dict[str, list[dict[str, str]]] = {"core": [], "advanced": [], "diagnostic": []}
-    for name, meta in RUN_DETAIL_FIELD_REGISTRY.items():
-        tier = str(meta.get("tier") or "").strip()
-        if tier not in grouped:
-            continue
-        grouped[tier].append({"name": name, **meta})
-    return grouped
-
-
-def _count_dict_leaf_differences(left: Any, right: Any) -> int:
-    if isinstance(left, dict) and isinstance(right, dict):
-        total = 0
-        for key in set(left.keys()) | set(right.keys()):
-            total += _count_dict_leaf_differences(left.get(key), right.get(key))
-        return total
-    if isinstance(left, list) and isinstance(right, list):
-        if left == right:
-            return 0
-        return 1
-    return 0 if left == right else 1
-
-
-def _run_effective_settings_delta_summary(run: PipelineRun) -> dict[str, Any]:
-    effective = _load_json_object(run.effective_settings_json)
-    if not isinstance(effective, dict):
-        return {"delta_count": 0, "source": "unavailable"}
-    try:
-        baseline = load_config(run.config_path)
-    except (FileNotFoundError, ValueError):
-        baseline = {}
-    if not isinstance(baseline, dict):
-        baseline = {}
-    # Runtime-only inputs are not operator-edit overrides.
-    effective_compare = dict(effective)
-    effective_compare.pop("runtime_inputs", None)
-    delta_count = _count_dict_leaf_differences(baseline, effective_compare)
-    return {"delta_count": int(delta_count), "source": "baseline_xor_effective"}
-
-
-def _run_overview_consistency_summary(
-    run: PipelineRun,
-    *,
-    stage_result_summary_rows: list[dict[str, Any]],
-    event_delivery_health: dict[str, Any],
-) -> dict[str, Any]:
-    return {
-        "status": run.status.value,
-        "stage_count": len(stage_result_summary_rows),
-        "dead_letter_events": int(event_delivery_health.get("count") or 0),
     }
 
 def _policy_registry_version_from_config(config_payload: dict[str, Any] | None) -> str:
@@ -4626,78 +4527,26 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         },
         {
             "id": "agentic",
-            "title": "Agentic Processing",
-            "helper": "Configure bounded agentic behavior for future runs using small, explicit decision areas.",
+            "title": "Agentic",
+            "helper": "Control bounded future-run agentic defaults without turning this page into a historical run-inspection view.",
             "cards": [
                 {
-                    "id": "agentic-enablement",
-                    "title": "Enablement",
-                    "helper": "Turn on agentic pathways and core capabilities used by future runs.",
+                    "id": "agentic-controls",
+                    "title": "Agentic Controls",
+                    "helper": "Enable the late-stage agentic path and the semantic-alignment gate used by future runs.",
                     "submit_kind": "section",
                     "submit_slug": "agentic-core",
-                    "save_label": "Save Enablement Settings",
-                    "keys": [
-                        "cv.agentic_late_stage.enabled",
-                        "cv_analysis.semantic_alignment.enabled",
-                        "synonym_management.propose_enabled",
-                        "synonym_management.apply_to_run_enabled",
-                        "synonym_management.promote_global_enabled",
-                    ],
+                    "save_label": "Save Agentic Settings",
+                    "keys": AGENTIC_SETTINGS_SECTIONS["agentic-core"],
                 },
                 {
-                    "id": "agentic-automation",
-                    "title": "Automation",
-                    "helper": "Control recommendation, auto-apply, and auto-promote behavior.",
-                    "submit_kind": "section",
-                    "submit_slug": "agentic-core",
-                    "save_label": "Save Automation Settings",
-                    "keys": [
-                        "synonym_management.auto_triage_recommendation_enabled",
-                        "synonym_management.triage_recommendation_reuse_enabled",
-                        "synonym_management.auto_apply_recommendation_enabled",
-                        "synonym_management.auto_promote_global_enabled",
-                        "synonym_management.auto_accept_ai_action_enabled",
-                    ],
-                },
-                {
-                    "id": "agentic-quality-targets",
-                    "title": "Quality Targets",
-                    "helper": "Tune lexical and semantic weighting balance for alignment channels.",
+                    "id": "agentic-advanced",
+                    "title": "Advanced Agentic Tuning",
+                    "helper": "Semantic channel weights and pool sizing stay behind disclosure; fixed runtime metadata remains explanatory.",
                     "submit_kind": "section",
                     "submit_slug": "agentic-advanced",
-                    "save_label": "Save Quality Target Settings",
-                    "keys": [
-                        "cv_analysis.semantic_alignment.required_skill_lexical_weight",
-                        "cv_analysis.semantic_alignment.required_skill_semantic_weight",
-                        "cv_analysis.semantic_alignment.role_lexical_weight",
-                        "cv_analysis.semantic_alignment.role_semantic_weight",
-                        "cv_analysis.semantic_alignment.responsibility_lexical_weight",
-                        "cv_analysis.semantic_alignment.responsibility_semantic_weight",
-                        "cv_analysis.semantic_alignment.domain_lexical_weight",
-                        "cv_analysis.semantic_alignment.domain_semantic_weight",
-                    ],
-                },
-                {
-                    "id": "agentic-throughput",
-                    "title": "Throughput",
-                    "helper": "Bound semantic channel candidate pool size for alignment processing.",
-                    "submit_kind": "section",
-                    "submit_slug": "agentic-advanced",
-                    "save_label": "Save Throughput Settings",
-                    "keys": [
-                        "cv_analysis.semantic_alignment.channel_pool_size",
-                    ],
-                },
-                {
-                    "id": "agentic-diagnostics",
-                    "title": "Diagnostics",
-                    "helper": "Metadata-only semantic runtime contract details.",
-                    "submit_kind": "section",
-                    "submit_slug": "agentic-advanced",
-                    "save_label": "Save Diagnostics Settings",
-                    "keys": [
-                        "cv_analysis.semantic_alignment.model",
-                    ],
+                    "save_label": "Save Advanced Agentic Settings",
+                    "keys": AGENTIC_SETTINGS_SECTIONS["agentic-advanced"],
                     "is_advanced": True,
                 },
             ],
@@ -4762,7 +4611,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 {
                     "id": "cv-visibility",
                     "title": "Section Visibility",
-                    "helper": "Decide which sections appear in generated CVs. Formatting-only legacy knobs remain hidden.",
+                    "helper": "Decide which sections appear in generated CVs without exposing retired formatting-only knobs.",
                     "submit_kind": "group",
                     "submit_slug": "cv-composition",
                     "form_id": "form-cv-composition",
@@ -4997,10 +4846,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "decision_status": str(decision_state.get("decision_status") or DECISION_STATUS_CONFIGURED),
                         "decision_reason_codes": list(decision_state.get("reason_codes") or []),
                         "decision_domain": _decision_domain_for_entry(entry),
-                        "decision_stage": str(settings_ia_contract_for_key(key).get("stage") or ""),
-                        "decision_control_surface": str(settings_ia_contract_for_key(key).get("control_surface") or ""),
-                        "decision_area": str(settings_ia_contract_for_key(key).get("decision_area") or ""),
-                        "decision_complexity": str(settings_ia_contract_for_key(key).get("complexity_view") or ""),
                         "owner_label": owner_label,
                         "active_label": active_label,
                     }
@@ -5090,21 +4935,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "cv_analysis": "CV Analysis",
             "cv_generation": "CV Generation",
         }
-        stage_titles = {
-            "normalize": "Normalize",
-            "enrich": "Enrich",
-            "rule_filter": "Rule Filter",
-            "shortlist": "Shortlist",
-            "ranking": "Ranking",
-            "cv_analysis": "CV Analysis",
-            "cv_generation": "CV Generation",
-            "cross_stage": "Cross-Stage",
-        }
-        control_surface_titles = {
-            "standard_pipeline": "Standard Pipeline",
-            "agentic_runtime": "Agentic Runtime",
-            "shared": "Shared",
-        }
         settings_domains = [
             {
                 "id": domain_id,
@@ -5128,22 +4958,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 **domain_stats.get(str(domain["id"]), {"total": 0, "modified": 0, "errors": 0, "overrides": 0}),
             }
             for domain in settings_domains
-        ]
-        settings_stage_scopes = [
-            {
-                "id": stage_id,
-                "title": title,
-                "keys": settings_keys_for_stage(stage_id),
-            }
-            for stage_id, title in stage_titles.items()
-        ]
-        settings_control_surface_filters = [
-            {
-                "id": surface_id,
-                "title": title,
-                "keys": settings_keys_for_control_surface(surface_id),
-            }
-            for surface_id, title in control_surface_titles.items()
         ]
         decision_entries: list[dict[str, Any]] = []
         for section in settings_page_task_sections:
@@ -5274,8 +5088,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "settings_mode_summary": mode_summary,
             "settings_domains": settings_domains,
             "settings_stage_filters": settings_stage_filters,
-            "settings_stage_scopes": settings_stage_scopes,
-            "settings_control_surface_filters": settings_control_surface_filters,
             "settings_ia_metadata_by_key": ia_metadata_by_key,
             "settings_danger_zone_keys": danger_zone_keys,
             "settings_domain_summaries": settings_domain_summaries,
@@ -6849,12 +6661,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         data_plane_summary = _run_data_plane_summary(run)
         stage_result_summary_rows = _stage_result_summary_rows(run)
         hitl_closure_summary = _build_hitl_closure_summary(run, queue=hitl_review_queue)
-        effective_settings_delta_summary = _run_effective_settings_delta_summary(run)
-        overview_consistency_summary = _run_overview_consistency_summary(
-            run,
-            stage_result_summary_rows=stage_result_summary_rows,
-            event_delivery_health=event_delivery_health,
-        )
 
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
@@ -6900,19 +6706,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "replay_context_summary": replay_context_summary,
                 "data_plane_summary": data_plane_summary,
                 "stage_result_summary_rows": stage_result_summary_rows,
-                "run_detail_visibility_registry": _run_detail_visibility_registry(),
-                "effective_settings_delta_summary": effective_settings_delta_summary,
-                "overview_consistency_summary": overview_consistency_summary,
             }
         )
-
-    @app.get("/admin/runs/{run_id}/synonym-review")
-    def admin_run_synonym_review(run_id: str) -> RedirectResponse:
-        return RedirectResponse(f"/admin/runs/{run_id}#synonym-review-workspace", status_code=303)
-
-    @app.get("/admin/runs/{run_id}/artifacts")
-    def admin_run_artifacts_workspace(run_id: str) -> RedirectResponse:
-        return RedirectResponse(f"/admin/runs/{run_id}#run-exports-workspace", status_code=303)
 
     @app.post("/admin/runs/{run_id}/cv-review-action")
     async def admin_run_cv_review_action(
