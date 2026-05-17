@@ -17,41 +17,43 @@
 
 ## 3) Current Task State
 
-- **Completed:** Tasks 1-5 implemented and verified.
-- **In Progress:** Task 6 final validation + residual-risk summary.
+- **Completed:** Tasks 1-6 complete.
+- **In Progress:** none.
 - **Deferred / Dropped:** none.
 - **Known divergence from plan (if any):** none.
 
 ## 4) Files Changed This Session
 
-- `src/fitcv_cp/settings_schema.py` — added SSOT decision-state metadata and deterministic classifier helpers; expanded CV preset group.
-- `src/fitcv_cp/app.py` — added decision-group view model, decision-domain filters, readiness summary context.
-- `src/fitcv_cp/templates/settings.html` — added readiness panel, decision-board summary, decision metadata row attrs, visibility toggles, recommended preview scripting.
-- `tests/test_fitcv_cp/test_settings_schema.py` — added classifier determinism/priority tests and updated IA contract assertions.
-- `tests/test_fitcv_cp/test_app.py` — added decision-focused UI regression coverage.
-- `docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md` — checklist state updated to completed marks.
+- `src/fitcv_cp/settings_schema.py` — SSOT decision-state metadata and deterministic classifier helpers; CV preset group expansion.
+- `src/fitcv_cp/app.py` — decision-group view model, domain filters, readiness summary context.
+- `src/fitcv_cp/templates/settings.html` — readiness panel, decision board summary, decision metadata attrs, visibility toggles, recommendation preview wiring.
+- `tests/test_fitcv_cp/test_settings_schema.py` — classifier and IA contract regression coverage.
+- `tests/test_fitcv_cp/test_app.py` — decision-focused UI regression coverage.
+- `docs/superpowers/plans/2026-05-17-19-32-pipeline-settings-decision-focused-ia-v4-plan.md` — checklist complete + frontmatter status completed.
 
 ## 5) Verification State
 
 - **Last commands run:**
-  - `pytest tests/test_fitcv_cp/test_settings_schema.py -q`
-  - `pytest tests/test_fitcv_cp/test_app.py -q -k settings`
   - `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
-- **Result summary:** all targeted checks passed (`541 passed`).
-- **Failing checks (if any):** none in targeted scope.
-- **Gaps still unverified:** repo validator gate for current workspace still pending.
+  - `python scripts/hooks/run_validator.py --fast`
+  - `python scripts/validate_planning_lifecycle.py --strict`
+  - `python scripts/validate_checkpoint_packs.py`
+  - `python scripts/validate_repo_contracts.py --fast`
+- **Result summary:** all passed.
+- **Failing checks (if any):** none.
+- **Gaps still unverified:** none for plan scope.
 
 ## 6) Open Blockers / Risks
 
-- No hard blocker.
-- Known warning-only noise from legacy config-path warnings and provider key missing logs emitted by background test path.
+- No blocker.
+- Warning-only runtime noise from missing provider API key in test-triggered background path; non-blocking for settings IA scope.
 
 ## 7) Next Exact Action
 
-- **Action type:** verification
-- **Target:** repo fast validator gate in worktree
-- **Exact command or edit intent:** `python scripts/hooks/run_validator.py --fast`
-- **Why this is next:** closes Task 6 proof and checks plan/doc contract integrity after implementation.
+- **Action type:** closeout
+- **Target:** branch-level handoff step
+- **Exact command or edit intent:** push branch and prepare PR/merge path when requested.
+- **Why this is next:** plan completion criteria satisfied; no further implementation action eligible.
 
 ## 8) Resume Prompt (Copy/Paste)
 
