@@ -10643,7 +10643,15 @@ def test_admin_settings_renders_two_axis_filter_controls() -> None:
     assert 'data-domain-filter=' not in html
     assert 'data-stage-filter=' in html
     assert 'data-control-surface-filter=' in html
-    assert 'id="toggle-only-actionable"' in html
+    assert 'id="toggle-only-actionable"' not in html
+    assert 'data-stage-filter="normalize"' in html
+    assert 'data-stage-filter="enrich"' in html
+    assert 'data-stage-filter="rule_filter"' in html
+    assert 'data-stage-filter="shortlist"' in html
+    assert 'data-stage-filter="ranking"' in html
+    assert 'data-stage-filter="cv_analysis"' in html
+    assert 'data-stage-filter="cv_generation"' in html
+    assert 'data-stage-filter="cross_stage"' in html
 
 
 def test_admin_settings_renders_ia_contract_fields_and_badges() -> None:
@@ -10686,12 +10694,14 @@ def test_admin_settings_rows_expose_decision_metadata_attrs() -> None:
     assert 'data-decision-domain="' in html
     assert 'data-default-equal="' in html
     assert 'data-unused="' in html
+    assert 'data-entry-key="cv_summary_enabled"' in html
+    assert 'data-decision-stage="cv_generation"' in html
 
 def test_admin_settings_has_visibility_toggles_and_recommendation_preview_script() -> None:
     resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert 'id="toggle-only-actionable"' in html
+    assert 'id="toggle-only-actionable"' not in html
     assert 'data-accept-recommended' not in html
     assert 'data-review-required' not in html
 
