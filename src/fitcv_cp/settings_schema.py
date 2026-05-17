@@ -738,6 +738,7 @@ AGENTIC_SETTINGS_SECTIONS: dict[str, list[str]] = _build_agentic_settings_sectio
 CV_GROUPS: dict[str, list[str]] = {
     "cv-preset": [
         "cv_preset",
+        "cv_generation_model",
     ],
     "cv-composition": [
         "cv_summary_enabled",
@@ -803,6 +804,38 @@ _IA_DOMAIN_STAGES = "stages"
 _IA_DOMAIN_RULES = "rules"
 _IA_DOMAIN_INTEGRATIONS = "integrations"
 _IA_DOMAIN_ADVANCED = "advanced"
+
+DECISION_STATUS_NEEDS_REVIEW = "needs_review"
+DECISION_STATUS_RECOMMENDED = "recommended"
+DECISION_STATUS_CONFIGURED = "configured"
+DECISION_STATUS_ADVANCED = "advanced"
+DECISION_STATUS_ALL = "all"
+
+REASON_CODE_MISSING_REQUIRED = "missing_required"
+REASON_CODE_CONFLICT = "conflict"
+REASON_CODE_LOW_CONFIDENCE = "low_confidence"
+REASON_CODE_QUALITY_RISK = "quality_risk"
+REASON_CODE_CHANGED_FROM_DEFAULT = "changed_from_default"
+REASON_CODE_RECOMMENDED_DELTA = "recommended_delta"
+REASON_CODE_ADVANCED_ONLY = "advanced_only"
+REASON_CODE_UNUSED = "unused"
+
+_DECISION_STATUS_PRIORITY: dict[str, int] = {
+    DECISION_STATUS_NEEDS_REVIEW: 0,
+    DECISION_STATUS_RECOMMENDED: 1,
+    DECISION_STATUS_CONFIGURED: 2,
+    DECISION_STATUS_ADVANCED: 3,
+    DECISION_STATUS_ALL: 4,
+}
+
+_BLOCKING_REASON_CODES: frozenset[str] = frozenset(
+    {
+        REASON_CODE_MISSING_REQUIRED,
+        REASON_CODE_CONFLICT,
+        REASON_CODE_LOW_CONFIDENCE,
+        REASON_CODE_QUALITY_RISK,
+    }
+)
 
 _WORKFLOW_STAGE_NORMALIZE = "normalize"
 _WORKFLOW_STAGE_ENRICH = "enrich"
@@ -925,10 +958,14 @@ def _build_settings_ia_metadata() -> dict[str, dict[str, Any]]:
             "risk": risk,
             "runtime_used": key not in _METADATA_ONLY_KEYS,
             "metadata_only": key in _METADATA_ONLY_KEYS,
-            "deprecation_state": str(entry.get("ui_deprecation_state") or _UI_DEPRECATION_ACTIVE),
             "override_policy": "hidden_until_enabled" if key not in _METADATA_ONLY_KEYS else "disabled",
             "can_override": key not in _METADATA_ONLY_KEYS,
             "is_dangerous": risk == "high" or group in _DANGER_ZONE_GROUPS,
+            "advanced": _default_ia_domain(entry) == _IA_DOMAIN_ADVANCED,
+            "unused": False,
+            "recommended_delta": False,
+            "decision_status": DECISION_STATUS_CONFIGURED,
+            "reason_codes": [],
             "applies_when": _GROUP_TO_APPLIES_WHEN.get(
                 group,
                 "Used in advanced runtime flow according to this setting group.",
@@ -974,6 +1011,59 @@ def settings_ia_contract_for_key(key: str) -> dict[str, Any]:
     if key not in SETTINGS_IA_METADATA_BY_KEY:
         raise KeyError(key)
     return dict(SETTINGS_IA_METADATA_BY_KEY[key])
+
+def decision_status_sort_key(status: str) -> int:
+    return _DECISION_STATUS_PRIORITY.get(str(status), _DECISION_STATUS_PRIORITY[DECISION_STATUS_ALL])
+
+def reason_code_is_blocking(reason_code: str) -> bool:
+    return str(reason_code) in _BLOCKING_REASON_CODES
+
+def derive_settings_decision_state(
+    *,
+    is_advanced: bool,
+    is_unused: bool,
+    is_changed_from_default: bool,
+    has_recommended_delta: bool,
+    has_conflict: bool = False,
+    has_missing_required: bool = False,
+    has_low_confidence: bool = False,
+    has_quality_risk: bool = False,
+) -> dict[str, Any]:
+    reason_codes: list[str] = []
+    if has_missing_required:
+        reason_codes.append(REASON_CODE_MISSING_REQUIRED)
+    if has_conflict:
+        reason_codes.append(REASON_CODE_CONFLICT)
+    if has_low_confidence:
+        reason_codes.append(REASON_CODE_LOW_CONFIDENCE)
+    if has_quality_risk:
+        reason_codes.append(REASON_CODE_QUALITY_RISK)
+    if is_changed_from_default:
+        reason_codes.append(REASON_CODE_CHANGED_FROM_DEFAULT)
+    if has_recommended_delta:
+        reason_codes.append(REASON_CODE_RECOMMENDED_DELTA)
+    if is_advanced:
+        reason_codes.append(REASON_CODE_ADVANCED_ONLY)
+    if is_unused:
+        reason_codes.append(REASON_CODE_UNUSED)
+
+    if any(code in _BLOCKING_REASON_CODES for code in reason_codes):
+        status = DECISION_STATUS_NEEDS_REVIEW
+    elif has_recommended_delta:
+        status = DECISION_STATUS_RECOMMENDED
+    elif is_advanced:
+        status = DECISION_STATUS_ADVANCED
+    else:
+        status = DECISION_STATUS_CONFIGURED
+
+    return {
+        "decision_status": status,
+        "reason_codes": reason_codes,
+        "advanced": bool(is_advanced),
+        "unused": bool(is_unused),
+        "recommended_delta": bool(has_recommended_delta),
+        "is_blocking": status == DECISION_STATUS_NEEDS_REVIEW,
+    }
 
 def danger_zone_settings_keys() -> list[str]:
     return sorted(
