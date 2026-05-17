@@ -99,23 +99,6 @@
     display: grid;
     gap: 0.65rem;
   }
-  .settings-decision-list {
-    display: grid;
-    gap: 0.45rem;
-  }
-  .settings-decision-item {
-    border: 1px solid var(--border-soft);
-    border-radius: 10px;
-    padding: 0.55rem 0.65rem;
-    background: var(--surface-0);
-    display: grid;
-    gap: 0.25rem;
-  }
-  .settings-decision-item-title {
-    font-size: 0.85rem;
-    color: var(--text-primary);
-    font-weight: 600;
-  }
   .settings-decision-item-meta {
     font-size: 0.75rem;
     color: var(--text-muted);
@@ -146,31 +129,6 @@
     padding: 0.7rem 0.9rem;
     font-size: 0.82rem;
     color: var(--text-muted);
-  }
-  .settings-quick-nav {
-    border: 1px solid var(--border-soft);
-    border-radius: 12px;
-    background: var(--surface-1);
-    padding: 0.65rem 0.9rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.45rem 0.6rem;
-  }
-  .settings-quick-nav a {
-    font-size: 0.8rem;
-    color: var(--text-primary);
-    text-decoration: none;
-    border: 1px solid var(--border-soft);
-    border-radius: 999px;
-    padding: 0.2rem 0.55rem;
-  }
-  .settings-axis-toolbar {
-    border: 1px solid var(--border-soft);
-    border-radius: 12px;
-    background: var(--surface-1);
-    padding: 0.75rem 0.9rem;
-    display: grid;
-    gap: 0.65rem;
   }
   .axis-row {
     display: flex;
@@ -498,13 +456,14 @@
 {% macro render_settings_row(item, settings_metadata_note) -%}
 {% set entry = item.entry %}
 {% set ia = item.ia_contract %}
-  <div id="entry-{{ entry.key | replace('.', '-') }}" class="settings-field-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-domain="{{ ia.domain }}" data-workflow-stages="{{ ia.workflow_stages | join('|') }}" data-decision-status="{{ item.decision_status }}" data-decision-domain="{{ item.decision_domain }}" data-default-equal="{{ 'false' if item.is_modified else 'true' }}" data-unused="{{ 'true' if 'unused' in item.decision_reason_codes else 'false' }}">
+  <div id="entry-{{ entry.key | replace('.', '-') }}" class="settings-field-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-domain="{{ ia.domain }}" data-workflow-stages="{{ ia.workflow_stages | join('|') }}" data-decision-status="{{ item.decision_status }}" data-decision-domain="{{ item.decision_domain }}" data-decision-stage="{{ item.decision_stage }}" data-control-surface="{{ item.decision_control_surface }}" data-decision-area="{{ item.decision_area }}" data-complexity="{{ item.decision_complexity }}" data-default-equal="{{ 'false' if item.is_modified else 'true' }}" data-unused="{{ 'true' if 'unused' in item.decision_reason_codes else 'false' }}">
     <div>
       <div class="settings-field-label">{{ entry.label }}</div>
       <div class="settings-field-description">{{ entry.description }}</div>
       <div class="badge-row">
-        <span class="badge-chip">Domain: {{ ia.domain }}</span>
-        <span class="badge-chip">Stages: {{ ia.workflow_stages | join(', ') if ia.workflow_stages else 'none' }}</span>
+        <span class="badge-chip">Stage: {{ item.decision_stage | replace('_', ' ') | title }}</span>
+        <span class="badge-chip">Control Surface: {{ item.decision_control_surface | replace('_', ' ') | title }}</span>
+        <span class="badge-chip">Decision Area: {{ item.decision_area | replace('_', ' ') | title }}</span>
         <span class="badge-chip">Runtime-used: {{ "Yes" if ia.runtime_used else "No" }}</span>
         <span class="badge-chip">Metadata-only: {{ "Yes" if ia.metadata_only else "No" }}</span>
         <span class="badge-chip badge-risk-{{ ia.risk }}">Risk: {{ ia.risk | title }}</span>
@@ -547,109 +506,51 @@
       <span>{{ error }}</span>
     </div>
   {% endif %}
-  <section class="settings-truth-panel">
-    <div class="settings-truth-title">How To Read This Page</div>
-    <ul class="settings-truth-list">
-      {% for note in settings_truth_notes %}
-        <li>{{ note }}</li>
-      {% endfor %}
-    </ul>
-  </section>
-  <section class="settings-mode-strip">
-    <div class="settings-mode-item"><span class="k">Live Provider:</span><span class="v">{{ settings_mode_summary.runtime_provider }}</span></div>
-    <div class="settings-mode-item"><span class="k">Live Model:</span><span class="v">{{ settings_mode_summary.runtime_model }}</span></div>
-    <div class="settings-mode-item"><span class="k">Authority State:</span><span class="v">{{ settings_mode_summary.authority_state }}</span></div>
-    {% if settings_mode_summary.drift_reason %}
-      <div class="settings-mode-item"><span class="k">Drift:</span><span class="v">{{ settings_mode_summary.drift_reason }}</span></div>
-    {% endif %}
-  </section>
-  <section class="settings-truth-panel">
-    <div class="settings-truth-title">Run Truth Check</div>
-    <ul class="settings-truth-list">
-      <li>To confirm what actually ran, open Run Detail and check Agentic Runtime Alignment.</li>
-    </ul>
-  </section>
   <section class="settings-readiness">
     <div class="settings-readiness-head">
-      <div class="settings-readiness-title">Readiness Summary</div>
-      <div class="settings-decision-item-meta">Tabs show decision urgency. Filters scope by domain.</div>
-    </div>
-    <div class="settings-readiness-grid">
-      <div class="settings-readiness-cell"><div class="settings-readiness-k">Configured</div><div class="settings-readiness-v">{{ settings_readiness_summary.configured_count }}</div></div>
-      <div class="settings-readiness-cell"><div class="settings-readiness-k">Needs Review</div><div class="settings-readiness-v">{{ settings_readiness_summary.needs_review_count }}</div></div>
-      <div class="settings-readiness-cell"><div class="settings-readiness-k">Recommended</div><div class="settings-readiness-v">{{ settings_readiness_summary.recommended_count }}</div></div>
-      <div class="settings-readiness-cell"><div class="settings-readiness-k">Advanced</div><div class="settings-readiness-v">{{ settings_readiness_summary.advanced_count }}</div></div>
-      <div class="settings-readiness-cell"><div class="settings-readiness-k">Hidden Defaults/Unused</div><div class="settings-readiness-v">{{ settings_readiness_summary.hidden_defaults_unused_count }}</div></div>
-    </div>
-    <div class="settings-cta-row">
-      <button type="button" class="btn-secondary" data-review-required>Review Required Settings</button>
-      <button type="button" class="btn-secondary" data-accept-recommended>Accept Recommended Settings</button>
-      <button type="button" class="btn-primary">Run Pipeline</button>
+      <div class="settings-readiness-title">Settings Status</div>
+      <div class="settings-decision-item-meta">
+        {% if settings_readiness_summary.needs_review_count > 0 %}
+          {{ settings_readiness_summary.needs_review_count }} setting(s) need review before next run.
+        {% else %}
+          No blocking settings.
+        {% endif %}
+      </div>
     </div>
   </section>
   <section class="settings-decision-board">
     <div class="axis-row">
       <span class="axis-label">Decision View</span>
-      {% for group in settings_decision_groups %}
-        <span class="badge-chip">{{ group.title }}: {{ group.count }}</span>
+      <button type="button" class="axis-chip" data-complexity-filter="basic" aria-pressed="true">Basic</button>
+      <button type="button" class="axis-chip" data-complexity-filter="advanced" aria-pressed="false">Advanced</button>
+      <button type="button" class="axis-chip" data-complexity-filter="all" aria-pressed="false">All</button>
+    </div>
+    <div class="axis-row">
+      <span class="axis-label">Stage</span>
+      <button type="button" class="axis-chip" data-stage-filter="all" aria-pressed="true">All</button>
+      {% for scope in settings_stage_scopes %}
+        <button type="button" class="axis-chip" data-stage-filter="{{ scope.id }}" aria-pressed="false">{{ scope.title }}</button>
       {% endfor %}
     </div>
     <div class="axis-row">
-      <span class="axis-label">Domain Filters</span>
-      {% for domain in settings_decision_domain_filters %}
-        <span class="badge-chip">{{ domain.title }}</span>
+      <span class="axis-label">Control Surface</span>
+      <button type="button" class="axis-chip" data-control-surface-filter="all" aria-pressed="true">All</button>
+      {% for surface in settings_control_surface_filters %}
+        <button type="button" class="axis-chip" data-control-surface-filter="{{ surface.id }}" aria-pressed="false">{{ surface.title }}</button>
       {% endfor %}
     </div>
-    <div class="settings-decision-list">
-      {% for group in settings_decision_groups %}
-        {% for item in group["items"][:4] %}
-          <div class="settings-decision-item">
-            <div class="settings-decision-item-title">{{ item.label }}</div>
-            <div class="settings-decision-item-meta">{{ group.title }} · {{ item.decision_domain | replace('_', ' ') }} · {{ item.risk }}</div>
-            <div class="settings-decision-item-meta">Reason codes: {{ item.decision_reason_codes | join(', ') if item.decision_reason_codes else 'none' }}</div>
-          </div>
-        {% endfor %}
-      {% endfor %}
+    <div class="settings-decision-item-meta">
+      Use filters to focus decisions. Advanced diagnostics stay hidden in Basic.
     </div>
   </section>
   <section class="settings-toolbar">
     <input class="settings-search" type="search" id="settings-search" placeholder="Search settings..." aria-label="Search settings">
     <div class="settings-global-summary" data-global-dirty-summary="settings-page">All sections saved</div>
-    <div class="domain-summary-grid">
-      {% for summary in settings_domain_summaries %}
-        <div class="domain-summary-card" data-domain-summary="{{ summary.id }}">
-          <div class="domain-summary-title">{{ summary.title }}</div>
-          <div class="domain-summary-meta">{{ summary.total }} total</div>
-          <div class="domain-summary-meta">{{ summary.modified }} modified · {{ summary.errors }} errors · {{ summary.overrides }} overrides</div>
-        </div>
-      {% endfor %}
-    </div>
-    <nav class="settings-quick-nav" data-settings-quick-nav="true" aria-label="Settings quick navigation">
-      {% for section in settings_page_task_sections %}
-        <a href="#task-{{ section.id }}">{{ section.title }}</a>
-      {% endfor %}
-    </nav>
-  </section>
-  <section class="settings-axis-toolbar">
-    <div class="axis-row">
-      <span class="axis-label">Domain</span>
-      <button type="button" class="axis-chip" data-domain-filter="all" aria-pressed="true">All</button>
-      {% for domain in settings_domains %}
-        <button type="button" class="axis-chip" data-domain-filter="{{ domain.id }}" aria-pressed="false">{{ domain.title }}</button>
-      {% endfor %}
-    </div>
-    <div class="axis-row">
-      <span class="axis-label">Workflow Stage</span>
-      <button type="button" class="axis-chip" data-stage-filter="all" aria-pressed="true">All</button>
-      {% for stage in settings_stage_filters %}
-        <button type="button" class="axis-chip" data-stage-filter="{{ stage.id }}" aria-pressed="false">{{ stage.title }}</button>
-      {% endfor %}
-    </div>
     <div class="axis-row">
       <span class="axis-label">Visibility</span>
-      <label class="badge-chip"><input type="checkbox" id="toggle-show-defaults"> Show Defaults</label>
-      <label class="badge-chip"><input type="checkbox" id="toggle-show-unused"> Show Unused</label>
+      <label class="badge-chip"><input type="checkbox" id="toggle-only-actionable"> Only show actionable</label>
     </div>
+    <div class="settings-decision-item-meta is-filter-hidden" id="empty-filter-state">No settings match filters. Reset filter chips or disable actionable-only mode.</div>
   </section>
   {% for section in settings_page_task_sections %}
     <section class="task-section" data-task-section="{{ section.id }}" id="task-{{ section.id }}">
@@ -882,30 +783,26 @@
     else summary.textContent = dirtyForms + ' sections have unsaved edits';
   }
 
-  function setActiveChip(chips, activeValue, attrName) {
-    chips.forEach(function(chip) {
-      const pressed = chip.getAttribute(attrName) === activeValue;
-      chip.setAttribute('aria-pressed', pressed ? 'true' : 'false');
-    });
-  }
-
-  function entryMatchesFilters(row, domain, stage) {
-    const rowDomain = row.dataset.domain || '';
-    const rowStages = (row.dataset.workflowStages || '').split('|').filter(Boolean);
+  function entryMatchesFilters(row) {
+    const activeComplexity = document.body.dataset.activeComplexity || 'basic';
+    const activeStage = document.body.dataset.activeStage || 'all';
+    const activeControlSurface = document.body.dataset.activeControlSurface || 'all';
+    const rowComplexity = row.dataset.complexity || 'basic';
+    const rowStage = row.dataset.decisionStage || '';
+    const rowControlSurface = row.dataset.controlSurface || '';
     const rowUnused = (row.dataset.unused || 'false') === 'true';
     const rowDefaultEqual = (row.dataset.defaultEqual || 'false') === 'true';
-    const showDefaults = !!document.getElementById('toggle-show-defaults')?.checked;
-    const showUnused = !!document.getElementById('toggle-show-unused')?.checked;
-    const domainOk = domain === 'all' || rowDomain === domain;
-    const stageOk = stage === 'all' || rowStages.includes(stage);
-    const defaultsOk = showDefaults || !rowDefaultEqual;
-    const unusedOk = showUnused || !rowUnused;
-    return domainOk && stageOk && defaultsOk && unusedOk;
+    const onlyActionable = !!document.getElementById('toggle-only-actionable')?.checked;
+    const complexityOk = activeComplexity === 'all' || rowComplexity === activeComplexity;
+    const stageOk = activeStage === 'all' || rowStage === activeStage;
+    const controlSurfaceOk = activeControlSurface === 'all' || rowControlSurface === activeControlSurface;
+    const actionableOk = !onlyActionable || (!rowDefaultEqual && !rowUnused);
+    return complexityOk && stageOk && controlSurfaceOk && actionableOk;
   }
 
-  function applyAxisFilters(domain, stage) {
+  function applyAxisFilters() {
     document.querySelectorAll('[data-entry-key]').forEach(function(row) {
-      const visible = entryMatchesFilters(row, domain, stage);
+      const visible = entryMatchesFilters(row);
       row.classList.toggle('is-filter-hidden', !visible);
     });
     document.querySelectorAll('.settings-panel').forEach(function(panel) {
@@ -921,6 +818,11 @@
       const hasVisiblePanel = section.querySelector('.settings-panel:not(.is-filter-hidden)') !== null;
       section.classList.toggle('is-filter-hidden', !hasVisiblePanel);
     });
+    const emptyState = document.getElementById('empty-filter-state');
+    if (emptyState) {
+      const hasVisibleRow = document.querySelector('[data-entry-key]:not(.is-filter-hidden)') !== null;
+      emptyState.classList.toggle('is-filter-hidden', hasVisibleRow);
+    }
   }
 
   function readNumber(form, name) {
@@ -969,60 +871,54 @@
   }
 
   document.addEventListener('DOMContentLoaded', function() {
-    let activeDomain = 'all';
-    let activeStage = 'all';
-    const domainChips = document.querySelectorAll('[data-domain-filter]');
+    document.body.dataset.activeComplexity = 'basic';
+    document.body.dataset.activeStage = 'all';
+    document.body.dataset.activeControlSurface = 'all';
+    const toggleOnlyActionable = document.getElementById('toggle-only-actionable');
+    const complexityChips = document.querySelectorAll('[data-complexity-filter]');
     const stageChips = document.querySelectorAll('[data-stage-filter]');
-    const toggleShowDefaults = document.getElementById('toggle-show-defaults');
-    const toggleShowUnused = document.getElementById('toggle-show-unused');
-    domainChips.forEach(function(chip) {
+    const controlSurfaceChips = document.querySelectorAll('[data-control-surface-filter]');
+
+    complexityChips.forEach(function(chip) {
       chip.addEventListener('click', function() {
-        activeDomain = chip.getAttribute('data-domain-filter') || 'all';
-        setActiveChip(domainChips, activeDomain, 'data-domain-filter');
-        applyAxisFilters(activeDomain, activeStage);
+        const value = chip.getAttribute('data-complexity-filter') || 'basic';
+        document.body.dataset.activeComplexity = value;
+        complexityChips.forEach(function(other) {
+          const pressed = (other.getAttribute('data-complexity-filter') || 'basic') === value;
+          other.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+        });
+        applyAxisFilters();
       });
     });
     stageChips.forEach(function(chip) {
       chip.addEventListener('click', function() {
-        activeStage = chip.getAttribute('data-stage-filter') || 'all';
-        setActiveChip(stageChips, activeStage, 'data-stage-filter');
-        applyAxisFilters(activeDomain, activeStage);
+        const value = chip.getAttribute('data-stage-filter') || 'all';
+        document.body.dataset.activeStage = value;
+        stageChips.forEach(function(other) {
+          const pressed = (other.getAttribute('data-stage-filter') || 'all') === value;
+          other.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+        });
+        applyAxisFilters();
       });
     });
-    [toggleShowDefaults, toggleShowUnused].forEach(function(toggle) {
+    controlSurfaceChips.forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        const value = chip.getAttribute('data-control-surface-filter') || 'all';
+        document.body.dataset.activeControlSurface = value;
+        controlSurfaceChips.forEach(function(other) {
+          const pressed = (other.getAttribute('data-control-surface-filter') || 'all') === value;
+          other.setAttribute('aria-pressed', pressed ? 'true' : 'false');
+        });
+        applyAxisFilters();
+      });
+    });
+    [toggleOnlyActionable].forEach(function(toggle) {
       if (!toggle) return;
       toggle.addEventListener('change', function() {
-        applyAxisFilters(activeDomain, activeStage);
+        applyAxisFilters();
       });
     });
-    applyAxisFilters(activeDomain, activeStage);
-
-    const reviewRequiredBtn = document.querySelector('[data-review-required]');
-    if (reviewRequiredBtn) {
-      reviewRequiredBtn.addEventListener('click', function() {
-        activeDomain = 'all';
-        activeStage = 'all';
-        setActiveChip(domainChips, activeDomain, 'data-domain-filter');
-        setActiveChip(stageChips, activeStage, 'data-stage-filter');
-        applyAxisFilters(activeDomain, activeStage);
-        const firstNeedsReview = document.querySelector('[data-entry-key][data-decision-status="needs_review"]');
-        if (firstNeedsReview) firstNeedsReview.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      });
-    }
-
-    const acceptRecommendedBtn = document.querySelector('[data-accept-recommended]');
-    if (acceptRecommendedBtn) {
-      acceptRecommendedBtn.addEventListener('click', function() {
-        const recommended = Array.from(document.querySelectorAll('[data-entry-key][data-decision-status="recommended"]'))
-          .map((row) => row.getAttribute('data-entry-key'))
-          .filter(Boolean);
-        if (!recommended.length) {
-          alert('No recommended settings currently available to accept.');
-          return;
-        }
-        alert('Recommended settings preview:\\n\\n' + recommended.join('\\n'));
-      });
-    }
+    applyAxisFilters();
 
     const searchInput = document.getElementById('settings-search');
     function applySearchFilter(term) {
@@ -1045,7 +941,7 @@
     }
     if (searchInput) {
       searchInput.addEventListener('input', function() {
-        applyAxisFilters(activeDomain, activeStage);
+        applyAxisFilters();
         applySearchFilter(searchInput.value);
       });
     }
