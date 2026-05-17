@@ -668,6 +668,103 @@ def _run_status_projection(run: PipelineRun) -> dict[str, Any]:
         "is_archived": bool(run.archived_at),
     }
 
+
+RUN_DETAIL_FIELD_REGISTRY: dict[str, dict[str, str]] = {
+    "status": {"tier": "core", "surface": "overview", "source_key": "run.status", "explanation_mode": "none"},
+    "outcome": {"tier": "core", "surface": "overview", "source_key": "output_availability.state", "explanation_mode": "none"},
+    "warnings_blockers": {"tier": "core", "surface": "overview", "source_key": "run.error_message", "explanation_mode": "none"},
+    "next_actions": {"tier": "core", "surface": "overview", "source_key": "run_status_projection", "explanation_mode": "none"},
+    "stage_snapshot": {
+        "tier": "core",
+        "surface": "overview",
+        "source_key": "stage_result_summary_rows",
+        "explanation_mode": "none",
+    },
+    "effective_settings_delta": {
+        "tier": "core",
+        "surface": "overview",
+        "source_key": "run.settings_used_json",
+        "explanation_mode": "none",
+    },
+    "orchestration_diagnostics": {
+        "tier": "advanced",
+        "surface": "run_detail",
+        "source_key": "orchestration_diagnostics",
+        "explanation_mode": "none",
+    },
+    "event_delivery_health": {
+        "tier": "advanced",
+        "surface": "run_detail",
+        "source_key": "event_delivery_health",
+        "explanation_mode": "none",
+    },
+    "synonym_fingerprints": {
+        "tier": "diagnostic",
+        "surface": "diagnostics",
+        "source_key": "synonym_fingerprints",
+        "explanation_mode": "none",
+    },
+    "raw_payload_exports": {
+        "tier": "diagnostic",
+        "surface": "diagnostics",
+        "source_key": "run_export_links",
+        "explanation_mode": "none",
+    },
+}
+
+
+def _run_detail_visibility_registry() -> dict[str, list[dict[str, str]]]:
+    grouped: dict[str, list[dict[str, str]]] = {"core": [], "advanced": [], "diagnostic": []}
+    for name, meta in RUN_DETAIL_FIELD_REGISTRY.items():
+        tier = str(meta.get("tier") or "").strip()
+        if tier not in grouped:
+            continue
+        grouped[tier].append({"name": name, **meta})
+    return grouped
+
+
+def _count_dict_leaf_differences(left: Any, right: Any) -> int:
+    if isinstance(left, dict) and isinstance(right, dict):
+        total = 0
+        for key in set(left.keys()) | set(right.keys()):
+            total += _count_dict_leaf_differences(left.get(key), right.get(key))
+        return total
+    if isinstance(left, list) and isinstance(right, list):
+        if left == right:
+            return 0
+        return 1
+    return 0 if left == right else 1
+
+
+def _run_effective_settings_delta_summary(run: PipelineRun) -> dict[str, Any]:
+    effective = _load_json_object(run.effective_settings_json)
+    if not isinstance(effective, dict):
+        return {"delta_count": 0, "source": "unavailable"}
+    try:
+        baseline = load_config(run.config_path)
+    except (FileNotFoundError, ValueError):
+        baseline = {}
+    if not isinstance(baseline, dict):
+        baseline = {}
+    # Runtime-only inputs are not operator-edit overrides.
+    effective_compare = dict(effective)
+    effective_compare.pop("runtime_inputs", None)
+    delta_count = _count_dict_leaf_differences(baseline, effective_compare)
+    return {"delta_count": int(delta_count), "source": "baseline_xor_effective"}
+
+
+def _run_overview_consistency_summary(
+    run: PipelineRun,
+    *,
+    stage_result_summary_rows: list[dict[str, Any]],
+    event_delivery_health: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "status": run.status.value,
+        "stage_count": len(stage_result_summary_rows),
+        "dead_letter_events": int(event_delivery_health.get("count") or 0),
+    }
+
 def _policy_registry_version_from_config(config_payload: dict[str, Any] | None) -> str:
     cfg = dict(config_payload or {})
     block = dict(cfg.get("policy_registry") or {})
@@ -6752,6 +6849,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         data_plane_summary = _run_data_plane_summary(run)
         stage_result_summary_rows = _stage_result_summary_rows(run)
         hitl_closure_summary = _build_hitl_closure_summary(run, queue=hitl_review_queue)
+        effective_settings_delta_summary = _run_effective_settings_delta_summary(run)
+        overview_consistency_summary = _run_overview_consistency_summary(
+            run,
+            stage_result_summary_rows=stage_result_summary_rows,
+            event_delivery_health=event_delivery_health,
+        )
 
         return templates.TemplateResponse(
             request=request, name="run_detail.html", context={
@@ -6797,8 +6900,19 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "replay_context_summary": replay_context_summary,
                 "data_plane_summary": data_plane_summary,
                 "stage_result_summary_rows": stage_result_summary_rows,
+                "run_detail_visibility_registry": _run_detail_visibility_registry(),
+                "effective_settings_delta_summary": effective_settings_delta_summary,
+                "overview_consistency_summary": overview_consistency_summary,
             }
         )
+
+    @app.get("/admin/runs/{run_id}/synonym-review")
+    def admin_run_synonym_review(run_id: str) -> RedirectResponse:
+        return RedirectResponse(f"/admin/runs/{run_id}#synonym-review-workspace", status_code=303)
+
+    @app.get("/admin/runs/{run_id}/artifacts")
+    def admin_run_artifacts_workspace(run_id: str) -> RedirectResponse:
+        return RedirectResponse(f"/admin/runs/{run_id}#run-exports-workspace", status_code=303)
 
     @app.post("/admin/runs/{run_id}/cv-review-action")
     async def admin_run_cv_review_action(

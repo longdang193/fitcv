@@ -2841,6 +2841,7 @@ def test_admin_run_detail_shows_exports_card_with_results_link():
         resp = TestClient(_app()).get("/admin/runs/test-export-btn")
     assert resp.status_code == 200
     assert "Run Exports" in resp.text
+    assert 'href="/admin/runs/test-export-btn/artifacts"' in resp.text
     assert 'href="/admin/runs/test-export-btn/export.json"' in resp.text
 
 def test_run_detail_shows_orchestration_backend_diagnostics() -> None:
@@ -2960,6 +2961,7 @@ def test_admin_run_detail_shows_bundle_zip_export_link():
     patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/test-bundle-btn")
     assert resp.status_code == 200
+    assert 'href="/admin/runs/test-bundle-btn/artifacts"' in resp.text
     assert 'href="/admin/runs/test-bundle-btn/artifacts.zip"' in resp.text
     assert "Download All Artifacts (.zip)" in resp.text
 
@@ -4479,6 +4481,17 @@ def test_admin_run_detail_shows_synonym_proposal_review_actions() -> None:
     assert "proposal_action__proposal-ml" in resp.text
 
 
+
+def test_admin_run_synonym_review_route_redirects_to_workspace_anchor() -> None:
+    resp = TestClient(_app()).get("/admin/runs/run-proposal-ui/synonym-review", follow_redirects=False)
+    assert resp.status_code == 303
+    assert resp.headers.get("location") == "/admin/runs/run-proposal-ui#synonym-review-workspace"
+
+
+def test_admin_run_artifacts_route_redirects_to_workspace_anchor() -> None:
+    resp = TestClient(_app()).get("/admin/runs/run-proposal-ui/artifacts", follow_redirects=False)
+    assert resp.status_code == 303
+    assert resp.headers.get("location") == "/admin/runs/run-proposal-ui#run-exports-workspace"
 def test_admin_run_detail_shows_synonym_recommendation_advisory_fields() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -5679,7 +5692,8 @@ def test_run_detail_shows_synonym_regeneration_controls_and_banner() -> None:
     assert resp.status_code == 200
     assert "Regenerate Proposals" in resp.text
     assert "Regeneration summary" in resp.text
-    assert "fingerprints:" in resp.text
+    assert "Open Diagnostics" in resp.text
+    assert "fingerprints:" not in resp.text
 
 def test_run_detail_shows_synonym_regeneration_banner_without_review_card() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -10704,6 +10718,8 @@ def test_admin_settings_has_visibility_toggles_and_recommendation_preview_script
     assert 'id="toggle-only-actionable"' not in html
     assert 'data-accept-recommended' not in html
     assert 'data-review-required' not in html
+
+
 
 
 
