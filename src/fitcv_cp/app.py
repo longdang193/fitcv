@@ -4784,11 +4784,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     }
                 )
             dirty_count = sum(1 for item in entries if item["is_dirty"])
-            card_intent_layers = sorted(
+            card_domains = sorted(
                 {
-                    str(item["ia_contract"].get("intent_layer") or "")
+                    str(item["ia_contract"].get("domain") or "")
                     for item in entries
-                    if str(item["ia_contract"].get("intent_layer") or "")
+                    if str(item["ia_contract"].get("domain") or "")
                 }
             )
             card_stages = sorted(
@@ -4820,7 +4820,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "error_message": _card_error_for(submit_kind, submit_slug, list(card_spec["keys"])),
                 "layout": card_spec.get("layout", "list"),
                 "is_advanced": bool(card_spec.get("is_advanced", False)),
-                "intent_layers": card_intent_layers,
+                "domains": card_domains,
                 "workflow_stages": card_stages,
                 "risk": card_risk,
                 "guarded_save": bool(card_spec.get("is_advanced", False)) or card_risk == "high",
@@ -4860,11 +4860,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "advanced": "Advanced",
         }
         workflow_stage_titles = {
-            "setup": "Setup",
-            "draft": "Draft",
-            "review": "Review",
-            "approved": "Approved",
-            "archived": "Archived",
+            "normalize": "Normalize",
+            "enrich": "Enrich",
+            "rule_filter": "Rule Filter",
+            "shortlist": "Shortlist",
+            "ranking": "Ranking",
+            "cv_analysis": "CV Analysis",
+            "cv_generation": "CV Generation",
         }
         settings_domains = [
             {
@@ -4931,7 +4933,6 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "settings_truth_notes": settings_truth_notes,
             "settings_mode_summary": mode_summary,
             "settings_domains": settings_domains,
-            "settings_intent_layers": settings_domains,
             "settings_stage_filters": settings_stage_filters,
             "settings_ia_metadata_by_key": ia_metadata_by_key,
             "settings_danger_zone_keys": danger_zone_keys,

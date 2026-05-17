@@ -424,7 +424,7 @@
 {% macro render_settings_row(item, settings_metadata_note) -%}
   {% set entry = item.entry %}
   {% set ia = item.ia_contract %}
-  <div class="settings-field-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-intent-layer="{{ ia.domain }}" data-workflow-stages="{{ ia.workflow_stages | join('|') }}">
+  <div class="settings-field-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-domain="{{ ia.domain }}" data-workflow-stages="{{ ia.workflow_stages | join('|') }}">
     <div>
       <div class="settings-field-label">{{ entry.label }}</div>
       <div class="settings-field-description">{{ entry.description }}</div>
@@ -513,10 +513,10 @@
   </section>
   <section class="settings-axis-toolbar">
     <div class="axis-row">
-      <span class="axis-label">Intent Layer</span>
-      <button type="button" class="axis-chip" data-layer-filter="all" aria-pressed="true">All</button>
-      {% for layer in settings_intent_layers %}
-        <button type="button" class="axis-chip" data-layer-filter="{{ layer.id }}" aria-pressed="false">{{ layer.title }}</button>
+      <span class="axis-label">Domain</span>
+      <button type="button" class="axis-chip" data-domain-filter="all" aria-pressed="true">All</button>
+      {% for domain in settings_domains %}
+        <button type="button" class="axis-chip" data-domain-filter="{{ domain.id }}" aria-pressed="false">{{ domain.title }}</button>
       {% endfor %}
     </div>
     <div class="axis-row">
@@ -543,7 +543,7 @@
                 <div class="settings-advanced-summary-title">{{ card.title }}</div>
                 <div class="settings-advanced-summary-helper">{{ card.helper }}</div>
               </summary>
-              <div class="settings-panel" data-card-risk="{{ card.risk }}" data-card-intent-layers="{{ card.intent_layers | join('|') }}" data-card-stages="{{ card.workflow_stages | join('|') }}">
+              <div class="settings-panel" data-card-risk="{{ card.risk }}" data-card-domains="{{ card.domains | join('|') }}" data-card-stages="{{ card.workflow_stages | join('|') }}">
                 <form id="{{ card.form_id }}" method="post" action="{{ card.action }}" data-dirty-card="{{ card.form_id }}" data-guarded-save="{{ 'true' if card.guarded_save else 'false' }}">
                   {% if card.error_message %}
                     <div class="error-box" style="margin-top:1rem">
@@ -569,7 +569,7 @@
               </div>
             </details>
           {% else %}
-            <div class="settings-panel" data-card-risk="{{ card.risk }}" data-card-intent-layers="{{ card.intent_layers | join('|') }}" data-card-stages="{{ card.workflow_stages | join('|') }}">
+            <div class="settings-panel" data-card-risk="{{ card.risk }}" data-card-domains="{{ card.domains | join('|') }}" data-card-stages="{{ card.workflow_stages | join('|') }}">
               <div class="settings-panel-header">
                 <div>
                   <div class="settings-panel-title">{{ card.title }}</div>
@@ -596,7 +596,7 @@
                       </div>
                       {% for item in card.entries %}
                         {% set entry = item.entry %}
-                        <div class="composition-matrix-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-intent-layer="{{ item.ia_contract.domain }}" data-workflow-stages="{{ item.ia_contract.workflow_stages | join('|') }}">
+                        <div class="composition-matrix-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-domain="{{ item.ia_contract.domain }}" data-workflow-stages="{{ item.ia_contract.workflow_stages | join('|') }}">
                           <div>
                             <div class="composition-row-title">{{ entry.label | replace('Include ', '') }}</div>
                             <div class="composition-row-helper">{{ entry.description }}</div>
@@ -765,17 +765,17 @@
     });
   }
 
-  function entryMatchesFilters(row, layer, stage) {
-    const rowLayer = row.dataset.intentLayer || '';
+  function entryMatchesFilters(row, domain, stage) {
+    const rowDomain = row.dataset.domain || '';
     const rowStages = (row.dataset.workflowStages || '').split('|').filter(Boolean);
-    const layerOk = layer === 'all' || rowLayer === layer;
+    const domainOk = domain === 'all' || rowDomain === domain;
     const stageOk = stage === 'all' || rowStages.includes(stage);
-    return layerOk && stageOk;
+    return domainOk && stageOk;
   }
 
-  function applyAxisFilters(layer, stage) {
+  function applyAxisFilters(domain, stage) {
     document.querySelectorAll('[data-entry-key]').forEach(function(row) {
-      const visible = entryMatchesFilters(row, layer, stage);
+      const visible = entryMatchesFilters(row, domain, stage);
       row.classList.toggle('is-filter-hidden', !visible);
     });
     document.querySelectorAll('.settings-panel').forEach(function(panel) {
@@ -839,25 +839,25 @@
   }
 
   document.addEventListener('DOMContentLoaded', function() {
-    let activeLayer = 'all';
+    let activeDomain = 'all';
     let activeStage = 'all';
-    const layerChips = document.querySelectorAll('[data-layer-filter]');
+    const domainChips = document.querySelectorAll('[data-domain-filter]');
     const stageChips = document.querySelectorAll('[data-stage-filter]');
-    layerChips.forEach(function(chip) {
+    domainChips.forEach(function(chip) {
       chip.addEventListener('click', function() {
-        activeLayer = chip.getAttribute('data-layer-filter') || 'all';
-        setActiveChip(layerChips, activeLayer, 'data-layer-filter');
-        applyAxisFilters(activeLayer, activeStage);
+        activeDomain = chip.getAttribute('data-domain-filter') || 'all';
+        setActiveChip(domainChips, activeDomain, 'data-domain-filter');
+        applyAxisFilters(activeDomain, activeStage);
       });
     });
     stageChips.forEach(function(chip) {
       chip.addEventListener('click', function() {
         activeStage = chip.getAttribute('data-stage-filter') || 'all';
         setActiveChip(stageChips, activeStage, 'data-stage-filter');
-        applyAxisFilters(activeLayer, activeStage);
+        applyAxisFilters(activeDomain, activeStage);
       });
     });
-    applyAxisFilters(activeLayer, activeStage);
+    applyAxisFilters(activeDomain, activeStage);
 
     const searchInput = document.getElementById('settings-search');
     function applySearchFilter(term) {
@@ -880,7 +880,7 @@
     }
     if (searchInput) {
       searchInput.addEventListener('input', function() {
-        applyAxisFilters(activeLayer, activeStage);
+        applyAxisFilters(activeDomain, activeStage);
         applySearchFilter(searchInput.value);
       });
     }

@@ -1,54 +1,55 @@
+# Execution Context Pack
+
 ## 1) Objective
 
-- **Workstream / Plan:** `docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md`
-- **Goal:** Implement Settings page V2 progressive disclosure and compact navigation model.
-- **Bounded Scope (in-scope only):** `src/fitcv_cp/settings_schema.py`, `src/fitcv_cp/app.py`, `src/fitcv_cp/templates/settings.html`, settings tests.
-- **Out of Scope (explicit):** settings key rename/removal, backend policy rewrite, non-settings pages.
+- **Workstream / Plan:** `docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md`
+- **Goal:** Ship Settings V3 IA with single Domain axis and runtime-true stage filters.
+- **Bounded Scope (in-scope only):** Settings IA/filter metadata + template + tests.
+- **Out of Scope (explicit):** runtime pipeline behavior changes.
 
 ## 2) Canonical Inputs (Source of Truth)
 
-- **Primary plan:** `docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md`
-- **Specs / maps / thread docs:** `docs/superpowers/specs/2026-05-17-01-24-settings-page-v2-progressive-disclosure-spec.md`
-- **Governance / workflow rules used:** `docs/operating_system/prompt_templates/implementation-next-action-gate-prompt.md`, `docs/operating_system/governance/execution-context-pack-governance.md`
+- **Primary plan:** `docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md`
+- **Specs / maps / thread docs:** `docs/superpowers/specs/2026-05-17-02-20-settings-page-v3-domain-and-real-stage-spec.md`
+- **Governance / workflow rules used:** `docs/operating_system/governance/execution-context-pack-governance.md`
 
 ## 3) Current Task State
 
-- **Completed:** Tasks 1-6 complete.
-- **In Progress:** none.
+- **Completed:** Task 1-4 completed, tests passed.
+- **In Progress:** closeout validators.
 - **Deferred / Dropped:** none.
 - **Known divergence from plan (if any):** none.
 
 ## 4) Files Changed This Session
 
-- `src/fitcv_cp/settings_schema.py` — V2 domain/stage/risk/override/danger taxonomy metadata + helpers.
-- `src/fitcv_cp/app.py` — V2 backend view-model fields, domain/stage collections, summaries, danger-zone payload.
-- `src/fitcv_cp/templates/settings.html` — search/filter bar, domain summaries, progressive disclosure override gate, danger-zone section, compact UI behavior.
-- `tests/test_fitcv_cp/test_settings_schema.py` — V2 taxonomy/helper/danger coverage tests.
-- `tests/test_fitcv_cp/test_app.py` — V2 domain/stage filter assertions and settings UI contract checks.
-- `docs/superpowers/plans/2026-05-17-01-31-settings-page-v2-progressive-disclosure-plan.md` — status completed and task checkboxes updated.
+- `src/fitcv_cp/settings_schema.py` — runtime stage taxonomy mapping.
+- `src/fitcv_cp/app.py` — runtime stage filter payload and context cleanup.
+- `src/fitcv_cp/templates/settings.html` — Domain-only rail + filter attribute rename.
+- `tests/test_fitcv_cp/test_settings_schema.py` — updated stage expectations.
+- `tests/test_fitcv_cp/test_app.py` — updated filter-chip assertions.
+- `docs/superpowers/plans/2026-05-17-01-02-settings-page-v3-domain-and-real-stage-plan.md` — completed state sync.
+- `docs/superpowers/execution_context_packs/settings-page-v3-domain-and-real-stage/latest.md` — canonical pack.
 
 ## 5) Verification State
 
 - **Last commands run:**
   - `pytest tests/test_fitcv_cp/test_settings_schema.py -q`
   - `pytest tests/test_fitcv_cp/test_app.py -q -k settings`
-  - `pytest tests/test_fitcv_cp/test_app.py -q -k "settings and (render or template or override or modified or error)"`
-  - `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q -k "danger or advanced or guardrail"`
   - `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
-- **Result summary:** all pass.
+- **Result summary:** pass.
 - **Failing checks (if any):** none.
-- **Gaps still unverified:** optional manual browser UX smoke for interactions.
+- **Gaps still unverified:** closeout validators.
 
 ## 6) Open Blockers / Risks
 
-- none blocking.
+- GitNexus stale; advisory-only.
 
 ## 7) Next Exact Action
 
-- **Action type:** closeout
-- **Target:** repo planning/contract gates
-- **Exact command or edit intent:** run strict lifecycle + checkpoint + repo contract fast checks.
-- **Why this is next:** plan execution is complete and requires closure verification.
+- **Action type:** verification
+- **Target:** closeout gate commands
+- **Exact command or edit intent:** run strict lifecycle/checkpoint/repo-contract validators
+- **Why this is next:** plan status now completed and requires closeout proof.
 
 ## 8) Resume Prompt (Copy/Paste)
 
@@ -58,10 +59,10 @@ Read this execution context pack first. Verify its state against listed source f
 
 ## 9) Optional Deep Context (Consult Only)
 
-- **conversation_id:** not recorded
-- **overview_log:** not set
-- **consult_if:** only if source files/context pack disagree
-- **notes_from_log (optional, concise):** none
+- **conversation_id:** current desktop thread
+- **overview_log:** `.gemini/antigravity/brain/<conversation-id>/.system_generated/logs/overview.txt`
+- **consult_if:** validator outputs conflict with plan state
+- **notes_from_log (optional, concise):** n/a
 
 ## Source-Truth Rule
 
