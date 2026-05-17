@@ -19,17 +19,120 @@ import zipfile
 import datetime
 import os
 from fastapi.testclient import TestClient
-from fitcv_cp.app import _timeline_stage_download_for_event, create_app
+from fitcv_cp.app import _collapse_timeline_noise, _timeline_semantic_outcome, _timeline_stage_download_for_event, create_app
 from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.orchestrator import RunSubmission
-
 
 def _app():
     os.environ.setdefault("FITCV_CP_INLINE_EXECUTION", "1")
     bq = MagicMock()
     return create_app(bq=bq, project="p", dataset="d", redis_url="redis://localhost:6379/0")
 
+def test_collapse_timeline_noise_collapses_equivalent_synonym_triage_events() -> None:
+    ts = datetime.datetime.now(datetime.timezone.utc)
+    payload = {
+        "triaged_count": 5,
+        "reused_count": 0,
+        "fresh_count": 5,
+        "fallback_count": 0,
+        "skipped_count": 0,
+        "failed_count": 0,
+        "reuse_reason": "reuse_enabled",
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+    }
+    events = [
+        RunEvent(run_id="r", event_id="e1", stage="synonym_proposal_triage_completed", level="info", message="m", created_at=ts, payload_json=json.dumps(payload)),
+        RunEvent(run_id="r", event_id="e2", stage="synonym_proposal_triage_completed", level="info", message="m", created_at=ts, payload_json=json.dumps(payload)),
+        RunEvent(run_id="r", event_id="e3", stage="synonym_proposal_triage_completed", level="info", message="m", created_at=ts, payload_json=json.dumps(payload)),
+    ]
+    collapsed = _collapse_timeline_noise(events)
+    assert len(collapsed) == 1
+    kept_event, repeat_count = collapsed[0]
+    assert kept_event.event_id == "e1"
+    assert repeat_count == 3
 
+def test_collapse_timeline_noise_keeps_distinct_synonym_triage_payloads() -> None:
+    ts = datetime.datetime.now(datetime.timezone.utc)
+    payload_a = {
+        "triaged_count": 5,
+        "reused_count": 0,
+        "fresh_count": 5,
+        "fallback_count": 0,
+        "skipped_count": 0,
+        "failed_count": 0,
+        "reuse_reason": "reuse_enabled",
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+    }
+    payload_b = dict(payload_a)
+    payload_b["failed_count"] = 1
+    events = [
+        RunEvent(run_id="r", event_id="e1", stage="synonym_proposal_triage_completed", level="info", message="m", created_at=ts, payload_json=json.dumps(payload_a)),
+        RunEvent(run_id="r", event_id="e2", stage="synonym_proposal_triage_completed", level="info", message="m", created_at=ts, payload_json=json.dumps(payload_b)),
+    ]
+    collapsed = _collapse_timeline_noise(events)
+    assert len(collapsed) == 2
+    assert collapsed[0][1] == 1
+    assert collapsed[1][1] == 1
+
+
+def test_timeline_semantic_outcome_treats_alias_stage_as_equivalent() -> None:
+    ts = datetime.datetime.now(datetime.timezone.utc)
+    payload = {
+        "deterministic_outcome": "rejected",
+        "stage_owned_subreason": "validation_failed",
+    }
+    canonical = RunEvent(run_id="r", event_id="e1", stage="layer4_cv_validation_failed", level="warning", message="m", created_at=ts, payload_json=json.dumps(payload))
+    alias = RunEvent(run_id="r", event_id="e2", stage="cv_validation_failed", level="warning", message="m", created_at=ts, payload_json=json.dumps(payload))
+    assert _timeline_semantic_outcome(canonical, payload) == "expected_rejection"
+    assert _timeline_semantic_outcome(alias, payload) == "expected_rejection"
+
+
+def test_collapse_timeline_noise_is_replay_invariant() -> None:
+    ts = datetime.datetime.now(datetime.timezone.utc)
+    payload = {
+        "triaged_count": 5,
+        "reused_count": 0,
+        "fresh_count": 5,
+        "fallback_count": 0,
+        "skipped_count": 0,
+        "failed_count": 0,
+        "reuse_reason": "reuse_enabled",
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+    }
+    events = [
+        RunEvent(run_id="r", event_id="e1", stage="synonym_proposal_triage_completed", level="info", message="m", created_at=ts, payload_json=json.dumps(payload)),
+        RunEvent(run_id="r", event_id="e2", stage="synonym_proposal_triage_completed", level="info", message="m", created_at=ts, payload_json=json.dumps(payload)),
+    ]
+    first = _collapse_timeline_noise(events)
+    second = _collapse_timeline_noise(events)
+    assert [(e.event_id, n) for e, n in first] == [(e.event_id, n) for e, n in second]
+
+
+def test_collapse_timeline_noise_does_not_mutate_source_events() -> None:
+    ts = datetime.datetime.now(datetime.timezone.utc)
+    payload = {
+        "triaged_count": 1,
+        "reused_count": 0,
+        "fresh_count": 1,
+        "fallback_count": 0,
+        "skipped_count": 0,
+        "failed_count": 0,
+        "reuse_reason": "reuse_enabled",
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+    }
+    event = RunEvent(run_id="r", event_id="e1", stage="synonym_proposal_triage_completed", level="info", message="m", created_at=ts, payload_json=json.dumps(payload))
+    events = [event, event]
+    _ = _collapse_timeline_noise(events)
+    assert events[0].event_id == "e1"
+    assert json.loads(str(events[0].payload_json or "{}"))["triaged_count"] == 1
 def test_post_runs_inserts_before_enqueue(tmp_path):
     """@proves admin_control_plane_core.insert-before-enqueue-invariant
 
@@ -170,6 +273,34 @@ def test_get_run_detail_keeps_running_for_inline_started_job_status() -> None:
     assert not mock_update_status.called
     assert not mock_append_event.called
 
+def test_get_run_detail_keeps_running_for_inline_missing_job_status() -> None:
+    from fitcv_cp.models import PipelineRun
+    from datetime import datetime, timezone
+
+    running = PipelineRun(
+        run_id="run-inline-missing-1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        started_at=datetime.now(timezone.utc),
+        queue_job_id="inline-job-missing-1",
+        run_mode="run_all",
+    )
+
+    with patch("fitcv_cp.app.get_run", return_value=running), \
+         patch("fitcv_cp.app.get_queue_job_status", return_value="missing"), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event") as mock_append_event:
+        resp = TestClient(_app()).get("/runs/run-inline-missing-1")
+
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "running"
+    assert not mock_update_status.called
+    assert not mock_append_event.called
+
 def test_get_runs_list_reconciles_orphaned_running_run_when_queue_job_missing() -> None:
     from fitcv_cp.models import PipelineRun
     from datetime import datetime, timezone
@@ -213,6 +344,36 @@ def test_get_runs_list_reconciles_orphaned_running_run_when_queue_job_missing() 
     assert payload[0]["status"] == "failed"
     assert mock_update_status.called
 
+def test_get_runs_list_keeps_running_for_inline_missing_job_status() -> None:
+    from fitcv_cp.models import PipelineRun
+    from datetime import datetime, timezone
+
+    running = PipelineRun(
+        run_id="run-inline-missing-list-1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        started_at=datetime.now(timezone.utc),
+        queue_job_id="inline-job-missing-list-1",
+        run_mode="run_all",
+    )
+
+    with patch("fitcv_cp.app.list_runs", return_value=[running]), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event") as mock_append_event, \
+         patch("fitcv_cp.app.get_queue_job_status", return_value="missing"):
+        resp = TestClient(_app()).get("/runs")
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert isinstance(payload, list) and payload
+    assert payload[0]["status"] == "running"
+    assert not mock_update_status.called
+    assert not mock_append_event.called
+
 def test_admin_runs_reconciles_orphaned_running_run_when_queue_job_missing() -> None:
     from fitcv_cp.models import PipelineRun
     from datetime import datetime, timezone
@@ -255,6 +416,36 @@ def test_admin_runs_reconciles_orphaned_running_run_when_queue_job_missing() -> 
     assert "run-orphaned-admin-1" in resp.text
     assert "failed" in resp.text.lower()
     assert mock_update_status.called
+
+def test_admin_runs_keeps_running_for_inline_missing_job_status() -> None:
+    from fitcv_cp.models import PipelineRun
+    from datetime import datetime, timezone
+
+    running = PipelineRun(
+        run_id="run-inline-missing-admin-1",
+        status=RunStatus.RUNNING,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        started_at=datetime.now(timezone.utc),
+        queue_job_id="inline-job-missing-admin-1",
+        run_mode="run_all",
+    )
+
+    with patch("fitcv_cp.app.list_runs", return_value=[running]), \
+         patch("fitcv_cp.app.update_run_status") as mock_update_status, \
+         patch("fitcv_cp.app.append_event") as mock_append_event, \
+         patch("fitcv_cp.app.get_queue_job_status", return_value="missing"), \
+         patch("fitcv_cp.app.get_pipeline_runs_schema_status", return_value={"status": "complete", "missing_columns": [], "warning": None}):
+        resp = TestClient(_app()).get("/admin/runs")
+
+    assert resp.status_code == 200
+    assert "run-inline-missing-admin-1" in resp.text
+    assert "running" in resp.text.lower()
+    assert not mock_update_status.called
+    assert not mock_append_event.called
 
 
 def test_post_runs_rejects_empty_jobs_path():
@@ -3279,10 +3470,94 @@ def test_run_detail_timeline_keeps_validation_failed_job_message_from_payload():
         resp = TestClient(_app()).get("/admin/runs/run-cv-validation-row")
 
     assert resp.status_code == 200
-    assert "CV validation failed for https://jobs.example.com/1" in resp.text
+    assert "CV validation failed (expected policy rejection) for https://jobs.example.com/1" in resp.text
+    assert "unexpected; investigate" not in resp.text
     assert "CV generation complete:" not in resp.text
 
 
+def test_run_detail_timeline_marks_validation_failed_as_unexpected_when_contract_fields_missing():
+    from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-cv-validation-row-unexpected",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    events = [
+        RunEvent(
+            run_id="run-cv-validation-row-unexpected",
+            event_id="e1",
+            stage="layer4_cv_validation_failed",
+            level="warning",
+            message="legacy validation copy",
+            created_at=datetime.now(timezone.utc),
+            payload_json=json.dumps(
+                {
+                    "event_name": "cv_generation_decision",
+                    "event_family": "decision",
+                    "source_stage": "cv_generation",
+                    "job_url": "https://jobs.example.com/2",
+                    "event_status": "completed",
+                    "deterministic_outcome": None,
+                    "stage_owned_subreason": None,
+                }
+            ),
+        )
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-cv-validation-row-unexpected")
+
+    assert resp.status_code == 200
+    assert "CV validation failed (unexpected; investigate) for https://jobs.example.com/2" in resp.text
+
+def test_run_detail_timeline_shows_repeat_count_for_collapsed_synonym_triage() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-triage-repeat",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+    )
+    payload = {
+        "triaged_count": 5,
+        "reused_count": 0,
+        "fresh_count": 5,
+        "fallback_count": 0,
+        "skipped_count": 0,
+        "failed_count": 0,
+        "reuse_reason": "reuse_enabled",
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+    }
+    ts = datetime.now(timezone.utc)
+    events = [
+        RunEvent(run_id="run-triage-repeat", event_id="e1", stage="synonym_proposal_triage_completed", level="info", message="Synonym triage refresh completed", created_at=ts, payload_json=json.dumps(payload)),
+        RunEvent(run_id="run-triage-repeat", event_id="e2", stage="synonym_proposal_triage_completed", level="info", message="Synonym triage refresh completed", created_at=ts, payload_json=json.dumps(payload)),
+    ]
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+    patch("fitcv_cp.app.get_events", return_value=events), \
+    patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+    patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+    patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-triage-repeat")
+
+    assert resp.status_code == 200
+    assert "(x2)" in resp.text
 def test_run_detail_timeline_hides_stage_download_for_mapped_event_without_stage_artifact():
     from fitcv_cp.models import PipelineRun, RunStatus, RunEvent
     from datetime import datetime, timezone
@@ -10344,3 +10619,9 @@ def test_admin_settings_has_guarded_save_preflight_script() -> None:
     html = resp.text
     assert "runPreflightGuardrails(form)" in html
     assert "high-impact settings" in html
+
+
+
+
+
+
