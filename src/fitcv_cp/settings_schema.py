@@ -804,6 +804,9 @@ _IA_DOMAIN_STAGES = "stages"
 _IA_DOMAIN_RULES = "rules"
 _IA_DOMAIN_INTEGRATIONS = "integrations"
 _IA_DOMAIN_ADVANCED = "advanced"
+COMPLEXITY_VIEW_BASIC = "basic"
+COMPLEXITY_VIEW_ADVANCED = "advanced"
+COMPLEXITY_VIEW_ALL = "all"
 
 DECISION_STATUS_NEEDS_REVIEW = "needs_review"
 DECISION_STATUS_RECOMMENDED = "recommended"
@@ -919,6 +922,50 @@ _GROUP_TO_APPLIES_WHEN: dict[str, str] = {
     "cv_preset": "Used when resolving CV preset/model defaults for generation.",
 }
 
+_STAGE_INTAKE_FILTERING = "intake_filtering"
+_STAGE_AGENTIC_PROCESSING = "agentic_processing"
+_STAGE_SCORING = "scoring"
+_STAGE_CV_COMPOSITION = "cv_composition"
+_STAGE_RUNTIME_OPERATIONS = "runtime_operations"
+
+_GROUP_TO_STAGE_ID: dict[str, str] = {
+    "retrieval": _STAGE_INTAKE_FILTERING,
+    "global_job_filters": _STAGE_INTAKE_FILTERING,
+    "rule_filter": _STAGE_INTAKE_FILTERING,
+    "ranking": _STAGE_SCORING,
+    "cv_composition": _STAGE_CV_COMPOSITION,
+    "cv_validation": _STAGE_CV_COMPOSITION,
+    "cv_preset": _STAGE_CV_COMPOSITION,
+    "run_lifecycle": _STAGE_RUNTIME_OPERATIONS,
+    "timing": _STAGE_RUNTIME_OPERATIONS,
+    "agentic": _STAGE_AGENTIC_PROCESSING,
+}
+
+_CONTROL_SURFACE_STANDARD_PIPELINE = "standard_pipeline"
+_CONTROL_SURFACE_AGENTIC_RUNTIME = "agentic_runtime"
+_CONTROL_SURFACE_SHARED = "shared"
+
+_GROUP_TO_CONTROL_SURFACE: dict[str, str] = {
+    "retrieval": _CONTROL_SURFACE_STANDARD_PIPELINE,
+    "global_job_filters": _CONTROL_SURFACE_STANDARD_PIPELINE,
+    "rule_filter": _CONTROL_SURFACE_STANDARD_PIPELINE,
+    "ranking": _CONTROL_SURFACE_STANDARD_PIPELINE,
+    "cv_composition": _CONTROL_SURFACE_STANDARD_PIPELINE,
+    "cv_validation": _CONTROL_SURFACE_STANDARD_PIPELINE,
+    "cv_preset": _CONTROL_SURFACE_STANDARD_PIPELINE,
+    "run_lifecycle": _CONTROL_SURFACE_SHARED,
+    "timing": _CONTROL_SURFACE_SHARED,
+    "agentic": _CONTROL_SURFACE_AGENTIC_RUNTIME,
+}
+
+_DECISION_AREA_ENABLEMENT = "enablement"
+_DECISION_AREA_BEHAVIOR = "behavior"
+_DECISION_AREA_QUALITY_TARGETS = "quality_targets"
+_DECISION_AREA_THROUGHPUT = "throughput"
+_DECISION_AREA_AUTOMATION = "automation"
+_DECISION_AREA_SAFEGUARDS = "safeguards"
+_DECISION_AREA_DIAGNOSTICS = "diagnostics"
+
 _HIGH_RISK_GROUPS: frozenset[str] = frozenset({"ranking", "timing"})
 _MEDIUM_RISK_GROUPS: frozenset[str] = frozenset(
     {"retrieval", "agentic", "run_lifecycle", "global_job_filters", "rule_filter"}
@@ -946,6 +993,54 @@ def _default_ia_domain(entry: dict[str, Any]) -> str:
     group = str(entry.get("group") or "")
     return _GROUP_TO_IA_DOMAIN.get(group, _IA_DOMAIN_ADVANCED)
 
+def _default_stage_id(entry: dict[str, Any]) -> str:
+    key = str(entry.get("key") or "")
+    if key.startswith("cv_analysis.semantic_alignment."):
+        return _STAGE_AGENTIC_PROCESSING
+    group = str(entry.get("group") or "")
+    return _GROUP_TO_STAGE_ID.get(group, _STAGE_RUNTIME_OPERATIONS)
+
+def _default_control_surface(entry: dict[str, Any]) -> str:
+    key = str(entry.get("key") or "")
+    if key.startswith("cv_analysis.semantic_alignment."):
+        return _CONTROL_SURFACE_AGENTIC_RUNTIME
+    group = str(entry.get("group") or "")
+    return _GROUP_TO_CONTROL_SURFACE.get(group, _CONTROL_SURFACE_SHARED)
+
+def _default_decision_area(entry: dict[str, Any]) -> str:
+    key = str(entry.get("key") or "")
+    group = str(entry.get("group") or "")
+    if key in _METADATA_ONLY_KEYS:
+        return _DECISION_AREA_DIAGNOSTICS
+    if group == "agentic":
+        if key.startswith("synonym_management.auto_") or key.endswith("_recommendation_enabled"):
+            return _DECISION_AREA_AUTOMATION
+        if key in {
+            "cv.agentic_late_stage.enabled",
+            "synonym_management.propose_enabled",
+            "synonym_management.apply_to_run_enabled",
+            "synonym_management.promote_global_enabled",
+        }:
+            return _DECISION_AREA_ENABLEMENT
+    if key.startswith("cv_analysis.semantic_alignment."):
+        if key.endswith("_weight"):
+            return _DECISION_AREA_QUALITY_TARGETS
+        if key.endswith("channel_pool_size"):
+            return _DECISION_AREA_THROUGHPUT
+        if key.endswith(".model") or key.endswith(".enabled"):
+            return _DECISION_AREA_ENABLEMENT if key.endswith(".enabled") else _DECISION_AREA_DIAGNOSTICS
+    if group == "retrieval":
+        return _DECISION_AREA_THROUGHPUT
+    if group == "ranking":
+        return _DECISION_AREA_QUALITY_TARGETS
+    if group in {"global_job_filters", "rule_filter", "run_lifecycle", "cv_validation"}:
+        return _DECISION_AREA_SAFEGUARDS
+    if group in {"cv_composition", "cv_preset"}:
+        return _DECISION_AREA_BEHAVIOR
+    if group == "timing":
+        return _DECISION_AREA_THROUGHPUT
+    return _DECISION_AREA_BEHAVIOR
+
 def _build_settings_ia_metadata() -> dict[str, dict[str, Any]]:
     metadata: dict[str, dict[str, Any]] = {}
     for entry in SETTINGS_SCHEMA:
@@ -954,6 +1049,9 @@ def _build_settings_ia_metadata() -> dict[str, dict[str, Any]]:
         risk = _risk_for_entry(entry)
         metadata[key] = {
             "domain": _default_ia_domain(entry),
+            "stage": _default_stage_id(entry),
+            "control_surface": _default_control_surface(entry),
+            "decision_area": _default_decision_area(entry),
             "workflow_stages": list(_GROUP_TO_WORKFLOW_STAGES.get(group, ())),
             "risk": risk,
             "runtime_used": key not in _METADATA_ONLY_KEYS,
@@ -962,6 +1060,7 @@ def _build_settings_ia_metadata() -> dict[str, dict[str, Any]]:
             "can_override": key not in _METADATA_ONLY_KEYS,
             "is_dangerous": risk == "high" or group in _DANGER_ZONE_GROUPS,
             "advanced": _default_ia_domain(entry) == _IA_DOMAIN_ADVANCED,
+            "complexity_view": COMPLEXITY_VIEW_ADVANCED if _default_ia_domain(entry) == _IA_DOMAIN_ADVANCED else COMPLEXITY_VIEW_BASIC,
             "unused": False,
             "recommended_delta": False,
             "decision_status": DECISION_STATUS_CONFIGURED,
@@ -1005,6 +1104,20 @@ def settings_keys_for_workflow_stage(stage: str) -> list[str]:
         key
         for key, meta in SETTINGS_IA_METADATA_BY_KEY.items()
         if stage in list(meta.get("workflow_stages") or [])
+    )
+
+def settings_keys_for_stage(stage: str) -> list[str]:
+    return sorted(
+        key
+        for key, meta in SETTINGS_IA_METADATA_BY_KEY.items()
+        if str(meta.get("stage") or "") == stage
+    )
+
+def settings_keys_for_control_surface(control_surface: str) -> list[str]:
+    return sorted(
+        key
+        for key, meta in SETTINGS_IA_METADATA_BY_KEY.items()
+        if str(meta.get("control_surface") or "") == control_surface
     )
 
 def settings_ia_contract_for_key(key: str) -> dict[str, Any]:
