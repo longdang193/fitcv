@@ -146,6 +146,35 @@ Examples:
   3. fail fast if required fields remain unresolved
 - provider credentials: read from process env
 
+## AI-Plane Contract (Migration Freeze)
+
+This migration lane defines a strict split between storage backend selection and AI runtime behavior.
+
+- `data_plane` ownership:
+  - runtime backend selection (`sqlite` / `bigquery`)
+  - persistence/query adapter behavior only
+- `ai_plane` ownership:
+  - provider + model routing via `control_plane.model_routing.parts.*`
+  - AI credential contract via process env keys
+
+Prohibited coupling:
+
+- backend mode must not alter AI provider selection
+- backend mode must not alter AI model selection
+- backend mode must not alter AI auth key resolution order
+
+Canonical AI auth contract:
+
+- primary key: `FITCV_LLM_API_KEY`
+- temporary compatibility aliases (deprecation window only): `OPENAI_API_KEY`, `OPENAI_COMPATIBLE_API_KEY`
+- `service_account_key` is not an AI credential and is reserved for BigQuery data-plane auth only
+
+Fail-fast runtime contract:
+
+- if routed AI provider/model cannot be resolved, runtime must fail with explicit configuration error
+- if AI auth key is missing for routed HTTP provider, runtime must fail with explicit credential error
+- no implicit Gemini/default model fallback is allowed as runtime authority in unified mode
+
 ## Related Docs
 
 - [setup.md](setup.md)

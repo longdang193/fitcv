@@ -1,0 +1,31 @@
+{
+  "run_id": "f8549230-ac38-4035-8ce3-c1545d2f1ce5",
+  "status": "succeeded",
+  "run_mode": "run_all",
+  "checkpoint_status": "completed",
+  "next_stage": null,
+  "last_completed_stage": "cv_generation",
+  "completed_stages": [
+    "normalize",
+    "enrich",
+    "rule_filter",
+    "shortlist",
+    "ranking",
+    "cv_analysis",
+    "cv_generation"
+  ],
+  "triggered_by": "codex-live-debugging-2026-05-17-router",
+  "jobs_path": "data/sample_jobs.json",
+  "created_at": "2026-05-17T14:24:18.136019+02:00",
+  "started_at": "2026-05-17T14:24:18.910929+02:00",
+  "finished_at": "2026-05-17T14:29:55.263111+02:00",
+  "total_jobs": 7,
+  "passed_filter": 3,
+  "ranked": 3,
+  "cvs_generated": 2,
+  "error_message": null,
+  "error_stage": null,
+  "queue_job_id": "7503af5d-ba9b-442a-a228-fe5c66ae42c5",
+  "orchestration_backend": "queue",
+  "orchestration_run_id": "7503af5d-ba9b-442a-a228-fe5c66ae42c5"
+}

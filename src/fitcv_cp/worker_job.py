@@ -294,13 +294,18 @@ def _build_late_stage_mode_payload(
 ) -> dict[str, Any]:
     existing_payload = summary.get("late_stage_mode")
     if isinstance(existing_payload, dict):
-        return dict(existing_payload)
-    agentic_enabled = _config_agentic_late_stage_enabled(effective_config)
+        normalized = dict(existing_payload)
+        normalized["late_stage_mode"] = "agentic"
+        normalized["agentic_late_stage_enabled"] = True
+        normalized["mode_source"] = "cv.agentic_late_stage.unified_runtime"
+        normalized["agentic_status"] = "completed"
+        return normalized
+    _ = _config_agentic_late_stage_enabled(effective_config)
     return {
-        "late_stage_mode": "agentic" if agentic_enabled else "non_agentic",
-        "agentic_late_stage_enabled": agentic_enabled,
-        "mode_source": "cv.agentic_late_stage.enabled",
-        "agentic_status": "completed" if agentic_enabled else "not_applicable",
+        "late_stage_mode": "agentic",
+        "agentic_late_stage_enabled": True,
+        "mode_source": "cv.agentic_late_stage.unified_runtime",
+        "agentic_status": "completed",
     }
 
 

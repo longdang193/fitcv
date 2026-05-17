@@ -15,6 +15,7 @@ tags:
 from unittest.mock import MagicMock, patch
 import datetime
 import json
+from copy import deepcopy
 from fitcv_cp.backend_runtime import BackendRuntime
 from fitcv_cp.worker_job import execute_pipeline_run
 from fitcv_cp.models import RunStatus
@@ -63,6 +64,83 @@ def test_worker_sqlite_mode_skips_bigquery_client_bootstrap():
         return_value={"run_id": "r1", "total_jobs": 0, "passed_filter": 0, "ranked": 0, "cvs_generated": 0},
     ):
         execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+
+def test_worker_results_export_keeps_ai_plane_payload_equivalent_across_backends() -> None:
+    """@proves cv_system.backend-symmetry-ai-plane-equivalence"""
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.run_mode = "run_all"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    ai_plane_result = {
+        "run_id": "r1",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 1,
+        "export_results": [
+            {
+                "job_url": "https://example.com/1",
+                "pipeline_status": "ranked_with_cv",
+                "deterministic_outcome": "accepted",
+                "source_stage": "cv_generation",
+                "stage_owned_subreason": "accepted",
+                "cv": {"version_id": "v1", "ranking_fit_label": "strong"},
+            }
+        ],
+        "cv_analysis_trace": {
+            "trace_schema_version": "agentic_step_trace_run_v1",
+            "late_stage_mode": {"late_stage_mode": "agentic"},
+            "records": [{"record_id": "https://example.com/1", "status": "ready_for_generation"}],
+        },
+        "agentic_live_trace": {
+            "trace_schema_version": "agentic_step_trace_run_v1",
+            "late_stage_mode": {"late_stage_mode": "agentic"},
+            "records": [{"record_id": "https://example.com/1", "status": "accepted"}],
+        },
+    }
+
+    def _capture_results_export(backend_type: str) -> dict:
+        bq = MagicMock()
+        bq.query.return_value.result.return_value = iter([])
+        with patch(
+            "fitcv_cp.worker_job.resolve_backend_runtime",
+            return_value=BackendRuntime(
+                backend_type=backend_type,
+                project="local",
+                dataset="fitcv",
+                sqlite_path="data/fitcv_cp.sqlite3" if backend_type == "sqlite" else None,
+            ),
+        ), patch("fitcv_cp.worker_job._get_bq", return_value=bq), patch(
+            "fitcv_cp.worker_job.get_run",
+            return_value=mock_run,
+        ), patch("fitcv_cp.worker_job.run_pipeline", return_value=ai_plane_result), patch(
+            "fitcv_cp.worker_job.update_run_results_export"
+        ) as mock_store_export:
+            execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+        return json.loads(mock_store_export.call_args.args[1])
+
+    bigquery_payload = _capture_results_export("bigquery")
+    sqlite_payload = _capture_results_export("sqlite")
+
+    assert bigquery_payload["data_plane"]["state_backend"] != sqlite_payload["data_plane"]["state_backend"]
+    # Allowed backend-only diff set: persistence substrate metadata.
+    bq_normalized = deepcopy(bigquery_payload)
+    sqlite_normalized = deepcopy(sqlite_payload)
+    bq_normalized["data_plane"]["state_backend"] = "<backend>"
+    sqlite_normalized["data_plane"]["state_backend"] = "<backend>"
+    bq_normalized["data_plane"]["artifact_backend"] = "<artifact_backend>"
+    sqlite_normalized["data_plane"]["artifact_backend"] = "<artifact_backend>"
+    bq_normalized["finished_at"] = "<finished_at>"
+    sqlite_normalized["finished_at"] = "<finished_at>"
+
+    assert bq_normalized == sqlite_normalized
 
 
 def test_worker_normalizes_windows_service_account_key_in_non_windows_runtime():
@@ -142,9 +220,9 @@ def test_worker_persists_results_export_json_on_success():
     assert payload["replay_context"]["replay_source_run_id"] == "r1"
     assert payload["replay_context"]["policy_registry_version"] == "policy_registry.v1"
     assert payload["summary"]["ranked"] == 2
-    assert payload["late_stage_mode"]["late_stage_mode"] == "non_agentic"
-    assert payload["late_stage_mode"]["agentic_late_stage_enabled"] is False
-    assert payload["late_stage_mode"]["agentic_status"] == "not_applicable"
+    assert payload["late_stage_mode"]["late_stage_mode"] == "agentic"
+    assert payload["late_stage_mode"]["agentic_late_stage_enabled"] is True
+    assert payload["late_stage_mode"]["agentic_status"] == "completed"
     assert "stage_quality_metrics" not in payload
     assert "late_stage_reuse_metrics" not in payload
     assert "shortlist_debug" not in payload
@@ -447,7 +525,7 @@ def test_worker_persists_cv_generation_debug_json_on_success():
             "late_stage_mode": {
                 "late_stage_mode": "agentic",
                 "agentic_late_stage_enabled": True,
-                "mode_source": "cv.agentic_late_stage.enabled",
+                "mode_source": "cv.agentic_late_stage.unified_runtime",
                 "agentic_status": "completed",
             },
             "trace_status": "completed",
@@ -475,7 +553,7 @@ def test_worker_persists_cv_generation_debug_json_on_success():
             "late_stage_mode": {
                 "late_stage_mode": "agentic",
                 "agentic_late_stage_enabled": True,
-                "mode_source": "cv.agentic_late_stage.enabled",
+                "mode_source": "cv.agentic_late_stage.unified_runtime",
                 "agentic_status": "completed",
             },
             "trace_status": "completed",
@@ -811,9 +889,9 @@ def test_worker_persists_settings_used_json_on_success():
     assert payload["replay_context"]["replay_mode"] == "strict"
     assert payload["replay_context"]["replay_source_run_id"] == "r1"
     assert payload["replay_context"]["policy_registry_version"] == "policy_registry.v1"
-    assert payload["late_stage_mode"]["late_stage_mode"] == "non_agentic"
-    assert payload["late_stage_mode"]["agentic_late_stage_enabled"] is False
-    assert payload["late_stage_mode"]["agentic_status"] == "not_applicable"
+    assert payload["late_stage_mode"]["late_stage_mode"] == "agentic"
+    assert payload["late_stage_mode"]["agentic_late_stage_enabled"] is True
+    assert payload["late_stage_mode"]["agentic_status"] == "completed"
     assert payload["effective_settings"]["pipeline"]["final_top_n"] == 10
     assert payload["sources"]["config_path"] == ".env.yaml"
     assert payload["sources"]["effective_settings_snapshot_present"] is True

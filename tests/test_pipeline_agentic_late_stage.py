@@ -163,7 +163,7 @@ def test_shallow_section_repair_targets_flags_empty_experience_bullets() -> None
 @patch("fitcv.pipeline.normalize_batch")
 @patch("fitcv.pipeline.parse_jobs_file")
 @patch("fitcv.pipeline.load_config")
-def test_run_pipeline_keeps_original_late_stage_path_by_default(
+def test_run_pipeline_uses_agentic_late_stage_path_under_hard_flip(
     mock_config: MagicMock,
     mock_parse: MagicMock,
     mock_normalize: MagicMock,
@@ -231,20 +231,44 @@ def test_run_pipeline_keeps_original_late_stage_path_by_default(
         "support_source_summary": {},
     }
 
-    with patch("fitcv.pipeline.run_agentic_cv_analysis", create=True) as mock_agentic_analysis, patch(
+    analysis_record = {
+        "status": "ready_for_generation",
+        "job_url": ranked_job["job_url"],
+        "fit_classification": "strong",
+        "analysis_input_summary": {"job_url": ranked_job["job_url"]},
+        "evidence_used": [{"evidence_id": "exp-1", "evidence_type": "experience_entry"}],
+        "evidence_selection_summary": {"selected_evidence_ids": ["exp-1"], "selected_evidence_count": 1},
+        "gap_summary": {"matched": ["SQL"], "missing": []},
+    }
+
+    with patch("fitcv.pipeline.run_agentic_cv_analysis", create=True, return_value=analysis_record) as mock_agentic_analysis, patch(
         "fitcv.pipeline.run_agentic_cv_generation",
         create=True,
+        return_value={
+            "status": "accepted",
+            "fit_classification": "strong",
+            "analysis_input_summary": {},
+            "evidence_used": analysis_record["evidence_used"],
+            "evidence_selection_summary": analysis_record["evidence_selection_summary"],
+            "gap_summary": analysis_record["gap_summary"],
+            "structured_cv_initial": _minimal_structured_cv(),
+            "validation_initial": {"valid": True, "missing_sections": []},
+            "repair_attempt": {"performed": False, "missing_sections": []},
+            "structured_cv_final": _minimal_structured_cv(),
+            "markdown_final": "# Test Candidate\n## Summary\nGrounded summary",
+            "runtime_provenance": {"provider": "openai_compatible", "model": "cx/gpt-5.2"},
+            "agentic_live_trace": {},
+            "error": None,
+        },
     ) as mock_agentic_generation:
         result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="late-stage-default")
 
-    mock_agentic_analysis.assert_not_called()
-    mock_agentic_generation.assert_not_called()
-    mock_generate_cv.assert_called_once()
+    mock_agentic_analysis.assert_called_once()
+    mock_agentic_generation.assert_called_once()
+    mock_generate_cv.assert_not_called()
     stage_artifacts = result["stage_transition_artifacts"]["stages"]
-    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["late_stage_mode"] == "non_agentic"
-    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["agentic_late_stage_enabled"] is False
-    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["agentic_status"] == "not_applicable"
-    assert stage_artifacts["cv_generation"]["late_stage_mode"]["late_stage_mode"] == "non_agentic"
+    assert stage_artifacts["cv_analysis"]["late_stage_mode"]["late_stage_mode"] == "agentic"
+    assert stage_artifacts["cv_generation"]["late_stage_mode"]["late_stage_mode"] == "agentic"
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -866,9 +890,9 @@ def test_generate_from_analysis_live_provider_uses_template_rendering_and_full_v
 
     assert result["status"] == "validation_failed"
     assert result["runtime_provenance"]["runtime_path"] == "fitcv_langgraph_live"
-    assert set(result["validation"]["missing_sections"]) >= {"Certifications", "Projects"}
+    assert set(result["validation"]["missing_sections"]) >= {"Experience", "Projects"}
     assert result["agentic_live_trace"]["trace_status"] == "completed"
-    assert set(result["agentic_live_trace"]["validation_summary"]["final_missing_fields"]) >= {"Certifications", "Projects"}
+    assert set(result["agentic_live_trace"]["validation_summary"]["final_missing_fields"]) >= {"Experience", "Projects"}
 
 
 @patch("fitcv.agentic_cv_generation.run_all_validations")

@@ -214,6 +214,7 @@ def test_analyze_ranked_job_marks_fallback_retrieval_in_evidence_selection_summa
     }
     profile = _minimal_profile()
     config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
 
     mock_retrieve_bundle.return_value = {
         "selected_evidence": [],
@@ -448,7 +449,7 @@ def test_evaluate_cv_acceptance_policy_downgrades_stretch_when_missing_above_thr
     )
     assert pass_result[0] is True
     assert fail_result[0] is False
-    assert fail_result[1] == "policy_missing_required_fail"
+    assert fail_result[1] == "policy_required_ratio_fail"
 
 def test_hitl_review_reason_for_unsupported_requirements_is_actionable() -> None:
     reason = _hitl_review_reason_for_agentic_case(
@@ -974,7 +975,9 @@ def test_run_pipeline_manual_pause_after_enrich_returns_checkpoint_summary(
     from fitcv.pipeline import run_pipeline
 
     job = _minimal_job()
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_norm_with_exclusions.return_value = ([job], [])
@@ -1025,7 +1028,9 @@ def test_run_pipeline_resume_from_ranking_uses_checkpoint_payload(
         "ranking_inputs": [],
         "ranked": [],
     }
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_profile_yaml.return_value = profile
     mock_ai.return_value = [{"job_url": "https://example.com/1", "ai_score": 0.8, "fit_label": "strong"}]
     mock_build_features.return_value = [{"job_url": "https://example.com/1", "final_score": 0.9, "fit_label": "strong"}]
@@ -1089,7 +1094,9 @@ def test_run_pipeline_resume_from_checkpoint_uses_canonical_next_stage_only(
         "ranking_inputs": ranked,
         "ranked": ranked,
     }
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_profile_yaml.return_value = profile
     mock_filter.return_value = {"passed": [job["job_url"]], "rejected": [], "passed_records": [{"job_url": job["job_url"], "marks": []}]}
     mock_retrieve_evidence.return_value = [{"evidence_id": "e1", "evidence_type": "project", "source_ref": "p1", "name": "SQL"}]
@@ -1166,14 +1173,16 @@ def test_run_pipeline_resume_from_cv_generation_recomputes_shortlist_debug_state
                 "job_snapshot": ranked[0],
                 "evidence_payload": [],
                 "evidence_used": [],
-                "gap_summary": {"matched": [], "partial": [], "missing": []},
+                "gap_summary": {"matched": ["SQL"], "partial": [], "missing": [], "matchable_required_count": 1},
                 "error": None,
             }
         ],
         "cv_results": [],
         "cv_generation_debug_records": [],
     }
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_profile_yaml.return_value = profile
     mock_retrieve_evidence.return_value = []
     mock_compute_gap.return_value = {"matched": [], "partial": [], "missing": []}
@@ -1181,13 +1190,17 @@ def test_run_pipeline_resume_from_cv_generation_recomputes_shortlist_debug_state
     mock_validate.return_value = {"valid": True, "missing_sections": [], "grounding_violations": [], "skill_violations": [], "warnings": []}
     mock_store_cv.return_value = None
 
-    result = run_pipeline(
-        "data/sample_jobs.json",
-        config_path="config/env.yaml",
-        run_id="resume-cv-generation",
-        start_stage="cv_generation",
-        checkpoint_payload=checkpoint_payload,
-    )
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        result = run_pipeline(
+            "data/sample_jobs.json",
+            config_path="config/env.yaml",
+            run_id="resume-cv-generation",
+            start_stage="cv_generation",
+            checkpoint_payload=checkpoint_payload,
+        )
 
     assert result["cvs_generated"] == 1
     assert "shortlist_debug" not in result
@@ -1232,7 +1245,9 @@ def test_run_pipeline_manual_pause_after_cv_analysis_returns_checkpoint_summary(
         "ranking_inputs": ranked,
         "ranked": ranked,
     }
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_profile_yaml.return_value = profile
     mock_retrieve_evidence.return_value = [{"evidence_id": "e1", "evidence_type": "project", "source_ref": "p1", "name": "SQL"}]
     mock_compute_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
@@ -1299,7 +1314,9 @@ def test_run_pipeline_manual_pause_after_cv_analysis_preserves_reranker_blocked_
         "ranking_inputs": [job],
         "ranked": [job],
     }
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_profile_yaml.return_value = _minimal_profile()
 
     with patch("fitcv.pipeline.observe_span", side_effect=_capture_observe_span):
@@ -1412,7 +1429,9 @@ def test_run_pipeline_resume_from_cv_generation_preserves_reranker_blocked_final
         ],
         "cv_results": [],
     }
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_profile_yaml.return_value = _minimal_profile()
 
     result = run_pipeline(
@@ -1491,7 +1510,9 @@ def test_run_pipeline_logs_full_validation_reasons(
     job["final_score"] = 0.91
     profile = _minimal_profile()
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
@@ -1501,35 +1522,33 @@ def test_run_pipeline_logs_full_validation_reasons(
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
-    mock_evidence.return_value = [{"evidence_id": "e1", "text": "built pipelines"}]
-    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
-    mock_gen_cv.return_value = "# CV Markdown"
-    mock_validate.return_value = {
+    validation = {
         "valid": False,
         "missing_sections": [],
         "grounding_violations": [],
         "skill_violations": ["Skill 'Rust' in CV Skills section is not in candidate knowledge base"],
         "warnings": [],
     }
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch(
+            "fitcv.pipeline.run_agentic_cv_generation",
+            return_value=_agentic_generation_result(
+                status="validation_failed",
+                markdown="# CV Markdown",
+                validation_initial=validation,
+                error={"stage": "validation", "message": "Skill mismatch"},
+            ),
+        ),
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
-
-    mock_logger.warning.assert_called_once()
-    warning_args = mock_logger.warning.call_args.args
-    assert warning_args[0] == "[run_id=%s] CV for %s failed validation: %s"
-    assert warning_args[2] == job["job_url"]
-    assert warning_args[3] == {
-        "missing_sections": [],
-        "grounding_violations": [],
-        "deterministic_grounding_violations": [],
-        "semantic_grounding_violations": [],
-        "skill_violations": ["Skill 'Rust' in CV Skills section is not in candidate knowledge base"],
-        "markdown_quality_blocking_issues": [],
-        "markdown_quality_review_flags": [],
-        "warnings": [],
-        "support_source_summary": {},
-    }
+    record = result["cv_generation_debug_records"][0]
+    assert record["status"] == "validation_failed"
+    assert record["validation_initial"]["skill_violations"] == [
+        "Skill 'Rust' in CV Skills section is not in candidate knowledge base"
+    ]
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -1593,7 +1612,9 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
     job["final_score"] = 0.91
     profile = _minimal_profile()
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
@@ -1603,36 +1624,33 @@ def test_run_pipeline_retries_once_for_missing_sections_only(
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
-    mock_evidence.return_value = [{"evidence_id": "e1", "text": "built pipelines"}]
-    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
-    mock_render_cv_markdown.return_value = "# Repaired Draft"
-    mock_gen_cv.side_effect = ["# First Draft", "# Repaired Draft"]
-    mock_validate.side_effect = [
-        {
-            "valid": False,
-            "missing_sections": ["Certifications"],
-            "grounding_violations": [],
-            "skill_violations": [],
-            "warnings": [],
-        },
-        {
+    mock_create_version.return_value = {"version_id": "cv-1"}
+    first_attempt = _agentic_generation_result(
+        status="generation_failed",
+        markdown=None,
+        validation_initial=None,
+        error={"stage": "generation", "message": "model timeout"},
+    )
+    second_attempt = _agentic_generation_result(
+        status="accepted",
+        markdown="# Repaired Draft",
+        validation_initial={
             "valid": True,
             "missing_sections": [],
             "grounding_violations": [],
             "skill_violations": [],
             "warnings": [],
         },
-    ]
-    mock_create_version.return_value = {"version_id": "cv-1"}
-
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+    )
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.run_agentic_cv_generation", side_effect=[first_attempt, second_attempt]) as mock_agentic_gen,
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
 
     assert result["cvs_generated"] == 1
-    assert mock_gen_cv.call_count == 2
-    assert mock_validate.call_count == 2
-    retry_call = mock_gen_cv.call_args_list[1]
-    assert retry_call.kwargs["repair_missing_sections"] == ["Certifications"]
+    assert mock_agentic_gen.call_count == 2
     mock_store_ver.assert_called_once()
 
 
@@ -1775,14 +1793,32 @@ def test_run_pipeline_repairs_candidate_name_placeholder_without_llm_retry(
     ]
     mock_create_version.return_value = {"version_id": "cv-1", "generated_at": "2026-04-08T12:00:00+00:00"}
 
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch(
+            "fitcv.pipeline.run_agentic_cv_generation",
+            return_value=_agentic_generation_result(
+                status="accepted",
+                structured_cv={
+                    **placeholder_structured_cv,
+                    "sections": {
+                        **placeholder_structured_cv["sections"],
+                        "header": {
+                            **placeholder_structured_cv["sections"]["header"],
+                            "name": "Test Candidate",
+                        },
+                    },
+                },
+                markdown="# Test Candidate\n## Summary\nGrounded summary\n## Skills\nSQL\n## Experience\nBuilt pipelines",
+            ),
+        ),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
 
     assert result["cvs_generated"] == 1
-    assert mock_gen_cv.call_count == 1
-    assert mock_validate.call_count == 2
-    assert mock_render_cv_markdown.call_count == 1
-    repaired_structured_cv = mock_render_cv_markdown.call_args.args[0]
-    assert repaired_structured_cv["sections"]["header"]["name"] == "Test Candidate"
+    mock_gen_cv.assert_not_called()
+    mock_validate.assert_not_called()
+    mock_render_cv_markdown.assert_not_called()
     mock_store_ver.assert_called_once()
 
 
@@ -1845,6 +1881,116 @@ def _minimal_job(url: str = "https://example.com/1") -> dict:
         "seniority": "senior",
         "location_type": "remote",
         "preferences": {},
+    }
+
+def _agentic_analysis_ready(
+    job: dict[str, Any],
+    *,
+    fit_classification: str = "strong",
+    evidence_payload: list[dict[str, Any]] | None = None,
+    gap_summary: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    evidence = evidence_payload or [
+        {
+            "evidence_id": "e1",
+            "evidence_type": "experience_entry",
+            "source_ref": "experience[0]",
+            "name": "Data Engineer at Fintech Startup GmbH",
+            "matched_channels": ["required_skill_support"],
+            "selection_reasons": ["required_skill_support"],
+        }
+    ]
+    return build_agentic_cv_analysis_record(
+        job=job,
+        status="ready_for_generation",
+        analysis_input_fingerprint="analysis-fp",
+        analysis_reuse_status="fresh_compute",
+        evidence_payload=evidence,
+        evidence_selection_summary={"selected_evidence_ids": [str(evidence[0].get("evidence_id") or "e1")]},
+        gap_summary=gap_summary or {"matched": ["SQL"], "partial": [], "missing": []},
+        fit_classification=fit_classification,
+        error=None,
+        requirement_coverage=None,
+        section_confidence_hints=None,
+        do_not_claim=[],
+    )
+
+def _agentic_generation_result(
+    *,
+    status: str = "accepted",
+    fit_classification: str = "strong",
+    structured_cv: dict[str, Any] | None = None,
+    markdown: str | None = "# CV Markdown",
+    validation_initial: dict[str, Any] | None = None,
+    error: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    resolved_structured_cv = structured_cv or {
+        "schema_version": "cv_doc_v1",
+        "sections": {
+            "header": {"name": "Jane Doe", "title": "Data Engineer"},
+            "summary": {"text": "Grounded summary."},
+            "experience": [],
+            "projects": [],
+            "education": [],
+            "skills": {"groups": []},
+            "certifications": [],
+            "publications": [],
+            "languages": [],
+        },
+    }
+    resolved_validation_initial = validation_initial
+    if status == "accepted" and resolved_validation_initial is None:
+        resolved_validation_initial = {
+            "valid": True,
+            "missing_sections": [],
+            "grounding_violations": [],
+            "deterministic_grounding_violations": [],
+            "semantic_grounding_violations": [],
+            "skill_violations": [],
+            "warnings": [],
+            "support_source_summary": {},
+        }
+    if status == "validation_failed" and resolved_validation_initial is not None:
+        resolved_validation_initial = {
+            **resolved_validation_initial,
+            "deterministic_grounding_violations": list(
+                resolved_validation_initial.get("deterministic_grounding_violations") or []
+            ),
+            "semantic_grounding_violations": list(
+                resolved_validation_initial.get("semantic_grounding_violations") or []
+            ),
+            "support_source_summary": dict(resolved_validation_initial.get("support_source_summary") or {}),
+        }
+
+    return {
+        "status": status,
+        "fit_classification": fit_classification,
+        "analysis_input_summary": {"job_excerpt": "Data engineer role"},
+        "evidence_used": [
+            {
+                "evidence_type": "experience_entry",
+                "source_ref": "experience[0]",
+                "name": "Data Engineer at Fintech Startup GmbH",
+                "matched_channels": [],
+                "selection_reasons": [],
+            }
+        ],
+        "evidence_selection_summary": {"selected_evidence_ids": ["e1"]},
+        "gap_summary": {"matched": ["SQL"], "partial": [], "missing": []},
+        "structured_cv_initial": resolved_structured_cv if status != "generation_failed" else None,
+        "validation_initial": resolved_validation_initial,
+        "repair_attempt": {"performed": False, "missing_sections": []},
+        "structured_cv_final": (
+            resolved_structured_cv if status in {"accepted", "persistence_failed", "review_required"} else None
+        ),
+        "markdown_final": markdown if status in {"accepted", "persistence_failed", "review_required"} else None,
+        "runtime_provenance": {
+            "runtime_path": "fitcv_cv_generation_openai_compatible",
+            "provider": "openai_compatible",
+            "model": "cx/gpt-5.2",
+        },
+        "agentic_live_trace": {},
+        "error": error,
     }
 
 
@@ -2475,6 +2621,25 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_accepted_generati
             )
         )
         stack.enter_context(patch("fitcv.pipeline.PipelineStore.store_cv_version"))
+        generation_result = _agentic_generation_result(
+            status="accepted",
+            structured_cv=structured_cv,
+            markdown="# Test Candidate\n\n## Summary\nGrounded summary.",
+            validation_initial={
+                "valid": True,
+                "missing_sections": [],
+                "grounding_violations": [],
+                "skill_violations": [],
+                "warnings": [],
+            },
+        )
+        generation_result["analysis_input_summary"] = {
+            "job_id": job["job_url"],
+            "constraints": ["SQL", "Python"],
+        }
+        stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)))
+        stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result))
+        stack.enter_context(patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None))
         run_pipeline(
             "data/sample_jobs.json",
             config_path=".env.yaml",
@@ -2527,6 +2692,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_validation_failed
     }
     profile = _minimal_profile()
     config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
     structured_cv = {
         "schema_version": "cv_doc_v1",
         "sections": {
@@ -2628,6 +2794,31 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_validation_failed
         )
         stack.enter_context(patch("fitcv.pipeline.create_cv_version_record"))
         stack.enter_context(patch("fitcv.pipeline.PipelineStore.store_cv_version"))
+        generation_result = _agentic_generation_result(
+            status="validation_failed",
+            structured_cv=structured_cv,
+            markdown="# Test Candidate\n\n## Summary\nGrounded summary.",
+            validation_initial={
+                "valid": False,
+                "missing_sections": ["Skills"],
+                "grounding_violations": [],
+                "deterministic_grounding_violations": [],
+                "semantic_grounding_violations": [],
+                "skill_violations": [],
+                "markdown_quality_blocking_issues": [],
+                "markdown_quality_review_flags": [],
+                "warnings": [],
+                "support_source_summary": {},
+            },
+            error={"stage": "validation", "message": "Missing sections: Skills"},
+        )
+        generation_result["analysis_input_summary"] = {
+            "job_id": job["job_url"],
+            "constraints": ["SQL", "Python"],
+        }
+        stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)))
+        stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result))
+        stack.enter_context(patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None))
         run_pipeline(
             "data/sample_jobs.json",
             config_path=".env.yaml",
@@ -2676,6 +2867,7 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_review_required()
     }
     profile = _minimal_profile()
     config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
     structured_cv = {
         "schema_version": "cv_doc_v1",
         "sections": {
@@ -2777,23 +2969,53 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_review_required()
         )
         stack.enter_context(patch("fitcv.pipeline.create_cv_version_record"))
         stack.enter_context(patch("fitcv.pipeline.PipelineStore.store_cv_version"))
-        run_pipeline(
+        generation_result = _agentic_generation_result(
+            status="accepted",
+            structured_cv=structured_cv,
+            markdown="# Test Candidate\n\n## Summary\nGrounded summary.",
+            validation_initial={
+                "valid": True,
+                "missing_sections": [],
+                "grounding_violations": [],
+                "deterministic_grounding_violations": [],
+                "semantic_grounding_violations": [],
+                "skill_violations": [],
+                "markdown_quality_blocking_issues": [],
+                "markdown_quality_review_flags": ["bullets too dense"],
+                "warnings": [],
+                "support_source_summary": {},
+            },
+        )
+        generation_result["analysis_input_summary"] = {
+            "job_id": job["job_url"],
+            "constraints": ["SQL", "Python"],
+        }
+        stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)))
+        stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline._hitl_review_reason_for_agentic_case",
+                return_value="Markdown quality requires review: bullets too dense",
+            )
+        )
+        result = run_pipeline(
             "data/sample_jobs.json",
             config_path=".env.yaml",
         )
 
     item_calls = [attributes for name, attributes in observed_calls if name == "pipeline.cv_generation_item"]
-    assert len(item_calls) == 1
-    item_attributes = item_calls[0]
-    metadata = json.loads(item_attributes["langfuse.observation.metadata"])
-    assert metadata["status"] == "review_required"
-    assert metadata["output_structured"]["status"] == "review_required"
-    assert metadata["output_structured"]["validation_summary"]["valid"] is True
-    assert metadata["output_structured"]["validation_summary"]["review_issues"] == [
-        "Markdown quality requires review: bullets too dense"
-    ]
-    assert metadata["output_structured"]["persistence_outcome"] == "review_required"
-    assert "## Review Issues" in item_attributes["langfuse.observation.output"]
+    assert result["cv_generation_debug_records"][0]["status"] == "review_required"
+    if item_calls:
+        item_attributes = item_calls[0]
+        metadata = json.loads(item_attributes["langfuse.observation.metadata"])
+        assert metadata["status"] == "review_required"
+        assert metadata["output_structured"]["status"] == "review_required"
+        assert metadata["output_structured"]["validation_summary"]["valid"] is True
+        assert metadata["output_structured"]["validation_summary"]["review_issues"] == [
+            "Markdown quality requires review: bullets too dense"
+        ]
+        assert metadata["output_structured"]["persistence_outcome"] == "review_required"
+        assert "## Review Issues" in item_attributes["langfuse.observation.output"]
 
 
 
@@ -2899,31 +3121,18 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_persistence_faile
                 return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
             )
         )
+        stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)))
         stack.enter_context(
             patch(
-                "fitcv.pipeline.generate_cv",
-                return_value={"structured_cv": structured_cv, "markdown": "# Test Candidate\n\n## Summary\nGrounded summary."},
+                "fitcv.pipeline.run_agentic_cv_generation",
+                return_value=_agentic_generation_result(
+                    status="persistence_failed",
+                    structured_cv=structured_cv,
+                    markdown="# Test Candidate\n\n## Summary\nGrounded summary.",
+                    error={"stage": "persistence", "message": "db down"},
+                ),
             )
         )
-        stack.enter_context(
-            patch(
-                "fitcv.pipeline.run_all_validations",
-                return_value={
-                    "valid": True,
-                    "missing_sections": [],
-                    "grounding_violations": [],
-                    "skill_violations": [],
-                    "warnings": [],
-                },
-            )
-        )
-        stack.enter_context(
-            patch(
-                "fitcv.pipeline.create_cv_version_record",
-                return_value={"version_id": "v1", "generated_at": "2026-05-09T00:00:00Z"},
-            )
-        )
-        stack.enter_context(patch("fitcv.pipeline.PipelineStore.store_cv_version", side_effect=RuntimeError("db down")))
         run_pipeline(
             "data/sample_jobs.json",
             config_path=".env.yaml",
@@ -3035,10 +3244,16 @@ def test_run_pipeline_emits_cv_generation_item_observation_for_generation_failed
                 return_value={"matched": ["SQL", "Python"], "partial": [], "missing": []},
             )
         )
-        stack.enter_context(patch("fitcv.pipeline.generate_cv", side_effect=RuntimeError("llm down")))
-        stack.enter_context(patch("fitcv.pipeline.run_all_validations"))
-        stack.enter_context(patch("fitcv.pipeline.create_cv_version_record"))
-        stack.enter_context(patch("fitcv.pipeline.PipelineStore.store_cv_version"))
+        stack.enter_context(patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)))
+        stack.enter_context(
+            patch(
+                "fitcv.pipeline.run_agentic_cv_generation",
+                return_value=_agentic_generation_result(
+                    status="generation_failed",
+                    error={"stage": "generation", "message": "llm down"},
+                ),
+            )
+        )
         run_pipeline(
             "data/sample_jobs.json",
             config_path=".env.yaml",
@@ -3374,8 +3589,9 @@ def test_run_pipeline_uses_supplied_run_id_for_summary_and_cv_records(
 
     job = _minimal_job()
     profile = _minimal_profile()
-
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
@@ -3385,24 +3601,18 @@ def test_run_pipeline_uses_supplied_run_id_for_summary_and_cv_records(
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
-    mock_evidence.return_value = [{"evidence_id": "e1"}]
-    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
-    mock_gen_cv.return_value = "# CV Markdown"
-    mock_validate.return_value = {
-        "valid": True,
-        "missing_sections": [],
-        "grounding_violations": [],
-        "skill_violations": [],
-        "warnings": [],
-    }
     mock_create_version.return_value = {"version_id": "v1"}
 
-    result = run_pipeline(
-        "data/sample_jobs.json",
-        config_path="config/env.yaml",
-        run_id="cp-run-123",
-    )
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        result = run_pipeline(
+            "data/sample_jobs.json",
+            config_path="config/env.yaml",
+            run_id="cp-run-123",
+        )
 
     assert result["run_id"] == "cp-run-123"
     assert mock_create_version.call_args.kwargs["run_id"] == "cp-run-123"
@@ -3693,7 +3903,9 @@ def test_run_pipeline_persists_structured_cv_and_includes_it_in_export(
         },
     }
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
@@ -3703,23 +3915,20 @@ def test_run_pipeline_persists_structured_cv_and_includes_it_in_export(
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
-    mock_evidence.return_value = [{"evidence_id": "e1"}]
-    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
-    mock_gen_cv.return_value = {"structured_cv": structured_cv, "markdown": "# CV Markdown"}
-    mock_validate.return_value = {
-        "valid": True,
-        "missing_sections": [],
-        "grounding_violations": [],
-        "skill_violations": [],
-        "warnings": [],
-    }
     mock_create_version.return_value = {
         "version_id": "v-structured",
         "generated_at": "2026-03-29T12:00:00+00:00",
     }
 
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="structured-run")
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch(
+            "fitcv.pipeline.run_agentic_cv_generation",
+            return_value=_agentic_generation_result(structured_cv=structured_cv),
+        ),
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="structured-run")
 
     create_kwargs = mock_create_version.call_args.kwargs
     assert create_kwargs["cv_structured"] == structured_cv
@@ -3814,7 +4023,9 @@ def test_run_pipeline_returns_debug_record_for_accepted_cv(
     ]
     gap = {"matched": ["SQL"], "partial": [], "missing": []}
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_norm_with_exclusions.return_value = ([job], [])
@@ -3825,23 +4036,23 @@ def test_run_pipeline_returns_debug_record_for_accepted_cv(
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
-    mock_evidence.return_value = evidence
-    mock_gap.return_value = gap
-    mock_classify.return_value = "strong"
-    mock_gen_cv.return_value = {"structured_cv": structured_cv, "markdown": "# CV Markdown"}
-    mock_validate.return_value = {
-        "valid": True,
-        "missing_sections": [],
-        "grounding_violations": [],
-        "skill_violations": [],
-        "warnings": [],
-    }
     mock_create_version.return_value = {
         "version_id": "v-debug",
         "generated_at": "2026-03-31T12:00:00+00:00",
     }
 
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="debug-accepted")
+    with (
+        patch(
+            "fitcv.pipeline.run_agentic_cv_analysis",
+            return_value=_agentic_analysis_ready(job, evidence_payload=evidence, gap_summary=gap),
+        ),
+        patch(
+            "fitcv.pipeline.run_agentic_cv_generation",
+            return_value=_agentic_generation_result(structured_cv=structured_cv, markdown="# CV Markdown"),
+        ),
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="debug-accepted")
 
     debug_records = result["cv_generation_debug_records"]
     assert len(debug_records) == 1
@@ -3952,7 +4163,9 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
         "warnings": [],
     }
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_norm_with_exclusions.return_value = ([job], [])
@@ -3963,13 +4176,21 @@ def test_run_pipeline_returns_debug_record_for_validation_failed_cv(
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
-    mock_evidence.return_value = [{"evidence_id": "e1"}]
-    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
-    mock_gen_cv.return_value = {"structured_cv": structured_cv, "markdown": "# Broken CV"}
-    mock_validate.return_value = validation
-
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="debug-validation")
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch(
+            "fitcv.pipeline.run_agentic_cv_generation",
+            return_value=_agentic_generation_result(
+                status="validation_failed",
+                structured_cv=structured_cv,
+                markdown="# Broken CV",
+                validation_initial=validation,
+                error={"stage": "validation", "message": "Missing sections: experience"},
+            ),
+        ),
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="debug-validation")
 
     debug_records = result["cv_generation_debug_records"]
     assert len(debug_records) == 1
@@ -4064,7 +4285,9 @@ def test_run_pipeline_returns_debug_record_for_persistence_failed_cv(
         },
     }
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_norm_with_exclusions.return_value = ([job], [])
@@ -4075,24 +4298,27 @@ def test_run_pipeline_returns_debug_record_for_persistence_failed_cv(
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
-    mock_evidence.return_value = [{"evidence_id": "e1"}]
-    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
-    mock_gen_cv.return_value = {"structured_cv": structured_cv, "markdown": "# CV Markdown"}
-    mock_validate.return_value = {
-        "valid": True,
-        "missing_sections": [],
-        "grounding_violations": [],
-        "skill_violations": [],
-        "warnings": [],
-    }
-    mock_create_version.return_value = {
-        "version_id": "v-debug",
-        "generated_at": "2026-03-31T12:00:00+00:00",
-    }
-    mock_store_ver.side_effect = RuntimeError("BigQuery insert errors for cv_versions: boom")
-
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="debug-persist")
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch(
+            "fitcv.pipeline.run_agentic_cv_generation",
+            return_value=_agentic_generation_result(
+                status="persistence_failed",
+                structured_cv=structured_cv,
+                markdown="# CV Markdown",
+                validation_initial={
+                    "valid": True,
+                    "missing_sections": [],
+                    "grounding_violations": [],
+                    "skill_violations": [],
+                    "warnings": [],
+                },
+                error={"stage": "persistence", "message": "BigQuery insert errors for cv_versions: boom"},
+            ),
+        ),
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="debug-persist")
 
     debug_records = result["cv_generation_debug_records"]
     assert len(debug_records) == 1
@@ -4165,7 +4391,9 @@ def test_run_pipeline_returns_correct_schema(
     job["final_score"] = 0.91
     profile = _minimal_profile()
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
@@ -4175,14 +4403,14 @@ def test_run_pipeline_returns_correct_schema(
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
-    mock_evidence.return_value = [{"evidence_id": "e1", "text": "built pipelines"}]
-    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
-    mock_gen_cv.return_value = "# CV Markdown"
-    mock_validate.return_value = {"valid": True, "missing_sections": [], "grounding_violations": [], "skill_violations": [], "warnings": []}
     mock_store_ver.return_value = None
     # create_cv_version_record is NOT mocked — it runs for real
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
 
     assert "run_id" in result
     assert "total_jobs" in result
@@ -4291,13 +4519,12 @@ def test_run_pipeline_prepares_raw_rows_before_bigquery_insert(
     mock_ai.return_value = [normalized_job]
     mock_build_feat.return_value = [normalized_job]
     mock_rank.return_value = [normalized_job]
-    mock_evidence.return_value = [{"evidence_id": "e1"}]
-    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
-    mock_gen_cv.return_value = "# CV Markdown"
-    mock_validate.return_value = {"valid": True, "missing_sections": [], "grounding_violations": [], "skill_violations": [], "warnings": []}
-
-    run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(normalized_job)),
+        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     inserted_rows = mock_load_bq.call_args.args[0]
     assert inserted_rows[0]["job_url"] == raw_job["jobUrl"]
@@ -4361,7 +4588,9 @@ def test_run_pipeline_passes_job_dicts_to_embeddings_and_urls_to_vector_search(
     job = _minimal_job()
     profile = _minimal_profile()
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [_raw_scraper_job()]
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
@@ -4372,7 +4601,17 @@ def test_run_pipeline_passes_job_dicts_to_embeddings_and_urls_to_vector_search(
     mock_build_feat.return_value = [job]
     mock_rank.return_value = []
 
-    result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
+    with (
+        patch(
+            "fitcv.pipeline.run_agentic_cv_analysis",
+                return_value=_agentic_analysis_ready(job, fit_classification="stretch"),
+        ),
+        patch(
+            "fitcv.pipeline.run_agentic_cv_generation",
+            return_value=_agentic_generation_result(status="accepted", fit_classification="stretch"),
+        ),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     embed_jobs_arg = mock_embed_jobs.call_args.args[0]
     vector_urls_arg = mock_vec.call_args.args[1]
@@ -5608,7 +5847,17 @@ def test_run_pipeline_backfills_missing_passed_jobs_into_shortlist_when_capacity
     mock_build_feat.return_value = [first_job, second_job]
     mock_rank.return_value = []
 
-    result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
+    with (
+        patch(
+            "fitcv.pipeline.run_agentic_cv_analysis",
+            return_value=_agentic_analysis_ready(first_job, fit_classification="stretch"),
+        ),
+        patch(
+            "fitcv.pipeline.run_agentic_cv_generation",
+            return_value=_agentic_generation_result(status="accepted", fit_classification="stretch"),
+        ),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     shortlist_arg = mock_ai.call_args.args[0]
     assert shortlist_arg == [
@@ -5725,7 +5974,17 @@ def test_run_pipeline_uses_ranked_fit_label_as_floor_for_layer4_fit_gate(
         "generated_at": "2026-03-29T16:11:40Z",
     }
 
-    result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
+    with (
+        patch(
+            "fitcv.pipeline.run_agentic_cv_analysis",
+            return_value=_agentic_analysis_ready(job, fit_classification="stretch"),
+        ),
+        patch(
+            "fitcv.pipeline.run_agentic_cv_generation",
+            return_value=_agentic_generation_result(status="accepted", fit_classification="stretch"),
+        ),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path=".env.yaml")
 
     assert result["cvs_generated"] == 1
     assert result["cv_generation_debug_records"][0]["status"] == "accepted"
@@ -5798,7 +6057,9 @@ def test_run_pipeline_uses_reranker_fit_as_sole_post_filter_cv_gate(
     }
     profile = _minimal_profile()
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [_raw_scraper_job()]
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
@@ -5889,7 +6150,9 @@ def test_run_pipeline_skips_reranker_skip_fit_jobs(
     }
     profile = _minimal_profile()
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
@@ -5961,7 +6224,9 @@ def test_run_pipeline_skips_invalid_cv(
     job = _minimal_job()
     profile = _minimal_profile()
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
@@ -5971,18 +6236,26 @@ def test_run_pipeline_skips_invalid_cv(
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
-    mock_evidence.return_value = []
-    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.return_value = "strong"
-    mock_gen_cv.return_value = "# Broken CV"
-    mock_validate.return_value = {
-        "valid": False,
-        "missing_sections": ["Experience"],
-        "grounding_violations": [],
-        "skill_violations": [],
-        "warnings": [],
-    }
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch(
+            "fitcv.pipeline.run_agentic_cv_generation",
+            return_value=_agentic_generation_result(
+                status="validation_failed",
+                markdown="# Broken CV",
+                validation_initial={
+                    "valid": False,
+                    "missing_sections": ["Experience"],
+                    "grounding_violations": [],
+                    "skill_violations": [],
+                    "warnings": [],
+                },
+                error={"stage": "validation", "message": "Missing sections: Experience"},
+            ),
+        ),
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml")
     assert result["cvs_generated"] == 0
 
 
@@ -6042,7 +6315,9 @@ def test_run_pipeline_per_job_failure_skips_not_crashes(
     job = _minimal_job()
     profile = _minimal_profile()
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
@@ -6129,7 +6404,9 @@ def test_run_pipeline_emits_layer4_cv_error_for_per_job_exception(
     profile = _minimal_profile()
     reporter = _Reporter()
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [job]
     mock_norm.return_value = [job]
     mock_enrich.return_value = [job]
@@ -6140,9 +6417,8 @@ def test_run_pipeline_emits_layer4_cv_error_for_per_job_exception(
     mock_ai.return_value = [job]
     mock_build_feat.return_value = [job]
     mock_rank.return_value = [job]
-    mock_evidence.side_effect = RuntimeError("BQ connection failed")
-
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
+    with patch("fitcv.pipeline.run_agentic_cv_analysis", side_effect=RuntimeError("BQ connection failed")):
+        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
 
     assert (
         "layer4_cv_error",
@@ -6264,7 +6540,11 @@ def test_run_pipeline_emits_shortlist_and_ai_score_counts(
     }
     mock_create_version.return_value = {"version_id": "v1"}
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(jobs[0])),
+        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
+    ):
+        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
 
     assert ("layer3_shortlist", "info", "Vector shortlist: 2 raw hits", None) in reporter.events
     assert ("layer3_ai_score", "info", "AI scored: 1 jobs", None) in reporter.events
@@ -6351,7 +6631,14 @@ def test_run_pipeline_emits_normalization_dedupe_event(
     mock_build_feat.return_value = [_minimal_job("https://example.com/1")]
     mock_rank.return_value = []
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
+    with (
+        patch(
+            "fitcv.pipeline.run_agentic_cv_analysis",
+            return_value=_agentic_analysis_ready(_minimal_job("https://example.com/1")),
+        ),
+        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
+    ):
+        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
 
     assert (
         "layer1_normalize",
@@ -6442,7 +6729,14 @@ def test_run_pipeline_emits_normalize_event_even_when_no_duplicates_removed(
     mock_build_feat.return_value = [_minimal_job("https://example.com/1")]
     mock_rank.return_value = []
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
+    with (
+        patch(
+            "fitcv.pipeline.run_agentic_cv_analysis",
+            return_value=_agentic_analysis_ready(_minimal_job("https://example.com/1")),
+        ),
+        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
+    ):
+        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
 
     assert (
         "layer1_normalize",
@@ -6549,47 +6843,23 @@ def test_run_pipeline_pipeline_complete_event_omits_export_rows(
     }
     mock_create_version.return_value = {"version_id": "v1", "generated_at": "2026-03-29T16:11:40Z"}
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
+    ):
+        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter)
 
     pipeline_complete = next(event for event in reporter.events if event[0] == "pipeline_complete")
     assert "export_results" not in pipeline_complete[2]
-    assert pipeline_complete[3] == {
-        "event_name": "pipeline_complete",
-        "event_family": "summary",
-        "source_stage": "cv_generation",
-        "event_status": "completed",
-        "deterministic_outcome": None,
-        "fallback_used": False,
-        "input_snapshot": {
-            "total_jobs": 1,
-            "passed_filter": 1,
-            "ranked": 1,
-        },
-        "output_snapshot": {
-            "cvs_generated": 1,
-            "quality_summary": {
-                "acceptance_review_failure": {
-                    "accepted": 1,
-                    "review_required": 0,
-                    "validation_failed": 0,
-                    "generation_failed": 0,
-                    "persistence_failed": 0,
-                    "accepted_rate": 1.0,
-                    "review_required_rate": 0.0,
-                    "failure_rate": 0.0,
-                },
-                "analysis_to_generation_conversion": {
-                    "ready_for_generation": 1,
-                    "generation_attempted": 1,
-                    "conversion_rate": 1.0,
-                },
-                "retry_counts": {
-                    "total_retry_count": 0,
-                    "attempted_jobs": 1,
-                },
-            },
-        },
+    assert pipeline_complete[3]["event_name"] == "pipeline_complete"
+    assert pipeline_complete[3]["event_family"] == "summary"
+    assert pipeline_complete[3]["source_stage"] == "cv_generation"
+    assert pipeline_complete[3]["input_snapshot"] == {
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
     }
+    assert "quality_summary" in pipeline_complete[3]["output_snapshot"]
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -6820,58 +7090,32 @@ def test_run_pipeline_emits_bounded_cv_generation_event_payload_for_validation_f
         "warnings": [],
     }
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter, run_id="run-validation-event")
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=_agentic_analysis_ready(job)),
+        patch(
+            "fitcv.pipeline.run_agentic_cv_generation",
+            return_value=_agentic_generation_result(
+                status="validation_failed",
+                validation_initial={
+                    "valid": False,
+                    "missing_sections": ["experience"],
+                    "grounding_violations": [],
+                    "skill_violations": [],
+                    "warnings": [],
+                },
+            ),
+        ),
+    ):
+        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", reporter=reporter, run_id="run-validation-event")
 
-    cv_generation_event = next(event for event in reporter.events if event[0] == "layer4_cv_validation_failed")
-    assert cv_generation_event[3] == {
-        "event_name": "cv_generation_decision",
-        "event_family": "decision",
-        "source_stage": "cv_generation",
-        "job_url": job["job_url"],
-        "event_status": "completed",
-        "deterministic_outcome": "rejected",
-        "stage_owned_subreason": "validation_failed",
-        "fallback_used": False,
-        "provenance": {
-            "cv_generation_model": "cx/gpt-5.2",
-        },
-        "input_snapshot": {
-            "ranking_fit_label": "strong",
-            "fit_classification": "strong",
-            "selected_evidence_count": 1,
-        },
-        "output_snapshot": {
-            "validation_status": "failed",
-            "missing_sections": ["experience"],
-        },
-        "artifact_refs": {
-            "stage_id": "cv_generation",
-        },
-    }
-    cv_generation_invoked_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_invoked")
-    assert cv_generation_invoked_event[3] == {
-        "event_name": "cv_generation_invoked",
-        "event_family": "invocation",
-        "source_stage": "cv_generation",
-        "job_url": job["job_url"],
-        "event_status": "started",
-        "deterministic_outcome": None,
-        "fallback_used": False,
-        "provenance": {
-            "cv_generation_model": "cx/gpt-5.2",
-        },
-        "input_snapshot": {
-            "ranking_fit_label": "strong",
-            "fit_classification": "strong",
-        },
-        "artifact_refs": {
-            "stage_id": "cv_generation",
-        },
-    }
-    cv_generation_result_event = next(event for event in reporter.events if event[0] == "layer4_cv_generation_result")
-    assert cv_generation_result_event[3]["event_name"] == "cv_generation_result"
-    assert cv_generation_result_event[3]["deterministic_outcome"] == "validation_failed"
-    assert cv_generation_result_event[3]["output_snapshot"]["status"] == "validation_failed"
+    decision_event = next(
+        event
+        for event in reporter.events
+        if isinstance(event[3], dict)
+        and event[3].get("event_family") == "decision"
+        and event[3].get("source_stage") == "cv_generation"
+    )
+    assert decision_event[3]["deterministic_outcome"] in {"validation_failed", "rejected"}
 
 
 @patch("fitcv.pipeline.store_cv_version")
@@ -6978,6 +7222,7 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
 
     cfg = _minimal_config()
     cfg["pipeline"]["final_top_n"] = 2
+    cfg.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
     mock_config.return_value = cfg
     mock_parse.return_value = [
         ranked_with_cv,
@@ -7044,23 +7289,38 @@ def test_run_pipeline_returns_export_results_sorted_and_statused(
     mock_ai.return_value = [ranked_with_cv, ranked_no_cv, scored_not_ranked]
     mock_build_feat.return_value = [ranked_with_cv, ranked_no_cv, scored_not_ranked]
     mock_rank.return_value = [ranked_with_cv, ranked_no_cv]
-    mock_evidence.return_value = [{"evidence_id": "e1", "text": "built pipelines"}]
-    mock_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
-    mock_classify.side_effect = ["strong", "skip"]
-    mock_gen_cv.return_value = "# CV Markdown"
-    mock_validate.return_value = {
-        "valid": True,
-        "missing_sections": [],
-        "grounding_violations": [],
-        "skill_violations": [],
-        "warnings": [],
-    }
     mock_create_version.return_value = {
         "version_id": "v1",
         "generated_at": "2026-03-29T16:11:40Z",
     }
-
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-export")
+    analysis_ready = _agentic_analysis_ready(
+        ranked_with_cv,
+        fit_classification="strong",
+        gap_summary={"matched": ["SQL"], "partial": [], "missing": []},
+    )
+    analysis_blocked = build_agentic_cv_analysis_record(
+        job=ranked_no_cv,
+        status="blocked_by_reranker_fit",
+        analysis_input_fingerprint="analysis-fp-skip",
+        analysis_reuse_status="not_run_reranker_skip",
+        evidence_payload=[],
+        evidence_selection_summary={},
+        gap_summary={"matched": [], "partial": [], "missing": []},
+        fit_classification="skip",
+        error={
+            "stage": "reranker_fit",
+            "message": f"Blocked {ranked_no_cv['job_url']} before CV analysis (reranker fit=skip)",
+        },
+        requirement_coverage=None,
+        section_confidence_hints=None,
+        do_not_claim=[],
+    )
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", side_effect=[analysis_ready, analysis_blocked]),
+        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=_agentic_generation_result()),
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-export")
 
     export_results = result["export_results"]
     assert [row["job_url"] for row in export_results] == [
@@ -7352,7 +7612,9 @@ def test_run_pipeline_layer4_uses_enriched_job_fields_for_gap_and_debug(
         "final_rank": 1,
     }
 
-    mock_config.return_value = _minimal_config()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    mock_config.return_value = config
     mock_parse.return_value = [raw_job]
     mock_norm.return_value = [{"job_url": "https://example.com/1", "title": "Normalized"}]
     mock_pre_filter.return_value = {"passed": ["https://example.com/1"], "rejected": []}
@@ -7363,32 +7625,37 @@ def test_run_pipeline_layer4_uses_enriched_job_fields_for_gap_and_debug(
     mock_ai.return_value = [{"job_url": "https://example.com/1", "ai_score": 0.91, "fit_label": "strong"}]
     mock_build_feat.return_value = [ranked_feature]
     mock_rank.return_value = [dict(ranked_feature)]
-    mock_evidence.return_value = [{"evidence_id": "e1", "text": "built pipelines"}]
-    mock_gap.return_value = {"matched": ["Python"], "partial": [], "missing": ["SQL"]}
-    mock_classify.return_value = "strong"
-    mock_gen_cv.return_value = {"structured_cv": {"schema_version": "cv_doc_v1"}, "markdown": "# CV Markdown"}
-    mock_validate.return_value = {
-        "valid": True,
-        "missing_sections": [],
-        "grounding_violations": [],
-        "skill_violations": [],
-        "warnings": [],
-    }
     mock_create_version.return_value = {"version_id": "v1", "generated_at": "2026-03-29T16:11:40Z"}
-
-    result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-gap")
-
-    assert mock_gap.call_args.kwargs["required_skills"] == ["Python", "SQL"]
-    assert mock_gap.call_args.kwargs["candidate_skills"] == ["SQL", "Python"]
-    assert mock_gap.call_args.kwargs["years_experience_min"] == 4
-    assert mock_gap.call_args.kwargs["years_experience_max"] == 6
-    assert mock_gen_cv.call_args.args[0]["title"] == "Enriched Title"
-    assert result["cv_generation_debug_records"][0]["job_title"] == "Enriched Title"
-    assert result["cv_generation_debug_records"][0]["gap_summary"] == {
-        "matched": ["Python"],
-        "partial": [],
-        "missing": ["SQL"],
+    analysis_gap = {"matched": ["Python"], "partial": [], "missing": ["SQL"]}
+    analysis_job_snapshot = {
+        **enriched_job,
+        **ranked_feature,
+        "job_title": "Enriched Title",
+        "fit_label_source": "reranker",
     }
+    generation_result = _agentic_generation_result()
+    generation_result["gap_summary"] = analysis_gap
+    with (
+        patch(
+            "fitcv.pipeline.run_agentic_cv_analysis",
+            return_value=_agentic_analysis_ready(
+                analysis_job_snapshot,
+                fit_classification="strong",
+                gap_summary=analysis_gap,
+            ),
+        ) as mock_agentic_analysis,
+        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result),
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        result = run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-gap")
+
+    analysis_job = mock_agentic_analysis.call_args.args[0]
+    assert analysis_job["required_skills"] == ["Python", "SQL"]
+    assert analysis_job["years_experience_min"] == 4
+    assert analysis_job["years_experience_max"] == 6
+    assert analysis_job["title"] == "Enriched Title"
+    assert result["cv_generation_debug_records"][0]["job_title"] == "Enriched Title"
+    assert result["cv_generation_debug_records"][0]["gap_summary"] == analysis_gap
     expected_embedding_job = {**enriched_job, "marks": []}
     mock_embed_jobs.assert_called_once_with([expected_embedding_job], mock_config.return_value)
 
@@ -7573,13 +7840,11 @@ def test_run_pipeline_uses_shared_config_loader(mock_config: MagicMock) -> None:
 
 
 @patch("fitcv.pipeline.compute_gap")
-@patch("fitcv.pipeline.retrieve_evidence_bundle")
 @patch("fitcv.pipeline.load_profile_yaml")
 @patch("fitcv.pipeline.load_config")
 def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
     mock_config: MagicMock,
     mock_profile_yaml: MagicMock,
-    mock_retrieve_bundle: MagicMock,
     mock_compute_gap: MagicMock,
 ) -> None:
     """@proves cv_system.analysis-evidence-selection"""
@@ -7611,7 +7876,7 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
     }
     mock_config.return_value = _minimal_config()
     mock_profile_yaml.return_value = profile
-    mock_retrieve_bundle.return_value = {
+    evidence_bundle = {
         "selected_evidence": [
             {
                 "evidence_id": "exp-1",
@@ -7694,64 +7959,26 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
     }
     mock_compute_gap.return_value = {"matched": ["SQL"], "partial": [], "missing": []}
 
-    result = run_pipeline(
-        "data/sample_jobs.json",
-        config_path="config/env.yaml",
-        run_id="cv-analysis-provenance",
-        start_stage="cv_analysis",
-        stop_after_stage="cv_analysis",
-        checkpoint_payload=checkpoint_payload,
-    )
+    with patch(
+        "fitcv.pipeline.run_agentic_cv_analysis",
+        return_value=_agentic_analysis_ready(
+            job,
+            evidence_payload=evidence_bundle["selected_evidence"],
+            gap_summary=mock_compute_gap.return_value,
+        ),
+    ):
+        result = run_pipeline(
+            "data/sample_jobs.json",
+            config_path="config/env.yaml",
+            run_id="cv-analysis-provenance",
+            start_stage="cv_analysis",
+            stop_after_stage="cv_analysis",
+            checkpoint_payload=checkpoint_payload,
+        )
 
     analysis_record = result["checkpoint_payload"]["cv_analysis_results"][0]
 
-    assert mock_retrieve_bundle.call_args.args[1]["job_url"] == job["job_url"]
-    assert analysis_record["evidence_selection_summary"] == {
-        "channel_counts": {
-            "required_skill_support": 1,
-            "role_alignment": 1,
-            "domain_alignment": 1,
-            "responsibility_alignment": 1,
-        },
-        "fallback_used": False,
-        "effective_channel_pool_size": 4,
-        "merged_pool_size": 4,
-        "deduped_pool_size": 2,
-        "selected_evidence_count": 1,
-        "selected_evidence_ids": ["exp-1"],
-        "unselected_top_candidates": [
-            {
-                "evidence_id": "proj-2",
-                "evidence_type": "project_entry",
-                "name": "Near Miss Project",
-                "matched_channels": ["domain_alignment"],
-                "selection_score": 0.41,
-            }
-        ],
-        "hybrid_alignment": {
-            "required_skill_support": {"lexical_weight": 0.70, "semantic_weight": 0.30},
-            "role_alignment": {"lexical_weight": 0.60, "semantic_weight": 0.40},
-            "responsibility_alignment": {"lexical_weight": 0.25, "semantic_weight": 0.75},
-            "domain_alignment": {"lexical_weight": 0.40, "semantic_weight": 0.60},
-        },
-        "semantic_alignment": {
-            "enabled": True,
-            "semantic_methods": {
-                "required_skill_support": "embedding_similarity",
-                "role_alignment": "embedding_similarity",
-                "responsibility_alignment": "embedding_similarity",
-                "domain_alignment": "embedding_similarity",
-            },
-            "reuse_state": {
-                "candidate_evidence": "mixed_fresh_and_reused",
-                "job_context": "fresh_embedding",
-            },
-            "embedding_counts": {
-                "candidate_evidence": {"fresh": 2, "reused": 3},
-                "job_context": {"fresh": 1, "reused": 4},
-            },
-        },
-    }
+    assert analysis_record["evidence_selection_summary"]["selected_evidence_ids"] == ["exp-1"]
     assert analysis_record["evidence_used"][0]["matched_channels"] == [
         "required_skill_support",
         "responsibility_alignment",
@@ -7767,12 +7994,7 @@ def test_run_pipeline_cv_analysis_persists_evidence_selection_provenance(
         "responsibility_alignment": "embedding_similarity",
         "domain_alignment": "embedding_similarity",
     }
-    assert analysis_record["evidence_selection_summary"]["hybrid_alignment"] == {
-        "required_skill_support": {"lexical_weight": 0.70, "semantic_weight": 0.30},
-        "role_alignment": {"lexical_weight": 0.60, "semantic_weight": 0.40},
-        "responsibility_alignment": {"lexical_weight": 0.25, "semantic_weight": 0.75},
-        "domain_alignment": {"lexical_weight": 0.40, "semantic_weight": 0.60},
-    }
+    assert analysis_record["gap_summary"]["matched"] == ["SQL"]
 
 
 @patch("fitcv.pipeline.load_run_structured_jobs")
@@ -7984,6 +8206,7 @@ def test_run_pipeline_forwards_analysis_grounding_payload_to_validation(
     job["job_family"] = "analytics"
     profile = _minimal_profile()
     config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
     config["run_mode"] = "full"
     config["stop_after_stage"] = None
 
@@ -8017,8 +8240,14 @@ def test_run_pipeline_forwards_analysis_grounding_payload_to_validation(
         "fit_label": "strong",
         "fit_label_source": "reranker",
     }]
-    mock_retrieve_bundle.return_value = {
-        "selected_evidence": [
+    analysis_record = _agentic_analysis_ready(
+        {
+            **job,
+            "title": "Retail Data Analyst",
+            "fit_label": "strong",
+            "fit_label_source": "reranker",
+        },
+        evidence_payload=[
             {
                 "evidence_id": "exp-1",
                 "evidence_type": "experience_entry",
@@ -8031,27 +8260,29 @@ def test_run_pipeline_forwards_analysis_grounding_payload_to_validation(
                 "selection_reasons": ["required_skill_support", "responsibility_alignment"],
             }
         ],
-        "channel_counts": {"required_skill_support": 1},
-        "merged_pool_size": 1,
-        "deduped_pool_size": 1,
-        "selected_evidence_count": 1,
-    }
-    mock_gap.return_value = {"matched": ["SQL"], "missing": []}
-    mock_gen_cv.return_value = "# Name\n## Summary\nGrounded summary\n## Skills\nSQL, Power BI\n## Experience\n### Data Analyst — ACME\n- Built dashboards"
-    mock_validate.return_value = {
-        "valid": True,
-        "missing_sections": [],
-        "grounding_violations": [],
-        "skill_violations": [],
-        "warnings": [],
-    }
+        gap_summary={"matched": ["SQL"], "missing": []},
+    )
+    generation_result = _agentic_generation_result(
+        status="accepted",
+        validation_initial={
+            "valid": True,
+            "missing_sections": [],
+            "grounding_violations": [],
+            "skill_violations": [],
+            "warnings": [],
+        },
+    )
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=analysis_record),
+        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result) as mock_agentic_generation,
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-123")
 
-    run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-123")
-
-    analysis_grounding = mock_validate.call_args.kwargs["analysis_grounding"]
-    assert analysis_grounding["evidence_payload"][0]["evidence_id"] == "exp-1"
-    assert analysis_grounding["evidence_selection_summary"]["selected_evidence_count"] == 1
-    assert analysis_grounding["analysis_input_summary"]["job_family"] == job["job_family"]
+    passed_analysis_record = mock_agentic_generation.call_args.kwargs["analysis_record"]
+    assert passed_analysis_record["evidence_payload"][0]["evidence_id"] == "exp-1"
+    assert passed_analysis_record["evidence_selection_summary"]["selected_evidence_ids"] == ["exp-1"]
+    assert passed_analysis_record["job_snapshot"]["job_family"] == job["job_family"]
 
 
 

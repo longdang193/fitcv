@@ -1295,7 +1295,7 @@ def _agentic_late_stage_enabled(config: dict[str, Any]) -> bool:
     cv_block = config.get("cv") or {}
     late_stage_block = cv_block.get("agentic_late_stage") or {}
     if isinstance(late_stage_block, dict):
-        return bool(late_stage_block.get("enabled", False))
+        return True
     return False
 
 
@@ -1304,16 +1304,13 @@ def _build_late_stage_mode_payload(
     agentic_late_stage_enabled: bool,
     stage_reached: bool,
 ) -> dict[str, Any]:
+    del agentic_late_stage_enabled
     return {
-        "late_stage_mode": "agentic" if agentic_late_stage_enabled else "non_agentic",
-        "agentic_late_stage_enabled": agentic_late_stage_enabled,
-        "mode_source": "cv.agentic_late_stage.enabled",
+        "late_stage_mode": "agentic",
+        "agentic_late_stage_enabled": True,
+        "mode_source": "cv.agentic_late_stage.unified_runtime",
         "agentic_status": (
-            "completed"
-            if agentic_late_stage_enabled and stage_reached
-            else "pending"
-            if agentic_late_stage_enabled
-            else "not_applicable"
+            "completed" if stage_reached else "pending"
         ),
     }
 
@@ -2524,7 +2521,7 @@ def _build_cv_analysis_trace_summary(
                 "runtime_provenance": {
                     "runtime_path": "fitcv_agentic_cv_analysis_builtin",
                     "provider": "fitcv_builtin",
-                    "mode_source": "cv.agentic_late_stage.enabled",
+                    "mode_source": "cv.agentic_late_stage.unified_runtime",
                 },
                 "attempts": [
                     {
@@ -4424,7 +4421,7 @@ def run_pipeline(
                             event_status="started",
                             fallback_used=False,
                             provenance={
-                                "late_stage_mode": "agentic" if agentic_late_stage_enabled else "non_agentic",
+                                "late_stage_mode": "agentic",
                             },
                             input_snapshot={
                                 "ranked_jobs": len(ranked_jobs_for_cv),
