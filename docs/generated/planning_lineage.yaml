@@ -122,6 +122,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-04-23-45-run-all-auto-accept-gating-plan.md
     - docs/superpowers/plans/2026-05-05-00-05-focused-regression-and-pattern-detection-plan.md
     - docs/superpowers/plans/2026-05-17-17-36-synonym-proposal-review-gateway-and-dedicated-workspace-plan.md
+    - docs/superpowers/plans/2026-05-17-19-20-terminal-run-artifact-mirror-and-backfill-plan.md
     derived_completion: in_progress
   - thread_id: workstream-agentic-synonym-management.agentic-synonym-canonical-promotion-flow
     status: proposed

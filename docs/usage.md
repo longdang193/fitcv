@@ -26,6 +26,14 @@ Entry point: `/admin/runs`
 4. inspect run detail tabs and stage artifacts
 5. export evidence (`export.json`, `cv-debug.json`, `settings-used.json`, stage artifacts, artifacts zip)
 
+Artifact truth note:
+
+- run-scoped persisted artifacts/endpoints are source of truth
+- local `artifacts/live_run_<run_id>/` is deterministic evidence mirror for portability/debug handoff
+- backfill missing historical mirrors with:
+  - `python scripts/backfill_live_run_artifacts.py --run-id <run_id> --dry-run`
+  - `python scripts/backfill_live_run_artifacts.py --run-id <run_id>`
+
 ## Lifecycle Actions
 
 Operator lifecycle actions are exposed through run-scoped admin routes:
