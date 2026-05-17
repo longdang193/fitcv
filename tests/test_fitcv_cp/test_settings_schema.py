@@ -76,12 +76,13 @@ def test_settings_ia_domain_filter_returns_expected_keys() -> None:
     assert "rule_filter.selected_filters" in rules_keys
 
 def test_settings_ia_stage_filter_returns_expected_keys() -> None:
-    draft_keys = set(settings_keys_for_workflow_stage("draft"))
-    assert "cv_generation_model" in draft_keys
-    assert "cv_summary_enabled" in draft_keys
-    review_keys = set(settings_keys_for_workflow_stage("review"))
-    assert "ranking_weights.ai_score" in review_keys
-    assert "rule_filter.selected_filters" in review_keys
+    enrich_keys = set(settings_keys_for_workflow_stage("enrich"))
+    assert "pipeline.final_top_n" in enrich_keys
+    rule_filter_keys = set(settings_keys_for_workflow_stage("rule_filter"))
+    assert "rule_filter.selected_filters" in rule_filter_keys
+    cv_generation_keys = set(settings_keys_for_workflow_stage("cv_generation"))
+    assert "cv_generation_model" in cv_generation_keys
+    assert "cv_summary_enabled" in cv_generation_keys
 
 def test_settings_ia_contract_for_key_contains_required_fields() -> None:
     contract = settings_ia_contract_for_key("cv_certifications_enabled")
@@ -97,7 +98,7 @@ def test_settings_ia_contract_for_key_contains_required_fields() -> None:
         "applies_when",
     }
     assert contract["domain"] == "general"
-    assert "draft" in contract["workflow_stages"]
+    assert "cv_generation" in contract["workflow_stages"]
 
 def test_settings_ia_contract_marks_metadata_only_as_non_overrideable() -> None:
     contract = settings_ia_contract_for_key("cv_preset")

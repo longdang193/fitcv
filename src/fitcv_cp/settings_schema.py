@@ -797,11 +797,13 @@ _IA_DOMAIN_RULES = "rules"
 _IA_DOMAIN_INTEGRATIONS = "integrations"
 _IA_DOMAIN_ADVANCED = "advanced"
 
-_WORKFLOW_STAGE_SETUP = "setup"
-_WORKFLOW_STAGE_DRAFT = "draft"
-_WORKFLOW_STAGE_REVIEW = "review"
-_WORKFLOW_STAGE_APPROVED = "approved"
-_WORKFLOW_STAGE_ARCHIVED = "archived"
+_WORKFLOW_STAGE_NORMALIZE = "normalize"
+_WORKFLOW_STAGE_ENRICH = "enrich"
+_WORKFLOW_STAGE_RULE_FILTER = "rule_filter"
+_WORKFLOW_STAGE_SHORTLIST = "shortlist"
+_WORKFLOW_STAGE_RANKING = "ranking"
+_WORKFLOW_STAGE_CV_ANALYSIS = "cv_analysis"
+_WORKFLOW_STAGE_CV_GENERATION = "cv_generation"
 
 _GROUP_TO_IA_DOMAIN: dict[str, str] = {
     "retrieval": _IA_DOMAIN_STAGES,
@@ -818,50 +820,49 @@ _GROUP_TO_IA_DOMAIN: dict[str, str] = {
 
 _GROUP_TO_WORKFLOW_STAGES: dict[str, tuple[str, ...]] = {
     "retrieval": (
-        _WORKFLOW_STAGE_SETUP,
-        _WORKFLOW_STAGE_DRAFT,
+        _WORKFLOW_STAGE_NORMALIZE,
+        _WORKFLOW_STAGE_ENRICH,
+        _WORKFLOW_STAGE_RULE_FILTER,
+        _WORKFLOW_STAGE_SHORTLIST,
     ),
     "global_job_filters": (
-        _WORKFLOW_STAGE_DRAFT,
-        _WORKFLOW_STAGE_REVIEW,
+        _WORKFLOW_STAGE_ENRICH,
+        _WORKFLOW_STAGE_RULE_FILTER,
     ),
     "rule_filter": (
-        _WORKFLOW_STAGE_DRAFT,
-        _WORKFLOW_STAGE_REVIEW,
+        _WORKFLOW_STAGE_RULE_FILTER,
     ),
     "run_lifecycle": (
-        _WORKFLOW_STAGE_SETUP,
-        _WORKFLOW_STAGE_DRAFT,
-        _WORKFLOW_STAGE_REVIEW,
-        _WORKFLOW_STAGE_APPROVED,
-        _WORKFLOW_STAGE_ARCHIVED,
+        _WORKFLOW_STAGE_NORMALIZE,
+        _WORKFLOW_STAGE_ENRICH,
+        _WORKFLOW_STAGE_RULE_FILTER,
+        _WORKFLOW_STAGE_SHORTLIST,
+        _WORKFLOW_STAGE_RANKING,
+        _WORKFLOW_STAGE_CV_ANALYSIS,
+        _WORKFLOW_STAGE_CV_GENERATION,
     ),
     "ranking": (
-        _WORKFLOW_STAGE_REVIEW,
-        _WORKFLOW_STAGE_APPROVED,
+        _WORKFLOW_STAGE_SHORTLIST,
+        _WORKFLOW_STAGE_RANKING,
+        _WORKFLOW_STAGE_CV_ANALYSIS,
     ),
     "timing": (
-        _WORKFLOW_STAGE_SETUP,
-        _WORKFLOW_STAGE_DRAFT,
+        _WORKFLOW_STAGE_ENRICH,
+        _WORKFLOW_STAGE_RANKING,
     ),
     "agentic": (
-        _WORKFLOW_STAGE_DRAFT,
-        _WORKFLOW_STAGE_REVIEW,
-        _WORKFLOW_STAGE_APPROVED,
+        _WORKFLOW_STAGE_CV_ANALYSIS,
+        _WORKFLOW_STAGE_CV_GENERATION,
     ),
     "cv_composition": (
-        _WORKFLOW_STAGE_DRAFT,
-        _WORKFLOW_STAGE_REVIEW,
-        _WORKFLOW_STAGE_APPROVED,
+        _WORKFLOW_STAGE_CV_GENERATION,
     ),
     "cv_validation": (
-        _WORKFLOW_STAGE_REVIEW,
-        _WORKFLOW_STAGE_APPROVED,
-        _WORKFLOW_STAGE_ARCHIVED,
+        _WORKFLOW_STAGE_CV_GENERATION,
     ),
     "cv_preset": (
-        _WORKFLOW_STAGE_SETUP,
-        _WORKFLOW_STAGE_DRAFT,
+        _WORKFLOW_STAGE_CV_ANALYSIS,
+        _WORKFLOW_STAGE_CV_GENERATION,
     ),
 }
 

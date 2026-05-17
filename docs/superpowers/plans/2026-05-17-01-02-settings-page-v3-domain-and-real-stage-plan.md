@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: settings-page-v3-domain-and-real-stage
 parent_thread: workstream-fitcv-semantic-spine.semantic-spine-component-boundary-and-interface-contract
@@ -66,12 +66,12 @@ Update/extend Settings schema and template tests to prove discoverability parity
 - canonical stage source available via `PIPELINE_STAGE_SEQUENCE`
 
 **Steps:**
-- [ ] Step 1: audit existing workflow-stage constants and replace lifecycle-state mapping with runtime stage IDs (`normalize`, `enrich`, `rule_filter`, `shortlist`, `ranking`, `cv_analysis`, `cv_generation`)
-- [ ] Step 2: keep each setting key mapped to exactly one domain and one-or-more runtime stages where applicable; keep invariants for metadata-only/runtime-used keys
-- [ ] Step 3: maintain compatibility helpers only where needed while ensuring primary accessor semantics are `Domain` + real stage IDs
+- [x] Step 1: audit existing workflow-stage constants and replace lifecycle-state mapping with runtime stage IDs (`normalize`, `enrich`, `rule_filter`, `shortlist`, `ranking`, `cv_analysis`, `cv_generation`)
+- [x] Step 2: keep each setting key mapped to exactly one domain and one-or-more runtime stages where applicable; keep invariants for metadata-only/runtime-used keys
+- [x] Step 3: maintain compatibility helpers only where needed while ensuring primary accessor semantics are `Domain` + real stage IDs
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_settings_schema.py -q`
+- [x] `pytest tests/test_fitcv_cp/test_settings_schema.py -q`
 
 **Exit Criteria:**
 - schema metadata and helper outputs expose real-stage filters and no orphan keys
@@ -90,12 +90,12 @@ Update/extend Settings schema and template tests to prove discoverability parity
 - Task 1 complete
 
 **Steps:**
-- [ ] Step 1: replace lifecycle-stage title map with real pipeline-stage titles and IDs in `settings_stage_filters`
-- [ ] Step 2: remove redundant `settings_intent_layers` usage from active template context path (preserve temporary alias only if needed for safe migration)
-- [ ] Step 3: ensure summary structures and row metadata still expose modified/error/override/effective-source signals used by UI
+- [x] Step 1: replace lifecycle-stage title map with real pipeline-stage titles and IDs in `settings_stage_filters`
+- [x] Step 2: remove redundant `settings_intent_layers` usage from active template context path (preserve temporary alias only if needed for safe migration)
+- [x] Step 3: ensure summary structures and row metadata still expose modified/error/override/effective-source signals used by UI
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -q -k settings`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -q -k settings`
 
 **Exit Criteria:**
 - route context reflects single primary domain axis and runtime-aligned stage filters without breaking render contracts
@@ -114,12 +114,12 @@ Update/extend Settings schema and template tests to prove discoverability parity
 - Task 2 complete
 
 **Steps:**
-- [ ] Step 1: remove redundant `Intent Layer` chip group from page shell and keep single `Domain` filter rail
-- [ ] Step 2: render stage chips from real pipeline stages; keep front-end filtering logic aligned with updated `data-workflow-stages`
-- [ ] Step 3: keep long prose hidden behind compact help expanders/tooltips and preserve direct editing controls without override gate
+- [x] Step 1: remove redundant `Intent Layer` chip group from page shell and keep single `Domain` filter rail
+- [x] Step 2: render stage chips from real pipeline stages; keep front-end filtering logic aligned with updated `data-workflow-stages`
+- [x] Step 3: keep long prose hidden behind compact help expanders/tooltips and preserve direct editing controls without override gate
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -q -k "settings and (render or template or filter or override or error)"`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -q -k "settings and (render or template or filter or override or error)"`
 
 **Exit Criteria:**
 - default Settings view is compact, filter model is unambiguous, and row guidance remains accessible on demand
@@ -139,12 +139,12 @@ Update/extend Settings schema and template tests to prove discoverability parity
 - Tasks 1-3 complete
 
 **Steps:**
-- [ ] Step 1: add/adjust assertions for stage-filter IDs parity with runtime stage sequence and absence of redundant primary-axis controls
-- [ ] Step 2: add/adjust template assertions for compact help behavior and direct-edit flow expectations
-- [ ] Step 3: run full settings regression slice and fix any contract drift
+- [x] Step 1: add/adjust assertions for stage-filter IDs parity with runtime stage sequence and absence of redundant primary-axis controls
+- [x] Step 2: add/adjust template assertions for compact help behavior and direct-edit flow expectations
+- [x] Step 3: run full settings regression slice and fix any contract drift
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
+- [x] `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
 
 **Exit Criteria:**
 - tests encode V3 contracts and pass for schema + route + template surfaces
