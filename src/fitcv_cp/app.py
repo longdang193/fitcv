@@ -4024,6 +4024,20 @@ def _timeline_semantic_outcome(event: RunEvent, payload: dict[str, Any]) -> str:
     return "normal_progress"
 
 
+
+def _timeline_semantic_outcome(event: RunEvent, payload: dict[str, Any]) -> str:
+    stage = str(event.stage or "").strip()
+    deterministic_outcome = str(payload.get("deterministic_outcome") or "").strip().lower()
+    stage_owned_subreason = str(payload.get("stage_owned_subreason") or "").strip().lower()
+    if stage in {"layer4_cv_validation_failed", "cv_validation_failed"}:
+        if deterministic_outcome == "rejected" and stage_owned_subreason == "validation_failed":
+            return "expected_rejection"
+        return "unexpected_failure"
+    if stage_owned_subreason == "review_required" or deterministic_outcome == "review_required":
+        return "requires_review"
+    if stage == "pipeline_complete":
+        return "summary"
+    return "normal_progress"
 def _timeline_stage_summary_message(
     event: RunEvent,
     stage_artifacts_by_id: dict[str, dict[str, Any]],
@@ -4129,10 +4143,11 @@ def _timeline_stage_summary_message(
             return f"CV generation complete: {', '.join(details)}"
     return event.message
 
-def _collapse_timeline_noise(events: list[RunEvent]) -> list[RunEvent]:
+def _collapse_timeline_noise(events: list[RunEvent]) -> list[tuple[RunEvent, int]]:
     """Collapse repeated informational noise rows with identical payloads."""
-    collapsed: list[RunEvent] = []
+    collapsed: list[tuple[RunEvent, int]] = []
     last_triage_fingerprint: str | None = None
+    last_triage_index: int | None = None
     for event in events:
         if str(event.stage or "") == "synonym_proposal_triage_completed":
             payload = _event_payload(event)
@@ -4151,18 +4166,25 @@ def _collapse_timeline_noise(events: list[RunEvent]) -> list[RunEvent]:
                 }
             )
             if last_triage_fingerprint == fingerprint:
+                if last_triage_index is not None:
+                    kept_event, repeat_count = collapsed[last_triage_index]
+                    collapsed[last_triage_index] = (kept_event, repeat_count + 1)
                 continue
             last_triage_fingerprint = fingerprint
+            collapsed.append((event, 1))
+            last_triage_index = len(collapsed) - 1
         else:
             last_triage_fingerprint = None
-        collapsed.append(event)
+            last_triage_index = None
+            collapsed.append((event, 1))
     return collapsed
-
 
 def _stage_download_label(stage_id: str | None) -> str:
     if not stage_id:
         return "Download stage JSON"
     return STAGE_DOWNLOAD_LABELS.get(stage_id, f"Download {stage_id.replace('_', ' ').title()} JSON")
+
+
 
 
 class TriggerRequest(BaseModel):
@@ -4186,7 +4208,6 @@ class TriggerRequest(BaseModel):
         if normalized not in {"run_all", "manual_staged"}:
             raise ValueError("run_mode must be 'run_all' or 'manual_staged'")
         return normalized
-
 
 class SettingUpdate(BaseModel):
     value: Any
@@ -4340,6 +4361,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     dataset=dataset,
                 )
                 return get_run(run.run_id, bq, project=project, dataset=dataset) or run
+            if rq_status == "missing" and queue_job_id.startswith("inline-"):
+                # Inline queue state is process-local memory; another process may
+                # legitimately report "missing" while the run continues elsewhere.
+                return run
             if rq_status == "missing":
                 raise LookupError("queue job missing")
             return run
@@ -6416,7 +6441,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         )
         timeline_events: list[dict[str, Any]] = []
         visible_events = _collapse_timeline_noise(events[-timeline_limit:])
-        for ev in visible_events:
+        for ev, repeat_count in visible_events:
             stage_id = _timeline_stage_download_for_event(ev.stage)
             stage_download_url = None
             stage_download_label = None
@@ -6434,6 +6459,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     "stage_label": _timeline_stage_label(ev.stage),
                     "level": ev.level,
                     "message": _timeline_stage_summary_message(ev, stage_artifacts_by_id),
+                    "repeat_count": int(repeat_count),
                     "stage_id": stage_id,
                     "stage_download_url": stage_download_url,
                     "stage_download_label": stage_download_label,
@@ -8274,4 +8300,7 @@ def _run_to_dict(run: PipelineRun) -> dict:
         "orchestration_backend": run.orchestration_backend,
         "orchestration_run_id": run.orchestration_run_id,
     }
+
+
+
 
