@@ -91,7 +91,9 @@ from fitcv_cp.settings_schema import (
     metadata_only_settings_keys,
     settings_ia_contract_for_key,
     settings_ia_metadata_by_key,
+    settings_keys_for_control_surface,
     settings_keys_for_domain,
+    settings_keys_for_stage,
     settings_keys_for_workflow_stage,
     validate_settings,
 )
@@ -4642,26 +4644,78 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         },
         {
             "id": "agentic",
-            "title": "Agentic",
-            "helper": "Control bounded future-run agentic defaults without turning this page into a historical run-inspection view.",
+            "title": "Agentic Processing",
+            "helper": "Configure bounded agentic behavior for future runs using small, explicit decision areas.",
             "cards": [
                 {
-                    "id": "agentic-controls",
-                    "title": "Agentic Controls",
-                    "helper": "Enable the late-stage agentic path and the semantic-alignment gate used by future runs.",
+                    "id": "agentic-enablement",
+                    "title": "Enablement",
+                    "helper": "Turn on agentic pathways and core capabilities used by future runs.",
                     "submit_kind": "section",
                     "submit_slug": "agentic-core",
-                    "save_label": "Save Agentic Settings",
-                    "keys": AGENTIC_SETTINGS_SECTIONS["agentic-core"],
+                    "save_label": "Save Enablement Settings",
+                    "keys": [
+                        "cv.agentic_late_stage.enabled",
+                        "cv_analysis.semantic_alignment.enabled",
+                        "synonym_management.propose_enabled",
+                        "synonym_management.apply_to_run_enabled",
+                        "synonym_management.promote_global_enabled",
+                    ],
                 },
                 {
-                    "id": "agentic-advanced",
-                    "title": "Advanced Agentic Tuning",
-                    "helper": "Semantic channel weights and pool sizing stay behind disclosure; fixed runtime metadata remains explanatory.",
+                    "id": "agentic-automation",
+                    "title": "Automation",
+                    "helper": "Control recommendation, auto-apply, and auto-promote behavior.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-core",
+                    "save_label": "Save Automation Settings",
+                    "keys": [
+                        "synonym_management.auto_triage_recommendation_enabled",
+                        "synonym_management.triage_recommendation_reuse_enabled",
+                        "synonym_management.auto_apply_recommendation_enabled",
+                        "synonym_management.auto_promote_global_enabled",
+                        "synonym_management.auto_accept_ai_action_enabled",
+                    ],
+                },
+                {
+                    "id": "agentic-quality-targets",
+                    "title": "Quality Targets",
+                    "helper": "Tune lexical and semantic weighting balance for alignment channels.",
                     "submit_kind": "section",
                     "submit_slug": "agentic-advanced",
-                    "save_label": "Save Advanced Agentic Settings",
-                    "keys": AGENTIC_SETTINGS_SECTIONS["agentic-advanced"],
+                    "save_label": "Save Quality Target Settings",
+                    "keys": [
+                        "cv_analysis.semantic_alignment.required_skill_lexical_weight",
+                        "cv_analysis.semantic_alignment.required_skill_semantic_weight",
+                        "cv_analysis.semantic_alignment.role_lexical_weight",
+                        "cv_analysis.semantic_alignment.role_semantic_weight",
+                        "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+                        "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+                        "cv_analysis.semantic_alignment.domain_lexical_weight",
+                        "cv_analysis.semantic_alignment.domain_semantic_weight",
+                    ],
+                },
+                {
+                    "id": "agentic-throughput",
+                    "title": "Throughput",
+                    "helper": "Bound semantic channel candidate pool size for alignment processing.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-advanced",
+                    "save_label": "Save Throughput Settings",
+                    "keys": [
+                        "cv_analysis.semantic_alignment.channel_pool_size",
+                    ],
+                },
+                {
+                    "id": "agentic-diagnostics",
+                    "title": "Diagnostics",
+                    "helper": "Metadata-only semantic runtime contract details.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-advanced",
+                    "save_label": "Save Diagnostics Settings",
+                    "keys": [
+                        "cv_analysis.semantic_alignment.model",
+                    ],
                     "is_advanced": True,
                 },
             ],
@@ -4726,7 +4780,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 {
                     "id": "cv-visibility",
                     "title": "Section Visibility",
-                    "helper": "Decide which sections appear in generated CVs without exposing retired formatting-only knobs.",
+                    "helper": "Decide which sections appear in generated CVs. Formatting-only legacy knobs remain hidden.",
                     "submit_kind": "group",
                     "submit_slug": "cv-composition",
                     "form_id": "form-cv-composition",
@@ -4961,6 +5015,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "decision_status": str(decision_state.get("decision_status") or DECISION_STATUS_CONFIGURED),
                         "decision_reason_codes": list(decision_state.get("reason_codes") or []),
                         "decision_domain": _decision_domain_for_entry(entry),
+                        "decision_stage": str(settings_ia_contract_for_key(key).get("stage") or ""),
+                        "decision_control_surface": str(settings_ia_contract_for_key(key).get("control_surface") or ""),
+                        "decision_area": str(settings_ia_contract_for_key(key).get("decision_area") or ""),
+                        "decision_complexity": str(settings_ia_contract_for_key(key).get("complexity_view") or ""),
                         "owner_label": owner_label,
                         "active_label": active_label,
                     }
@@ -5050,6 +5108,18 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "cv_analysis": "CV Analysis",
             "cv_generation": "CV Generation",
         }
+        stage_titles = {
+            "intake_filtering": "Intake & Filtering",
+            "agentic_processing": "Agentic Processing",
+            "scoring": "Scoring",
+            "cv_composition": "CV Composition",
+            "runtime_operations": "Runtime Operations",
+        }
+        control_surface_titles = {
+            "standard_pipeline": "Standard Pipeline",
+            "agentic_runtime": "Agentic Runtime",
+            "shared": "Shared",
+        }
         settings_domains = [
             {
                 "id": domain_id,
@@ -5073,6 +5143,22 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 **domain_stats.get(str(domain["id"]), {"total": 0, "modified": 0, "errors": 0, "overrides": 0}),
             }
             for domain in settings_domains
+        ]
+        settings_stage_scopes = [
+            {
+                "id": stage_id,
+                "title": title,
+                "keys": settings_keys_for_stage(stage_id),
+            }
+            for stage_id, title in stage_titles.items()
+        ]
+        settings_control_surface_filters = [
+            {
+                "id": surface_id,
+                "title": title,
+                "keys": settings_keys_for_control_surface(surface_id),
+            }
+            for surface_id, title in control_surface_titles.items()
         ]
         decision_entries: list[dict[str, Any]] = []
         for section in settings_page_task_sections:
@@ -5203,6 +5289,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "settings_mode_summary": mode_summary,
             "settings_domains": settings_domains,
             "settings_stage_filters": settings_stage_filters,
+            "settings_stage_scopes": settings_stage_scopes,
+            "settings_control_surface_filters": settings_control_surface_filters,
             "settings_ia_metadata_by_key": ia_metadata_by_key,
             "settings_danger_zone_keys": danger_zone_keys,
             "settings_domain_summaries": settings_domain_summaries,
