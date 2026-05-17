@@ -27,6 +27,45 @@
   </div>
 </div>
 
+<div class="card" id="run-overview-core">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <h3 style="margin:0">Run Overview</h3>
+    <span class="meta">Decision-first summary</span>
+  </div>
+  <div class="kv">
+    <span class="k">Status</span><span class="v"><span class="badge badge-{{ run.status.value }}">{{ run.status.value }}</span></span>
+    <span class="k">Outcome</span><span class="v"><code>{{ output_availability.state }}</code></span>
+    <span class="k">Warnings / Blockers</span><span class="v">{{ 'present' if run.error_message else 'none' }}</span>
+    <span class="k">Next Action</span>
+    <span class="v">
+      {% if run_status_projection.is_active %}
+        Monitor or stop run
+      {% elif run_status_projection.is_terminal and not run_status_projection.is_archived %}
+        Archive run or inspect outputs
+      {% elif run_status_projection.is_archived %}
+        Unarchive or review diagnostics
+      {% else %}
+        Inspect event timeline
+      {% endif %}
+    </span>
+    <span class="k">Stage Snapshot</span><span class="v"><code>{{ stage_result_summary_rows|length }} stage(s)</code></span>
+    <span class="k">Diagnostics Alerts</span><span class="v"><code>{{ overview_consistency_summary.dead_letter_events }}</code></span>
+    <span class="k">Effective Settings</span>
+    <span class="v">
+      <a href="/admin/runs/{{ run.run_id }}/settings-used.json">View effective settings</a>
+      <span class="meta">(delta={{ effective_settings_delta_summary.delta_count }}, source={{ effective_settings_delta_summary.source }})</span>
+    </span>
+  </div>
+  <div class="meta" style="margin-top:0.85rem">
+    Core fields source: {{ run_detail_visibility_registry.core|length }} registry entries.
+  </div>
+  <div style="margin-top:0.75rem;display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center">
+    <a class="btn-secondary" href="/admin/runs/{{ run.run_id }}/synonym-review">Open Synonym Review</a>
+    <a class="btn-secondary" href="/admin/runs/{{ run.run_id }}/artifacts">Open Artifacts</a>
+    <a class="btn-secondary" href="#diag-synonym-fingerprints">Open Diagnostics</a>
+  </div>
+</div>
+
 <!-- ── Run Metadata Card ─────────────────────────────────────────────────── -->
 <div class="card">
   <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem">
@@ -107,6 +146,18 @@
   </div>
 </div>
 
+<div class="card" id="artifacts-overview">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
+    <div>
+      <h3 style="margin:0 0 0.35rem">Artifacts</h3>
+      <div class="meta">
+        available exports: {{ run_export_links|length if run_export_links else 0 }}
+      </div>
+    </div>
+    <a class="btn-secondary" href="/admin/runs/{{ run.run_id }}/artifacts">Open Artifacts</a>
+  </div>
+</div>
+
 {% if stage_result_summary_rows %}
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
@@ -143,7 +194,37 @@
 </div>
 {% endif %}
 
-<div class="card">
+<details class="card" id="advanced-diagnostics">
+  <summary style="cursor:pointer;font-weight:600">Advanced diagnostics</summary>
+  <div class="meta" style="margin:0.65rem 0 0.85rem">
+    Technical telemetry and runtime diagnostics hidden by default to keep this page focused on next decisions.
+  </div>
+  <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.85rem">
+    <a class="btn-secondary" href="#diag-synonym-fingerprints">Synonym Fingerprints</a>
+    <a class="btn-secondary" href="#diag-event-delivery-health">Event Delivery</a>
+    <a class="btn-secondary" href="#diag-telemetry-export-health">Telemetry</a>
+    <a class="btn-secondary" href="#diag-langfuse-trace-link-health">Trace Links</a>
+    <a class="btn-secondary" href="#diag-dead-letter-replay-summary">Replay Summary</a>
+    <a class="btn-secondary" href="#diag-agentic-runtime-alignment">Runtime Alignment</a>
+  </div>
+
+<div class="card" id="diag-synonym-fingerprints">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+    <h3 style="margin:0">Synonym Fingerprints</h3>
+    <span class="badge badge-info">diagnostic</span>
+  </div>
+  <div class="meta">
+    pre_run_global={{ synonym_fingerprints.pre_run_global_map_fingerprint or 'n/a' }},
+    overlay={{ synonym_fingerprints.run_overlay_fingerprint or 'n/a' }},
+    suggestions={{ synonym_fingerprints.mapping_suggestions_fingerprint or 'n/a' }},
+    proposal_input={{ synonym_fingerprints.proposal_input_bundle_fingerprint or 'n/a' }}.
+  </div>
+  <div class="meta" style="margin-top:0.65rem">
+    Raw payload exports: use <a href="#run-exports-workspace">Run Exports</a> for downloadable JSON/YAML artifacts.
+  </div>
+</div>
+
+<div class="card" id="diag-event-delivery-health">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
     <h3 style="margin:0">Event Delivery Health</h3>
     {% if event_delivery_health.status == 'degraded' %}
@@ -249,8 +330,10 @@
   </div>
 </div>
 
+</details>
+
 {% if hitl_review_queue.total_review_required and hitl_review_queue.total_review_required > 0 %}
-<div class="card">
+<div class="card" id="diag-telemetry-export-health">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
     <div>
       <h3 style="margin:0 0 0.35rem">Agentic Review Queue</h3>
@@ -338,7 +421,7 @@
 {% endif %}
 
 {% if markdown_quality_summary.attempted_total and markdown_quality_summary.attempted_total > 0 %}
-<div class="card">
+<div class="card" id="diag-langfuse-trace-link-health">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
     <div>
       <h3 style="margin:0 0 0.35rem">Markdown Quality</h3>
@@ -368,7 +451,7 @@
 {% endif %}
 
 {% if synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay %}
-<div class="card">
+<div class="card" id="diag-dead-letter-replay-summary">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
     <div>
       <h3 style="margin:0 0 0.35rem">Synonym Overlay</h3>
@@ -381,7 +464,7 @@
       </div>
     </div>
     {% if synonym_overlay_info.has_run_overlay %}
-    <span class="badge badge-info">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
+    <span class="badge badge-info" title="Run-scoped overlay: synonym overrides applied only to this run.">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
     {% endif %}
   </div>
 
@@ -432,11 +515,11 @@
 {% endif %}
 
 {% if request.query_params.get("synonym_regenerated_total") is not none %}
-<div class="card">
+<div class="card" id="diag-agentic-runtime-alignment">
   <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
     Regeneration summary:
     generated={{ request.query_params.get("synonym_regenerated_total") }},
-    suppressed={{ request.query_params.get("synonym_regenerated_suppressed") or "0" }},
+    <span title="Suppressed: proposals hidden by suppression policy or duplicate resolution.">suppressed={{ request.query_params.get("synonym_regenerated_suppressed") or "0" }}</span>,
     failed={{ request.query_params.get("synonym_regenerated_failed") or "0" }}.
   </div>
 </div>
@@ -445,6 +528,23 @@
 {% if (synonym_proposal_review_queue.total_count and synonym_proposal_review_queue.total_count > 0)
    or can_regenerate_synonym_proposals
    or synonym_proposal_decision_ledger %}
+<div class="card" id="synonym-review-overview">
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
+    <div>
+      <h3 style="margin:0 0 0.35rem">Synonym Review</h3>
+      <div class="meta">
+        pending={{ synonym_proposal_review_queue.pending_count }},
+        total={{ synonym_proposal_review_queue.total_count }},
+        triage={{ synonym_proposal_review_queue.triage_status }}.
+      </div>
+    </div>
+    <a class="btn-secondary" href="/admin/runs/{{ run.run_id }}/synonym-review">Open full workspace</a>
+  </div>
+</div>
+
+<details class="card" id="synonym-review-workspace">
+  <summary style="cursor:pointer;font-weight:600">Synonym review workspace</summary>
+  <div class="meta" style="margin:0.65rem 0 0.85rem">Task-heavy controls and full proposal queue.</div>
 <div class="card">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
     <div>
@@ -455,7 +555,7 @@
     </div>
     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
       <span class="badge badge-info">run-scoped HITL</span>
-      <span class="badge badge-info">
+      <span class="badge badge-info" title="Triage mode: strategy for recommendation freshness and reuse behavior.">
         mode:
         {% if not synonym_management_mode.auto_triage_recommendation_enabled %}
           auto_off
@@ -465,7 +565,7 @@
           reuse_smart
         {% endif %}
       </span>
-      <span class="badge badge-{{ 'success' if synonym_proposal_review_queue.triage_status == 'fresh' else ('warning' if synonym_proposal_review_queue.triage_status in ('partial', 'stale') else 'neutral') }}">
+      <span class="badge badge-{{ 'success' if synonym_proposal_review_queue.triage_status == 'fresh' else ('warning' if synonym_proposal_review_queue.triage_status in ('partial', 'stale') else 'neutral') }}" title="Triage mode result: freshness of recommendation decisions (fresh, partial, stale).">
         triage: {{ synonym_proposal_review_queue.triage_status }}
       </span>
     </div>
@@ -525,13 +625,6 @@
     Proposal Decision Ledger: no rows yet (all suppressed or none generated).
   </div>
   {% endif %}
-  <div class="meta" style="margin-bottom:0.85rem">
-    fingerprints:
-    pre_run_global={{ synonym_fingerprints.pre_run_global_map_fingerprint or 'n/a' }},
-    overlay={{ synonym_fingerprints.run_overlay_fingerprint or 'n/a' }},
-    suggestions={{ synonym_fingerprints.mapping_suggestions_fingerprint or 'n/a' }},
-    proposal_input={{ synonym_fingerprints.proposal_input_bundle_fingerprint or 'n/a' }}.
-  </div>
   <form id="synonym-triage-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/triage-refresh" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
     <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
     <input type="hidden" name="note" value="ui:triage-refresh">
@@ -635,7 +728,7 @@
           </div>
           {% endif %}
           <div style="font-weight:700"><code>{{ item.alias }}</code> → <code>{{ item.canonical }}</code></div>
-          <div class="meta">confidence: {{ '%.2f'|format(item.confidence) }}</div>
+          <div class="meta"><span title="Confidence score: model certainty for proposed mapping.">confidence</span>: {{ '%.2f'|format(item.confidence) }}</div>
           {% if item.recommended_action %}
           <div class="meta" style="margin-top:0.35rem">
             Recommendation: <strong>{{ item.recommended_action }}</strong>
@@ -657,7 +750,7 @@
           {% endif %}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
-          <span class="badge badge-{{ 'warning' if item.pending else 'success' }}">{{ item.status }}</span>
+          <span class="badge badge-{{ 'warning' if item.pending else 'success' }}" title="{% if item.status == 'conflict' %}Alias conflict: alias currently maps to another canonical term and needs explicit decision.{% else %}Proposal lifecycle status.{% endif %}">{{ item.status }}</span>
         </div>
       </div>
       {% if item.pending %}
@@ -700,9 +793,13 @@
     {% endfor %}
   </div>
 </div>
+</details>
 {% endif %}
 
 {% if run_export_links %}
+<details class="card" id="run-exports-workspace">
+  <summary style="cursor:pointer;font-weight:600">Run exports workspace</summary>
+  <div class="meta" style="margin:0.65rem 0 0.85rem">Full artifact listing and download actions.</div>
 <div class="card">
   <h3 style="margin:0 0 0.85rem">Run Exports</h3>
   <div class="run-export-grid">
@@ -716,6 +813,7 @@
     {% endfor %}
   </div>
 </div>
+</details>
 {% endif %}
 
 {% if run_health_rows %}

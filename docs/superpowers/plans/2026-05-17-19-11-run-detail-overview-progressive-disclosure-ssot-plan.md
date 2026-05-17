@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: active
 template_id: implementation-plan
 name: run-detail-overview-progressive-disclosure-ssot-implementation
 parent_thread: workstream-operator-control-plane.operator-control-plane-run-detail-truth
@@ -64,13 +64,13 @@ Automated checks prove cross-surface consistency for status, counts, stage state
 - GitNexus freshness check stays `fresh`; if query quality remains degraded, treat GitNexus as advisory and continue source-first
 
 **Steps:**
-- [ ] Step 1: inventory current run-detail payload fields and map each to `core|advanced|diagnostic`
-- [ ] Step 2: add canonical registry structure (field -> tier, owner surface, source key, explanation mode)
-- [ ] Step 3: wire template context generation to registry-derived projections, not ad-hoc inline conditionals
+- [x] Step 1: inventory current run-detail payload fields and map each to `core|advanced|diagnostic`
+- [x] Step 2: add canonical registry structure (field -> tier, owner surface, source key, explanation mode)
+- [x] Step 3: wire template context generation to registry-derived projections, not ad-hoc inline conditionals
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py -q`
-- [ ] inspection confirms every rendered overview field has registry entry
+- [x] `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py -q`
+- [x] inspection confirms every rendered overview field has registry entry
 
 **Exit Criteria:**
 - one source of truth exists for field visibility and ownership
@@ -89,13 +89,13 @@ Automated checks prove cross-surface consistency for status, counts, stage state
 - Task 1 complete
 
 **Steps:**
-- [ ] Step 1: create/normalize overview cards: `Outcome`, `Warnings/Blockers`, `Next Actions`, `Stage Snapshot`, `Effective Settings`
-- [ ] Step 2: remove default inline rendering of diagnostic-heavy blocks from initial viewport
-- [ ] Step 3: add explicit CTA links to dedicated workflow and diagnostics surfaces
+- [x] Step 1: create/normalize overview cards: `Outcome`, `Warnings/Blockers`, `Next Actions`, `Stage Snapshot`, `Effective Settings`
+- [x] Step 2: remove default inline rendering of diagnostic-heavy blocks from initial viewport
+- [x] Step 3: add explicit CTA links to dedicated workflow and diagnostics surfaces
 
 **Verification:**
-- [ ] template assertions/snapshots confirm only core sections visible on initial load
-- [ ] manual smoke: no hashes/raw payload/log table in default view
+- [x] template assertions/snapshots confirm only core sections visible on initial load
+- [x] manual smoke: no hashes/raw payload/log table in default view
 
 **Exit Criteria:**
 - initial run overview answers outcome/risk/next-action without scrolling through diagnostics
@@ -118,13 +118,13 @@ Automated checks prove cross-surface consistency for status, counts, stage state
 - Task 2 complete
 
 **Steps:**
-- [ ] Step 1: move fingerprints, hashes, raw payloads, full logs, internal IDs into `Advanced diagnostics` collapse or diagnostics route blocks
-- [ ] Step 2: enforce tooltip-only glossary for short terms (`confidence`, `triage mode`, `suppressed`, `alias conflict`, `run-scoped overlay`)
-- [ ] Step 3: keep deterministic deep-link anchors from overview summaries to exact diagnostics sections
+- [x] Step 1: move fingerprints, hashes, raw payloads, full logs, internal IDs into `Advanced diagnostics` collapse or diagnostics route blocks
+- [x] Step 2: enforce tooltip-only glossary for short terms (`confidence`, `triage mode`, `suppressed`, `alias conflict`, `run-scoped overlay`)
+- [x] Step 3: keep deterministic deep-link anchors from overview summaries to exact diagnostics sections
 
 **Verification:**
-- [ ] render checks confirm hidden-by-default diagnostic fields
-- [ ] deep-link navigation reaches expected diagnostics anchor
+- [x] render checks confirm hidden-by-default diagnostic fields
+- [x] deep-link navigation reaches expected diagnostics anchor
 
 **Exit Criteria:**
 - advanced detail is one action away, not first-view clutter
@@ -146,13 +146,13 @@ Automated checks prove cross-surface consistency for status, counts, stage state
 - Task 2 complete
 
 **Steps:**
-- [ ] Step 1: keep only synonym summary + CTA on overview
-- [ ] Step 2: ensure dedicated synonym page carries full queue/review controls
-- [ ] Step 3: verify no duplicated business logic between overview summary and dedicated page
+- [x] Step 1: keep only synonym summary + CTA on overview
+- [x] Step 2: ensure dedicated synonym page carries full queue/review controls
+- [x] Step 3: verify no duplicated business logic between overview summary and dedicated page
 
 **Verification:**
-- [ ] route tests for synonym workspace render and action controls
-- [ ] overview tests confirm compact summary only
+- [x] route tests for synonym workspace render and action controls
+- [x] overview tests confirm compact summary only
 
 **Exit Criteria:**
 - synonym review becomes focused task workspace, not inline overload
@@ -173,13 +173,13 @@ Automated checks prove cross-surface consistency for status, counts, stage state
 - Task 2 complete
 
 **Steps:**
-- [ ] Step 1: expose artifact availability summary + CTA from overview
-- [ ] Step 2: route full artifact listing/preview/download to dedicated artifact surface
-- [ ] Step 3: keep compatibility for existing artifact links and run-scoped identifiers
+- [x] Step 1: expose artifact availability summary + CTA from overview
+- [x] Step 2: route full artifact listing/preview/download to dedicated artifact surface
+- [x] Step 3: keep compatibility for existing artifact links and run-scoped identifiers
 
 **Verification:**
-- [ ] route tests confirm dedicated artifact page loads full listing
-- [ ] overview tests confirm artifact details not fully expanded by default
+- [x] route tests confirm dedicated artifact page loads full listing
+- [x] overview tests confirm artifact details not fully expanded by default
 
 **Exit Criteria:**
 - artifact exploration is discoverable but off main decision path
@@ -198,13 +198,13 @@ Automated checks prove cross-surface consistency for status, counts, stage state
 - Tasks 1-5 complete
 
 **Steps:**
-- [ ] Step 1: compute overview `effective settings` strictly from defaults XOR run overrides that affected run
-- [ ] Step 2: add tests asserting overview counts/states match diagnostics sources
-- [ ] Step 3: add regression checks preventing diagnostic-tier fields from leaking into core overview cards
+- [x] Step 1: compute overview `effective settings` strictly from defaults XOR run overrides that affected run
+- [x] Step 2: add tests asserting overview counts/states match diagnostics sources
+- [x] Step 3: add regression checks preventing diagnostic-tier fields from leaking into core overview cards
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py -q`
-- [ ] targeted assertions for status/warning/stage/effective-settings equivalence pass
+- [x] `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py -q`
+- [x] targeted assertions for status/warning/stage/effective-settings equivalence pass
 
 **Exit Criteria:**
 - no cross-surface truth drift in tested fixtures
@@ -223,12 +223,12 @@ Automated checks prove cross-surface consistency for status, counts, stage state
 - Tasks 1-6 complete
 
 **Steps:**
-- [ ] Step 1: update usage docs for new run overview + dedicated workflow navigation
-- [ ] Step 2: document diagnostic access path and tooltip semantics
-- [ ] Step 3: run hook validator and resolve any planning/documentation contract drift
+- [x] Step 1: update usage docs for new run overview + dedicated workflow navigation
+- [x] Step 2: document diagnostic access path and tooltip semantics
+- [x] Step 3: run hook validator and resolve any planning/documentation contract drift
 
 **Verification:**
-- [ ] `python scripts/hooks/run_validator.py --fast`
+- [x] `python scripts/hooks/run_validator.py --fast`
 
 **Exit Criteria:**
 - docs, spec, and plan align with shipped UX behavior and validation passes

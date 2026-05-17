@@ -4,8 +4,8 @@
 
 - **Workstream / Plan:** `workstream-operator-control-plane.operator-control-plane-run-detail-truth` / `docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md`
 - **Goal:** Deliver decision-first run overview with SSOT visibility registry and progressive disclosure.
-- **Bounded Scope (in-scope only):** Task 1 complete, Task 2 complete, Task 3 complete, Task 4 complete, Task 5 complete, Task 6 complete, Task 7 step 1+2 complete.
-- **Out of Scope (explicit):** merge orchestration until Task 7 step 3 (final closure checks) is complete.
+- **Bounded Scope (in-scope only):** Tasks 1-7 complete.
+- **Out of Scope (explicit):** merge orchestration pending user closeout command.
 
 ## 2) Canonical Inputs (Source of Truth)
 
@@ -18,48 +18,59 @@
 
 ## 3) Current Task State
 
-- **Completed:** Task 1 complete. Task 2 complete. Task 3 complete. Task 4 complete. Task 5 complete. Task 6 complete. Task 7 step 1 and step 2 complete.
-- **In Progress:** Task 7 step 3 (run hook validator and resolve planning/documentation drift).
+- **Completed:** Task 1-7 complete including Task 7 Step 3.
+- **In Progress:** none.
 - **Deferred / Dropped:** none.
 - **Known divergence from plan (if any):** dedicated workflow surfaces are route+anchor based, not separate full templates.
 
 ## 4) Files Changed This Session
 
-- `docs/usage.md` — documented diagnostics access path anchors and tooltip glossary semantics.
-- `docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md` — Task 7 step 2 marked complete.
+- `src/fitcv_cp/app.py`
+- `src/fitcv_cp/templates/run_detail.html`
+- `tests/test_fitcv_cp/test_run_detail_output_availability.py`
+- `tests/test_fitcv_cp/test_app.py`
+- `docs/usage.md`
+- `docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md`
+- `docs/superpowers/execution_context_packs/run-detail-overview-progressive-disclosure-ssot/latest.md`
+- `artifacts/execution_context_pack.md`
 
 ## 5) Verification State
 
 - **Last commands run:**
+  - `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py -q`
+  - `pytest tests/test_fitcv_cp/test_app.py -k run_detail -q`
   - `python scripts/hooks/run_validator.py --fast`
-- **Result summary:** pass (all hook-subset validators green).
+  - `py scripts/validate_planning_lifecycle.py --strict`
+  - `py scripts/validate_checkpoint_packs.py`
+  - `py scripts/validate_template_required_sections.py`
+- **Result summary:** pass (`8 passed`; `117 passed, 274 deselected`; validators passed).
 - **Failing checks (if any):** none.
-- **Gaps still unverified:** final explicit Task 7 step 3 completion mark and final closure gate run sequence.
+- **Gaps still unverified:** none in lane scope.
 
 ## 6) Open Blockers / Risks
 
-- no technical blocker; closure still gated by final plan/task completion bookkeeping.
+- none.
 
 ## 7) Next Exact Action
 
 Single smallest concrete action to run first in next session.
 
-- **Action type:** verification + plan-state sync
-- **Target:** `docs/superpowers/plans/2026-05-17-19-11-run-detail-overview-progressive-disclosure-ssot-plan.md`
-- **Exact command or edit intent:** complete Task 7 step 3 by marking validator step done (evidence already passed), then run final required closure validators set (`py scripts/validate_planning_lifecycle.py --strict`, `py scripts/validate_checkpoint_packs.py`, and template-required-sections validator for changed template-governed docs).
-- **Why this is next:** it is the only remaining plan step before closure eligibility.
+- **Action type:** closeout
+- **Target:** lane closure/PR orchestration prompt
+- **Exact command or edit intent:** run closure gate and decide `open/update PR` or `merge now` per policy.
+- **Why this is next:** implementation + required verification complete; no active plan steps remain.
 
 ## 8) Resume Prompt (Copy/Paste)
 
 ```text
-Read this execution context pack first. Verify its state against listed source files. Then execute the Next Exact Action immediately. Do not re-plan unless blocker is found.
+Run closure orchestration for this lane now. Use plan and verification evidence already captured.
 ```
 
 ## 9) Optional Deep Context (Consult Only)
 
 - **conversation_id:** current-thread
 - **overview_log:** `.gemini/antigravity/brain/<conversation-id>/.system_generated/logs/overview.txt`
-- **consult_if:** uncertainty about closure validator dedupe eligibility.
+- **consult_if:** closure validator dedupe questions.
 - **notes_from_log (optional, concise):** n/a
 
 ## Source-Truth Rule
