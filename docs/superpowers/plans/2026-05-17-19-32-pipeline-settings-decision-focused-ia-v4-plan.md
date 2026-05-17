@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: pipeline-settings-decision-focused-ia-v4-implementation
 parent_thread: workstream-fitcv-semantic-spine.semantic-spine-component-boundary-and-interface-contract
