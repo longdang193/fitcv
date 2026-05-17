@@ -3,9 +3,9 @@
 ## 1) Objective
 
 - **Workstream / Plan:** `docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md`
-- **Goal:** Implement decision-first settings IA with `Basic | Advanced | All`, Stage + Control Surface filters, and symmetric block decomposition.
-- **Bounded Scope (in-scope only):** `src/fitcv_cp/settings_schema.py`, `src/fitcv_cp/app.py`, `src/fitcv_cp/templates/settings.html`, settings tests.
-- **Out of Scope (explicit):** unrelated pipeline runtime features and merge/closeout orchestration.
+- **Goal:** Complete real-stage alignment for Pipeline Settings Stage filter using canonical runtime stage IDs.
+- **Bounded Scope (in-scope only):** `src/fitcv_cp/settings_schema.py`, `src/fitcv_cp/app.py`, `src/fitcv_cp/templates/settings.html`, `tests/test_fitcv_cp/test_app.py`, plan/context-pack docs.
+- **Out of Scope (explicit):** merge orchestration and unrelated pipeline runtime behavior.
 
 ## 2) Canonical Inputs (Source of Truth)
 
@@ -17,22 +17,17 @@
 
 ## 3) Current Task State
 
-- **Completed:** Tasks 1-5 complete, including manual browser smoke verification.
+- **Completed:** Tasks 1-6 completed. Stage mapping migrated from synthetic buckets to real pipeline stages plus `cross_stage`.
 - **In Progress:** none.
 - **Deferred / Dropped:** none.
 - **Known divergence from plan (if any):** none.
 
 ## 4) Files Changed This Session
 
-- `src/fitcv_cp/settings_schema.py` — SSOT decision-state metadata and deterministic classifier helpers; CV preset group expansion.
-- `src/fitcv_cp/settings_schema.py` — added canonical mapping metadata (`stage`, `control_surface`, `decision_area`, `complexity_view`) and helper accessors.
-- `src/fitcv_cp/app.py` — imported new helper accessors, exposed stage/control-surface payloads, and decomposed agentic cards into symmetric sub-blocks.
-- `src/fitcv_cp/templates/settings.html` — removed non-decision top strips, introduced `Basic|Advanced|All`, replaced domain filters with `Stage` + `Control Surface`, and updated filter JS + empty-state messaging.
-- `tests/test_fitcv_cp/test_app.py` — updated settings UX assertions for new strip/filter/card contracts.
-- manual smoke evidence (live server): `http://127.0.0.1:8011/admin/settings` passed complexity/stage/control-surface/agentic decomposition checks.
-- `docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md` — new approved execution spec.
-- `docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md` — active execution plan with Task 1 checked.
-- `docs/generated/planning_lineage.yaml` — regenerated lineage after new planning artifacts.
+- `src/fitcv_cp/settings_schema.py` — replaced synthetic stage bucket model with canonical stage IDs and explicit per-key stage ownership map.
+- `src/fitcv_cp/app.py` — Stage chip registry switched to `normalize|enrich|rule_filter|shortlist|ranking|cv_analysis|cv_generation|cross_stage`.
+- `tests/test_fitcv_cp/test_app.py` — assertions added for exact Stage chip IDs; actionable toggle expectations preserved as removed.
+- `docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md` — Task 6 checklist completed; plan status set to `completed`.
 
 ## 5) Verification State
 
@@ -40,24 +35,22 @@
   - `pytest tests/test_fitcv_cp/test_app.py -q -k settings`
   - `python scripts/validate_planning_lifecycle.py --strict`
   - `python scripts/validate_checkpoint_packs.py`
-  - `python scripts/validate_template_required_sections.py`
   - `python scripts/validate_repo_contracts.py --fast`
-- **Result summary:** settings regression suite passed (`76 passed`).
-- **Result summary:** settings regression suite passed (`76 passed`) and manual smoke checks passed on `8011`.
+- **Result summary:** all passed; settings suite `76 passed`.
 - **Failing checks (if any):** none.
-- **Gaps still unverified:** none for plan scope.
+- **Gaps still unverified:** manual click-through for each stage chip on live page not yet re-run after this exact patch.
 
 ## 6) Open Blockers / Risks
 
-- No blocker.
-- Non-blocking background warning persists: missing LLM API key in unrelated test-triggered worker path.
+- No execution blocker.
+- Non-blocking background warning persists in worker path when LLM API key missing; unrelated to settings IA patch.
 
 ## 7) Next Exact Action
 
-- **Action type:** closeout
-- **Target:** branch handoff / commit orchestration
-- **Exact command or edit intent:** stage closure-evidence reconciliation updates, commit, push, and update/merge PR.
-- **Why this is next:** closure validators and checklist reconciliation are complete; lane is merge-eligible.
+- **Action type:** manual verification
+- **Target:** `/admin/settings` Stage chips
+- **Exact command or edit intent:** open page and click each Stage chip to confirm expected row visibility and empty-state behavior (`normalize` expected empty).
+- **Why this is next:** closes remaining verification gap after code+tests.
 
 ## 8) Resume Prompt (Copy/Paste)
 

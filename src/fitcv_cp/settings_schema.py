@@ -922,23 +922,82 @@ _GROUP_TO_APPLIES_WHEN: dict[str, str] = {
     "cv_preset": "Used when resolving CV preset/model defaults for generation.",
 }
 
-_STAGE_INTAKE_FILTERING = "intake_filtering"
-_STAGE_AGENTIC_PROCESSING = "agentic_processing"
-_STAGE_SCORING = "scoring"
-_STAGE_CV_COMPOSITION = "cv_composition"
-_STAGE_RUNTIME_OPERATIONS = "runtime_operations"
+_STAGE_CROSS_STAGE = "cross_stage"
+_ALL_STAGE_IDS: tuple[str, ...] = (
+    _WORKFLOW_STAGE_NORMALIZE,
+    _WORKFLOW_STAGE_ENRICH,
+    _WORKFLOW_STAGE_RULE_FILTER,
+    _WORKFLOW_STAGE_SHORTLIST,
+    _WORKFLOW_STAGE_RANKING,
+    _WORKFLOW_STAGE_CV_ANALYSIS,
+    _WORKFLOW_STAGE_CV_GENERATION,
+    _STAGE_CROSS_STAGE,
+)
 
-_GROUP_TO_STAGE_ID: dict[str, str] = {
-    "retrieval": _STAGE_INTAKE_FILTERING,
-    "global_job_filters": _STAGE_INTAKE_FILTERING,
-    "rule_filter": _STAGE_INTAKE_FILTERING,
-    "ranking": _STAGE_SCORING,
-    "cv_composition": _STAGE_CV_COMPOSITION,
-    "cv_validation": _STAGE_CV_COMPOSITION,
-    "cv_preset": _STAGE_CV_COMPOSITION,
-    "run_lifecycle": _STAGE_RUNTIME_OPERATIONS,
-    "timing": _STAGE_RUNTIME_OPERATIONS,
-    "agentic": _STAGE_AGENTIC_PROCESSING,
+_KEY_TO_STAGE_ID: dict[str, str] = {
+    # shortlist
+    "pipeline.vector_search_top_n": _WORKFLOW_STAGE_SHORTLIST,
+    # ranking
+    "pipeline.ai_score_top_n": _WORKFLOW_STAGE_RANKING,
+    "pipeline.final_top_n": _WORKFLOW_STAGE_RANKING,
+    "rerank_sleep_secs": _WORKFLOW_STAGE_RANKING,
+    "ranking_weights.ai_score": _WORKFLOW_STAGE_RANKING,
+    "ranking_weights.must_have_match": _WORKFLOW_STAGE_RANKING,
+    "ranking_weights.vector_similarity": _WORKFLOW_STAGE_RANKING,
+    "ranking_weights.title_relevance": _WORKFLOW_STAGE_RANKING,
+    "ranking_weights.seniority_fit": _WORKFLOW_STAGE_RANKING,
+    "ranking_weights.preference_fit": _WORKFLOW_STAGE_RANKING,
+    "preference_fit_weights.domain": _WORKFLOW_STAGE_RANKING,
+    "preference_fit_weights.role_family": _WORKFLOW_STAGE_RANKING,
+    "preference_fit_weights.location_type": _WORKFLOW_STAGE_RANKING,
+    "fit_label_thresholds.strong": _WORKFLOW_STAGE_RANKING,
+    "fit_label_thresholds.stretch": _WORKFLOW_STAGE_RANKING,
+    "gap_thresholds.strong_min_matched_ratio": _WORKFLOW_STAGE_RANKING,
+    "gap_thresholds.stretch_min_matched_ratio": _WORKFLOW_STAGE_RANKING,
+    # cv_analysis
+    "pipeline.evidence_top_k": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "cv.agentic_late_stage.enabled": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "cv_analysis.semantic_alignment.enabled": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "cv_analysis.semantic_alignment.model": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "cv_analysis.semantic_alignment.required_skill_lexical_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "cv_analysis.semantic_alignment.required_skill_semantic_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "cv_analysis.semantic_alignment.role_lexical_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "cv_analysis.semantic_alignment.role_semantic_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "cv_analysis.semantic_alignment.responsibility_lexical_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "cv_analysis.semantic_alignment.responsibility_semantic_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "cv_analysis.semantic_alignment.domain_lexical_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "cv_analysis.semantic_alignment.domain_semantic_weight": _WORKFLOW_STAGE_CV_ANALYSIS,
+    "cv_analysis.semantic_alignment.channel_pool_size": _WORKFLOW_STAGE_CV_ANALYSIS,
+    # enrich
+    "global_job_filters.applications_count_max": _WORKFLOW_STAGE_ENRICH,
+    "global_job_filters.max_age_days": _WORKFLOW_STAGE_ENRICH,
+    "enrichment_sleep_secs": _WORKFLOW_STAGE_ENRICH,
+    "enrichment_batch_size": _WORKFLOW_STAGE_ENRICH,
+    "enrichment_concurrency": _WORKFLOW_STAGE_ENRICH,
+    "synonym_management.propose_enabled": _WORKFLOW_STAGE_ENRICH,
+    "synonym_management.apply_to_run_enabled": _WORKFLOW_STAGE_ENRICH,
+    "synonym_management.promote_global_enabled": _WORKFLOW_STAGE_ENRICH,
+    "synonym_management.auto_triage_recommendation_enabled": _WORKFLOW_STAGE_ENRICH,
+    "synonym_management.triage_recommendation_reuse_enabled": _WORKFLOW_STAGE_ENRICH,
+    "synonym_management.auto_apply_recommendation_enabled": _WORKFLOW_STAGE_ENRICH,
+    "synonym_management.auto_promote_global_enabled": _WORKFLOW_STAGE_ENRICH,
+    # rule_filter
+    "rule_filter.selected_filters": _WORKFLOW_STAGE_RULE_FILTER,
+    # cv_generation
+    "cv_generation_model": _WORKFLOW_STAGE_CV_GENERATION,
+    "cv_preset": _WORKFLOW_STAGE_CV_GENERATION,
+    "cv_summary_enabled": _WORKFLOW_STAGE_CV_GENERATION,
+    "cv_education_enabled": _WORKFLOW_STAGE_CV_GENERATION,
+    "cv_experience_enabled": _WORKFLOW_STAGE_CV_GENERATION,
+    "cv_skills_enabled": _WORKFLOW_STAGE_CV_GENERATION,
+    "cv_certifications_enabled": _WORKFLOW_STAGE_CV_GENERATION,
+    "cv_projects_enabled": _WORKFLOW_STAGE_CV_GENERATION,
+    "cv_publications_enabled": _WORKFLOW_STAGE_CV_GENERATION,
+    "cv_languages_enabled": _WORKFLOW_STAGE_CV_GENERATION,
+    "cv_max_pages": _WORKFLOW_STAGE_CV_GENERATION,
+    "synonym_management.auto_accept_ai_action_enabled": _WORKFLOW_STAGE_CV_GENERATION,
+    # cross-stage runtime guardrail
+    "run_lifecycle.max_runtime_minutes": _STAGE_CROSS_STAGE,
 }
 
 _CONTROL_SURFACE_STANDARD_PIPELINE = "standard_pipeline"
@@ -995,10 +1054,7 @@ def _default_ia_domain(entry: dict[str, Any]) -> str:
 
 def _default_stage_id(entry: dict[str, Any]) -> str:
     key = str(entry.get("key") or "")
-    if key.startswith("cv_analysis.semantic_alignment."):
-        return _STAGE_AGENTIC_PROCESSING
-    group = str(entry.get("group") or "")
-    return _GROUP_TO_STAGE_ID.get(group, _STAGE_RUNTIME_OPERATIONS)
+    return _KEY_TO_STAGE_ID.get(key, _STAGE_CROSS_STAGE)
 
 def _default_control_surface(entry: dict[str, Any]) -> str:
     key = str(entry.get("key") or "")
@@ -1047,12 +1103,14 @@ def _build_settings_ia_metadata() -> dict[str, dict[str, Any]]:
         key = str(entry["key"])
         group = str(entry.get("group") or "")
         risk = _risk_for_entry(entry)
+        stage_id = _default_stage_id(entry)
         metadata[key] = {
             "domain": _default_ia_domain(entry),
-            "stage": _default_stage_id(entry),
+            "stage": stage_id,
             "control_surface": _default_control_surface(entry),
             "decision_area": _default_decision_area(entry),
-            "workflow_stages": list(_GROUP_TO_WORKFLOW_STAGES.get(group, ())),
+            # Keep workflow-stage metadata aligned with canonical per-key stage ownership.
+            "workflow_stages": [stage_id],
             "risk": risk,
             "runtime_used": key not in _METADATA_ONLY_KEYS,
             "metadata_only": key in _METADATA_ONLY_KEYS,

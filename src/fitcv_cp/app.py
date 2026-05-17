@@ -4994,11 +4994,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "cv_generation": "CV Generation",
         }
         stage_titles = {
-            "intake_filtering": "Intake & Filtering",
-            "agentic_processing": "Agentic Processing",
-            "scoring": "Scoring",
-            "cv_composition": "CV Composition",
-            "runtime_operations": "Runtime Operations",
+            "normalize": "Normalize",
+            "enrich": "Enrich",
+            "rule_filter": "Rule Filter",
+            "shortlist": "Shortlist",
+            "ranking": "Ranking",
+            "cv_analysis": "CV Analysis",
+            "cv_generation": "CV Generation",
+            "cross_stage": "Cross-Stage",
         }
         control_surface_titles = {
             "standard_pipeline": "Standard Pipeline",

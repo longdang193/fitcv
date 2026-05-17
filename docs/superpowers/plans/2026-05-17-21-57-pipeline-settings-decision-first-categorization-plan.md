@@ -29,6 +29,19 @@ related_stages:
 
 Implement decision-first Pipeline Settings UX that preserves `Basic | Advanced | All`, introduces symmetric stage and control-surface categorization, decomposes oversized agentic controls, and keeps diagnostics always advanced.
 
+## Delta Update (Real Stage Alignment)
+
+Adjust stage-setting categorization to use canonical runtime stage IDs from `PIPELINE_STAGE_SEQUENCE` in `src/fitcv/pipeline.py`:
+
+- `normalize`
+- `enrich`
+- `rule_filter`
+- `shortlist`
+- `ranking`
+- `cv_analysis`
+- `cv_generation`
+- `cross_stage` (non-stage runtime guardrails only)
+
 ## Key Deliverables
 
 ### Deliverable 1: Canonical categorization and placement contract in app/schema
@@ -46,6 +59,10 @@ Current monolithic/advanced agentic tuning is split into smaller decision blocks
 ### Deliverable 4: Regression-proof behavior and documentation alignment
 
 Tests cover filter interactivity and placement invariants; execution context pack updated with implementation evidence and next-action state.
+
+### Deliverable 5: Real pipeline stage mapping contract replaces synthetic stage buckets
+
+Synthetic buckets (`intake_filtering`, `scoring`, `cv_composition`, `agentic_processing`, `runtime_operations`) are removed from stage filter ownership and replaced by real stage ownership with `cross_stage` reserved for runtime guardrails.
 
 ## Task/Wave Breakdown
 
@@ -182,6 +199,50 @@ Tests cover filter interactivity and placement invariants; execution context pac
 
 **Exit Criteria:**
 - tests and execution context pack both reflect finalized behavior contract
+
+### Task 6: Migrate stage filter + metadata to real pipeline stages
+
+**Purpose:**
+- align settings stage chips and per-key metadata with canonical runtime stages
+
+**Files:**
+- Modify: `src/fitcv_cp/settings_schema.py`
+- Modify: `src/fitcv_cp/app.py`
+- Modify: `src/fitcv_cp/templates/settings.html`
+- Modify: `tests/test_fitcv_cp/test_app.py`
+- Modify: `docs/superpowers/execution_context_packs/pipeline-settings-decision-focused-ia-v4/latest.md`
+
+**Preconditions:**
+- Tasks 1-5 complete baseline
+
+**Steps:**
+- [x] Replace stage-id derivation:
+  - `intake_filtering -> normalize | enrich | rule_filter | shortlist` (per key)
+  - `scoring -> ranking`
+  - `cv_composition -> cv_generation`
+  - `agentic_processing -> enrich | rule_filter | cv_analysis | cv_generation` (per key)
+  - `runtime_operations -> cross_stage`
+- [x] Apply per-key mapping contract:
+  - `normalize`: none
+  - `enrich`: `global_job_filters.*`, `enrichment_*`, `synonym_management.{propose_enabled,auto_triage_recommendation_enabled,triage_recommendation_reuse_enabled,auto_apply_recommendation_enabled,apply_to_run_enabled,promote_global_enabled,auto_promote_global_enabled}`
+  - `rule_filter`: `rule_filter.selected_filters`, plus `synonym_management.{apply_to_run_enabled,promote_global_enabled}`
+  - `shortlist`: `pipeline.vector_search_top_n`
+  - `ranking`: `pipeline.ai_score_top_n`, `pipeline.final_top_n`, `rerank_sleep_secs`, `ranking_weights.*`, `preference_fit_weights.*`, `fit_label_thresholds.*`, `gap_thresholds.*`
+  - `cv_analysis`: `pipeline.evidence_top_k`, `cv_analysis.semantic_alignment.*`, `cv.agentic_late_stage.enabled`
+  - `cv_generation`: `cv_generation_model`, `cv_preset`, `cv_*_enabled`, `cv_max_pages`, `synonym_management.auto_accept_ai_action_enabled`
+  - `cross_stage`: `run_lifecycle.max_runtime_minutes`
+- [x] Ensure stage chips render exactly:
+  - `All | normalize | enrich | rule_filter | shortlist | ranking | cv_analysis | cv_generation | cross_stage`
+- [x] Preserve control-surface filter and `Basic | Advanced | All` behavior unchanged.
+
+**Verification:**
+- [x] `pytest tests/test_fitcv_cp/test_app.py -q -k settings`
+- [x] Manual browser check: each stage chip shows expected settings and no empty chips except `normalize` (expected none).
+- [x] `python scripts/validate_checkpoint_packs.py`
+- [x] `python scripts/validate_planning_lifecycle.py --strict`
+
+**Exit Criteria:**
+- stage filter is fully canonical, MECE by stage ownership, and matches runtime stage vocabulary
 
 ## Verification
 
