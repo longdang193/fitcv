@@ -18,6 +18,16 @@ import pytest
 import yaml
 from fitcv_cp.settings_schema import (
     AGENTIC_SETTINGS_SECTIONS,
+    DECISION_STATUS_ADVANCED,
+    DECISION_STATUS_CONFIGURED,
+    DECISION_STATUS_NEEDS_REVIEW,
+    DECISION_STATUS_RECOMMENDED,
+    REASON_CODE_ADVANCED_ONLY,
+    REASON_CODE_CHANGED_FROM_DEFAULT,
+    REASON_CODE_CONFLICT,
+    REASON_CODE_RECOMMENDED_DELTA,
+    derive_settings_decision_state,
+    decision_status_sort_key,
     SETTINGS_SECTIONS,
     SETTINGS_SCHEMA,
     apply_settings_to_config,
@@ -31,6 +41,7 @@ from fitcv_cp.settings_schema import (
     settings_ia_contract_for_key,
     settings_ia_metadata_by_key,
     settings_keys_for_workflow_stage,
+    reason_code_is_blocking,
     validate_settings,
     ValidationError,
 )
@@ -87,6 +98,8 @@ def test_settings_ia_stage_filter_returns_expected_keys() -> None:
 def test_settings_ia_contract_for_key_contains_required_fields() -> None:
     contract = settings_ia_contract_for_key("cv_certifications_enabled")
     assert set(contract.keys()) == {
+        "decision_status",
+        "reason_codes",
         "domain",
         "workflow_stages",
         "risk",
@@ -95,10 +108,15 @@ def test_settings_ia_contract_for_key_contains_required_fields() -> None:
         "override_policy",
         "can_override",
         "is_dangerous",
+        "advanced",
+        "unused",
+        "recommended_delta",
         "applies_when",
     }
     assert contract["domain"] == "general"
     assert "cv_generation" in contract["workflow_stages"]
+    assert contract["decision_status"] == DECISION_STATUS_CONFIGURED
+    assert contract["reason_codes"] == []
 
 def test_settings_ia_contract_marks_metadata_only_as_non_overrideable() -> None:
     contract = settings_ia_contract_for_key("cv_preset")
@@ -110,6 +128,40 @@ def test_danger_zone_settings_keys_contains_high_risk_groups() -> None:
     keys = set(danger_zone_settings_keys())
     assert "enrichment_concurrency" in keys
     assert "run_lifecycle.max_runtime_minutes" in keys
+
+def test_derive_settings_decision_state_prefers_needs_review_when_blocking() -> None:
+    decision = derive_settings_decision_state(
+        is_advanced=True,
+        is_unused=False,
+        is_changed_from_default=True,
+        has_recommended_delta=True,
+        has_conflict=True,
+    )
+    assert decision["decision_status"] == DECISION_STATUS_NEEDS_REVIEW
+    assert REASON_CODE_CONFLICT in decision["reason_codes"]
+    assert REASON_CODE_RECOMMENDED_DELTA in decision["reason_codes"]
+    assert REASON_CODE_ADVANCED_ONLY in decision["reason_codes"]
+    assert decision["is_blocking"] is True
+
+def test_derive_settings_decision_state_marks_recommended_without_blockers() -> None:
+    decision = derive_settings_decision_state(
+        is_advanced=False,
+        is_unused=False,
+        is_changed_from_default=True,
+        has_recommended_delta=True,
+    )
+    assert decision["decision_status"] == DECISION_STATUS_RECOMMENDED
+    assert decision["reason_codes"] == [REASON_CODE_CHANGED_FROM_DEFAULT, REASON_CODE_RECOMMENDED_DELTA]
+    assert decision["is_blocking"] is False
+
+def test_decision_sort_priority_is_deterministic() -> None:
+    assert decision_status_sort_key(DECISION_STATUS_NEEDS_REVIEW) < decision_status_sort_key(DECISION_STATUS_RECOMMENDED)
+    assert decision_status_sort_key(DECISION_STATUS_RECOMMENDED) < decision_status_sort_key(DECISION_STATUS_CONFIGURED)
+    assert decision_status_sort_key(DECISION_STATUS_CONFIGURED) < decision_status_sort_key(DECISION_STATUS_ADVANCED)
+
+def test_reason_code_is_blocking_only_for_blocking_reasons() -> None:
+    assert reason_code_is_blocking(REASON_CODE_CONFLICT) is True
+    assert reason_code_is_blocking(REASON_CODE_RECOMMENDED_DELTA) is False
 
 
 def test_schema_has_required_fields():

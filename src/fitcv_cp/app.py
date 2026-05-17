@@ -73,12 +73,18 @@ from fitcv_cp.settings_schema import (
     AGENTIC_SETTINGS_SECTIONS,
     ALL_GROUP_REGISTRIES,
     CV_GROUPS,
+    DECISION_STATUS_ADVANCED,
+    DECISION_STATUS_CONFIGURED,
+    DECISION_STATUS_NEEDS_REVIEW,
+    DECISION_STATUS_RECOMMENDED,
     RANKING_GROUPS,
     SETTINGS_SCHEMA,
     SETTINGS_SECTIONS,
     ValidationError,
     apply_settings_to_config,
     coerce_value,
+    decision_status_sort_key,
+    derive_settings_decision_state,
     danger_zone_settings_keys,
     editable_settings_keys,
     hidden_deprecated_settings_keys,
@@ -4737,6 +4743,16 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     return section_errors[key]
             return None
 
+        def _decision_domain_for_entry(entry: dict[str, Any]) -> str:
+            group = str(entry.get("group") or "")
+            if group in {"cv_composition", "cv_validation", "cv_preset"}:
+                return "output_artifacts"
+            if group == "agentic":
+                return "synonym_review"
+            if group in {"retrieval", "rule_filter", "ranking", "global_job_filters"}:
+                return "extraction_rules"
+            return "domain_taxonomy"
+
         def _build_card(card_spec: dict[str, Any]) -> dict[str, Any]:
             submit_kind = str(card_spec["submit_kind"])
             submit_slug = str(card_spec["submit_slug"])
@@ -4764,6 +4780,41 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         typed_draft_value = None
                 form_value = draft_value if draft_value is not None else effective_value
                 comparison_value = typed_draft_value if typed_draft_value is not None else form_value
+                is_dirty = _normalize_for_dirty(comparison_value, str(entry["type"])) != _normalize_for_dirty(
+                    effective_value,
+                    str(entry["type"]),
+                )
+                has_error = bool(
+                    (
+                        submit_kind == "group"
+                        and str(group_error.get(submit_slug) or "").strip()
+                    )
+                    or (
+                        submit_kind == "section"
+                        and active_section_name == submit_slug
+                        and key in section_errors
+                    )
+                )
+                is_recommended_delta = (
+                    key not in active
+                    and key in editable_keys
+                    and key not in metadata_only_keys
+                    and not bool(settings_ia_contract_for_key(key).get("is_dangerous"))
+                )
+                is_missing_required = (
+                    str(entry.get("type") or "") == "str"
+                    and key in active
+                    and str(comparison_value or "").strip() == ""
+                )
+                decision_state = derive_settings_decision_state(
+                    is_advanced=bool(settings_ia_contract_for_key(key).get("advanced")),
+                    is_unused=bool(key in metadata_only_keys and key not in active),
+                    is_changed_from_default=bool(key in active),
+                    has_recommended_delta=is_recommended_delta,
+                    has_conflict=has_error,
+                    has_missing_required=is_missing_required,
+                    has_quality_risk=bool(settings_ia_contract_for_key(key).get("is_dangerous") and key in active),
+                )
                 owner_label = "Settings"
                 active_label = "Yes"
                 if key == "cv_generation_model":
@@ -4783,30 +4834,18 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "effective_display": _display_value_for_settings(effective_value, str(entry["type"])),
                         "current_display": _display_value_for_settings(comparison_value, str(entry["type"])),
                         "current_source_label": "Persisted override" if key in active else "Baseline default",
-                        "is_dirty": _normalize_for_dirty(comparison_value, str(entry["type"])) != _normalize_for_dirty(
-                            effective_value,
-                            str(entry["type"]),
-                        ),
-                        "is_modified": _normalize_for_dirty(comparison_value, str(entry["type"])) != _normalize_for_dirty(
-                            effective_value,
-                            str(entry["type"]),
-                        ),
+                        "is_dirty": is_dirty,
+                        "is_modified": is_dirty,
                         "effective_value": effective_value,
                         "source_label": "Persisted override" if key in active else "Baseline default",
                         "override_state": "overridden" if key in active else "inherited",
-                        "has_error": bool(
-                            (
-                                submit_kind == "group"
-                                and str(group_error.get(submit_slug) or "").strip()
-                            )
-                            or (
-                                submit_kind == "section"
-                                and active_section_name == submit_slug
-                                and key in section_errors
-                            )
-                        ),
+                        "has_error": has_error,
                         "is_metadata_only": key in metadata_only_keys,
                         "ia_contract": settings_ia_contract_for_key(key),
+                        "decision_state": decision_state,
+                        "decision_status": str(decision_state.get("decision_status") or DECISION_STATUS_CONFIGURED),
+                        "decision_reason_codes": list(decision_state.get("reason_codes") or []),
+                        "decision_domain": _decision_domain_for_entry(entry),
                         "owner_label": owner_label,
                         "active_label": active_label,
                     }
@@ -4920,6 +4959,80 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             }
             for domain in settings_domains
         ]
+        decision_entries: list[dict[str, Any]] = []
+        for section in settings_page_task_sections:
+            for card in section["cards"]:
+                for item in card["entries"]:
+                    decision_entries.append(
+                        {
+                            "section_id": section["id"],
+                            "card_id": card["id"],
+                            "card_title": card["title"],
+                            "key": str(item["entry"]["key"]),
+                            "label": str(item["entry"]["label"]),
+                            "decision_status": str(item.get("decision_status") or DECISION_STATUS_CONFIGURED),
+                            "decision_reason_codes": list(item.get("decision_reason_codes") or []),
+                            "decision_domain": str(item.get("decision_domain") or "domain_taxonomy"),
+                            "risk": str(item["ia_contract"].get("risk") or "low"),
+                            "is_modified": bool(item.get("is_modified")),
+                            "item": item,
+                            "card": card,
+                            "section": section,
+                        }
+                    )
+        decision_tabs = [
+            {"id": DECISION_STATUS_NEEDS_REVIEW, "title": "Needs Review"},
+            {"id": DECISION_STATUS_RECOMMENDED, "title": "Recommended"},
+            {"id": DECISION_STATUS_CONFIGURED, "title": "Configured"},
+            {"id": DECISION_STATUS_ADVANCED, "title": "Advanced"},
+            {"id": "all", "title": "All"},
+        ]
+        decision_domain_filters = [
+            {"id": "domain_taxonomy", "title": "Domain & Taxonomy"},
+            {"id": "extraction_rules", "title": "Extraction Rules"},
+            {"id": "synonym_review", "title": "Synonym Review"},
+            {"id": "output_artifacts", "title": "Output & Artifacts"},
+        ]
+        settings_decision_groups: list[dict[str, Any]] = []
+        for tab in decision_tabs:
+            tab_id = str(tab["id"])
+            tab_items = [
+                item
+                for item in decision_entries
+                if tab_id == "all" or str(item["decision_status"]) == tab_id
+            ]
+            tab_items.sort(
+                key=lambda item: (
+                    decision_status_sort_key(str(item["decision_status"])),
+                    0 if str(item["risk"]) == "high" else (1 if str(item["risk"]) == "medium" else 2),
+                    str(item["label"]),
+                )
+            )
+            domain_counts: dict[str, int] = {}
+            for item in tab_items:
+                domain_key = str(item["decision_domain"])
+                domain_counts[domain_key] = domain_counts.get(domain_key, 0) + 1
+            settings_decision_groups.append(
+                {
+                    "id": tab_id,
+                    "title": tab["title"],
+                    "count": len(tab_items),
+                    "items": tab_items,
+                    "domain_counts": domain_counts,
+                }
+            )
+        settings_readiness_summary = {
+            "configured_count": sum(1 for item in decision_entries if str(item["decision_status"]) == DECISION_STATUS_CONFIGURED),
+            "needs_review_count": sum(1 for item in decision_entries if str(item["decision_status"]) == DECISION_STATUS_NEEDS_REVIEW),
+            "recommended_count": sum(1 for item in decision_entries if str(item["decision_status"]) == DECISION_STATUS_RECOMMENDED),
+            "advanced_count": sum(1 for item in decision_entries if str(item["decision_status"]) == DECISION_STATUS_ADVANCED),
+            "total_count": len(decision_entries),
+        }
+        settings_readiness_summary["hidden_defaults_unused_count"] = sum(
+            1
+            for item in decision_entries
+            if "unused" in set(str(code) for code in list(item["decision_reason_codes"]))
+        )
         danger_zone_keys = danger_zone_settings_keys()
         def _resolve_mode_summary() -> dict[str, str]:
             agentic_enabled = bool(effective.get("cv.agentic_late_stage.enabled"))
@@ -4978,6 +5091,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "settings_ia_metadata_by_key": ia_metadata_by_key,
             "settings_danger_zone_keys": danger_zone_keys,
             "settings_domain_summaries": settings_domain_summaries,
+            "settings_decision_groups": settings_decision_groups,
+            "settings_decision_domain_filters": decision_domain_filters,
+            "settings_readiness_summary": settings_readiness_summary,
         }
         context.update(extra)
         return context

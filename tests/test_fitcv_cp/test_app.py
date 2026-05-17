@@ -10674,6 +10674,39 @@ def test_admin_settings_has_guarded_save_preflight_script() -> None:
     assert "runPreflightGuardrails(form)" in html
     assert "high-impact settings" in html
 
+def test_admin_settings_renders_decision_focused_readiness_summary_and_ctas() -> None:
+    resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Readiness Summary" in html
+    assert "Review Required Settings" in html
+    assert "Accept Recommended Settings" in html
+    assert "Run Pipeline" in html
+    assert "Decision View" in html
+    assert "Needs Review" in html
+    assert "Recommended" in html
+    assert "Configured" in html
+    assert "Advanced" in html
+
+def test_admin_settings_rows_expose_decision_metadata_attrs() -> None:
+    resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'data-decision-status="' in html
+    assert 'data-decision-domain="' in html
+    assert 'data-default-equal="' in html
+    assert 'data-unused="' in html
+
+def test_admin_settings_has_visibility_toggles_and_recommendation_preview_script() -> None:
+    resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'id="toggle-show-defaults"' in html
+    assert 'id="toggle-show-unused"' in html
+    assert "Recommended settings preview" in html
+    assert 'data-review-required' in html
+    assert 'data-accept-recommended' in html
+
 
 
 

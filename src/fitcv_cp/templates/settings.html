@@ -46,6 +46,80 @@
     display: grid;
     gap: 0.75rem;
   }
+  .settings-readiness {
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-1);
+    padding: 0.9rem;
+    display: grid;
+    gap: 0.6rem;
+  }
+  .settings-readiness-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .settings-readiness-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .settings-readiness-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.5rem;
+  }
+  .settings-readiness-cell {
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    background: var(--surface-0);
+    padding: 0.55rem 0.65rem;
+  }
+  .settings-readiness-k {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+  .settings-readiness-v {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    font-weight: 700;
+  }
+  .settings-cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+  .settings-decision-board {
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    background: var(--surface-1);
+    padding: 0.9rem;
+    display: grid;
+    gap: 0.65rem;
+  }
+  .settings-decision-list {
+    display: grid;
+    gap: 0.45rem;
+  }
+  .settings-decision-item {
+    border: 1px solid var(--border-soft);
+    border-radius: 10px;
+    padding: 0.55rem 0.65rem;
+    background: var(--surface-0);
+    display: grid;
+    gap: 0.25rem;
+  }
+  .settings-decision-item-title {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+  .settings-decision-item-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
   .settings-search {
     width: 100%;
     max-width: 380px;
@@ -422,9 +496,9 @@
 {%- endmacro %}
 
 {% macro render_settings_row(item, settings_metadata_note) -%}
-  {% set entry = item.entry %}
-  {% set ia = item.ia_contract %}
-  <div class="settings-field-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-domain="{{ ia.domain }}" data-workflow-stages="{{ ia.workflow_stages | join('|') }}">
+{% set entry = item.entry %}
+{% set ia = item.ia_contract %}
+  <div id="entry-{{ entry.key | replace('.', '-') }}" class="settings-field-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-domain="{{ ia.domain }}" data-workflow-stages="{{ ia.workflow_stages | join('|') }}" data-decision-status="{{ item.decision_status }}" data-decision-domain="{{ item.decision_domain }}" data-default-equal="{{ 'false' if item.is_modified else 'true' }}" data-unused="{{ 'true' if 'unused' in item.decision_reason_codes else 'false' }}">
     <div>
       <div class="settings-field-label">{{ entry.label }}</div>
       <div class="settings-field-description">{{ entry.description }}</div>
@@ -495,6 +569,49 @@
       <li>To confirm what actually ran, open Run Detail and check Agentic Runtime Alignment.</li>
     </ul>
   </section>
+  <section class="settings-readiness">
+    <div class="settings-readiness-head">
+      <div class="settings-readiness-title">Readiness Summary</div>
+      <div class="settings-decision-item-meta">Tabs show decision urgency. Filters scope by domain.</div>
+    </div>
+    <div class="settings-readiness-grid">
+      <div class="settings-readiness-cell"><div class="settings-readiness-k">Configured</div><div class="settings-readiness-v">{{ settings_readiness_summary.configured_count }}</div></div>
+      <div class="settings-readiness-cell"><div class="settings-readiness-k">Needs Review</div><div class="settings-readiness-v">{{ settings_readiness_summary.needs_review_count }}</div></div>
+      <div class="settings-readiness-cell"><div class="settings-readiness-k">Recommended</div><div class="settings-readiness-v">{{ settings_readiness_summary.recommended_count }}</div></div>
+      <div class="settings-readiness-cell"><div class="settings-readiness-k">Advanced</div><div class="settings-readiness-v">{{ settings_readiness_summary.advanced_count }}</div></div>
+      <div class="settings-readiness-cell"><div class="settings-readiness-k">Hidden Defaults/Unused</div><div class="settings-readiness-v">{{ settings_readiness_summary.hidden_defaults_unused_count }}</div></div>
+    </div>
+    <div class="settings-cta-row">
+      <button type="button" class="btn-secondary" data-review-required>Review Required Settings</button>
+      <button type="button" class="btn-secondary" data-accept-recommended>Accept Recommended Settings</button>
+      <button type="button" class="btn-primary">Run Pipeline</button>
+    </div>
+  </section>
+  <section class="settings-decision-board">
+    <div class="axis-row">
+      <span class="axis-label">Decision View</span>
+      {% for group in settings_decision_groups %}
+        <span class="badge-chip">{{ group.title }}: {{ group.count }}</span>
+      {% endfor %}
+    </div>
+    <div class="axis-row">
+      <span class="axis-label">Domain Filters</span>
+      {% for domain in settings_decision_domain_filters %}
+        <span class="badge-chip">{{ domain.title }}</span>
+      {% endfor %}
+    </div>
+    <div class="settings-decision-list">
+      {% for group in settings_decision_groups %}
+        {% for item in group["items"][:4] %}
+          <div class="settings-decision-item">
+            <div class="settings-decision-item-title">{{ item.label }}</div>
+            <div class="settings-decision-item-meta">{{ group.title }} · {{ item.decision_domain | replace('_', ' ') }} · {{ item.risk }}</div>
+            <div class="settings-decision-item-meta">Reason codes: {{ item.decision_reason_codes | join(', ') if item.decision_reason_codes else 'none' }}</div>
+          </div>
+        {% endfor %}
+      {% endfor %}
+    </div>
+  </section>
   <section class="settings-toolbar">
     <input class="settings-search" type="search" id="settings-search" placeholder="Search settings..." aria-label="Search settings">
     <div class="settings-global-summary" data-global-dirty-summary="settings-page">All sections saved</div>
@@ -527,6 +644,11 @@
       {% for stage in settings_stage_filters %}
         <button type="button" class="axis-chip" data-stage-filter="{{ stage.id }}" aria-pressed="false">{{ stage.title }}</button>
       {% endfor %}
+    </div>
+    <div class="axis-row">
+      <span class="axis-label">Visibility</span>
+      <label class="badge-chip"><input type="checkbox" id="toggle-show-defaults"> Show Defaults</label>
+      <label class="badge-chip"><input type="checkbox" id="toggle-show-unused"> Show Unused</label>
     </div>
   </section>
   {% for section in settings_page_task_sections %}
@@ -770,9 +892,15 @@
   function entryMatchesFilters(row, domain, stage) {
     const rowDomain = row.dataset.domain || '';
     const rowStages = (row.dataset.workflowStages || '').split('|').filter(Boolean);
+    const rowUnused = (row.dataset.unused || 'false') === 'true';
+    const rowDefaultEqual = (row.dataset.defaultEqual || 'false') === 'true';
+    const showDefaults = !!document.getElementById('toggle-show-defaults')?.checked;
+    const showUnused = !!document.getElementById('toggle-show-unused')?.checked;
     const domainOk = domain === 'all' || rowDomain === domain;
     const stageOk = stage === 'all' || rowStages.includes(stage);
-    return domainOk && stageOk;
+    const defaultsOk = showDefaults || !rowDefaultEqual;
+    const unusedOk = showUnused || !rowUnused;
+    return domainOk && stageOk && defaultsOk && unusedOk;
   }
 
   function applyAxisFilters(domain, stage) {
@@ -845,6 +973,8 @@
     let activeStage = 'all';
     const domainChips = document.querySelectorAll('[data-domain-filter]');
     const stageChips = document.querySelectorAll('[data-stage-filter]');
+    const toggleShowDefaults = document.getElementById('toggle-show-defaults');
+    const toggleShowUnused = document.getElementById('toggle-show-unused');
     domainChips.forEach(function(chip) {
       chip.addEventListener('click', function() {
         activeDomain = chip.getAttribute('data-domain-filter') || 'all';
@@ -859,7 +989,40 @@
         applyAxisFilters(activeDomain, activeStage);
       });
     });
+    [toggleShowDefaults, toggleShowUnused].forEach(function(toggle) {
+      if (!toggle) return;
+      toggle.addEventListener('change', function() {
+        applyAxisFilters(activeDomain, activeStage);
+      });
+    });
     applyAxisFilters(activeDomain, activeStage);
+
+    const reviewRequiredBtn = document.querySelector('[data-review-required]');
+    if (reviewRequiredBtn) {
+      reviewRequiredBtn.addEventListener('click', function() {
+        activeDomain = 'all';
+        activeStage = 'all';
+        setActiveChip(domainChips, activeDomain, 'data-domain-filter');
+        setActiveChip(stageChips, activeStage, 'data-stage-filter');
+        applyAxisFilters(activeDomain, activeStage);
+        const firstNeedsReview = document.querySelector('[data-entry-key][data-decision-status="needs_review"]');
+        if (firstNeedsReview) firstNeedsReview.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+
+    const acceptRecommendedBtn = document.querySelector('[data-accept-recommended]');
+    if (acceptRecommendedBtn) {
+      acceptRecommendedBtn.addEventListener('click', function() {
+        const recommended = Array.from(document.querySelectorAll('[data-entry-key][data-decision-status="recommended"]'))
+          .map((row) => row.getAttribute('data-entry-key'))
+          .filter(Boolean);
+        if (!recommended.length) {
+          alert('No recommended settings currently available to accept.');
+          return;
+        }
+        alert('Recommended settings preview:\\n\\n' + recommended.join('\\n'));
+      });
+    }
 
     const searchInput = document.getElementById('settings-search');
     function applySearchFilter(term) {
