@@ -73,19 +73,27 @@ from fitcv_cp.settings_schema import (
     AGENTIC_SETTINGS_SECTIONS,
     ALL_GROUP_REGISTRIES,
     CV_GROUPS,
+    DECISION_STATUS_ADVANCED,
+    DECISION_STATUS_CONFIGURED,
+    DECISION_STATUS_NEEDS_REVIEW,
+    DECISION_STATUS_RECOMMENDED,
     RANKING_GROUPS,
     SETTINGS_SCHEMA,
     SETTINGS_SECTIONS,
     ValidationError,
     apply_settings_to_config,
     coerce_value,
+    decision_status_sort_key,
+    derive_settings_decision_state,
     danger_zone_settings_keys,
     editable_settings_keys,
     hidden_deprecated_settings_keys,
     metadata_only_settings_keys,
     settings_ia_contract_for_key,
     settings_ia_metadata_by_key,
+    settings_keys_for_control_surface,
     settings_keys_for_domain,
+    settings_keys_for_stage,
     settings_keys_for_workflow_stage,
     validate_settings,
 )
@@ -4618,26 +4626,78 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         },
         {
             "id": "agentic",
-            "title": "Agentic",
-            "helper": "Control bounded future-run agentic defaults without turning this page into a historical run-inspection view.",
+            "title": "Agentic Processing",
+            "helper": "Configure bounded agentic behavior for future runs using small, explicit decision areas.",
             "cards": [
                 {
-                    "id": "agentic-controls",
-                    "title": "Agentic Controls",
-                    "helper": "Enable the late-stage agentic path and the semantic-alignment gate used by future runs.",
+                    "id": "agentic-enablement",
+                    "title": "Enablement",
+                    "helper": "Turn on agentic pathways and core capabilities used by future runs.",
                     "submit_kind": "section",
                     "submit_slug": "agentic-core",
-                    "save_label": "Save Agentic Settings",
-                    "keys": AGENTIC_SETTINGS_SECTIONS["agentic-core"],
+                    "save_label": "Save Enablement Settings",
+                    "keys": [
+                        "cv.agentic_late_stage.enabled",
+                        "cv_analysis.semantic_alignment.enabled",
+                        "synonym_management.propose_enabled",
+                        "synonym_management.apply_to_run_enabled",
+                        "synonym_management.promote_global_enabled",
+                    ],
                 },
                 {
-                    "id": "agentic-advanced",
-                    "title": "Advanced Agentic Tuning",
-                    "helper": "Semantic channel weights and pool sizing stay behind disclosure; fixed runtime metadata remains explanatory.",
+                    "id": "agentic-automation",
+                    "title": "Automation",
+                    "helper": "Control recommendation, auto-apply, and auto-promote behavior.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-core",
+                    "save_label": "Save Automation Settings",
+                    "keys": [
+                        "synonym_management.auto_triage_recommendation_enabled",
+                        "synonym_management.triage_recommendation_reuse_enabled",
+                        "synonym_management.auto_apply_recommendation_enabled",
+                        "synonym_management.auto_promote_global_enabled",
+                        "synonym_management.auto_accept_ai_action_enabled",
+                    ],
+                },
+                {
+                    "id": "agentic-quality-targets",
+                    "title": "Quality Targets",
+                    "helper": "Tune lexical and semantic weighting balance for alignment channels.",
                     "submit_kind": "section",
                     "submit_slug": "agentic-advanced",
-                    "save_label": "Save Advanced Agentic Settings",
-                    "keys": AGENTIC_SETTINGS_SECTIONS["agentic-advanced"],
+                    "save_label": "Save Quality Target Settings",
+                    "keys": [
+                        "cv_analysis.semantic_alignment.required_skill_lexical_weight",
+                        "cv_analysis.semantic_alignment.required_skill_semantic_weight",
+                        "cv_analysis.semantic_alignment.role_lexical_weight",
+                        "cv_analysis.semantic_alignment.role_semantic_weight",
+                        "cv_analysis.semantic_alignment.responsibility_lexical_weight",
+                        "cv_analysis.semantic_alignment.responsibility_semantic_weight",
+                        "cv_analysis.semantic_alignment.domain_lexical_weight",
+                        "cv_analysis.semantic_alignment.domain_semantic_weight",
+                    ],
+                },
+                {
+                    "id": "agentic-throughput",
+                    "title": "Throughput",
+                    "helper": "Bound semantic channel candidate pool size for alignment processing.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-advanced",
+                    "save_label": "Save Throughput Settings",
+                    "keys": [
+                        "cv_analysis.semantic_alignment.channel_pool_size",
+                    ],
+                },
+                {
+                    "id": "agentic-diagnostics",
+                    "title": "Diagnostics",
+                    "helper": "Metadata-only semantic runtime contract details.",
+                    "submit_kind": "section",
+                    "submit_slug": "agentic-advanced",
+                    "save_label": "Save Diagnostics Settings",
+                    "keys": [
+                        "cv_analysis.semantic_alignment.model",
+                    ],
                     "is_advanced": True,
                 },
             ],
@@ -4702,7 +4762,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 {
                     "id": "cv-visibility",
                     "title": "Section Visibility",
-                    "helper": "Decide which sections appear in generated CVs without exposing retired formatting-only knobs.",
+                    "helper": "Decide which sections appear in generated CVs. Formatting-only legacy knobs remain hidden.",
                     "submit_kind": "group",
                     "submit_slug": "cv-composition",
                     "form_id": "form-cv-composition",
@@ -4834,6 +4894,16 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     return section_errors[key]
             return None
 
+        def _decision_domain_for_entry(entry: dict[str, Any]) -> str:
+            group = str(entry.get("group") or "")
+            if group in {"cv_composition", "cv_validation", "cv_preset"}:
+                return "output_artifacts"
+            if group == "agentic":
+                return "synonym_review"
+            if group in {"retrieval", "rule_filter", "ranking", "global_job_filters"}:
+                return "extraction_rules"
+            return "domain_taxonomy"
+
         def _build_card(card_spec: dict[str, Any]) -> dict[str, Any]:
             submit_kind = str(card_spec["submit_kind"])
             submit_slug = str(card_spec["submit_slug"])
@@ -4861,6 +4931,41 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         typed_draft_value = None
                 form_value = draft_value if draft_value is not None else effective_value
                 comparison_value = typed_draft_value if typed_draft_value is not None else form_value
+                is_dirty = _normalize_for_dirty(comparison_value, str(entry["type"])) != _normalize_for_dirty(
+                    effective_value,
+                    str(entry["type"]),
+                )
+                has_error = bool(
+                    (
+                        submit_kind == "group"
+                        and str(group_error.get(submit_slug) or "").strip()
+                    )
+                    or (
+                        submit_kind == "section"
+                        and active_section_name == submit_slug
+                        and key in section_errors
+                    )
+                )
+                is_recommended_delta = (
+                    key not in active
+                    and key in editable_keys
+                    and key not in metadata_only_keys
+                    and not bool(settings_ia_contract_for_key(key).get("is_dangerous"))
+                )
+                is_missing_required = (
+                    str(entry.get("type") or "") == "str"
+                    and key in active
+                    and str(comparison_value or "").strip() == ""
+                )
+                decision_state = derive_settings_decision_state(
+                    is_advanced=bool(settings_ia_contract_for_key(key).get("advanced")),
+                    is_unused=bool(key in metadata_only_keys and key not in active),
+                    is_changed_from_default=bool(key in active),
+                    has_recommended_delta=is_recommended_delta,
+                    has_conflict=has_error,
+                    has_missing_required=is_missing_required,
+                    has_quality_risk=bool(settings_ia_contract_for_key(key).get("is_dangerous") and key in active),
+                )
                 owner_label = "Settings"
                 active_label = "Yes"
                 if key == "cv_generation_model":
@@ -4880,30 +4985,22 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                         "effective_display": _display_value_for_settings(effective_value, str(entry["type"])),
                         "current_display": _display_value_for_settings(comparison_value, str(entry["type"])),
                         "current_source_label": "Persisted override" if key in active else "Baseline default",
-                        "is_dirty": _normalize_for_dirty(comparison_value, str(entry["type"])) != _normalize_for_dirty(
-                            effective_value,
-                            str(entry["type"]),
-                        ),
-                        "is_modified": _normalize_for_dirty(comparison_value, str(entry["type"])) != _normalize_for_dirty(
-                            effective_value,
-                            str(entry["type"]),
-                        ),
+                        "is_dirty": is_dirty,
+                        "is_modified": is_dirty,
                         "effective_value": effective_value,
                         "source_label": "Persisted override" if key in active else "Baseline default",
                         "override_state": "overridden" if key in active else "inherited",
-                        "has_error": bool(
-                            (
-                                submit_kind == "group"
-                                and str(group_error.get(submit_slug) or "").strip()
-                            )
-                            or (
-                                submit_kind == "section"
-                                and active_section_name == submit_slug
-                                and key in section_errors
-                            )
-                        ),
+                        "has_error": has_error,
                         "is_metadata_only": key in metadata_only_keys,
                         "ia_contract": settings_ia_contract_for_key(key),
+                        "decision_state": decision_state,
+                        "decision_status": str(decision_state.get("decision_status") or DECISION_STATUS_CONFIGURED),
+                        "decision_reason_codes": list(decision_state.get("reason_codes") or []),
+                        "decision_domain": _decision_domain_for_entry(entry),
+                        "decision_stage": str(settings_ia_contract_for_key(key).get("stage") or ""),
+                        "decision_control_surface": str(settings_ia_contract_for_key(key).get("control_surface") or ""),
+                        "decision_area": str(settings_ia_contract_for_key(key).get("decision_area") or ""),
+                        "decision_complexity": str(settings_ia_contract_for_key(key).get("complexity_view") or ""),
                         "owner_label": owner_label,
                         "active_label": active_label,
                     }
@@ -4993,6 +5090,21 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "cv_analysis": "CV Analysis",
             "cv_generation": "CV Generation",
         }
+        stage_titles = {
+            "normalize": "Normalize",
+            "enrich": "Enrich",
+            "rule_filter": "Rule Filter",
+            "shortlist": "Shortlist",
+            "ranking": "Ranking",
+            "cv_analysis": "CV Analysis",
+            "cv_generation": "CV Generation",
+            "cross_stage": "Cross-Stage",
+        }
+        control_surface_titles = {
+            "standard_pipeline": "Standard Pipeline",
+            "agentic_runtime": "Agentic Runtime",
+            "shared": "Shared",
+        }
         settings_domains = [
             {
                 "id": domain_id,
@@ -5017,6 +5129,96 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             }
             for domain in settings_domains
         ]
+        settings_stage_scopes = [
+            {
+                "id": stage_id,
+                "title": title,
+                "keys": settings_keys_for_stage(stage_id),
+            }
+            for stage_id, title in stage_titles.items()
+        ]
+        settings_control_surface_filters = [
+            {
+                "id": surface_id,
+                "title": title,
+                "keys": settings_keys_for_control_surface(surface_id),
+            }
+            for surface_id, title in control_surface_titles.items()
+        ]
+        decision_entries: list[dict[str, Any]] = []
+        for section in settings_page_task_sections:
+            for card in section["cards"]:
+                for item in card["entries"]:
+                    decision_entries.append(
+                        {
+                            "section_id": section["id"],
+                            "card_id": card["id"],
+                            "card_title": card["title"],
+                            "key": str(item["entry"]["key"]),
+                            "label": str(item["entry"]["label"]),
+                            "decision_status": str(item.get("decision_status") or DECISION_STATUS_CONFIGURED),
+                            "decision_reason_codes": list(item.get("decision_reason_codes") or []),
+                            "decision_domain": str(item.get("decision_domain") or "domain_taxonomy"),
+                            "risk": str(item["ia_contract"].get("risk") or "low"),
+                            "is_modified": bool(item.get("is_modified")),
+                            "item": item,
+                            "card": card,
+                            "section": section,
+                        }
+                    )
+        decision_tabs = [
+            {"id": DECISION_STATUS_NEEDS_REVIEW, "title": "Needs Review"},
+            {"id": DECISION_STATUS_RECOMMENDED, "title": "Recommended"},
+            {"id": DECISION_STATUS_CONFIGURED, "title": "Configured"},
+            {"id": DECISION_STATUS_ADVANCED, "title": "Advanced"},
+            {"id": "all", "title": "All"},
+        ]
+        decision_domain_filters = [
+            {"id": "domain_taxonomy", "title": "Domain & Taxonomy"},
+            {"id": "extraction_rules", "title": "Extraction Rules"},
+            {"id": "synonym_review", "title": "Synonym Review"},
+            {"id": "output_artifacts", "title": "Output & Artifacts"},
+        ]
+        settings_decision_groups: list[dict[str, Any]] = []
+        for tab in decision_tabs:
+            tab_id = str(tab["id"])
+            tab_items = [
+                item
+                for item in decision_entries
+                if tab_id == "all" or str(item["decision_status"]) == tab_id
+            ]
+            tab_items.sort(
+                key=lambda item: (
+                    decision_status_sort_key(str(item["decision_status"])),
+                    0 if str(item["risk"]) == "high" else (1 if str(item["risk"]) == "medium" else 2),
+                    str(item["label"]),
+                )
+            )
+            domain_counts: dict[str, int] = {}
+            for item in tab_items:
+                domain_key = str(item["decision_domain"])
+                domain_counts[domain_key] = domain_counts.get(domain_key, 0) + 1
+            settings_decision_groups.append(
+                {
+                    "id": tab_id,
+                    "title": tab["title"],
+                    "count": len(tab_items),
+                    "items": tab_items,
+                    "domain_counts": domain_counts,
+                }
+            )
+        settings_readiness_summary = {
+            "configured_count": sum(1 for item in decision_entries if str(item["decision_status"]) == DECISION_STATUS_CONFIGURED),
+            "needs_review_count": sum(1 for item in decision_entries if str(item["decision_status"]) == DECISION_STATUS_NEEDS_REVIEW),
+            "recommended_count": sum(1 for item in decision_entries if str(item["decision_status"]) == DECISION_STATUS_RECOMMENDED),
+            "advanced_count": sum(1 for item in decision_entries if str(item["decision_status"]) == DECISION_STATUS_ADVANCED),
+            "total_count": len(decision_entries),
+        }
+        settings_readiness_summary["hidden_defaults_unused_count"] = sum(
+            1
+            for item in decision_entries
+            if "unused" in set(str(code) for code in list(item["decision_reason_codes"]))
+        )
         danger_zone_keys = danger_zone_settings_keys()
         def _resolve_mode_summary() -> dict[str, str]:
             agentic_enabled = bool(effective.get("cv.agentic_late_stage.enabled"))
@@ -5072,9 +5274,14 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             "settings_mode_summary": mode_summary,
             "settings_domains": settings_domains,
             "settings_stage_filters": settings_stage_filters,
+            "settings_stage_scopes": settings_stage_scopes,
+            "settings_control_surface_filters": settings_control_surface_filters,
             "settings_ia_metadata_by_key": ia_metadata_by_key,
             "settings_danger_zone_keys": danger_zone_keys,
             "settings_domain_summaries": settings_domain_summaries,
+            "settings_decision_groups": settings_decision_groups,
+            "settings_decision_domain_filters": decision_domain_filters,
+            "settings_readiness_summary": settings_readiness_summary,
         }
         context.update(extra)
         return context
