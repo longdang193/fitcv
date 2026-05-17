@@ -175,10 +175,10 @@ Tests cover filter interactivity and placement invariants; execution context pac
 - [x] Record completed evidence and next-action state in canonical execution context pack.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -q -k settings`
-- [ ] `python scripts/validate_checkpoint_packs.py`
-- [ ] `python scripts/validate_planning_lifecycle.py --strict`
-- [ ] `python scripts/validate_repo_contracts.py --fast`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -q -k settings`
+- [x] `python scripts/validate_checkpoint_packs.py`
+- [x] `python scripts/validate_planning_lifecycle.py --strict`
+- [x] `python scripts/validate_repo_contracts.py --fast`
 
 **Exit Criteria:**
 - tests and execution context pack both reflect finalized behavior contract

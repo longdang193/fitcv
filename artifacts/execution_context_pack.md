@@ -40,6 +40,7 @@
   - `pytest tests/test_fitcv_cp/test_app.py -q -k settings`
   - `python scripts/validate_planning_lifecycle.py --strict`
   - `python scripts/validate_checkpoint_packs.py`
+  - `python scripts/validate_template_required_sections.py`
   - `python scripts/validate_repo_contracts.py --fast`
 - **Result summary:** settings regression suite passed (`76 passed`).
 - **Result summary:** settings regression suite passed (`76 passed`) and manual smoke checks passed on `8011`.
@@ -55,8 +56,8 @@
 
 - **Action type:** closeout
 - **Target:** branch handoff / commit orchestration
-- **Exact command or edit intent:** stage, commit, push, and prepare PR update for completed plan artifacts and UX implementation.
-- **Why this is next:** implementation and verification gates are complete with no remaining blockers.
+- **Exact command or edit intent:** stage closure-evidence reconciliation updates, commit, push, and update/merge PR.
+- **Why this is next:** closure validators and checklist reconciliation are complete; lane is merge-eligible.
 
 ## 8) Resume Prompt (Copy/Paste)
 
