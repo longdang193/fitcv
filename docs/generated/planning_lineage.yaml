@@ -373,8 +373,10 @@ workstreams:
     specs:
     - docs/superpowers/specs/2026-04-28-operator-control-plane-agentic-settings-surface-spec.md
     - docs/superpowers/specs/2026-04-29-settings-agentic-vs-cv-generation-clarity-spec.md
+    - docs/superpowers/specs/2026-05-17-15-20-ai-plane-symmetry-invariance-equivalence-migration-spec.md
     plans:
     - docs/superpowers/plans/2026-04-28-operator-control-plane-agentic-settings-surface-plan.md
+    - docs/superpowers/plans/2026-05-17-15-45-ai-plane-symmetry-invariance-equivalence-migration-plan.md
     derived_completion: in_progress
   - thread_id: workstream-operator-control-plane.operator-control-plane-phase-2-degraded-mode-and-portability-surface
     status: completed
