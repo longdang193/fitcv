@@ -482,10 +482,12 @@
     </ul>
   </section>
   <section class="settings-mode-strip">
-    <div class="settings-mode-item"><span class="k">Agentic Mode:</span><span class="v">{{ settings_mode_summary.agentic_mode }}</span></div>
     <div class="settings-mode-item"><span class="k">Live Provider:</span><span class="v">{{ settings_mode_summary.runtime_provider }}</span></div>
     <div class="settings-mode-item"><span class="k">Live Model:</span><span class="v">{{ settings_mode_summary.runtime_model }}</span></div>
-    <div class="settings-mode-item"><span class="k">CV Model (Settings):</span><span class="v">{{ settings_mode_summary.settings_cv_model }}</span></div>
+    <div class="settings-mode-item"><span class="k">Authority State:</span><span class="v">{{ settings_mode_summary.authority_state }}</span></div>
+    {% if settings_mode_summary.drift_reason %}
+      <div class="settings-mode-item"><span class="k">Drift:</span><span class="v">{{ settings_mode_summary.drift_reason }}</span></div>
+    {% endif %}
   </section>
   <section class="settings-truth-panel">
     <div class="settings-truth-title">Run Truth Check</div>

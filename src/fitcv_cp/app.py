@@ -81,6 +81,7 @@ from fitcv_cp.settings_schema import (
     coerce_value,
     danger_zone_settings_keys,
     editable_settings_keys,
+    hidden_deprecated_settings_keys,
     metadata_only_settings_keys,
     settings_ia_contract_for_key,
     settings_ia_metadata_by_key,
@@ -4289,6 +4290,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
     metadata_only_keys = metadata_only_settings_keys()
     editable_keys = editable_settings_keys()
+    hidden_deprecated_keys = hidden_deprecated_settings_keys()
 
     def _reconcile_orphaned_running_run(run: PipelineRun) -> PipelineRun:
         """Repair RUNNING rows if their RQ job disappeared or already terminated."""
@@ -4743,9 +4745,10 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 if submit_kind == "group"
                 else f"/admin/settings/section/{submit_slug}"
             )
+            visible_keys = [key for key in card_spec["keys"] if key not in hidden_deprecated_keys]
             entries: list[dict[str, Any]] = []
             agentic_enabled = bool(effective.get("cv.agentic_late_stage.enabled"))
-            for key in card_spec["keys"]:
+            for key in visible_keys:
                 entry = schema_by_key[key]
                 effective_value = effective[key]
                 draft_value = _draft_value_for_card(
@@ -4840,9 +4843,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 "form_id": card_spec.get("form_id", f"form-{card_spec['id']}"),
                 "save_label": card_spec.get("save_label", f"Save {card_spec['title']}"),
                 "entries": entries,
-                "keys": list(card_spec["keys"]),
+                "keys": list(visible_keys),
                 "dirty_count": dirty_count,
-                "error_message": _card_error_for(submit_kind, submit_slug, list(card_spec["keys"])),
+                "error_message": _card_error_for(submit_kind, submit_slug, list(visible_keys)),
                 "layout": card_spec.get("layout", "list"),
                 "is_advanced": bool(card_spec.get("is_advanced", False)),
                 "domains": card_domains,
@@ -4918,22 +4921,35 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             for domain in settings_domains
         ]
         danger_zone_keys = danger_zone_settings_keys()
-        agentic_runtime_provider = str(os.environ.get("FITCV_LANGGRAPH_PROVIDER", "") or "").strip()
-        agentic_runtime_model = str(os.environ.get("FITCV_LANGGRAPH_MODEL", "") or "").strip()
+        def _resolve_mode_summary() -> dict[str, str]:
+            agentic_enabled = bool(effective.get("cv.agentic_late_stage.enabled"))
+            runtime_provider = str(os.environ.get("FITCV_LANGGRAPH_PROVIDER", "") or "").strip()
+            runtime_model = str(os.environ.get("FITCV_LANGGRAPH_MODEL", "") or "").strip()
+            has_runtime_env = bool(runtime_provider or runtime_model)
+            authority_state = "aligned"
+            drift_reason = ""
+            if not agentic_enabled and has_runtime_env:
+                authority_state = "drifted"
+                drift_reason = "Agentic runtime env is configured but agentic mode toggle is OFF."
+            elif agentic_enabled and not has_runtime_env:
+                authority_state = "drifted"
+                drift_reason = "Agentic mode toggle is ON but FITCV_LANGGRAPH provider/model env is missing."
+            return {
+                "agentic_mode": "ON" if agentic_enabled else "OFF",
+                "runtime_provider": runtime_provider or "—",
+                "runtime_model": runtime_model or "—",
+                "authority_state": authority_state,
+                "drift_reason": drift_reason,
+            }
+
+        mode_summary = _resolve_mode_summary()
         agentic_runtime_note = ""
-        if agentic_runtime_provider or agentic_runtime_model:
+        if mode_summary["runtime_provider"] != "—" or mode_summary["runtime_model"] != "—":
             agentic_runtime_note = (
                 "Agentic live runtime is env-managed"
-                f" (provider={agentic_runtime_provider or '—'}, model={agentic_runtime_model or '—'}). "
+                f" (provider={mode_summary['runtime_provider']}, model={mode_summary['runtime_model']}). "
                 "In agentic mode, live runtime values can differ from CV model settings on this page."
             )
-        settings_cv_generation_model = str(effective.get("cv_generation_model") or "").strip() or "—"
-        mode_summary = {
-            "agentic_mode": "ON" if bool(effective.get("cv.agentic_late_stage.enabled")) else "OFF",
-            "runtime_provider": agentic_runtime_provider or "—",
-            "runtime_model": agentic_runtime_model or "—",
-            "settings_cv_model": settings_cv_generation_model,
-        }
         settings_truth_notes = [
             "This page edits future-run defaults only.",
             "Per-run overrides are captured at trigger time and do not change these saved defaults.",
@@ -5482,6 +5498,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     def update_setting(key: str, body: SettingUpdate) -> dict:
         if key in metadata_only_keys:
             raise HTTPException(status_code=422, detail=f"Setting '{key}' is metadata-only and cannot be saved through single-key routes")
+        if key in hidden_deprecated_keys:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Setting '{key}' is hidden_deprecated and cannot be saved through settings routes",
+            )
         try:
             coerced = coerce_value(key, body.value)
         except KeyError:
@@ -5520,6 +5541,17 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 ),
                 status_code=422,
             )
+        if key in hidden_deprecated_keys:
+            active = load_active_settings(bq=bq, project=project, dataset=dataset)
+            return templates.TemplateResponse(
+                request=request,
+                name="settings.html",
+                context=_build_settings_context(
+                    active,
+                    error=f"Setting '{key}' is hidden_deprecated and cannot be saved through settings routes",
+                ),
+                status_code=422,
+            )
         try:
             coerced = coerce_value(key, value)
             validate_settings({key: coerced})
@@ -5550,9 +5582,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if target_registry is None:
             raise HTTPException(status_code=404, detail=f"Unknown group: {group_name!r}")
 
-        keys = target_registry[group_name]
+        keys = [key for key in target_registry[group_name] if key not in hidden_deprecated_keys]
         form = await request.form()
         active = load_active_settings(bq=bq, project=project, dataset=dataset)
+        hidden_submitted = sorted(
+            key for key in hidden_deprecated_keys if key in form
+        )
 
         # Coerce all keys in the group
         coerced: dict = {}
@@ -5578,6 +5613,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     active_group_name=group_name,
                 ),
                 status_code=422,
+            )
+
+        if hidden_submitted:
+            return _error_response(
+                "Hidden deprecated settings are not writable via settings routes: "
+                + ", ".join(hidden_submitted)
             )
 
         if coerce_errors:
@@ -5623,9 +5664,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if section_name not in all_settings_sections:
             raise HTTPException(status_code=404, detail=f"Unknown section: {section_name!r}")
 
-        keys = all_settings_sections[section_name]
+        keys = [key for key in all_settings_sections[section_name] if key not in hidden_deprecated_keys]
         form = await request.form()
         active = load_active_settings(bq=bq, project=project, dataset=dataset)
+        hidden_submitted = sorted(
+            key for key in hidden_deprecated_keys if key in form
+        )
 
         coerced: dict = {}
         section_errors: dict[str, str] = {}
@@ -5658,6 +5702,15 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                     active_section_name=section_name,
                 ),
                 status_code=422,
+            )
+
+        if hidden_submitted:
+            first_key = keys[0] if keys else section_name
+            return _section_error_response(
+                {
+                    first_key: "Hidden deprecated settings are not writable via settings routes: "
+                    + ", ".join(hidden_submitted)
+                }
             )
 
         if section_errors:

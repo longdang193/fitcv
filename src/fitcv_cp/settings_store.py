@@ -16,12 +16,76 @@ lifecycle:
 import datetime
 import json
 import logging
+import os
+import sqlite3
+from pathlib import Path
 from typing import Any
 
 from fitcv_cp.settings_schema import coerce_value, editable_settings_keys
 
 logger = logging.getLogger(__name__)
-_LOCAL_SETTINGS: dict[str, Any] = {}
+
+
+def _local_sqlite_path() -> Path:
+    raw = str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+    return Path(raw)
+
+
+def _ensure_local_pipeline_settings_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS pipeline_settings (
+            setting_key TEXT NOT NULL,
+            setting_value_json TEXT NOT NULL,
+            updated_by TEXT,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+
+
+def _save_local_settings_rows(rows: list[dict[str, str]]) -> None:
+    db_path = _local_sqlite_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(db_path, timeout=30) as conn:
+        _ensure_local_pipeline_settings_table(conn)
+        conn.executemany(
+            """
+            INSERT INTO pipeline_settings (
+                setting_key,
+                setting_value_json,
+                updated_by,
+                updated_at
+            ) VALUES (?, ?, ?, ?)
+            """,
+            [
+                (
+                    str(row["setting_key"]),
+                    str(row["setting_value_json"]),
+                    str(row.get("updated_by") or ""),
+                    str(row["updated_at"]),
+                )
+                for row in rows
+            ],
+        )
+        conn.commit()
+
+
+def _load_local_settings_rows() -> list[sqlite3.Row]:
+    db_path = _local_sqlite_path()
+    if not db_path.exists():
+        return []
+    with sqlite3.connect(db_path, timeout=30) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_local_pipeline_settings_table(conn)
+        rows = conn.execute(
+            """
+            SELECT setting_key, setting_value_json
+            FROM pipeline_settings
+            ORDER BY updated_at DESC, rowid DESC
+            """
+        ).fetchall()
+    return rows
 
 
 def save_setting(
@@ -34,16 +98,16 @@ def save_setting(
     dataset: str,
 ) -> None:
     """Append a new row for this key. Current value = latest row per key."""
-    if bq is None:
-        _LOCAL_SETTINGS[key] = value
-        return
-    table = f"{project}.{dataset}.pipeline_settings"
     row = {
         "setting_key": key,
         "setting_value_json": json.dumps(value),
         "updated_by": updated_by,
         "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
     }
+    if bq is None:
+        _save_local_settings_rows([row])
+        return
+    table = f"{project}.{dataset}.pipeline_settings"
     errors = bq.insert_rows_json(table, [row])
     if errors:
         logger.error("BQ save_setting errors: %s", errors)
@@ -67,10 +131,6 @@ def save_settings_group(
     always be completed before calling this function. Partial writes on BQ-level
     partial failures are possible but accepted for this admin tool.
     """
-    if bq is None:
-        _LOCAL_SETTINGS.update(keys_values)
-        return
-    table = f"{project}.{dataset}.pipeline_settings"
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     rows = [
         {
@@ -81,6 +141,10 @@ def save_settings_group(
         }
         for key, value in keys_values.items()
     ]
+    if bq is None:
+        _save_local_settings_rows(rows)
+        return
+    table = f"{project}.{dataset}.pipeline_settings"
     errors = bq.insert_rows_json(table, rows)
     if errors:
         logger.error("BQ save_settings_group errors: %s", errors)
@@ -93,13 +157,14 @@ def load_active_settings(*, bq: Any, project: str, dataset: str) -> dict[str, An
     Returns an empty dict if no settings have been saved yet.
     """
     if bq is None:
-        return dict(_LOCAL_SETTINGS)
-    sql = (
-        f"SELECT setting_key, setting_value_json "
-        f"FROM `{project}.{dataset}.pipeline_settings` "
-        f"ORDER BY updated_at DESC"
-    )
-    rows = list(bq.query(sql).result())
+        rows = _load_local_settings_rows()
+    else:
+        sql = (
+            f"SELECT setting_key, setting_value_json "
+            f"FROM `{project}.{dataset}.pipeline_settings` "
+            f"ORDER BY updated_at DESC"
+        )
+        rows = list(bq.query(sql).result())
 
     seen_valid: set[str] = set()
     result: dict[str, Any] = {}
