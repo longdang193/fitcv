@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: pipeline-settings-decision-focused-ia-v4-implementation
 parent_thread: workstream-fitcv-semantic-spine.semantic-spine-component-boundary-and-interface-contract
@@ -64,13 +64,13 @@ Automated tests validate classifier determinism, MECE partitioning, cross-surfac
 - existing settings key inventory and metadata fields are available
 
 **Steps:**
-- [ ] Step 1: Add/extend per-setting metadata model to include `decision_status`, canonical `reason_codes`, `advanced`, `unused`, `recommended_delta`, and domain label fields.
-- [ ] Step 2: Implement deterministic precedence and tie-break ordering (`blocking > warning > recommendation > configured > hidden overlays`).
-- [ ] Step 3: Add helper accessors that return status buckets and counters without template-side reclassification.
-- [ ] Step 4: Ensure hidden-default/unused behavior is represented as visibility flags, not alternative status values.
+- [x] Step 1: Add/extend per-setting metadata model to include `decision_status`, canonical `reason_codes`, `advanced`, `unused`, `recommended_delta`, and domain label fields.
+- [x] Step 2: Implement deterministic precedence and tie-break ordering (`blocking > warning > recommendation > configured > hidden overlays`).
+- [x] Step 3: Add helper accessors that return status buckets and counters without template-side reclassification.
+- [x] Step 4: Ensure hidden-default/unused behavior is represented as visibility flags, not alternative status values.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_settings_schema.py -q`
+- [x] `pytest tests/test_fitcv_cp/test_settings_schema.py -q`
 
 **Exit Criteria:**
 - classifier output is deterministic, exhaustive, and single-source for all settings keys
@@ -89,13 +89,13 @@ Automated tests validate classifier determinism, MECE partitioning, cross-surfac
 - Task 1 complete
 
 **Steps:**
-- [ ] Step 1: Construct primary tab groups from classifier status only (`Needs Review`, `Recommended`, `Configured`, `Advanced`, `All`).
-- [ ] Step 2: Build secondary domain filter index (`Domain & Taxonomy`, `Extraction Rules`, `Synonym Review`, `Output & Artifacts`) scoped within each tab.
-- [ ] Step 3: Compute overview readiness summary counts and next-action hints from same classifier snapshot.
-- [ ] Step 4: Add stable sorting for `Needs Review` priority order and consistent badge/action metadata payload.
+- [x] Step 1: Construct primary tab groups from classifier status only (`Needs Review`, `Recommended`, `Configured`, `Advanced`, `All`).
+- [x] Step 2: Build secondary domain filter index (`Domain & Taxonomy`, `Extraction Rules`, `Synonym Review`, `Output & Artifacts`) scoped within each tab.
+- [x] Step 3: Compute overview readiness summary counts and next-action hints from same classifier snapshot.
+- [x] Step 4: Add stable sorting for `Needs Review` priority order and consistent badge/action metadata payload.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -q -k settings`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -q -k settings`
 
 **Exit Criteria:**
 - app context exposes consistent tab/filter/counter model with no duplicate or conflicting status calculations
@@ -114,13 +114,13 @@ Automated tests validate classifier determinism, MECE partitioning, cross-surfac
 - Task 2 complete
 
 **Steps:**
-- [ ] Step 1: Add overview header panel with readiness summary and top CTAs (`Review Required Settings`, `Accept Recommended Settings`, `Run Pipeline`).
-- [ ] Step 2: Render primary decision tabs and ensure each setting card appears in one primary bucket only.
-- [ ] Step 3: Add secondary domain filters inside tab content and helper copy clarifying axis semantics.
-- [ ] Step 4: Apply symmetric card layout, badge language, and action labels across tabs.
+- [x] Step 1: Add overview header panel with readiness summary and top CTAs (`Review Required Settings`, `Accept Recommended Settings`, `Run Pipeline`).
+- [x] Step 2: Render primary decision tabs and ensure each setting card appears in one primary bucket only.
+- [x] Step 3: Add secondary domain filters inside tab content and helper copy clarifying axis semantics.
+- [x] Step 4: Apply symmetric card layout, badge language, and action labels across tabs.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -q -k "settings and (tabs or overview or filters)"`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -q -k "settings and (tabs or overview or filters)"`
 
 **Exit Criteria:**
 - UI shows urgency-first flow, domain-scoped filtering, and consistent card/action semantics
@@ -140,13 +140,13 @@ Automated tests validate classifier determinism, MECE partitioning, cross-surfac
 - Task 3 complete
 
 **Steps:**
-- [ ] Step 1: Add toggle controls and state wiring for `Show Defaults` and `Show Unused`.
-- [ ] Step 2: Implement advanced detail expansion policy and tooltip boundary (short explanation only).
-- [ ] Step 3: Add `Accept Recommended Settings` preview/safety behavior showing included and excluded items with reasons.
-- [ ] Step 4: Keep high-risk/low-confidence items out of recommendation bulk-apply path.
+- [x] Step 1: Add toggle controls and state wiring for `Show Defaults` and `Show Unused`.
+- [x] Step 2: Implement advanced detail expansion policy and tooltip boundary (short explanation only).
+- [x] Step 3: Add `Accept Recommended Settings` preview/safety behavior showing included and excluded items with reasons.
+- [x] Step 4: Keep high-risk/low-confidence items out of recommendation bulk-apply path.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -q -k "recommended or advanced or defaults or unused"`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -q -k "recommended or advanced or defaults or unused"`
 
 **Exit Criteria:**
 - disclosure controls and bulk-action safety behavior match spec without hiding critical review items
@@ -167,14 +167,14 @@ Automated tests validate classifier determinism, MECE partitioning, cross-surfac
 - Tasks 1-4 complete
 
 **Steps:**
-- [ ] Step 1: Add fixture-based tests proving deterministic classifier output for repeated identical inputs.
-- [ ] Step 2: Add MECE partition tests to assert unique primary-bucket membership per setting ID.
-- [ ] Step 3: Add cross-surface equivalence tests for overview counts vs tab contents vs classifier payload.
-- [ ] Step 4: Add domain-filter invariance tests to assert filter changes visibility only, not decision status.
-- [ ] Step 5: Add CTA gating tests for blocking/warning/ready scenarios.
+- [x] Step 1: Add fixture-based tests proving deterministic classifier output for repeated identical inputs.
+- [x] Step 2: Add MECE partition tests to assert unique primary-bucket membership per setting ID.
+- [x] Step 3: Add cross-surface equivalence tests for overview counts vs tab contents vs classifier payload.
+- [x] Step 4: Add domain-filter invariance tests to assert filter changes visibility only, not decision status.
+- [x] Step 5: Add CTA gating tests for blocking/warning/ready scenarios.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
+- [x] `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
 
 **Exit Criteria:**
 - automated tests fail on any classifier drift, overlap regression, or cross-surface mismatch
@@ -195,13 +195,13 @@ Automated tests validate classifier determinism, MECE partitioning, cross-surfac
 - Tasks 1-5 complete
 
 **Steps:**
-- [ ] Step 1: Run targeted test suite and confirm no existing settings save/validation regression.
-- [ ] Step 2: Run repo fast validator and confirm planning/doc contracts remain valid.
-- [ ] Step 3: Record any residual risks or follow-up items for execution phase.
+- [x] Step 1: Run targeted test suite and confirm no existing settings save/validation regression.
+- [x] Step 2: Run repo fast validator and confirm planning/doc contracts remain valid.
+- [x] Step 3: Record any residual risks or follow-up items for execution phase.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
-- [ ] `python scripts/hooks/run_validator.py --fast`
+- [x] `pytest tests/test_fitcv_cp/test_settings_schema.py tests/test_fitcv_cp/test_app.py -q`
+- [x] `python scripts/hooks/run_validator.py --fast`
 
 **Exit Criteria:**
 - plan is execution-ready with explicit proof path and no unresolved contract ambiguity
