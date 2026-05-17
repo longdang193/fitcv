@@ -780,6 +780,15 @@ def test_post_settings_key_rejects_unknown_key():
     assert resp.status_code == 422
 
 
+def test_post_settings_key_rejects_hidden_deprecated_key():
+    resp = TestClient(_app()).post(
+        "/settings/cv_generation_model",
+        json={"value": "gemini-2.5-flash", "updated_by": "admin"},
+    )
+    assert resp.status_code == 422
+    assert "hidden_deprecated" in resp.text
+
+
 def test_post_runs_with_config_overrides(tmp_path):
     """@proves settings_system.per-run-overrides
 
@@ -9433,9 +9442,7 @@ def test_run_detail_tab3_legacy_fallback_does_not_mention_default_config_limitat
 # ── CV settings grouped save ──────────────────────────────────────────────────
 
 def test_grouped_save_cv_generation_valid_redirects():
-    """cv-preset is the new default group for preset/model; old cv-generation group removed."""
-    # The old /admin/settings/group/cv-generation route no longer exists (group renamed)
-    # This test verifies the new /admin/settings/group/cv-preset route works
+    """cv-preset group rejects hidden deprecated model control payload."""
     with patch("fitcv_cp.app.save_settings_group") as mock_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app(), follow_redirects=False).post(
@@ -9445,8 +9452,9 @@ def test_grouped_save_cv_generation_valid_redirects():
                 "cv_generation_model": "gemini-2.5-flash",
             },
         )
-    assert resp.status_code == 303
-    mock_save.assert_called_once()
+    assert resp.status_code == 422
+    assert "Hidden deprecated settings are not writable" in resp.text
+    mock_save.assert_not_called()
 
 
 def test_grouped_save_cv_generation_rejects_empty_model():
@@ -9578,7 +9586,7 @@ def test_settings_page_renders_single_option_controls_as_metadata():
     assert "text-embedding-005" in html
     assert 'name="cv_preset"' not in html
     assert 'name="cv_analysis.semantic_alignment.model"' not in html
-    assert 'name="cv_generation_model"' in html
+    assert 'name="cv_generation_model"' not in html
     assert 'name="cv_prompt_version"' not in html
 
 
@@ -9645,17 +9653,34 @@ def test_settings_page_agentic_truth_copy_points_to_run_detail_and_settings_used
     assert "settings-used.json" in html
     assert "run detail" in html.lower()
 
-def test_settings_page_shows_mode_summary_strip_for_agentic_vs_cv_model() -> None:
+def test_settings_page_shows_mode_summary_strip_for_agentic_runtime() -> None:
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert "Agentic Mode:" in html
+    assert "Agentic Mode:" not in html
     assert "Live Provider:" in html
     assert "Live Model:" in html
-    assert "CV Model (Settings):" in html
+    assert "Authority State:" in html
+    assert "aligned" in html
+    assert "CV Model (Settings):" not in html
     assert "Run Truth Check" in html
     assert "Agentic Runtime Alignment" in html
+
+
+def test_settings_page_mode_summary_marks_drift_when_env_set_but_agentic_disabled() -> None:
+    with patch("fitcv_cp.app.load_active_settings", return_value={"cv.agentic_late_stage.enabled": False}), \
+         patch.dict(
+             "fitcv_cp.app.os.environ",
+             {"FITCV_LANGGRAPH_PROVIDER": "9router", "FITCV_LANGGRAPH_MODEL": "cx/gpt-5.2"},
+             clear=False,
+         ):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert "Authority State:" in html
+    assert "drifted" in html
+    assert "Agentic runtime env is configured but agentic mode toggle is OFF." in html
 
 
 def test_settings_page_marks_dirty_rows_when_draft_differs_from_effective() -> None:
@@ -9804,18 +9829,13 @@ def test_settings_page_renders_summary_visibility_toggle() -> None:
     assert "Included" in html or "Hidden" in html
 
 
-def test_settings_page_renders_cv_model_as_select_with_supported_options() -> None:
+def test_settings_page_hides_deprecated_cv_generation_model_input() -> None:
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert 'name="cv_generation_model"' in html
-    assert "<select" in html
-    assert '<option value="gemini-2.5-flash"' in html
-    assert '<option value="gemini-2.5-flash-lite"' in html
-    assert '<option value="gemini-2.5-pro"' in html
-    assert 'name="cv_generation_model"' in html
-    assert 'type="text" name="cv_generation_model"' not in html
+    assert 'name="cv_generation_model"' not in html
+    assert '<option value="gemini-2.5-flash"' not in html
 
 
 def test_settings_page_uses_shared_cv_setting_row_class_across_blocks() -> None:
@@ -9852,7 +9872,6 @@ def test_settings_page_exposes_default_values_for_browser_reset() -> None:
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert 'data-default-value="gemini-2.5-flash"' in html
     assert 'data-default-value="true"' in html
     assert 'data-default-value="concise"' not in html
 
@@ -9889,14 +9908,14 @@ def test_settings_page_does_not_render_cv_content_rules_section():
     assert "Content Rules" not in html
 
 
-def test_settings_page_renders_cv_model_input_without_cv_preset_input():
-    """Settings page keeps cv_generation_model editable while cv_preset becomes metadata-only."""
+def test_settings_page_hides_deprecated_cv_model_and_keeps_cv_preset_metadata_only():
+    """Settings page hides deprecated cv_generation_model and keeps cv_preset metadata-only."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
     assert 'name="cv_preset"' not in html
-    assert 'name="cv_generation_model"' in html
+    assert 'name="cv_generation_model"' not in html
     assert 'name="cv_prompt_version"' not in html
 
 
@@ -10006,19 +10025,17 @@ def test_settings_page_no_raw_required_cv_sections_freeform():
 # ── Preset-based CV grouped save endpoints ────────────────────────────────────────
 
 def test_grouped_save_cv_preset_valid_redirects():
-    """Valid cv-preset form POST saves editable fields without requiring metadata-only inputs."""
+    """Valid cv-preset form POST keeps metadata-only value and performs no editable write."""
     with patch("fitcv_cp.app.save_settings_group") as mock_save, \
          patch("fitcv_cp.app.load_active_settings", return_value={}):
             resp = TestClient(_app(), follow_redirects=False).post(
                 "/admin/settings/group/cv-preset",
-                data={
-                    "cv_generation_model": "gemini-2.5-flash",
-                },
+                data={},
             )
     assert resp.status_code == 303
     mock_save.assert_called_once()
     saved_keys = set(mock_save.call_args[0][0].keys())
-    assert saved_keys == {"cv_generation_model"}
+    assert saved_keys == set()
 
 
 def test_grouped_save_cv_preset_rejects_empty():
@@ -10029,10 +10046,23 @@ def test_grouped_save_cv_preset_rejects_empty():
             "/admin/settings/group/cv-preset",
             data={
                 "cv_preset": "",
+            },
+        )
+    assert resp.status_code == 422
+    mock_save.assert_not_called()
+
+
+def test_grouped_save_cv_preset_rejects_hidden_deprecated_payload_key():
+    with patch("fitcv_cp.app.save_settings_group") as mock_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/group/cv-preset",
+            data={
                 "cv_generation_model": "gemini-2.5-flash",
             },
         )
     assert resp.status_code == 422
+    assert "Hidden deprecated settings are not writable" in resp.text
     mock_save.assert_not_called()
 
 
@@ -10152,6 +10182,24 @@ def test_grouped_save_cv_composition_invalid_does_not_partial_save():
             },
         )
     assert resp.status_code == 422
+    mock_save.assert_not_called()
+
+
+def test_section_save_rejects_hidden_deprecated_payload_key():
+    with patch("fitcv_cp.app.save_settings_group") as mock_save, \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).post(
+            "/admin/settings/section/retrieval-core",
+            data={
+                "pipeline.vector_search_top_n": "50",
+                "pipeline.ai_score_top_n": "50",
+                "pipeline.final_top_n": "10",
+                "pipeline.evidence_top_k": "5",
+                "cv_generation_model": "gemini-2.5-flash",
+            },
+        )
+    assert resp.status_code == 422
+    assert "Hidden deprecated settings are not writable" in resp.text
     mock_save.assert_not_called()
 """
 @meta

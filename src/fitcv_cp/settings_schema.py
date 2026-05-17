@@ -57,6 +57,8 @@ _ROLE_ALIGNMENT_WEIGHT_KEYS = {
 }
 _UI_SURFACE_EDITABLE = "editable"
 _UI_SURFACE_METADATA_ONLY = "metadata_only"
+_UI_DEPRECATION_ACTIVE = "active"
+_UI_DEPRECATION_HIDDEN = "hidden_deprecated"
 _AGENTIC_SECTION_CORE = "agentic-core"
 _AGENTIC_SECTION_ADVANCED = "agentic-advanced"
 _EXCLUDED_AGENTIC_KEYS: frozenset[str] = frozenset(
@@ -518,6 +520,7 @@ SETTINGS_SCHEMA: list[dict[str, Any]] = [
         "description": "Choose the model that writes final CV content for future runs.",
         "options": _CV_GENERATION_MODELS,
         "ui_surface": _UI_SURFACE_EDITABLE,
+        "ui_deprecation_state": _UI_DEPRECATION_HIDDEN,
         "group": "cv_composition",
         "config_path": ["cv", "generation", "model"],
     },
@@ -735,7 +738,6 @@ AGENTIC_SETTINGS_SECTIONS: dict[str, list[str]] = _build_agentic_settings_sectio
 CV_GROUPS: dict[str, list[str]] = {
     "cv-preset": [
         "cv_preset",
-        "cv_generation_model",
     ],
     "cv-composition": [
         "cv_summary_enabled",
@@ -770,6 +772,11 @@ _EDITABLE_KEYS: frozenset[str] = frozenset(
     entry["key"]
     for entry in SETTINGS_SCHEMA
     if entry.get("ui_surface", _UI_SURFACE_EDITABLE) == _UI_SURFACE_EDITABLE
+)
+_HIDDEN_DEPRECATED_KEYS: frozenset[str] = frozenset(
+    entry["key"]
+    for entry in SETTINGS_SCHEMA
+    if entry.get("ui_deprecation_state") == _UI_DEPRECATION_HIDDEN
 )
 _AGENTIC_KEYS: frozenset[str] = frozenset(
     entry["key"]
@@ -918,6 +925,7 @@ def _build_settings_ia_metadata() -> dict[str, dict[str, Any]]:
             "risk": risk,
             "runtime_used": key not in _METADATA_ONLY_KEYS,
             "metadata_only": key in _METADATA_ONLY_KEYS,
+            "deprecation_state": str(entry.get("ui_deprecation_state") or _UI_DEPRECATION_ACTIVE),
             "override_policy": "hidden_until_enabled" if key not in _METADATA_ONLY_KEYS else "disabled",
             "can_override": key not in _METADATA_ONLY_KEYS,
             "is_dangerous": risk == "high" or group in _DANGER_ZONE_GROUPS,
@@ -992,6 +1000,10 @@ def metadata_only_agentic_settings_keys() -> set[str]:
 
 def excluded_agentic_settings_keys() -> set[str]:
     return set(_EXCLUDED_AGENTIC_KEYS)
+
+
+def hidden_deprecated_settings_keys() -> set[str]:
+    return set(_HIDDEN_DEPRECATED_KEYS)
 
 
 # ── coercion ──────────────────────────────────────────────────────────────────

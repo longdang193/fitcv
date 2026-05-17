@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: settings-page-deprecated-surface-removal
 parent_thread: workstream-operator-control-plane.operator-control-plane-agentic-settings-surface
@@ -56,12 +56,12 @@ Add regression tests and documentation updates proving deprecated surfaces are n
 - current `/admin/settings` behavior understood
 
 **Steps:**
-- [ ] Step 1: inventory keys used by `settings_page_sections`, group registries, and section registries.
-- [ ] Step 2: add explicit deprecation visibility metadata for each deprecated/compat key.
-- [ ] Step 3: expose helper accessors for hidden-deprecated key set to be consumed by app routes/context.
+- [x] Step 1: inventory keys used by `settings_page_sections`, group registries, and section registries.
+- [x] Step 2: add explicit deprecation visibility metadata for each deprecated/compat key.
+- [x] Step 3: expose helper accessors for hidden-deprecated key set to be consumed by app routes/context.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "settings and deprec" -q`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "settings and deprec" -q`
 
 **Exit Criteria:**
 - hidden-deprecated key set is explicit and available to app layer
@@ -82,12 +82,12 @@ Add regression tests and documentation updates proving deprecated surfaces are n
 - Task 1 complete
 
 **Steps:**
-- [ ] Step 1: filter card/section/group entry build to exclude `hidden_deprecated` keys.
-- [ ] Step 2: preserve metadata-only explanatory rows for canonical-relevant keys.
-- [ ] Step 3: keep owner/source labels consistent with runtime truth notes and mode summary.
+- [x] Step 1: filter card/section/group entry build to exclude `hidden_deprecated` keys.
+- [x] Step 2: preserve metadata-only explanatory rows for canonical-relevant keys.
+- [x] Step 3: keep owner/source labels consistent with runtime truth notes and mode summary.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "admin_settings and (render or metadata_only or hidden)" -q`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "admin_settings and (render or metadata_only or hidden)" -q`
 
 **Exit Criteria:**
 - `/admin/settings` render contains no deprecated-hidden control rows
@@ -105,12 +105,12 @@ Add regression tests and documentation updates proving deprecated surfaces are n
 - Task 1 hidden-deprecated registry available
 
 **Steps:**
-- [ ] Step 1: enforce 422 rejection in `/admin/settings/{key}` for hidden-deprecated keys.
-- [ ] Step 2: enforce group-save rejection if any hidden-deprecated key is in submitted group payload.
-- [ ] Step 3: enforce section-save rejection if any hidden-deprecated key is in submitted section payload.
+- [x] Step 1: enforce 422 rejection in `/admin/settings/{key}` for hidden-deprecated keys.
+- [x] Step 2: enforce group-save rejection if any hidden-deprecated key is in submitted group payload.
+- [x] Step 3: enforce section-save rejection if any hidden-deprecated key is in submitted section payload.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -k "settings and (422 or deprecated or group or section)" -q`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -k "settings and (422 or deprecated or group or section)" -q`
 
 **Exit Criteria:**
 - no deprecated key can be saved via UI routes
@@ -129,13 +129,13 @@ Add regression tests and documentation updates proving deprecated surfaces are n
 - Tasks 2 and 3 complete
 
 **Steps:**
-- [ ] Step 1: add/adjust tests asserting hidden deprecated keys absent from page HTML.
-- [ ] Step 2: add/adjust tests asserting write rejection contract for deprecated keys.
-- [ ] Step 3: update config docs: distinction between internal compatibility vs operator-visible authority.
+- [x] Step 1: add/adjust tests asserting hidden deprecated keys absent from page HTML.
+- [x] Step 2: add/adjust tests asserting write rejection contract for deprecated keys.
+- [x] Step 3: update config docs: distinction between internal compatibility vs operator-visible authority.
 
 **Verification:**
-- [ ] `pytest tests/test_fitcv_cp/test_app.py -q`
-- [ ] `python scripts/hooks/run_validator.py --fast`
+- [x] `pytest tests/test_fitcv_cp/test_app.py -q`
+- [x] `python scripts/hooks/run_validator.py --fast`
 
 **Exit Criteria:**
 - tests and docs align with new visibility/write policy
@@ -154,14 +154,14 @@ Add regression tests and documentation updates proving deprecated surfaces are n
 - Tasks 1-4 complete
 
 **Steps:**
-- [ ] Step 1: regenerate planning lineage after plan/state updates.
-- [ ] Step 2: run fast validators and repo contracts validation.
-- [ ] Step 3: refresh canonical + mirror execution context pack with deprecated-surface patch evidence and residual risks.
+- [x] Step 1: regenerate planning lineage after plan/state updates.
+- [x] Step 2: run fast validators and repo contracts validation.
+- [x] Step 3: refresh canonical + mirror execution context pack with deprecated-surface patch evidence and residual risks.
 
 **Verification:**
-- [ ] `python scripts/generate_planning_lineage.py`
-- [ ] `python scripts/hooks/run_validator.py --fast`
-- [ ] `python scripts/validate_repo_contracts.py --fast`
+- [x] `python scripts/generate_planning_lineage.py`
+- [x] `python scripts/hooks/run_validator.py --fast`
+- [x] `python scripts/validate_repo_contracts.py --fast`
 
 **Exit Criteria:**
 - patch ready for execution with synchronized plan/context artifacts
@@ -187,3 +187,12 @@ Canonical source-of-truth:
 - `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
 </LINK>
+
+## Execution Progress Log
+
+- 2026-05-17: Task 1 completed. Added explicit deprecation visibility contract in `settings_schema` via `ui_deprecation_state` and `hidden_deprecated_settings_keys()`; classified `cv_generation_model` as `hidden_deprecated`.
+- 2026-05-17: Task 2 completed. Updated settings context-card assembly to filter hidden deprecated keys from render/surface key lists.
+- 2026-05-17: Task 3 completed. Added save-route guardrails for hidden deprecated keys across `/settings/{key}`, `/admin/settings/{key}`, group save, and section save flows.
+- 2026-05-17: Task 4 completed. Updated tests and docs; `docs/configuration.md` now documents `hidden-deprecated` semantics and operator-visible authority boundary.
+- 2026-05-17: Verification completed. `pytest tests/test_fitcv_cp/test_app.py -q` passed (`388 passed`), validator and repo-contract fast checks passed.
+
