@@ -1,0 +1,295 @@
+{
+  "run_id": "f8549230-ac38-4035-8ce3-c1545d2f1ce5",
+  "trace_schema_version": "agentic_step_trace_run_v1",
+  "trace_family": "agentic_step_trace",
+  "step_id": "cv_generation",
+  "late_stage_mode": {
+    "late_stage_mode": "agentic",
+    "agentic_late_stage_enabled": true,
+    "mode_source": "cv.agentic_late_stage.unified_runtime",
+    "agentic_status": "completed"
+  },
+  "trace_status": "completed",
+  "trace_summary": {
+    "records_total": 3,
+    "present_records": 3,
+    "attempted_generation_jobs_total": 3
+  },
+  "records": [
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_generation",
+      "trace_status": "completed",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_langgraph_live",
+        "provider": "9router",
+        "model": "cx/gpt-5.2",
+        "base_url": "http://host.docker.internal:20128/v1",
+        "prompt_contract": "fitcv_structured_generation_prompt",
+        "template_path": "templates/cv_template.md",
+        "response_schema_name": "fitcv_structured_cv_document"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "initial_generation",
+          "started_at": "2026-05-17T14:24:22.905583+02:00",
+          "input_character_count": 8239,
+          "input_item_count": 5,
+          "retry_reason": null,
+          "debug_flags_active": {
+            "FITCV_LANGGRAPH_DEBUG_LIVE": false,
+            "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH": false
+          },
+          "prompt_contract": "fitcv_structured_generation_prompt",
+          "template_path": "templates/cv_template.md",
+          "response_schema_name": "fitcv_structured_cv_document",
+          "finished_at": "2026-05-17T14:24:41.581681+02:00",
+          "latency_ms": 15334,
+          "provider_status": "accepted",
+          "accepted_output_present": true,
+          "response_id": "resp_07641d8098342152016a09b378f7d081919f68759d69e98262"
+        }
+      ],
+      "input_summary": {
+        "attempt_count": 1,
+        "input_item_count": 5
+      },
+      "output_summary": {
+        "accepted_output_present": false,
+        "final_status": "validation_failed"
+      },
+      "validation_summary": {
+        "initial_valid": false,
+        "final_valid": false,
+        "initial_missing_fields": [],
+        "final_missing_fields": [],
+        "violation_count": 1,
+        "warning_count": 0
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempt_count": 0,
+        "repair_targets": [],
+        "repair_reason": ""
+      },
+      "error_summary": {
+        "error_stage": "validation",
+        "error_message": "Live provider CV validation failed for https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title"
+      },
+      "record_id": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+      "scope_type": "job",
+      "scope_key": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+      "status": "validation_failed",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "validation_failed",
+          "attempted": true
+        },
+        "validation": {
+          "status": "failed"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_generation.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_generation",
+      "trace_status": "completed",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_langgraph_live",
+        "provider": "9router",
+        "model": "cx/gpt-5.2",
+        "base_url": "http://host.docker.internal:20128/v1",
+        "prompt_contract": "fitcv_structured_generation_prompt",
+        "template_path": "templates/cv_template.md",
+        "response_schema_name": "fitcv_structured_cv_document"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "initial_generation",
+          "started_at": "2026-05-17T14:24:41.617914+02:00",
+          "input_character_count": 8824,
+          "input_item_count": 5,
+          "retry_reason": null,
+          "debug_flags_active": {
+            "FITCV_LANGGRAPH_DEBUG_LIVE": false,
+            "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH": false
+          },
+          "prompt_contract": "fitcv_structured_generation_prompt",
+          "template_path": "templates/cv_template.md",
+          "response_schema_name": "fitcv_structured_cv_document",
+          "finished_at": "2026-05-17T14:24:58.46291+02:00",
+          "latency_ms": 16845,
+          "provider_status": "accepted",
+          "accepted_output_present": true,
+          "response_id": "resp_085e589c6391ad09016a09b38a032481919c83124b54dfbac6"
+        }
+      ],
+      "input_summary": {
+        "attempt_count": 1,
+        "input_item_count": 5
+      },
+      "output_summary": {
+        "accepted_output_present": true,
+        "final_status": "accepted"
+      },
+      "validation_summary": {
+        "initial_valid": true,
+        "final_valid": true,
+        "initial_missing_fields": [],
+        "final_missing_fields": [],
+        "violation_count": 0,
+        "warning_count": 0
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempt_count": 0,
+        "repair_targets": [],
+        "repair_reason": ""
+      },
+      "error_summary": null,
+      "record_id": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "scope_type": "job",
+      "scope_key": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "status": "review_required",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "review_required",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_generation.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_generation",
+      "trace_status": "completed",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_langgraph_live",
+        "provider": "9router",
+        "model": "cx/gpt-5.2",
+        "base_url": "http://host.docker.internal:20128/v1",
+        "prompt_contract": "fitcv_structured_generation_prompt",
+        "template_path": "templates/cv_template.md",
+        "response_schema_name": "fitcv_structured_cv_document"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "initial_generation",
+          "started_at": "2026-05-17T14:24:58.505364+02:00",
+          "input_character_count": 8594,
+          "input_item_count": 5,
+          "retry_reason": null,
+          "debug_flags_active": {
+            "FITCV_LANGGRAPH_DEBUG_LIVE": false,
+            "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH": false
+          },
+          "prompt_contract": "fitcv_structured_generation_prompt",
+          "template_path": "templates/cv_template.md",
+          "response_schema_name": "fitcv_structured_cv_document",
+          "finished_at": "2026-05-17T14:25:23.268943+02:00",
+          "latency_ms": 21430,
+          "provider_status": "accepted",
+          "accepted_output_present": true,
+          "response_id": "resp_03943c3cc1979b1c016a09b39cd3f08191a12993811dce43db"
+        }
+      ],
+      "input_summary": {
+        "attempt_count": 1,
+        "input_item_count": 5
+      },
+      "output_summary": {
+        "accepted_output_present": true,
+        "final_status": "accepted"
+      },
+      "validation_summary": {
+        "initial_valid": true,
+        "final_valid": true,
+        "initial_missing_fields": [],
+        "final_missing_fields": [],
+        "violation_count": 0,
+        "warning_count": 0
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempt_count": 0,
+        "repair_targets": [],
+        "repair_reason": ""
+      },
+      "error_summary": null,
+      "record_id": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+      "scope_type": "job",
+      "scope_key": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+      "status": "review_required",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "review_required",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_generation.json"
+      }
+    }
+  ],
+  "degradation": {},
+  "artifact_refs": {
+    "cv_debug_artifact": "cv-debug.json",
+    "stage_artifact": "cv_generation.json"
+  }
+}
