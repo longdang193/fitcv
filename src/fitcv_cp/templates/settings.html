@@ -546,11 +546,7 @@
   <section class="settings-toolbar">
     <input class="settings-search" type="search" id="settings-search" placeholder="Search settings..." aria-label="Search settings">
     <div class="settings-global-summary" data-global-dirty-summary="settings-page">All sections saved</div>
-    <div class="axis-row">
-      <span class="axis-label">Visibility</span>
-      <label class="badge-chip"><input type="checkbox" id="toggle-only-actionable"> Only show actionable</label>
-    </div>
-    <div class="settings-decision-item-meta is-filter-hidden" id="empty-filter-state">No settings match filters. Reset filter chips or disable actionable-only mode.</div>
+    <div class="settings-decision-item-meta is-filter-hidden" id="empty-filter-state">No settings match filters. Reset filter chips.</div>
   </section>
   {% for section in settings_page_task_sections %}
     <section class="task-section" data-task-section="{{ section.id }}" id="task-{{ section.id }}">
@@ -621,7 +617,7 @@
                       </div>
                       {% for item in card.entries %}
                         {% set entry = item.entry %}
-                        <div class="composition-matrix-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-domain="{{ item.ia_contract.domain }}" data-workflow-stages="{{ item.ia_contract.workflow_stages | join('|') }}">
+                        <div class="composition-matrix-row{% if item.is_dirty %} is-dirty{% endif %}" data-entry-key="{{ entry.key }}" data-dirty="{{ 'true' if item.is_dirty else 'false' }}" data-domain="{{ item.ia_contract.domain }}" data-workflow-stages="{{ item.ia_contract.workflow_stages | join('|') }}" data-decision-status="{{ item.decision_status }}" data-decision-domain="{{ item.decision_domain }}" data-decision-stage="{{ item.decision_stage }}" data-control-surface="{{ item.decision_control_surface }}" data-decision-area="{{ item.decision_area }}" data-complexity="{{ item.decision_complexity }}" data-default-equal="{{ 'false' if item.is_modified else 'true' }}" data-unused="{{ 'true' if 'unused' in item.decision_reason_codes else 'false' }}">
                           <div>
                             <div class="composition-row-title">{{ entry.label | replace('Include ', '') }}</div>
                             <div class="composition-row-helper">{{ entry.description }}</div>
@@ -790,14 +786,10 @@
     const rowComplexity = row.dataset.complexity || 'basic';
     const rowStage = row.dataset.decisionStage || '';
     const rowControlSurface = row.dataset.controlSurface || '';
-    const rowUnused = (row.dataset.unused || 'false') === 'true';
-    const rowDefaultEqual = (row.dataset.defaultEqual || 'false') === 'true';
-    const onlyActionable = !!document.getElementById('toggle-only-actionable')?.checked;
     const complexityOk = activeComplexity === 'all' || rowComplexity === activeComplexity;
     const stageOk = activeStage === 'all' || rowStage === activeStage;
     const controlSurfaceOk = activeControlSurface === 'all' || rowControlSurface === activeControlSurface;
-    const actionableOk = !onlyActionable || (!rowDefaultEqual && !rowUnused);
-    return complexityOk && stageOk && controlSurfaceOk && actionableOk;
+    return complexityOk && stageOk && controlSurfaceOk;
   }
 
   function applyAxisFilters() {
@@ -874,7 +866,6 @@
     document.body.dataset.activeComplexity = 'basic';
     document.body.dataset.activeStage = 'all';
     document.body.dataset.activeControlSurface = 'all';
-    const toggleOnlyActionable = document.getElementById('toggle-only-actionable');
     const complexityChips = document.querySelectorAll('[data-complexity-filter]');
     const stageChips = document.querySelectorAll('[data-stage-filter]');
     const controlSurfaceChips = document.querySelectorAll('[data-control-surface-filter]');
@@ -909,12 +900,6 @@
           const pressed = (other.getAttribute('data-control-surface-filter') || 'all') === value;
           other.setAttribute('aria-pressed', pressed ? 'true' : 'false');
         });
-        applyAxisFilters();
-      });
-    });
-    [toggleOnlyActionable].forEach(function(toggle) {
-      if (!toggle) return;
-      toggle.addEventListener('change', function() {
         applyAxisFilters();
       });
     });
