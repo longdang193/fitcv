@@ -16,9 +16,10 @@ from unittest.mock import MagicMock, patch
 import datetime
 import json
 from copy import deepcopy
+from pathlib import Path
 from fitcv_cp.backend_runtime import BackendRuntime
 from fitcv_cp.worker_job import execute_pipeline_run
-from fitcv_cp.models import RunStatus
+from fitcv_cp.models import PipelineRun, RunEvent, RunStatus
 import pytest
 
 @pytest.fixture(autouse=True)
@@ -40,6 +41,71 @@ def test_worker_marks_succeeded_on_success():
                              config_path=".env.yaml")
     statuses = [call.args[1].value for call in mock_update_status.call_args_list if len(call.args) >= 2]
     assert "running" in statuses and "succeeded" in statuses
+
+def test_worker_persists_terminal_artifact_mirror_for_succeeded_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    now = datetime.datetime(2026, 5, 17, 16, 31, 28, tzinfo=datetime.timezone.utc)
+    run_record = PipelineRun(
+        run_id="r-mirror-1",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=now,
+        started_at=now,
+        finished_at=now,
+        results_export_json=json.dumps({"results": [{"job_url": "https://example.com/1"}]}, ensure_ascii=False),
+        cv_generation_debug_json=json.dumps({"debug_records": [], "agentic_live_trace": {"trace_status": "completed"}}, ensure_ascii=False),
+        stage_transition_artifacts_json=json.dumps({"status": "succeeded", "artifacts": {}}, ensure_ascii=False),
+        settings_used_json=json.dumps({"effective_settings": {}}, ensure_ascii=False),
+        mapping_suggestions_json=json.dumps({"suggestions": []}, ensure_ascii=False),
+        synonym_proposals_json=json.dumps({"proposals": []}, ensure_ascii=False),
+        effective_settings_json=json.dumps({}, ensure_ascii=False),
+    )
+    run_record.cancel_requested_at = None
+    events = [
+        RunEvent(
+            run_id="r-mirror-1",
+            event_id="e1",
+            stage="pipeline_complete",
+            level="info",
+            message="done",
+            created_at=now,
+            payload_json=None,
+        )
+    ]
+    def _run_once() -> None:
+        with patch("fitcv_cp.worker_job.run_pipeline", return_value={"run_id": "r-mirror-1", "total_jobs": 1, "passed_filter": 1, "ranked": 1, "cvs_generated": 1}), \
+            patch("fitcv_cp.worker_job.resolve_backend_runtime", return_value=BackendRuntime(backend_type="sqlite", project="local", dataset="fitcv", sqlite_path="data/fitcv_cp.sqlite3")), \
+            patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+            patch("fitcv_cp.worker_job.get_run", return_value=run_record), \
+            patch("fitcv_cp.run_artifact_mirror.get_run", return_value=run_record), \
+            patch("fitcv_cp.run_artifact_mirror.get_events", return_value=events), \
+            patch("fitcv_cp.worker_job.update_run_results_export"), \
+            patch("fitcv_cp.worker_job.update_run_cv_generation_debug"), \
+            patch("fitcv_cp.worker_job.update_run_stage_transition_artifacts"), \
+            patch("fitcv_cp.worker_job.update_run_settings_used"), \
+            patch("fitcv_cp.worker_job.update_run_mapping_suggestions"), \
+            patch("fitcv_cp.worker_job.update_run_synonym_proposals"):
+            execute_pipeline_run(run_id="r-mirror-1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    _run_once()
+
+    mirror_dir = tmp_path / "artifacts" / "live_run_r-mirror-1"
+    assert mirror_dir.is_dir()
+    assert (mirror_dir / "run.json").is_file()
+    assert (mirror_dir / "events.json").is_file()
+    assert (mirror_dir / "export.json").is_file()
+    assert (mirror_dir / "cv-debug.json").is_file()
+    assert (mirror_dir / "stage-artifacts.json").is_file()
+
+    # Idempotent overwrite check: running again should keep mirror writable and valid.
+    _run_once()
+    payload = json.loads((mirror_dir / "run.json").read_text(encoding="utf-8"))
+    assert payload["run_id"] == "r-mirror-1"
 
 
 def test_worker_sqlite_mode_skips_bigquery_client_bootstrap():

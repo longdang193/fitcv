@@ -55,6 +55,7 @@ from fitcv_cp.bq_store import (
 )
 from fitcv_cp.models import RunEvent, RunStatus
 from fitcv_cp.data_plane import data_plane_contract_payload
+from fitcv_cp.run_artifact_mirror import persist_terminal_run_artifact_mirror
 from fitcv_cp.synonym_proposals import (
     resolve_synonym_management_mode,
     build_synonym_proposals_payload,
@@ -1997,6 +1998,15 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                                     run_id,
                                     inner,
                                 )
+                try:
+                    persist_terminal_run_artifact_mirror(
+                        run_id=run_id,
+                        bq=bq,
+                        project=project,
+                        dataset=dataset,
+                    )
+                except Exception as mirror_exc:
+                    logger.warning("[run_id=%s] Failed to persist terminal artifact mirror: %s", run_id, mirror_exc)
 
         except PipelineCancelled as exc:
             # ── Step 5 (alt): Pipeline was cancelled at a checkpoint ──────────────
@@ -2033,6 +2043,15 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 )
             except Exception as inner:
                 logger.warning("[run_id=%s] Failed to write cancellation event: %s", run_id, inner)
+            try:
+                persist_terminal_run_artifact_mirror(
+                    run_id=run_id,
+                    bq=bq,
+                    project=project,
+                    dataset=dataset,
+                )
+            except Exception as mirror_exc:
+                logger.warning("[run_id=%s] Failed to persist terminal artifact mirror: %s", run_id, mirror_exc)
 
         except Exception as exc:
             # ── Step 7: Unexpected pipeline failure ───────────────────────────────
@@ -2082,6 +2101,15 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 )
             except Exception as inner:
                 logger.warning("[run_id=%s] Failed to write failure event: %s", run_id, inner)
+            try:
+                persist_terminal_run_artifact_mirror(
+                    run_id=run_id,
+                    bq=bq,
+                    project=project,
+                    dataset=dataset,
+                )
+            except Exception as mirror_exc:
+                logger.warning("[run_id=%s] Failed to persist terminal artifact mirror: %s", run_id, mirror_exc)
         finally:
             if previous_backend_env is None:
                 os.environ.pop("FITCV_CP_DATA_BACKEND", None)
@@ -2091,8 +2119,6 @@ def execute_pipeline_run(run_id: str, jobs_path: str, config_path: str) -> None:
                 os.environ.pop("FITCV_CP_SQLITE_PATH", None)
             else:
                 os.environ["FITCV_CP_SQLITE_PATH"] = previous_sqlite_path_env
-
-
 
 
 

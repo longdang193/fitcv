@@ -576,6 +576,30 @@ When debugging a surprising run:
 
 - run-detail labels are derived views, not the source of semantic truth
 - stage artifacts are the primary source for stage-owned decisions
+- run-scoped persisted fields and export endpoints are artifact SSOT
+- `artifacts/live_run_<run_id>/` is deterministic local evidence mirror/cache, not authority
+
+## Local Artifact Mirror
+
+Terminal runs now mirror available run artifacts to local filesystem:
+
+- `artifacts/live_run_<run_id>/`
+
+Mirror content is generated from run-scoped persisted payloads and event history.
+Mirror does not redefine artifact contracts.
+
+When historical runs are missing mirror folders, backfill with:
+
+```powershell
+python scripts/backfill_live_run_artifacts.py --run-id <run_id> --dry-run
+python scripts/backfill_live_run_artifacts.py --run-id <run_id>
+```
+
+Backfill command behavior:
+
+- terminal runs only (`succeeded`, `failed`, `cancelled`)
+- idempotent: existing mirror folders are skipped
+- summary output reports `created`, `skipped_existing`, `missing_payload`, `errors`
 
 ## Related Docs
 
