@@ -790,48 +790,80 @@ _PREFERENCE_WEIGHT_KEYS: frozenset[str] = frozenset(
 )
 
 
-_IA_LAYER_GENERAL = "general"
-_IA_LAYER_WORKFLOW_CONTROLS = "workflow_controls"
-_IA_LAYER_ADVANCED_TUNING = "advanced_tuning"
-_IA_LAYER_GOVERNANCE_METADATA = "governance_metadata"
+_IA_DOMAIN_GENERAL = "general"
+_IA_DOMAIN_LAYERS = "layers"
+_IA_DOMAIN_STAGES = "stages"
+_IA_DOMAIN_RULES = "rules"
+_IA_DOMAIN_INTEGRATIONS = "integrations"
+_IA_DOMAIN_ADVANCED = "advanced"
 
-_IA_STAGE_RETRIEVE = "retrieve"
-_IA_STAGE_RULE_FILTER = "rule_filter"
-_IA_STAGE_RERANK = "rerank"
-_IA_STAGE_EVIDENCE = "evidence"
-_IA_STAGE_CV_COMPOSE = "cv_compose"
-_IA_STAGE_VALIDATE = "validate"
-_IA_STAGE_RUN_LIFECYCLE = "run_lifecycle"
+_WORKFLOW_STAGE_NORMALIZE = "normalize"
+_WORKFLOW_STAGE_ENRICH = "enrich"
+_WORKFLOW_STAGE_RULE_FILTER = "rule_filter"
+_WORKFLOW_STAGE_SHORTLIST = "shortlist"
+_WORKFLOW_STAGE_RANKING = "ranking"
+_WORKFLOW_STAGE_CV_ANALYSIS = "cv_analysis"
+_WORKFLOW_STAGE_CV_GENERATION = "cv_generation"
 
-_GROUP_TO_IA_LAYER: dict[str, str] = {
-    "retrieval": _IA_LAYER_WORKFLOW_CONTROLS,
-    "global_job_filters": _IA_LAYER_WORKFLOW_CONTROLS,
-    "rule_filter": _IA_LAYER_WORKFLOW_CONTROLS,
-    "run_lifecycle": _IA_LAYER_WORKFLOW_CONTROLS,
-    "ranking": _IA_LAYER_ADVANCED_TUNING,
-    "timing": _IA_LAYER_ADVANCED_TUNING,
-    "agentic": _IA_LAYER_ADVANCED_TUNING,
-    "cv_composition": _IA_LAYER_GENERAL,
-    "cv_validation": _IA_LAYER_GENERAL,
-    "cv_preset": _IA_LAYER_GENERAL,
+_GROUP_TO_IA_DOMAIN: dict[str, str] = {
+    "retrieval": _IA_DOMAIN_STAGES,
+    "global_job_filters": _IA_DOMAIN_RULES,
+    "rule_filter": _IA_DOMAIN_RULES,
+    "run_lifecycle": _IA_DOMAIN_STAGES,
+    "ranking": _IA_DOMAIN_RULES,
+    "timing": _IA_DOMAIN_ADVANCED,
+    "agentic": _IA_DOMAIN_INTEGRATIONS,
+    "cv_composition": _IA_DOMAIN_GENERAL,
+    "cv_validation": _IA_DOMAIN_STAGES,
+    "cv_preset": _IA_DOMAIN_LAYERS,
 }
 
-_GROUP_TO_IA_STAGES: dict[str, tuple[str, ...]] = {
+_GROUP_TO_WORKFLOW_STAGES: dict[str, tuple[str, ...]] = {
     "retrieval": (
-        _IA_STAGE_RETRIEVE,
-        _IA_STAGE_RULE_FILTER,
-        _IA_STAGE_RERANK,
-        _IA_STAGE_EVIDENCE,
+        _WORKFLOW_STAGE_NORMALIZE,
+        _WORKFLOW_STAGE_ENRICH,
+        _WORKFLOW_STAGE_RULE_FILTER,
+        _WORKFLOW_STAGE_SHORTLIST,
     ),
-    "global_job_filters": (_IA_STAGE_RULE_FILTER,),
-    "rule_filter": (_IA_STAGE_RULE_FILTER,),
-    "run_lifecycle": (_IA_STAGE_RUN_LIFECYCLE,),
-    "ranking": (_IA_STAGE_RERANK, _IA_STAGE_VALIDATE),
-    "timing": (_IA_STAGE_RETRIEVE, _IA_STAGE_RERANK, _IA_STAGE_EVIDENCE),
-    "agentic": (_IA_STAGE_EVIDENCE, _IA_STAGE_CV_COMPOSE),
-    "cv_composition": (_IA_STAGE_CV_COMPOSE,),
-    "cv_validation": (_IA_STAGE_VALIDATE,),
-    "cv_preset": (_IA_STAGE_CV_COMPOSE,),
+    "global_job_filters": (
+        _WORKFLOW_STAGE_ENRICH,
+        _WORKFLOW_STAGE_RULE_FILTER,
+    ),
+    "rule_filter": (
+        _WORKFLOW_STAGE_RULE_FILTER,
+    ),
+    "run_lifecycle": (
+        _WORKFLOW_STAGE_NORMALIZE,
+        _WORKFLOW_STAGE_ENRICH,
+        _WORKFLOW_STAGE_RULE_FILTER,
+        _WORKFLOW_STAGE_SHORTLIST,
+        _WORKFLOW_STAGE_RANKING,
+        _WORKFLOW_STAGE_CV_ANALYSIS,
+        _WORKFLOW_STAGE_CV_GENERATION,
+    ),
+    "ranking": (
+        _WORKFLOW_STAGE_SHORTLIST,
+        _WORKFLOW_STAGE_RANKING,
+        _WORKFLOW_STAGE_CV_ANALYSIS,
+    ),
+    "timing": (
+        _WORKFLOW_STAGE_ENRICH,
+        _WORKFLOW_STAGE_RANKING,
+    ),
+    "agentic": (
+        _WORKFLOW_STAGE_CV_ANALYSIS,
+        _WORKFLOW_STAGE_CV_GENERATION,
+    ),
+    "cv_composition": (
+        _WORKFLOW_STAGE_CV_GENERATION,
+    ),
+    "cv_validation": (
+        _WORKFLOW_STAGE_CV_GENERATION,
+    ),
+    "cv_preset": (
+        _WORKFLOW_STAGE_CV_ANALYSIS,
+        _WORKFLOW_STAGE_CV_GENERATION,
+    ),
 }
 
 _GROUP_TO_APPLIES_WHEN: dict[str, str] = {
@@ -851,6 +883,7 @@ _HIGH_RISK_GROUPS: frozenset[str] = frozenset({"ranking", "timing"})
 _MEDIUM_RISK_GROUPS: frozenset[str] = frozenset(
     {"retrieval", "agentic", "run_lifecycle", "global_job_filters", "rule_filter"}
 )
+_DANGER_ZONE_GROUPS: frozenset[str] = frozenset({"timing", "run_lifecycle"})
 
 def _risk_for_entry(entry: dict[str, Any]) -> str:
     group = str(entry.get("group") or "")
@@ -866,24 +899,28 @@ def _risk_for_entry(entry: dict[str, Any]) -> str:
         return "high"
     return "low"
 
-def _default_ia_layer(entry: dict[str, Any]) -> str:
+def _default_ia_domain(entry: dict[str, Any]) -> str:
     key = str(entry.get("key") or "")
     if key in _METADATA_ONLY_KEYS:
-        return _IA_LAYER_GOVERNANCE_METADATA
+        return _IA_DOMAIN_LAYERS
     group = str(entry.get("group") or "")
-    return _GROUP_TO_IA_LAYER.get(group, _IA_LAYER_ADVANCED_TUNING)
+    return _GROUP_TO_IA_DOMAIN.get(group, _IA_DOMAIN_ADVANCED)
 
 def _build_settings_ia_metadata() -> dict[str, dict[str, Any]]:
     metadata: dict[str, dict[str, Any]] = {}
     for entry in SETTINGS_SCHEMA:
         key = str(entry["key"])
         group = str(entry.get("group") or "")
+        risk = _risk_for_entry(entry)
         metadata[key] = {
-            "intent_layer": _default_ia_layer(entry),
-            "workflow_stages": list(_GROUP_TO_IA_STAGES.get(group, ())),
-            "risk": _risk_for_entry(entry),
+            "domain": _default_ia_domain(entry),
+            "workflow_stages": list(_GROUP_TO_WORKFLOW_STAGES.get(group, ())),
+            "risk": risk,
             "runtime_used": key not in _METADATA_ONLY_KEYS,
             "metadata_only": key in _METADATA_ONLY_KEYS,
+            "override_policy": "hidden_until_enabled" if key not in _METADATA_ONLY_KEYS else "disabled",
+            "can_override": key not in _METADATA_ONLY_KEYS,
+            "is_dangerous": risk == "high" or group in _DANGER_ZONE_GROUPS,
             "applies_when": _GROUP_TO_APPLIES_WHEN.get(
                 group,
                 "Used in advanced runtime flow according to this setting group.",
@@ -909,10 +946,13 @@ def settings_ia_metadata_by_key() -> dict[str, dict[str, Any]]:
     return {key: dict(value) for key, value in SETTINGS_IA_METADATA_BY_KEY.items()}
 
 def settings_keys_for_intent_layer(layer: str) -> list[str]:
+    return settings_keys_for_domain(layer)
+
+def settings_keys_for_domain(domain: str) -> list[str]:
     return sorted(
         key
         for key, meta in SETTINGS_IA_METADATA_BY_KEY.items()
-        if str(meta.get("intent_layer")) == layer
+        if str(meta.get("domain")) == domain
     )
 
 def settings_keys_for_workflow_stage(stage: str) -> list[str]:
@@ -926,6 +966,13 @@ def settings_ia_contract_for_key(key: str) -> dict[str, Any]:
     if key not in SETTINGS_IA_METADATA_BY_KEY:
         raise KeyError(key)
     return dict(SETTINGS_IA_METADATA_BY_KEY[key])
+
+def danger_zone_settings_keys() -> list[str]:
+    return sorted(
+        key
+        for key, meta in SETTINGS_IA_METADATA_BY_KEY.items()
+        if bool(meta.get("is_dangerous"))
+    )
 
 def metadata_only_settings_keys() -> set[str]:
     return set(_METADATA_ONLY_KEYS)
