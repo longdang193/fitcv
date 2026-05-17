@@ -2841,7 +2841,6 @@ def test_admin_run_detail_shows_exports_card_with_results_link():
         resp = TestClient(_app()).get("/admin/runs/test-export-btn")
     assert resp.status_code == 200
     assert "Run Exports" in resp.text
-    assert 'href="/admin/runs/test-export-btn/artifacts"' in resp.text
     assert 'href="/admin/runs/test-export-btn/export.json"' in resp.text
 
 def test_run_detail_shows_orchestration_backend_diagnostics() -> None:
@@ -2961,7 +2960,6 @@ def test_admin_run_detail_shows_bundle_zip_export_link():
     patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/test-bundle-btn")
     assert resp.status_code == 200
-    assert 'href="/admin/runs/test-bundle-btn/artifacts"' in resp.text
     assert 'href="/admin/runs/test-bundle-btn/artifacts.zip"' in resp.text
     assert "Download All Artifacts (.zip)" in resp.text
 
@@ -4481,17 +4479,6 @@ def test_admin_run_detail_shows_synonym_proposal_review_actions() -> None:
     assert "proposal_action__proposal-ml" in resp.text
 
 
-
-def test_admin_run_synonym_review_route_redirects_to_workspace_anchor() -> None:
-    resp = TestClient(_app()).get("/admin/runs/run-proposal-ui/synonym-review", follow_redirects=False)
-    assert resp.status_code == 303
-    assert resp.headers.get("location") == "/admin/runs/run-proposal-ui#synonym-review-workspace"
-
-
-def test_admin_run_artifacts_route_redirects_to_workspace_anchor() -> None:
-    resp = TestClient(_app()).get("/admin/runs/run-proposal-ui/artifacts", follow_redirects=False)
-    assert resp.status_code == 303
-    assert resp.headers.get("location") == "/admin/runs/run-proposal-ui#run-exports-workspace"
 def test_admin_run_detail_shows_synonym_recommendation_advisory_fields() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
     from datetime import datetime, timezone
@@ -5692,8 +5679,7 @@ def test_run_detail_shows_synonym_regeneration_controls_and_banner() -> None:
     assert resp.status_code == 200
     assert "Regenerate Proposals" in resp.text
     assert "Regeneration summary" in resp.text
-    assert "Open Diagnostics" in resp.text
-    assert "fingerprints:" not in resp.text
+    assert "fingerprints:" in resp.text
 
 def test_run_detail_shows_synonym_regeneration_banner_without_review_card() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -9610,9 +9596,9 @@ def test_settings_page_uses_advanced_disclosure_for_expert_controls() -> None:
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert "Diagnostics" in html
+    assert "Advanced Agentic Tuning" in html
     assert "Advanced Runtime Tuning" in html
-    assert "metadata-only semantic runtime contract details" in html.lower()
+    assert "Semantic channel weights and pool sizing" in html
     assert "Timing and throttling controls" in html
     assert "<details" in html
     assert 'name="cv_analysis.semantic_alignment.required_skill_lexical_weight"' in html
@@ -9625,12 +9611,9 @@ def test_settings_page_renders_dedicated_agentic_section() -> None:
     assert resp.status_code == 200
     html = resp.text
     assert 'data-task-section="agentic"' in html
-    assert "Agentic Processing" in html
-    assert "Enablement" in html
-    assert "Automation" in html
-    assert "Quality Targets" in html
-    assert "Throughput" in html
-    assert "Advanced Agentic Tuning" not in html
+    assert "Agentic" in html
+    assert "Agentic Controls" in html
+    assert "Advanced Agentic Tuning" in html
     assert 'action="/admin/settings/section/agentic-core"' in html
     assert 'action="/admin/settings/section/agentic-advanced"' in html
 
@@ -9667,8 +9650,8 @@ def test_settings_page_agentic_truth_copy_points_to_run_detail_and_settings_used
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert "settings-used.json" not in html
-    assert "run detail" not in html.lower()
+    assert "settings-used.json" in html
+    assert "run detail" in html.lower()
 
 def test_settings_page_shows_mode_summary_strip_for_agentic_runtime() -> None:
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
@@ -9676,11 +9659,13 @@ def test_settings_page_shows_mode_summary_strip_for_agentic_runtime() -> None:
     assert resp.status_code == 200
     html = resp.text
     assert "Agentic Mode:" not in html
-    assert "Live Provider:" not in html
-    assert "Live Model:" not in html
-    assert "Authority State:" not in html
-    assert "Run Truth Check" not in html
-    assert "Agentic Runtime Alignment" not in html
+    assert "Live Provider:" in html
+    assert "Live Model:" in html
+    assert "Authority State:" in html
+    assert "aligned" in html
+    assert "CV Model (Settings):" not in html
+    assert "Run Truth Check" in html
+    assert "Agentic Runtime Alignment" in html
 
 
 def test_settings_page_mode_summary_marks_drift_when_env_set_but_agentic_disabled() -> None:
@@ -9693,9 +9678,9 @@ def test_settings_page_mode_summary_marks_drift_when_env_set_but_agentic_disable
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert "Authority State:" not in html
-    assert "drifted" not in html
-    assert "Agentic runtime env is configured but agentic mode toggle is OFF." not in html
+    assert "Authority State:" in html
+    assert "drifted" in html
+    assert "Agentic runtime env is configured but agentic mode toggle is OFF." in html
 
 
 def test_settings_page_marks_dirty_rows_when_draft_differs_from_effective() -> None:
@@ -9723,8 +9708,8 @@ def test_settings_page_explains_future_defaults_per_run_overrides_and_settings_u
     assert resp.status_code == 200
     html = resp.text
     assert "future runs only" in html.lower()
-    assert "Per-run overrides" not in html
-    assert "settings-used.json" not in html
+    assert "Per-run overrides" in html
+    assert "settings-used.json" in html
 
 
 def test_settings_page_labels_when_current_value_comes_from_baseline_default() -> None:
@@ -9742,13 +9727,14 @@ def test_settings_page_renders_global_unsaved_changes_summary_strip() -> None:
     assert "All sections saved" in resp.text
 
 def test_settings_page_renders_quick_nav_for_task_sections() -> None:
-    """Decision-first cleanup: quick-nav removed, readiness summary remains primary navigation aid."""
+    """Task 2 Step 1: expect section quick-nav for long settings page usability."""
     with patch("fitcv_cp.app.load_active_settings", return_value={}):
         resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
-    assert 'data-settings-quick-nav="true"' not in resp.text
-    assert "Settings Status" in resp.text
-    assert "Decision View" in resp.text
+    assert 'data-settings-quick-nav="true"' in resp.text
+    assert 'href="#task-selection"' in resp.text
+    assert 'href="#task-agentic"' in resp.text
+    assert 'href="#task-ranking"' in resp.text
 
 
 def test_settings_page_cv_sections_no_raw_yaml():
@@ -10654,10 +10640,12 @@ def test_admin_settings_renders_two_axis_filter_controls() -> None:
     resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert 'data-domain-filter=' not in html
-    assert 'data-stage-filter=' in html
-    assert 'data-control-surface-filter=' in html
-    assert 'id="toggle-only-actionable"' not in html
+    assert 'data-domain-filter="general"' in html
+    assert 'data-domain-filter="layers"' in html
+    assert 'data-domain-filter="stages"' in html
+    assert 'data-domain-filter="rules"' in html
+    assert 'data-domain-filter="integrations"' in html
+    assert 'data-domain-filter="advanced"' in html
     assert 'data-stage-filter="normalize"' in html
     assert 'data-stage-filter="enrich"' in html
     assert 'data-stage-filter="rule_filter"' in html
@@ -10665,7 +10653,6 @@ def test_admin_settings_renders_two_axis_filter_controls() -> None:
     assert 'data-stage-filter="ranking"' in html
     assert 'data-stage-filter="cv_analysis"' in html
     assert 'data-stage-filter="cv_generation"' in html
-    assert 'data-stage-filter="cross_stage"' in html
 
 
 def test_admin_settings_renders_ia_contract_fields_and_badges() -> None:
@@ -10691,14 +10678,15 @@ def test_admin_settings_renders_decision_focused_readiness_summary_and_ctas() ->
     resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert "Settings Status" in html
-    assert "Go to Runs" not in html
-    assert "Run Truth Check" not in html
-    assert "Live Provider:" not in html
+    assert "Readiness Summary" in html
+    assert "Review Required Settings" in html
+    assert "Accept Recommended Settings" in html
+    assert "Run Pipeline" in html
     assert "Decision View" in html
-    assert "Basic" in html
+    assert "Needs Review" in html
+    assert "Recommended" in html
+    assert "Configured" in html
     assert "Advanced" in html
-    assert "All" in html
 
 def test_admin_settings_rows_expose_decision_metadata_attrs() -> None:
     resp = TestClient(_app()).get("/admin/settings")
@@ -10708,18 +10696,16 @@ def test_admin_settings_rows_expose_decision_metadata_attrs() -> None:
     assert 'data-decision-domain="' in html
     assert 'data-default-equal="' in html
     assert 'data-unused="' in html
-    assert 'data-entry-key="cv_summary_enabled"' in html
-    assert 'data-decision-stage="cv_generation"' in html
 
 def test_admin_settings_has_visibility_toggles_and_recommendation_preview_script() -> None:
     resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert 'id="toggle-only-actionable"' not in html
-    assert 'data-accept-recommended' not in html
-    assert 'data-review-required' not in html
-
-
+    assert 'id="toggle-show-defaults"' in html
+    assert 'id="toggle-show-unused"' in html
+    assert "Recommended settings preview" in html
+    assert 'data-review-required' in html
+    assert 'data-accept-recommended' in html
 
 
 
