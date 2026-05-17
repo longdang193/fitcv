@@ -121,15 +121,30 @@ The settings page intentionally mixes editable controls with metadata-only rows.
 
 - editable: schema-backed controls with persistence keys and save handlers
 - metadata-only: fixed/runtime-owned values shown for operator context and provenance
+- hidden-deprecated: compatibility keys intentionally removed from operator UI and rejected by settings-save routes (`422`) to prevent false runtime authority signals
 
 Examples:
 
 - editable: retrieval funnel sizes, ranking weights, timing, run lifecycle guard, CV composition toggles
 - metadata-only: fixed runtime-contract fields such as single-option model metadata
+- hidden-deprecated: legacy AI-authority controls (for example `cv_generation_model`) retained only for compatibility projection, not operator control
+
+### Settings Mode Strip SSOT Contract
+
+- mode-strip fields (`Agentic Mode`, `Live Provider`, `Live Model`, `Authority State`) are resolved by one control-plane authority resolver
+- `Agentic Mode` source: persisted setting `cv.agentic_late_stage.enabled`
+- `Live Provider` and `Live Model` source: runtime env `FITCV_LANGGRAPH_PROVIDER` / `FITCV_LANGGRAPH_MODEL`
+- `Authority State`:
+  - `aligned`: toggle and runtime env expectations are consistent
+  - `drifted`: toggle/env expectations conflict; UI shows explicit drift reason
 
 ## Backend and Provider Routing
 
 - backend routing: process env `FITCV_CP_DATA_BACKEND` selects backend mode (`sqlite` / `bigquery`) at runtime
+- local sqlite persistence authority:
+  - pipeline run snapshots persist in sqlite (`local_pipeline_runs`)
+  - pipeline run events persist in sqlite (`local_pipeline_run_events`)
+  - local in-process caches are non-authoritative and restart survival must come from sqlite tables
 - model/provider routing defaults: canonical owner is `config/runtime/control_plane.yaml`
   - `control_plane.providers.*.base_url`
   - `control_plane.providers.*.wire_api`
