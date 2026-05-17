@@ -10592,13 +10592,19 @@ def test_admin_settings_renders_two_axis_filter_controls() -> None:
     resp = TestClient(_app()).get("/admin/settings")
     assert resp.status_code == 200
     html = resp.text
-    assert 'data-layer-filter="general"' in html
-    assert 'data-layer-filter="workflow_controls"' in html
-    assert 'data-layer-filter="advanced_tuning"' in html
-    assert 'data-layer-filter="governance_metadata"' in html
-    assert 'data-stage-filter="retrieve"' in html
-    assert 'data-stage-filter="cv_compose"' in html
-    assert 'data-stage-filter="run_lifecycle"' in html
+    assert 'data-domain-filter="general"' in html
+    assert 'data-domain-filter="layers"' in html
+    assert 'data-domain-filter="stages"' in html
+    assert 'data-domain-filter="rules"' in html
+    assert 'data-domain-filter="integrations"' in html
+    assert 'data-domain-filter="advanced"' in html
+    assert 'data-stage-filter="normalize"' in html
+    assert 'data-stage-filter="enrich"' in html
+    assert 'data-stage-filter="rule_filter"' in html
+    assert 'data-stage-filter="shortlist"' in html
+    assert 'data-stage-filter="ranking"' in html
+    assert 'data-stage-filter="cv_analysis"' in html
+    assert 'data-stage-filter="cv_generation"' in html
 
 
 def test_admin_settings_renders_ia_contract_fields_and_badges() -> None:
