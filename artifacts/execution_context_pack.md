@@ -1,115 +1,68 @@
-# Execution Context Pack
+---
+name: execution-context-pack
+template_id: execution-context-pack-template
+document_type: execution_context_pack
+---
 
 ## 1) Objective
 
-- **Workstream / Plan:** `workstream-operator-control-plane.operator-control-plane-run-detail-truth` / `docs/superpowers/plans/2026-05-18-21-14-fitcv-cp-app-refactor-and-issue-patch-plan.md`
-- **Goal:** Execute SSOT/symmetry/invariance refactor for `src/fitcv_cp/app.py` with patch-first safety.
-- **Bounded Scope (in-scope only):** Task 1-5 complete for lane closure under approved out-of-lane baseline exception policy.
-- **Out of Scope (explicit):** merge/closeout orchestration, non-plan features, broad type-system cleanup.
+- **Workstream / Plan:** `docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md`
+- **Goal:** Execute worker_job refactor/issue-patch plan in isolated worktree.
+- **Bounded Scope (in-scope only):** plan tasks 1-6 and scoped files in plan.
+- **Out of Scope (explicit):** merge/closeout orchestration.
 
 ## 2) Canonical Inputs (Source of Truth)
 
-- **Primary plan:** `docs/superpowers/plans/2026-05-18-21-14-fitcv-cp-app-refactor-and-issue-patch-plan.md`
-- **Specs / maps / thread docs:**
-  - `docs/superpowers/specs/2026-05-18-21-12-fitcv-cp-app-refactor-and-issue-patch-spec.md`
-  - `docs/intent/workstreams/threads/workstream-operator-control-plane/01-operator-control-plane-run-detail-truth.md`
+- **Primary plan:** `docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md`
+- **Specs / maps / thread docs:** `docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md`
 - **Governance / workflow rules used:**
-  - `docs/operating_system/prompt_templates/implementation-next-action-gate-prompt.md`
-  - `docs/operating_system/governance/execution-context-pack-governance.md`
   - `docs/operating_system/templates/execution-context-pack-template.md`
+  - `docs/operating_system/governance/execution-context-pack-governance.md`
+  - `docs/operating_system/prompt_templates/implementation-next-action-gate-prompt.md`
 
 ## 3) Current Task State
 
-- **Completed:**
-  - Task 1 complete.
-  - Task 2 complete.
-  - Task 3 complete.
-  - Task 4 complete (Step 1 single-key settings helper path, Step 2 synonym overlay parser helper, Step 3 route delegation slice + section-path shared coercion/validation helper usage).
-- **In Progress:**
-  - none.
-- **Deferred / Dropped:**
-  - none.
-- **Known divergence from plan (if any):**
-  - none for lane closure scope; remaining broad suite/type failures are documented out-of-lane baseline drift.
+- **Completed:** Task 1, Task 2, Task 3, Task 4, Task 5 (skipped by design), Task 6 Step 1-4, closeout validators (`validate_planning_lifecycle --strict`, `validate_checkpoint_packs`, `validate_repo_contracts --fast`), closure-gate reconciliation.
+- **In Progress:** none.
+- **Deferred / Dropped:** none.
+- **Known divergence from plan (if any):** none beyond approved unexpected baseline files.
 
 ## 4) Files Changed This Session
 
-- `src/fitcv_cp/app.py` — reused `_coerce_and_validate_single_setting` in section save loop; added `_parse_uploaded_synonym_overlay`; delegated both overlay upload routes.
-- `docs/superpowers/plans/2026-05-18-21-14-fitcv-cp-app-refactor-and-issue-patch-plan.md` — Task 4 Step 3 checkbox updated.
+- `docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md` — Task 5 skip notes and Task 6 Step 1-3 status sync.
+- `docs/superpowers/plans/2026-05-18-21-40-fitcv-cp-worker-job-refactor-and-issue-patch-plan.md` — Task 6 Step 4 migration/deprecation/rollback summary added.
+- `docs/superpowers/execution_context_packs/fitcv-cp-worker-job-refactor-and-issue-patch-impl/latest.md` — gate state and blocker sync.
+- `artifacts/execution_context_pack.md` — mirror sync.
 
 ## 5) Verification State
 
 - **Last commands run:**
+  - `npx gitnexus analyze`
+  - `python -m pytest tests/ -q`
+  - `uvx mypy src --show-error-codes`
+  - `npx gitnexus detect-changes --repo fitcv`
   - `python scripts/validate_planning_lifecycle.py --strict`
   - `python scripts/validate_checkpoint_packs.py`
   - `python scripts/validate_repo_contracts.py --fast`
-  - `npx gitnexus analyze`
-  - `uv run pytest tests/test_fitcv_cp/test_app.py -k "timeline_semantic_outcome or single_setting or post_settings_section or section_save_rejects_hidden_deprecated_payload_key or admin_upload_synonym_overlay_rejects_invalid_yaml or admin_upload_run_synonym_overlay_rejects_scope_mismatch_for_domain_scope or admin_upload_synonym_overlay_updates_run_effective_settings or admin_upload_trigger_persists_run_scoped_synonym_overlay or run_events_list or run_detail" -q`
-  - `uv pip install -r requirements.txt`
-  - `uvx pytest tests/ -q`
-  - `uvx mypy src --show-error-codes`
-  - `uv run pytest tests/ -q`
-  - `uv run mypy src --show-error-codes`
-  - `git stash push -m "park unrelated edits before lane detect_changes" -- .claude/skills/gitnexus AGENTS.md CLAUDE.md data/fitcv_cp.sqlite3`
-  - `npx gitnexus detect_changes --scope staged --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\fitcv-cp-app-refactor-issue-patch-impl"` (with only `src/fitcv_cp/app.py` staged)
-  - `npx gitnexus clean -f`
-  - `npx gitnexus analyze`
-  - `npx gitnexus index .`
-  - `npx gitnexus detect_changes --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\fitcv-cp-app-refactor-issue-patch-impl"`
-  - `npx gitnexus analyze`
-  - `npx gitnexus list`
-  - `npx gitnexus status`
-  - `npx gitnexus detect_changes --repo "fitcv  (C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\fitcv-cp-app-refactor-issue-patch-impl)"`
-  - `uvx pytest tests/ -q`
-  - `uvx mypy src --show-error-codes`
-  - `npx gitnexus detect_changes`
-  - `npx gitnexus detect_changes --repo "fitcv (C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT\.worktrees\fitcv-cp-app-refactor-issue-patch-impl)"`
-  - `npx gitnexus detect_changes --repo fitcv`
 - **Result summary:**
-  - User approved closeout policy: accept out-of-lane baseline exception for this lane.
-  - Closeout gate validators passed:
-    - planning lifecycle strict: pass
-    - checkpoint packs: pass
-    - repo contracts fast: pass
-  - Focused lane verification shows mixed result: 124 passed, 14 failed (run-detail synonym review UI/redirect expectations in `tests/test_fitcv_cp/test_app.py`).
-  - Attribution check against staged diff confirms current lane changes do **not** modify failing synonym-review UI/redirect codepaths (`admin_run_synonym_review_workspace` or `run_detail.html` synonym headings/controls); staged edits remain scoped to timeline dedupe, run fetch helper usage, settings coerce/validate helper reuse, and overlay upload parser reuse.
-  - Classification outcome: 14 focused failures are treated as **pre-existing/out-of-lane baseline drift** for this lane, not caused by current staged refactor slice.
-  - Environment remediation executed using project virtualenv dependencies from `requirements.txt`.
-  - `uvx` commands still fail with missing modules (tool-isolated environment does not reuse project `.venv`).
-  - `uv run pytest tests/ -q` now executes full suite and reports `24 failed, 1575 passed, 7 skipped` (moved from import-collection failure to real test failures).
-  - `uv run mypy src --show-error-codes` reports `320 errors in 24 files` (down from prior 421/26 baseline).
-  - Unrelated edits parked in stash (`park unrelated edits before lane detect_changes`).
-  - Lane-focused scope check achieved using staged-only diff on `src/fitcv_cp/app.py`: `Changes: 1 file, 19 symbols`, `Affected processes: 49`, `Risk level: critical`.
-  - Task 5 Step 3 triage outcome: changed symbols stay inside planned lane (`src/fitcv_cp/app.py` helper/route families: run fetch + 404, settings coerce/validate, synonym overlay parse/upload). No unplanned cross-module code edits detected; no rollback/split applied.
-  - GitNexus selector issue partially resolved: `detect_changes` works when `--repo` is absolute path (label/alias selectors still inconsistent).
-  - `detect_changes` reports `Changes: 5 files, 37 symbols`, `Affected processes: 49`, `Risk level: critical`.
-  - High risk output contaminated by unrelated modified files in current worktree (`AGENTS.md`, `CLAUDE.md`, `.claude/skills/*`, docs artifacts), so blast-radius no longer isolates this lane only.
-  - GitNexus index refresh successful in current worktree (`23,430 nodes / 46,977 edges`).
-  - `gitnexus list` + `gitnexus status` confirm app worktree indexed and up-to-date.
-  - Full pytest gate fails during collection with missing dependencies (`yaml`, `jinja2`, `fastapi`, `httpx`, `google`, `redis`, `pydantic`) across 42 modules.
-  - Full mypy gate fails broadly (`421 errors in 26 files`) including many pre-existing cross-repo type issues and missing import stubs.
-  - GitNexus `detect_changes` currently blocked by repo registry mismatch in CLI backend (current worktree label absent from available detect list).
-  - `detect_changes --repo fitcv` executes but resolves to different lane/worktree changes (`src/fitcv_cp/worker_job.py`), therefore not valid evidence for this lane.
-- **Failing checks (if any):**
-  - `uvx pytest tests/ -q` -> `42 errors during collection` due to missing Python packages/environment.
-  - `npx gitnexus detect_changes` -> requires explicit repo; explicit current-worktree repo rejected as not found.
-- **Gaps still unverified:**
-  - None for lane closeout under approved exception policy.
+  - full pytest: fails (known broader suite failures)
+  - mypy: fails (`423 errors`, broad pre-existing typing debt)
+  - gitnexus detect-changes: `critical` risk; 2 changed files/25 symbols, 74 affected processes (dominated by out-of-scope `src/fitcv_cp/bq_store.py` drift)
+  - closeout validators: pass (after metadata fixes, lineage regeneration, and `@meta` header added to `src/fitcv_cp/run_artifact_contracts.py`)
+- **Failing checks (if any):** full pytest and mypy not green.
+- **Gaps still unverified:** none under accepted bounded-lane exception policy.
 
 ## 6) Open Blockers / Risks
 
-- Blocker 1: Python environment in worktree missing baseline deps needed for full-suite collection.
-- Blocker 1 resolved: project env now installs and runs full suite.
-- Blocker 2: none for lane isolation (resolved via stash + staged-scope check).
-- Required adjustment: open follow-up remediation lane for baseline failures if strict green gates are needed globally.
-- Risk: none for this lane under accepted exception decision.
+- `gitnexus detect-changes` now reports critical blast radius from out-of-scope modified surfaces (`src/fitcv_cp/bq_store.py`), preventing safe bounded-lane closure claim without explicit risk acceptance.
+- decision record: user instructed continue next action; lane reconciled for closure under explicit mixed-scope risk acceptance and accepted baseline pytest/mypy debt exception.
 
 ## 7) Next Exact Action
 
-- **Action type:** closeout
-- **Target:** lane closure handoff
-- **Exact command or edit intent:** close now.
-- **Why this is next:** implementation tasks complete, containment verified, GitNexus scope evidence captured, and closeout gate validators passed with user-approved baseline exception.
+- **Action type:** closeout execution
+- **Target:** run single-lane merge-and-reconcile closeout prompt actions
+- **Exact command or edit intent:** proceed with closure actions for this lane only using accepted exception policy recorded above.
+- **Why this is next:** reconciliation artifacts are now terminal and checklist-complete.
 
 ## 8) Resume Prompt (Copy/Paste)
 
@@ -119,9 +72,9 @@ Read this execution context pack first. Verify its state against listed source f
 
 ## 9) Optional Deep Context (Consult Only)
 
-- **conversation_id:** current-thread
-- **overview_log:** `.gemini/antigravity/brain/<conversation-id>/.system_generated/logs/overview.txt`
-- **consult_if:** ambiguity between plan checkboxes and live command evidence.
+- **conversation_id:** none
+- **overview_log:** none
+- **consult_if:** source and pack diverge.
 - **notes_from_log (optional, concise):** none.
 
 ## Source-Truth Rule

@@ -10,8 +10,15 @@ targets:
   - src/fitcv_cp/synonym_proposals.py
   - src/fitcv_cp/models.py
   - src/fitcv_cp/bq_store.py
-related_features: []
-related_stages: []
+related_features:
+  - run_lifecycle_controls
+  - trigger_run_management
+  - settings_system
+  - inspection_debugging
+related_stages:
+  - normalize
+  - enrich
+  - rule_filter
 ---
 
 ## Goal
