@@ -328,6 +328,7 @@ workstreams:
     - docs/superpowers/specs/2026-05-17-21-54-pipeline-settings-decision-first-categorization-spec.md
     - docs/superpowers/specs/2026-05-18-11-09-pipeline-refactor-ssot-symmetry-spec.md
     - docs/superpowers/specs/2026-05-18-15-52-config-ssot-refactor-drift-spec.md
+    - docs/superpowers/specs/2026-05-18-21-58-bq-store-refactor-spec.md
     plans:
     - docs/superpowers/plans/2026-05-02-phase-2-plan-k-component-boundaries-and-interface-contracts.md
     - docs/superpowers/plans/2026-05-16-15-10-option-b-shared-structural-principles-plan.md
@@ -342,6 +343,7 @@ workstreams:
     - docs/superpowers/plans/2026-05-17-21-57-pipeline-settings-decision-first-categorization-plan.md
     - docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-15-56-config-ssot-refactor-drift-plan.md
+    - docs/superpowers/plans/2026-05-18-22-00-bq-store-refactor-plan.md
     derived_completion: completed
 - workstream_id: workstream-operator-control-plane
   status: active

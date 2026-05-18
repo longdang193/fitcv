@@ -2202,6 +2202,47 @@ def test_build_synonym_proposals_payload_keeps_conflicts_when_global_points_else
     assert payload["proposals"][0]["canonical"] == "google cloud"
     assert payload["synonym_proposals_trace"]["trace_summary"]["suppressed_as_already_global_count"] == 0
 
+def test_synonym_management_mode_matches_authoritative_resolver_defaults() -> None:
+    from fitcv_cp.synonym_proposals import resolve_synonym_management_mode
+    from fitcv_cp.worker_job import _synonym_management_mode_from_run_record
+
+    expected = resolve_synonym_management_mode(None)
+    actual = _synonym_management_mode_from_run_record(None)
+
+    assert actual == expected
+
+def test_build_synonym_overlay_yaml_roundtrips_reserved_scalars() -> None:
+    from fitcv.config import parse_skill_synonym_overlay_yaml
+    from fitcv_cp.worker_job import _build_synonym_overlay_yaml
+
+    overlay = {
+        "c#/.net": "platform:core",
+        "gcp#ops": "google cloud #1",
+    }
+    yaml_text = _build_synonym_overlay_yaml(overlay)
+
+    assert parse_skill_synonym_overlay_yaml(yaml_text) == {
+        "c#/.net": "platform:core",
+        "gcp#ops": "google cloud #1",
+    }
+
+def test_persist_global_skill_synonyms_map_atomic_write_failure_preserves_existing_file(
+    tmp_path: Path,
+) -> None:
+    from fitcv_cp.worker_job import _persist_global_skill_synonyms_map
+
+    target = tmp_path / "skill_synonyms.yaml"
+    original = "skill_synonyms:\n  keep: existing\n"
+    target.write_text(original, encoding="utf-8")
+
+    with patch("fitcv_cp.worker_job._global_skill_synonyms_path", return_value=target), \
+         patch("fitcv_cp.worker_job.os.replace", side_effect=OSError("replace failed")):
+        with pytest.raises(OSError, match="replace failed"):
+            _persist_global_skill_synonyms_map({"new": "value"})
+
+    assert target.read_text(encoding="utf-8") == original
+    assert list(tmp_path.glob("skill_synonyms.yaml.*.tmp")) == []
+
 def test_worker_marks_cancelled_when_cancel_already_requested():
     """@proves run_lifecycle_controls.cooperative-cancellation-at-safe-checkpoints-for-running-jobs
 
