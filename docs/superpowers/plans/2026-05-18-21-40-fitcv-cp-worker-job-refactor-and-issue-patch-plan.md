@@ -5,6 +5,7 @@ status: proposed
 template_id: implementation-plan
 name: fitcv-cp-worker-job-refactor-and-issue-patch
 parent_spec: docs/superpowers/specs/2026-05-18-21-35-fitcv-cp-worker-job-refactor-and-issue-patch-spec.md
+parent_thread: workstream-agentic-synonym-management.agentic-synonym-review-queue-and-approval
 targets:
   - src/fitcv_cp/worker_job.py
   - src/fitcv_cp/synonym_proposals.py
@@ -12,10 +13,8 @@ targets:
   - src/fitcv_cp/bq_store.py
   - src/fitcv_cp/run_artifact_contracts.py
   - tests/
-related_features:
-  - none
-related_stages:
-  - none
+related_features: []
+related_stages: []
 ---
 
 ## Goal
