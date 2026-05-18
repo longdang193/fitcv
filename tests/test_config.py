@@ -1350,3 +1350,88 @@ def test_load_config_rejects_unknown_enrich_prompt_id() -> None:
             load_config(env_yaml)
     finally:
         shutil.rmtree(tmp_path, ignore_errors=True)
+
+def test_load_config_ssot_overlap_warn_mode_allows_load(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("FITCV_CONFIG_SSOT_MODE", raising=False)
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\n"
+        "bigquery_dataset: ds\n"
+        "service_account_key: /dev/null\n"
+        "gemini_model: gemini-2.5-flash\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "pipeline.yaml").write_text("gemini_model: gemini-2.5-flash\n")
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "    experience:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    cfg = load_config(env_yaml)
+    assert cfg["gemini_model"] == "gemini-2.5-flash"
+
+def test_load_config_ssot_overlap_strict_mode_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FITCV_CONFIG_SSOT_MODE", "strict")
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\n"
+        "bigquery_dataset: ds\n"
+        "service_account_key: /dev/null\n"
+        "gemini_model: gemini-2.5-flash\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "pipeline.yaml").write_text("gemini_model: gemini-2.5-flash\n")
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "    experience:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    with pytest.raises(ValueError, match="Config SSOT ownership overlap detected|Config SSOT overlap detected"):
+        load_config(env_yaml)
+
+def test_load_config_rejects_invalid_ssot_mode(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FITCV_CONFIG_SSOT_MODE", "bad-mode")
+    env_yaml = tmp_path / ".env.yaml"
+    env_yaml.write_text(
+        "gcp_project: test\n"
+        "bigquery_dataset: ds\n"
+        "service_account_key: /dev/null\n"
+    )
+    cfg_dir = tmp_path / "config"
+    cfg_dir.mkdir()
+    (cfg_dir / "cv.yaml").write_text(
+        "cv:\n"
+        "  preset: europass\n"
+        "  generation:\n"
+        "    model: gemini-2.5-flash\n"
+        "    prompt_version: v1\n"
+        "  composition:\n"
+        "    summary:\n"
+        "      enabled: true\n"
+        "    experience:\n"
+        "      enabled: true\n"
+        "  validation:\n"
+        "    max_pages: 2\n"
+    )
+    with pytest.raises(ValueError, match="SSOT enforcement mode must be one of"):
+        load_config(env_yaml)

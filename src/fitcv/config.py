@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from fitcv import config_compat, config_loader, config_validators
 from fitcv.cv_presets import SUPPORTED_PRESETS
 from fitcv.prompts import get_prompt_definition
 
@@ -124,6 +125,7 @@ _LEGACY_COMPATIBILITY_KEYS = {
     "seniority_ladder",
     "application_statuses",
 }
+_SSOT_ENFORCEMENT_ENV = "FITCV_CONFIG_SSOT_MODE"
 _CONTROL_PLANE_FORBIDDEN_KEY_TOKENS = (
     "secret",
     "token",
@@ -169,17 +171,7 @@ CV_SECTION_NAME_TO_KEY = {
 
 
 def _load_yaml_file(path: Path) -> dict[str, Any]:
-    """Load a single YAML file. Returns {} on missing file or empty file."""
-    if not path.exists():
-        logger.warning("Config file not found (skipping): %s", path)
-        return {}
-    try:
-        with open(path, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-    except PermissionError:
-        logger.warning("Config file not readable (skipping): %s", path)
-        return {}
-    return data if isinstance(data, dict) else {}
+    return config_loader.load_yaml_file(path, logger=logger)
 
 def _iter_nested_mapping_keys(payload: Any) -> list[str]:
     if isinstance(payload, dict):
@@ -380,97 +372,66 @@ def resolve_langgraph_runtime_expectation(
 
 
 def _load_policy_file(config_dir: Path, rel_paths: tuple[str, ...]) -> tuple[dict[str, Any], Path]:
-    """Load the first matching policy file, preferring the new subfolder layout."""
-    for rel_path in rel_paths:
-        candidate = config_dir / rel_path
-        if candidate.exists():
-            return _load_yaml_file(candidate), candidate
-    preferred_path = config_dir / rel_paths[0]
-    logger.warning("Config file not found (skipping): %s", preferred_path)
-    return {}, preferred_path
+    return config_loader.load_policy_file(
+        config_dir,
+        rel_paths,
+        load_yaml_file_fn=_load_yaml_file,
+        logger=logger,
+    )
 
 
 def _find_config_dir(base_path: Path) -> Path:
-    """Locate the config/ directory relative to .env.yaml or the repo root."""
-    # Walk up from the .env.yaml location to find a config/ dir
-    candidate = base_path.parent
-    for _ in range(4):  # max 4 levels up
-        config_dir = candidate / "config"
-        if config_dir.is_dir():
-            return config_dir
-        candidate = candidate.parent
-    return base_path.parent / "config"  # fallback: sibling of .env.yaml
+    return config_loader.find_config_dir(base_path)
 
 
 def _resolve_env_path(path: str | Path | None) -> Path:
-    """Resolve the active env file, supporting legacy config/env.yaml."""
-    if path is not None:
-        return Path(path)
-    for candidate in _DEFAULT_ENV_CANDIDATES:
-        candidate_path = Path(candidate)
-        if candidate_path.exists():
-            return candidate_path
-    return Path(_DEFAULT_ENV_CANDIDATES[0])
+    return config_loader.resolve_env_path(path, default_env_candidates=_DEFAULT_ENV_CANDIDATES)
 
 
 def _is_legacy_env_path(path: Path) -> bool:
-    return path.name == "env.yaml" and path.parent.name == "config"
+    return config_loader.is_legacy_env_path(path)
 
 
 def _merge_missing_keys(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
-    for key, value in extra.items():
-        if key not in base:
-            base[key] = value
-    return base
+    return config_loader.merge_missing_keys(base, extra)
 
 def _detect_pipeline_ssot_overlap(
     env_cfg: dict[str, Any],
     pipeline_policy_cfg: dict[str, Any],
 ) -> list[str]:
-    overlaps: list[str] = []
-    for key in sorted(pipeline_policy_cfg.keys()):
-        if key in env_cfg:
-            overlaps.append(key)
-
-    env_pipeline = env_cfg.get("pipeline")
-    policy_pipeline = pipeline_policy_cfg.get("pipeline")
-    if isinstance(env_pipeline, dict) and isinstance(policy_pipeline, dict):
-        for subkey in sorted(policy_pipeline.keys()):
-            if subkey in env_pipeline:
-                overlaps.append(f"pipeline.{subkey}")
-    return overlaps
+    return config_validators.detect_pipeline_ssot_overlap(env_cfg, pipeline_policy_cfg)
 
 def _detect_env_canonical_ownership_overlaps(
     env_cfg: dict[str, Any],
 ) -> list[str]:
-    overlaps: list[str] = []
-    for key in sorted(env_cfg.keys()):
-        if key in _CANONICAL_INFRA_KEYS:
-            continue
-        if key in _CANONICAL_POLICY_TOP_LEVEL_KEYS:
-            overlaps.append(f"{key} (policy)")
-            continue
-        if key in _CANONICAL_PIPELINE_TOP_LEVEL_KEYS:
-            overlaps.append(f"{key} (runtime/pipeline)")
-            continue
-        if key in _CANONICAL_TAXONOMY_TOP_LEVEL_KEYS:
-            overlaps.append(f"{key} (taxonomy)")
-            continue
-        if key in _LEGACY_COMPATIBILITY_KEYS:
-            overlaps.append(f"{key} (legacy-compat)")
-    return overlaps
+    return config_validators.detect_env_canonical_ownership_overlaps(
+        env_cfg,
+        canonical_infra_keys=_CANONICAL_INFRA_KEYS,
+        canonical_policy_top_level_keys=_CANONICAL_POLICY_TOP_LEVEL_KEYS,
+        canonical_pipeline_top_level_keys=_CANONICAL_PIPELINE_TOP_LEVEL_KEYS,
+        canonical_taxonomy_top_level_keys=_CANONICAL_TAXONOMY_TOP_LEVEL_KEYS,
+        legacy_compatibility_keys=_LEGACY_COMPATIBILITY_KEYS,
+    )
 
 def _detect_legacy_compatibility_keys(env_cfg: dict[str, Any]) -> list[str]:
     return sorted(key for key in env_cfg.keys() if key in _LEGACY_COMPATIBILITY_KEYS)
 
+def _resolve_ssot_enforcement_mode(cfg: dict[str, Any] | None = None) -> str:
+    env_mode = str(os.environ.get(_SSOT_ENFORCEMENT_ENV, "")).strip().lower()
+    mode = env_mode or str((cfg or {}).get("ssot_enforcement_mode", "warn")).strip().lower() or "warn"
+    if mode not in {"warn", "strict"}:
+        raise ValueError("SSOT enforcement mode must be one of: warn, strict")
+    return mode
+
+def _handle_ssot_overlaps(*, mode: str, overlap_label: str, overlaps: list[str]) -> None:
+    if not overlaps:
+        return
+    if mode == "strict":
+        raise ValueError(f"{overlap_label}: {", ".join(overlaps)}")
+    logger.warning("%s: %s", overlap_label, ", ".join(overlaps))
+
 def _apply_legacy_env_compatibility_projection(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Project legacy env keys into canonical structures when needed."""
-    if "seniority" not in cfg and isinstance(cfg.get("seniority_ladder"), list):
-        cfg["seniority"] = {
-            "ladder": [str(item) for item in cfg.get("seniority_ladder", []) if str(item).strip()],
-            "aliases": {},
-        }
-    return cfg
+    return config_compat.apply_legacy_env_compatibility_projection(cfg)
 
 
 def _normalize_skill_synonyms(raw_synonyms: Any) -> dict[str, str]:
@@ -934,10 +895,10 @@ def _apply_infra_env_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
     return cfg
 
 def _strip_legacy_bigquery_bridge_keys_for_sqlite(cfg: dict[str, Any]) -> dict[str, Any]:
-    """Remove deprecated bridge keys from active sqlite runtime config."""
-    for key in _REQUIRED_BIGQUERY_BRIDGE_KEYS:
-        cfg.pop(key, None)
-    return cfg
+    return config_compat.strip_legacy_bigquery_bridge_keys_for_sqlite(
+        cfg,
+        required_bigquery_bridge_keys=_REQUIRED_BIGQUERY_BRIDGE_KEYS,
+    )
 
 
 def load_config(path: str | Path | None = None) -> dict[str, Any]:
@@ -1003,12 +964,13 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     cfg = _normalize_config_keys(cfg)
     cfg = _apply_infra_env_overrides(cfg)
     env_cfg_snapshot = dict(cfg)
+    ssot_mode = _resolve_ssot_enforcement_mode(cfg)
     env_ownership_overlaps = _detect_env_canonical_ownership_overlaps(env_cfg_snapshot)
-    if env_ownership_overlaps:
-        logger.warning(
-            "Config SSOT ownership overlap detected in env config: %s",
-            ", ".join(env_ownership_overlaps),
-        )
+    _handle_ssot_overlaps(
+        mode=ssot_mode,
+        overlap_label="Config SSOT ownership overlap detected in env config",
+        overlaps=env_ownership_overlaps,
+    )
     legacy_keys = _detect_legacy_compatibility_keys(env_cfg_snapshot)
     if legacy_keys:
         logger.warning(
@@ -1046,11 +1008,11 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
                 cfg[key] = value
 
     overlaps = _detect_pipeline_ssot_overlap(env_cfg_snapshot, pipeline_policy_snapshot)
-    if overlaps:
-        logger.warning(
-            "Config SSOT overlap detected between env config and runtime/pipeline policy: %s",
-            ", ".join(overlaps),
-        )
+    _handle_ssot_overlaps(
+        mode=ssot_mode,
+        overlap_label="Config SSOT overlap detected between env config and runtime/pipeline policy",
+        overlaps=overlaps,
+    )
     cfg = _apply_prompt_defaults(cfg)
 
     base_skill_synonyms = _normalize_skill_synonyms(cfg.get("skill_synonyms"))
@@ -1086,7 +1048,6 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     _validate_prompt_config(cfg)
     cfg["prompts_runtime"] = _build_prompts_runtime(cfg)
 
-    cfg = _normalize_config_keys(cfg)
     cfg = _normalize_cv_acceptance_policy_config(cfg)
     _validate_nested_cv_config(cfg)
     cfg = apply_cv_compatibility_projection(cfg)
@@ -1322,4 +1283,6 @@ def get_cv_acceptance_policy(config: dict[str, Any]) -> dict[str, Any]:
         ],
     })
     return merged_policy
+
+
 
