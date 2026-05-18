@@ -16,7 +16,6 @@ lifecycle:
 """
 
 import json
-import os
 import re
 import textwrap
 from copy import deepcopy
@@ -25,6 +24,7 @@ from typing import Any
 
 from jinja2 import BaseLoader, Environment, TemplateError
 
+from fitcv.candidate_name_policy import resolved_candidate_profile_name
 from fitcv.candidate import flatten_skills
 from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
@@ -32,7 +32,6 @@ from fitcv.config import (
     get_cv_generation_model,
     get_cv_generation_structured_prompt_id,
     get_required_structured_section_keys,
-    resolve_model_routing_part,
 )
 from fitcv.contracts import (
     ANALYSIS_CHANNEL_DEFINITIONS,
@@ -48,6 +47,7 @@ from fitcv.section_policy import (
     certification_policy_decisions,
 )
 from fitcv.rule_filter import _canonicalise_skill
+from fitcv.runtime_routing import resolve_cv_generation_routing, resolve_openai_compatible_api_key
 
 # ── template variant map ─────────────────────────────────────────────────────
 # Maps job_family values (populated by enrichment) to styling hints.
@@ -64,10 +64,6 @@ _DEFAULT_VARIANT = "standard"
 DEFAULT_CV_LOCALE = "en"
 DEFAULT_SUPPORTING_EVIDENCE_PER_ROLE = 1
 LEGACY_MARKDOWN_PROMPT_ID = "cv_generation.write.v1"
-_CANDIDATE_NAME_PLACEHOLDER_VALUES = {
-    "candidate name",
-    "your name",
-}
 _EDUCATION_PLACEHOLDER_TOKENS = {
     "",
     "none",
@@ -80,29 +76,23 @@ _EDUCATION_PLACEHOLDER_TOKENS = {
 }
 
 def _build_openai_compat_client(config: dict[str, Any]) -> Any | None:
-    routing = resolve_model_routing_part(
-        "cv_generation_structured_write",
-        model_fallback=get_cv_generation_model(config),
-    )
-    provider_name = str(routing.get("provider") or "").strip().lower()
+    routing = resolve_cv_generation_routing(config)
+    provider_name = routing.provider
     allowed_http_providers = {"openai", "openai_compatible", "9router"}
     if provider_name not in allowed_http_providers:
         raise RuntimeError(
             "cv_generation_structured_write provider must be configured in control-plane model_routing.parts as "
             "one of: openai, openai_compatible, 9router."
         )
-    base_url = str(routing.get("base_url") or "").strip()
+    base_url = routing.base_url
     if not base_url:
         raise RuntimeError("OpenAI-compatible CV generation routing requires provider base_url in control-plane config.")
-    api_key = (
-        str(os.environ.get("OPENAI_API_KEY") or "").strip()
-        or str(os.environ.get("OPENAI_COMPATIBLE_API_KEY") or "").strip()
-    )
+    api_key = resolve_openai_compatible_api_key()
     if not api_key:
         raise RuntimeError("OpenAI-compatible CV generation routing requires API key in env.")
-    wire_api = str(routing.get("wire_api") or "").strip().lower() or "responses"
-    timeout_seconds = float(str(routing.get("timeout_seconds") or "").strip() or "120")
-    model_override = str(routing.get("model") or "").strip()
+    wire_api = routing.wire_api
+    timeout_seconds = routing.timeout_seconds
+    model_override = routing.model
     if not model_override:
         raise RuntimeError(
             "cv_generation_structured_write model must be configured in control-plane model_routing.parts."
@@ -197,28 +187,6 @@ def _get_enabled_section_names(config: dict[str, Any] | None) -> list[str]:
         if isinstance(section_cfg, dict) and section_cfg.get("enabled", True):
             enabled_sections.append(CV_SECTION_KEY_TO_NAME.get(section_key, section_key.title()))
     return enabled_sections
-
-
-def _normalize_candidate_name_token(value: str) -> str:
-    normalized = str(value or "")
-    normalized = normalized.replace("[", " ").replace("]", " ")
-    normalized = " ".join(normalized.split()).strip().lower()
-    return normalized
-
-
-def _is_candidate_name_placeholder(value: Any) -> bool:
-    if not isinstance(value, str):
-        return False
-    return _normalize_candidate_name_token(value) in _CANDIDATE_NAME_PLACEHOLDER_VALUES
-
-
-def _resolved_candidate_profile_name(profile: dict[str, Any] | None) -> str:
-    if not isinstance(profile, dict):
-        return ""
-    candidate_name = str(profile.get("name") or "").strip()
-    if not candidate_name or _is_candidate_name_placeholder(candidate_name):
-        return ""
-    return candidate_name
 
 
 def _filter_template_by_enabled_sections(template: str, enabled_sections: list[str]) -> str:

@@ -89,14 +89,14 @@ Refactor lands with passing targeted tests, type checks, and GitNexus scope conf
 - impact checks run for edited symbols
 
 **Steps:**
-- [ ] add shared helpers for normalize/check/resolve candidate name
-- [ ] replace duplicate local helpers with imports
-- [ ] keep external behavior identical (including placeholder token set)
-- [ ] add/adjust tests to prove parity from both call sites
+- [x] add shared helpers for normalize/check/resolve candidate name
+- [x] replace duplicate local helpers with imports
+- [x] keep external behavior identical (including placeholder token set)
+- [x] add/adjust tests to prove parity from both call sites
 
 **Verification:**
-- [ ] unit tests for shared policy module pass
-- [ ] no duplicate candidate-name policy helpers remain in target modules
+- [x] unit tests for shared policy module pass (new module tests pass)
+- [x] no duplicate candidate-name policy helpers remain in target modules (for plan-targeted modules only)
 
 **Exit Criteria:**
 - one canonical placeholder-policy implementation consumed in both modules
@@ -117,7 +117,7 @@ Refactor lands with passing targeted tests, type checks, and GitNexus scope conf
 - impact checks run for routing-related symbols
 
 **Steps:**
-- [ ] create shared routing translator for provider/model/base_url/wire_api/timeout
+- [x] create shared routing translator for provider/model/base_url/wire_api/timeout (pre-step impact/context mapping completed; implementation blocked pending drift decision)
 - [ ] switch live env-value and client-construction paths to shared translator
 - [ ] align runtime provenance reporting with translated routing
 - [ ] preserve existing failure semantics and error messages where contract-relevant
@@ -237,3 +237,4 @@ Canonical source-of-truth:
 - `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
 </LINK>
+
