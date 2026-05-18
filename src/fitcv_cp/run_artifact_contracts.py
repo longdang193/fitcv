@@ -1,14 +1,14 @@
 """@meta
 name: run_artifact_contracts
 type: module
-domain: runtime
+domain: run_orchestration
 ownership: infrastructure
 responsibility:
-  - Shared SSOT helpers for run artifact payload normalization and projection.
+  - Provide shared SSOT helper contracts for run artifact payload construction.
 inputs:
-  - Runtime payload fields and replay context values
+  - run records, replay context, and runtime artifact values
 outputs:
-  - Normalized payload-ready values and dict projections
+  - normalized run-mode labels and JSON-safe artifact payload fragments
 lifecycle:
   - status: active
 """
