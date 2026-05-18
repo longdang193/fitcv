@@ -95,6 +95,7 @@ from fitcv_cp.settings_schema import (
     settings_keys_for_domain,
     settings_keys_for_stage,
     settings_keys_for_workflow_stage,
+    settings_schema_with_runtime_defaults,
     validate_settings,
 )
 from fitcv_cp.settings_store import load_active_settings, save_setting, save_settings_group
@@ -4394,7 +4395,8 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     )
     app = FastAPI(title="FitCV Admin Control Plane")
     templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
-    schema_by_key = {entry["key"]: entry for entry in SETTINGS_SCHEMA}
+    runtime_settings_schema = settings_schema_with_runtime_defaults(load_config())
+    schema_by_key = {entry["key"]: entry for entry in runtime_settings_schema}
     metadata_only_keys = metadata_only_settings_keys()
     editable_keys = editable_settings_keys()
     hidden_deprecated_keys = hidden_deprecated_settings_keys()
@@ -5266,7 +5268,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if agentic_runtime_note:
             settings_truth_notes.append(agentic_runtime_note)
         context: dict[str, Any] = {
-            "schema": SETTINGS_SCHEMA,
+            "schema": runtime_settings_schema,
             "schema_by_key": schema_by_key,
             "active": active,
             "effective": effective,

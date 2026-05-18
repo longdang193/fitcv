@@ -8180,6 +8180,21 @@ def test_settings_page_renders_run_lifecycle_section() -> None:
     assert 'name="run_lifecycle.max_runtime_minutes"' in html
 
 
+
+def test_settings_page_uses_runtime_overlay_defaults_for_baseline_values() -> None:
+    runtime_config = {
+        "run_lifecycle": {"max_runtime_minutes": 321},
+        "pipeline": {"final_top_n": 7},
+    }
+    with patch("fitcv_cp.app.load_config", return_value=runtime_config), \
+         patch("fitcv_cp.app.load_active_settings", return_value={}):
+        resp = TestClient(_app()).get("/admin/settings")
+    assert resp.status_code == 200
+    html = resp.text
+    assert 'name="run_lifecycle.max_runtime_minutes"' in html
+    assert 'data-default-value="321"' in html
+    assert 'name="pipeline.final_top_n"' in html
+    assert 'data-default-value="7"' in html
 def test_admin_runs_timeouts_running_runs_to_failed() -> None:
     """@proves run_lifecycle_controls.state-aware-max-runtime-timeout-handling-for-queued-running-cancelling-and-paused-manual-runs
     @proves run_lifecycle_controls.timeout-copy-now-distinguishes-queue-wait-active-runtime-and-stage-by-stage-manual-wait-time
@@ -10836,6 +10851,7 @@ def test_admin_settings_has_visibility_toggles_and_recommendation_preview_script
     assert 'id="toggle-only-actionable"' not in html
     assert 'data-accept-recommended' not in html
     assert 'data-review-required' not in html
+
 
 
 

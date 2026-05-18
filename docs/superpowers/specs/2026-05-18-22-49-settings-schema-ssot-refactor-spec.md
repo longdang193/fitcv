@@ -1,17 +1,16 @@
 ---
 layer: change
 artifact_type: spec
-status: proposed
+status: completed
 template_id: detailed-specification
 name: settings-schema-ssot-symmetry-invariance-refactor
-parent_workstream: none
+parent_thread: workstream-operator-control-plane.operator-control-plane-settings-surface-alignment
 targets:
   - src/fitcv_cp/settings_schema.py
   - src/fitcv_cp/app.py
   - src/fitcv_cp/settings_store.py
   - tests/test_fitcv_cp/test_settings_schema.py
-related_features:
-  - none
+related_features: []
 related_stages:
   - cv_analysis
   - cv_generation
@@ -48,17 +47,17 @@ Define rollout, compatibility, deprecation, and rollback controls for schema-def
 - confirm current behavior, callers, and blast radius before refactor
 
 **Steps:**
-- [ ] run `.\scripts\get_gitnexus_freshness.ps1`
-- [ ] run `gitnexus_impact` for symbols planned for edit:
+- [x] run `.\scripts\get_gitnexus_freshness.ps1` (equivalent freshness gate satisfied via repeated `npx gitnexus analyze` during execution loop)
+- [x] run `gitnexus_impact` for symbols planned for edit:
   - `_build_settings_ia_metadata`
   - `_default_stage_id`
   - `validate_settings`
   - `_hydrate_schema_defaults_from_config`
-- [ ] run `gitnexus_query` and `gitnexus_context` for each symbol with medium/high impact
-- [ ] capture direct consumers in `src/fitcv_cp/app.py`, `src/fitcv_cp/settings_store.py`, and tests
+- [x] run `gitnexus_query` and `gitnexus_context` for each symbol with medium/high impact
+- [x] capture direct consumers in `src/fitcv_cp/app.py`, `src/fitcv_cp/settings_store.py`, and tests
 
 **Verification:**
-- [ ] each targeted symbol has documented upstream callers and affected flows
+- [x] each targeted symbol has documented upstream callers and affected flows
 
 **Exit Criteria:**
 - no planned change depends on unknown caller behavior
@@ -69,13 +68,13 @@ Define rollout, compatibility, deprecation, and rollback controls for schema-def
 - resolve SSOT/symmetry design choices and bounded migration shape
 
 **Steps:**
-- [ ] define canonical stage ownership source (per-key model with generated group projections, or group model with generated per-key projections)
-- [ ] define final contract for visibility/deprecation overlap rules
-- [ ] define declarative constraint registry for relational validation families
-- [ ] define schema-default handling mode (immutable declared defaults + runtime overlay)
+- [x] define canonical stage ownership source (per-key model with generated group projections, or group model with generated per-key projections)
+- [x] define final contract for visibility/deprecation overlap rules
+- [x] define declarative constraint registry for relational validation families
+- [x] define schema-default handling mode (immutable declared defaults + runtime overlay)
 
 **Verification:**
-- [ ] every drift/contradiction from findings maps to one design decision
+- [x] every drift/contradiction from findings maps to one design decision
 
 **Exit Criteria:**
 - no unresolved design decision blocks implementation planning
@@ -86,13 +85,13 @@ Define rollout, compatibility, deprecation, and rollback controls for schema-def
 - specify proof artifacts and safety gates for implementation handoff
 
 **Steps:**
-- [ ] define invariant tests for coverage, set disjointness, and mapping consistency
-- [ ] define regression tests for validation behavior and endpoint integration touchpoints
-- [ ] define GitNexus post-edit scope validation using `gitnexus_detect_changes()`
-- [ ] define rollback trigger thresholds and containment actions
+- [x] define invariant tests for coverage, set disjointness, and mapping consistency
+- [x] define regression tests for validation behavior and endpoint integration touchpoints
+- [x] define GitNexus post-edit scope validation using `gitnexus_detect_changes()`
+- [x] define rollback trigger thresholds and containment actions
 
 **Verification:**
-- [ ] validation plan can prove unchanged behavior for non-targeted paths
+- [x] validation plan can prove unchanged behavior for non-targeted paths
 
 **Exit Criteria:**
 - spec ready for `skill-writing-plans` handoff
