@@ -1,9 +1,3 @@
----
-name: execution-context-pack
-template_id: execution-context-pack-template
-document_type: execution_context_pack
----
-
 # Execution Context Pack
 
 ## 1) Objective

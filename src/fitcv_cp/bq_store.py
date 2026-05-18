@@ -21,7 +21,7 @@ import os
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from google.cloud import bigquery as bq_module
 
@@ -34,6 +34,7 @@ _PIPELINE_RUNS_UPDATE_RETRY_ATTEMPTS = 3
 _PIPELINE_RUNS_UPDATE_RETRY_DELAY_SECONDS = 0.25
 _EVENT_APPEND_RETRY_ATTEMPTS = 3
 _EVENT_APPEND_RETRY_DELAY_SECONDS = 0.2
+_DEGRADATION_REASON_NONE = "none"
 
 def _local_sqlite_path() -> str:
     return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
@@ -115,6 +116,67 @@ def _parse_dt(value: Any) -> Optional[datetime.datetime]:
         return datetime.datetime.fromisoformat(text)
     except ValueError:
         return None
+
+def _decode_json_or_none(raw: Any) -> Any:
+    if isinstance(raw, str):
+        text = raw.strip()
+        if not text:
+            return None
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            return None
+    return None
+
+def _decode_json_list(raw: Any) -> list[Any]:
+    parsed = _decode_json_or_none(raw)
+    return parsed if isinstance(parsed, list) else []
+
+def _coerce_int_or_none(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+def _persistence_result(status: str, reason: str = _DEGRADATION_REASON_NONE) -> dict[str, str]:
+    return {"persistence_status": status, "degradation_reason": reason}
+
+def _update_local_run(
+    run_id: str,
+    mutator: Callable[[PipelineRun], PipelineRun],
+) -> bool:
+    existing = _local_get_run(run_id)
+    if existing is None:
+        return False
+    _local_save_run(mutator(existing))
+    return True
+
+def _update_single_pipeline_run_json_field(
+    *,
+    run_id: str,
+    field_name: str,
+    field_value: str,
+    bq: Any,
+    project: str,
+    dataset: str,
+    local_mutator: Callable[[PipelineRun], PipelineRun],
+) -> None:
+    if bq is None:
+        _update_local_run(run_id, local_mutator)
+        return
+    sql = (
+        f"UPDATE `{project}.{dataset}.pipeline_runs` "
+        f"SET {field_name} = @{field_name} WHERE run_id = @run_id"
+    )
+    job_config = bq_module.QueryJobConfig(
+        query_parameters=[
+            bq_module.ScalarQueryParameter(field_name, "STRING", field_value),
+            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
+        ]
+    )
+    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 def _pipeline_run_from_json(run_json: str) -> Optional[PipelineRun]:
     try:
@@ -473,29 +535,38 @@ def update_run_status(
     dataset: str,
     started_at: Optional[datetime.datetime] = None,
     finished_at: Optional[datetime.datetime] = None,
-    summary: Optional[dict] = None,
+    summary: Optional[dict[str, Any]] = None,
     error_message: Optional[str] = None,
     error_stage: Optional[str] = None,
 ) -> None:
     if bq is None:
-        existing = _local_get_run(run_id)
-        if existing is None:
-            return
-        updated = dataclasses.replace(existing, status=status)
-        if started_at:
-            updated.started_at = started_at
-        if finished_at:
-            updated.finished_at = finished_at
-        if error_message:
-            updated.error_message = error_message
-        if error_stage:
-            updated.error_stage = error_stage
-        if summary:
-            updated.total_jobs = int(summary.get("total_jobs")) if summary.get("total_jobs") is not None else updated.total_jobs
-            updated.passed_filter = int(summary.get("passed_filter")) if summary.get("passed_filter") is not None else updated.passed_filter
-            updated.ranked = int(summary.get("ranked")) if summary.get("ranked") is not None else updated.ranked
-            updated.cvs_generated = int(summary.get("cvs_generated")) if summary.get("cvs_generated") is not None else updated.cvs_generated
-        _local_save_run(updated)
+        def _mutate(existing: PipelineRun) -> PipelineRun:
+            updated = dataclasses.replace(existing, status=status)
+            if started_at:
+                updated.started_at = started_at
+            if finished_at:
+                updated.finished_at = finished_at
+            if error_message:
+                updated.error_message = error_message
+            if error_stage:
+                updated.error_stage = error_stage
+            if summary:
+                for key in ("total_jobs", "passed_filter", "ranked", "cvs_generated"):
+                    raw_value = summary.get(key)
+                    if raw_value is None:
+                        continue
+                    try:
+                        setattr(updated, key, int(raw_value))
+                    except (TypeError, ValueError):
+                        logger.warning(
+                            "Ignoring non-integer run summary value for %s on run_id=%s: %r",
+                            key,
+                            run_id,
+                            raw_value,
+                        )
+            return updated
+
+        _update_local_run(run_id, _mutate)
         return
     set_clauses = ["status = @status"]
     params: list[bq_module.ScalarQueryParameter] = [
@@ -516,9 +587,10 @@ def update_run_status(
         params.append(bq_module.ScalarQueryParameter("error_stage", "STRING", error_stage))
     if summary:
         for k in ("total_jobs", "passed_filter", "ranked", "cvs_generated"):
-            if k in summary:
+            coerced = _coerce_int_or_none(summary.get(k))
+            if coerced is not None:
                 set_clauses.append(f"{k} = @{k}")
-                params.append(bq_module.ScalarQueryParameter(k, "INT64", int(summary[k])))
+                params.append(bq_module.ScalarQueryParameter(k, "INT64", coerced))
 
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
@@ -642,6 +714,7 @@ def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dic
     if bq is None:
         try:
             _append_local_pipeline_run_event(event)
+            return _persistence_result("persisted")
         except Exception as exc:
             logger.warning(
                 "local append_event sqlite persistence degraded for run_id=%s: %s",
@@ -662,13 +735,16 @@ def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dic
                 }
                 with event_file.open("a", encoding="utf-8") as handle:
                     handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+                return _persistence_result("persisted")
             except Exception as file_exc:
                 logger.warning(
                     "local append_event file fallback degraded for run_id=%s: %s",
                     event.run_id,
                     file_exc,
                 )
-        return {"persistence_status": "persisted", "degradation_reason": "none"}
+                return _persistence_result(
+                    "failed", "event_insert_failed_no_local_fallback"
+                )
     table = f"{project}.{dataset}.pipeline_run_events"
     row = {
         "run_id": event.run_id,
@@ -683,7 +759,7 @@ def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dic
     for attempt in range(1, _EVENT_APPEND_RETRY_ATTEMPTS + 1):
         errors = bq.insert_rows_json(table, [row])
         if not errors:
-            return {"persistence_status": "persisted", "degradation_reason": ""}
+            return _persistence_result("persisted")
         last_errors = errors
         logger.warning(
             "BQ append_event errors [attempt=%s/%s]: %s",
@@ -705,16 +781,10 @@ def append_event(event: RunEvent, bq: Any, *, project: str, dataset: str) -> dic
             }
         )
         logger.warning("append_event dead-lettered row to %s", dead_letter_file)
-        return {
-            "persistence_status": "dead_lettered",
-            "degradation_reason": "event_insert_failed_dead_lettered",
-        }
+        return _persistence_result("dead_lettered", "event_insert_failed_dead_lettered")
     except Exception as exc:
         logger.warning("append_event dead-letter fallback failed: %s", exc)
-        return {
-            "persistence_status": "failed",
-            "degradation_reason": "event_insert_failed_no_dead_letter",
-        }
+        return _persistence_result("failed", "event_insert_failed_no_dead_letter")
 
 
 def get_run(run_id: str, bq: Any, *, project: str, dataset: str) -> Optional[PipelineRun]:
@@ -892,23 +962,17 @@ def update_run_results_export(
     dataset: str,
 ) -> None:
     """Persist the immutable run-results export snapshot for a completed run."""
-    if bq is None:
-        existing = _local_get_run(run_id)
-        if existing is None:
-            return
-        _local_save_run(dataclasses.replace(existing, results_export_json=results_export_json))
-        return
-    sql = (
-        f"UPDATE `{project}.{dataset}.pipeline_runs` "
-        f"SET results_export_json = @results_export_json WHERE run_id = @run_id"
+    _update_single_pipeline_run_json_field(
+        run_id=run_id,
+        field_name="results_export_json",
+        field_value=results_export_json,
+        bq=bq,
+        project=project,
+        dataset=dataset,
+        local_mutator=lambda existing: dataclasses.replace(
+            existing, results_export_json=results_export_json
+        ),
     )
-    job_config = bq_module.QueryJobConfig(
-        query_parameters=[
-            bq_module.ScalarQueryParameter("results_export_json", "STRING", results_export_json),
-            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
-        ]
-    )
-    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def update_run_cv_generation_debug(
@@ -920,25 +984,17 @@ def update_run_cv_generation_debug(
     dataset: str,
 ) -> None:
     """Persist the immutable run-scoped CV-generation debug snapshot."""
-    if bq is None:
-        existing = _local_get_run(run_id)
-        if existing is None:
-            return
-        _local_save_run(dataclasses.replace(existing, cv_generation_debug_json=cv_generation_debug_json))
-        return
-    sql = (
-        f"UPDATE `{project}.{dataset}.pipeline_runs` "
-        f"SET cv_generation_debug_json = @cv_generation_debug_json WHERE run_id = @run_id"
+    _update_single_pipeline_run_json_field(
+        run_id=run_id,
+        field_name="cv_generation_debug_json",
+        field_value=cv_generation_debug_json,
+        bq=bq,
+        project=project,
+        dataset=dataset,
+        local_mutator=lambda existing: dataclasses.replace(
+            existing, cv_generation_debug_json=cv_generation_debug_json
+        ),
     )
-    job_config = bq_module.QueryJobConfig(
-        query_parameters=[
-            bq_module.ScalarQueryParameter(
-                "cv_generation_debug_json", "STRING", cv_generation_debug_json
-            ),
-            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
-        ]
-    )
-    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def update_run_stage_transition_artifacts(
@@ -950,25 +1006,17 @@ def update_run_stage_transition_artifacts(
     dataset: str,
 ) -> None:
     """Persist the immutable run-scoped stage transition artifacts snapshot."""
-    if bq is None:
-        existing = _local_get_run(run_id)
-        if existing is None:
-            return
-        _local_save_run(dataclasses.replace(existing, stage_transition_artifacts_json=stage_transition_artifacts_json))
-        return
-    sql = (
-        f"UPDATE `{project}.{dataset}.pipeline_runs` "
-        f"SET stage_transition_artifacts_json = @stage_transition_artifacts_json WHERE run_id = @run_id"
+    _update_single_pipeline_run_json_field(
+        run_id=run_id,
+        field_name="stage_transition_artifacts_json",
+        field_value=stage_transition_artifacts_json,
+        bq=bq,
+        project=project,
+        dataset=dataset,
+        local_mutator=lambda existing: dataclasses.replace(
+            existing, stage_transition_artifacts_json=stage_transition_artifacts_json
+        ),
     )
-    job_config = bq_module.QueryJobConfig(
-        query_parameters=[
-            bq_module.ScalarQueryParameter(
-                "stage_transition_artifacts_json", "STRING", stage_transition_artifacts_json
-            ),
-            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
-        ]
-    )
-    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def update_run_settings_used(
@@ -980,23 +1028,17 @@ def update_run_settings_used(
     dataset: str,
 ) -> None:
     """Persist the immutable run-scoped settings-used snapshot."""
-    if bq is None:
-        existing = _local_get_run(run_id)
-        if existing is None:
-            return
-        _local_save_run(dataclasses.replace(existing, settings_used_json=settings_used_json))
-        return
-    sql = (
-        f"UPDATE `{project}.{dataset}.pipeline_runs` "
-        f"SET settings_used_json = @settings_used_json WHERE run_id = @run_id"
+    _update_single_pipeline_run_json_field(
+        run_id=run_id,
+        field_name="settings_used_json",
+        field_value=settings_used_json,
+        bq=bq,
+        project=project,
+        dataset=dataset,
+        local_mutator=lambda existing: dataclasses.replace(
+            existing, settings_used_json=settings_used_json
+        ),
     )
-    job_config = bq_module.QueryJobConfig(
-        query_parameters=[
-            bq_module.ScalarQueryParameter("settings_used_json", "STRING", settings_used_json),
-            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
-        ]
-    )
-    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def update_run_mapping_suggestions(
@@ -1008,25 +1050,17 @@ def update_run_mapping_suggestions(
     dataset: str,
 ) -> None:
     """Persist the immutable run-scoped mapping suggestions snapshot."""
-    if bq is None:
-        existing = _local_get_run(run_id)
-        if existing is None:
-            return
-        _local_save_run(dataclasses.replace(existing, mapping_suggestions_json=mapping_suggestions_json))
-        return
-    sql = (
-        f"UPDATE `{project}.{dataset}.pipeline_runs` "
-        f"SET mapping_suggestions_json = @mapping_suggestions_json WHERE run_id = @run_id"
+    _update_single_pipeline_run_json_field(
+        run_id=run_id,
+        field_name="mapping_suggestions_json",
+        field_value=mapping_suggestions_json,
+        bq=bq,
+        project=project,
+        dataset=dataset,
+        local_mutator=lambda existing: dataclasses.replace(
+            existing, mapping_suggestions_json=mapping_suggestions_json
+        ),
     )
-    job_config = bq_module.QueryJobConfig(
-        query_parameters=[
-            bq_module.ScalarQueryParameter(
-                "mapping_suggestions_json", "STRING", mapping_suggestions_json
-            ),
-            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
-        ]
-    )
-    _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
 
 
 def update_run_synonym_proposals(
@@ -1039,11 +1073,15 @@ def update_run_synonym_proposals(
 ) -> dict[str, str]:
     """Persist the mutable run-scoped synonym proposal review snapshot."""
     if bq is None:
-        existing = _local_get_run(run_id)
-        if existing is None:
-            return {"persistence_status": "degraded", "degradation_reason": "run_not_found"}
-        _local_save_run(dataclasses.replace(existing, synonym_proposals_json=synonym_proposals_json))
-        return {"persistence_status": "persisted", "degradation_reason": "none"}
+        updated = _update_local_run(
+            run_id,
+            lambda existing: dataclasses.replace(
+                existing, synonym_proposals_json=synonym_proposals_json
+            ),
+        )
+        if not updated:
+            return _persistence_result("degraded", "run_not_found")
+        return _persistence_result("persisted")
     sql = (
         f"UPDATE `{project}.{dataset}.pipeline_runs` "
         f"SET synonym_proposals_json = @synonym_proposals_json WHERE run_id = @run_id"
@@ -1058,7 +1096,7 @@ def update_run_synonym_proposals(
     )
     try:
         _execute_query_with_pipeline_runs_retry(bq, sql, job_config=job_config)
-        return {"persistence_status": "persisted", "degradation_reason": ""}
+        return _persistence_result("persisted")
     except Exception as exc:
         if not _is_unrecognized_column_error(exc, "synonym_proposals_json"):
             raise
@@ -1067,10 +1105,9 @@ def update_run_synonym_proposals(
             "skipping synonym proposal snapshot persistence until migration is applied: %s",
             exc,
         )
-        return {
-            "persistence_status": "bundle_only_degraded",
-            "degradation_reason": "missing_synonym_proposals_json_column",
-        }
+        return _persistence_result(
+            "bundle_only_degraded", "missing_synonym_proposals_json_column"
+        )
 
 
 def update_run_effective_settings(
@@ -1082,25 +1119,17 @@ def update_run_effective_settings(
     dataset: str,
 ) -> None:
     """Persist the mutable run-scoped effective settings snapshot."""
-    if bq is None:
-        existing = _local_get_run(run_id)
-        if existing is None:
-            return
-        _local_save_run(dataclasses.replace(existing, effective_settings_json=effective_settings_json))
-        return
-    sql = (
-        f"UPDATE `{project}.{dataset}.pipeline_runs` "
-        f"SET effective_settings_json = @effective_settings_json WHERE run_id = @run_id"
+    _update_single_pipeline_run_json_field(
+        run_id=run_id,
+        field_name="effective_settings_json",
+        field_value=effective_settings_json,
+        bq=bq,
+        project=project,
+        dataset=dataset,
+        local_mutator=lambda existing: dataclasses.replace(
+            existing, effective_settings_json=effective_settings_json
+        ),
     )
-    job_config = bq_module.QueryJobConfig(
-        query_parameters=[
-            bq_module.ScalarQueryParameter(
-                "effective_settings_json", "STRING", effective_settings_json
-            ),
-            bq_module.ScalarQueryParameter("run_id", "STRING", run_id),
-        ]
-    )
-    bq.query(sql, job_config=job_config).result()
 
 
 def request_run_cancel(
@@ -1207,7 +1236,9 @@ def get_events(run_id: str, bq: Any, *, project: str, dataset: str) -> list[RunE
                     if not raw:
                         continue
                     try:
-                        record = json.loads(raw)
+                        record = _decode_json_or_none(raw)
+                        if not isinstance(record, dict):
+                            continue
                         created_raw = str(record.get("created_at") or "").strip()
                         created_at = (
                             datetime.datetime.fromisoformat(created_raw)
@@ -1260,10 +1291,7 @@ def _row_to_run(row: Any) -> PipelineRun:
     completed_stages_raw = r.get("completed_stages_json")
     completed_stages: list[str] | None = None
     if isinstance(completed_stages_raw, str) and completed_stages_raw.strip():
-        try:
-            parsed_completed_stages = json.loads(completed_stages_raw)
-        except json.JSONDecodeError:
-            parsed_completed_stages = None
+        parsed_completed_stages = _decode_json_or_none(completed_stages_raw)
         if isinstance(parsed_completed_stages, list):
             completed_stages = [str(item) for item in parsed_completed_stages]
     elif isinstance(completed_stages_raw, list):
@@ -1353,13 +1381,7 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
         for row in rows:
             row_dict = dict(row)
             structured_raw = row_dict.get("cv_structured_json")
-            if isinstance(structured_raw, str) and structured_raw.strip():
-                try:
-                    row_dict["cv_structured"] = json.loads(structured_raw)
-                except json.JSONDecodeError:
-                    row_dict["cv_structured"] = None
-            else:
-                row_dict["cv_structured"] = None
+            row_dict["cv_structured"] = _decode_json_or_none(structured_raw)
             results.append(row_dict)
         return results
     table = f"{project}.{dataset}.cv_versions"
@@ -1407,7 +1429,7 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
             exc,
         )
         rows = bq.query(legacy_sql, job_config=job_config).result()
-    results: list[dict[str, Any]] = []
+    bq_results: list[dict[str, Any]] = []
     for row in rows:
         row_dict = dict(row.items())
         row_dict.setdefault("cv_generation_model", None)
@@ -1415,15 +1437,9 @@ def list_cvs_for_run(run_id: str, bq: Any, *, project: str, dataset: str) -> lis
         row_dict.setdefault("cv_schema_version", None)
         row_dict.setdefault("cv_structured_json", None)
         structured_raw = row_dict.get("cv_structured_json")
-        if isinstance(structured_raw, str) and structured_raw.strip():
-            try:
-                row_dict["cv_structured"] = json.loads(structured_raw)
-            except json.JSONDecodeError:
-                row_dict["cv_structured"] = None
-        else:
-            row_dict["cv_structured"] = None
-        results.append(row_dict)
-    return results
+        row_dict["cv_structured"] = _decode_json_or_none(structured_raw)
+        bq_results.append(row_dict)
+    return bq_results
 
 
 def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> Optional[str]:
@@ -1456,7 +1472,7 @@ def get_cv_markdown(version_id: str, bq: Any, *, project: str, dataset: str) -> 
     rows = list(bq.query(sql, job_config=job_config).result())
     if not rows:
         return None
-    return rows[0]["cv_markdown"]
+    return str(rows[0]["cv_markdown"])
 
 
 def list_run_structured_jobs(
@@ -1497,13 +1513,7 @@ def list_run_structured_jobs(
         row_dict = dict(row.items())
         for field_name in json_fields:
             raw_value = row_dict.get(field_name)
-            if isinstance(raw_value, str) and raw_value.strip():
-                try:
-                    parsed_value = json.loads(raw_value)
-                except json.JSONDecodeError:
-                    parsed_value = None
-            else:
-                parsed_value = None
+            parsed_value = _decode_json_or_none(raw_value)
             row_dict[field_name.removesuffix("_json")] = parsed_value
         results.append(row_dict)
     return results
@@ -1556,13 +1566,7 @@ def list_filter_results_for_run(
     for row in rows:
         row_dict = dict(row.items())
         marks_raw = row_dict.get("marks_json")
-        if isinstance(marks_raw, str) and marks_raw.strip():
-            try:
-                row_dict["marks"] = json.loads(marks_raw)
-            except json.JSONDecodeError:
-                row_dict["marks"] = []
-        else:
-            row_dict["marks"] = []
+        row_dict["marks"] = _decode_json_list(marks_raw)
         results.append(row_dict)
     return results
 
@@ -1619,4 +1623,4 @@ def insert_cv_version_row(row: dict[str, Any], bq: Any, *, project: str, dataset
         return []
 
     table = f"{project}.{dataset}.cv_versions"
-    return bq.insert_rows_json(table, [row])
+    return list(bq.insert_rows_json(table, [row]))

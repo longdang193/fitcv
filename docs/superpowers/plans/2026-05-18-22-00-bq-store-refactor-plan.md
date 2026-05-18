@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: bq-store-ssot-symmetry-invariance-implementation
 parent_thread: workstream-fitcv-semantic-spine.semantic-spine-component-boundary-and-interface-contract
@@ -48,17 +48,17 @@ Deliver tests and validations proving external behavior parity, retry-path consi
 - GitNexus index freshness checked (`.\scripts\get_gitnexus_freshness.ps1`)
 
 **Steps:**
-- [ ] Identify concrete symbols to refactor (`update_run_*`, `append_event`, JSON parse call sites).
-- [ ] Run GitNexus impact/context workflow for each targeted symbol:
+- [x] Identify concrete symbols to refactor (`update_run_*`, `append_event`, JSON parse call sites).
+- [x] Run GitNexus impact/context workflow for each targeted symbol:
   - `gitnexus_impact({target: "<symbol>", direction: "upstream"})`
   - `gitnexus_query({query: "<symbol>"})`
   - `gitnexus_context({name: "<symbol>"})`
-- [ ] Record expected affected callers/tests and classify risk per symbol.
-- [ ] Freeze a bounded edit set for phase-1 (non-breaking internal refactor only).
+- [x] Record expected affected callers/tests and classify risk per symbol.
+- [x] Freeze a bounded edit set for phase-1 (non-breaking internal refactor only).
 
 **Verification:**
-- [ ] Symbol impact notes exist and map to planned tasks.
-- [ ] No high-risk symbol edit proceeds without explicit mitigation note.
+- [x] Symbol impact notes exist and map to planned tasks.
+- [x] No high-risk symbol edit proceeds without explicit mitigation note.
 
 **Exit Criteria:**
 - refactor scope is caller-aware and bounded
@@ -76,18 +76,18 @@ Deliver tests and validations proving external behavior parity, retry-path consi
 - Task 1 complete with target symbol set finalized
 
 **Steps:**
-- [ ] Implement internal helper(s) for symmetric run mutation flow:
+- [x] Implement internal helper(s) for symmetric run mutation flow:
   - local mode load/mutate/save
   - BQ update execution through shared retry helper
   - optional per-column legacy fallback hooks
-- [ ] Refactor equivalent `update_run_*` wrappers to use helper(s) without signature changes.
-- [ ] Ensure `update_run_effective_settings` aligns with retry path used by peer updates.
-- [ ] Keep SQL parameterization and existing field semantics intact.
+- [x] Refactor equivalent `update_run_*` wrappers to use helper(s) without signature changes.
+- [x] Ensure `update_run_effective_settings` aligns with retry path used by peer updates.
+- [x] Keep SQL parameterization and existing field semantics intact.
 
 **Verification:**
-- [ ] Wrapper signatures unchanged.
-- [ ] Existing behavior for success paths remains unchanged in tests.
-- [ ] Retry helper usage confirmed for `pipeline_runs` updates.
+- [x] Wrapper signatures unchanged.
+- [x] Existing behavior for success paths remains unchanged in tests.
+- [x] Retry helper usage confirmed for `pipeline_runs` updates.
 
 **Exit Criteria:**
 - duplicated update scaffolding collapsed into single internal abstraction
@@ -105,17 +105,17 @@ Deliver tests and validations proving external behavior parity, retry-path consi
 - Task 2 complete
 
 **Steps:**
-- [ ] Define canonical internal outcome vocabulary (status + reason + optional metadata).
-- [ ] Normalize degradable return payloads in:
+- [x] Define canonical internal outcome vocabulary (status + reason + optional metadata).
+- [x] Normalize degradable return payloads in:
   - `append_event`
   - `update_run_synonym_proposals`
   - any helper paths that emit degradation outcomes
-- [ ] Preserve external return shapes for backward compatibility in phase 1.
-- [ ] Add/adjust logging so degraded states remain observable.
+- [x] Preserve external return shapes for backward compatibility in phase 1.
+- [x] Add/adjust logging so degraded states remain observable.
 
 **Verification:**
-- [ ] Success and degraded outcomes use canonical reason vocabulary.
-- [ ] Caller-visible payload contracts remain backward compatible.
+- [x] Success and degraded outcomes use canonical reason vocabulary.
+- [x] Caller-visible payload contracts remain backward compatible.
 
 **Exit Criteria:**
 - degradation semantics consistent across scoped degradable paths
@@ -133,14 +133,14 @@ Deliver tests and validations proving external behavior parity, retry-path consi
 - Task 2 complete
 
 **Steps:**
-- [ ] Extract shared JSON decode helper(s) for object-like and list-like field classes.
-- [ ] Replace repeated inline parse blocks with helper calls in scoped functions.
-- [ ] Harden edge conversions (`summary` numeric conversion, event replay parse failures) per spec.
-- [ ] Preserve current default semantics where contractually required.
+- [x] Extract shared JSON decode helper(s) for object-like and list-like field classes.
+- [x] Replace repeated inline parse blocks with helper calls in scoped functions.
+- [x] Harden edge conversions (`summary` numeric conversion, event replay parse failures) per spec.
+- [x] Preserve current default semantics where contractually required.
 
 **Verification:**
-- [ ] Invalid/empty/valid JSON fixtures produce deterministic expected defaults.
-- [ ] No regressions in run/event/CV read paths.
+- [x] Invalid/empty/valid JSON fixtures produce deterministic expected defaults.
+- [x] No regressions in run/event/CV read paths.
 
 **Exit Criteria:**
 - repeated parse logic consolidated with explicit, tested policy
@@ -159,21 +159,21 @@ Deliver tests and validations proving external behavior parity, retry-path consi
 - Tasks 2-4 complete
 
 **Steps:**
-- [ ] Add/adjust tests for:
+- [x] Add/adjust tests for:
   - backend matrix (`bq=None`, BQ success, BQ transient retry, missing-column fallback)
   - degradation outcome contract
   - JSON normalization classes
-- [ ] Run `uvx pytest tests/`.
-- [ ] Run `uvx mypy src --show-error-codes`.
-- [ ] Run `gitnexus_detect_changes()` and confirm affected symbols/files match planned scope.
-- [ ] Run `python scripts/hooks/run_validator.py --fast`.
-- [ ] If required, regenerate planning lineage (`python scripts/generate_planning_lineage.py`) and re-run validator.
+- [x] Run `uvx pytest tests/`.
+- [x] Run `uvx mypy src --show-error-codes`.
+- [x] Run `gitnexus_detect_changes()` and confirm affected symbols/files match planned scope.
+- [x] Run `python scripts/hooks/run_validator.py --fast`.
+- [x] If required, regenerate planning lineage (`python scripts/generate_planning_lineage.py`) and re-run validator.
 
 **Verification:**
-- [ ] Tests green.
-- [ ] Type check green.
-- [ ] GitNexus changed-scope report matches planned blast radius.
-- [ ] Repo fast validator green.
+- [x] Tests green.
+- [x] Type check green.
+- [x] GitNexus changed-scope report matches planned blast radius.
+- [x] Repo fast validator green.
 
 **Exit Criteria:**
 - patch set is regression-safe and lifecycle-valid
@@ -197,3 +197,6 @@ Canonical source-of-truth:
 - `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
 </LINK>
+
+
+
