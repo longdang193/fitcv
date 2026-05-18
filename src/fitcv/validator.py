@@ -20,7 +20,12 @@ from collections.abc import Iterable
 from typing import Any, TypedDict
 
 from fitcv.candidate import flatten_skills, infer_role_family
+from fitcv.candidate_name_policy import is_candidate_name_placeholder
 from fitcv.config import CV_SECTION_KEY_TO_NAME, get_required_structured_section_keys
+from fitcv.placeholder_policy import (
+    is_placeholder_token as _shared_is_placeholder_token,
+    normalize_placeholder_token as _shared_normalize_placeholder_token,
+)
 from fitcv.section_policy import (
     certification_policy_decisions,
     is_meaningful_certification_row,
@@ -107,25 +112,11 @@ _UNRESOLVED_PLACEHOLDER_PATTERNS = (
     re.compile(r"\[your phone\]", re.IGNORECASE),
     re.compile(r"\[linkedin url\]", re.IGNORECASE),
 )
-_CANDIDATE_NAME_PLACEHOLDER_VALUES = {
-    "candidate name",
-    "your name",
-}
 _MARKDOWN_PLACEHOLDER_PATTERNS = (
     re.compile(r"\btbd\b", re.IGNORECASE),
     re.compile(r"lorem ipsum", re.IGNORECASE),
     re.compile(r"\bto be (filled|provided|updated)\b", re.IGNORECASE),
 )
-_EDUCATION_PLACEHOLDER_TOKENS = {
-    "",
-    "none",
-    "null",
-    "n/a",
-    "na",
-    "not specified",
-    "not provided",
-    "unknown",
-}
 
 
 def _role_family_aliases(config: dict[str, Any]) -> dict[str, set[str]]:
@@ -283,10 +274,7 @@ def _normalize_placeholder_name_token(value: str) -> str:
 
 
 def _is_candidate_name_placeholder(value: Any) -> bool:
-    if not isinstance(value, str):
-        return False
-    normalized = _normalize_placeholder_name_token(value)
-    return normalized in _CANDIDATE_NAME_PLACEHOLDER_VALUES
+    return is_candidate_name_placeholder(value)
 
 
 def _check_candidate_name_placeholders(
@@ -573,6 +561,22 @@ def _normalize_analysis_grounding(
     evidence_used = list((analysis_grounding or {}).get("evidence_used") or [])
     evidence_items = evidence_payload or evidence_used
 
+    selected_evidence_ids: list[str] = [
+        str(evidence_id).strip()
+        for evidence_id in list(((analysis_grounding or {}).get("evidence_selection_summary") or {}).get("selected_evidence_ids") or [])
+        if str(evidence_id).strip()
+    ]
+    selected_evidence_id_set = set(selected_evidence_ids)
+    if selected_evidence_id_set:
+        filtered_evidence_items: list[dict[str, Any]] = []
+        for item in evidence_items:
+            if not isinstance(item, dict):
+                continue
+            evidence_id = str(item.get("evidence_id") or "").strip()
+            if evidence_id and evidence_id in selected_evidence_id_set:
+                filtered_evidence_items.append(item)
+        evidence_items = filtered_evidence_items
+
     employers: set[str] = set()
     projects: set[str] = set()
     skills_lower: set[str] = set()
@@ -581,18 +585,10 @@ def _normalize_analysis_grounding(
     domain_tags: set[str] = set()
     role_families: set[str] = set()
     support_phrases: list[str] = []
-    selected_evidence_ids: list[str] = [
-        str(evidence_id).strip()
-        for evidence_id in list(((analysis_grounding or {}).get("evidence_selection_summary") or {}).get("selected_evidence_ids") or [])
-        if str(evidence_id).strip()
-    ]
 
     for item in evidence_items:
         if not isinstance(item, dict):
             continue
-        evidence_id = str(item.get("evidence_id") or "").strip()
-        if evidence_id and evidence_id not in selected_evidence_ids:
-            selected_evidence_ids.append(evidence_id)
 
         company = str(item.get("company") or "").strip()
         if company:
@@ -798,14 +794,11 @@ def _check_unresolved_placeholders(cv_text: str) -> list[str]:
 
 
 def _normalize_placeholder_token(value: Any) -> str:
-    normalized = str(value or "").strip().lower()
-    normalized = normalized.replace("–", "-").replace("—", "-")
-    normalized = re.sub(r"\s+", " ", normalized)
-    return normalized
+    return _shared_normalize_placeholder_token(value)
 
 
 def _is_placeholder_token(value: Any) -> bool:
-    return _normalize_placeholder_token(value) in _EDUCATION_PLACEHOLDER_TOKENS
+    return _shared_is_placeholder_token(value)
 
 
 def _check_synthetic_education_entries(structured_cv: dict[str, Any] | None) -> list[str]:
@@ -854,6 +847,24 @@ def _check_synthetic_non_education_entries(structured_cv: dict[str, Any] | None)
         if not isinstance(values, list):
             return []
         return [item for item in values if isinstance(item, dict)]
+
+    for index, row in enumerate(_rows("experience")):
+        bullets = [bullet for bullet in (row.get("bullets") or []) if isinstance(bullet, str)]
+        if any(not _is_placeholder_token(bullet) for bullet in bullets):
+            continue
+        if all(
+            _is_placeholder_token(value)
+            for value in (
+                row.get("role"),
+                row.get("company"),
+                row.get("start"),
+                row.get("end"),
+                row.get("location"),
+            )
+        ):
+            violations.append(
+                f"Synthetic Experience row detected at index {index}: placeholder role/company/date/location set."
+            )
 
     for index, row in enumerate(_rows("projects")):
         bullets = [bullet for bullet in (row.get("bullets") or []) if isinstance(bullet, str)]

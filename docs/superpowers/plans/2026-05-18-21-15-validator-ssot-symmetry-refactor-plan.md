@@ -55,14 +55,14 @@ Unit tests, type checks, and GitNexus change-scope evidence prove contract prese
 - approved spec exists and is current
 
 **Steps:**
-- [ ] Step 1: run GitNexus impact/context for `run_all_validations` and `_normalize_analysis_grounding` and snapshot callers/processes.
-- [ ] Step 2: run focused baseline tests in `tests/test_validator.py` and capture failing/passing baseline.
-- [ ] Step 3: catalog current message and schema invariants used by downstream callers.
+- [x] Step 1: run GitNexus impact/context for `run_all_validations` and `_normalize_analysis_grounding` and snapshot callers/processes.
+- [x] Step 2: run focused baseline tests in `tests/test_validator.py` and capture failing/passing baseline.
+- [x] Step 3: catalog current message and schema invariants used by downstream callers.
 
 **Verification:**
-- [ ] `npx gitnexus impact -r "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT" "run_all_validations"`
-- [ ] `npx gitnexus impact -r "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT" "_normalize_analysis_grounding"`
-- [ ] `uvx pytest tests/test_validator.py -q`
+- [x] `npx gitnexus impact -r "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT" "run_all_validations"`
+- [x] `npx gitnexus impact -r "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT" "_normalize_analysis_grounding"`
+- [x] `python -m pytest tests/test_validator.py -q`
 
 **Exit Criteria:**
 - baseline risk, callers, and invariants documented and stable for patch tasks
@@ -82,13 +82,13 @@ Unit tests, type checks, and GitNexus change-scope evidence prove contract prese
 - selected-evidence fallback semantics confirmed from spec
 
 **Steps:**
-- [ ] Step 1: refactor `_normalize_analysis_grounding` to build selected-id set first and filter evidence rows by selection.
-- [ ] Step 2: implement explicit fallback branch for empty selected-id set per spec compatibility contract.
-- [ ] Step 3: add/adjust deterministic tests for mixed selected/unselected evidence payload and empty-selection behavior.
+- [x] Step 1: refactor `_normalize_analysis_grounding` to build selected-id set first and filter evidence rows by selection.
+- [x] Step 2: implement explicit fallback branch for empty selected-id set per spec compatibility contract.
+- [x] Step 3: add/adjust deterministic tests for mixed selected/unselected evidence payload and empty-selection behavior.
 
 **Verification:**
-- [ ] `uvx pytest tests/test_validator.py -q -k "selected_evidence or grounding"`
-- [ ] inspect `support_source_summary` fields for expected mode transitions
+- [x] `python -m pytest tests/test_validator.py -q -k "selected_evidence or grounding"`
+- [x] inspect `support_source_summary` fields for expected mode transitions
 
 **Exit Criteria:**
 - unselected evidence cannot satisfy selected-evidence grounding checks
@@ -109,13 +109,13 @@ Unit tests, type checks, and GitNexus change-scope evidence prove contract prese
 - no unresolved ambiguity on canonical placeholder vocabulary ownership
 
 **Steps:**
-- [ ] Step 1: route validator candidate-name placeholder checks through `candidate_name_policy` APIs.
-- [ ] Step 2: extract or centralize placeholder token normalization/check API and swap validator usage to shared API.
-- [ ] Step 3: add parity tests covering bracketed/plain placeholder variants and cross-module-equivalent token cases.
+- [x] Step 1: route validator candidate-name placeholder checks through `candidate_name_policy` APIs.
+- [x] Step 2: extract or centralize placeholder token normalization/check API and swap validator usage to shared API.
+- [x] Step 3: add parity tests covering bracketed/plain placeholder variants and cross-module-equivalent token cases.
 
 **Verification:**
-- [ ] `uvx pytest tests/test_validator.py -q -k "placeholder or candidate_name"`
-- [ ] targeted import/usage inspection confirms no duplicate local placeholder token set remains in validator
+- [x] `python -m pytest tests/test_validator.py -q -k "placeholder or candidate_name"`
+- [x] targeted import/usage inspection confirms no duplicate local placeholder token set remains in validator
 
 **Exit Criteria:**
 - equivalent placeholder and candidate-name semantics resolved through shared policy surface
@@ -135,12 +135,12 @@ Unit tests, type checks, and GitNexus change-scope evidence prove contract prese
 - synthetic-entry criteria parity source confirmed
 
 **Steps:**
-- [ ] Step 1: add synthetic `experience` detection path to validator (or shared checker integration).
-- [ ] Step 2: maintain existing synthetic checks for education/projects/certifications/publications/languages.
-- [ ] Step 3: add regression tests for synthetic experience rows and ensure no false positive on meaningful rows.
+- [x] Step 1: add synthetic `experience` detection path to validator (or shared checker integration).
+- [x] Step 2: maintain existing synthetic checks for education/projects/certifications/publications/languages.
+- [x] Step 3: add regression tests for synthetic experience rows and ensure no false positive on meaningful rows.
 
 **Verification:**
-- [ ] `uvx pytest tests/test_validator.py -q -k "synthetic"`
+- [x] `python -m pytest tests/test_validator.py -q -k "synthetic"`
 
 **Exit Criteria:**
 - validator and generator synthetic-section behavior are symmetric for covered section classes
@@ -159,18 +159,25 @@ Unit tests, type checks, and GitNexus change-scope evidence prove contract prese
 - Tasks 1-4 complete
 
 **Steps:**
-- [ ] Step 1: run full validator unit test suite and relevant integration-adjacent tests.
-- [ ] Step 2: run mypy for touched modules.
-- [ ] Step 3: run GitNexus detect-changes and confirm affected scope matches plan.
-- [ ] Step 4: define rollback toggle/containment note for selected-evidence strictness regression path.
+- [x] Step 1: run full validator unit test suite and relevant integration-adjacent tests.
+- [x] Step 2: run mypy for touched modules. (executed; accepted external blocker from pre-existing repo baseline/type environment issues)
+- [x] Step 3: run GitNexus detect-changes and confirm affected scope matches plan.
+- [x] Step 4: define rollback toggle/containment note for selected-evidence strictness regression path.
 
 **Verification:**
-- [ ] `uvx pytest tests/test_validator.py`
-- [ ] `uvx mypy src --show-error-codes`
-- [ ] `npx gitnexus detect_changes -r "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT"`
+- [x] `python -m pytest tests/test_validator.py`
+- [x] `uvx mypy src --show-error-codes` (executed; known pre-existing baseline errors)
+- [x] `npx gitnexus detect_changes -r "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT"`
 
 **Exit Criteria:**
 - tests and type checks green, scope bounded, rollback notes explicit
+
+### Rollback / Containment Note (Task 5 Step 4)
+
+- If selected-evidence strictness introduces unexpected validation failures in live CV generation, containment action is:
+  1. revert `_normalize_analysis_grounding` selected-id filtering block in `src/fitcv/validator.py` to prior payload fallback behavior,
+  2. keep new tests and mark strict-mode tests as expected-fail until compatibility strategy is approved,
+  3. rerun `python -m pytest tests/test_validator.py -q` and `python scripts/hooks/run_validator.py --fast` before resuming rollout.
 
 ## Verification
 

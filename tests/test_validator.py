@@ -620,6 +620,92 @@ def test_run_all_validations_flags_profile_true_employer_not_selected_by_analysi
     assert any("FintechCo" in message for message in result["deterministic_grounding_violations"])
 
 
+def test_run_all_validations_ignores_unselected_payload_rows_for_selected_evidence_checks() -> None:
+    profile = {
+        "experiences": [
+            {"role": "Data Analyst", "company": "ACME"},
+            {"role": "Data Engineer", "company": "FintechCo"},
+        ],
+        "projects": [],
+        "skills": ["SQL", "Python"],
+    }
+    cv_text = (
+        "# Name\n"
+        "## Summary\nGrounded summary\n"
+        "## Skills\nSQL\n"
+        "## Experience\n"
+        "Engineer at FintechCo\n"
+        "- Built reporting workflows\n"
+    )
+    analysis_grounding = {
+        "evidence_payload": [
+            {
+                "evidence_id": "exp-acme",
+                "evidence_type": "experience_entry",
+                "company": "ACME",
+                "role": "Data Analyst",
+                "skills": ["SQL"],
+            },
+            {
+                "evidence_id": "exp-fintech",
+                "evidence_type": "experience_entry",
+                "company": "FintechCo",
+                "role": "Data Engineer",
+                "skills": ["SQL"],
+            },
+        ],
+        "evidence_selection_summary": {"selected_evidence_ids": ["exp-acme"]},
+        "analysis_input_summary": {"job_family": "analytics"},
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=_CV_CONFIG,
+        analysis_grounding=analysis_grounding,
+    )
+
+    assert result["valid"] is False
+    assert any("FintechCo" in message for message in result["deterministic_grounding_violations"])
+
+def test_run_all_validations_falls_back_to_payload_when_selected_ids_are_missing() -> None:
+    profile = {
+        "experiences": [{"role": "Data Engineer", "company": "FintechCo"}],
+        "projects": [],
+        "skills": ["SQL"],
+    }
+    cv_text = (
+        "# Name\n"
+        "## Summary\nGrounded summary\n"
+        "## Skills\nSQL\n"
+        "## Experience\n"
+        "Engineer at FintechCo\n"
+        "- Built reporting workflows\n"
+    )
+    analysis_grounding = {
+        "evidence_payload": [
+            {
+                "evidence_id": "exp-fintech",
+                "evidence_type": "experience_entry",
+                "company": "FintechCo",
+                "role": "Data Engineer",
+                "skills": ["SQL"],
+                "bullets": ["Built reporting workflows"],
+            }
+        ],
+        "analysis_input_summary": {"job_family": "analytics"},
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=_CV_CONFIG,
+        analysis_grounding=analysis_grounding,
+    )
+
+    assert result["valid"] is True
+    assert result["deterministic_grounding_violations"] == []
+
 def test_run_all_validations_supports_semantically_close_soft_claim_from_selected_evidence() -> None:
     profile = {
         "experiences": [{"role": "Data Analyst", "company": "ACME"}],
@@ -856,3 +942,42 @@ def test_run_all_validations_flags_synthetic_non_education_rows() -> None:
     assert any("Synthetic Certifications row detected" in message for message in result["grounding_violations"])
     assert any("Synthetic Publications row detected" in message for message in result["grounding_violations"])
     assert any("Synthetic Languages row detected" in message for message in result["grounding_violations"])
+
+def test_run_all_validations_flags_synthetic_experience_rows() -> None:
+    profile = {
+        "experiences": [{"role": "Data Analyst", "company": "ACME"}],
+        "projects": [],
+        "skills": ["SQL", "Python"],
+    }
+    cv_text = (
+        "# Jane Doe\n"
+        "## Summary\nAnalyst with SQL and Python experience.\n"
+        "## Skills\nSQL, Python\n"
+        "## Experience\n"
+        "### Data Analyst — ACME (2022–2024)\n"
+        "- Built reporting workflows.\n"
+    )
+    structured_cv = {
+        "sections": {
+            "experience": [
+                {
+                    "role": "None",
+                    "company": "None",
+                    "start": "None",
+                    "end": "None",
+                    "location": "None",
+                    "bullets": ["None"],
+                }
+            ],
+        }
+    }
+
+    result = run_all_validations(
+        cv_text,
+        profile=profile,
+        config=_CV_CONFIG,
+        structured_cv=structured_cv,
+    )
+
+    assert result["valid"] is False
+    assert any("Synthetic Experience row detected" in message for message in result["grounding_violations"])
