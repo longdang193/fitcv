@@ -22,7 +22,7 @@
   - Task 1 Step 1-3 + verification
   - Task 2 Step 1-4 + verification
   - Task 3 Step 1 dispatcher map scaffolding (`_build_stage_dispatch_map`)
-- **In Progress:** closure orchestration blocked at entry gate.
+- **In Progress:** closure orchestration ready; pre-merge checks next.
 - **Deferred / Dropped:** none
 - **Known divergence from plan (if any):** `PipelineContext` still pending; state-focused extraction delivered first.
 
