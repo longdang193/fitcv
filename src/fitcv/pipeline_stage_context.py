@@ -3,6 +3,8 @@ name: pipeline_stage_context
 type: module
 domain: runtime
 ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
 responsibility:
   - Provide typed pipeline state helpers for checkpoint restore/serialize.
 inputs:
