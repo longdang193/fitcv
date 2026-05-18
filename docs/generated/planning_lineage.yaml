@@ -148,7 +148,7 @@ workstreams:
   status: active
   path: docs/intent/workstreams/workstream-bounded-agentic-cv-quality.md
   thread_count: 6
-  completed_thread_count: 3
+  completed_thread_count: 2
   derived_completion: in_progress
   threads:
   - thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-analysis-grounding
@@ -168,9 +168,11 @@ workstreams:
     path: docs/intent/workstreams/threads/workstream-bounded-agentic-cv-quality/02-agentic-cv-quality-generation-repair.md
     specs:
     - docs/superpowers/specs/2026-05-15-15-26-cv-generation-selected-evidence-grounding-spec.md
+    - docs/superpowers/specs/2026-05-18-15-03-fitcv-cv-generation-refactor-drift-spec.md
     plans:
     - docs/superpowers/plans/2026-05-15-15-43-cv-generation-selected-evidence-grounding-plan.md
-    derived_completion: completed
+    - docs/superpowers/plans/2026-05-18-15-06-fitcv-cv-generation-refactor-drift-plan.md
+    derived_completion: in_progress
   - thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-provider-bridge
     status: proposed
     path: docs/intent/workstreams/threads/workstream-bounded-agentic-cv-quality/03-agentic-cv-quality-provider-bridge.md
