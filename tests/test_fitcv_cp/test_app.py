@@ -2815,7 +2815,7 @@ def test_admin_run_detail_success_banner():
     patch("fitcv_cp.app.list_cvs_for_run", return_value=[{"version_id": "v123", "job_url": "mock.com", "fit_classification": "strong", "generated_at": datetime.now(timezone.utc)}]):
         resp = TestClient(_app()).get("/admin/runs/test-123")
     assert resp.status_code == 200
-    assert "downloadable CV(s) available." in resp.text
+    assert "CV generation succeeded. Download/export files from" in resp.text
     assert 'href="/admin/cvs/v123/download"' in resp.text
     assert 'href="/admin/runs/test-123"' in resp.text
     assert "Refresh Status" in resp.text  # still present on run_detail page
@@ -2840,7 +2840,7 @@ def test_admin_run_detail_shows_exports_card_with_results_link():
     patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
         resp = TestClient(_app()).get("/admin/runs/test-export-btn")
     assert resp.status_code == 200
-    assert "Run Exports" in resp.text
+    assert "Artifacts" in resp.text
     assert 'href="/admin/runs/test-export-btn/export.json"' in resp.text
 
 def test_run_detail_shows_orchestration_backend_diagnostics() -> None:
@@ -2940,7 +2940,7 @@ def test_admin_run_detail_shows_stage_artifacts_export_in_exports_card():
     assert resp.status_code == 200
     assert 'href="/admin/runs/test-stage-artifacts-btn/stage-artifacts.json"' in resp.text
     assert "Stage Artifacts JSON (Diagnostics)" in resp.text
-    assert resp.text.index("Run Exports") < resp.text.index("Event Timeline")
+    assert resp.text.index("<h3 style=\"margin:0 0 0.85rem\">Artifacts</h3>") > resp.text.index("Event Timeline")
 
 
 def test_admin_run_detail_shows_bundle_zip_export_link():
@@ -5706,6 +5706,8 @@ def test_run_detail_shows_synonym_regeneration_banner_without_review_card() -> N
     assert resp.status_code == 200
     assert "Regeneration summary" in resp.text
     assert "Synonym Proposal Review" not in resp.text
+    assert "AI-Assisted Review" not in resp.text
+    assert "Manual Review" not in resp.text
 
 def test_run_detail_shows_empty_synonym_decision_ledger_placeholder() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus
@@ -5733,6 +5735,136 @@ def test_run_detail_shows_empty_synonym_decision_ledger_placeholder() -> None:
         resp = TestClient(_app()).get("/admin/runs/run-synonym-ledger-empty")
     assert resp.status_code == 200
     assert "Proposal Decision Ledger: no rows yet (all suppressed or none generated)." in resp.text
+
+def test_run_detail_shows_review_mode_controls_in_synonym_decision_active_state() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-synonym-review-mode-active",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        synonym_proposals_json=(
+            '{"run_id":"run-synonym-review-mode-active","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-synonym-review-mode-active")
+    assert resp.status_code == 200
+    assert "AI-Assisted Review" in resp.text
+    assert "Manual Review" in resp.text
+    assert "id=\"synonym-batch-form\"" in resp.text
+
+def test_run_detail_summary_state_shows_synonym_workspace_cta() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-synonym-summary-workspace-cta",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        synonym_proposals_json=(
+            '{"run_id":"run-synonym-summary-workspace-cta","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"rejected","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get("/admin/runs/run-synonym-summary-workspace-cta")
+    assert resp.status_code == 200
+    assert "Open Synonym Review Workspace" in resp.text
+    assert "/admin/runs/run-synonym-summary-workspace-cta/synonym-review" in resp.text
+
+def test_synonym_review_workspace_route_redirects_to_run_detail_anchor() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-synonym-workspace-route",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        synonym_proposals_json=(
+            '{"run_id":"run-synonym-workspace-route","proposals":['
+            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
+            ']}'
+        ),
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get(
+            "/admin/runs/run-synonym-workspace-route/synonym-review",
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/admin/runs/run-synonym-workspace-route#synonym-manual-review"
+
+def test_synonym_review_workspace_route_redirects_with_unavailable_fallback() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-synonym-workspace-unavailable",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        synonym_proposals_json='{"run_id":"run-synonym-workspace-unavailable","proposals":[]}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run):
+        resp = TestClient(_app()).get(
+            "/admin/runs/run-synonym-workspace-unavailable/synonym-review",
+            follow_redirects=False,
+        )
+    assert resp.status_code == 303
+    assert resp.headers["location"] == "/admin/runs/run-synonym-workspace-unavailable?synonym_workspace_status=unavailable"
+
+def test_run_detail_shows_synonym_workspace_unavailable_message() -> None:
+    from fitcv_cp.models import PipelineRun, RunStatus
+    from datetime import datetime, timezone
+
+    run = PipelineRun(
+        run_id="run-synonym-workspace-unavailable-msg",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="web",
+        jobs_path="data/sample_jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.now(timezone.utc),
+        synonym_proposals_json='{"run_id":"run-synonym-workspace-unavailable-msg","proposals":[]}',
+    )
+    with patch("fitcv_cp.app.get_run", return_value=run), \
+         patch("fitcv_cp.app.get_events", return_value=[]), \
+         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
+         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
+         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+        resp = TestClient(_app()).get(
+            "/admin/runs/run-synonym-workspace-unavailable-msg?synonym_workspace_status=unavailable"
+        )
+    assert resp.status_code == 200
+    assert "Synonym review workspace is unavailable for this run right now." in resp.text
 
 def test_run_detail_hides_apply_approved_action_when_no_approved_rows() -> None:
     from fitcv_cp.models import PipelineRun, RunStatus

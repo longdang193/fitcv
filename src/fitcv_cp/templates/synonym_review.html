@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Synonym Workspace — Run {{ run.run_id[:8] }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Synonym Workspace <code>{{ run.run_id }}</code></h1>
+  <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+    <a href="/admin/runs/{{ run.run_id }}" class="btn-secondary">← Back To Run</a>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin:0 0 0.65rem">Synonym Overlay (Run-Scoped)</h3>
+  <div class="meta" style="margin-bottom:0.6rem">{% if synonym_overlay_info.has_run_overlay %}run-specific overlay active{% else %}using global default synonyms (no run overlay){% endif %}</div>
+  {% if can_upload_synonym_overlay %}
+  <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
+    <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:18rem">
+    <select name="overlay_upload_scope" style="min-width:11rem">
+      <option value="combined">Combined Upload</option>
+      <option value="skill">Skills Upload</option>
+      <option value="domain">Domain Upload</option>
+      <option value="role_family">Role Family Upload</option>
+    </select>
+    <button type="submit" class="btn-secondary">Replace Run Overlay YAML</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3 style="margin:0 0 0.35rem">Synonyms</h3>
+  <div class="meta" style="margin-bottom:0.75rem">{{ synonym_proposal_review_queue.pending_count }} pending of {{ synonym_proposal_review_queue.total_count }} proposal(s).</div>
+
+  <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;margin-bottom:0.35rem">
+    <button class="btn-secondary" type="button" id="review-mode-ai">AI-Assisted Decide + Promote</button>
+    <button class="btn-secondary" type="button" id="review-mode-manual">Manual Decide + Promote</button>
+  </div>
+  <div class="meta" style="margin-bottom:0.85rem">
+    AI-assisted fills recommended actions for pending rows. Manual keeps every row decision explicit.
+  </div>
+
+  <form id="synonym-triage-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/triage-refresh" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+    <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
+    <input type="hidden" name="note" value="ui:triage-refresh">
+    <button class="btn-secondary" type="submit">Refresh Triage Recommendations</button>
+  </form>
+  <form id="synonym-batch-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/batch-action" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+    <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
+    <input type="hidden" name="note" value="ui:batch-action">
+    <button class="btn-secondary" type="submit">Submit Selected Decisions</button>
+    <button class="btn-secondary" type="button" id="apply-recommendations-btn">Apply Recommendations</button>
+  </form>
+  <div class="meta" id="synonym-mode-status" style="margin:-0.45rem 0 0.85rem 0"></div>
+  <form id="synonym-promote-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-preview" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+    <button class="btn-secondary" type="submit">Preview Promote to Global</button>
+  </form>
+
+  {% set synonym_field_groups = [("skill", "Skills"), ("domain", "Domain"), ("role_family", "Role Family")] %}
+  {% for field_key, field_label in synonym_field_groups %}
+  {% set field_items = synonym_proposal_review_queue.get("items_by_field", {}).get(field_key, []) %}
+  <div class="sub-card" style="padding:0.7rem;margin-bottom:0.7rem">
+    <div style="font-weight:700;margin-bottom:0.45rem">{{ field_label }}</div>
+    {% if field_items %}
+    <div style="display:flex;flex-direction:column;gap:0.85rem">
+      {% for item in field_items %}
+      <div class="sub-card" style="padding:0.8rem">
+        <div style="font-weight:700"><code>{{ item.alias }}</code> → <code>{{ item.canonical }}</code></div>
+        <div class="meta">confidence: {{ '%.2f'|format(item.confidence) }}</div>
+        {% if item.recommended_action %}
+        <div class="meta" style="margin-top:0.2rem">Recommendation: <strong>{{ item.recommended_action }}</strong></div>
+        {% else %}
+        <div class="meta" style="margin-top:0.2rem">Recommendation: <strong>—</strong></div>
+        {% endif %}
+        <div class="meta" style="margin-top:0.2rem">
+          Decision:
+          <strong>
+            {% if item.status in ['proposed_unreviewed', 'in_review'] %}pending
+            {% elif item.status == 'deferred' %}defer
+            {% elif item.status == 'rejected' %}reject
+            {% elif item.status == 'approved_for_run_overlay' %}approve
+            {% else %}{{ item.status }}
+            {% endif %}
+          </strong>
+        </div>
+        {% if item.pending %}
+        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem">
+          <select name="proposal_action__{{ item.proposal_id }}" form="synonym-batch-form" data-recommended-action="{{ item.recommended_action or '' }}">
+            <option value="">Keep Pending</option>
+            <option value="approve">Approve</option>
+            <option value="defer">Defer</option>
+            <option value="reject">Reject</option>
+          </select>
+          <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline"><input type="hidden" name="action" value="approve"><button class="btn-secondary" type="submit">Approve</button></form>
+          <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline"><input type="hidden" name="action" value="defer"><button class="btn-secondary" type="submit">Defer</button></form>
+          <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline"><input type="hidden" name="action" value="reject"><button class="btn-secondary" type="submit">Reject</button></form>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="meta">No {{ field_label|lower }} proposals pending review for this run.</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="card">
+  <h3 style="margin:0 0 0.35rem">Proposal Decision Ledger</h3>
+  {% if synonym_proposal_decision_ledger %}
+  <div style="overflow:auto;max-height:18rem;border:1px solid var(--accent);border-radius:6px">
+    <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+      <thead>
+        <tr style="background:var(--panel-bg)">
+          <th style="text-align:left;padding:0.35rem 0.5rem">Alias</th>
+          <th style="text-align:left;padding:0.35rem 0.5rem">Canonical</th>
+          <th style="text-align:left;padding:0.35rem 0.5rem">Source</th>
+          <th style="text-align:left;padding:0.35rem 0.5rem">Recommendation</th>
+          <th style="text-align:left;padding:0.35rem 0.5rem">Decision</th>
+          <th style="text-align:left;padding:0.35rem 0.5rem">Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in synonym_proposal_decision_ledger %}
+        <tr>
+          <td style="padding:0.3rem 0.5rem"><code>{{ row.alias }}</code></td>
+          <td style="padding:0.3rem 0.5rem"><code>{{ row.canonical }}</code></td>
+          <td style="padding:0.3rem 0.5rem">{{ row.decision_source }}</td>
+          <td style="padding:0.3rem 0.5rem">{{ row.recommendation or '—' }}</td>
+          <td style="padding:0.3rem 0.5rem">{{ row.decision or '—' }}</td>
+          <td style="padding:0.3rem 0.5rem">{{ row.decision_reason }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+    Proposal Decision Ledger: no rows yet (all suppressed or none generated).
+  </div>
+  {% endif %}
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const reviewModeAiBtn = document.getElementById('review-mode-ai');
+  const reviewModeManualBtn = document.getElementById('review-mode-manual');
+  const applyRecommendationsBtn = document.getElementById('apply-recommendations-btn');
+  const modeStatus = document.getElementById('synonym-mode-status');
+  const pendingSelects = () => Array.from(
+    document.querySelectorAll('select[form="synonym-batch-form"][data-recommended-action]')
+  );
+
+  const applyRecommendations = () => {
+    let applied = 0;
+    pendingSelects().forEach((selectEl) => {
+      if (!selectEl || selectEl.value) return;
+      const recommended = (selectEl.getAttribute('data-recommended-action') || '').trim();
+      if (recommended === 'approve' || recommended === 'defer' || recommended === 'reject') {
+        selectEl.value = recommended;
+        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+        applied += 1;
+      }
+    });
+    if (modeStatus) modeStatus.textContent = applied > 0
+      ? `AI-assisted mode filled ${applied} recommended action(s).`
+      : 'AI-assisted mode found no pending recommended actions.';
+  };
+
+  const clearSelections = () => {
+    let cleared = 0;
+    pendingSelects().forEach((selectEl) => {
+      if (!selectEl || !selectEl.value) return;
+      selectEl.value = '';
+      selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+      cleared += 1;
+    });
+    if (modeStatus) modeStatus.textContent = cleared > 0
+      ? `Manual mode cleared ${cleared} prefilled action(s).`
+      : 'Manual mode active. Pick each decision explicitly.';
+  };
+
+  if (applyRecommendationsBtn) {
+    applyRecommendationsBtn.addEventListener('click', applyRecommendations);
+  }
+  if (reviewModeAiBtn) {
+    reviewModeAiBtn.addEventListener('click', applyRecommendations);
+  }
+  if (reviewModeManualBtn) {
+    reviewModeManualBtn.addEventListener('click', clearSelections);
+  }
+});
+</script>
+{% endblock %}
