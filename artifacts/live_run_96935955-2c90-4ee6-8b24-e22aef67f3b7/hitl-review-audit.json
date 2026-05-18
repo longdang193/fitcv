@@ -1,0 +1,89 @@
+{
+  "schema_version": "hitl_review_audit_v1",
+  "run_id": "96935955-2c90-4ee6-8b24-e22aef67f3b7",
+  "status": "succeeded",
+  "summary": {
+    "review_required_total": 3,
+    "pending_total": 0,
+    "actions_total": 3,
+    "closure_mode": "all_review_rows_terminal",
+    "resolution_totals": {
+      "approved_as_is": 3
+    },
+    "accepted_cv_total": 3,
+    "requires_no_accepted_ack": false
+  },
+  "queue_items": [
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+      "job_title": "Business & Data Analyst - B2B2C",
+      "fit_classification": "stretch",
+      "reason": "Unsupported requirements require review: Google Sheets, business intelligence (BI), data lakes, data warehousing (DWH), pivot tables. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "action": "approve_as_is",
+      "action_at": "2026-05-18T16:36:48.264144+00:00",
+      "action_by": "admin",
+      "resolution_status": "approved_as_is",
+      "pending": false,
+      "cv_markdown_preview": "# Nguyen Van A\n**Business & Data Analyst (B2B2C) | SQL, Power BI, Looker**\n\n## Summary\nBusiness-facing data analyst/engineer with experience building dashboards, KPI reporting, and analytics pipelines using SQL, Power BI, Looker, and BigQuery. Delivered self-service reporting for product and sales stakeholders, automated recurring reporting with Python, and built streaming + dbt transformation workflows to cut latency and enable near real-time insights.\n\n## Education\n\n### M.Sc. Data Engineering — Technical University Berlin (2017-10–2019-09)\n*Data Engineering*\n\n### B.Sc. Computer Science — TU Munich (2014-10–2017-09)\n*Computer Science*\n\n## Experience\n\n### Senior Data Engineer — Acme Analytics GmbH (2023-01–present)\n\n- Built GA4 to BigQuery pipeline processing 2M daily events with dbt transformations, reducing reporting latency by 40%.\n- Designed Pub/Sub → Dataflow → BigQuery streaming architecture enabling real-time dashboard updates under 30 seconds.\n\n### Data Engineer — Fintech Startup GmbH (2021-06–2022-12)\n\n- Built self-service Looker dashboards for product KPI monitoring, reducing ad-hoc reporting requests by 60%.\n- Wrote Python ETL scripts to consolidate CRM and marketing data into BigQuery, enabling unified customer analytics.\n\n### Junior Data Analyst — RetailCo AG (2019-09–2021-05)\n\n- Maintained, extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.\n- Automated weekly reporting workflows with Python scripts and Windows Task Scheduler, saving 8 hours/month.\n\n## Skills\npower bi, dax, looker, lookml, reporting, excel, sql, sql server, google bigquery, dbt, etl, google cloud, pub/sub, dataflow, dataproc, apache beam, apache spark, python, pandas, data quality, great expectations, ci/cd, github actions, docker, terraform, google analytics, machine learning, genai, fraud detection, salesforce api\n\n## Certifications\n\n## Projects\n\n### FitCV — AI-Powered CV Generation Pipeline\n- Built end-to-end pipeline ingesting job postings, matching to candidate profiles with BigQuery ML embeddings, generating tailored CVs via Vertex AI Gemini 2.5 Flash; reduced manual tailoring time from 2 hours to under 5 minutes per application.\n- Ingested 5,000+ LinkedIn job postings via scraper pipeline.\n- Reached 89% relevance score on candidate–job matching via embedding similarity.\n\n## Languages\n\n- Vietnamese (native)\n- English (read: C2, w\n...[truncated in review queue]",
+      "cv_preview_available": true
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+      "job_title": "Data Analyst - Data Quality",
+      "fit_classification": "stretch",
+      "reason": "Unsupported requirements require review: 3NF, Confluence, Data Vault, Jira, data visualization, requirements management. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "action": "approve_as_is",
+      "action_at": "2026-05-18T16:36:48.264144+00:00",
+      "action_by": "admin",
+      "resolution_status": "approved_as_is",
+      "pending": false,
+      "cv_markdown_preview": "# Nguyen Van A\n**Data Analyst / Data Engineer — Data Quality, SQL, BI (Power BI, MicroStrategy)**\n\n## Summary\nData analyst/data engineer. Strong SQL, BI reporting (Power BI, MicroStrategy). Build automated pipelines, KPI dashboards, QA checks to keep data consistent, trusted, reusable across teams.\n\n## Education\n\n### M.Sc. Data Engineering — Technical University Berlin (2017-10–2019-09)\n*Data Engineering*\n\n### B.Sc. Computer Science — TU Munich (2014-10–2017-09)\n*Computer Science*\n\n## Experience\n\n### Data Engineer — Fintech Startup GmbH (2021-06–2022-12)\n\n- Wrote Python ETL scripts to consolidate CRM and marketing data into Google BigQuery, enabling unified customer analytics.\n- Built self-service Looker dashboards for product KPI monitoring, reducing ad-hoc reporting requests by 60%.\n\n### Junior Data Analyst — RetailCo AG (2019-09–2021-05)\n\n- Maintained and extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.\n- Automated weekly reporting workflows with Python scripts and Windows Task Scheduler, saving 8 hours/month.\n\n## Skills\npower bi, dax, reporting, excel, sql, sql server, etl, google bigquery, looker, lookml, dbt, python, pandas, docker, bash, pub/sub, apache kafka, aws kinesis, machine learning, fraud detection, salesforce api\n\n## Certifications\n\n## Projects\n\n### Open-Source dbt Package for Marketing Attribution\n- Built reusable dbt package for multi-touch marketing attribution (first-touch, last-touch, linear); 150+ GitHub stars; used by 12 companies.\n- Delivered 100% test coverage with dbt-expectations and pytest.\n\n### Real-Time Fraud Detection on AWS\n- Built real-time fraud detection system processing 10,000 transactions/minute with sub-100ms latency; improved precision to 94%; cut false positives by 30%.\n- Trained and deployed Google BigQuery ML random forest model (94% precision, 91% recall); integrated into Kafka consumer pipeline with zero downtime.\n\n## Languages\n\n- Vietnamese (native)\n- English (C2 (IELTS 8.0, 2022))\n- German (Read C1, Write B2, Speak B2 (TestDaF 16, 2020))\n- French (Read B1, Write A2, Speak A2)",
+      "cv_preview_available": true
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+      "fit_classification": "stretch",
+      "reason": "Unsupported requirements require review: LangChain, MLOps, NumPy, PyTorch, SciPy, TensorFlow. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "action": "approve_as_is",
+      "action_at": "2026-05-18T16:36:48.264144+00:00",
+      "action_by": "admin",
+      "resolution_status": "approved_as_is",
+      "pending": false,
+      "cv_markdown_preview": "# Nguyen Van A\n**Freelance Data Scientist (Python & SQL) — Analytics, ETL, BI, ML Systems**\n\n## Summary\nData scientist / analyst background in Python, pandas, SQL across retail analytics, fintech data engineering, fraud detection ML. Build automated reporting, ELT/ETL pipelines, BigQuery-centered analytics, self-serve BI. Open-source contributor: dbt package for marketing attribution with production adopters.\n\n## Education\n\n### M.Sc. Data Engineering — Technical University Berlin (2017-10–2019-09)\n*Data Engineering*\n\n### B.Sc. Computer Science — TU Munich (2014-10–2017-09)\n*Computer Science*\n\n## Experience\n\n### Data Engineer — Fintech Startup GmbH (2021-06–2022-12)\n\n- Wrote Python ETL scripts to consolidate CRM and marketing data into Google BigQuery, enabling unified customer analytics.\n- Built self-service Looker dashboards for product KPI monitoring, reducing ad-hoc reporting requests by 60%.\n\n### Junior Data Analyst — RetailCo AG (2019-09–2021-05)\n\n- Automated weekly reporting workflows with Python scripts and Windows Task Scheduler, saving 8 hours/month.\n- Maintained and extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.\n\n## Skills\npython, sql, bash, pandas, etl, google bigquery, sql server, dbt, power bi, dax, excel, reporting, looker, lookml, machine learning, fraud detection, apache kafka, aws kinesis, pub/sub, salesforce api, docker\n\n## Certifications\n\n## Projects\n\n### Real-Time Fraud Detection on AWS\n- Built real-time fraud detection system processing 10,000 transactions/minute with sub-100ms latency; achieved 94% precision, 91% recall; reduced false positives by 30% vs prior rule-based system.\n- Trained and deployed BigQuery ML random forest; integrated with existing Apache Kafka consumer pipeline with zero downtime.\n- Stack: machine learning, python, google bigquery, aws kinesis, apache kafka.\n\n### Open-Source dbt Package for Marketing Attribution\n- Created reusable dbt package for multi-touch marketing attribution (first-touch, last-touch, linear); 150+ GitHub stars; used by 12 companies.\n- Delivered 100% test coverage using dbt-expectations and pytest; packaged with setuptools.\n- Stack: dbt, python.\n\n## Languages\n\n- Vietnamese (native)\n- English (read: C2, write: C2, speak: C2 — IELTS 8.0 (2022))\n- German (read: C1, write: B2, speak: B2 — TestDaF 16 (2020))\n- French (read: B1, write: A2, speak: A2)",
+      "cv_preview_available": true
+    }
+  ],
+  "actions": [
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+      "action": "approve_as_is",
+      "resolution_status": "approved_as_is",
+      "artifact_finalized": true,
+      "artifact_version_id": "ac3923c6-4359-49fd-8bf0-c355b135b4c9",
+      "actor": "admin",
+      "note": null,
+      "created_at": "2026-05-18T16:36:48.264144+00:00"
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+      "action": "approve_as_is",
+      "resolution_status": "approved_as_is",
+      "artifact_finalized": true,
+      "artifact_version_id": "a0f04256-0192-4355-88a6-4629849a93a4",
+      "actor": "admin",
+      "note": null,
+      "created_at": "2026-05-18T16:36:48.264144+00:00"
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "action": "approve_as_is",
+      "resolution_status": "approved_as_is",
+      "artifact_finalized": true,
+      "artifact_version_id": "ec18a26b-b96f-4d9d-a222-c19a5c835953",
+      "actor": "admin",
+      "note": null,
+      "created_at": "2026-05-18T16:36:48.264144+00:00"
+    }
+  ]
+}

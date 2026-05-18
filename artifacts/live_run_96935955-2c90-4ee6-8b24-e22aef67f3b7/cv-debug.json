@@ -1,0 +1,3512 @@
+{
+  "run_id": "96935955-2c90-4ee6-8b24-e22aef67f3b7",
+  "status": "succeeded",
+  "debug_schema_version": "cv_generation_debug_v3",
+  "run_mode": "run_all",
+  "run_mode_label": "Run All",
+  "created_at": "2026-05-18T16:36:18.508930+00:00",
+  "ranked_jobs_total": 4,
+  "debug_records_captured": 4,
+  "attempted_generation_jobs_total": 4,
+  "non_attempted_ranked_jobs_total": 0,
+  "omission_reason_counts": {},
+  "snapshot_complete": true,
+  "debug_records": [
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+      "job_title": "Business & Data Analyst - B2B2C",
+      "status": "review_required",
+      "ranking_fit_label": "stretch",
+      "reranker_fit_label": "stretch",
+      "fit_classification": "stretch",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "review_required",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "SQL",
+          "data lakes",
+          "PowerBI",
+          "Looker",
+          "Tableau",
+          "Excel",
+          "Google Sheets",
+          "pivot tables",
+          "data modeling",
+          "business intelligence (BI)",
+          "data warehousing (DWH)"
+        ],
+        "preferred_skills": [
+          "Telecom",
+          "MVNE",
+          "MVNO"
+        ],
+        "responsibilities": [
+          "Own business and performance analysis across B2B2C products, partners, and markets",
+          "Analyze large datasets to identify trends, risks, and opportunities",
+          "Build and maintain commercial and operational reports (revenue, margins, ARPU, churn, usage, onboarding KPIs)",
+          "Translate raw data into narratives and recommendations for senior stakeholders",
+          "Support pricing analysis, partner performance reviews, and business cases",
+          "Work with Product, Sales, Finance, and Operations teams to align data with business reality",
+          "Ensure data accuracy, consistency, and logical interpretation across reports and dashboards"
+        ],
+        "job_family": "analytics",
+        "domain": "telecommunications"
+      },
+      "evidence_used": [
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[2]",
+          "name": "Junior Data Analyst — RetailCo AG",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "responsibility_alignment",
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.181818,
+              "semantic": 0.244678,
+              "combined": 0.200676
+            },
+            "role_alignment": {
+              "lexical": 1.0,
+              "semantic": 0.278454,
+              "combined": 0.711382
+            },
+            "responsibility_alignment": {
+              "lexical": 0.072727,
+              "semantic": 0.350298,
+              "combined": 0.280905
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[0]",
+          "name": "FitCV — AI-Powered CV Generation Pipeline",
+          "matched_channels": [
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.355582,
+              "combined": 0.213349
+            },
+            "responsibility_alignment": {
+              "lexical": 0.018182,
+              "semantic": 0.317323,
+              "combined": 0.242538
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[3]",
+          "name": "Cut compute costs by 35% by migrating legacy Spark jobs to Dataproc Serverless.",
+          "matched_channels": [
+            "required_skill_support",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "required_skill_support",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.0,
+              "semantic": 0.51799,
+              "combined": 0.155397
+            },
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.19605,
+              "combined": 0.11763
+            },
+            "responsibility_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.403502,
+              "combined": 0.302627
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[0]",
+          "name": "Senior Data Engineer — Acme Analytics GmbH",
+          "matched_channels": [
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "selection_reasons": [
+            "domain_alignment",
+            "role_alignment"
+          ],
+          "channel_subscores": {
+            "role_alignment": {
+              "lexical": 0.25,
+              "semantic": 0.126674,
+              "combined": 0.20067
+            },
+            "domain_alignment": {
+              "lexical": 0.5,
+              "semantic": 0.369583,
+              "combined": 0.42175
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[1]",
+          "name": "Data Engineer — Fintech Startup GmbH",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "responsibility_alignment",
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.181818,
+              "semantic": 0.266556,
+              "combined": 0.20724
+            },
+            "role_alignment": {
+              "lexical": 0.25,
+              "semantic": 0.185174,
+              "combined": 0.22407
+            },
+            "domain_alignment": {
+              "lexical": 0.5,
+              "semantic": 0.0,
+              "combined": 0.2
+            },
+            "responsibility_alignment": {
+              "lexical": 0.072727,
+              "semantic": 0.269442,
+              "combined": 0.220263
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        }
+      ],
+      "evidence_selection_summary": {
+        "channel_counts": {
+          "required_skill_support": 4,
+          "role_alignment": 4,
+          "domain_alignment": 4,
+          "responsibility_alignment": 4
+        },
+        "fallback_used": false,
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 16,
+        "deduped_pool_size": 7,
+        "selected_evidence_count": 5,
+        "selected_evidence_ids": [
+          "exp_3",
+          "proj_1",
+          "ach_4",
+          "exp_1",
+          "exp_2"
+        ],
+        "unselected_top_candidates": [
+          {
+            "evidence_id": "ach_3",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards.",
+            "matched_channels": [
+              "required_skill_support"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.090909,
+                "semantic": 0.306286,
+                "combined": 0.155522
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_2",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[1]",
+            "name": "Enabled real-time dashboard updates under 30 seconds via Pub/Sub → Dataflow streaming architecture.",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.340488,
+                "combined": 0.136195
+              }
+            }
+          }
+        ],
+        "hybrid_alignment": {
+          "required_skill_support": {
+            "lexical_weight": 0.7,
+            "semantic_weight": 0.3
+          },
+          "role_alignment": {
+            "lexical_weight": 0.6,
+            "semantic_weight": 0.4
+          },
+          "responsibility_alignment": {
+            "lexical_weight": 0.25,
+            "semantic_weight": 0.75
+          },
+          "domain_alignment": {
+            "lexical_weight": 0.4,
+            "semantic_weight": 0.6
+          }
+        },
+        "semantic_alignment": {
+          "enabled": true,
+          "semantic_methods": {
+            "required_skill_support": "embedding_similarity",
+            "role_alignment": "embedding_similarity",
+            "responsibility_alignment": "embedding_similarity",
+            "domain_alignment": "embedding_similarity"
+          },
+          "reuse_state": {
+            "candidate_evidence": "mixed_fresh_and_reused",
+            "job_context": "mixed_fresh_and_reused"
+          },
+          "embedding_counts": {
+            "candidate_evidence": {
+              "fresh": 32,
+              "reused": 20
+            },
+            "job_context": {
+              "fresh": 23,
+              "reused": 276
+            }
+          }
+        }
+      },
+      "gap_summary": {
+        "matched": [
+          "SQL",
+          "PowerBI",
+          "Looker",
+          "Tableau",
+          "Excel",
+          "data modeling"
+        ],
+        "partial": [],
+        "missing": [
+          "data lakes",
+          "Google Sheets",
+          "pivot tables",
+          "business intelligence (BI)",
+          "data warehousing (DWH)"
+        ],
+        "matchable_required_count": 11,
+        "ignored_for_fit": [],
+        "years_risk": false,
+        "overclaim_risk": []
+      },
+      "structured_cv_initial": {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+        "fit_classification": "stretch",
+        "target_role": "Business & Data Analyst - B2B2C",
+        "sections": {
+          "header": {
+            "name": "Nguyen Van A",
+            "title": "Business & Data Analyst (B2B2C) | SQL, Power BI, Looker",
+            "location": "Berlin, Germany",
+            "contact": {
+              "email": "nguyen.vana@email.com",
+              "phone": "+49 170 123 4567",
+              "linkedin": "https://linkedin.com/in/nguyenvana"
+            }
+          },
+          "summary": {
+            "text": "Business-facing data analyst/engineer with experience building dashboards, KPI reporting, and analytics pipelines using SQL, Power BI, Looker, and BigQuery. Delivered self-service reporting for product and sales stakeholders, automated recurring reporting with Python, and built streaming + dbt transformation workflows to cut latency and enable near real-time insights."
+          },
+          "experience": [
+            {
+              "role": "Senior Data Engineer",
+              "company": "Acme Analytics GmbH",
+              "start": "2023-01",
+              "end": "present",
+              "location": null,
+              "bullets": [
+                "Built GA4 to BigQuery pipeline processing 2M daily events with dbt transformations, reducing reporting latency by 40%.",
+                "Designed Pub/Sub → Dataflow → BigQuery streaming architecture enabling real-time dashboard updates under 30 seconds."
+              ]
+            },
+            {
+              "role": "Data Engineer",
+              "company": "Fintech Startup GmbH",
+              "start": "2021-06",
+              "end": "2022-12",
+              "location": null,
+              "bullets": [
+                "Built self-service Looker dashboards for product KPI monitoring, reducing ad-hoc reporting requests by 60%.",
+                "Wrote Python ETL scripts to consolidate CRM and marketing data into BigQuery, enabling unified customer analytics."
+              ]
+            },
+            {
+              "role": "Junior Data Analyst",
+              "company": "RetailCo AG",
+              "start": "2019-09",
+              "end": "2021-05",
+              "location": null,
+              "bullets": [
+                "Maintained, extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.",
+                "Automated weekly reporting workflows with Python scripts and Windows Task Scheduler, saving 8 hours/month."
+              ]
+            }
+          ],
+          "projects": [
+            {
+              "name": "FitCV — AI-Powered CV Generation Pipeline",
+              "context": null,
+              "bullets": [
+                "Built end-to-end pipeline ingesting job postings, matching to candidate profiles with BigQuery ML embeddings, generating tailored CVs via Vertex AI Gemini 2.5 Flash; reduced manual tailoring time from 2 hours to under 5 minutes per application.",
+                "Ingested 5,000+ LinkedIn job postings via scraper pipeline.",
+                "Reached 89% relevance score on candidate–job matching via embedding similarity."
+              ]
+            }
+          ],
+          "education": [
+            {
+              "degree": "M.Sc. Data Engineering",
+              "institution": "Technical University Berlin",
+              "field": "Data Engineering",
+              "start": "2017-10",
+              "end": "2019-09"
+            },
+            {
+              "degree": "B.Sc. Computer Science",
+              "institution": "TU Munich",
+              "field": "Computer Science",
+              "start": "2014-10",
+              "end": "2017-09"
+            }
+          ],
+          "skills": {
+            "groups": [
+              {
+                "label": "Analytics & BI",
+                "items": [
+                  "power bi",
+                  "dax",
+                  "looker",
+                  "lookml",
+                  "reporting",
+                  "excel"
+                ]
+              },
+              {
+                "label": "Data & Cloud",
+                "items": [
+                  "sql",
+                  "sql server",
+                  "google bigquery",
+                  "dbt",
+                  "etl",
+                  "google cloud",
+                  "pub/sub",
+                  "dataflow",
+                  "dataproc",
+                  "apache beam",
+                  "apache spark"
+                ]
+              },
+              {
+                "label": "Engineering & Quality",
+                "items": [
+                  "python",
+                  "pandas",
+                  "data quality",
+                  "great expectations",
+                  "ci/cd",
+                  "github actions",
+                  "docker",
+                  "terraform"
+                ]
+              },
+              {
+                "label": "Product/Marketing Analytics",
+                "items": [
+                  "google analytics",
+                  "machine learning",
+                  "genai",
+                  "fraud detection",
+                  "salesforce api"
+                ]
+              }
+            ]
+          },
+          "certifications": [],
+          "publications": [],
+          "languages": [
+            {
+              "name": "Vietnamese",
+              "level": "native"
+            },
+            {
+              "name": "English",
+              "level": "read: C2, write: C2, speak: C2 — IELTS 8.0 (2022)"
+            },
+            {
+              "name": "German",
+              "level": "read: C1, write: B2, speak: B2 — TestDaF 16 (2020)"
+            },
+            {
+              "name": "French",
+              "level": "read: B1, write: A2, speak: A2"
+            }
+          ]
+        }
+      },
+      "validation_initial": {
+        "valid": true,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {
+          "hard_fact_mode": "selected_evidence",
+          "soft_claim_mode": "hybrid_selected_evidence",
+          "selected_evidence_ids": [
+            "exp_3",
+            "proj_1",
+            "ach_4",
+            "exp_1",
+            "exp_2"
+          ],
+          "selected_evidence_count": 5,
+          "deterministic_supported_soft_claims": 3,
+          "semantic_supported_soft_claims": 6,
+          "evaluated_soft_claims": 9
+        },
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": []
+      },
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+        "fit_classification": "stretch",
+        "target_role": "Business & Data Analyst - B2B2C",
+        "sections": {
+          "header": {
+            "name": "Nguyen Van A",
+            "title": "Business & Data Analyst (B2B2C) | SQL, Power BI, Looker",
+            "location": "Berlin, Germany",
+            "contact": {
+              "email": "nguyen.vana@email.com",
+              "phone": "+49 170 123 4567",
+              "linkedin": "https://linkedin.com/in/nguyenvana"
+            }
+          },
+          "summary": {
+            "text": "Business-facing data analyst/engineer with experience building dashboards, KPI reporting, and analytics pipelines using SQL, Power BI, Looker, and BigQuery. Delivered self-service reporting for product and sales stakeholders, automated recurring reporting with Python, and built streaming + dbt transformation workflows to cut latency and enable near real-time insights."
+          },
+          "experience": [
+            {
+              "role": "Senior Data Engineer",
+              "company": "Acme Analytics GmbH",
+              "start": "2023-01",
+              "end": "present",
+              "location": null,
+              "bullets": [
+                "Built GA4 to BigQuery pipeline processing 2M daily events with dbt transformations, reducing reporting latency by 40%.",
+                "Designed Pub/Sub → Dataflow → BigQuery streaming architecture enabling real-time dashboard updates under 30 seconds."
+              ]
+            },
+            {
+              "role": "Data Engineer",
+              "company": "Fintech Startup GmbH",
+              "start": "2021-06",
+              "end": "2022-12",
+              "location": null,
+              "bullets": [
+                "Built self-service Looker dashboards for product KPI monitoring, reducing ad-hoc reporting requests by 60%.",
+                "Wrote Python ETL scripts to consolidate CRM and marketing data into BigQuery, enabling unified customer analytics."
+              ]
+            },
+            {
+              "role": "Junior Data Analyst",
+              "company": "RetailCo AG",
+              "start": "2019-09",
+              "end": "2021-05",
+              "location": null,
+              "bullets": [
+                "Maintained, extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.",
+                "Automated weekly reporting workflows with Python scripts and Windows Task Scheduler, saving 8 hours/month."
+              ]
+            }
+          ],
+          "projects": [
+            {
+              "name": "FitCV — AI-Powered CV Generation Pipeline",
+              "context": null,
+              "bullets": [
+                "Built end-to-end pipeline ingesting job postings, matching to candidate profiles with BigQuery ML embeddings, generating tailored CVs via Vertex AI Gemini 2.5 Flash; reduced manual tailoring time from 2 hours to under 5 minutes per application.",
+                "Ingested 5,000+ LinkedIn job postings via scraper pipeline.",
+                "Reached 89% relevance score on candidate–job matching via embedding similarity."
+              ]
+            }
+          ],
+          "education": [
+            {
+              "degree": "M.Sc. Data Engineering",
+              "institution": "Technical University Berlin",
+              "field": "Data Engineering",
+              "start": "2017-10",
+              "end": "2019-09"
+            },
+            {
+              "degree": "B.Sc. Computer Science",
+              "institution": "TU Munich",
+              "field": "Computer Science",
+              "start": "2014-10",
+              "end": "2017-09"
+            }
+          ],
+          "skills": {
+            "groups": [
+              {
+                "label": "Analytics & BI",
+                "items": [
+                  "power bi",
+                  "dax",
+                  "looker",
+                  "lookml",
+                  "reporting",
+                  "excel"
+                ]
+              },
+              {
+                "label": "Data & Cloud",
+                "items": [
+                  "sql",
+                  "sql server",
+                  "google bigquery",
+                  "dbt",
+                  "etl",
+                  "google cloud",
+                  "pub/sub",
+                  "dataflow",
+                  "dataproc",
+                  "apache beam",
+                  "apache spark"
+                ]
+              },
+              {
+                "label": "Engineering & Quality",
+                "items": [
+                  "python",
+                  "pandas",
+                  "data quality",
+                  "great expectations",
+                  "ci/cd",
+                  "github actions",
+                  "docker",
+                  "terraform"
+                ]
+              },
+              {
+                "label": "Product/Marketing Analytics",
+                "items": [
+                  "google analytics",
+                  "machine learning",
+                  "genai",
+                  "fraud detection",
+                  "salesforce api"
+                ]
+              }
+            ]
+          },
+          "certifications": [],
+          "publications": [],
+          "languages": [
+            {
+              "name": "Vietnamese",
+              "level": "native"
+            },
+            {
+              "name": "English",
+              "level": "read: C2, write: C2, speak: C2 — IELTS 8.0 (2022)"
+            },
+            {
+              "name": "German",
+              "level": "read: C1, write: B2, speak: B2 — TestDaF 16 (2020)"
+            },
+            {
+              "name": "French",
+              "level": "read: B1, write: A2, speak: A2"
+            }
+          ]
+        }
+      },
+      "markdown_final": "# Nguyen Van A\n**Business & Data Analyst (B2B2C) | SQL, Power BI, Looker**\n\n## Summary\nBusiness-facing data analyst/engineer with experience building dashboards, KPI reporting, and analytics pipelines using SQL, Power BI, Looker, and BigQuery. Delivered self-service reporting for product and sales stakeholders, automated recurring reporting with Python, and built streaming + dbt transformation workflows to cut latency and enable near real-time insights.\n\n## Education\n\n### M.Sc. Data Engineering — Technical University Berlin (2017-10–2019-09)\n*Data Engineering*\n\n### B.Sc. Computer Science — TU Munich (2014-10–2017-09)\n*Computer Science*\n\n## Experience\n\n### Senior Data Engineer — Acme Analytics GmbH (2023-01–present)\n\n- Built GA4 to BigQuery pipeline processing 2M daily events with dbt transformations, reducing reporting latency by 40%.\n- Designed Pub/Sub → Dataflow → BigQuery streaming architecture enabling real-time dashboard updates under 30 seconds.\n\n### Data Engineer — Fintech Startup GmbH (2021-06–2022-12)\n\n- Built self-service Looker dashboards for product KPI monitoring, reducing ad-hoc reporting requests by 60%.\n- Wrote Python ETL scripts to consolidate CRM and marketing data into BigQuery, enabling unified customer analytics.\n\n### Junior Data Analyst — RetailCo AG (2019-09–2021-05)\n\n- Maintained, extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.\n- Automated weekly reporting workflows with Python scripts and Windows Task Scheduler, saving 8 hours/month.\n\n## Skills\npower bi, dax, looker, lookml, reporting, excel, sql, sql server, google bigquery, dbt, etl, google cloud, pub/sub, dataflow, dataproc, apache beam, apache spark, python, pandas, data quality, great expectations, ci/cd, github actions, docker, terraform, google analytics, machine learning, genai, fraud detection, salesforce api\n\n## Certifications\n\n## Projects\n\n### FitCV — AI-Powered CV Generation Pipeline\n- Built end-to-end pipeline ingesting job postings, matching to candidate profiles with BigQuery ML embeddings, generating tailored CVs via Vertex AI Gemini 2.5 Flash; reduced manual tailoring time from 2 hours to under 5 minutes per application.\n- Ingested 5,000+ LinkedIn job postings via scraper pipeline.\n- Reached 89% relevance score on candidate–job matching via embedding similarity.\n\n## Languages\n\n- Vietnamese (native)\n- English (read: C2, write: C2, speak: C2 — IELTS 8.0 (2022))\n- German (read: C1, write: B2, speak: B2 — TestDaF 16 (2020))\n- French (read: B1, write: A2, speak: A2)\n",
+      "enabled_sections": [
+        "Summary",
+        "Education",
+        "Experience",
+        "Skills",
+        "Certifications",
+        "Projects",
+        "Languages"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "/app/src/fitcv/prompts/templates/cv_generation_structured_write_v1.md",
+      "outcome_reason": null,
+      "error": {
+        "stage": "review_gate",
+        "message": "Unsupported requirements require review: Google Sheets, business intelligence (BI), data lakes, data warehousing (DWH), pivot tables. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject."
+      },
+      "review_required_reason_code": "unsupported_requirement_gap",
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: Google Sheets, business intelligence (BI), data lakes, data warehousing (DWH), pivot tables. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_builtin_gemini",
+        "provider": "vertexai_gemini",
+        "model": "gemini-2.5-flash"
+      }
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+      "status": "review_required",
+      "ranking_fit_label": "stretch",
+      "reranker_fit_label": "stretch",
+      "fit_classification": "stretch",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "review_required",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "Python",
+          "pandas",
+          "NumPy",
+          "SciPy",
+          "scikit-learn",
+          "statsmodels",
+          "SQL",
+          "database operations",
+          "statistical analysis",
+          "machine learning",
+          "LLMs",
+          "RAG",
+          "prompt engineering",
+          "vector databases",
+          "MLOps",
+          "model deployment",
+          "TensorFlow",
+          "PyTorch",
+          "LangChain",
+          "matplotlib",
+          "seaborn"
+        ],
+        "responsibilities": [
+          "Design original computational data science problems simulating real-world analytical workflows across industries",
+          "Create problems requiring Python programming using standard data science libraries",
+          "Develop problems requiring non-trivial reasoning chains in data processing, statistical analysis, feature engineering, predictive modeling, insight extraction",
+          "Ensure problems computationally intensive and not solvable manually within reasonable timeframes",
+          "Create deterministic, reproducible problems (avoid stochastic elements or require fixed random seeds)",
+          "Base problems on real business challenges (customer analytics, risk assessment, fraud detection, forecasting, optimization, operational efficiency)",
+          "Design end-to-end problems spanning full data science pipeline (data ingestion, cleaning, EDA, modeling, validation, deployment considerations)",
+          "Incorporate big data processing scenarios requiring scalable computational approaches",
+          "Verify solutions using Python libraries and statistical methods",
+          "Document problem statements clearly and provide verified correct answers",
+          "Create training prompts and refine model responses for AI projects"
+        ],
+        "job_family": "data_science",
+        "domain": "generative ai",
+        "location_type": "remote"
+      },
+      "evidence_used": [
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[2]",
+          "name": "Junior Data Analyst — RetailCo AG",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "required_skill_support",
+            "role_alignment"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.166667,
+              "semantic": 0.438346,
+              "combined": 0.24817
+            },
+            "role_alignment": {
+              "lexical": 0.142857,
+              "semantic": 0.07793,
+              "combined": 0.116886
+            },
+            "responsibility_alignment": {
+              "lexical": 0.040816,
+              "semantic": 0.321012,
+              "combined": 0.250963
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 34,
+                "reused": 408
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[2]",
+          "name": "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards.",
+          "matched_channels": [
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "selection_reasons": [
+            "domain_alignment",
+            "role_alignment"
+          ],
+          "channel_subscores": {
+            "role_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.350416,
+              "combined": 0.140167
+            },
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.242192,
+              "combined": 0.145315
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 34,
+                "reused": 408
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[2]",
+          "name": "Open-Source dbt Package for Marketing Attribution",
+          "matched_channels": [
+            "required_skill_support"
+          ],
+          "selection_reasons": [
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.111111,
+              "semantic": 0.608312,
+              "combined": 0.260271
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 34,
+                "reused": 408
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[1]",
+          "name": "Data Engineer — Fintech Startup GmbH",
+          "matched_channels": [
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment"
+          ],
+          "channel_subscores": {
+            "responsibility_alignment": {
+              "lexical": 0.091837,
+              "semantic": 0.421285,
+              "combined": 0.338923
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 34,
+                "reused": 408
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[1]",
+          "name": "Real-Time Fraud Detection on AWS",
+          "matched_channels": [
+            "required_skill_support"
+          ],
+          "selection_reasons": [
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.111111,
+              "semantic": 0.465737,
+              "combined": 0.217499
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 34,
+                "reused": 408
+              }
+            }
+          }
+        }
+      ],
+      "evidence_selection_summary": {
+        "channel_counts": {
+          "required_skill_support": 4,
+          "role_alignment": 4,
+          "domain_alignment": 4,
+          "responsibility_alignment": 4
+        },
+        "fallback_used": false,
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 16,
+        "deduped_pool_size": 11,
+        "selected_evidence_count": 5,
+        "selected_evidence_ids": [
+          "exp_3",
+          "ach_3",
+          "proj_3",
+          "exp_2",
+          "proj_2"
+        ],
+        "unselected_top_candidates": [
+          {
+            "evidence_id": "exp_1",
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "Senior Data Engineer — Acme Analytics GmbH",
+            "matched_channels": [
+              "required_skill_support",
+              "domain_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.111111,
+                "semantic": 0.367744,
+                "combined": 0.188101
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.132409,
+                "combined": 0.079446
+              }
+            }
+          },
+          {
+            "evidence_id": "proj_1",
+            "evidence_type": "project_entry",
+            "source_ref": "projects[0]",
+            "name": "FitCV — AI-Powered CV Generation Pipeline",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.142857,
+                "semantic": 0.13503,
+                "combined": 0.139726
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.104353,
+                "combined": 0.062612
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_7",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[6]",
+            "name": "Won 2nd place at TU Munich University Hackathon (2017).",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.361336,
+                "combined": 0.271002
+              }
+            }
+          }
+        ],
+        "hybrid_alignment": {
+          "required_skill_support": {
+            "lexical_weight": 0.7,
+            "semantic_weight": 0.3
+          },
+          "role_alignment": {
+            "lexical_weight": 0.6,
+            "semantic_weight": 0.4
+          },
+          "responsibility_alignment": {
+            "lexical_weight": 0.25,
+            "semantic_weight": 0.75
+          },
+          "domain_alignment": {
+            "lexical_weight": 0.4,
+            "semantic_weight": 0.6
+          }
+        },
+        "semantic_alignment": {
+          "enabled": true,
+          "semantic_methods": {
+            "required_skill_support": "embedding_similarity",
+            "role_alignment": "embedding_similarity",
+            "responsibility_alignment": "embedding_similarity",
+            "domain_alignment": "embedding_similarity"
+          },
+          "reuse_state": {
+            "candidate_evidence": "mixed_fresh_and_reused",
+            "job_context": "mixed_fresh_and_reused"
+          },
+          "embedding_counts": {
+            "candidate_evidence": {
+              "fresh": 32,
+              "reused": 20
+            },
+            "job_context": {
+              "fresh": 34,
+              "reused": 408
+            }
+          }
+        }
+      },
+      "gap_summary": {
+        "matched": [
+          "Python",
+          "pandas",
+          "SQL"
+        ],
+        "partial": [
+          {
+            "required": "machine learning",
+            "candidate": "BigQuery ML",
+            "canonical": "machine learning"
+          },
+          {
+            "required": "LLMs",
+            "candidate": "Vertex AI",
+            "canonical": "genai"
+          },
+          {
+            "required": "RAG",
+            "candidate": "Vertex AI",
+            "canonical": "genai"
+          },
+          {
+            "required": "prompt engineering",
+            "candidate": "Vertex AI",
+            "canonical": "genai"
+          },
+          {
+            "required": "vector databases",
+            "candidate": "Vertex AI",
+            "canonical": "genai"
+          }
+        ],
+        "missing": [
+          "NumPy",
+          "SciPy",
+          "scikit-learn",
+          "statsmodels",
+          "database operations",
+          "statistical analysis",
+          "MLOps",
+          "model deployment",
+          "TensorFlow",
+          "PyTorch",
+          "LangChain",
+          "matplotlib",
+          "seaborn"
+        ],
+        "matchable_required_count": 21,
+        "ignored_for_fit": [],
+        "years_risk": false,
+        "overclaim_risk": []
+      },
+      "structured_cv_initial": {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "fit_classification": "stretch",
+        "target_role": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+        "sections": {
+          "header": {
+            "name": "Nguyen Van A",
+            "title": "Freelance Data Scientist (Python & SQL) — Analytics, ETL, BI, ML Systems",
+            "location": "Berlin, Germany",
+            "contact": {
+              "email": "nguyen.vana@email.com",
+              "phone": "+49 170 123 4567",
+              "linkedin": "https://linkedin.com/in/nguyenvana"
+            }
+          },
+          "summary": {
+            "text": "Data scientist / analyst background in Python, pandas, SQL across retail analytics, fintech data engineering, fraud detection ML. Build automated reporting, ELT/ETL pipelines, BigQuery-centered analytics, self-serve BI. Open-source contributor: dbt package for marketing attribution with production adopters."
+          },
+          "experience": [
+            {
+              "role": "Data Engineer",
+              "company": "Fintech Startup GmbH",
+              "start": "2021-06",
+              "end": "2022-12",
+              "location": null,
+              "bullets": [
+                "Wrote Python ETL scripts to consolidate CRM and marketing data into Google BigQuery, enabling unified customer analytics.",
+                "Built self-service Looker dashboards for product KPI monitoring, reducing ad-hoc reporting requests by 60%."
+              ]
+            },
+            {
+              "role": "Junior Data Analyst",
+              "company": "RetailCo AG",
+              "start": "2019-09",
+              "end": "2021-05",
+              "location": null,
+              "bullets": [
+                "Automated weekly reporting workflows with Python scripts and Windows Task Scheduler, saving 8 hours/month.",
+                "Maintained and extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users."
+              ]
+            }
+          ],
+          "projects": [
+            {
+              "name": "Real-Time Fraud Detection on AWS",
+              "context": null,
+              "bullets": [
+                "Built real-time fraud detection system processing 10,000 transactions/minute with sub-100ms latency; achieved 94% precision, 91% recall; reduced false positives by 30% vs prior rule-based system.",
+                "Trained and deployed BigQuery ML random forest; integrated with existing Apache Kafka consumer pipeline with zero downtime.",
+                "Stack: machine learning, python, google bigquery, aws kinesis, apache kafka."
+              ]
+            },
+            {
+              "name": "Open-Source dbt Package for Marketing Attribution",
+              "context": null,
+              "bullets": [
+                "Created reusable dbt package for multi-touch marketing attribution (first-touch, last-touch, linear); 150+ GitHub stars; used by 12 companies.",
+                "Delivered 100% test coverage using dbt-expectations and pytest; packaged with setuptools.",
+                "Stack: dbt, python."
+              ]
+            }
+          ],
+          "education": [
+            {
+              "degree": "M.Sc. Data Engineering",
+              "institution": "Technical University Berlin",
+              "field": "Data Engineering",
+              "start": "2017-10",
+              "end": "2019-09"
+            },
+            {
+              "degree": "B.Sc. Computer Science",
+              "institution": "TU Munich",
+              "field": "Computer Science",
+              "start": "2014-10",
+              "end": "2017-09"
+            }
+          ],
+          "skills": {
+            "groups": [
+              {
+                "label": "Programming",
+                "items": [
+                  "python",
+                  "sql",
+                  "bash"
+                ]
+              },
+              {
+                "label": "Data",
+                "items": [
+                  "pandas",
+                  "etl",
+                  "google bigquery",
+                  "sql server",
+                  "dbt"
+                ]
+              },
+              {
+                "label": "BI / Analytics",
+                "items": [
+                  "power bi",
+                  "dax",
+                  "excel",
+                  "reporting",
+                  "looker",
+                  "lookml"
+                ]
+              },
+              {
+                "label": "ML / Streaming",
+                "items": [
+                  "machine learning",
+                  "fraud detection",
+                  "apache kafka",
+                  "aws kinesis",
+                  "pub/sub"
+                ]
+              },
+              {
+                "label": "APIs / Ops",
+                "items": [
+                  "salesforce api",
+                  "docker"
+                ]
+              }
+            ]
+          },
+          "certifications": [],
+          "publications": [],
+          "languages": [
+            {
+              "name": "Vietnamese",
+              "level": "native"
+            },
+            {
+              "name": "English",
+              "level": "read: C2, write: C2, speak: C2 — IELTS 8.0 (2022)"
+            },
+            {
+              "name": "German",
+              "level": "read: C1, write: B2, speak: B2 — TestDaF 16 (2020)"
+            },
+            {
+              "name": "French",
+              "level": "read: B1, write: A2, speak: A2"
+            }
+          ]
+        }
+      },
+      "validation_initial": {
+        "valid": true,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {
+          "hard_fact_mode": "selected_evidence",
+          "soft_claim_mode": "hybrid_selected_evidence",
+          "selected_evidence_ids": [
+            "exp_3",
+            "ach_3",
+            "proj_3",
+            "exp_2",
+            "proj_2"
+          ],
+          "selected_evidence_count": 5,
+          "deterministic_supported_soft_claims": 3,
+          "semantic_supported_soft_claims": 4,
+          "evaluated_soft_claims": 7
+        },
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": []
+      },
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "fit_classification": "stretch",
+        "target_role": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+        "sections": {
+          "header": {
+            "name": "Nguyen Van A",
+            "title": "Freelance Data Scientist (Python & SQL) — Analytics, ETL, BI, ML Systems",
+            "location": "Berlin, Germany",
+            "contact": {
+              "email": "nguyen.vana@email.com",
+              "phone": "+49 170 123 4567",
+              "linkedin": "https://linkedin.com/in/nguyenvana"
+            }
+          },
+          "summary": {
+            "text": "Data scientist / analyst background in Python, pandas, SQL across retail analytics, fintech data engineering, fraud detection ML. Build automated reporting, ELT/ETL pipelines, BigQuery-centered analytics, self-serve BI. Open-source contributor: dbt package for marketing attribution with production adopters."
+          },
+          "experience": [
+            {
+              "role": "Data Engineer",
+              "company": "Fintech Startup GmbH",
+              "start": "2021-06",
+              "end": "2022-12",
+              "location": null,
+              "bullets": [
+                "Wrote Python ETL scripts to consolidate CRM and marketing data into Google BigQuery, enabling unified customer analytics.",
+                "Built self-service Looker dashboards for product KPI monitoring, reducing ad-hoc reporting requests by 60%."
+              ]
+            },
+            {
+              "role": "Junior Data Analyst",
+              "company": "RetailCo AG",
+              "start": "2019-09",
+              "end": "2021-05",
+              "location": null,
+              "bullets": [
+                "Automated weekly reporting workflows with Python scripts and Windows Task Scheduler, saving 8 hours/month.",
+                "Maintained and extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users."
+              ]
+            }
+          ],
+          "projects": [
+            {
+              "name": "Real-Time Fraud Detection on AWS",
+              "context": null,
+              "bullets": [
+                "Built real-time fraud detection system processing 10,000 transactions/minute with sub-100ms latency; achieved 94% precision, 91% recall; reduced false positives by 30% vs prior rule-based system.",
+                "Trained and deployed BigQuery ML random forest; integrated with existing Apache Kafka consumer pipeline with zero downtime.",
+                "Stack: machine learning, python, google bigquery, aws kinesis, apache kafka."
+              ]
+            },
+            {
+              "name": "Open-Source dbt Package for Marketing Attribution",
+              "context": null,
+              "bullets": [
+                "Created reusable dbt package for multi-touch marketing attribution (first-touch, last-touch, linear); 150+ GitHub stars; used by 12 companies.",
+                "Delivered 100% test coverage using dbt-expectations and pytest; packaged with setuptools.",
+                "Stack: dbt, python."
+              ]
+            }
+          ],
+          "education": [
+            {
+              "degree": "M.Sc. Data Engineering",
+              "institution": "Technical University Berlin",
+              "field": "Data Engineering",
+              "start": "2017-10",
+              "end": "2019-09"
+            },
+            {
+              "degree": "B.Sc. Computer Science",
+              "institution": "TU Munich",
+              "field": "Computer Science",
+              "start": "2014-10",
+              "end": "2017-09"
+            }
+          ],
+          "skills": {
+            "groups": [
+              {
+                "label": "Programming",
+                "items": [
+                  "python",
+                  "sql",
+                  "bash"
+                ]
+              },
+              {
+                "label": "Data",
+                "items": [
+                  "pandas",
+                  "etl",
+                  "google bigquery",
+                  "sql server",
+                  "dbt"
+                ]
+              },
+              {
+                "label": "BI / Analytics",
+                "items": [
+                  "power bi",
+                  "dax",
+                  "excel",
+                  "reporting",
+                  "looker",
+                  "lookml"
+                ]
+              },
+              {
+                "label": "ML / Streaming",
+                "items": [
+                  "machine learning",
+                  "fraud detection",
+                  "apache kafka",
+                  "aws kinesis",
+                  "pub/sub"
+                ]
+              },
+              {
+                "label": "APIs / Ops",
+                "items": [
+                  "salesforce api",
+                  "docker"
+                ]
+              }
+            ]
+          },
+          "certifications": [],
+          "publications": [],
+          "languages": [
+            {
+              "name": "Vietnamese",
+              "level": "native"
+            },
+            {
+              "name": "English",
+              "level": "read: C2, write: C2, speak: C2 — IELTS 8.0 (2022)"
+            },
+            {
+              "name": "German",
+              "level": "read: C1, write: B2, speak: B2 — TestDaF 16 (2020)"
+            },
+            {
+              "name": "French",
+              "level": "read: B1, write: A2, speak: A2"
+            }
+          ]
+        }
+      },
+      "markdown_final": "# Nguyen Van A\n**Freelance Data Scientist (Python & SQL) — Analytics, ETL, BI, ML Systems**\n\n## Summary\nData scientist / analyst background in Python, pandas, SQL across retail analytics, fintech data engineering, fraud detection ML. Build automated reporting, ELT/ETL pipelines, BigQuery-centered analytics, self-serve BI. Open-source contributor: dbt package for marketing attribution with production adopters.\n\n## Education\n\n### M.Sc. Data Engineering — Technical University Berlin (2017-10–2019-09)\n*Data Engineering*\n\n### B.Sc. Computer Science — TU Munich (2014-10–2017-09)\n*Computer Science*\n\n## Experience\n\n### Data Engineer — Fintech Startup GmbH (2021-06–2022-12)\n\n- Wrote Python ETL scripts to consolidate CRM and marketing data into Google BigQuery, enabling unified customer analytics.\n- Built self-service Looker dashboards for product KPI monitoring, reducing ad-hoc reporting requests by 60%.\n\n### Junior Data Analyst — RetailCo AG (2019-09–2021-05)\n\n- Automated weekly reporting workflows with Python scripts and Windows Task Scheduler, saving 8 hours/month.\n- Maintained and extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.\n\n## Skills\npython, sql, bash, pandas, etl, google bigquery, sql server, dbt, power bi, dax, excel, reporting, looker, lookml, machine learning, fraud detection, apache kafka, aws kinesis, pub/sub, salesforce api, docker\n\n## Certifications\n\n## Projects\n\n### Real-Time Fraud Detection on AWS\n- Built real-time fraud detection system processing 10,000 transactions/minute with sub-100ms latency; achieved 94% precision, 91% recall; reduced false positives by 30% vs prior rule-based system.\n- Trained and deployed BigQuery ML random forest; integrated with existing Apache Kafka consumer pipeline with zero downtime.\n- Stack: machine learning, python, google bigquery, aws kinesis, apache kafka.\n\n### Open-Source dbt Package for Marketing Attribution\n- Created reusable dbt package for multi-touch marketing attribution (first-touch, last-touch, linear); 150+ GitHub stars; used by 12 companies.\n- Delivered 100% test coverage using dbt-expectations and pytest; packaged with setuptools.\n- Stack: dbt, python.\n\n## Languages\n\n- Vietnamese (native)\n- English (read: C2, write: C2, speak: C2 — IELTS 8.0 (2022))\n- German (read: C1, write: B2, speak: B2 — TestDaF 16 (2020))\n- French (read: B1, write: A2, speak: A2)\n",
+      "enabled_sections": [
+        "Summary",
+        "Education",
+        "Experience",
+        "Skills",
+        "Certifications",
+        "Projects",
+        "Languages"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "/app/src/fitcv/prompts/templates/cv_generation_structured_write_v1.md",
+      "outcome_reason": null,
+      "error": {
+        "stage": "review_gate",
+        "message": "Unsupported requirements require review: LangChain, MLOps, NumPy, PyTorch, SciPy, TensorFlow. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject."
+      },
+      "review_required_reason_code": "unsupported_requirement_gap",
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: LangChain, MLOps, NumPy, PyTorch, SciPy, TensorFlow. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_builtin_gemini",
+        "provider": "vertexai_gemini",
+        "model": "gemini-2.5-flash"
+      }
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+      "job_title": "Data Analyst - Data Quality",
+      "status": "review_required",
+      "ranking_fit_label": "stretch",
+      "reranker_fit_label": "stretch",
+      "fit_classification": "stretch",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "review_required",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "SQL",
+          "BI tools (MicroStrategy, PowerBI)",
+          "data visualization",
+          "Data Vault",
+          "3NF",
+          "Jira",
+          "Confluence",
+          "data quality measures and processes",
+          "requirements management"
+        ],
+        "responsibilities": [
+          "Provide business units relevant data and insights as Data Analyst in Business Intelligence team",
+          "Implement domain requirements for retail banking area (products, sales, technical development of banking products)",
+          "Run workshops for clarification of assignments and requirements specification; spar with Product Owner",
+          "Analyze internal and external data sources; define and implement data quality measures and processes",
+          "Bridge regulatory business requirements to technical implementation; support delivery and end-to-end testing of new artifacts and DQ reports",
+          "Collaborate with Data Engineers and experts in data governance, data quality, compliance, data protection",
+          "Work with modern tool stack in agile setup",
+          "Contribute to Data Analyst community; share knowledge"
+        ],
+        "job_family": "analytics",
+        "domain": "banking",
+        "location_type": "hybrid"
+      },
+      "evidence_used": [
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[1]",
+          "name": "Data Engineer — Fintech Startup GmbH",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.1,
+              "semantic": 0.140557,
+              "combined": 0.112167
+            },
+            "role_alignment": {
+              "lexical": 0.333333,
+              "semantic": 0.343272,
+              "combined": 0.337309
+            },
+            "domain_alignment": {
+              "lexical": 0.5,
+              "semantic": 0.0,
+              "combined": 0.2
+            },
+            "responsibility_alignment": {
+              "lexical": 0.031746,
+              "semantic": 0.485748,
+              "combined": 0.372247
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[2]",
+          "name": "Junior Data Analyst — RetailCo AG",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "required_skill_support",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.2,
+              "semantic": 0.208964,
+              "combined": 0.202689
+            },
+            "role_alignment": {
+              "lexical": 1.0,
+              "semantic": 0.0,
+              "combined": 0.6
+            },
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.174443,
+              "combined": 0.104666
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[2]",
+          "name": "Open-Source dbt Package for Marketing Attribution",
+          "matched_channels": [
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment"
+          ],
+          "channel_subscores": {
+            "responsibility_alignment": {
+              "lexical": 0.031746,
+              "semantic": 0.388578,
+              "combined": 0.29937
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[4]",
+          "name": "Achieved 94% precision and 91% recall on fraud detection model in production.",
+          "matched_channels": [
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment"
+          ],
+          "channel_subscores": {
+            "responsibility_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.45821,
+              "combined": 0.343658
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[1]",
+          "name": "Real-Time Fraud Detection on AWS",
+          "matched_channels": [
+            "required_skill_support"
+          ],
+          "selection_reasons": [
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.1,
+              "semantic": 0.3685,
+              "combined": 0.18055
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        }
+      ],
+      "evidence_selection_summary": {
+        "channel_counts": {
+          "required_skill_support": 4,
+          "role_alignment": 4,
+          "domain_alignment": 4,
+          "responsibility_alignment": 4
+        },
+        "fallback_used": false,
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 16,
+        "deduped_pool_size": 9,
+        "selected_evidence_count": 5,
+        "selected_evidence_ids": [
+          "exp_2",
+          "exp_3",
+          "proj_3",
+          "ach_5",
+          "proj_2"
+        ],
+        "unselected_top_candidates": [
+          {
+            "evidence_id": "exp_1",
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "Senior Data Engineer — Acme Analytics GmbH",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.333333,
+                "semantic": 0.0,
+                "combined": 0.2
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.060184,
+                "combined": 0.236111
+              },
+              "responsibility_alignment": {
+                "lexical": 0.031746,
+                "semantic": 0.351783,
+                "combined": 0.271774
+              }
+            }
+          },
+          {
+            "evidence_id": "proj_1",
+            "evidence_type": "project_entry",
+            "source_ref": "projects[0]",
+            "name": "FitCV — AI-Powered CV Generation Pipeline",
+            "matched_channels": [
+              "required_skill_support"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.0,
+                "semantic": 0.463421,
+                "combined": 0.139026
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_2",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[1]",
+            "name": "Enabled real-time dashboard updates under 30 seconds via Pub/Sub → Dataflow streaming architecture.",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.340488,
+                "combined": 0.136195
+              }
+            }
+          }
+        ],
+        "hybrid_alignment": {
+          "required_skill_support": {
+            "lexical_weight": 0.7,
+            "semantic_weight": 0.3
+          },
+          "role_alignment": {
+            "lexical_weight": 0.6,
+            "semantic_weight": 0.4
+          },
+          "responsibility_alignment": {
+            "lexical_weight": 0.25,
+            "semantic_weight": 0.75
+          },
+          "domain_alignment": {
+            "lexical_weight": 0.4,
+            "semantic_weight": 0.6
+          }
+        },
+        "semantic_alignment": {
+          "enabled": true,
+          "semantic_methods": {
+            "required_skill_support": "embedding_similarity",
+            "role_alignment": "embedding_similarity",
+            "responsibility_alignment": "embedding_similarity",
+            "domain_alignment": "embedding_similarity"
+          },
+          "reuse_state": {
+            "candidate_evidence": "mixed_fresh_and_reused",
+            "job_context": "mixed_fresh_and_reused"
+          },
+          "embedding_counts": {
+            "candidate_evidence": {
+              "fresh": 32,
+              "reused": 20
+            },
+            "job_context": {
+              "fresh": 23,
+              "reused": 276
+            }
+          }
+        }
+      },
+      "gap_summary": {
+        "matched": [
+          "SQL",
+          "BI tools (MicroStrategy, PowerBI)",
+          "data quality measures and processes"
+        ],
+        "partial": [],
+        "missing": [
+          "data visualization",
+          "Data Vault",
+          "3NF",
+          "Jira",
+          "Confluence",
+          "requirements management"
+        ],
+        "matchable_required_count": 8,
+        "ignored_for_fit": [
+          "requirements management"
+        ],
+        "years_risk": false,
+        "overclaim_risk": []
+      },
+      "structured_cv_initial": {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+        "fit_classification": "stretch",
+        "target_role": "Data Analyst - Data Quality",
+        "sections": {
+          "header": {
+            "name": "Nguyen Van A",
+            "title": "Data Analyst / Data Engineer — Data Quality, SQL, BI (Power BI, MicroStrategy)",
+            "location": "Berlin, Germany",
+            "contact": {
+              "email": "nguyen.vana@email.com",
+              "phone": "+49 170 123 4567",
+              "linkedin": "https://linkedin.com/in/nguyenvana"
+            }
+          },
+          "summary": {
+            "text": "Data analyst/data engineer. Strong SQL, BI reporting (Power BI, MicroStrategy). Build automated pipelines, KPI dashboards, QA checks to keep data consistent, trusted, reusable across teams."
+          },
+          "experience": [
+            {
+              "role": "Data Engineer",
+              "company": "Fintech Startup GmbH",
+              "start": "2021-06",
+              "end": "2022-12",
+              "location": null,
+              "bullets": [
+                "Wrote Python ETL scripts to consolidate CRM and marketing data into Google BigQuery, enabling unified customer analytics.",
+                "Built self-service Looker dashboards for product KPI monitoring, reducing ad-hoc reporting requests by 60%."
+              ]
+            },
+            {
+              "role": "Junior Data Analyst",
+              "company": "RetailCo AG",
+              "start": "2019-09",
+              "end": "2021-05",
+              "location": null,
+              "bullets": [
+                "Maintained and extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.",
+                "Automated weekly reporting workflows with Python scripts and Windows Task Scheduler, saving 8 hours/month."
+              ]
+            }
+          ],
+          "projects": [
+            {
+              "name": "Open-Source dbt Package for Marketing Attribution",
+              "context": null,
+              "bullets": [
+                "Built reusable dbt package for multi-touch marketing attribution (first-touch, last-touch, linear); 150+ GitHub stars; used by 12 companies.",
+                "Delivered 100% test coverage with dbt-expectations and pytest."
+              ]
+            },
+            {
+              "name": "Real-Time Fraud Detection on AWS",
+              "context": null,
+              "bullets": [
+                "Built real-time fraud detection system processing 10,000 transactions/minute with sub-100ms latency; improved precision to 94%; cut false positives by 30%.",
+                "Trained and deployed Google BigQuery ML random forest model (94% precision, 91% recall); integrated into Kafka consumer pipeline with zero downtime."
+              ]
+            }
+          ],
+          "education": [
+            {
+              "degree": "M.Sc. Data Engineering",
+              "institution": "Technical University Berlin",
+              "field": "Data Engineering",
+              "start": "2017-10",
+              "end": "2019-09"
+            },
+            {
+              "degree": "B.Sc. Computer Science",
+              "institution": "TU Munich",
+              "field": "Computer Science",
+              "start": "2014-10",
+              "end": "2017-09"
+            }
+          ],
+          "skills": {
+            "groups": [
+              {
+                "label": "Data Analysis & BI",
+                "items": [
+                  "power bi",
+                  "dax",
+                  "reporting",
+                  "excel"
+                ]
+              },
+              {
+                "label": "Data Engineering",
+                "items": [
+                  "sql",
+                  "sql server",
+                  "etl",
+                  "google bigquery",
+                  "looker",
+                  "lookml",
+                  "dbt",
+                  "python",
+                  "pandas",
+                  "docker",
+                  "bash",
+                  "pub/sub"
+                ]
+              },
+              {
+                "label": "Streaming & ML",
+                "items": [
+                  "apache kafka",
+                  "aws kinesis",
+                  "machine learning",
+                  "fraud detection"
+                ]
+              },
+              {
+                "label": "APIs",
+                "items": [
+                  "salesforce api"
+                ]
+              }
+            ]
+          },
+          "certifications": [],
+          "publications": [],
+          "languages": [
+            {
+              "name": "Vietnamese",
+              "level": "native"
+            },
+            {
+              "name": "English",
+              "level": "C2 (IELTS 8.0, 2022)"
+            },
+            {
+              "name": "German",
+              "level": "Read C1, Write B2, Speak B2 (TestDaF 16, 2020)"
+            },
+            {
+              "name": "French",
+              "level": "Read B1, Write A2, Speak A2"
+            }
+          ]
+        }
+      },
+      "validation_initial": {
+        "valid": true,
+        "missing_sections": [],
+        "grounding_violations": [],
+        "deterministic_grounding_violations": [],
+        "semantic_grounding_violations": [],
+        "skill_violations": [],
+        "warnings": [],
+        "support_source_summary": {
+          "hard_fact_mode": "selected_evidence",
+          "soft_claim_mode": "hybrid_selected_evidence",
+          "selected_evidence_ids": [
+            "exp_2",
+            "exp_3",
+            "proj_3",
+            "ach_5",
+            "proj_2"
+          ],
+          "selected_evidence_count": 5,
+          "deterministic_supported_soft_claims": 3,
+          "semantic_supported_soft_claims": 4,
+          "evaluated_soft_claims": 7
+        },
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": []
+      },
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+        "fit_classification": "stretch",
+        "target_role": "Data Analyst - Data Quality",
+        "sections": {
+          "header": {
+            "name": "Nguyen Van A",
+            "title": "Data Analyst / Data Engineer — Data Quality, SQL, BI (Power BI, MicroStrategy)",
+            "location": "Berlin, Germany",
+            "contact": {
+              "email": "nguyen.vana@email.com",
+              "phone": "+49 170 123 4567",
+              "linkedin": "https://linkedin.com/in/nguyenvana"
+            }
+          },
+          "summary": {
+            "text": "Data analyst/data engineer. Strong SQL, BI reporting (Power BI, MicroStrategy). Build automated pipelines, KPI dashboards, QA checks to keep data consistent, trusted, reusable across teams."
+          },
+          "experience": [
+            {
+              "role": "Data Engineer",
+              "company": "Fintech Startup GmbH",
+              "start": "2021-06",
+              "end": "2022-12",
+              "location": null,
+              "bullets": [
+                "Wrote Python ETL scripts to consolidate CRM and marketing data into Google BigQuery, enabling unified customer analytics.",
+                "Built self-service Looker dashboards for product KPI monitoring, reducing ad-hoc reporting requests by 60%."
+              ]
+            },
+            {
+              "role": "Junior Data Analyst",
+              "company": "RetailCo AG",
+              "start": "2019-09",
+              "end": "2021-05",
+              "location": null,
+              "bullets": [
+                "Maintained and extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.",
+                "Automated weekly reporting workflows with Python scripts and Windows Task Scheduler, saving 8 hours/month."
+              ]
+            }
+          ],
+          "projects": [
+            {
+              "name": "Open-Source dbt Package for Marketing Attribution",
+              "context": null,
+              "bullets": [
+                "Built reusable dbt package for multi-touch marketing attribution (first-touch, last-touch, linear); 150+ GitHub stars; used by 12 companies.",
+                "Delivered 100% test coverage with dbt-expectations and pytest."
+              ]
+            },
+            {
+              "name": "Real-Time Fraud Detection on AWS",
+              "context": null,
+              "bullets": [
+                "Built real-time fraud detection system processing 10,000 transactions/minute with sub-100ms latency; improved precision to 94%; cut false positives by 30%.",
+                "Trained and deployed Google BigQuery ML random forest model (94% precision, 91% recall); integrated into Kafka consumer pipeline with zero downtime."
+              ]
+            }
+          ],
+          "education": [
+            {
+              "degree": "M.Sc. Data Engineering",
+              "institution": "Technical University Berlin",
+              "field": "Data Engineering",
+              "start": "2017-10",
+              "end": "2019-09"
+            },
+            {
+              "degree": "B.Sc. Computer Science",
+              "institution": "TU Munich",
+              "field": "Computer Science",
+              "start": "2014-10",
+              "end": "2017-09"
+            }
+          ],
+          "skills": {
+            "groups": [
+              {
+                "label": "Data Analysis & BI",
+                "items": [
+                  "power bi",
+                  "dax",
+                  "reporting",
+                  "excel"
+                ]
+              },
+              {
+                "label": "Data Engineering",
+                "items": [
+                  "sql",
+                  "sql server",
+                  "etl",
+                  "google bigquery",
+                  "looker",
+                  "lookml",
+                  "dbt",
+                  "python",
+                  "pandas",
+                  "docker",
+                  "bash",
+                  "pub/sub"
+                ]
+              },
+              {
+                "label": "Streaming & ML",
+                "items": [
+                  "apache kafka",
+                  "aws kinesis",
+                  "machine learning",
+                  "fraud detection"
+                ]
+              },
+              {
+                "label": "APIs",
+                "items": [
+                  "salesforce api"
+                ]
+              }
+            ]
+          },
+          "certifications": [],
+          "publications": [],
+          "languages": [
+            {
+              "name": "Vietnamese",
+              "level": "native"
+            },
+            {
+              "name": "English",
+              "level": "C2 (IELTS 8.0, 2022)"
+            },
+            {
+              "name": "German",
+              "level": "Read C1, Write B2, Speak B2 (TestDaF 16, 2020)"
+            },
+            {
+              "name": "French",
+              "level": "Read B1, Write A2, Speak A2"
+            }
+          ]
+        }
+      },
+      "markdown_final": "# Nguyen Van A\n**Data Analyst / Data Engineer — Data Quality, SQL, BI (Power BI, MicroStrategy)**\n\n## Summary\nData analyst/data engineer. Strong SQL, BI reporting (Power BI, MicroStrategy). Build automated pipelines, KPI dashboards, QA checks to keep data consistent, trusted, reusable across teams.\n\n## Education\n\n### M.Sc. Data Engineering — Technical University Berlin (2017-10–2019-09)\n*Data Engineering*\n\n### B.Sc. Computer Science — TU Munich (2014-10–2017-09)\n*Computer Science*\n\n## Experience\n\n### Data Engineer — Fintech Startup GmbH (2021-06–2022-12)\n\n- Wrote Python ETL scripts to consolidate CRM and marketing data into Google BigQuery, enabling unified customer analytics.\n- Built self-service Looker dashboards for product KPI monitoring, reducing ad-hoc reporting requests by 60%.\n\n### Junior Data Analyst — RetailCo AG (2019-09–2021-05)\n\n- Maintained and extended Power BI dashboards for sales and inventory reporting consumed by 50+ business users.\n- Automated weekly reporting workflows with Python scripts and Windows Task Scheduler, saving 8 hours/month.\n\n## Skills\npower bi, dax, reporting, excel, sql, sql server, etl, google bigquery, looker, lookml, dbt, python, pandas, docker, bash, pub/sub, apache kafka, aws kinesis, machine learning, fraud detection, salesforce api\n\n## Certifications\n\n## Projects\n\n### Open-Source dbt Package for Marketing Attribution\n- Built reusable dbt package for multi-touch marketing attribution (first-touch, last-touch, linear); 150+ GitHub stars; used by 12 companies.\n- Delivered 100% test coverage with dbt-expectations and pytest.\n\n### Real-Time Fraud Detection on AWS\n- Built real-time fraud detection system processing 10,000 transactions/minute with sub-100ms latency; improved precision to 94%; cut false positives by 30%.\n- Trained and deployed Google BigQuery ML random forest model (94% precision, 91% recall); integrated into Kafka consumer pipeline with zero downtime.\n\n## Languages\n\n- Vietnamese (native)\n- English (C2 (IELTS 8.0, 2022))\n- German (Read C1, Write B2, Speak B2 (TestDaF 16, 2020))\n- French (Read B1, Write A2, Speak A2)\n",
+      "enabled_sections": [
+        "Summary",
+        "Education",
+        "Experience",
+        "Skills",
+        "Certifications",
+        "Projects",
+        "Languages"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "/app/src/fitcv/prompts/templates/cv_generation_structured_write_v1.md",
+      "outcome_reason": null,
+      "error": {
+        "stage": "review_gate",
+        "message": "Unsupported requirements require review: 3NF, Confluence, Data Vault, Jira, data visualization, requirements management. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject."
+      },
+      "review_required_reason_code": "unsupported_requirement_gap",
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "Unsupported requirements require review: 3NF, Confluence, Data Vault, Jira, data visualization, requirements management. Review the generated CV output against these requirements and decide approve as-is, regenerate once, or reject.",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_builtin_gemini",
+        "provider": "vertexai_gemini",
+        "model": "gemini-2.5-flash"
+      }
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+      "job_title": "Data Analyst - Retail Banking",
+      "status": "validation_failed",
+      "ranking_fit_label": "stretch",
+      "reranker_fit_label": "stretch",
+      "fit_classification": "stretch",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "validation_failed",
+          "attempted": true
+        },
+        "validation": {
+          "status": "failed"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "SQL",
+          "Python",
+          "BI tools (MicroStrategy, PowerBI)",
+          "Git",
+          "Data Vault",
+          "3NF",
+          "Redshift",
+          "Jira",
+          "Confluence"
+        ],
+        "responsibilities": [
+          "Work in Business Intelligence team, provide business units relevant data and insights",
+          "Implement functional requirements for retail/private customer area (product development, sales, technical development of banking products)",
+          "Partner with Product Owner, run workshops for order clarification and requirements specification",
+          "Analyze internal and external data sources; define/implement business rules/logic for data integration into cloud data platform",
+          "Bridge business requirements to technical implementation; support delivery; test new artifacts",
+          "Collaborate with Data Engineers and experts in data architecture, data modeling, data governance, data quality, data privacy",
+          "Work with modern tool stack in agile setup",
+          "Contribute to Data Analyst community; share knowledge; stay up to date"
+        ],
+        "job_family": "analytics",
+        "domain": "banking",
+        "location_type": "hybrid"
+      },
+      "evidence_used": [
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[0]",
+          "name": "Senior Data Engineer — Acme Analytics GmbH",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.2,
+              "semantic": 0.238761,
+              "combined": 0.211628
+            },
+            "role_alignment": {
+              "lexical": 0.25,
+              "semantic": 0.241093,
+              "combined": 0.246437
+            },
+            "domain_alignment": {
+              "lexical": 0.5,
+              "semantic": 0.060184,
+              "combined": 0.236111
+            },
+            "responsibility_alignment": {
+              "lexical": 0.058824,
+              "semantic": 0.403734,
+              "combined": 0.317507
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[2]",
+          "name": "Junior Data Analyst — RetailCo AG",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "required_skill_support",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.2,
+              "semantic": 0.295586,
+              "combined": 0.228676
+            },
+            "role_alignment": {
+              "lexical": 1.0,
+              "semantic": 0.0,
+              "combined": 0.6
+            },
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.174443,
+              "combined": 0.104666
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[1]",
+          "name": "Real-Time Fraud Detection on AWS",
+          "matched_channels": [
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment"
+          ],
+          "channel_subscores": {
+            "responsibility_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.488316,
+              "combined": 0.366237
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[1]",
+          "name": "Enabled real-time dashboard updates under 30 seconds via Pub/Sub → Dataflow streaming architecture.",
+          "matched_channels": [
+            "role_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "role_alignment"
+          ],
+          "channel_subscores": {
+            "role_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.340488,
+              "combined": 0.136195
+            },
+            "responsibility_alignment": {
+              "lexical": 0.014706,
+              "semantic": 0.356682,
+              "combined": 0.271188
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[0]",
+          "name": "FitCV — AI-Powered CV Generation Pipeline",
+          "matched_channels": [
+            "required_skill_support"
+          ],
+          "selection_reasons": [
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.1,
+              "semantic": 0.463421,
+              "combined": 0.209026
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        }
+      ],
+      "evidence_selection_summary": {
+        "channel_counts": {
+          "required_skill_support": 4,
+          "role_alignment": 4,
+          "domain_alignment": 4,
+          "responsibility_alignment": 4
+        },
+        "fallback_used": false,
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 16,
+        "deduped_pool_size": 8,
+        "selected_evidence_count": 5,
+        "selected_evidence_ids": [
+          "exp_1",
+          "exp_3",
+          "proj_2",
+          "ach_2",
+          "proj_1"
+        ],
+        "unselected_top_candidates": [
+          {
+            "evidence_id": "exp_2",
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[1]",
+            "name": "Data Engineer — Fintech Startup GmbH",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.2,
+                "semantic": 0.342972,
+                "combined": 0.242892
+              },
+              "role_alignment": {
+                "lexical": 0.25,
+                "semantic": 0.060083,
+                "combined": 0.174033
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.0,
+                "combined": 0.2
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_4",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[3]",
+            "name": "Cut compute costs by 35% by migrating legacy Spark jobs to Dataproc Serverless.",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.443097,
+                "combined": 0.332323
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_3",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards.",
+            "matched_channels": [
+              "domain_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.182871,
+                "combined": 0.109723
+              }
+            }
+          }
+        ],
+        "hybrid_alignment": {
+          "required_skill_support": {
+            "lexical_weight": 0.7,
+            "semantic_weight": 0.3
+          },
+          "role_alignment": {
+            "lexical_weight": 0.6,
+            "semantic_weight": 0.4
+          },
+          "responsibility_alignment": {
+            "lexical_weight": 0.25,
+            "semantic_weight": 0.75
+          },
+          "domain_alignment": {
+            "lexical_weight": 0.4,
+            "semantic_weight": 0.6
+          }
+        },
+        "semantic_alignment": {
+          "enabled": true,
+          "semantic_methods": {
+            "required_skill_support": "embedding_similarity",
+            "role_alignment": "embedding_similarity",
+            "responsibility_alignment": "embedding_similarity",
+            "domain_alignment": "embedding_similarity"
+          },
+          "reuse_state": {
+            "candidate_evidence": "mixed_fresh_and_reused",
+            "job_context": "mixed_fresh_and_reused"
+          },
+          "embedding_counts": {
+            "candidate_evidence": {
+              "fresh": 32,
+              "reused": 20
+            },
+            "job_context": {
+              "fresh": 23,
+              "reused": 276
+            }
+          }
+        }
+      },
+      "gap_summary": {
+        "matched": [
+          "SQL",
+          "Python",
+          "BI tools (MicroStrategy, PowerBI)",
+          "Git"
+        ],
+        "partial": [],
+        "missing": [
+          "Data Vault",
+          "3NF",
+          "Redshift",
+          "Jira",
+          "Confluence"
+        ],
+        "matchable_required_count": 9,
+        "ignored_for_fit": [],
+        "years_risk": false,
+        "overclaim_risk": []
+      },
+      "structured_cv_initial": {
+        "schema_version": "cv_doc_v1",
+        "preset": "europass",
+        "locale": "en",
+        "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "fit_classification": "stretch",
+        "target_role": "Data Analyst - Retail Banking",
+        "sections": {
+          "header": {
+            "name": "Nguyen Van A",
+            "title": "Data Analyst / Data Engineer — SQL, Python, Power BI, Git",
+            "location": "Berlin, Germany",
+            "contact": {
+              "email": "nguyen.vana@email.com",
+              "phone": "+49 170 123 4567",
+              "linkedin": "https://linkedin.com/in/nguyenvana"
+            }
+          },
+          "summary": {
+            "text": "Data analyst/data engineer with retail reporting background and strong SQL, Python, Power BI, Git. Build automated data pipelines, data quality checks, dashboards, reporting workflows. Deliver measurable impact: lower latency, saved analyst hours, improved model precision."
+          },
+          "experience": [
+            {
+              "role": "Senior Data Engineer",
+              "company": "Acme Analytics GmbH",
+              "start": "2023-01",
+              "end": "present",
+              "location": null,
+              "bullets": [
+                "Built GA4 → BigQuery pipeline processing ~2M daily events; used dbt transforms; cut reporting latency 40%.",
+                "Automated data quality checks with Great Expectations; wired into CI/CD via GitHub Actions for repeatable validation.",
+                "Developed Python + Apache Beam ETL on GCP (Pub/Sub, Dataflow, Dataproc) for scalable event processing."
+              ]
+            },
+            {
+              "role": "Junior Data Analyst",
+              "company": "RetailCo AG",
+              "start": "2019-09",
+              "end": "2021-05",
+              "location": null,
+              "bullets": [
+                "Maintained, extended Power BI dashboards for sales, inventory reporting; served 50+ business users.",
+                "Automated weekly reporting workflows with Python + Windows Task Scheduler; saved 8 hours/month.",
+                "Used SQL Server, SQL, DAX, Excel for reporting datasets, KPI definitions, ad-hoc analysis."
+              ]
+            }
+          ],
+          "projects": [
+            {
+              "name": "Real-Time Fraud Detection on AWS",
+              "context": null,
+              "bullets": [
+                "Built real-time fraud detection system handling 10,000 transactions/min with sub-100ms latency; achieved 94% precision; reduced false positives 30% vs prior rule system.",
+                "Trained, deployed BigQuery ML random forest model (94% precision, 91% recall) with Python (scikit-learn) support work.",
+                "Integrated with existing Apache Kafka consumer pipeline with zero downtime; used AWS Kinesis for streaming ingest."
+              ]
+            },
+            {
+              "name": "FitCV — AI-Powered CV Generation Pipeline",
+              "context": null,
+              "bullets": [
+                "Built end-to-end pipeline ingesting job postings, matching profiles via BigQuery ML embeddings, generating tailored CVs; cut tailoring time from 2 hours to <5 minutes/app.",
+                "Ingested 5,000+ LinkedIn job postings via scraper pipeline; reached 89% relevance score on candidate–job matching.",
+                "Used Python backend; CI/CD via GitHub Actions."
+              ]
+            }
+          ],
+          "education": [
+            {
+              "degree": "M.Sc. Data Engineering",
+              "institution": "Technical University Berlin",
+              "field": "Data Engineering",
+              "start": "2017-10",
+              "end": "2019-09"
+            },
+            {
+              "degree": "B.Sc. Computer Science",
+              "institution": "TU Munich",
+              "field": "Computer Science",
+              "start": "2014-10",
+              "end": "2017-09"
+            }
+          ],
+          "skills": {
+            "groups": [
+              {
+                "label": "Core",
+                "items": [
+                  "sql",
+                  "python",
+                  "power bi",
+                  "git"
+                ]
+              },
+              {
+                "label": "Data Platforms / Modeling",
+                "items": [
+                  "google bigquery",
+                  "sql server",
+                  "dbt",
+                  "etl"
+                ]
+              },
+              {
+                "label": "Data Quality / Delivery",
+                "items": [
+                  "data quality",
+                  "great expectations",
+                  "ci/cd",
+                  "github actions",
+                  "reporting"
+                ]
+              },
+              {
+                "label": "Cloud / Streaming / Compute",
+                "items": [
+                  "google cloud",
+                  "pub/sub",
+                  "dataflow",
+                  "dataproc",
+                  "apache beam",
+                  "apache spark",
+                  "apache kafka",
+                  "aws kinesis"
+                ]
+              },
+              {
+                "label": "Analytics / Other",
+                "items": [
+                  "google analytics",
+                  "pandas",
+                  "dax",
+                  "excel",
+                  "machine learning",
+                  "genai",
+                  "docker",
+                  "terraform"
+                ]
+              }
+            ]
+          },
+          "certifications": [],
+          "publications": [],
+          "languages": [
+            {
+              "name": "Vietnamese",
+              "level": "native"
+            },
+            {
+              "name": "English",
+              "level": "read: C2, write: C2, speak: C2 — IELTS 8.0 (2022)"
+            },
+            {
+              "name": "German",
+              "level": "read: C1, write: B2, speak: B2 — TestDaF 16 (2020)"
+            },
+            {
+              "name": "French",
+              "level": "read: B1, write: A2, speak: A2"
+            }
+          ]
+        }
+      },
+      "validation_initial": {
+        "valid": false,
+        "missing_sections": [],
+        "grounding_violations": [
+          "Soft claim is not supported by selected evidence: 'Used SQL Server, SQL, DAX, Excel for reporting datasets, KPI definitions, ad-hoc analysis.'"
+        ],
+        "deterministic_grounding_violations": [
+          "Skill 'git' in CV Skills section is present in candidate profile but not in selected evidence"
+        ],
+        "semantic_grounding_violations": [
+          "Soft claim is not supported by selected evidence: 'Used SQL Server, SQL, DAX, Excel for reporting datasets, KPI definitions, ad-hoc analysis.'"
+        ],
+        "skill_violations": [],
+        "warnings": [
+          "Relaxed selected-evidence skill grounding violation: Skill 'git' in CV Skills section is present in candidate profile but not in selected evidence"
+        ],
+        "support_source_summary": {
+          "hard_fact_mode": "selected_evidence",
+          "soft_claim_mode": "hybrid_selected_evidence",
+          "selected_evidence_ids": [
+            "exp_1",
+            "exp_3",
+            "proj_2",
+            "ach_2",
+            "proj_1"
+          ],
+          "selected_evidence_count": 5,
+          "deterministic_supported_soft_claims": 4,
+          "semantic_supported_soft_claims": 6,
+          "evaluated_soft_claims": 11
+        },
+        "markdown_quality_blocking_issues": [],
+        "markdown_quality_review_flags": []
+      },
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": null,
+      "markdown_final": null,
+      "enabled_sections": [
+        "Summary",
+        "Education",
+        "Experience",
+        "Skills",
+        "Certifications",
+        "Projects",
+        "Languages"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "/app/src/fitcv/prompts/templates/cv_generation_structured_write_v1.md",
+      "outcome_reason": null,
+      "error": {
+        "stage": "validation",
+        "message": "CV validation failed for https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title"
+      },
+      "review_required_reason_code": "post_validation_failed",
+      "attempt_count": 1,
+      "failed_rule_ids": [
+        "Skill 'git' in CV Skills section is present in candidate profile but not in selected evidence",
+        "Soft claim is not supported by selected evidence: 'Used SQL Server, SQL, DAX, Excel for reporting datasets, KPI definitions, ad-hoc analysis.'"
+      ],
+      "first_failing_section_key": null,
+      "operator_note": "Validation failed with 2 rule(s).",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_builtin_gemini",
+        "provider": "vertexai_gemini",
+        "model": "gemini-2.5-flash"
+      }
+    }
+  ],
+  "agentic_live_trace": {
+    "run_id": "96935955-2c90-4ee6-8b24-e22aef67f3b7",
+    "trace_schema_version": "agentic_step_trace_run_v1",
+    "trace_family": "agentic_step_trace",
+    "step_id": "cv_generation",
+    "late_stage_mode": {
+      "late_stage_mode": "agentic",
+      "agentic_late_stage_enabled": true,
+      "mode_source": "cv.agentic_late_stage.unified_runtime",
+      "agentic_status": "completed"
+    },
+    "trace_status": "partial",
+    "trace_summary": {
+      "records_total": 4,
+      "present_records": 0,
+      "attempted_generation_jobs_total": 4
+    },
+    "records": [],
+    "degradation": {
+      "reason": "missing_job_trace_records"
+    },
+    "artifact_refs": {
+      "cv_debug_artifact": "cv-debug.json",
+      "stage_artifact": "cv_generation.json"
+    }
+  },
+  "cv_analysis_trace": {
+    "run_id": "96935955-2c90-4ee6-8b24-e22aef67f3b7",
+    "trace_schema_version": "agentic_step_trace_run_v1",
+    "trace_family": "agentic_step_trace",
+    "step_id": "cv_analysis",
+    "late_stage_mode": {
+      "late_stage_mode": "agentic",
+      "agentic_late_stage_enabled": true,
+      "mode_source": "cv.agentic_late_stage.unified_runtime",
+      "agentic_status": "completed"
+    },
+    "trace_status": "completed",
+    "trace_summary": {
+      "records_total": 4,
+      "present_records": 4,
+      "attempted_analysis_jobs_total": 4
+    },
+    "records": [
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_analysis",
+        "trace_status": "completed",
+        "record_id": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+        "status": "ready_for_generation",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "cv.agentic_late_stage.enabled"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "analysis",
+            "attempt_status": "ready_for_generation",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "analysis_input_fingerprint": "d05ac9cfacabf974853705a30ffcfaa4faf74edf7627daa3e745c6c05299c5f4",
+          "required_skills_count": 11,
+          "preferred_skills_count": 3,
+          "responsibilities_count": 7
+        },
+        "output_summary": {
+          "selected_evidence_count": 5,
+          "fallback_used": false,
+          "requirement_coverage_count": 11,
+          "section_confidence_present": true
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null,
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "not_attempted",
+            "attempted": false
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_analysis.json"
+        }
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_analysis",
+        "trace_status": "completed",
+        "record_id": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "status": "ready_for_generation",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "cv.agentic_late_stage.enabled"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "analysis",
+            "attempt_status": "ready_for_generation",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "analysis_input_fingerprint": "21bacbe7aa5f046046d096f23dd65f769515c2a455aa52e0fa0be9717c92834b",
+          "required_skills_count": 21,
+          "preferred_skills_count": 0,
+          "responsibilities_count": 11
+        },
+        "output_summary": {
+          "selected_evidence_count": 5,
+          "fallback_used": false,
+          "requirement_coverage_count": 21,
+          "section_confidence_present": true
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null,
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "not_attempted",
+            "attempted": false
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_analysis.json"
+        }
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_analysis",
+        "trace_status": "completed",
+        "record_id": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+        "status": "ready_for_generation",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "cv.agentic_late_stage.enabled"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "analysis",
+            "attempt_status": "ready_for_generation",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "analysis_input_fingerprint": "10114b9b0896717f161d2ccb8f33696f8bd1095d4037cbeb3fe1c1c0a4257c56",
+          "required_skills_count": 9,
+          "preferred_skills_count": 0,
+          "responsibilities_count": 8
+        },
+        "output_summary": {
+          "selected_evidence_count": 5,
+          "fallback_used": false,
+          "requirement_coverage_count": 9,
+          "section_confidence_present": true
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null,
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "not_attempted",
+            "attempted": false
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_analysis.json"
+        }
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_analysis",
+        "trace_status": "completed",
+        "record_id": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "status": "ready_for_generation",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "cv.agentic_late_stage.enabled"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "analysis",
+            "attempt_status": "ready_for_generation",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "analysis_input_fingerprint": "0b982f0060ed54b006f1381605a8ac66d70adf0d580d16f5d2d86e57c3368853",
+          "required_skills_count": 9,
+          "preferred_skills_count": 0,
+          "responsibilities_count": 8
+        },
+        "output_summary": {
+          "selected_evidence_count": 5,
+          "fallback_used": false,
+          "requirement_coverage_count": 9,
+          "section_confidence_present": true
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null,
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "not_attempted",
+            "attempted": false
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_analysis.json"
+        }
+      }
+    ],
+    "degradation": {},
+    "artifact_refs": {
+      "cv_debug_artifact": "cv-debug.json",
+      "stage_artifact": "cv_analysis.json"
+    }
+  },
+  "hitl_review_actions": [
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+      "action": "approve_as_is",
+      "resolution_status": "approved_as_is",
+      "artifact_finalized": true,
+      "artifact_version_id": "ac3923c6-4359-49fd-8bf0-c355b135b4c9",
+      "actor": "admin",
+      "note": null,
+      "created_at": "2026-05-18T16:36:48.264144+00:00"
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+      "action": "approve_as_is",
+      "resolution_status": "approved_as_is",
+      "artifact_finalized": true,
+      "artifact_version_id": "a0f04256-0192-4355-88a6-4629849a93a4",
+      "actor": "admin",
+      "note": null,
+      "created_at": "2026-05-18T16:36:48.264144+00:00"
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "action": "approve_as_is",
+      "resolution_status": "approved_as_is",
+      "artifact_finalized": true,
+      "artifact_version_id": "ec18a26b-b96f-4d9d-a222-c19a5c835953",
+      "actor": "admin",
+      "note": null,
+      "created_at": "2026-05-18T16:36:48.264144+00:00"
+    }
+  ]
+}
