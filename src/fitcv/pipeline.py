@@ -135,6 +135,10 @@ from fitcv.telemetry import (
 from fitcv.vector_search import run_vector_search
 from fitcv.vector_search import store_shortlist
 from fitcv.pipeline_store import PipelineStore
+from fitcv.pipeline_stage_context import (
+    PipelineState,
+    infer_last_completed_stage_from_state,
+)
 
 logger = logging.getLogger(__name__)
 _REPAIRABLE_VALIDATION_FIELDS = ("grounding_violations", "skill_violations")
@@ -724,6 +728,11 @@ def completed_pipeline_stages_through(stage_name: str | None) -> list[str]:
     return list(PIPELINE_STAGE_SEQUENCE[: stage_index + 1])
 
 
+def _build_stage_dispatch_map() -> dict[str, str]:
+    """Build canonical stage dispatch scaffold keyed by pipeline stage order."""
+    return {stage_name: stage_name for stage_name in PIPELINE_STAGE_SEQUENCE}
+
+
 def _json_safe_pipeline_value(value: Any) -> Any:
     if isinstance(value, dict):
         return {str(key): _json_safe_pipeline_value(item) for key, item in value.items()}
@@ -864,26 +873,7 @@ def _build_late_stage_reuse_snapshots(
 
 
 def _empty_pipeline_state(run_id: str) -> dict[str, Any]:
-    return {
-        "run_id": run_id,
-        "raw_jobs": [],
-        "normalized": [],
-        "deduplicated_jobs": [],
-        "pre_filter_rejected_jobs": [],
-        "enriched": [],
-        "passed_jobs": [],
-        "candidate_filter_rejected_jobs": [],
-        "raw_shortlist": [],
-        "shortlist": [],
-        "backfilled_job_urls": [],
-        "candidate_query_debug": {},
-        "ai_scores": [],
-        "ranking_inputs": [],
-        "ranked": [],
-        "cv_analysis_results": [],
-        "cv_results": [],
-        "cv_generation_debug_records": [],
-    }
+    return PipelineState(run_id=run_id).as_state_dict()
 
 
 def _restore_pipeline_state(
@@ -891,38 +881,14 @@ def _restore_pipeline_state(
     run_id: str,
     checkpoint_payload: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    state = _empty_pipeline_state(run_id)
-    payload = checkpoint_payload or {}
-    for key in state:
-        if key == "run_id":
-            continue
-        value = payload.get(key)
-        if isinstance(state[key], list):
-            state[key] = list(value or [])
-        elif value is not None:
-            state[key] = value
-    return state
+    return PipelineState.from_checkpoint_payload(
+        run_id=run_id,
+        checkpoint_payload=checkpoint_payload,
+    ).as_state_dict()
 
 
 def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
-    keys = (
-        "raw_jobs",
-        "normalized",
-        "deduplicated_jobs",
-        "pre_filter_rejected_jobs",
-        "enriched",
-        "passed_jobs",
-        "candidate_filter_rejected_jobs",
-        "raw_shortlist",
-        "shortlist",
-        "backfilled_job_urls",
-        "candidate_query_debug",
-        "ai_scores",
-        "ranking_inputs",
-        "ranked",
-        "cv_analysis_results",
-        "cv_generation_debug_records",
-    )
+    keys = PipelineState.payload_keys()
     return {
         key: _json_safe_pipeline_value(state.get(key) or [])
         for key in keys
@@ -930,22 +896,7 @@ def _checkpoint_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
 
 
 def _infer_last_completed_stage_from_state(state: dict[str, Any]) -> str | None:
-    stage_state_keys = (
-        ("cv_analysis", ("cv_analysis_results",)),
-        ("ranking", ("ranked", "ranking_inputs", "ai_scores")),
-        ("shortlist", ("shortlist", "raw_shortlist", "backfilled_job_urls", "candidate_query_debug")),
-        ("rule_filter", ("passed_jobs", "candidate_filter_rejected_jobs")),
-        ("enrich", ("enriched", "pre_filter_rejected_jobs")),
-        ("normalize", ("normalized", "deduplicated_jobs", "raw_jobs")),
-    )
-    for stage_name, keys in stage_state_keys:
-        for key in keys:
-            value = state.get(key)
-            if isinstance(value, list) and value:
-                return stage_name
-            if isinstance(value, dict) and value:
-                return stage_name
-    return None
+    return infer_last_completed_stage_from_state(state)
 
 
 def _canonical_resume_start_stage(
@@ -1159,6 +1110,52 @@ def _build_checkpoint_summary(
     summary["paused_after_stage"] = paused_after_stage
     summary["checkpoint_payload"] = _checkpoint_payload_from_state(state)
     return summary
+
+
+def _handle_stage_boundary(
+    *,
+    run_id: str,
+    last_completed_stage: str,
+    stop_after_stage: str | None,
+    state: dict[str, Any],
+    profile: dict[str, Any] | None,
+    config: dict[str, Any],
+    vector_top_n: int,
+    candidate_summary: str,
+    candidate_query_components: dict[str, Any],
+    candidate_query_debug: dict[str, Any],
+    final_top_n: int,
+    stage_progress_callback: Callable[[dict[str, Any]], None] | None,
+) -> dict[str, Any] | None:
+    if stage_progress_callback is not None:
+        stage_progress_callback(
+            _build_stage_progress_summary(
+                run_id=run_id,
+                last_completed_stage=last_completed_stage,
+                state=state,
+                profile=profile,
+                config=config,
+                vector_top_n=vector_top_n,
+                candidate_summary=candidate_summary,
+                candidate_query_components=candidate_query_components,
+                candidate_query_debug=candidate_query_debug,
+                final_top_n=final_top_n,
+            )
+        )
+    if stop_after_stage == last_completed_stage:
+        return _build_checkpoint_summary(
+            run_id=run_id,
+            paused_after_stage=last_completed_stage,
+            state=state,
+            profile=profile,
+            config=config,
+            vector_top_n=vector_top_n,
+            candidate_summary=candidate_summary,
+            candidate_query_components=candidate_query_components,
+            candidate_query_debug=candidate_query_debug,
+            final_top_n=final_top_n,
+        )
+    return None
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -3931,34 +3928,22 @@ def run_pipeline(
                         "deduplicated_jobs": len(deduplicated_jobs),
                     }
                 )
-            if stage_progress_callback is not None:
-                stage_progress_callback(
-                    _build_stage_progress_summary(
-                        run_id=run_id,
-                        last_completed_stage="normalize",
-                        state=state,
-                        profile=None,
-                        config=config,
-                        vector_top_n=vector_top_n,
-                        candidate_summary=candidate_summary,
-                        candidate_query_components=candidate_query_components,
-                        candidate_query_debug=candidate_query_debug,
-                        final_top_n=final_top_n,
-                    )
-                )
-            if stop_after_stage == "normalize":
-                return _build_checkpoint_summary(
-                    run_id=run_id,
-                    paused_after_stage="normalize",
-                    state=state,
-                    profile=None,
-                    config=config,
-                    vector_top_n=vector_top_n,
-                    candidate_summary=candidate_summary,
-                    candidate_query_components=candidate_query_components,
-                    candidate_query_debug=candidate_query_debug,
-                    final_top_n=final_top_n,
-                )
+            stage_boundary_result = _handle_stage_boundary(
+                run_id=run_id,
+                last_completed_stage="normalize",
+                stop_after_stage=stop_after_stage,
+                state=state,
+                profile=None,
+                config=config,
+                vector_top_n=vector_top_n,
+                candidate_summary=candidate_summary,
+                candidate_query_components=candidate_query_components,
+                candidate_query_debug=candidate_query_debug,
+                final_top_n=final_top_n,
+                stage_progress_callback=stage_progress_callback,
+            )
+            if stage_boundary_result is not None:
+                return stage_boundary_result
 
         normalized = list(state["normalized"])
 
@@ -4020,34 +4005,22 @@ def run_pipeline(
                         "reused_enriched": reused_count,
                     }
                 )
-            if stage_progress_callback is not None:
-                stage_progress_callback(
-                    _build_stage_progress_summary(
-                        run_id=run_id,
-                        last_completed_stage="enrich",
-                        state=state,
-                        profile=None,
-                        config=config,
-                        vector_top_n=vector_top_n,
-                        candidate_summary=candidate_summary,
-                        candidate_query_components=candidate_query_components,
-                        candidate_query_debug=candidate_query_debug,
-                        final_top_n=final_top_n,
-                    )
-                )
-            if stop_after_stage == "enrich":
-                return _build_checkpoint_summary(
-                    run_id=run_id,
-                    paused_after_stage="enrich",
-                    state=state,
-                    profile=None,
-                    config=config,
-                    vector_top_n=vector_top_n,
-                    candidate_summary=candidate_summary,
-                    candidate_query_components=candidate_query_components,
-                    candidate_query_debug=candidate_query_debug,
-                    final_top_n=final_top_n,
-                )
+            stage_boundary_result = _handle_stage_boundary(
+                run_id=run_id,
+                last_completed_stage="enrich",
+                stop_after_stage=stop_after_stage,
+                state=state,
+                profile=None,
+                config=config,
+                vector_top_n=vector_top_n,
+                candidate_summary=candidate_summary,
+                candidate_query_components=candidate_query_components,
+                candidate_query_debug=candidate_query_debug,
+                final_top_n=final_top_n,
+                stage_progress_callback=stage_progress_callback,
+            )
+            if stage_boundary_result is not None:
+                return stage_boundary_result
 
         pre_filter_rejected_jobs = list(state["pre_filter_rejected_jobs"])
         enriched = list(state["enriched"])
@@ -4104,34 +4077,22 @@ def run_pipeline(
                         "candidate_filter_rejected": len(candidate_filter_rejected_jobs),
                     }
                 )
-            if stage_progress_callback is not None:
-                stage_progress_callback(
-                    _build_stage_progress_summary(
-                        run_id=run_id,
-                        last_completed_stage="rule_filter",
-                        state=state,
-                        profile=profile,
-                        config=config,
-                        vector_top_n=vector_top_n,
-                        candidate_summary=candidate_summary,
-                        candidate_query_components=candidate_query_components,
-                        candidate_query_debug=candidate_query_debug,
-                        final_top_n=final_top_n,
-                    )
-                )
-            if stop_after_stage == "rule_filter":
-                return _build_checkpoint_summary(
-                    run_id=run_id,
-                    paused_after_stage="rule_filter",
-                    state=state,
-                    profile=profile,
-                    config=config,
-                    vector_top_n=vector_top_n,
-                    candidate_summary=candidate_summary,
-                    candidate_query_components=candidate_query_components,
-                    candidate_query_debug=candidate_query_debug,
-                    final_top_n=final_top_n,
-                )
+            stage_boundary_result = _handle_stage_boundary(
+                run_id=run_id,
+                last_completed_stage="rule_filter",
+                stop_after_stage=stop_after_stage,
+                state=state,
+                profile=profile,
+                config=config,
+                vector_top_n=vector_top_n,
+                candidate_summary=candidate_summary,
+                candidate_query_components=candidate_query_components,
+                candidate_query_debug=candidate_query_debug,
+                final_top_n=final_top_n,
+                stage_progress_callback=stage_progress_callback,
+            )
+            if stage_boundary_result is not None:
+                return stage_boundary_result
         else:
             runtime_profile_json = config.get("runtime_inputs", {}).get("candidate_profile_json")
             if runtime_profile_json:
@@ -4224,34 +4185,22 @@ def run_pipeline(
                         "backfilled_jobs": len(backfilled_job_urls),
                     }
                 )
-            if stage_progress_callback is not None:
-                stage_progress_callback(
-                    _build_stage_progress_summary(
-                        run_id=run_id,
-                        last_completed_stage="shortlist",
-                        state=state,
-                        profile=profile,
-                        config=config,
-                        vector_top_n=vector_top_n,
-                        candidate_summary=candidate_summary,
-                        candidate_query_components=candidate_query_components,
-                        candidate_query_debug=candidate_query_debug,
-                        final_top_n=final_top_n,
-                    )
-                )
-            if stop_after_stage == "shortlist":
-                return _build_checkpoint_summary(
-                    run_id=run_id,
-                    paused_after_stage="shortlist",
-                    state=state,
-                    profile=profile,
-                    config=config,
-                    vector_top_n=vector_top_n,
-                    candidate_summary=candidate_summary,
-                    candidate_query_components=candidate_query_components,
-                    candidate_query_debug=candidate_query_debug,
-                    final_top_n=final_top_n,
-                )
+            stage_boundary_result = _handle_stage_boundary(
+                run_id=run_id,
+                last_completed_stage="shortlist",
+                stop_after_stage=stop_after_stage,
+                state=state,
+                profile=profile,
+                config=config,
+                vector_top_n=vector_top_n,
+                candidate_summary=candidate_summary,
+                candidate_query_components=candidate_query_components,
+                candidate_query_debug=candidate_query_debug,
+                final_top_n=final_top_n,
+                stage_progress_callback=stage_progress_callback,
+            )
+            if stage_boundary_result is not None:
+                return stage_boundary_result
 
         raw_shortlist = list(state["raw_shortlist"])
         shortlist = list(state["shortlist"])
@@ -4352,34 +4301,22 @@ def run_pipeline(
                         "ranked_jobs": len(ranked),
                     }
                 )
-            if stage_progress_callback is not None:
-                stage_progress_callback(
-                    _build_stage_progress_summary(
-                        run_id=run_id,
-                        last_completed_stage="ranking",
-                        state=state,
-                        profile=profile,
-                        config=config,
-                        vector_top_n=vector_top_n,
-                        candidate_summary=candidate_summary,
-                        candidate_query_components=candidate_query_components,
-                        candidate_query_debug=candidate_query_debug,
-                        final_top_n=final_top_n,
-                    )
-                )
-            if stop_after_stage == "ranking":
-                return _build_checkpoint_summary(
-                    run_id=run_id,
-                    paused_after_stage="ranking",
-                    state=state,
-                    profile=profile,
-                    config=config,
-                    vector_top_n=vector_top_n,
-                    candidate_summary=candidate_summary,
-                    candidate_query_components=candidate_query_components,
-                    candidate_query_debug=candidate_query_debug,
-                    final_top_n=final_top_n,
-                )
+            stage_boundary_result = _handle_stage_boundary(
+                run_id=run_id,
+                last_completed_stage="ranking",
+                stop_after_stage=stop_after_stage,
+                state=state,
+                profile=profile,
+                config=config,
+                vector_top_n=vector_top_n,
+                candidate_summary=candidate_summary,
+                candidate_query_components=candidate_query_components,
+                candidate_query_debug=candidate_query_debug,
+                final_top_n=final_top_n,
+                stage_progress_callback=stage_progress_callback,
+            )
+            if stage_boundary_result is not None:
+                return stage_boundary_result
 
         ai_scores = list(state["ai_scores"])
         ranking_inputs = list(state["ranking_inputs"])
@@ -4877,34 +4814,22 @@ def run_pipeline(
             )
             state["cv_analysis_results"] = cv_analysis_results
             state["cv_generation_debug_records"] = cv_generation_debug_records
-            if stage_progress_callback is not None:
-                stage_progress_callback(
-                    _build_stage_progress_summary(
-                        run_id=run_id,
-                        last_completed_stage="cv_analysis",
-                        state=state,
-                        profile=profile,
-                        config=config,
-                        vector_top_n=vector_top_n,
-                        candidate_summary=candidate_summary,
-                        candidate_query_components=candidate_query_components,
-                        candidate_query_debug=candidate_query_debug,
-                        final_top_n=final_top_n,
-                    )
-                )
-            if stop_after_stage == "cv_analysis":
-                return _build_checkpoint_summary(
-                    run_id=run_id,
-                    paused_after_stage="cv_analysis",
-                    state=state,
-                    profile=profile,
-                    config=config,
-                    vector_top_n=vector_top_n,
-                    candidate_summary=candidate_summary,
-                    candidate_query_components=candidate_query_components,
-                    candidate_query_debug=candidate_query_debug,
-                    final_top_n=final_top_n,
-                )
+            stage_boundary_result = _handle_stage_boundary(
+                run_id=run_id,
+                last_completed_stage="cv_analysis",
+                stop_after_stage=stop_after_stage,
+                state=state,
+                profile=profile,
+                config=config,
+                vector_top_n=vector_top_n,
+                candidate_summary=candidate_summary,
+                candidate_query_components=candidate_query_components,
+                candidate_query_debug=candidate_query_debug,
+                final_top_n=final_top_n,
+                stage_progress_callback=stage_progress_callback,
+            )
+            if stage_boundary_result is not None:
+                return stage_boundary_result
 
         cv_analysis_results = list(state["cv_analysis_results"])
         if cancellation_check and cancellation_check():
