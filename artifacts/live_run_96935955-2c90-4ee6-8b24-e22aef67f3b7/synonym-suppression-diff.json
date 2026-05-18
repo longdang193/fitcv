@@ -1,0 +1,52 @@
+{
+  "run_id": "96935955-2c90-4ee6-8b24-e22aef67f3b7",
+  "schema_version": "synonym_suppression_diff_v1",
+  "created_at": "2026-05-18T16:38:58.300899+00:00",
+  "suggested_pairs_total": 9,
+  "suppressed_pairs_total": 3,
+  "generated_pairs_total": 5,
+  "suppressed_pairs": [
+    {
+      "field": "role_family",
+      "alias": "data science",
+      "canonical": "data_science"
+    },
+    {
+      "field": "domain",
+      "alias": "motor vehicle manufacturing and technology, information and internet",
+      "canonical": "automotive"
+    },
+    {
+      "field": "domain",
+      "alias": "non-profit organizations and primary and secondary education",
+      "canonical": "telecommunications"
+    }
+  ],
+  "generated_pairs": [
+    {
+      "alias": "it services and it consulting",
+      "canonical": "fintech"
+    },
+    {
+      "alias": "datenvisualisierung",
+      "canonical": "data visualization"
+    },
+    {
+      "alias": "3nf",
+      "canonical": "third normal form (3nf)"
+    },
+    {
+      "alias": "redshift",
+      "canonical": "amazon redshift"
+    },
+    {
+      "alias": "erfahrungen im anforderungsmanagement",
+      "canonical": "requirements management"
+    }
+  ],
+  "suppression_source": "run_effective_skill_synonyms",
+  "pre_run_global_map_fingerprint": null,
+  "run_overlay_fingerprint": null,
+  "mapping_suggestions_fingerprint": "b286b6fd86d5fd19bb28bad7db195ab74322b995eb4da3694de37752b885774a",
+  "proposal_input_bundle_fingerprint": "0e876981d6a0613979841b5d3911c2d8788c4d7ca588fa9ae8863f2bda99150e"
+}
