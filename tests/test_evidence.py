@@ -22,6 +22,14 @@ from fitcv import evidence as evidence_module
 from fitcv.evidence import retrieve_evidence, retrieve_evidence_bundle, score_evidence_item
 
 
+def _stable_contract_view(value: object) -> object:
+    if isinstance(value, dict):
+        return {str(key): _stable_contract_view(value[key]) for key in sorted(value)}
+    if isinstance(value, list):
+        return [_stable_contract_view(item) for item in value]
+    return value
+
+
 # ── schema and ordering ───────────────────────────────────────────────────────
 
 def test_retrieve_evidence_returns_normalized_schema() -> None:
@@ -702,6 +710,205 @@ def test_retrieve_evidence_bundle_prefers_broader_channel_coverage_over_redundan
     assert bundle["unselected_top_candidates"][0]["evidence_id"] == "exp_2"
 
 
+def test_retrieve_evidence_bundle_contract_is_deterministic_across_repeated_runs() -> None:
+    profile = {
+        "preferences": {
+            "target_role": "Data Engineer",
+            "role_families": ["data_engineering"],
+            "domains": ["finance", "analytics"],
+        },
+        "experiences": [
+            {
+                "id": "exp_a",
+                "role": "Senior Data Engineer",
+                "company": "Bank Alpha",
+                "role_family": "data_engineering",
+                "domain_tags": ["finance"],
+                "responsibility_themes": ["etl", "reporting"],
+                "bullets": [
+                    {"text": "Built SQL ETL pipelines for finance reporting.", "skills": ["SQL", "ETL"]},
+                    {"text": "Maintained stakeholder KPI dashboards.", "skills": ["Reporting"]},
+                ],
+            },
+            {
+                "id": "exp_b",
+                "role": "Analytics Engineer",
+                "company": "Bank Beta",
+                "role_family": "data_engineering",
+                "domain_tags": ["analytics"],
+                "responsibility_themes": ["modeling"],
+                "bullets": [
+                    {"text": "Modeled warehouse marts for BI teams.", "skills": ["dbt", "SQL"]},
+                ],
+            },
+        ],
+        "projects": [
+            {
+                "id": "proj_a",
+                "name": "Finance Insights Platform",
+                "skills": ["Python", "SQL"],
+                "domain_tags": ["finance"],
+                "responsibility_themes": ["reporting"],
+                "business_value": "Accelerated finance insight delivery.",
+                "highlights": [
+                    "Unified KPI model for finance stakeholders.",
+                    "Reduced reporting latency.",
+                ],
+            }
+        ],
+        "achievements": [{"id": "ach_a", "text": "Improved ETL reliability"}],
+        "skills": [{"name": "SQL"}, {"name": "Python"}],
+    }
+    job = {
+        "job_url": "https://example.com/job-deterministic",
+        "title": "Senior Data Engineer",
+        "job_family": "data_engineering",
+        "domain": "finance",
+        "required_skills_canonical": ["sql", "python"],
+        "responsibilities": [
+            "Build ETL pipelines",
+            "Enable finance stakeholder reporting",
+        ],
+    }
+
+    first = retrieve_evidence_bundle(profile, job, top_k=2)
+    second = retrieve_evidence_bundle(profile, job, top_k=2)
+
+    assert _stable_contract_view(first) == _stable_contract_view(second)
+    assert first["selected_evidence_ids"] == ["proj_a", "exp_a"]
+
+    selected = first["selected_evidence"]
+    assert len(selected) == 2
+    for item in selected:
+        assert item["selection_reasons"]
+        assert item["matched_channels"]
+        semantic_alignment = item["semantic_alignment"]
+        assert semantic_alignment["enabled"] is False
+        assert semantic_alignment["semantic_methods"]["required_skill_support"] == "disabled"
+        assert semantic_alignment["semantic_methods"]["role_alignment"] == "disabled"
+        assert semantic_alignment["semantic_methods"]["responsibility_alignment"] == "disabled"
+        assert semantic_alignment["semantic_methods"]["domain_alignment"] == "disabled"
+        assert semantic_alignment["reuse_state"]["candidate_evidence"] == "not_requested"
+        assert semantic_alignment["reuse_state"]["job_context"] == "not_requested"
+
+
+def test_retrieve_evidence_bundle_preserves_selection_and_debug_schema_contract() -> None:
+    profile = {
+        "preferences": {
+            "target_role": "Data Engineer",
+            "role_families": ["data_engineering"],
+            "domains": ["banking"],
+        },
+        "experiences": [
+            {
+                "id": "exp_1",
+                "role": "Data Engineer",
+                "company": "Bank One",
+                "role_family": "data_engineering",
+                "domain_tags": ["banking"],
+                "responsibility_themes": ["etl", "reporting"],
+                "bullets": [{"text": "Built SQL ETL pipelines.", "skills": ["SQL", "ETL"]}],
+            }
+        ],
+        "projects": [
+            {
+                "id": "proj_1",
+                "name": "Risk Dashboard Platform",
+                "skills": ["Python", "SQL"],
+                "domain_tags": ["banking"],
+                "responsibility_themes": ["reporting"],
+                "business_value": "Improved risk visibility.",
+                "highlights": ["Shipped banking KPI dashboards."],
+            },
+            {
+                "id": "proj_2",
+                "name": "Compliance Reporting Automation",
+                "skills": ["SQL"],
+                "domain_tags": ["banking"],
+                "responsibility_themes": ["reporting"],
+                "business_value": "Reduced compliance report effort.",
+                "highlights": ["Automated reporting pipeline."],
+            },
+        ],
+        "achievements": [],
+        "skills": [{"name": "SQL"}, {"name": "Python"}],
+    }
+    job = {
+        "job_url": "https://example.com/job-schema-contract",
+        "title": "Senior Data Engineer",
+        "job_family": "data_engineering",
+        "domain": "banking",
+        "required_skills_canonical": ["sql", "python"],
+        "responsibilities": [
+            "Build ETL pipelines",
+            "Support banking reporting",
+        ],
+    }
+
+    bundle = retrieve_evidence_bundle(profile, job, top_k=2)
+
+    assert bundle["selected_evidence_count"] == 2
+    assert bundle["selected_evidence_ids"] == [item["evidence_id"] for item in bundle["selected_evidence"]]
+    assert isinstance(bundle["unselected_top_candidates"], list)
+    assert bundle["unselected_top_candidates"]
+
+    for selected in bundle["selected_evidence"]:
+        assert isinstance(selected["selection_score"], float)
+        assert selected["selection_score"] >= 0.0
+        assert isinstance(selected["selection_reasons"], list)
+        assert selected["selection_reasons"]
+        channel_subscores = selected["channel_subscores"]
+        assert isinstance(channel_subscores, dict)
+        for components in channel_subscores.values():
+            assert set(components) == {"lexical", "semantic", "combined"}
+            assert isinstance(components["combined"], float)
+
+    sample = bundle["unselected_top_candidates"][0]
+    assert set(sample).issuperset(
+        {
+            "evidence_id",
+            "evidence_type",
+            "source_ref",
+            "name",
+            "matched_channels",
+            "selection_score",
+        }
+    )
+    if "selection_reasons" in sample:
+        assert isinstance(sample["selection_reasons"], list)
+    assert isinstance(sample["selection_score"], float)
+
+
+def test_selection_policy_model_matches_public_policy_dict_defaults() -> None:
+    model = evidence_module._selection_policy_model(None)
+    policy = evidence_module._cv_analysis_policy_settings(None)
+
+    assert model.as_dict() == policy
+    assert policy["quotas"]["experience_entry_top_k"] == 2
+    assert policy["trimming"]["bullets_per_experience"] == 2
+
+
+def test_semantic_alignment_model_matches_public_settings_dict_partial_config() -> None:
+    config = {
+        "cv_analysis": {
+            "semantic_alignment": {
+                "enabled": True,
+                "channel_pool_size": 6,
+                "required_skill_semantic_weight": 0.45,
+            }
+        }
+    }
+
+    model = evidence_module._semantic_alignment_settings_model(config)
+    settings = evidence_module._semantic_alignment_settings(config)
+
+    assert model.as_dict() == settings
+    assert settings["enabled"] is True
+    assert settings["channel_pool_size"] == 6
+    assert settings["required_skill_semantic_weight"] == 0.45
+    assert settings["required_skill_lexical_weight"] == 0.70
+
+
 # ── store_evidence_selection ───────────────────────────────────────────────────
 
 
@@ -761,6 +968,67 @@ def test_store_evidence_selection_writes_sqlite_rows(
     assert float(rows[1][6]) == 0.91
 
 
+
+def test_store_evidence_selection_sqlite_upsert_is_idempotent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import sqlite3
+
+    from fitcv.evidence import store_evidence_selection
+
+    db_path = tmp_path / "fitcv_cp.sqlite3"
+    monkeypatch.setenv("FITCV_CP_DATA_BACKEND", "sqlite")
+    monkeypatch.setenv("FITCV_CP_SQLITE_PATH", str(db_path))
+
+    first = [
+        {
+            "evidence_id": "proj_1",
+            "evidence_type": "project_entry",
+            "name": "FitCV",
+            "skills": ["Python"],
+            "business_value": "v1",
+            "selection_score": 0.40,
+            "source_ref": "projects[0]",
+        }
+    ]
+    second = [
+        {
+            "evidence_id": "proj_1",
+            "evidence_type": "project_entry",
+            "name": "FitCV Updated",
+            "skills": ["Python", "BigQuery"],
+            "business_value": "v2",
+            "selection_score": 0.88,
+            "source_ref": "projects[1]",
+        }
+    ]
+
+    job_url = "https://example.com/job-upsert"
+    store_evidence_selection(job_url, first, config={})
+    store_evidence_selection(job_url, second, config={})
+
+    with sqlite3.connect(db_path) as conn:
+        count = conn.execute(
+            "SELECT COUNT(*) FROM evidence_selections WHERE job_url = ? AND evidence_id = ?",
+            (job_url, "proj_1"),
+        ).fetchone()
+        row = conn.execute(
+            """
+            SELECT name, skills_json, business_value, score, source_ref
+            FROM evidence_selections
+            WHERE job_url = ? AND evidence_id = ?
+            """,
+            (job_url, "proj_1"),
+        ).fetchone()
+
+    assert count is not None and int(count[0]) == 1
+    assert row is not None
+    assert row[0] == "FitCV Updated"
+    assert '"BigQuery"' in str(row[1])
+    assert row[2] == "v2"
+    assert float(row[3]) == 0.88
+    assert row[4] == "projects[1]"
 def test_store_evidence_selection_bigquery_mode_uses_bigquery_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -824,3 +1092,39 @@ def test_store_evidence_selection_bigquery_mode_uses_bigquery_client(
     assert rows[0]["evidence_id"] == "proj_9"
     assert rows[0]["skills"] == ["dbt"]
     assert float(rows[0]["score"]) == 0.88
+
+
+def test_normalize_evidence_selection_records_contract() -> None:
+    records = evidence_module._normalize_evidence_selection_records(
+        "https://example.com/job-3",
+        [
+            {
+                "evidence_id": "exp_7",
+                "evidence_type": "experience_entry",
+                "name": "Data Engineer @ Example",
+                "skills": ["SQL"],
+                "business_value": "",
+                "score": 0.73,
+                "source_ref": "experiences[0]",
+            }
+        ],
+        selected_at="2026-05-18T12:00:00+00:00",
+    )
+
+    assert len(records) == 1
+    record = records[0]
+    assert record.job_url == "https://example.com/job-3"
+    assert record.evidence_id == "exp_7"
+    assert record.skills == ["SQL"]
+    assert record.score == 0.73
+
+    sqlite_params = evidence_module._record_to_sqlite_params(record)
+    assert sqlite_params[0] == "https://example.com/job-3"
+    assert sqlite_params[1] == "exp_7"
+    assert sqlite_params[6] == 0.73
+
+    bq_row = evidence_module._record_to_bigquery_row(record)
+    assert bq_row["job_url"] == "https://example.com/job-3"
+    assert bq_row["evidence_id"] == "exp_7"
+    assert bq_row["score"] == 0.73
+
