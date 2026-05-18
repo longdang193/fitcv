@@ -1539,6 +1539,60 @@ def test_worker_cv_generation_debug_json_truncates_large_markdown_but_keeps_core
     assert len(record["markdown_final"]) < len(large_markdown)
 
 
+
+def test_worker_cv_generation_debug_json_preserves_evidence_selection_summary():
+    bq = MagicMock()
+    bq.query.return_value.result.return_value = iter([])
+    mock_run = MagicMock(effective_settings_json=None)
+    mock_run.cancel_requested_at = None
+    mock_run.triggered_by = "admin"
+    mock_run.jobs_input_source = "upload"
+    mock_run.candidate_profile_source = "default_config"
+    mock_run.created_at = None
+    mock_run.started_at = None
+    mock_run.finished_at = None
+
+    summary_payload = {
+        "selected_evidence_ids": ["exp-1"],
+        "selected_evidence_count": 1,
+        "fallback_used": False,
+        "hybrid_alignment": {
+            "responsibility_alignment": {"lexical_weight": 0.25, "semantic_weight": 0.75},
+        },
+    }
+    with patch("fitcv_cp.worker_job.run_pipeline", return_value={
+        "run_id": "r1",
+        "total_jobs": 1,
+        "passed_filter": 1,
+        "ranked": 1,
+        "cvs_generated": 1,
+        "cv_generation_debug_records": [
+            {
+                "job_url": "https://example.com/1",
+                "job_title": "Data Engineer",
+                "status": "accepted",
+                "fit_classification": "strong",
+                "evidence_used": [{"evidence_type": "experience_entry", "source_ref": "experience[0]", "name": "Data Engineer"}],
+                "evidence_selection_summary": summary_payload,
+                "gap_summary": {"matched": ["SQL"]},
+                "structured_cv_initial": {"schema_version": "cv_doc_v1"},
+                "validation_initial": {"valid": True, "missing_sections": [], "grounding_violations": [], "skill_violations": [], "warnings": []},
+                "repair_attempt": {"performed": False, "missing_sections": []},
+                "structured_cv_final": {"schema_version": "cv_doc_v1"},
+                "markdown_final": "# CV",
+                "error": None,
+            }
+        ],
+    }), patch("fitcv_cp.worker_job._get_bq", return_value=bq), \
+       patch("fitcv_cp.worker_job.get_run", return_value=mock_run), \
+       patch("fitcv_cp.worker_job.update_run_cv_generation_debug") as mock_store_debug:
+        execute_pipeline_run(run_id="r1", jobs_path="data/sample_jobs.json", config_path=".env.yaml")
+
+    payload = json.loads(mock_store_debug.call_args.args[1])
+    record = payload["debug_records"][0]
+    assert record["evidence_selection_summary"]["selected_evidence_ids"] == ["exp-1"]
+    assert record["evidence_selection_summary"]["selected_evidence_count"] == 1
+    assert record["evidence_selection_summary"]["hybrid_alignment"]["responsibility_alignment"]["semantic_weight"] == 0.75
 def test_worker_marks_failed_on_exception():
     bq = MagicMock()
     bq.query.return_value.result.return_value = iter([])

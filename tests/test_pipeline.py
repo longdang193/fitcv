@@ -8460,3 +8460,99 @@ def test_run_pipeline_blocks_pre_filtered_jobs_before_enrichment(
         row for row in result["export_results"] if row["job_url"] == rejected_job["job_url"]
     )
     assert rejected_export["pipeline_status"] == "rejected_before_enrichment"
+
+@patch("fitcv.pipeline.store_cv_version")
+@patch("fitcv.pipeline.run_all_validations")
+@patch("fitcv.pipeline.generate_cv")
+@patch("fitcv.pipeline.classify_fit")
+@patch("fitcv.pipeline.compute_gap")
+@patch("fitcv.pipeline.retrieve_evidence")
+@patch("fitcv.pipeline.store_final_ranking")
+@patch("fitcv.pipeline.rank_jobs")
+@patch("fitcv.pipeline.build_ranking_features")
+@patch("fitcv.pipeline.run_ai_scoring")
+@patch("fitcv.pipeline.run_vector_search")
+@patch("fitcv.pipeline.embed_and_store_jobs")
+@patch("fitcv.pipeline.store_filter_results")
+@patch("fitcv.pipeline.apply_rule_filters")
+@patch("fitcv.pipeline.load_candidate_to_bigquery")
+@patch("fitcv.pipeline.load_profile_yaml")
+@patch("fitcv.pipeline.load_structured_jobs")
+@patch("fitcv.pipeline.load_run_structured_jobs")
+@patch("fitcv.pipeline.enrich_batch")
+@patch("fitcv.pipeline.load_to_bigquery")
+@patch("fitcv.pipeline.normalize_batch")
+@patch("fitcv.pipeline.parse_jobs_file")
+@patch("fitcv.pipeline.load_config")
+def test_run_pipeline_preserves_agentic_evidence_selection_summary_contract(
+    mock_config: MagicMock,
+    mock_parse: MagicMock,
+    mock_norm: MagicMock,
+    mock_load_bq: MagicMock,
+    mock_enrich: MagicMock,
+    mock_load_run_struct: MagicMock,
+    mock_load_struct: MagicMock,
+    mock_profile_yaml: MagicMock,
+    mock_load_cand: MagicMock,
+    mock_filter: MagicMock,
+    mock_store_filter: MagicMock,
+    mock_embed_jobs: MagicMock,
+    mock_vec: MagicMock,
+    mock_ai: MagicMock,
+    mock_build_feat: MagicMock,
+    mock_rank: MagicMock,
+    mock_store_rank: MagicMock,
+    mock_evidence: MagicMock,
+    mock_gap: MagicMock,
+    mock_classify: MagicMock,
+    mock_gen_cv: MagicMock,
+    mock_validate: MagicMock,
+    mock_store_ver: MagicMock,
+) -> None:
+    from fitcv.pipeline import run_pipeline
+
+    job = _minimal_job()
+    profile = _minimal_profile()
+    config = _minimal_config()
+    config.setdefault("cv", {})["agentic_late_stage"] = {"enabled": True}
+    config["run_mode"] = "full"
+    config["stop_after_stage"] = None
+
+    mock_config.return_value = config
+    mock_parse.return_value = [job]
+    mock_norm.return_value = [job]
+    mock_enrich.return_value = [job]
+    mock_load_run_struct.return_value = [job]
+    mock_load_struct.return_value = [job]
+    mock_profile_yaml.return_value = profile
+    mock_filter.return_value = {"passed": [job["job_url"]], "rejected": []}
+    mock_vec.return_value = [{"job_url": job["job_url"], "vector_similarity": 0.9, "vector_rank": 1}]
+    mock_ai.return_value = [{"job_url": job["job_url"], "ai_score": 0.8, "fit_label": "strong"}]
+    mock_build_feat.return_value = [{**job, "fit_label": "strong", "fit_label_source": "reranker"}]
+    mock_rank.return_value = [{**job, "fit_label": "strong", "fit_label_source": "reranker"}]
+
+    analysis_record = _agentic_analysis_ready(
+        {**job, "fit_label": "strong", "fit_label_source": "reranker"},
+    )
+    analysis_record["evidence_selection_summary"] = {
+        "selected_evidence_ids": ["exp-1"],
+        "selected_evidence_count": 1,
+        "fallback_used": False,
+        "hybrid_alignment": {"responsibility_alignment": {"lexical_weight": 0.25, "semantic_weight": 0.75}},
+        "semantic_alignment": {"enabled": True},
+    }
+    generation_result = _agentic_generation_result(status="accepted")
+
+    with (
+        patch("fitcv.pipeline.run_agentic_cv_analysis", return_value=analysis_record),
+        patch("fitcv.pipeline.run_agentic_cv_generation", return_value=generation_result) as mock_agentic_generation,
+        patch("fitcv.pipeline._hitl_review_reason_for_agentic_case", return_value=None),
+    ):
+        run_pipeline("data/sample_jobs.json", config_path="config/env.yaml", run_id="run-124")
+
+    passed_analysis_record = mock_agentic_generation.call_args.kwargs["analysis_record"]
+    summary = passed_analysis_record["evidence_selection_summary"]
+    assert summary["selected_evidence_ids"] == ["exp-1"]
+    assert summary["selected_evidence_count"] == 1
+    assert summary["fallback_used"] is False
+    assert summary["hybrid_alignment"]["responsibility_alignment"]["semantic_weight"] == 0.75
