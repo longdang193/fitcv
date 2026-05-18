@@ -10,8 +10,8 @@ A good learning item has:
 - one question per persisted Markdown file
 - required frontmatter when persisted
 - validator-friendly metadata that names `question_type`, `learning_mode`,
-  `bloom_level`, `source_scope`, and structural validation expectations
-- a filename-safe `#` title that summarizes the concept tested
+  `bloom_level`, and `source_scope`
+- a filename-safe `##` title that summarizes the concept tested
 - one expected answer or one best answer
 - source-grounded context when the user requested repo/source-grounded material
 - an explanation that teaches the distinction
@@ -113,7 +113,7 @@ Before finalizing, ask:
 - Is this grounded in the requested source?
 - Does each persisted file contain exactly one question?
 - Does the file include required frontmatter and a filename-safe title?
-- Does frontmatter include type-specific validation metadata?
+- Does frontmatter omit `validation` metadata?
 - Is the format appropriate?
 - Is the answer unambiguous?
 - Does the explanation teach something?

@@ -1,0 +1,65 @@
+[
+  {
+    "run_id": "81543a6f-73f1-4125-a6de-7e1f4cb76d3b",
+    "event_id": "1bb6e725-40f1-44fb-b4fb-5d66bf9edf45",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=81543a6f-73f1-4125-a6de-7e1f4cb76d3b]",
+    "created_at": "2026-05-17T22:26:28.269145+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"876948ff3c908ed9305fbc48c14c2318\", \"span_id\": \"52d7257dd27d3192\", \"parent_span_id\": \"750f5c891006483b\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "81543a6f-73f1-4125-a6de-7e1f4cb76d3b",
+    "event_id": "c25813c8-b66c-450f-b45a-39a88d5f04b1",
+    "stage": "layer1_normalize",
+    "level": "info",
+    "message": "Normalization dedupe: kept 6 of 7 jobs, removed 1 duplicate(s)",
+    "created_at": "2026-05-17T22:26:28.287681+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"22508ddcfc5efbbedecca0dec0a68e25\", \"span_id\": \"af7d9f8115ea8eee\", \"parent_span_id\": \"0a8876bf344a5c68\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "81543a6f-73f1-4125-a6de-7e1f4cb76d3b",
+    "event_id": "9ba2a9ad-b695-44a5-acb2-d62a0158a169",
+    "stage": "stage_checkpoint",
+    "level": "info",
+    "message": "Paused after normalize; next stage: enrich",
+    "created_at": "2026-05-17T22:26:28.317016+00:00",
+    "payload_json": null
+  },
+  {
+    "run_id": "81543a6f-73f1-4125-a6de-7e1f4cb76d3b",
+    "event_id": "6e176248-2285-48aa-a957-bd7639985673",
+    "stage": "manual_continue_requested",
+    "level": "info",
+    "message": "Manual run queued to continue from enrich (strict)",
+    "created_at": "2026-05-17T22:29:10.376889+00:00",
+    "payload_json": "{\"replay_mode\": \"strict\", \"replay_source_run_id\": \"81543a6f-73f1-4125-a6de-7e1f4cb76d3b\", \"policy_registry_version\": \"policy_registry.v1\", \"policy_envelope_signature\": \"1139f3642c834773fb3e08aa32ad76bdbc940818dc0f22685d200755735483d3\"}"
+  },
+  {
+    "run_id": "81543a6f-73f1-4125-a6de-7e1f4cb76d3b",
+    "event_id": "67479853-e7f0-45ef-865a-02fda40b241e",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=81543a6f-73f1-4125-a6de-7e1f4cb76d3b]",
+    "created_at": "2026-05-17T22:29:10.957888+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"876948ff3c908ed9305fbc48c14c2318\", \"span_id\": \"52d7257dd27d3192\", \"parent_span_id\": \"750f5c891006483b\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "81543a6f-73f1-4125-a6de-7e1f4cb76d3b",
+    "event_id": "4bef1a37-0ae6-4ab7-accf-6b53acf64f53",
+    "stage": "layer1b_pre_filter",
+    "level": "info",
+    "message": "Pre-enrichment filter: 6 pass, 0 rejected",
+    "created_at": "2026-05-17T22:29:10.983425+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"9ac6ed380a6cd3ef8331064dd07ef0de\", \"span_id\": \"a3351d98e756f74b\", \"parent_span_id\": \"4443258c50b5655b\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "81543a6f-73f1-4125-a6de-7e1f4cb76d3b",
+    "event_id": "57a3f02b-f39b-4a47-a1ce-cd6721cfe029",
+    "stage": "pipeline_failed",
+    "level": "error",
+    "message": "[WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond",
+    "created_at": "2026-05-17T22:29:38.664643+00:00",
+    "payload_json": null
+  }
+]

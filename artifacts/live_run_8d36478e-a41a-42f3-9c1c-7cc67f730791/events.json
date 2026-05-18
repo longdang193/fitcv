@@ -1,0 +1,380 @@
+[
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "f0024361-d7cd-4352-97d0-1edd3903acb6",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=8d36478e-a41a-42f3-9c1c-7cc67f730791]",
+    "created_at": "2026-05-18T00:21:11.047060+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"c9cc59c947840b9a22e423ca955e48ab\", \"span_id\": \"d727dda51c9b45fa\", \"parent_span_id\": \"e27df7f45c435d13\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "555cb1ef-5142-4702-91df-225ea21d5e93",
+    "stage": "layer1_normalize",
+    "level": "info",
+    "message": "Normalization dedupe: kept 6 of 7 jobs, removed 1 duplicate(s)",
+    "created_at": "2026-05-18T00:21:11.080693+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"3a27d1b2101edb474feb582a8e4aa6a9\", \"span_id\": \"474f427ec71bc387\", \"parent_span_id\": \"cc010284f2a75162\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "ee5c78d0-daf3-475b-bb73-2c88f2d4e6aa",
+    "stage": "stage_checkpoint",
+    "level": "info",
+    "message": "Paused after normalize; next stage: enrich",
+    "created_at": "2026-05-18T00:21:11.106980+00:00",
+    "payload_json": null
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "f52a868f-27b0-4a51-ba39-689ca406b6fd",
+    "stage": "manual_continue_requested",
+    "level": "info",
+    "message": "Manual run queued to continue from enrich (strict)",
+    "created_at": "2026-05-18T00:21:17.846179+00:00",
+    "payload_json": "{\"replay_mode\": \"strict\", \"replay_source_run_id\": \"8d36478e-a41a-42f3-9c1c-7cc67f730791\", \"policy_registry_version\": \"policy_registry.v1\", \"policy_envelope_signature\": \"1139f3642c834773fb3e08aa32ad76bdbc940818dc0f22685d200755735483d3\"}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "055ce953-e8fc-4cba-b30e-8dcfd86fe9c6",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=8d36478e-a41a-42f3-9c1c-7cc67f730791]",
+    "created_at": "2026-05-18T00:21:18.392321+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"c9cc59c947840b9a22e423ca955e48ab\", \"span_id\": \"d727dda51c9b45fa\", \"parent_span_id\": \"e27df7f45c435d13\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "3f6515a6-b980-4dbf-bd04-501fbd8b14e2",
+    "stage": "layer1b_pre_filter",
+    "level": "info",
+    "message": "Pre-enrichment filter: 6 pass, 0 rejected",
+    "created_at": "2026-05-18T00:21:18.410076+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"42ba63e6b3296bd779e19f940a6dddae\", \"span_id\": \"50fdb0b52565f577\", \"parent_span_id\": \"1c3f7f3cfea6ec79\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "724f68c0-ebee-46c5-a790-5929e783f250",
+    "stage": "layer1_jobs",
+    "level": "info",
+    "message": "Ingested 7 jobs, enriched 6 (after pre-filter; fresh=0, reused=6)",
+    "created_at": "2026-05-18T00:21:18.469198+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"3f497b241d75a593c8168da3b3d2b8f1\", \"span_id\": \"00e809f8dcb94ac1\", \"parent_span_id\": \"749414a3b201916a\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "5f4ae85f-f367-4b08-af71-0a7c14bc55a6",
+    "stage": "stage_checkpoint",
+    "level": "info",
+    "message": "Paused after enrich; next stage: rule_filter",
+    "created_at": "2026-05-18T00:21:18.489970+00:00",
+    "payload_json": null
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "595f87ba-18d4-4792-bbd9-5d0135751fa0",
+    "stage": "synonym_proposal_triage_completed",
+    "level": "info",
+    "message": "Synonym triage refresh completed: triaged=4, reused=0, fallback=0, skipped=0, failed=0",
+    "created_at": "2026-05-18T00:21:18.600937+00:00",
+    "payload_json": "{\"triaged_count\": 4, \"reused_count\": 0, \"fresh_count\": 4, \"fallback_count\": 0, \"skipped_count\": 0, \"failed_count\": 0, \"reuse_reason\": \"reuse_enabled\", \"auto_triage_recommendation_enabled\": true, \"triage_recommendation_reuse_enabled\": true, \"provider\": \"fitcv_builtin\", \"model\": \"synonym_triage_v1\", \"wire_api\": \"builtin\"}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "87335dd2-3739-4456-98fb-7555eed9a092",
+    "stage": "manual_continue_requested",
+    "level": "info",
+    "message": "Manual run queued to continue from rule_filter (strict)",
+    "created_at": "2026-05-18T00:21:41.791332+00:00",
+    "payload_json": "{\"replay_mode\": \"strict\", \"replay_source_run_id\": \"8d36478e-a41a-42f3-9c1c-7cc67f730791\", \"policy_registry_version\": \"policy_registry.v1\", \"policy_envelope_signature\": \"1139f3642c834773fb3e08aa32ad76bdbc940818dc0f22685d200755735483d3\"}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "cd559554-2cf1-4408-aa2b-99b24bfe0f72",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=8d36478e-a41a-42f3-9c1c-7cc67f730791]",
+    "created_at": "2026-05-18T00:21:42.331173+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"c9cc59c947840b9a22e423ca955e48ab\", \"span_id\": \"d727dda51c9b45fa\", \"parent_span_id\": \"e27df7f45c435d13\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "93ec11ef-3001-46a7-afab-9b064706a34d",
+    "stage": "layer2_candidate",
+    "level": "info",
+    "message": "Candidate profile loaded",
+    "created_at": "2026-05-18T00:21:42.346400+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"6fcaa9514266506a14a412d3c3eedd58\", \"span_id\": \"4b55686c93b89469\", \"parent_span_id\": \"b9ec7109686c6bad\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "056482bb-ba07-47b9-91d8-54d2b027650c",
+    "stage": "layer3_filter",
+    "level": "info",
+    "message": "4 passed rule filter",
+    "created_at": "2026-05-18T00:21:42.370429+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"e3a2d9e857f800d97cda94cbcdb9f87f\", \"span_id\": \"7ee21a29b50c22ed\", \"parent_span_id\": \"17a382f674876fdf\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "80178559-af4f-4bc6-a677-b1965b2b8f05",
+    "stage": "stage_checkpoint",
+    "level": "info",
+    "message": "Paused after rule_filter; next stage: shortlist",
+    "created_at": "2026-05-18T00:21:42.399077+00:00",
+    "payload_json": null
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "07e86bc1-e017-4330-82d4-e8459596cf54",
+    "stage": "synonym_proposal_triage_completed",
+    "level": "info",
+    "message": "Synonym triage refresh completed: triaged=4, reused=0, fallback=0, skipped=0, failed=0",
+    "created_at": "2026-05-18T00:21:42.510972+00:00",
+    "payload_json": "{\"triaged_count\": 4, \"reused_count\": 0, \"fresh_count\": 4, \"fallback_count\": 0, \"skipped_count\": 0, \"failed_count\": 0, \"reuse_reason\": \"reuse_enabled\", \"auto_triage_recommendation_enabled\": true, \"triage_recommendation_reuse_enabled\": true, \"provider\": \"fitcv_builtin\", \"model\": \"synonym_triage_v1\", \"wire_api\": \"builtin\"}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "11d6364f-9a45-4deb-8b80-90ba0712afec",
+    "stage": "manual_continue_requested",
+    "level": "info",
+    "message": "Manual run queued to continue from shortlist (strict)",
+    "created_at": "2026-05-18T00:23:27.158238+00:00",
+    "payload_json": "{\"replay_mode\": \"strict\", \"replay_source_run_id\": \"8d36478e-a41a-42f3-9c1c-7cc67f730791\", \"policy_registry_version\": \"policy_registry.v1\", \"policy_envelope_signature\": \"1139f3642c834773fb3e08aa32ad76bdbc940818dc0f22685d200755735483d3\"}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "bc858614-6dc6-4980-bdb1-5fd95a8760e7",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=8d36478e-a41a-42f3-9c1c-7cc67f730791]",
+    "created_at": "2026-05-18T00:23:27.728023+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"c9cc59c947840b9a22e423ca955e48ab\", \"span_id\": \"d727dda51c9b45fa\", \"parent_span_id\": \"e27df7f45c435d13\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "961dc09a-adc0-4a22-83c0-f06664146822",
+    "stage": "layer3_shortlist",
+    "level": "info",
+    "message": "Vector shortlist: 4 raw hits",
+    "created_at": "2026-05-18T00:23:27.778946+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"f1f98d8ffe38ffaa1b7d9fdff22564c6\", \"span_id\": \"1247b1b4b756b21d\", \"parent_span_id\": \"b2ac130651504c32\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "ce51fcc2-a316-4382-836d-a64a4bdbe6bc",
+    "stage": "stage_checkpoint",
+    "level": "info",
+    "message": "Paused after shortlist; next stage: ranking",
+    "created_at": "2026-05-18T00:23:27.806842+00:00",
+    "payload_json": null
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "000424a6-d0bd-47c7-97a9-1def3786f1c0",
+    "stage": "synonym_proposal_triage_completed",
+    "level": "info",
+    "message": "Synonym triage refresh completed: triaged=4, reused=0, fallback=0, skipped=0, failed=0",
+    "created_at": "2026-05-18T00:23:27.934382+00:00",
+    "payload_json": "{\"triaged_count\": 4, \"reused_count\": 0, \"fresh_count\": 4, \"fallback_count\": 0, \"skipped_count\": 0, \"failed_count\": 0, \"reuse_reason\": \"reuse_enabled\", \"auto_triage_recommendation_enabled\": true, \"triage_recommendation_reuse_enabled\": true, \"provider\": \"fitcv_builtin\", \"model\": \"synonym_triage_v1\", \"wire_api\": \"builtin\"}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "55defcab-1fe4-447f-8fd2-57886fe0960a",
+    "stage": "synonym_proposal_ai_fast_path_applied",
+    "level": "info",
+    "message": "AI fast-path decision apply completed: applied=4, skipped=0, failed=0",
+    "created_at": "2026-05-18T00:23:35.051217+00:00",
+    "payload_json": "{\"decision_source\": \"ai_fast_path\", \"applied_count\": 4, \"skipped_count\": 0, \"failed_count\": 0, \"reason_counts\": {}, \"acted_by\": \"admin\", \"note\": \"ai_fast_path\"}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "f38f1d9b-2c56-4e22-bf53-8ae4901dbc89",
+    "stage": "manual_continue_requested",
+    "level": "info",
+    "message": "Manual run queued to continue from ranking (strict)",
+    "created_at": "2026-05-18T00:24:15.953579+00:00",
+    "payload_json": "{\"replay_mode\": \"strict\", \"replay_source_run_id\": \"8d36478e-a41a-42f3-9c1c-7cc67f730791\", \"policy_registry_version\": \"policy_registry.v1\", \"policy_envelope_signature\": \"1139f3642c834773fb3e08aa32ad76bdbc940818dc0f22685d200755735483d3\"}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "949a6f76-765b-4724-b10d-7c8f86ec8a41",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=8d36478e-a41a-42f3-9c1c-7cc67f730791]",
+    "created_at": "2026-05-18T00:24:16.588250+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"c9cc59c947840b9a22e423ca955e48ab\", \"span_id\": \"d727dda51c9b45fa\", \"parent_span_id\": \"e27df7f45c435d13\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "f6950e4b-b5e1-4028-9be5-21fd58e12247",
+    "stage": "layer3_ai_score",
+    "level": "info",
+    "message": "AI scored: 4 jobs",
+    "created_at": "2026-05-18T00:24:16.617674+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"ea5db29fb9b912d3e59faa44f2cb93c2\", \"span_id\": \"817b4e9f6e4950b6\", \"parent_span_id\": \"af2c9f888d40a557\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "96f871f8-5bd7-4a9d-a416-7b15d450616f",
+    "stage": "layer3_ranking",
+    "level": "info",
+    "message": "Final ranking: top 4 jobs",
+    "created_at": "2026-05-18T00:24:16.624316+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"c7574b2d0879ac811d6365bd8a087645\", \"span_id\": \"afa37c2795db055b\", \"parent_span_id\": \"9b1b1e0544e50e7e\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "f507b3f8-cb94-4ea9-b6a7-da0e8f21a1d1",
+    "stage": "stage_checkpoint",
+    "level": "info",
+    "message": "Paused after ranking; next stage: cv_analysis",
+    "created_at": "2026-05-18T00:24:16.645591+00:00",
+    "payload_json": null
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "cca94bf0-747d-461e-9775-63130fb06217",
+    "stage": "synonym_proposal_triage_completed",
+    "level": "info",
+    "message": "Synonym triage refresh completed: triaged=1, reused=0, fallback=0, skipped=0, failed=0",
+    "created_at": "2026-05-18T00:24:16.748199+00:00",
+    "payload_json": "{\"triaged_count\": 1, \"reused_count\": 0, \"fresh_count\": 1, \"fallback_count\": 0, \"skipped_count\": 0, \"failed_count\": 0, \"reuse_reason\": \"reuse_enabled\", \"auto_triage_recommendation_enabled\": true, \"triage_recommendation_reuse_enabled\": true, \"provider\": \"fitcv_builtin\", \"model\": \"synonym_triage_v1\", \"wire_api\": \"builtin\"}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "dfb45175-c6cd-4771-b883-ce4333c6c038",
+    "stage": "synonym_proposal_suppression_summary",
+    "level": "info",
+    "message": "Suppressed synonym proposals already covered by global map: 3",
+    "created_at": "2026-05-18T00:24:16.792640+00:00",
+    "payload_json": "{\"suppressed_as_already_global_count\": 3, \"generated_for_review_count\": 1, \"suppression_source\": \"run_effective_skill_synonyms\", \"suppression_examples\": [{\"field\": \"role_family\", \"alias\": \"data science\", \"canonical\": \"data_science\"}, {\"field\": \"domain\", \"alias\": \"motor vehicle manufacturing and technology, information and internet\", \"canonical\": \"automotive mobility\"}, {\"field\": \"domain\", \"alias\": \"non-profit organizations and primary and secondary education\", \"canonical\": \"telecommunications\"}, {\"field\": \"skill\", \"alias\": \"anforderungsmanagement\", \"canonical\": \"requirements management\"}, {\"field\": \"skill\", \"alias\": \"datenvisualisierung\", \"canonical\": \"data visualization\"}, {\"field\": \"skill\", \"alias\": \"3nf\", \"canonical\": \"third normal form (3nf)\"}], \"suppression_fingerprint\": \"da4d174bbf86f259d044b8a37da01a90f89b46a3\"}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "75c48887-88b0-4823-b0e9-e3211ae7b092",
+    "stage": "manual_continue_requested",
+    "level": "info",
+    "message": "Manual run queued to continue from cv_analysis (strict)",
+    "created_at": "2026-05-18T00:24:42.564616+00:00",
+    "payload_json": "{\"replay_mode\": \"strict\", \"replay_source_run_id\": \"8d36478e-a41a-42f3-9c1c-7cc67f730791\", \"policy_registry_version\": \"policy_registry.v1\", \"policy_envelope_signature\": \"1139f3642c834773fb3e08aa32ad76bdbc940818dc0f22685d200755735483d3\"}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "bf489704-9413-455c-b236-a0d906995691",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=8d36478e-a41a-42f3-9c1c-7cc67f730791]",
+    "created_at": "2026-05-18T00:24:43.122757+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"c9cc59c947840b9a22e423ca955e48ab\", \"span_id\": \"d727dda51c9b45fa\", \"parent_span_id\": \"e27df7f45c435d13\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "3ec96cbe-fd14-4e39-8a83-864e7a776d72",
+    "stage": "layer4_cv_analysis_invoked",
+    "level": "info",
+    "message": "CV analysis invoked for 4 ranked job(s)",
+    "created_at": "2026-05-18T00:24:43.135009+00:00",
+    "payload_json": "{\"event_name\": \"cv_analysis_invoked\", \"event_family\": \"invocation\", \"source_stage\": \"cv_analysis\", \"event_status\": \"started\", \"deterministic_outcome\": null, \"fallback_used\": false, \"provenance\": {\"late_stage_mode\": \"agentic\"}, \"input_snapshot\": {\"ranked_jobs\": 4}, \"artifact_refs\": {\"stage_id\": \"cv_analysis\"}, \"trace_context\": {\"trace_id\": \"73d5c9b99f71ec1ffc204884e9bf0ee0\", \"span_id\": \"4713cd508be91ced\", \"parent_span_id\": \"f53caab1473e6322\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "fa22d9e7-9195-4d11-9e37-5785daa4791e",
+    "stage": "layer4_cv_analysis",
+    "level": "info",
+    "message": "CV analysis complete: 4 ready, 0 blocked by reranker, 0 skipped, 0 failed",
+    "created_at": "2026-05-18T00:24:43.395396+00:00",
+    "payload_json": "{\"event_name\": \"cv_analysis_decision\", \"event_family\": \"decision\", \"source_stage\": \"cv_analysis\", \"event_status\": \"completed\", \"deterministic_outcome\": null, \"fallback_used\": false, \"stage_owned_subreason\": \"stage_summary\", \"input_snapshot\": {\"ranked_jobs\": 4}, \"output_snapshot\": {\"ready_for_generation\": 4, \"blocked_by_reranker_fit\": 0, \"skipped_fit_gate\": 0, \"analysis_failed\": 0}, \"artifact_refs\": {\"stage_id\": \"cv_analysis\"}, \"latency_ms\": 260, \"trace_context\": {\"trace_id\": \"9b9e83b680110e1f081af5c7fee674a0\", \"span_id\": \"175cfd86ec1c5d4e\", \"parent_span_id\": \"a55f396fe4359c93\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "c8164d19-e5bc-439c-a9b2-15950ebd22d0",
+    "stage": "stage_checkpoint",
+    "level": "info",
+    "message": "Paused after cv_analysis; next stage: cv_generation",
+    "created_at": "2026-05-18T00:24:43.408378+00:00",
+    "payload_json": null
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "7403c08d-893d-4e4c-8eff-61448d106160",
+    "stage": "synonym_proposal_triage_completed",
+    "level": "info",
+    "message": "Synonym triage refresh completed: triaged=1, reused=0, fallback=0, skipped=0, failed=0",
+    "created_at": "2026-05-18T00:24:43.530607+00:00",
+    "payload_json": "{\"triaged_count\": 1, \"reused_count\": 0, \"fresh_count\": 1, \"fallback_count\": 0, \"skipped_count\": 0, \"failed_count\": 0, \"reuse_reason\": \"reuse_enabled\", \"auto_triage_recommendation_enabled\": true, \"triage_recommendation_reuse_enabled\": true, \"provider\": \"fitcv_builtin\", \"model\": \"synonym_triage_v1\", \"wire_api\": \"builtin\"}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "657c020b-057b-46ba-854d-08d9a9e75daa",
+    "stage": "manual_continue_requested",
+    "level": "info",
+    "message": "Manual run queued to continue from cv_generation (strict)",
+    "created_at": "2026-05-18T00:25:32.070378+00:00",
+    "payload_json": "{\"replay_mode\": \"strict\", \"replay_source_run_id\": \"8d36478e-a41a-42f3-9c1c-7cc67f730791\", \"policy_registry_version\": \"policy_registry.v1\", \"policy_envelope_signature\": \"1139f3642c834773fb3e08aa32ad76bdbc940818dc0f22685d200755735483d3\"}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "e072564c-fabb-478f-8793-3edd04697fb1",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=8d36478e-a41a-42f3-9c1c-7cc67f730791]",
+    "created_at": "2026-05-18T00:25:32.700227+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"c9cc59c947840b9a22e423ca955e48ab\", \"span_id\": \"d727dda51c9b45fa\", \"parent_span_id\": \"e27df7f45c435d13\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "f7bae781-f95d-43d9-989d-71d0d7caab38",
+    "stage": "layer4_cv_generation_result",
+    "level": "info",
+    "message": "CV generation result for https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title: generation_failed",
+    "created_at": "2026-05-18T00:25:33.973016+00:00",
+    "payload_json": "{\"event_name\": \"cv_generation_result\", \"event_family\": \"decision\", \"source_stage\": \"cv_generation\", \"event_status\": \"completed\", \"deterministic_outcome\": \"generation_failed\", \"fallback_used\": false, \"job_url\": \"https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title\", \"input_snapshot\": {\"ranking_fit_label\": \"stretch\", \"fit_classification\": \"stretch\"}, \"output_snapshot\": {\"status\": \"generation_failed\", \"attempt_count\": 1, \"retry_count\": 0}, \"artifact_refs\": {\"stage_id\": \"cv_generation\"}, \"latency_ms\": 486, \"trace_context\": {\"trace_id\": \"20577ef90c482ca17c5d0211c96f20cf\", \"span_id\": \"c056ea3956101178\", \"parent_span_id\": \"af545828d779a557\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "14e1f136-1fc8-4950-8bdf-ed193f8a1543",
+    "stage": "layer4_cv_generation_result",
+    "level": "info",
+    "message": "CV generation result for https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title: generation_failed",
+    "created_at": "2026-05-18T00:25:34.228889+00:00",
+    "payload_json": "{\"event_name\": \"cv_generation_result\", \"event_family\": \"decision\", \"source_stage\": \"cv_generation\", \"event_status\": \"completed\", \"deterministic_outcome\": \"generation_failed\", \"fallback_used\": false, \"job_url\": \"https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title\", \"input_snapshot\": {\"ranking_fit_label\": \"stretch\", \"fit_classification\": \"stretch\"}, \"output_snapshot\": {\"status\": \"generation_failed\", \"attempt_count\": 1, \"retry_count\": 0}, \"artifact_refs\": {\"stage_id\": \"cv_generation\"}, \"latency_ms\": 240, \"trace_context\": {\"trace_id\": \"42aa187024e3ff2b90b7245ec537f8f1\", \"span_id\": \"35db14310b8831fd\", \"parent_span_id\": \"8a6e6f2432fdf968\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "f9d94752-c18c-4d59-8aed-3da51762183d",
+    "stage": "layer4_cv_generation_result",
+    "level": "info",
+    "message": "CV generation result for https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title: generation_failed",
+    "created_at": "2026-05-18T00:25:34.476051+00:00",
+    "payload_json": "{\"event_name\": \"cv_generation_result\", \"event_family\": \"decision\", \"source_stage\": \"cv_generation\", \"event_status\": \"completed\", \"deterministic_outcome\": \"generation_failed\", \"fallback_used\": false, \"job_url\": \"https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title\", \"input_snapshot\": {\"ranking_fit_label\": \"stretch\", \"fit_classification\": \"stretch\"}, \"output_snapshot\": {\"status\": \"generation_failed\", \"attempt_count\": 1, \"retry_count\": 0}, \"artifact_refs\": {\"stage_id\": \"cv_generation\"}, \"latency_ms\": 227, \"trace_context\": {\"trace_id\": \"4e2f204b795a891b58e8720faf165de5\", \"span_id\": \"77c5716d793cfdcd\", \"parent_span_id\": \"2e8b88c4acda0907\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "2cce93e7-2f12-42ef-8adb-6b4fd06caf37",
+    "stage": "layer4_cv_generation_result",
+    "level": "info",
+    "message": "CV generation result for https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title: generation_failed",
+    "created_at": "2026-05-18T00:25:34.708841+00:00",
+    "payload_json": "{\"event_name\": \"cv_generation_result\", \"event_family\": \"decision\", \"source_stage\": \"cv_generation\", \"event_status\": \"completed\", \"deterministic_outcome\": \"generation_failed\", \"fallback_used\": false, \"job_url\": \"https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title\", \"input_snapshot\": {\"ranking_fit_label\": \"stretch\", \"fit_classification\": \"stretch\"}, \"output_snapshot\": {\"status\": \"generation_failed\", \"attempt_count\": 1, \"retry_count\": 0}, \"artifact_refs\": {\"stage_id\": \"cv_generation\"}, \"latency_ms\": 212, \"trace_context\": {\"trace_id\": \"b27f612eb4122d16d6a20489068d9003\", \"span_id\": \"194898c509a6bcd2\", \"parent_span_id\": \"f666b31c7cde0bdc\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "be069045-e828-4181-9724-9007a0455dc7",
+    "stage": "pipeline_complete",
+    "level": "info",
+    "message": "{'run_id': '8d36478e-a41a-42f3-9c1c-7cc67f730791', 'total_jobs': 7, 'passed_filter': 4, 'ranked': 4, 'cvs_generated': 0, 'quality_summary': {'acceptance_review_failure': {'accepted': 0, 'review_required': 0, 'validation_failed': 0, 'generation_failed': 4, 'persistence_failed': 0, 'accepted_rate': 0.0, 'review_required_rate': 0.0, 'failure_rate': 1.0}, 'analysis_to_generation_conversion': {'ready_for_generation': 4, 'generation_attempted': 4, 'conversion_rate': 1.0}, 'retry_counts': {'total_retry_count': 0, 'attempted_jobs': 4}}}",
+    "created_at": "2026-05-18T00:25:34.743684+00:00",
+    "payload_json": "{\"event_name\": \"pipeline_complete\", \"event_family\": \"summary\", \"source_stage\": \"cv_generation\", \"event_status\": \"completed\", \"deterministic_outcome\": null, \"fallback_used\": false, \"input_snapshot\": {\"total_jobs\": 7, \"passed_filter\": 4, \"ranked\": 4}, \"output_snapshot\": {\"cvs_generated\": 0, \"quality_summary\": {\"acceptance_review_failure\": {\"accepted\": 0, \"review_required\": 0, \"validation_failed\": 0, \"generation_failed\": 4, \"persistence_failed\": 0, \"accepted_rate\": 0.0, \"review_required_rate\": 0.0, \"failure_rate\": 1.0}, \"analysis_to_generation_conversion\": {\"ready_for_generation\": 4, \"generation_attempted\": 4, \"conversion_rate\": 1.0}, \"retry_counts\": {\"total_retry_count\": 0, \"attempted_jobs\": 4}}}, \"trace_context\": {\"trace_id\": \"3291885e20b4be38e5d61c25c97408eb\", \"span_id\": \"237e7cde3b8b2ed7\", \"parent_span_id\": \"4f11c5e0305818f4\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "event_id": "04b9ae03-ad45-46fe-8be1-35686e19bc7e",
+    "stage": "synonym_proposal_triage_completed",
+    "level": "info",
+    "message": "Synonym triage refresh completed: triaged=1, reused=0, fallback=0, skipped=0, failed=0",
+    "created_at": "2026-05-18T00:25:34.938833+00:00",
+    "payload_json": "{\"triaged_count\": 1, \"reused_count\": 0, \"fresh_count\": 1, \"fallback_count\": 0, \"skipped_count\": 0, \"failed_count\": 0, \"reuse_reason\": \"reuse_enabled\", \"auto_triage_recommendation_enabled\": true, \"triage_recommendation_reuse_enabled\": true, \"provider\": \"fitcv_builtin\", \"model\": \"synonym_triage_v1\", \"wire_api\": \"builtin\"}"
+  }
+]

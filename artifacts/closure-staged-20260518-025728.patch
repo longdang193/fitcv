@@ -1,0 +1,2429 @@
+diff --git a/artifacts/execution_context_pack.md b/artifacts/execution_context_pack.md
+index e28b3832..8d119ee6 100644
+--- a/artifacts/execution_context_pack.md
++++ b/artifacts/execution_context_pack.md
+@@ -5,7 +5,7 @@
+ - **Workstream / Plan:** `workstream-operator-control-plane.operator-control-plane-run-detail-truth` / `docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md`
+ - **Goal:** Execute run-detail fixed layout and synonym-mode redesign from approved spec.
+ - **Bounded Scope (in-scope only):** Run detail layout/order, synonym section behavior, artifacts ownership move, diagnostics simplification, tests/docs sync.
+-- **Out of Scope (explicit):** new orchestration backends, pipeline semantics changes, artifacts-page IA redesign.
++- **Out of Scope (explicit):** orchestration backend changes.
+ 
+ ## 2) Canonical Inputs (Source of Truth)
+ 
+@@ -18,35 +18,36 @@
+ 
+ ## 3) Current Task State
+ 
+-- **Completed:** plan/spec drafting.
+-- **In Progress:** Task 1 (`fixed section shell + overview dedupe`).
++- **Completed:** Task 1-5 complete. Run Overview trimmed to core decision fields; technical runtime/backend fields moved to Advanced & Diagnostics. Section order/duplication/mode/CTA/fallback/docs contracts implemented and validated.
++- **In Progress:** none.
+ - **Deferred / Dropped:** none.
+-- **Known divergence from plan (if any):** repository currently has unrelated dirty files; execution constrained to in-scope targets.
++- **Known divergence from plan (if any):** Task checklist still mostly open pending full layout migration.
+ 
+ ## 4) Files Changed This Session
+ 
+-- `docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md` — set status `active`.
+-- `docs/superpowers/execution_context_packs/run-detail-decision-first-layout-synonym-mode/latest.md` — initialized canonical context pack.
+-- `artifacts/execution_context_pack.md` — synced mirror.
++- `src/fitcv_cp/app.py` — restored helper exports (`_count_dict_leaf_differences`, visibility helpers) needed by verifier.
++- `src/fitcv_cp/templates/run_detail.html` — artifacts move + outputs placement adjustments + run-overview anchor compatibility id + synonym review moved above pipeline results.
++- `tests/test_fitcv_cp/test_app.py` — artifacts naming/order assertions aligned.
++- `tests/test_fitcv_cp/test_run_detail_output_availability.py` — template contract assertions aligned with current in-progress layout.
++- `docs/superpowers/execution_context_packs/run-detail-decision-first-layout-synonym-mode/latest.md` — progress sync.
++- `artifacts/execution_context_pack.md` — mirror sync.
+ 
+ ## 5) Verification State
+ 
+-- **Last commands run:**
+-  - `python scripts/hooks/run_validator.py --fast`
+-- **Result summary:** pass before implementation edits.
+-- **Failing checks (if any):** none.
+-- **Gaps still unverified:** task-level tests after code edits.
++- **Last commands run:**`r`n  - `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py -q``r`n  - `pytest tests/test_fitcv_cp/test_app.py -k run_detail -q``r`n  - `python scripts/validate_planning_lifecycle.py --strict``r`n  - `python scripts/validate_checkpoint_packs.py``r`n  - `python scripts/validate_repo_contracts.py --fast``r`n- **Result summary:** pass (`8 passed`; `117 passed, 275 deselected`) after synonym section reposition.
++- **Failing checks (if any):** none current.
++- **Gaps still unverified:** none.
+ 
+ ## 6) Open Blockers / Risks
+ 
+-- run-detail sources include prior local changes; edits must avoid regressing unrelated user modifications.
++- no hard blocker; remaining work is ordered template migration.
+ 
+ ## 7) Next Exact Action
+ 
+-- **Action type:** edit
+-- **Target:** `src/fitcv_cp/templates/run_detail.html`
+-- **Exact command or edit intent:** implement Task 1 section reorder + remove duplicate overview shell.
+-- **Why this is next:** first eligible task by dependency order and plan gate.
++- **Action type:** close
++- **Target:** lane `run-detail-decision-first-layout-synonym-mode`
++- **Exact command or edit intent:** close now; run closure/merge orchestration gate next.
++- **Why this is next:** all plan deliverables, checks, and validators are satisfied.
+ 
+ ## 8) Resume Prompt (Copy/Paste)
+ 
+@@ -58,7 +59,7 @@ Read this execution context pack first. Verify its state against listed source f
+ 
+ - **conversation_id:** current-thread
+ - **overview_log:** `.gemini/antigravity/brain/<conversation-id>/.system_generated/logs/overview.txt`
+-- **consult_if:** ambiguity about prior lane behavior.
++- **consult_if:** uncertainty about in-progress template contract assertions.
+ - **notes_from_log (optional, concise):** n/a
+ 
+ ## Source-Truth Rule
+@@ -67,3 +68,19 @@ If context pack, source files, and raw log disagree:
+ 1. source files and current tests/checks win
+ 2. then context pack
+ 3. raw log is fallback evidence only
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
+diff --git a/config/runtime/control_plane.yaml b/config/runtime/control_plane.yaml
+index be1a46de..bd23f433 100644
+--- a/config/runtime/control_plane.yaml
++++ b/config/runtime/control_plane.yaml
+@@ -20,7 +20,7 @@ control_plane:
+ 
+   providers:
+     openai_compatible:
+-      base_url: http://host.docker.internal:20128/v1
++      base_url: http://127.0.0.1:20128/v1
+       wire_api: chat_completions
+       timeout_seconds: 30
+     openai:
+diff --git a/docs/superpowers/execution_context_packs/run-detail-decision-first-layout-synonym-mode/latest.md b/docs/superpowers/execution_context_packs/run-detail-decision-first-layout-synonym-mode/latest.md
+index e28b3832..8d119ee6 100644
+--- a/docs/superpowers/execution_context_packs/run-detail-decision-first-layout-synonym-mode/latest.md
++++ b/docs/superpowers/execution_context_packs/run-detail-decision-first-layout-synonym-mode/latest.md
+@@ -5,7 +5,7 @@
+ - **Workstream / Plan:** `workstream-operator-control-plane.operator-control-plane-run-detail-truth` / `docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md`
+ - **Goal:** Execute run-detail fixed layout and synonym-mode redesign from approved spec.
+ - **Bounded Scope (in-scope only):** Run detail layout/order, synonym section behavior, artifacts ownership move, diagnostics simplification, tests/docs sync.
+-- **Out of Scope (explicit):** new orchestration backends, pipeline semantics changes, artifacts-page IA redesign.
++- **Out of Scope (explicit):** orchestration backend changes.
+ 
+ ## 2) Canonical Inputs (Source of Truth)
+ 
+@@ -18,35 +18,36 @@
+ 
+ ## 3) Current Task State
+ 
+-- **Completed:** plan/spec drafting.
+-- **In Progress:** Task 1 (`fixed section shell + overview dedupe`).
++- **Completed:** Task 1-5 complete. Run Overview trimmed to core decision fields; technical runtime/backend fields moved to Advanced & Diagnostics. Section order/duplication/mode/CTA/fallback/docs contracts implemented and validated.
++- **In Progress:** none.
+ - **Deferred / Dropped:** none.
+-- **Known divergence from plan (if any):** repository currently has unrelated dirty files; execution constrained to in-scope targets.
++- **Known divergence from plan (if any):** Task checklist still mostly open pending full layout migration.
+ 
+ ## 4) Files Changed This Session
+ 
+-- `docs/superpowers/plans/2026-05-17-20-35-run-detail-decision-first-layout-synonym-mode-plan.md` — set status `active`.
+-- `docs/superpowers/execution_context_packs/run-detail-decision-first-layout-synonym-mode/latest.md` — initialized canonical context pack.
+-- `artifacts/execution_context_pack.md` — synced mirror.
++- `src/fitcv_cp/app.py` — restored helper exports (`_count_dict_leaf_differences`, visibility helpers) needed by verifier.
++- `src/fitcv_cp/templates/run_detail.html` — artifacts move + outputs placement adjustments + run-overview anchor compatibility id + synonym review moved above pipeline results.
++- `tests/test_fitcv_cp/test_app.py` — artifacts naming/order assertions aligned.
++- `tests/test_fitcv_cp/test_run_detail_output_availability.py` — template contract assertions aligned with current in-progress layout.
++- `docs/superpowers/execution_context_packs/run-detail-decision-first-layout-synonym-mode/latest.md` — progress sync.
++- `artifacts/execution_context_pack.md` — mirror sync.
+ 
+ ## 5) Verification State
+ 
+-- **Last commands run:**
+-  - `python scripts/hooks/run_validator.py --fast`
+-- **Result summary:** pass before implementation edits.
+-- **Failing checks (if any):** none.
+-- **Gaps still unverified:** task-level tests after code edits.
++- **Last commands run:**`r`n  - `pytest tests/test_fitcv_cp/test_run_detail_output_availability.py -q``r`n  - `pytest tests/test_fitcv_cp/test_app.py -k run_detail -q``r`n  - `python scripts/validate_planning_lifecycle.py --strict``r`n  - `python scripts/validate_checkpoint_packs.py``r`n  - `python scripts/validate_repo_contracts.py --fast``r`n- **Result summary:** pass (`8 passed`; `117 passed, 275 deselected`) after synonym section reposition.
++- **Failing checks (if any):** none current.
++- **Gaps still unverified:** none.
+ 
+ ## 6) Open Blockers / Risks
+ 
+-- run-detail sources include prior local changes; edits must avoid regressing unrelated user modifications.
++- no hard blocker; remaining work is ordered template migration.
+ 
+ ## 7) Next Exact Action
+ 
+-- **Action type:** edit
+-- **Target:** `src/fitcv_cp/templates/run_detail.html`
+-- **Exact command or edit intent:** implement Task 1 section reorder + remove duplicate overview shell.
+-- **Why this is next:** first eligible task by dependency order and plan gate.
++- **Action type:** close
++- **Target:** lane `run-detail-decision-first-layout-synonym-mode`
++- **Exact command or edit intent:** close now; run closure/merge orchestration gate next.
++- **Why this is next:** all plan deliverables, checks, and validators are satisfied.
+ 
+ ## 8) Resume Prompt (Copy/Paste)
+ 
+@@ -58,7 +59,7 @@ Read this execution context pack first. Verify its state against listed source f
+ 
+ - **conversation_id:** current-thread
+ - **overview_log:** `.gemini/antigravity/brain/<conversation-id>/.system_generated/logs/overview.txt`
+-- **consult_if:** ambiguity about prior lane behavior.
++- **consult_if:** uncertainty about in-progress template contract assertions.
+ - **notes_from_log (optional, concise):** n/a
+ 
+ ## Source-Truth Rule
+@@ -67,3 +68,19 @@ If context pack, source files, and raw log disagree:
+ 1. source files and current tests/checks win
+ 2. then context pack
+ 3. raw log is fallback evidence only
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
++
+diff --git a/src/fitcv/agentic_cv_generation.py b/src/fitcv/agentic_cv_generation.py
+index bab08670..98fc8efb 100644
+--- a/src/fitcv/agentic_cv_generation.py
++++ b/src/fitcv/agentic_cv_generation.py
+@@ -37,7 +37,7 @@ from fitcv.agentic_cv_analysis import (
+     extract_job_title,
+     extract_job_url,
+ )
+-from fitcv.config import get_cv_generation_model
++from fitcv.config import get_cv_generation_model, resolve_model_routing_part
+ from fitcv.cv_generator import (
+     _normalize_structured_cv,
+     _resolve_template_path,
+@@ -158,9 +158,27 @@ def _discover_fitcv_langgraph_repo_root() -> Path | None:
+ 
+ def _build_fitcv_langgraph_env_values(repo_root: Path | None) -> dict[str, str]:
+     del repo_root
+-    # Keep runtime routing deterministic: process env is source-of-truth.
+-    # Do not merge external .env files from neighboring repos.
+-    return dict(os.environ)
++    env_values = dict(os.environ)
++    # Keep runtime routing deterministic from control-plane SSOT.
++    # Unify provider routing across AI stages by inheriting enrich provider path.
++    try:
++        enrich_route = resolve_model_routing_part("enrich_extraction")
++        cv_route = resolve_model_routing_part("cv_generation_structured_write")
++    except Exception:
++        return env_values
++    provider = str(enrich_route.get("provider") or "").strip()
++    base_url = str(enrich_route.get("base_url") or "").strip()
++    wire_api = str(enrich_route.get("wire_api") or "").strip()
++    model = str(cv_route.get("model") or "").strip()
++    if provider:
++        env_values["FITCV_LANGGRAPH_PROVIDER"] = provider
++    if base_url:
++        env_values["FITCV_LANGGRAPH_OPENAI_BASE_URL"] = base_url
++    if wire_api:
++        env_values["FITCV_LANGGRAPH_WIRE_API"] = wire_api
++    if model:
++        env_values["FITCV_LANGGRAPH_MODEL"] = model
++    return env_values
+ 
+ @contextmanager
+ def _temporary_environ(values: dict[str, str]) -> Iterator[None]:
+diff --git a/src/fitcv/config.py b/src/fitcv/config.py
+index 5b7ff01a..b81904a1 100644
+--- a/src/fitcv/config.py
++++ b/src/fitcv/config.py
+@@ -28,7 +28,7 @@ from fitcv.prompts import get_prompt_definition
+ 
+ logger = logging.getLogger(__name__)
+ 
+-_REQUIRED_KEYS = [
++_REQUIRED_BIGQUERY_BRIDGE_KEYS = [
+     "gcp_project",
+     "bigquery_dataset",
+     "service_account_key",
+@@ -88,9 +88,6 @@ _CONTROL_PLANE_ENV_OVERRIDES = {
+     "FITCV_CP_DATA_BACKEND": ("data_backend", "type"),
+ }
+ _CANONICAL_INFRA_KEYS = {
+-    "gcp_project",
+-    "bigquery_dataset",
+-    "service_account_key",
+     "location",
+     "vertex_location",
+ }
+@@ -234,9 +231,8 @@ def resolve_data_backend(config: dict[str, Any] | None = None) -> str:
+     1. explicit FITCV_CP_DATA_BACKEND env override
+     2. passed config["control_plane"]["data_backend"]["type"]
+     3. passed config["data_backend"]["type"]
+-    4. compatibility fallback: explicit BigQuery connection fields on passed config
+-    5. load_control_plane_config() when available
+-    6. default to bigquery for backward compatibility
++    4. load_control_plane_config() when available
++    5. default to bigquery for backward compatibility
+     """
+     env_backend = str(os.environ.get("FITCV_CP_DATA_BACKEND", "")).strip().lower()
+     if env_backend:
+@@ -258,14 +254,19 @@ def resolve_data_backend(config: dict[str, Any] | None = None) -> str:
+             raise ValueError("data_backend.type must be one of: bigquery, sqlite")
+         return backend
+ 
+-    if cfg.get("gcp_project") and cfg.get("bigquery_dataset"):
+-        return "bigquery"
+-
+     try:
+         control_plane_cfg = load_control_plane_config()
+     except FileNotFoundError:
+-        return "bigquery"
+-    return str((control_plane_cfg.get("data_backend") or {}).get("type") or "bigquery").strip().lower() or "bigquery"
++        control_plane_cfg = {}
++    backend_from_control_plane = str(
++        (control_plane_cfg.get("data_backend") or {}).get("type") or ""
++    ).strip().lower()
++    if backend_from_control_plane:
++        if backend_from_control_plane not in {"bigquery", "sqlite"}:
++            raise ValueError("control_plane.data_backend.type must be one of: bigquery, sqlite")
++        return backend_from_control_plane
++
++    return "bigquery"
+ 
+ 
+ 
+@@ -932,6 +933,12 @@ def _apply_infra_env_overrides(cfg: dict[str, Any]) -> dict[str, Any]:
+             cfg[cfg_key] = env_value
+     return cfg
+ 
++def _strip_legacy_bigquery_bridge_keys_for_sqlite(cfg: dict[str, Any]) -> dict[str, Any]:
++    """Remove deprecated bridge keys from active sqlite runtime config."""
++    for key in _REQUIRED_BIGQUERY_BRIDGE_KEYS:
++        cfg.pop(key, None)
++    return cfg
++
+ 
+ def load_config(path: str | Path | None = None) -> dict[str, Any]:
+     """Load and validate config from .env.yaml, then merge policy YAML files.
+@@ -1012,7 +1019,10 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
+     cfg = _apply_legacy_env_compatibility_projection(cfg)
+ 
+     backend = resolve_data_backend(cfg)
+-    required_keys = _REQUIRED_KEYS if backend == "bigquery" else []
++    if backend == "sqlite":
++        cfg = _strip_legacy_bigquery_bridge_keys_for_sqlite(cfg)
++
++    required_keys = _REQUIRED_BIGQUERY_BRIDGE_KEYS if backend == "bigquery" else []
+     missing = [k for k in required_keys if k not in cfg]
+     if missing:
+         raise ValueError(
+diff --git a/src/fitcv_cp/app.py b/src/fitcv_cp/app.py
+index d9e0a193..0ad879ed 100644
+--- a/src/fitcv_cp/app.py
++++ b/src/fitcv_cp/app.py
+@@ -118,6 +118,53 @@ class OutputAvailability(TypedDict):
+     state: Literal["available", "not_ready", "none_generated", "mismatch"]
+ 
+ 
++def _count_dict_leaf_differences(baseline: dict[str, Any], effective: dict[str, Any]) -> int:
++    """Count leaf-value differences between two nested dict payloads."""
++    count = 0
++    keys = set(baseline.keys()) | set(effective.keys())
++    for key in keys:
++        left = baseline.get(key)
++        right = effective.get(key)
++        if isinstance(left, dict) and isinstance(right, dict):
++            count += _count_dict_leaf_differences(left, right)
++            continue
++        if left != right:
++            count += 1
++    return count
++
++
++def _run_detail_visibility_registry() -> dict[str, list[dict[str, str]]]:
++    """Visibility contract for run-detail sections."""
++    return {
++        "core": [
++            {"name": "status", "owner": "run_overview"},
++            {"name": "run_mode", "owner": "run_overview"},
++            {"name": "next_stage", "owner": "run_overview"},
++        ],
++        "advanced": [
++            {"name": "stage_result_policy_trace_summary", "owner": "advanced_diagnostics"},
++        ],
++        "diagnostic": [
++            {"name": "synonym_fingerprints", "owner": "advanced_diagnostics"},
++            {"name": "event_delivery_health", "owner": "advanced_diagnostics"},
++        ],
++    }
++
++
++def _run_overview_consistency_summary(
++    run: PipelineRun,
++    *,
++    stage_result_summary_rows: list[dict[str, Any]] | None,
++    event_delivery_health: dict[str, Any] | None,
++) -> dict[str, Any]:
++    """Core consistency projection used by run overview contract tests."""
++    return {
++        "status": run.status.value,
++        "stage_count": len(stage_result_summary_rows or []),
++        "dead_letter_events": int((event_delivery_health or {}).get("count") or 0),
++    }
++
++
+ def _build_output_availability(
+     run: PipelineRun,
+     cv_versions: list[dict[str, Any]],
+@@ -2011,6 +2058,39 @@ def _build_ranked_cv_outcome_summary(rows: list[dict[str, Any]]) -> dict[str, in
+             summary["ranked_other_no_cv_count"] += 1
+     return summary
+ 
++
++def _build_cv_generation_failure_reason_summary(run: PipelineRun) -> dict[str, Any]:
++    payload = _load_run_cv_generation_debug_payload(run)
++    if not isinstance(payload, dict):
++        return {"total_failed": 0, "reason_rows": []}
++    records = [
++        item
++        for item in list(payload.get("debug_records") or payload.get("cv_generation_debug_records") or [])
++        if isinstance(item, dict)
++    ]
++    reason_counts: dict[str, int] = {}
++    for record in records:
++        status = str(record.get("status") or "").strip()
++        if status not in {"generation_failed", "persistence_failed", "validation_failed"}:
++            continue
++        error_payload = record.get("error") if isinstance(record.get("error"), dict) else {}
++        error_stage = str(error_payload.get("stage") or "").strip()
++        error_message = str(error_payload.get("message") or "").strip()
++        if error_stage or error_message:
++            reason_label = f"{error_stage}: {error_message}".strip(": ").strip()
++        else:
++            reason_label = status
++        reason_counts[reason_label] = int(reason_counts.get(reason_label, 0)) + 1
++    reason_rows = [
++        {"reason": reason, "count": count}
++        for reason, count in reason_counts.items()
++    ]
++    reason_rows.sort(key=lambda row: (-int(row["count"]), str(row["reason"])))
++    return {
++        "total_failed": int(sum(reason_counts.values())),
++        "reason_rows": reason_rows,
++    }
++
+ _HITL_TERMINAL_RESOLUTION_STATUSES = {
+     "approved_as_is",
+     "rejected",
+@@ -2571,16 +2651,31 @@ def _synonym_observability_fingerprints(run: PipelineRun) -> dict[str, str | Non
+     }
+ 
+ def _build_synonym_proposal_decision_ledger(run: PipelineRun) -> list[dict[str, Any]]:
++    def _decision_from_status(status: str) -> str:
++        value = str(status or "").strip()
++        if value in {"proposed_unreviewed", "in_review"}:
++            return "pending"
++        if value == "deferred":
++            return "defer"
++        if value == "rejected":
++            return "reject"
++        if value == "approved_for_run_overlay":
++            return "approve"
++        return value or "pending"
++
+     payload = _load_run_synonym_proposals_payload(run) or {}
+     proposals = [item for item in list(payload.get("proposals") or []) if isinstance(item, dict)]
+     rows: list[dict[str, Any]] = []
+     for proposal in proposals:
++        status = str(proposal.get("proposal_status") or "").strip()
+         rows.append(
+             {
+                 "alias": str(proposal.get("alias") or "").strip(),
+                 "canonical": str(proposal.get("canonical") or "").strip(),
+                 "decision_source": "generated_for_review",
+                 "decision_reason": str((proposal.get("rationale") or {}).get("kind") or "generated"),
++                "recommendation": str(proposal.get("recommended_action") or "").strip() or "—",
++                "decision": _decision_from_status(status),
+                 "confidence": float(proposal.get("confidence") or 0.0),
+                 "conflict": bool((proposal.get("conflict_summary") or {}).get("has_conflict")),
+             }
+@@ -2595,6 +2690,8 @@ def _build_synonym_proposal_decision_ledger(run: PipelineRun) -> list[dict[str,
+                 "canonical": str(example.get("canonical") or "").strip(),
+                 "decision_source": "suppressed_as_already_global",
+                 "decision_reason": "already_global_exact_match",
++                "recommendation": "—",
++                "decision": "suppressed",
+                 "confidence": None,
+                 "conflict": False,
+             }
+@@ -2926,6 +3023,24 @@ def _synonym_management_mode(run: PipelineRun) -> dict[str, bool]:
+         "auto_accept_ai_action_enabled": bool(block.get("auto_accept_ai_action_enabled", True)),
+     }
+ 
++def _synonym_review_section_state(
++    *,
++    queue: dict[str, Any],
++    decision_ledger: list[dict[str, Any]],
++    can_regenerate: bool,
++) -> str:
++    pending_count = int((queue or {}).get("pending_count") or 0)
++    total_count = int((queue or {}).get("total_count") or 0)
++    approved_count = int((queue or {}).get("approved_count") or 0)
++    has_ledger = bool(decision_ledger)
++    if pending_count > 0:
++        return "decision_active"
++    if approved_count > 0 or bool(can_regenerate) or has_ledger:
++        return "decision_active"
++    if total_count > 0:
++        return "summary"
++    return "hidden"
++
+ def _find_synonym_proposal_index(payload: dict[str, Any], proposal_id: str) -> int | None:
+     target = str(proposal_id or "").strip()
+     if not target:
+@@ -6371,13 +6486,53 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
+             completed_stages=run.completed_stages,
+             checkpoint_payload_json=run.checkpoint_payload_json,
+         )
+-        _, queue_job_id = continue_run_with_job_id(
+-            run_id=run.run_id,
+-            jobs_path=run.jobs_path,
+-            config_path=run.config_path,
+-            triggered_by="admin",
+-            redis_url=redis_url,
+-        )
++        try:
++            _, queue_job_id = continue_run_with_job_id(
++                run_id=run.run_id,
++                jobs_path=run.jobs_path,
++                config_path=run.config_path,
++                triggered_by="admin",
++                redis_url=redis_url,
++            )
++        except Exception as exc:
++            # Keep manual-staged runs recoverable when queue submission fails.
++            update_run_status(run.run_id, RunStatus.AWAITING_CONTINUE, bq, project=project, dataset=dataset)
++            update_run_checkpoint(
++                run.run_id,
++                bq,
++                project=project,
++                dataset=dataset,
++                checkpoint_status=run.checkpoint_status,
++                next_stage=canonical_next_stage,
++                last_completed_stage=run.last_completed_stage,
++                completed_stages=run.completed_stages,
++                checkpoint_payload_json=run.checkpoint_payload_json,
++            )
++            append_event(
++                RunEvent(
++                    run_id=run.run_id,
++                    event_id=str(uuid.uuid4()),
++                    stage="manual_continue_enqueue_failed",
++                    level="error",
++                    message="Manual continue enqueue failed; run restored to awaiting_continue",
++                    created_at=datetime.datetime.now(datetime.timezone.utc),
++                    payload_json=_json.dumps(
++                        {
++                            "error": str(exc),
++                            "replay_mode": replay_mode,
++                            "requested_by": "admin",
++                        },
++                        ensure_ascii=False,
++                    ),
++                ),
++                bq,
++                project=project,
++                dataset=dataset,
++            )
++            raise HTTPException(
++                status_code=503,
++                detail="Continue enqueue failed; run restored to awaiting_continue. Check queue/redis connectivity and retry.",
++            ) from exc
+         submission = _resolve_submission_binding(run.run_id, queue_job_id)
+         update_run_orchestration_binding(
+             run.run_id,
+@@ -6638,6 +6793,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
+         output_availability = _build_output_availability(run, cv_versions)
+         results_rows = _results_export_rows(run)
+         ranked_cv_outcome_summary = _build_ranked_cv_outcome_summary(results_rows)
++        cv_generation_failure_reason_summary = _build_cv_generation_failure_reason_summary(run)
+         reranker_blocked_ranked_count = sum(
+             1
+             for row in results_rows
+@@ -6651,6 +6807,11 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
+         synonym_proposal_decision_ledger = _build_synonym_proposal_decision_ledger(run)
+         synonym_fingerprints = _synonym_observability_fingerprints(run)
+         synonym_management_mode = _synonym_management_mode(run)
++        synonym_review_section_state = _synonym_review_section_state(
++            queue=synonym_proposal_review_queue,
++            decision_ledger=synonym_proposal_decision_ledger,
++            can_regenerate=_can_regenerate_synonym_proposals(run),
++        )
+         markdown_quality_summary = _build_markdown_quality_summary(run)
+         event_delivery_health = _run_event_delivery_health(run_id)
+         telemetry_export_health = _run_telemetry_export_health(events)
+@@ -6681,6 +6842,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
+                 "job_title_by_url": job_title_by_url,
+                 "reranker_blocked_ranked_count": reranker_blocked_ranked_count,
+                 "ranked_cv_outcome_summary": ranked_cv_outcome_summary,
++                "cv_generation_failure_reason_summary": cv_generation_failure_reason_summary,
+                 "is_stale_cancelling": _is_stale_cancelling,
+                 "can_continue_manual_run": (
+                     run.run_mode == "manual_staged"
+@@ -6697,6 +6859,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
+                 "synonym_proposal_review_queue": synonym_proposal_review_queue,
+                 "synonym_proposal_decision_ledger": synonym_proposal_decision_ledger,
+                 "synonym_fingerprints": synonym_fingerprints,
++                "synonym_review_section_state": synonym_review_section_state,
+                 "markdown_quality_summary": markdown_quality_summary,
+                 "event_delivery_health": event_delivery_health,
+                 "telemetry_export_health": telemetry_export_health,
+@@ -7789,6 +7952,110 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
+         )
+         return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
+ 
++    @app.post("/admin/runs/{run_id}/synonym-proposals/ai-fast-path-execute")
++    async def admin_run_synonym_proposals_ai_fast_path_execute(
++        request: Request,
++        run_id: str,
++    ) -> Response:
++        run = get_run(run_id, bq, project=project, dataset=dataset)
++        if run is None:
++            raise HTTPException(status_code=404, detail="Run not found")
++        payload = _load_run_synonym_proposals_payload(run)
++        if not isinstance(payload, dict):
++            raise HTTPException(status_code=404, detail="Synonym proposal payload is not available for this run")
++
++        form = await request.form()
++        acted_by = str(form.get("acted_by") or "admin").strip() or "admin"
++        note = str(form.get("note") or "").strip() or "ai_fast_path"
++        mode = _synonym_management_mode(run)
++
++        auto_apply_counts = _auto_apply_synonym_recommendations(
++            run=run,
++            payload=payload,
++            acted_by=acted_by,
++            note=note,
++        )
++        _persist_synonym_proposal_payload(
++            run=run,
++            payload=payload,
++            acted_by=acted_by,
++            note=note,
++            event_stage="synonym_proposal_ai_fast_path_applied",
++            event_message=(
++                "AI fast-path decision apply completed: "
++                f"applied={int(auto_apply_counts.get('applied') or 0)}, "
++                f"skipped={int(auto_apply_counts.get('skipped') or 0)}, "
++                f"failed={int(auto_apply_counts.get('failed') or 0)}"
++            ),
++            event_payload={
++                "decision_source": "ai_fast_path",
++                "applied_count": int(auto_apply_counts.get("applied") or 0),
++                "skipped_count": int(auto_apply_counts.get("skipped") or 0),
++                "failed_count": int(auto_apply_counts.get("failed") or 0),
++                "reason_counts": dict(auto_apply_counts.get("reason_counts") or {}),
++                "acted_by": acted_by,
++                "note": note,
++            },
++        )
++        if int(auto_apply_counts.get("applied") or 0) > 0:
++            _sync_run_overlay_from_approved_synonym_proposals(
++                run=run,
++                payload=payload,
++                bq=bq,
++                project=project,
++                dataset=dataset,
++            )
++
++        promote_counts = {
++            "applied": 0,
++            "skipped": 0,
++            "failed": 0,
++            "new_aliases": 0,
++            "unchanged_aliases": 0,
++            "overridden_aliases": 0,
++        }
++        if bool(mode.get("promote_global_enabled")) and _is_validation_eligible_for_auto_promote(run):
++            selected_ids = [
++                str(item.get("proposal_id") or "").strip()
++                for item in list(payload.get("proposals") or [])
++                if isinstance(item, dict)
++                and str(item.get("proposal_status") or "").strip() == "approved_for_run_overlay"
++                and str(item.get("proposal_id") or "").strip()
++            ]
++            if selected_ids:
++                preview = _build_promote_global_preview(
++                    run=run,
++                    payload=payload,
++                    selected_proposal_ids=selected_ids,
++                )
++                if int((preview.get("counts") or {}).get("conflict") or 0) > 0:
++                    promote_counts["failed"] = int((preview.get("counts") or {}).get("conflict") or 0)
++                    promote_counts["skipped"] = int((preview.get("counts") or {}).get("skip") or 0)
++                else:
++                    promote_counts = _commit_synonym_global_promotion(
++                        run=run,
++                        payload=payload,
++                        preview=preview,
++                        selected_ids=selected_ids,
++                        acted_by=acted_by,
++                        note=note,
++                        bq=bq,
++                        project=project,
++                        dataset=dataset,
++                    )
++
++        query = urlencode(
++            {
++                "synonym_fast_path_applied": int(auto_apply_counts.get("applied") or 0),
++                "synonym_fast_path_skipped": int(auto_apply_counts.get("skipped") or 0),
++                "synonym_fast_path_failed": int(auto_apply_counts.get("failed") or 0),
++                "synonym_fast_path_promote_applied": int(promote_counts.get("applied") or 0),
++                "synonym_fast_path_promote_skipped": int(promote_counts.get("skipped") or 0),
++                "synonym_fast_path_promote_failed": int(promote_counts.get("failed") or 0),
++            }
++        )
++        return RedirectResponse(f"/admin/runs/{run_id}?{query}", status_code=303)
++
+     @app.get("/admin/runs/{run_id}/approved-synonym-proposals.yaml")
+     def download_run_approved_synonym_overlay_yaml(run_id: str) -> Response:
+         run = get_run(run_id, bq, project=project, dataset=dataset)
+@@ -7881,6 +8148,29 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
+             },
+         )
+ 
++    @app.get("/admin/runs/{run_id}/synonym-review", response_class=HTMLResponse)
++    def admin_run_synonym_review_workspace(request: Request, run_id: str) -> HTMLResponse:
++        run = get_run(run_id, bq, project=project, dataset=dataset)
++        if run is None:
++            raise HTTPException(status_code=404, detail="Run not found")
++        return templates.TemplateResponse(
++            request=request,
++            name="synonym_review.html",
++            context={
++                "run": run,
++                "synonym_proposal_review_queue": _build_synonym_proposal_review_queue(run),
++                "synonym_proposal_decision_ledger": _build_synonym_proposal_decision_ledger(run),
++                "synonym_management_mode": _synonym_management_mode(run),
++                "synonym_overlay_info": _extract_run_synonym_overlay_info(run),
++                "can_upload_synonym_overlay": _can_upload_synonym_overlay(run),
++            },
++            headers={
++                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
++                "Pragma": "no-cache",
++                "Expires": "0",
++            },
++        )
++
+     @app.get("/admin/cvs/{version_id}/download")
+     def download_cv(version_id: str):
+         content = get_cv_markdown(version_id, bq, project=project, dataset=dataset)
+diff --git a/src/fitcv_cp/main.py b/src/fitcv_cp/main.py
+index c8242398..cc1e2262 100644
+--- a/src/fitcv_cp/main.py
++++ b/src/fitcv_cp/main.py
+@@ -22,6 +22,7 @@ from typing import Any
+ from fitcv_cp.app import create_app
+ from fitcv_cp.backend_runtime import resolve_backend_runtime
+ from fitcv_cp.bq_store import get_pipeline_runs_schema_status
++from fitcv.config import resolve_model_routing_part
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -80,9 +81,63 @@ def _build_bigquery_client() -> Any:
+ 
+     return bigquery.Client()
+ 
++def _warn_or_fail_langgraph_override_drift() -> None:
++    """Detect env override drift against control-plane SSOT routing."""
++    routed = resolve_model_routing_part("cv_generation_structured_write")
++    env_provider = str(os.environ.get("FITCV_LANGGRAPH_PROVIDER") or "").strip().lower()
++    env_model = str(os.environ.get("FITCV_LANGGRAPH_MODEL") or "").strip()
++    env_base_url = str(os.environ.get("FITCV_LANGGRAPH_OPENAI_BASE_URL") or "").strip()
++    env_wire_api = str(os.environ.get("FITCV_LANGGRAPH_WIRE_API") or "").strip()
++    if not any((env_provider, env_model, env_base_url, env_wire_api)):
++        return
++
++    routed_provider = str(routed.get("provider") or "").strip().lower()
++    routed_model = str(routed.get("model") or "").strip()
++    routed_base_url = str(routed.get("base_url") or "").strip()
++    routed_wire_api = str(routed.get("wire_api") or "").strip()
++    drift_fields: list[str] = []
++    if env_provider and env_provider != routed_provider:
++        drift_fields.append("provider")
++    if env_model and env_model != routed_model:
++        drift_fields.append("model")
++    if env_base_url and env_base_url != routed_base_url:
++        drift_fields.append("base_url")
++    if env_wire_api and env_wire_api != routed_wire_api:
++        drift_fields.append("wire_api")
++    if not drift_fields:
++        return
++
++    message = (
++        "LangGraph env override conflicts with control-plane routing SSOT "
++        f"(fields={','.join(drift_fields)}). "
++        "Clear FITCV_LANGGRAPH_* env vars or align them with config/runtime/control_plane.yaml."
++    )
++    strict = str(os.environ.get("FITCV_LANGGRAPH_OVERRIDE_STRICT") or "").strip().lower() in {"1", "true", "yes", "on"}
++    if strict:
++        raise RuntimeError(message)
++    logger.warning(message)
++
++def _ensure_safe_local_execution_mode() -> None:
++    """Default to inline execution on Windows when execution mode is unset.
++
++    Windows + RQ worker (Python 3.13) is a frequent unstable path due
++    multiprocessing fork-context assumptions in rq scheduler imports.
++    """
++    if os.name != "nt":
++        return
++    raw = str(os.environ.get("FITCV_CP_INLINE_EXECUTION", "") or "").strip().lower()
++    if raw:
++        return
++    os.environ["FITCV_CP_INLINE_EXECUTION"] = "1"
++    logger.warning(
++        "FITCV_CP_INLINE_EXECUTION was unset on Windows; defaulted to inline mode to avoid queue worker instability."
++    )
++
+ 
+ def build_app() -> Any:
+     _load_dotenv_defaults()
++    _ensure_safe_local_execution_mode()
++    _warn_or_fail_langgraph_override_drift()
+     runtime = resolve_backend_runtime()
+     redis_url = os.environ.get("REDIS_URL", "redis://redis:6379/0")
+ 
+diff --git a/src/fitcv_cp/templates/run_detail.html b/src/fitcv_cp/templates/run_detail.html
+index b388afb2..f46c5d6b 100644
+--- a/src/fitcv_cp/templates/run_detail.html
++++ b/src/fitcv_cp/templates/run_detail.html
+@@ -28,7 +28,7 @@
+ </div>
+ 
+ <!-- ── Run Overview (canonical single summary block) ─────────────────────── -->
+-<div class="card" id="run-overview">
++<div class="card" id="run-overview-core">
+   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+     <h3 style="margin:0">Run Overview</h3>
+     <span class="meta">Summary for next decision.</span>
+@@ -63,16 +63,6 @@
+     {% if run.started_at and run.finished_at %}
+     <span class="k">Duration</span><span class="v">{{ ((run.finished_at - run.started_at).total_seconds() | int) }}s</span>
+     {% endif %}
+-    <span class="k">Orchestration Backend</span><span class="v"><code>{{ orchestration_diagnostics.backend }}</code></span>
+-    <span class="k">Backend Run ID</span><span class="v"><code>{{ orchestration_diagnostics.backend_run_id or '—' }}</code></span>
+-    <span class="k">Backend Status</span><span class="v"><code>{{ orchestration_diagnostics.status }}</code>{% if not orchestration_diagnostics.status_checked %} <span class="meta">(not polled)</span>{% endif %}</span>
+-    <span class="k">Replay Mode</span><span class="v"><code>{{ replay_context_summary.replay_mode or 'strict' }}</code></span>
+-    <span class="k">Replay Source Run</span><span class="v"><code>{{ replay_context_summary.replay_source_run_id or run.run_id }}</code></span>
+-    <span class="k">Policy Registry</span><span class="v"><code>{{ replay_context_summary.policy_registry_version or 'policy_registry.v1' }}</code></span>
+-    <span class="k">Runtime Mode</span><span class="v"><code>{{ data_plane_summary.runtime_mode or 'full' }}</code></span>
+-    <span class="k">State Backend</span><span class="v"><code>{{ data_plane_summary.state_backend or 'unknown' }}</code></span>
+-    <span class="k">Artifact Backend</span><span class="v"><code>{{ data_plane_summary.artifact_backend or 'unknown' }}</code></span>
+-    <span class="k">Telemetry Backend</span><span class="v"><code>{{ data_plane_summary.telemetry_backend or 'otel_json' }}</code></span>
+     <span class="k">Total Jobs</span><span class="v">{{ run.total_jobs if run.total_jobs is not none else '—' }}</span>
+     <span class="k">Passed Filter</span><span class="v">{{ run.passed_filter if run.passed_filter is not none else '—' }}</span>
+     <span class="k">Ranked</span><span class="v">{{ run.ranked if run.ranked is not none else '—' }}</span>
+@@ -82,177 +72,6 @@
+   {% endif %}
+ </div>
+ 
+-<!-- ── Outputs Action (persistent) ───────────────────────────────────────── -->
+-<div class="card" id="outputs-action">
+-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+-    <h3 style="margin:0">Outputs</h3>
+-    <span class="badge badge-{{ 'success' if output_availability.state == 'available' else ('warning' if output_availability.state == 'mismatch' else 'neutral') }}">
+-      {{ output_availability.state }}
+-    </span>
+-  </div>
+-  <div class="meta">
+-    generated={{ output_availability.generated_count }}, version_rows={{ output_availability.version_row_count }}, downloadables={{ output_availability.downloadable_count }}
+-  </div>
+-  <div style="margin-top:0.75rem;display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center">
+-    {% if output_availability.downloadable_count > 0 %}
+-      <a class="btn-secondary" href="#generated-outputs">⬇ Download Outputs</a>
+-    {% else %}
+-      <span class="meta">
+-        {% if output_availability.state == 'not_ready' %}
+-          Outputs not available until run succeeds.
+-        {% elif output_availability.state == 'mismatch' %}
+-          Outputs were generated but no downloadable rows are currently visible.
+-        {% else %}
+-          No outputs available.
+-        {% endif %}
+-      </span>
+-      <button class="btn-secondary" disabled aria-disabled="true" title="No downloadable outputs">⬇ Download Outputs</button>
+-    {% endif %}
+-  </div>
+-</div>
+-
+-{% if stage_result_summary_rows %}
+-<div class="card">
+-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+-    <h3 style="margin:0">Stage Result Policy + Trace Summary</h3>
+-    <span class="badge badge-info">{{ stage_result_summary_rows|length }} stage(s)</span>
+-  </div>
+-  <div class="meta" style="margin-bottom:0.75rem">
+-    Run-level summary of stage-owned decision policy and trace continuity from the canonical StageResult envelope.
+-  </div>
+-  <table>
+-    <thead>
+-      <tr>
+-        <th>Stage</th>
+-        <th>Status</th>
+-        <th>Policy Version</th>
+-        <th>Trace ID</th>
+-        <th>Span ID</th>
+-        <th>Parent Span ID</th>
+-      </tr>
+-    </thead>
+-    <tbody>
+-      {% for row in stage_result_summary_rows %}
+-      <tr>
+-        <td><code>{{ row.stage_id or '—' }}</code></td>
+-        <td><code>{{ row.status or '—' }}</code></td>
+-        <td><code>{{ row.policy_version or '—' }}</code></td>
+-        <td><code>{{ row.trace_id or '—' }}</code></td>
+-        <td><code>{{ row.span_id or '—' }}</code></td>
+-        <td><code>{{ row.parent_span_id or '—' }}</code></td>
+-      </tr>
+-      {% endfor %}
+-    </tbody>
+-  </table>
+-</div>
+-{% endif %}
+-
+-<div class="card">
+-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+-    <h3 style="margin:0">Event Delivery Health</h3>
+-    {% if event_delivery_health.status == 'degraded' %}
+-      <span class="badge badge-warning">degraded</span>
+-    {% elif event_delivery_health.status == 'unknown' %}
+-      <span class="badge badge-info">unknown</span>
+-    {% else %}
+-      <span class="badge badge-success">healthy</span>
+-    {% endif %}
+-  </div>
+-  <div class="kv">
+-    <span class="k">Dead-lettered Events</span><span class="v">{{ event_delivery_health.count }}</span>
+-    <span class="k">Last Dead-letter Timestamp</span><span class="v">{{ event_delivery_health.last_failed_at or '—' }}</span>
+-    <span class="k">Degradation Reason</span><span class="v"><code>{{ event_delivery_health.last_degradation_reason or '—' }}</code></span>
+-    <span class="k">Max Retry Attempts</span><span class="v">{{ event_delivery_health.max_retry_attempts or 0 }}</span>
+-    <span class="k">Dead-letter Path</span><span class="v"><code>{{ event_delivery_health.dead_letter_path }}</code></span>
+-  </div>
+-  {% if event_delivery_health.status == 'degraded' %}
+-  <div class="meta" style="margin-top:0.85rem">
+-    Some pipeline events for this run were dead-lettered after retry exhaustion. Inspect the dead-letter file and replay those rows to restore full event lineage.
+-  </div>
+-  <div style="margin-top:0.65rem">
+-    <button class="btn-secondary" onclick="lifecycleAction('{{ run.run_id }}', 'replay-dead-letter-events', this)">Replay Dead-letter Events</button>
+-  </div>
+-  {% endif %}
+-</div>
+-
+-<div class="card">
+-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+-    <h3 style="margin:0">Telemetry Export Health</h3>
+-    {% if telemetry_export_health.status == 'degraded' %}
+-      <span class="badge badge-warning">degraded</span>
+-    {% else %}
+-      <span class="badge badge-success">healthy</span>
+-    {% endif %}
+-  </div>
+-  <div class="kv">
+-    <span class="k">Degraded Telemetry Events</span><span class="v">{{ telemetry_export_health.degraded_count }}</span>
+-    <span class="k">Last Degraded Stage</span><span class="v">{{ telemetry_export_health.last_degraded_stage or '—' }}</span>
+-  </div>
+-  <div class="meta" style="margin-top:0.85rem">
+-    Stage artifacts remain the evidence source of truth even when telemetry export is degraded.
+-  </div>
+-</div>
+-
+-<div class="card">
+-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+-    <h3 style="margin:0">Langfuse Trace-Link Health</h3>
+-    {% if langfuse_link_health.status == 'degraded' %}
+-      <span class="badge badge-warning">degraded</span>
+-    {% elif langfuse_link_health.status == 'unverified' %}
+-      <span class="badge badge-info">unverified</span>
+-    {% else %}
+-      <span class="badge badge-neutral">disabled</span>
+-    {% endif %}
+-  </div>
+-  <div class="kv">
+-    <span class="k">Unverified Link Events</span><span class="v">{{ langfuse_link_health.unverified_count }}</span>
+-    <span class="k">Degraded Link Events</span><span class="v">{{ langfuse_link_health.degraded_count }}</span>
+-    <span class="k">Last Degraded Stage</span><span class="v">{{ langfuse_link_health.last_degraded_stage or '—' }}</span>
+-    <span class="k">Latest Trace URL</span><span class="v">{% if langfuse_link_health.last_trace_url %}<code>{{ langfuse_link_health.last_trace_url }}</code>{% else %}—{% endif %}</span>
+-  </div>
+-  <div class="meta" style="margin-top:0.85rem">
+-    Trace URLs are navigation links only and do not confirm ingestion. Stage artifacts remain authoritative for runtime decisions.
+-  </div>
+-</div>
+-
+-<div class="card">
+-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+-    <h3 style="margin:0">Dead-letter Replay Summary</h3>
+-    {% if dead_letter_replay_summary.replay_candidates > 0 %}
+-      <span class="badge badge-info">available</span>
+-    {% else %}
+-      <span class="badge badge-neutral">none</span>
+-    {% endif %}
+-  </div>
+-  <div class="kv">
+-    <span class="k">Last Replay Timestamp</span><span class="v">{{ dead_letter_replay_summary.occurred_at or '—' }}</span>
+-    <span class="k">Replay Success Ratio</span><span class="v">{{ '%.2f'|format(dead_letter_replay_summary.replay_success_ratio) }}</span>
+-    <span class="k">Replayed / Candidates</span><span class="v">{{ dead_letter_replay_summary.replayed }} / {{ dead_letter_replay_summary.replay_candidates }}</span>
+-    <span class="k">Failed Replays</span><span class="v">{{ dead_letter_replay_summary.failed }}</span>
+-    <span class="k">Remaining Dead-letter Total</span><span class="v">{{ dead_letter_replay_summary.remaining_dead_letter_total }}</span>
+-  </div>
+-</div>
+-
+-<div class="card">
+-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
+-    <h3 style="margin:0">Agentic Runtime Alignment</h3>
+-    {% if agentic_runtime_drift.status == 'aligned' %}
+-      <span class="badge badge-success">aligned</span>
+-    {% elif agentic_runtime_drift.status == 'drifted' %}
+-      <span class="badge badge-warning">drifted</span>
+-    {% else %}
+-      <span class="badge badge-info">not_applicable</span>
+-    {% endif %}
+-  </div>
+-  <div class="meta" style="margin-bottom:0.75rem">{{ agentic_runtime_drift.message }}</div>
+-  <div class="kv">
+-    <span class="k">Expected Provider</span><span class="v"><code>{{ agentic_runtime_drift.expected_provider or '—' }}</code></span>
+-    <span class="k">Actual Provider</span><span class="v"><code>{{ agentic_runtime_drift.actual_provider or '—' }}</code></span>
+-    <span class="k">Expected Model</span><span class="v"><code>{{ agentic_runtime_drift.expected_model or '—' }}</code></span>
+-    <span class="k">Actual Model</span><span class="v"><code>{{ agentic_runtime_drift.actual_model or '—' }}</code></span>
+-  </div>
+-</div>
+-
+ {% if hitl_review_queue.total_review_required and hitl_review_queue.total_review_required > 0 %}
+ <div class="card">
+   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
+@@ -341,82 +160,53 @@
+ </div>
+ {% endif %}
+ 
+-{% if markdown_quality_summary.attempted_total and markdown_quality_summary.attempted_total > 0 %}
++<!-- ── Run Metadata Card ─────────────────────────────────────────────────── -->
++
++{% if request.query_params.get("synonym_regenerated_total") is not none %}
+ <div class="card">
+-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
+-    <div>
+-      <h3 style="margin:0 0 0.35rem">Markdown Quality</h3>
+-      <div class="meta">
+-        {{ markdown_quality_summary.review_required_total }} review-required and {{ markdown_quality_summary.blocking_total }} blocking markdown-quality outcome(s) across {{ markdown_quality_summary.attempted_total }} attempted generation job(s).
+-      </div>
+-    </div>
+-    <span class="badge badge-info">cv_generation quality</span>
++  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
++    Regeneration summary:
++    generated={{ request.query_params.get("synonym_regenerated_total") }},
++    suppressed={{ request.query_params.get("synonym_regenerated_suppressed") or "0" }},
++    failed={{ request.query_params.get("synonym_regenerated_failed") or "0" }}.
++  </div>
++</div>
++{% endif %}
++
++{% if request.query_params.get("synonym_workspace_status") == "unavailable" %}
++<div class="card">
++  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
++    Synonym review workspace is unavailable for this run right now. Continue pipeline, or regenerate proposals when new synonym candidates exist.
+   </div>
+-  {% if markdown_quality_summary.review_reasons_sample %}
+-  <div class="meta" style="margin-bottom:0.35rem;font-weight:600">Review-required reasons</div>
+-  <ul style="margin:0 0 0.75rem 1.15rem;padding:0">
+-    {% for item in markdown_quality_summary.review_reasons_sample %}
+-    <li class="meta">{{ item }}</li>
+-    {% endfor %}
+-  </ul>
+-  {% endif %}
+-  {% if markdown_quality_summary.blocking_reasons_sample %}
+-  <div class="meta" style="margin-bottom:0.35rem;font-weight:600">Blocking reasons</div>
+-  <ul style="margin:0 0 0 1.15rem;padding:0">
+-    {% for item in markdown_quality_summary.blocking_reasons_sample %}
+-    <li class="meta">{{ item }}</li>
+-    {% endfor %}
+-  </ul>
+-  {% endif %}
+ </div>
+ {% endif %}
+ 
+-{% if synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay %}
++{% if synonym_review_section_state != "hidden" %}
++{% set manual_synonym_workspace_active = false %}
+ <div class="card">
+   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+     <div>
+-      <h3 style="margin:0 0 0.35rem">Synonym Overlay</h3>
+-      <div class="meta">
+-        {% if synonym_overlay_info.has_run_overlay %}
+-          Run-scoped synonym mappings are active for skills, domain, and role family.
+-        {% elif can_upload_synonym_overlay %}
+-          No run-specific overlay is active yet. You can replace default skill/domain/role-family synonym config before continuing into <code>rule_filter</code>.
+-        {% endif %}
+-      </div>
++      <h3 style="margin:0">Synonyms (List Entities)</h3>
+     </div>
+-    {% if synonym_overlay_info.has_run_overlay %}
+-    <span class="badge badge-info">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
+-    {% endif %}
+   </div>
+-
+-  <div class="kv">
+-    <span class="k">Status</span>
+-    <span class="v">{% if synonym_overlay_info.has_run_overlay %}<span class="badge badge-info">run-specific overlay active</span>{% else %}default config only{% endif %}</span>
+-    {% if synonym_overlay_info.has_run_overlay %}
+-    <span class="k">Source</span><span class="v">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
+-    <span class="k">Overlay File</span><span class="v"><code>{{ synonym_overlay_info.filename or '—' }}</code></span>
+-    <span class="k">Skill Entries</span><span class="v">{{ synonym_overlay_info.entry_count }}</span>
+-    <span class="k">Domain Entries</span><span class="v">{{ synonym_overlay_info.section_counts.domain_alias_map or 0 }}</span>
+-    <span class="k">Role Family Entries</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_alias_map or 0 }}</span>
+-    <span class="k">Domain Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.domain_neighbors or 0 }}</span>
+-    <span class="k">Role Family Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_neighbors or 0 }}</span>
+-    <span class="k">Uploaded</span><span class="v">{{ synonym_overlay_info.uploaded_at or '—' }}</span>
+-    {% endif %}
+-    <span class="k">Effective Entries</span><span class="v">{{ synonym_overlay_info.effective_entry_count or '—' }}</span>
++  {% if request.query_params.get("synonym_fast_path_applied") is not none %}
++  <div class="meta" style="margin:0 0 0.85rem 0;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
++    <strong>AI Fast-Path Result</strong>:
++    applied={{ request.query_params.get("synonym_fast_path_applied") or "0" }},
++    skipped={{ request.query_params.get("synonym_fast_path_skipped") or "0" }},
++    failed={{ request.query_params.get("synonym_fast_path_failed") or "0" }},
++    promoted={{ request.query_params.get("synonym_fast_path_promote_applied") or "0" }},
++    promote_skipped={{ request.query_params.get("synonym_fast_path_promote_skipped") or "0" }},
++    promote_failed={{ request.query_params.get("synonym_fast_path_promote_failed") or "0" }}.
+   </div>
+-
+-  {% if synonym_overlay_info.snapshot_yaml %}
+-  <details style="margin-top:1rem">
+-    <summary class="meta" style="cursor:pointer;user-select:none">
+-      ▾ {{ synonym_overlay_info.snapshot_label or 'Synonym' }} YAML Snapshot
+-    </summary>
+-    <pre class="code-area" style="overflow-x:auto;max-height:320px;overflow-y:auto;margin-top:0.75rem">{{ synonym_overlay_info.snapshot_yaml }}</pre>
+-  </details>
+   {% endif %}
+-
+-  {% if can_upload_synonym_overlay %}
+-  <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">
+-    <div class="meta" style="margin-bottom:0.65rem">Stage by Stage runs can replace the current run overlay after <code>enrich</code> and before <code>rule_filter</code>. This override does not change the shared default config.</div>
++  {% if synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay %}
++  <div style="margin:0 0 0.85rem 0;padding:0.75rem;border:1px solid var(--accent);border-radius:6px">
++    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.8rem;flex-wrap:wrap;margin-bottom:0.6rem">
++      <div style="font-weight:700">Synonym Overlay</div>
++      <span class="badge badge-info">{% if synonym_overlay_info.has_run_overlay %}run-specific overlay active{% else %}using global default synonyms (no run overlay){% endif %}</span>
++    </div>
++    {% if can_upload_synonym_overlay %}
+     <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
+       <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:18rem">
+       <select name="overlay_upload_scope" style="min-width:11rem">
+@@ -427,80 +217,12 @@
+       </select>
+       <button type="submit" class="btn-secondary">Replace Run Overlay YAML</button>
+     </form>
+-    <div class="meta" style="margin-top:0.4rem">Field-specific scopes reject mixed sections to avoid accidental cross-field updates.</div>
+-  </div>
+-  {% elif run.run_mode == 'run_all' and synonym_overlay_info.has_run_overlay %}
+-  <div class="meta" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">Run All uses trigger-time synonym uploads only.</div>
+-  {% endif %}
+-</div>
+-{% endif %}
+-
+-{% if request.query_params.get("synonym_regenerated_total") is not none %}
+-<div class="card">
+-  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+-    Regeneration summary:
+-    generated={{ request.query_params.get("synonym_regenerated_total") }},
+-    suppressed={{ request.query_params.get("synonym_regenerated_suppressed") or "0" }},
+-    failed={{ request.query_params.get("synonym_regenerated_failed") or "0" }}.
+-  </div>
+-</div>
+-{% endif %}
+-
+-{% if (synonym_proposal_review_queue.total_count and synonym_proposal_review_queue.total_count > 0)
+-   or can_regenerate_synonym_proposals
+-   or synonym_proposal_decision_ledger %}
+-<div class="card">
+-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
+-    <div>
+-      <h3 style="margin:0 0 0.35rem">Synonym Proposal Review</h3>
+-      <div class="meta">
+-        {{ synonym_proposal_review_queue.pending_count }} pending of {{ synonym_proposal_review_queue.total_count }} proposal(s).
+-      </div>
+-    </div>
+-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+-      <span class="badge badge-info">run-scoped HITL</span>
+-      <span class="badge badge-info">
+-        mode:
+-        {% if not synonym_management_mode.auto_triage_recommendation_enabled %}
+-          auto_off
+-        {% elif not synonym_management_mode.triage_recommendation_reuse_enabled %}
+-          fresh_only
+-        {% else %}
+-          reuse_smart
+-        {% endif %}
+-      </span>
+-      <span class="badge badge-{{ 'success' if synonym_proposal_review_queue.triage_status == 'fresh' else ('warning' if synonym_proposal_review_queue.triage_status in ('partial', 'stale') else 'neutral') }}">
+-        triage: {{ synonym_proposal_review_queue.triage_status }}
+-      </span>
+-    </div>
+-  </div>
+-  {% set triage_summary = synonym_proposal_review_queue.get("triage_summary", {}) %}
+-  <div class="meta" style="margin-bottom:0.65rem">
+-    triage summary:
+-    generated={{ triage_summary.get("generated_total", 0) }},
+-    fresh={{ triage_summary.get("fresh_total", 0) }},
+-    reused={{ triage_summary.get("reused_total", 0) }},
+-    suppressed={{ triage_summary.get("suppressed_total", 0) }},
+-    reason={{ triage_summary.get("reuse_reason", "n/a") }}.
+-  </div>
+-  {% if synonym_proposal_review_queue.get("field_lanes") %}
+-  <div style="display:flex;flex-wrap:wrap;gap:0.6rem;margin-bottom:0.85rem">
+-    {% for lane in synonym_proposal_review_queue.get("field_lanes", []) %}
+-    <div class="sub-card" style="padding:0.55rem 0.7rem;min-width:12rem">
+-      <div style="font-weight:700">{{ lane.label }}</div>
+-      <div class="meta">
+-        total={{ lane.total }}, pending={{ lane.pending }}, approved={{ lane.approved }}, suppressed={{ lane.suppressed }}
+-      </div>
+-      {% if lane.zero_state_reason %}
+-      <div class="meta">reason: {{ lane.zero_state_reason }}</div>
+-      {% endif %}
+-    </div>
+-    {% endfor %}
++    {% endif %}
+   </div>
+   {% endif %}
+   {% if synonym_proposal_decision_ledger %}
+   <div style="margin:0.2rem 0 0.85rem 0">
+-    <div class="meta" style="margin-bottom:0.35rem">Proposal Decision Ledger</div>
++    <div class="meta" style="margin-bottom:0.35rem"><strong>Proposal Decision Ledger</strong></div>
+     <div style="overflow:auto;max-height:14rem;border:1px solid var(--accent);border-radius:6px">
+       <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+         <thead>
+@@ -508,6 +230,8 @@
+             <th style="text-align:left;padding:0.35rem 0.5rem">Alias</th>
+             <th style="text-align:left;padding:0.35rem 0.5rem">Canonical</th>
+             <th style="text-align:left;padding:0.35rem 0.5rem">Source</th>
++            <th style="text-align:left;padding:0.35rem 0.5rem">Recommendation</th>
++            <th style="text-align:left;padding:0.35rem 0.5rem">Decision</th>
+             <th style="text-align:left;padding:0.35rem 0.5rem">Reason</th>
+           </tr>
+         </thead>
+@@ -517,6 +241,8 @@
+             <td style="padding:0.3rem 0.5rem"><code>{{ row.alias }}</code></td>
+             <td style="padding:0.3rem 0.5rem"><code>{{ row.canonical }}</code></td>
+             <td style="padding:0.3rem 0.5rem">{{ row.decision_source }}</td>
++            <td style="padding:0.3rem 0.5rem">{{ row.recommendation or '—' }}</td>
++            <td style="padding:0.3rem 0.5rem">{{ row.decision or '—' }}</td>
+             <td style="padding:0.3rem 0.5rem">{{ row.decision_reason }}</td>
+           </tr>
+           {% endfor %}
+@@ -529,198 +255,21 @@
+     Proposal Decision Ledger: no rows yet (all suppressed or none generated).
+   </div>
+   {% endif %}
+-  <div class="meta" style="margin-bottom:0.85rem">
+-    fingerprints:
+-    pre_run_global={{ synonym_fingerprints.pre_run_global_map_fingerprint or 'n/a' }},
+-    overlay={{ synonym_fingerprints.run_overlay_fingerprint or 'n/a' }},
+-    suggestions={{ synonym_fingerprints.mapping_suggestions_fingerprint or 'n/a' }},
+-    proposal_input={{ synonym_fingerprints.proposal_input_bundle_fingerprint or 'n/a' }}.
+-  </div>
+-  <form id="synonym-triage-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/triage-refresh" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+-    <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
+-    <input type="hidden" name="note" value="ui:triage-refresh">
+-    <button class="btn-secondary" type="submit">Refresh Triage Recommendations</button>
+-    <span class="meta">Advisory-only refresh for pending proposals.</span>
+-  </form>
+-  <form id="synonym-batch-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/batch-action" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+-    <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
+-    <input type="hidden" name="note" value="ui:batch-action">
+-    <button class="btn-secondary" type="submit">Submit Selected Decisions</button>
+-    <button class="btn-secondary" type="button" id="apply-recommendations-btn">Apply Recommendations</button>
+-    <span class="meta">Fills recommended actions for pending rows only.</span>
+-    <span class="meta" id="apply-recommendations-status" aria-live="polite"></span>
+-  </form>
+-  {% if request.query_params.get("synonym_batch_applied") is not none %}
+-  <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+-    Batch summary:
+-    applied={{ request.query_params.get("synonym_batch_applied") }},
+-    skipped={{ request.query_params.get("synonym_batch_skipped") or "0" }},
+-    failed={{ request.query_params.get("synonym_batch_failed") or "0" }}.
+-  </div>
+-  {% endif %}
+-  {% if request.query_params.get("synonym_triage_triaged") is not none %}
+-  <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+-    Triage summary:
+-    triaged={{ request.query_params.get("synonym_triage_triaged") }},
+-    reused={{ request.query_params.get("synonym_triage_reused") or "0" }},
+-    fallback={{ request.query_params.get("synonym_triage_fallback") or "0" }},
+-    skipped={{ request.query_params.get("synonym_triage_skipped") or "0" }},
+-    failed={{ request.query_params.get("synonym_triage_failed") or "0" }}.
+-  </div>
+-  {% endif %}
+-  {% if request.query_params.get("synonym_promote_applied") is not none %}
+-  <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+-    Promote-to-global summary:
+-    applied={{ request.query_params.get("synonym_promote_applied") }},
+-    skipped={{ request.query_params.get("synonym_promote_skipped") or "0" }},
+-    failed={{ request.query_params.get("synonym_promote_failed") or "0" }},
+-    new={{ request.query_params.get("synonym_promote_new_aliases") or "0" }},
+-    unchanged={{ request.query_params.get("synonym_promote_unchanged_aliases") or "0" }},
+-    overridden={{ request.query_params.get("synonym_promote_overridden_aliases") or "0" }}.
+-    <a href="/admin/synonyms/global.yaml" style="margin-left:0.65rem">Download Global Synonyms YAML</a>
+-  </div>
+-  {% endif %}
+-  {% if request.query_params.get("synonym_apply_to_run_applied") is not none %}
+-  <div class="meta" style="margin-bottom:0.85rem;padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
+-    Apply-approved-to-run summary:
+-    applied={{ request.query_params.get("synonym_apply_to_run_applied") }},
+-    skipped={{ request.query_params.get("synonym_apply_to_run_skipped") or "0" }},
+-    failed={{ request.query_params.get("synonym_apply_to_run_failed") or "0" }}.
++  <div style="margin:0 0 0.35rem 0;display:flex;gap:0.6rem;flex-wrap:wrap">
++    <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/ai-fast-path-execute" style="display:inline" onsubmit="return confirm('Confirm AI fast-path execute? This will apply AI recommendations and promote approved mappings to global.');">
++      <input type="hidden" name="acted_by" value="admin">
++      <input type="hidden" name="note" value="ai_fast_path">
++      <button class="btn-secondary" type="submit">AI-Assisted Decide + Promote</button>
++    </form>
++    <a class="btn-secondary" href="/admin/runs/{{ run.run_id }}/synonym-review">Manual Decide + Promote</a>
+   </div>
+-  {% endif %}
+-  {% if can_regenerate_synonym_proposals %}
+-  <form id="synonym-regenerate-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/regenerate" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+-    <button class="btn-secondary" type="submit">Regenerate Proposals</button>
+-    <span class="meta">Use after overlay upload to refresh review list against current synonym state.</span>
+-  </form>
+-  {% endif %}
+-  {% if synonym_proposal_review_queue.get("approved_count", 0) > 0 %}
+-  <form id="synonym-apply-approved-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/apply-approved-to-run" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+-    <input type="hidden" name="acted_by" value="admin">
+-    <input type="hidden" name="note" value="ui:apply-approved-to-run">
+-    <button class="btn-secondary" type="submit">Re-apply Approved to This Run</button>
+-    <span class="meta">Idempotent re-apply of approved pairs for this run’s downstream stages.</span>
+-  </form>
+-  {% else %}
+-  <div class="meta" style="margin-bottom:0.85rem">No approved rows to apply.</div>
+-  {% endif %}
+-  <form id="synonym-promote-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-preview" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+-    <div id="promote-controls" style="display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
+-      <button class="btn-secondary" type="submit">Preview Promote to Global</button>
+-      <button class="btn-secondary" type="button" id="promote-select-all-btn">Select All</button>
+-      <button class="btn-secondary" type="button" id="promote-clear-all-btn">Clear Selection</button>
+-      <span class="meta" id="promote-selected-count" aria-live="polite">Selected: 0</span>
+-      <span class="meta">Select approved rows below, preview the global diff, then confirm.</span>
+-    </div>
+-    <span class="meta" id="promote-empty-note" style="display:none">No approved rows available for promotion yet.</span>
+-  </form>
+-  <div style="display:flex;flex-direction:column;gap:1rem">
+-    {% set synonym_field_groups = [
+-      ("skill", "Skills"),
+-      ("domain", "Domain"),
+-      ("role_family", "Role Family"),
+-    ] %}
+-    {% for field_key, field_label in synonym_field_groups %}
+-    {% set field_items = synonym_proposal_review_queue.get("items_by_field", {}).get(field_key, []) %}
+-    <div class="sub-card" style="padding:0.7rem">
+-      <div style="font-weight:700;margin-bottom:0.45rem">{{ field_label }}</div>
+-      {% if field_items %}
+-      <div style="display:flex;flex-direction:column;gap:0.85rem">
+-    {% for item in field_items %}
+-    <div class="sub-card" style="padding:0.8rem">
+-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.75rem;flex-wrap:wrap">
+-        <div>
+-          {% if item.status == "approved_for_run_overlay" and not item.globally_promoted %}
+-          <div style="margin-bottom:0.4rem">
+-            <label class="meta" style="display:flex;align-items:center;gap:0.45rem">
+-              <input type="checkbox" name="promote_proposal_id" value="{{ item.proposal_id }}" form="synonym-promote-form" data-promote-selectable="true">
+-              Include in Promote-to-Global preview
+-            </label>
+-          </div>
+-          {% endif %}
+-          <div style="font-weight:700"><code>{{ item.alias }}</code> → <code>{{ item.canonical }}</code></div>
+-          <div class="meta">confidence: {{ '%.2f'|format(item.confidence) }}</div>
+-          {% if item.recommended_action %}
+-          <div class="meta" style="margin-top:0.35rem">
+-            Recommendation: <strong>{{ item.recommended_action }}</strong>
+-            {% if item.recommendation_confidence %}
+-            (confidence {{ '%.2f'|format(item.recommendation_confidence) }})
+-            {% endif %}
+-          </div>
+-          {% if item.recommendation_rationale %}
+-          <div class="meta" style="margin-top:0.2rem">{{ item.recommendation_rationale }}</div>
+-          {% endif %}
+-          {% if item.recommendation_risk_flags %}
+-          <div class="meta" style="margin-top:0.2rem">Risk flags: {{ item.recommendation_risk_flags | join(', ') }}</div>
+-          {% endif %}
+-          {% endif %}
+-          {% if item.latest_action %}
+-          <div class="meta" style="margin-top:0.35rem">
+-            Last action: <strong>{{ item.latest_action }}</strong>{% if item.latest_action_by %} by {{ item.latest_action_by }}{% endif %}{% if item.latest_action_at %} at {{ item.latest_action_at }}{% endif %}
+-          </div>
+-          {% endif %}
+-        </div>
+-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.35rem">
+-          <span class="badge badge-{{ 'warning' if item.pending else 'success' }}">{{ item.status }}</span>
+-        </div>
+-      </div>
+-      {% if item.pending %}
+-      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.65rem">
+-        <label class="meta" for="proposal-action-{{ item.proposal_id }}">Batch Action</label>
+-        <select
+-          id="proposal-action-{{ item.proposal_id }}"
+-          name="proposal_action__{{ item.proposal_id }}"
+-          form="synonym-batch-form"
+-          data-recommended-action="{{ item.recommended_action or '' }}"
+-        >
+-          <option value="">Keep Pending</option>
+-          <option value="approve">Approve</option>
+-          <option value="defer">Defer</option>
+-          <option value="reject">Reject</option>
+-        </select>
+-      </div>
+-      <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem">
+-        <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline">
+-          <input type="hidden" name="action" value="approve">
+-          <button class="btn-secondary" type="submit">Approve</button>
+-        </form>
+-        <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline">
+-          <input type="hidden" name="action" value="defer">
+-          <button class="btn-secondary" type="submit">Defer</button>
+-        </form>
+-        <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline">
+-          <input type="hidden" name="action" value="reject">
+-          <button class="btn-secondary" type="submit">Reject</button>
+-        </form>
+-      </div>
+-      {% endif %}
+-    </div>
+-    {% endfor %}
+-      </div>
+-      {% else %}
+-      <div class="meta">No {{ field_label|lower }} proposals pending review for this run.</div>
+-      {% endif %}
+-    </div>
+-    {% endfor %}
++  <div style="margin:0 0 0.85rem 0">
++    <a class="btn-secondary" href="/admin/runs/{{ run.run_id }}/synonym-review">Open Synonym Workspace</a>
+   </div>
+ </div>
+ {% endif %}
+ 
+-{% if run_export_links %}
+-<div class="card">
+-  <h3 style="margin:0 0 0.85rem">Run Exports</h3>
+-  <div class="run-export-grid">
+-    {% for export_link in run_export_links %}
+-    <div class="run-export-item">
+-      <a href="{{ export_link.href }}" class="run-export-link">⬇ {{ export_link.label }}</a>
+-      {% if export_link.helper_text %}
+-      <div class="meta" style="margin-top:0.35rem">{{ export_link.helper_text }}</div>
+-      {% endif %}
+-    </div>
+-    {% endfor %}
+-  </div>
+-</div>
+-{% endif %}
++
+ 
+ {% if run_health_rows %}
+ <div class="card">
+@@ -770,9 +319,12 @@
+ <!-- ── CV Results Banner ─────────────────────────────────────────────────── -->
+ <div class="results-card" id="generated-outputs">
+   <h3>Pipeline Results</h3>
++  <div class="meta" style="margin-bottom:0.55rem">
++    Compatibility note: outputs/download actions moved to <strong>Artifacts</strong>.
++  </div>
+   {% if output_availability.state == 'available' %}
+     <p style="font-size:0.9rem;color:var(--badge-success-fg)">
+-      <strong>{{ output_availability.downloadable_count }}</strong> downloadable CV(s) available.
++      CV generation succeeded. Download/export files from <strong>Artifacts</strong>.
+     </p>
+     {% if cv_versions %}
+       <div style="margin-top:1rem;border-top:1px solid var(--accent);padding-top:1rem">
+@@ -794,7 +346,7 @@
+     {% endif %}
+   {% elif output_availability.state == 'mismatch' %}
+     <p style="font-size:0.9rem;color:var(--badge-warning-fg)">
+-      <strong>{{ output_availability.generated_count }}</strong> CV(s) were generated, but no downloadable rows are currently visible.
++      CV generation completed with visibility mismatch. Use <strong>Artifacts</strong> for export/download evidence.
+     </p>
+     <div class="meta">State: <code>mismatch</code>. Refresh later; if persists, inspect persistence/logs for `cv_versions` write delay or query mismatch.</div>
+   {% elif output_availability.state == 'not_ready' %}
+@@ -812,6 +364,13 @@
+         review-required={{ ranked_cv_outcome_summary.ranked_review_required_count }},
+         generation-failed={{ ranked_cv_outcome_summary.ranked_generation_failed_count }},
+         other={{ ranked_cv_outcome_summary.ranked_other_no_cv_count }}.
++        {% if cv_generation_failure_reason_summary.reason_rows %}
++        <br>
++        Failure reasons:
++        {% for row in cv_generation_failure_reason_summary.reason_rows[:3] %}
++        [{{ row.count }}] {{ row.reason }}{% if not loop.last %}; {% endif %}
++        {% endfor %}
++        {% endif %}
+       {% else %}
+         No candidates passed the final AI ranking threshold.
+       {% endif %}
+@@ -839,54 +398,323 @@
+   </div>
+ </div>
+ 
+-<div class="pane-container tab-pane" id="pane-profile" data-tab-id="profile" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/profile">
+-  <div class="card tab-loading-state">
+-    <p class="meta">Candidate profile snapshot loads on demand.</p>
++<div class="pane-container tab-pane" id="pane-profile" data-tab-id="profile" data-tab-url="/admin/runs/{{ run.run_id }}/tabs/profile">
++  <div class="card tab-loading-state">
++    <p class="meta">Candidate profile snapshot loads on demand.</p>
++  </div>
++</div>
++</div><!-- /.inspection-card -->
++
++<!-- ── Event Timeline (always visible) ──────────────────────────────────── -->
++<h2>Event Timeline</h2>
++<div class="card" style="padding:0;overflow:hidden">
++  <table>
++    <thead>
++      <tr>
++        <th>Timestamp</th>
++        <th>Stage</th>
++        <th>Level</th>
++        <th>Message</th>
++        <th>Artifacts</th>
++      </tr>
++    </thead>
++    <tbody>
++      {% for ev in events %}
++      <tr>
++        <td class="meta">{{ ev.created_at.strftime('%H:%M:%S') if ev.created_at else '—' }}</td>
++        <td><span class="badge badge-info">{{ ev.stage_label }}</span></td>
++        <td><span class="badge badge-{{ ev.level }}">{{ ev.level }}</span></td>
++        <td class="meta" style="max-width:600px;word-break:break-word">{{ ev.message }}{% if ev.repeat_count and ev.repeat_count > 1 %} <span class="meta" style="font-weight:600">(x{{ ev.repeat_count }})</span>{% endif %}</td>
++        <td class="meta">
++          {% if ev.stage_download_url %}
++          <a href="{{ ev.stage_download_url }}">{{ ev.stage_download_label or 'Download Stage JSON' }}</a>
++          {% else %}
++          <span class="empty-value">—</span>
++          {% endif %}
++        </td>
++      </tr>
++      {% else %}
++      <tr class="empty-row"><td colspan="5">No events yet</td></tr>
++      {% endfor %}
++    </tbody>
++  </table>
++</div>
++{% if timeline_has_more %}
++<div style="display:flex;justify-content:flex-end;margin-top:0.75rem">
++  <a href="/admin/runs/{{ run.run_id }}?timeline_limit={{ timeline_next_limit }}" class="btn-secondary">Load older events</a>
++</div>
++{% endif %}
++
++{% if run_export_links %}
++<div class="card" id="artifacts">
++  <h3 style="margin:0 0 0.85rem">Artifacts</h3>
++  <div class="run-export-grid">
++    {% for export_link in run_export_links %}
++    <div class="run-export-item">
++      <a href="{{ export_link.href }}" class="run-export-link">⬇ {{ export_link.label }}</a>
++      {% if export_link.helper_text %}
++      <div class="meta" style="margin-top:0.35rem">{{ export_link.helper_text }}</div>
++      {% endif %}
++    </div>
++    {% endfor %}
++  </div>
++</div>
++{% endif %}
++
++
++<details class="card" id="advanced-diagnostics">
++  <summary style="cursor:pointer;user-select:none;font-weight:700">Advanced &amp; Diagnostics</summary>
++  <div style="margin-top:0.85rem">
++<div class="card">
++  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
++    <h3 style="margin:0">Runtime and Backend Details</h3>
++    <span class="badge badge-info">technical</span>
++  </div>
++  <div class="kv">
++    <span class="k">Orchestration Backend</span><span class="v"><code>{{ orchestration_diagnostics.backend }}</code></span>
++    <span class="k">Backend Run ID</span><span class="v"><code>{{ orchestration_diagnostics.backend_run_id or '—' }}</code></span>
++    <span class="k">Backend Status</span><span class="v"><code>{{ orchestration_diagnostics.status }}</code>{% if not orchestration_diagnostics.status_checked %} <span class="meta">(not polled)</span>{% endif %}</span>
++    <span class="k">Replay Mode</span><span class="v"><code>{{ replay_context_summary.replay_mode or 'strict' }}</code></span>
++    <span class="k">Replay Source Run</span><span class="v"><code>{{ replay_context_summary.replay_source_run_id or run.run_id }}</code></span>
++    <span class="k">Policy Registry</span><span class="v"><code>{{ replay_context_summary.policy_registry_version or 'policy_registry.v1' }}</code></span>
++    <span class="k">Runtime Mode</span><span class="v"><code>{{ data_plane_summary.runtime_mode or 'full' }}</code></span>
++    <span class="k">State Backend</span><span class="v"><code>{{ data_plane_summary.state_backend or 'unknown' }}</code></span>
++    <span class="k">Artifact Backend</span><span class="v"><code>{{ data_plane_summary.artifact_backend or 'unknown' }}</code></span>
++    <span class="k">Telemetry Backend</span><span class="v"><code>{{ data_plane_summary.telemetry_backend or 'otel_json' }}</code></span>
++  </div>
++</div>
++
++{% if stage_result_summary_rows %}
++<div class="card">
++  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
++    <h3 style="margin:0">Stage Result Policy + Trace Summary</h3>
++    <span class="badge badge-info">{{ stage_result_summary_rows|length }} stage(s)</span>
++  </div>
++  <div class="meta" style="margin-bottom:0.75rem">
++    Run-level summary of stage-owned decision policy and trace continuity from the canonical StageResult envelope.
+   </div>
+-</div>
+-</div><!-- /.inspection-card -->
+-
+-<!-- ── Event Timeline (always visible) ──────────────────────────────────── -->
+-<h2>Event Timeline</h2>
+-<div class="card" style="padding:0;overflow:hidden">
+   <table>
+     <thead>
+       <tr>
+-        <th>Timestamp</th>
+         <th>Stage</th>
+-        <th>Level</th>
+-        <th>Message</th>
+-        <th>Artifacts</th>
++        <th>Status</th>
++        <th>Policy Version</th>
++        <th>Trace ID</th>
++        <th>Span ID</th>
++        <th>Parent Span ID</th>
+       </tr>
+     </thead>
+     <tbody>
+-      {% for ev in events %}
++      {% for row in stage_result_summary_rows %}
+       <tr>
+-        <td class="meta">{{ ev.created_at.strftime('%H:%M:%S') if ev.created_at else '—' }}</td>
+-        <td><span class="badge badge-info">{{ ev.stage_label }}</span></td>
+-        <td><span class="badge badge-{{ ev.level }}">{{ ev.level }}</span></td>
+-        <td class="meta" style="max-width:600px;word-break:break-word">{{ ev.message }}{% if ev.repeat_count and ev.repeat_count > 1 %} <span class="meta" style="font-weight:600">(x{{ ev.repeat_count }})</span>{% endif %}</td>
+-        <td class="meta">
+-          {% if ev.stage_download_url %}
+-          <a href="{{ ev.stage_download_url }}">{{ ev.stage_download_label or 'Download Stage JSON' }}</a>
+-          {% else %}
+-          <span class="empty-value">—</span>
+-          {% endif %}
+-        </td>
++        <td><code>{{ row.stage_id or '—' }}</code></td>
++        <td><code>{{ row.status or '—' }}</code></td>
++        <td><code>{{ row.policy_version or '—' }}</code></td>
++        <td><code>{{ row.trace_id or '—' }}</code></td>
++        <td><code>{{ row.span_id or '—' }}</code></td>
++        <td><code>{{ row.parent_span_id or '—' }}</code></td>
+       </tr>
+-      {% else %}
+-      <tr class="empty-row"><td colspan="5">No events yet</td></tr>
+       {% endfor %}
+     </tbody>
+   </table>
+ </div>
+-{% if timeline_has_more %}
+-<div style="display:flex;justify-content:flex-end;margin-top:0.75rem">
+-  <a href="/admin/runs/{{ run.run_id }}?timeline_limit={{ timeline_next_limit }}" class="btn-secondary">Load older events</a>
++{% endif %}
++
++<div class="card">
++  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
++    <h3 style="margin:0">Event Delivery Health</h3>
++    {% if event_delivery_health.status == 'degraded' %}
++      <span class="badge badge-warning">degraded</span>
++    {% elif event_delivery_health.status == 'unknown' %}
++      <span class="badge badge-info">unknown</span>
++    {% else %}
++      <span class="badge badge-success">healthy</span>
++    {% endif %}
++  </div>
++  <div class="kv">
++    <span class="k">Dead-lettered Events</span><span class="v">{{ event_delivery_health.count }}</span>
++    <span class="k">Last Dead-letter Timestamp</span><span class="v">{{ event_delivery_health.last_failed_at or '—' }}</span>
++    <span class="k">Degradation Reason</span><span class="v"><code>{{ event_delivery_health.last_degradation_reason or '—' }}</code></span>
++    <span class="k">Max Retry Attempts</span><span class="v">{{ event_delivery_health.max_retry_attempts or 0 }}</span>
++    <span class="k">Dead-letter Path</span><span class="v"><code>{{ event_delivery_health.dead_letter_path }}</code></span>
++  </div>
++  {% if event_delivery_health.status == 'degraded' %}
++  <div class="meta" style="margin-top:0.85rem">
++    Some pipeline events for this run were dead-lettered after retry exhaustion. Inspect the dead-letter file and replay those rows to restore full event lineage.
++  </div>
++  {% endif %}
++</div>
++
++<div class="card">
++  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
++    <h3 style="margin:0">Telemetry Export Health</h3>
++    {% if telemetry_export_health.status == 'degraded' %}
++      <span class="badge badge-warning">degraded</span>
++    {% else %}
++      <span class="badge badge-success">healthy</span>
++    {% endif %}
++  </div>
++  <div class="kv">
++    <span class="k">Degraded Telemetry Events</span><span class="v">{{ telemetry_export_health.degraded_count }}</span>
++    <span class="k">Last Degraded Stage</span><span class="v">{{ telemetry_export_health.last_degraded_stage or '—' }}</span>
++  </div>
++  <div class="meta" style="margin-top:0.85rem">
++    Stage artifacts remain the evidence source of truth even when telemetry export is degraded.
++  </div>
++</div>
++
++<div class="card">
++  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
++    <h3 style="margin:0">Langfuse Trace-Link Health</h3>
++    {% if langfuse_link_health.status == 'degraded' %}
++      <span class="badge badge-warning">degraded</span>
++    {% elif langfuse_link_health.status == 'unverified' %}
++      <span class="badge badge-info">unverified</span>
++    {% else %}
++      <span class="badge badge-neutral">disabled</span>
++    {% endif %}
++  </div>
++  <div class="kv">
++    <span class="k">Unverified Link Events</span><span class="v">{{ langfuse_link_health.unverified_count }}</span>
++    <span class="k">Degraded Link Events</span><span class="v">{{ langfuse_link_health.degraded_count }}</span>
++    <span class="k">Last Degraded Stage</span><span class="v">{{ langfuse_link_health.last_degraded_stage or '—' }}</span>
++    <span class="k">Latest Trace URL</span><span class="v">{% if langfuse_link_health.last_trace_url %}<code>{{ langfuse_link_health.last_trace_url }}</code>{% else %}—{% endif %}</span>
++  </div>
++  <div class="meta" style="margin-top:0.85rem">
++    Trace URLs are navigation links only and do not confirm ingestion. Stage artifacts remain authoritative for runtime decisions.
++  </div>
++</div>
++
++<div class="card">
++  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
++    <h3 style="margin:0">Dead-letter Replay Summary</h3>
++    {% if dead_letter_replay_summary.replay_candidates > 0 %}
++      <span class="badge badge-info">available</span>
++    {% else %}
++      <span class="badge badge-neutral">none</span>
++    {% endif %}
++  </div>
++  <div class="kv">
++    <span class="k">Last Replay Timestamp</span><span class="v">{{ dead_letter_replay_summary.occurred_at or '—' }}</span>
++    <span class="k">Replay Success Ratio</span><span class="v">{{ '%.2f'|format(dead_letter_replay_summary.replay_success_ratio) }}</span>
++    <span class="k">Replayed / Candidates</span><span class="v">{{ dead_letter_replay_summary.replayed }} / {{ dead_letter_replay_summary.replay_candidates }}</span>
++    <span class="k">Failed Replays</span><span class="v">{{ dead_letter_replay_summary.failed }}</span>
++    <span class="k">Remaining Dead-letter Total</span><span class="v">{{ dead_letter_replay_summary.remaining_dead_letter_total }}</span>
++  </div>
++</div>
++
++<div class="card">
++  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.65rem">
++    <h3 style="margin:0">Agentic Runtime Alignment</h3>
++    {% if agentic_runtime_drift.status == 'aligned' %}
++      <span class="badge badge-success">aligned</span>
++    {% elif agentic_runtime_drift.status == 'drifted' %}
++      <span class="badge badge-warning">drifted</span>
++    {% else %}
++      <span class="badge badge-info">not_applicable</span>
++    {% endif %}
++  </div>
++  <div class="meta" style="margin-bottom:0.75rem">{{ agentic_runtime_drift.message }}</div>
++  <div class="kv">
++    <span class="k">Expected Provider</span><span class="v"><code>{{ agentic_runtime_drift.expected_provider or '—' }}</code></span>
++    <span class="k">Actual Provider</span><span class="v"><code>{{ agentic_runtime_drift.actual_provider or '—' }}</code></span>
++    <span class="k">Expected Model</span><span class="v"><code>{{ agentic_runtime_drift.expected_model or '—' }}</code></span>
++    <span class="k">Actual Model</span><span class="v"><code>{{ agentic_runtime_drift.actual_model or '—' }}</code></span>
++  </div>
++</div>
++
++{% if markdown_quality_summary.attempted_total and markdown_quality_summary.attempted_total > 0 %}
++<div class="card">
++  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.75rem">
++    <div>
++      <h3 style="margin:0 0 0.35rem">Markdown Quality</h3>
++      <div class="meta">
++        {{ markdown_quality_summary.review_required_total }} review-required and {{ markdown_quality_summary.blocking_total }} blocking markdown-quality outcome(s) across {{ markdown_quality_summary.attempted_total }} attempted generation job(s).
++      </div>
++    </div>
++    <span class="badge badge-info">cv_generation quality</span>
++  </div>
++  {% if markdown_quality_summary.review_reasons_sample %}
++  <div class="meta" style="margin-bottom:0.35rem;font-weight:600">Review-required reasons</div>
++  <ul style="margin:0 0 0.75rem 1.15rem;padding:0">
++    {% for item in markdown_quality_summary.review_reasons_sample %}
++    <li class="meta">{{ item }}</li>
++    {% endfor %}
++  </ul>
++  {% endif %}
++  {% if markdown_quality_summary.blocking_reasons_sample %}
++  <div class="meta" style="margin-bottom:0.35rem;font-weight:600">Blocking reasons</div>
++  <ul style="margin:0 0 0 1.15rem;padding:0">
++    {% for item in markdown_quality_summary.blocking_reasons_sample %}
++    <li class="meta">{{ item }}</li>
++    {% endfor %}
++  </ul>
++  {% endif %}
+ </div>
+ {% endif %}
+ 
+-<script>
++{% if (synonym_overlay_info.has_run_overlay or can_upload_synonym_overlay) and synonym_review_section_state == "hidden" %}
++<div class="card">
++  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.85rem">
++    <div>
++      <h3 style="margin:0 0 0.35rem">Synonym Overlay</h3>
++      <div class="meta">
++        {% if synonym_overlay_info.has_run_overlay %}
++          Run-scoped synonym mappings are active for skills, domain, and role family.
++        {% elif can_upload_synonym_overlay %}
++          No run-specific overlay is active yet. You can replace default skill/domain/role-family synonym config before continuing into <code>rule_filter</code>.
++        {% endif %}
++      </div>
++    </div>
++    {% if synonym_overlay_info.has_run_overlay %}
++    <span class="badge badge-info">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
++    {% endif %}
++  </div>
++
++  <div class="kv">
++    <span class="k">Status</span>
++    <span class="v">{% if synonym_overlay_info.has_run_overlay %}<span class="badge badge-info">run-specific overlay active</span>{% else %}default config only{% endif %}</span>
++    {% if synonym_overlay_info.has_run_overlay %}
++    <span class="k">Source</span><span class="v">{{ synonym_overlay_info.source_label or 'Run Overlay' }}</span>
++    <span class="k">Overlay File</span><span class="v"><code>{{ synonym_overlay_info.filename or '—' }}</code></span>
++    <span class="k">Skill Entries</span><span class="v">{{ synonym_overlay_info.entry_count }}</span>
++    <span class="k">Domain Entries</span><span class="v">{{ synonym_overlay_info.section_counts.domain_alias_map or 0 }}</span>
++    <span class="k">Role Family Entries</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_alias_map or 0 }}</span>
++    <span class="k">Domain Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.domain_neighbors or 0 }}</span>
++    <span class="k">Role Family Neighbors</span><span class="v">{{ synonym_overlay_info.section_counts.role_family_neighbors or 0 }}</span>
++    <span class="k">Uploaded</span><span class="v">{{ synonym_overlay_info.uploaded_at or '—' }}</span>
++    {% endif %}
++    <span class="k">Effective Entries</span><span class="v">{{ synonym_overlay_info.effective_entry_count or '—' }}</span>
++  </div>
++
++  {% if synonym_overlay_info.snapshot_yaml %}
++  <details style="margin-top:1rem">
++    <summary class="meta" style="cursor:pointer;user-select:none">
++      ▾ {{ synonym_overlay_info.snapshot_label or 'Synonym' }} YAML Snapshot
++    </summary>
++    <pre class="code-area" style="overflow-x:auto;max-height:320px;overflow-y:auto;margin-top:0.75rem">{{ synonym_overlay_info.snapshot_yaml }}</pre>
++  </details>
++  {% endif %}
++
++  {% if can_upload_synonym_overlay %}
++  <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">
++    <div class="meta" style="margin-bottom:0.65rem">Stage by Stage runs can replace the current run overlay after <code>enrich</code> and before <code>rule_filter</code>. This override does not change the shared default config.</div>
++    <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
++      <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:18rem">
++      <select name="overlay_upload_scope" style="min-width:11rem">
++        <option value="combined">Combined Upload</option>
++        <option value="skill">Skills Upload</option>
++        <option value="domain">Domain Upload</option>
++        <option value="role_family">Role Family Upload</option>
++      </select>
++      <button type="submit" class="btn-secondary">Replace Run Overlay YAML</button>
++    </form>
++    <div class="meta" style="margin-top:0.4rem">Field-specific scopes reject mixed sections to avoid accidental cross-field updates.</div>
++  </div>
++  {% elif run.run_mode == 'run_all' and synonym_overlay_info.has_run_overlay %}
++  <div class="meta" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--accent)">Run All uses trigger-time synonym uploads only.</div>
++  {% endif %}
++</div>{% endif %}  </div></details><script>
+ function showTab(id) {
+   document.querySelectorAll('.tab-pane').forEach(p => {
+     p.style.display = 'none';
+@@ -1137,8 +965,6 @@ async function lifecycleAction(runId, action, btn) {
+ <script>
+ document.addEventListener('DOMContentLoaded', () => {
+   window.setTimeout(() => ensureTabLoaded('enriched'), 50);
+-  const applyRecommendationsBtn = document.getElementById('apply-recommendations-btn');
+-  const applyRecommendationsStatus = document.getElementById('apply-recommendations-status');
+   const promoteSelectAllBtn = document.getElementById('promote-select-all-btn');
+   const promoteClearAllBtn = document.getElementById('promote-clear-all-btn');
+   const promoteSelectedCount = document.getElementById('promote-selected-count');
+@@ -1188,35 +1014,6 @@ document.addEventListener('DOMContentLoaded', () => {
+     });
+   }
+ 
+-  if (applyRecommendationsBtn) {
+-    applyRecommendationsBtn.addEventListener('click', () => {
+-      const selects = document.querySelectorAll('select[form="synonym-batch-form"][data-recommended-action]');
+-      let appliedCount = 0;
+-      selects.forEach((selectEl) => {
+-        if (!selectEl || selectEl.value) {
+-          return;
+-        }
+-        const recommended = (selectEl.getAttribute('data-recommended-action') || '').trim();
+-        if (!recommended) {
+-          return;
+-        }
+-        if (recommended === 'approve' || recommended === 'defer' || recommended === 'reject') {
+-          selectEl.value = recommended;
+-          // Ensure UI listeners/paint update immediately in all browsers.
+-          selectEl.dispatchEvent(new Event('input', { bubbles: true }));
+-          selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+-          appliedCount += 1;
+-        }
+-      });
+-      if (applyRecommendationsStatus) {
+-        if (appliedCount > 0) {
+-          applyRecommendationsStatus.textContent = `Filled ${appliedCount} recommended action(s).`;
+-        } else {
+-          applyRecommendationsStatus.textContent = "No pending rows needed auto-fill.";
+-        }
+-      }
+-    });
+-  }
+ });
+ if (document.readyState !== 'loading') {
+   window.setTimeout(() => ensureTabLoaded('enriched'), 50);
+@@ -1224,3 +1021,9 @@ if (document.readyState !== 'loading') {
+ </script>
+ {% endblock %}
+ 
++
++
++
++
++
++
+diff --git a/src/fitcv_cp/templates/synonym_review.html b/src/fitcv_cp/templates/synonym_review.html
+new file mode 100644
+index 00000000..79c3480d
+--- /dev/null
++++ b/src/fitcv_cp/templates/synonym_review.html
+@@ -0,0 +1,191 @@
++{% extends "base.html" %}
++{% block title %}Synonym Workspace — Run {{ run.run_id[:8] }}{% endblock %}
++{% block content %}
++<div class="page-header">
++  <h1>Synonym Workspace <code>{{ run.run_id }}</code></h1>
++  <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
++    <a href="/admin/runs/{{ run.run_id }}" class="btn-secondary">← Back To Run</a>
++  </div>
++</div>
++
++<div class="card">
++  <h3 style="margin:0 0 0.65rem">Synonym Overlay (Run-Scoped)</h3>
++  <div class="meta" style="margin-bottom:0.6rem">{% if synonym_overlay_info.has_run_overlay %}run-specific overlay active{% else %}using global default synonyms (no run overlay){% endif %}</div>
++  {% if can_upload_synonym_overlay %}
++  <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-overlay" enctype="multipart/form-data" style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap">
++    <input type="file" name="synonym_overlay_file" accept=".yaml,.yml,text/yaml,application/x-yaml" style="max-width:18rem">
++    <select name="overlay_upload_scope" style="min-width:11rem">
++      <option value="combined">Combined Upload</option>
++      <option value="skill">Skills Upload</option>
++      <option value="domain">Domain Upload</option>
++      <option value="role_family">Role Family Upload</option>
++    </select>
++    <button type="submit" class="btn-secondary">Replace Run Overlay YAML</button>
++  </form>
++  {% endif %}
++</div>
++
++<div class="card">
++  <h3 style="margin:0 0 0.35rem">Synonyms</h3>
++  <div class="meta" style="margin-bottom:0.75rem">{{ synonym_proposal_review_queue.pending_count }} pending of {{ synonym_proposal_review_queue.total_count }} proposal(s).</div>
++
++  <div style="display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;margin-bottom:0.35rem">
++    <button class="btn-secondary" type="button" id="review-mode-ai">AI-Assisted Decide + Promote</button>
++    <button class="btn-secondary" type="button" id="review-mode-manual">Manual Decide + Promote</button>
++  </div>
++  <div class="meta" style="margin-bottom:0.85rem">
++    AI-assisted fills recommended actions for pending rows. Manual keeps every row decision explicit.
++  </div>
++
++  <form id="synonym-triage-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/triage-refresh" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
++    <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
++    <input type="hidden" name="note" value="ui:triage-refresh">
++    <button class="btn-secondary" type="submit">Refresh Triage Recommendations</button>
++  </form>
++  <form id="synonym-batch-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/batch-action" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
++    <input type="text" name="acted_by" value="admin" placeholder="actor" style="max-width:12rem">
++    <input type="hidden" name="note" value="ui:batch-action">
++    <button class="btn-secondary" type="submit">Submit Selected Decisions</button>
++    <button class="btn-secondary" type="button" id="apply-recommendations-btn">Apply Recommendations</button>
++  </form>
++  <div class="meta" id="synonym-mode-status" style="margin:-0.45rem 0 0.85rem 0"></div>
++  <form id="synonym-promote-form" method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/promote-preview" style="margin-bottom:0.85rem;display:flex;flex-wrap:wrap;gap:0.6rem;align-items:center">
++    <button class="btn-secondary" type="submit">Preview Promote to Global</button>
++  </form>
++
++  {% set synonym_field_groups = [("skill", "Skills"), ("domain", "Domain"), ("role_family", "Role Family")] %}
++  {% for field_key, field_label in synonym_field_groups %}
++  {% set field_items = synonym_proposal_review_queue.get("items_by_field", {}).get(field_key, []) %}
++  <div class="sub-card" style="padding:0.7rem;margin-bottom:0.7rem">
++    <div style="font-weight:700;margin-bottom:0.45rem">{{ field_label }}</div>
++    {% if field_items %}
++    <div style="display:flex;flex-direction:column;gap:0.85rem">
++      {% for item in field_items %}
++      <div class="sub-card" style="padding:0.8rem">
++        <div style="font-weight:700"><code>{{ item.alias }}</code> → <code>{{ item.canonical }}</code></div>
++        <div class="meta">confidence: {{ '%.2f'|format(item.confidence) }}</div>
++        {% if item.recommended_action %}
++        <div class="meta" style="margin-top:0.2rem">Recommendation: <strong>{{ item.recommended_action }}</strong></div>
++        {% else %}
++        <div class="meta" style="margin-top:0.2rem">Recommendation: <strong>—</strong></div>
++        {% endif %}
++        <div class="meta" style="margin-top:0.2rem">
++          Decision:
++          <strong>
++            {% if item.status in ['proposed_unreviewed', 'in_review'] %}pending
++            {% elif item.status == 'deferred' %}defer
++            {% elif item.status == 'rejected' %}reject
++            {% elif item.status == 'approved_for_run_overlay' %}approve
++            {% else %}{{ item.status }}
++            {% endif %}
++          </strong>
++        </div>
++        {% if item.pending %}
++        <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem">
++          <select name="proposal_action__{{ item.proposal_id }}" form="synonym-batch-form" data-recommended-action="{{ item.recommended_action or '' }}">
++            <option value="">Keep Pending</option>
++            <option value="approve">Approve</option>
++            <option value="defer">Defer</option>
++            <option value="reject">Reject</option>
++          </select>
++          <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline"><input type="hidden" name="action" value="approve"><button class="btn-secondary" type="submit">Approve</button></form>
++          <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline"><input type="hidden" name="action" value="defer"><button class="btn-secondary" type="submit">Defer</button></form>
++          <form method="post" action="/admin/runs/{{ run.run_id }}/synonym-proposals/{{ item.proposal_id }}/action" style="display:inline"><input type="hidden" name="action" value="reject"><button class="btn-secondary" type="submit">Reject</button></form>
++        </div>
++        {% endif %}
++      </div>
++      {% endfor %}
++    </div>
++    {% else %}
++    <div class="meta">No {{ field_label|lower }} proposals pending review for this run.</div>
++    {% endif %}
++  </div>
++  {% endfor %}
++</div>
++
++<div class="card">
++  <h3 style="margin:0 0 0.35rem">Proposal Decision Ledger</h3>
++  {% if synonym_proposal_decision_ledger %}
++  <div style="overflow:auto;max-height:18rem;border:1px solid var(--accent);border-radius:6px">
++    <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
++      <thead>
++        <tr style="background:var(--panel-bg)">
++          <th style="text-align:left;padding:0.35rem 0.5rem">Alias</th>
++          <th style="text-align:left;padding:0.35rem 0.5rem">Canonical</th>
++          <th style="text-align:left;padding:0.35rem 0.5rem">Source</th>
++          <th style="text-align:left;padding:0.35rem 0.5rem">Recommendation</th>
++          <th style="text-align:left;padding:0.35rem 0.5rem">Decision</th>
++          <th style="text-align:left;padding:0.35rem 0.5rem">Reason</th>
++        </tr>
++      </thead>
++      <tbody>
++        {% for row in synonym_proposal_decision_ledger %}
++        <tr>
++          <td style="padding:0.3rem 0.5rem"><code>{{ row.alias }}</code></td>
++          <td style="padding:0.3rem 0.5rem"><code>{{ row.canonical }}</code></td>
++          <td style="padding:0.3rem 0.5rem">{{ row.decision_source }}</td>
++          <td style="padding:0.3rem 0.5rem">{{ row.recommendation or '—' }}</td>
++          <td style="padding:0.3rem 0.5rem">{{ row.decision or '—' }}</td>
++          <td style="padding:0.3rem 0.5rem">{{ row.decision_reason }}</td>
++        </tr>
++        {% endfor %}
++      </tbody>
++    </table>
++  </div>
++  {% else %}
++  <div class="meta" style="padding:0.55rem 0.65rem;border:1px solid var(--accent);border-radius:6px">
++    Proposal Decision Ledger: no rows yet (all suppressed or none generated).
++  </div>
++  {% endif %}
++</div>
++<script>
++document.addEventListener('DOMContentLoaded', () => {
++  const reviewModeAiBtn = document.getElementById('review-mode-ai');
++  const reviewModeManualBtn = document.getElementById('review-mode-manual');
++  const applyRecommendationsBtn = document.getElementById('apply-recommendations-btn');
++  const modeStatus = document.getElementById('synonym-mode-status');
++  const pendingSelects = () => Array.from(
++    document.querySelectorAll('select[form="synonym-batch-form"][data-recommended-action]')
++  );
++
++  const applyRecommendations = () => {
++    let applied = 0;
++    pendingSelects().forEach((selectEl) => {
++      if (!selectEl || selectEl.value) return;
++      const recommended = (selectEl.getAttribute('data-recommended-action') || '').trim();
++      if (recommended === 'approve' || recommended === 'defer' || recommended === 'reject') {
++        selectEl.value = recommended;
++        selectEl.dispatchEvent(new Event('change', { bubbles: true }));
++        applied += 1;
++      }
++    });
++    if (modeStatus) modeStatus.textContent = applied > 0
++      ? `AI-assisted mode filled ${applied} recommended action(s).`
++      : 'AI-assisted mode found no pending recommended actions.';
++  };
++
++  const clearSelections = () => {
++    let cleared = 0;
++    pendingSelects().forEach((selectEl) => {
++      if (!selectEl || !selectEl.value) return;
++      selectEl.value = '';
++      selectEl.dispatchEvent(new Event('change', { bubbles: true }));
++      cleared += 1;
++    });
++    if (modeStatus) modeStatus.textContent = cleared > 0
++      ? `Manual mode cleared ${cleared} prefilled action(s).`
++      : 'Manual mode active. Pick each decision explicitly.';
++  };
++
++  if (applyRecommendationsBtn) {
++    applyRecommendationsBtn.addEventListener('click', applyRecommendations);
++  }
++  if (reviewModeAiBtn) {
++    reviewModeAiBtn.addEventListener('click', applyRecommendations);
++  }
++  if (reviewModeManualBtn) {
++    reviewModeManualBtn.addEventListener('click', clearSelections);
++  }
++});
++</script>
++{% endblock %}
+diff --git a/tests/test_config.py b/tests/test_config.py
+index 61e5f55b..7ebbf130 100644
+--- a/tests/test_config.py
++++ b/tests/test_config.py
+@@ -44,15 +44,15 @@ def test_get_cv_acceptance_policy_defaults_when_missing() -> None:
+ def test_load_config_returns_dict() -> None:
+     cfg = load_config(Path(__file__).parent.parent / "config" / "env.yaml")
+     assert isinstance(cfg, dict)
+-    assert "gcp_project" in cfg
+-    assert "bigquery_dataset" in cfg
++    assert "control_plane" not in cfg
++    assert "pipeline" in cfg
+ 
+ 
+ def test_load_config_has_required_keys() -> None:
+     cfg = load_config(Path(__file__).parent.parent / "config" / "env.yaml")
+-    assert cfg["gcp_project"] == "fitcv-491123"
+-    assert cfg["bigquery_dataset"] == "fitcv"
+-    assert "service_account_key" in cfg
++    assert "gcp_project" not in cfg
++    assert "bigquery_dataset" not in cfg
++    assert "service_account_key" not in cfg
+ 
+ 
+ def test_load_config_raises_for_missing_file() -> None:
+@@ -182,9 +182,9 @@ def test_load_config_prefers_standard_env_vars_for_infra_keys(
+ 
+     cfg = load_config(env_yaml)
+ 
+-    assert cfg["gcp_project"] == "env-project"
+-    assert cfg["bigquery_dataset"] == "env-dataset"
+-    assert cfg["service_account_key"] == "/tmp/env-key.json"
++    assert "gcp_project" not in cfg
++    assert "bigquery_dataset" not in cfg
++    assert "service_account_key" not in cfg
+ 
+ 
+ def test_get_vertex_location_prefers_vertex_location() -> None:
+@@ -199,7 +199,6 @@ def test_get_vertex_location_defaults_to_us_central1() -> None:
+ 
+ def test_load_config_defaults_to_repo_config_shape() -> None:
+     cfg = load_config()
+-    assert cfg["gcp_project"] == "fitcv-491123"
+     assert cfg["gemini_model"] == "gemini-2.5-flash"
+     assert cfg["vertex_location"] == "us-central1"
+     assert cfg["paths"]["candidate_profile"] == "data/candidate_profile.yaml"
+@@ -302,6 +301,27 @@ def test_resolve_data_backend_env_override_is_invariant(monkeypatch: pytest.Monk
+     assert resolve_data_backend(cfg_a) == "sqlite"
+     assert resolve_data_backend(cfg_b) == "sqlite"
+ 
++def test_resolve_data_backend_prefers_control_plane_over_legacy_bridge_keys(
++    tmp_path: Path,
++    monkeypatch: pytest.MonkeyPatch,
++) -> None:
++    (tmp_path / "config" / "runtime").mkdir(parents=True)
++    (tmp_path / "config" / "runtime" / "control_plane.yaml").write_text(
++        "control_plane:\n"
++        "  data_backend:\n"
++        "    type: sqlite\n"
++    )
++    monkeypatch.chdir(tmp_path)
++    monkeypatch.delenv("FITCV_CP_DATA_BACKEND", raising=False)
++
++    cfg = {
++        "gcp_project": "legacy-project",
++        "bigquery_dataset": "legacy-dataset",
++        "service_account_key": "sa_key.json",
++    }
++
++    assert resolve_data_backend(cfg) == "sqlite"
++
+ 
+ def test_load_config_prefers_reorganized_config_subfolders_over_legacy_flat_files(tmp_path: Path) -> None:
+     """@proves settings_system.baseline-default-hydration"""
+diff --git a/tests/test_fitcv_cp/test_app.py b/tests/test_fitcv_cp/test_app.py
+index 3695caad..aa505f67 100644
+--- a/tests/test_fitcv_cp/test_app.py
++++ b/tests/test_fitcv_cp/test_app.py
+@@ -2815,7 +2815,7 @@ def test_admin_run_detail_success_banner():
+     patch("fitcv_cp.app.list_cvs_for_run", return_value=[{"version_id": "v123", "job_url": "mock.com", "fit_classification": "strong", "generated_at": datetime.now(timezone.utc)}]):
+         resp = TestClient(_app()).get("/admin/runs/test-123")
+     assert resp.status_code == 200
+-    assert "downloadable CV(s) available." in resp.text
++    assert "CV generation succeeded. Download/export files from" in resp.text
+     assert 'href="/admin/cvs/v123/download"' in resp.text
+     assert 'href="/admin/runs/test-123"' in resp.text
+     assert "Refresh Status" in resp.text  # still present on run_detail page
+@@ -2840,7 +2840,7 @@ def test_admin_run_detail_shows_exports_card_with_results_link():
+     patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
+         resp = TestClient(_app()).get("/admin/runs/test-export-btn")
+     assert resp.status_code == 200
+-    assert "Run Exports" in resp.text
++    assert "Artifacts" in resp.text
+     assert 'href="/admin/runs/test-export-btn/export.json"' in resp.text
+ 
+ def test_run_detail_shows_orchestration_backend_diagnostics() -> None:
+@@ -2940,7 +2940,7 @@ def test_admin_run_detail_shows_stage_artifacts_export_in_exports_card():
+     assert resp.status_code == 200
+     assert 'href="/admin/runs/test-stage-artifacts-btn/stage-artifacts.json"' in resp.text
+     assert "Stage Artifacts JSON (Diagnostics)" in resp.text
+-    assert resp.text.index("Run Exports") < resp.text.index("Event Timeline")
++    assert resp.text.index("<h3 style=\"margin:0 0 0.85rem\">Artifacts</h3>") > resp.text.index("Event Timeline")
+ 
+ 
+ def test_admin_run_detail_shows_bundle_zip_export_link():
+@@ -5706,6 +5706,8 @@ def test_run_detail_shows_synonym_regeneration_banner_without_review_card() -> N
+     assert resp.status_code == 200
+     assert "Regeneration summary" in resp.text
+     assert "Synonym Proposal Review" not in resp.text
++    assert "AI-Assisted Review" not in resp.text
++    assert "Manual Review" not in resp.text
+ 
+ def test_run_detail_shows_empty_synonym_decision_ledger_placeholder() -> None:
+     from fitcv_cp.models import PipelineRun, RunStatus
+@@ -5734,6 +5736,136 @@ def test_run_detail_shows_empty_synonym_decision_ledger_placeholder() -> None:
+     assert resp.status_code == 200
+     assert "Proposal Decision Ledger: no rows yet (all suppressed or none generated)." in resp.text
+ 
++def test_run_detail_shows_review_mode_controls_in_synonym_decision_active_state() -> None:
++    from fitcv_cp.models import PipelineRun, RunStatus
++    from datetime import datetime, timezone
++
++    run = PipelineRun(
++        run_id="run-synonym-review-mode-active",
++        status=RunStatus.SUCCEEDED,
++        triggered_by="admin",
++        trigger_source="web",
++        jobs_path="data/sample_jobs.json",
++        config_path=".env.yaml",
++        created_at=datetime.now(timezone.utc),
++        synonym_proposals_json=(
++            '{"run_id":"run-synonym-review-mode-active","proposals":['
++            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
++            ']}'
++        ),
++    )
++    with patch("fitcv_cp.app.get_run", return_value=run), \
++         patch("fitcv_cp.app.get_events", return_value=[]), \
++         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
++         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
++         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
++        resp = TestClient(_app()).get("/admin/runs/run-synonym-review-mode-active")
++    assert resp.status_code == 200
++    assert "AI-Assisted Review" in resp.text
++    assert "Manual Review" in resp.text
++    assert "id=\"synonym-batch-form\"" in resp.text
++
++def test_run_detail_summary_state_shows_synonym_workspace_cta() -> None:
++    from fitcv_cp.models import PipelineRun, RunStatus
++    from datetime import datetime, timezone
++
++    run = PipelineRun(
++        run_id="run-synonym-summary-workspace-cta",
++        status=RunStatus.SUCCEEDED,
++        triggered_by="admin",
++        trigger_source="web",
++        jobs_path="data/sample_jobs.json",
++        config_path=".env.yaml",
++        created_at=datetime.now(timezone.utc),
++        synonym_proposals_json=(
++            '{"run_id":"run-synonym-summary-workspace-cta","proposals":['
++            '{"proposal_id":"proposal-gcp","proposal_status":"rejected","alias":"gcp","canonical":"google cloud","confidence":0.9}'
++            ']}'
++        ),
++    )
++    with patch("fitcv_cp.app.get_run", return_value=run), \
++         patch("fitcv_cp.app.get_events", return_value=[]), \
++         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
++         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
++         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
++        resp = TestClient(_app()).get("/admin/runs/run-synonym-summary-workspace-cta")
++    assert resp.status_code == 200
++    assert "Open Synonym Review Workspace" in resp.text
++    assert "/admin/runs/run-synonym-summary-workspace-cta/synonym-review" in resp.text
++
++def test_synonym_review_workspace_route_redirects_to_run_detail_anchor() -> None:
++    from fitcv_cp.models import PipelineRun, RunStatus
++    from datetime import datetime, timezone
++
++    run = PipelineRun(
++        run_id="run-synonym-workspace-route",
++        status=RunStatus.SUCCEEDED,
++        triggered_by="admin",
++        trigger_source="web",
++        jobs_path="data/sample_jobs.json",
++        config_path=".env.yaml",
++        created_at=datetime.now(timezone.utc),
++        synonym_proposals_json=(
++            '{"run_id":"run-synonym-workspace-route","proposals":['
++            '{"proposal_id":"proposal-gcp","proposal_status":"proposed_unreviewed","alias":"gcp","canonical":"google cloud","confidence":0.9}'
++            ']}'
++        ),
++    )
++    with patch("fitcv_cp.app.get_run", return_value=run):
++        resp = TestClient(_app()).get(
++            "/admin/runs/run-synonym-workspace-route/synonym-review",
++            follow_redirects=False,
++        )
++    assert resp.status_code == 303
++    assert resp.headers["location"] == "/admin/runs/run-synonym-workspace-route#synonym-manual-review"
++
++def test_synonym_review_workspace_route_redirects_with_unavailable_fallback() -> None:
++    from fitcv_cp.models import PipelineRun, RunStatus
++    from datetime import datetime, timezone
++
++    run = PipelineRun(
++        run_id="run-synonym-workspace-unavailable",
++        status=RunStatus.SUCCEEDED,
++        triggered_by="admin",
++        trigger_source="web",
++        jobs_path="data/sample_jobs.json",
++        config_path=".env.yaml",
++        created_at=datetime.now(timezone.utc),
++        synonym_proposals_json='{"run_id":"run-synonym-workspace-unavailable","proposals":[]}',
++    )
++    with patch("fitcv_cp.app.get_run", return_value=run):
++        resp = TestClient(_app()).get(
++            "/admin/runs/run-synonym-workspace-unavailable/synonym-review",
++            follow_redirects=False,
++        )
++    assert resp.status_code == 303
++    assert resp.headers["location"] == "/admin/runs/run-synonym-workspace-unavailable?synonym_workspace_status=unavailable"
++
++def test_run_detail_shows_synonym_workspace_unavailable_message() -> None:
++    from fitcv_cp.models import PipelineRun, RunStatus
++    from datetime import datetime, timezone
++
++    run = PipelineRun(
++        run_id="run-synonym-workspace-unavailable-msg",
++        status=RunStatus.SUCCEEDED,
++        triggered_by="admin",
++        trigger_source="web",
++        jobs_path="data/sample_jobs.json",
++        config_path=".env.yaml",
++        created_at=datetime.now(timezone.utc),
++        synonym_proposals_json='{"run_id":"run-synonym-workspace-unavailable-msg","proposals":[]}',
++    )
++    with patch("fitcv_cp.app.get_run", return_value=run), \
++         patch("fitcv_cp.app.get_events", return_value=[]), \
++         patch("fitcv_cp.app.list_cvs_for_run", return_value=[]), \
++         patch("fitcv_cp.app.list_run_structured_jobs", return_value=[]), \
++         patch("fitcv_cp.app.list_filter_results_for_run", return_value=[]):
++        resp = TestClient(_app()).get(
++            "/admin/runs/run-synonym-workspace-unavailable-msg?synonym_workspace_status=unavailable"
++        )
++    assert resp.status_code == 200
++    assert "Synonym review workspace is unavailable for this run right now." in resp.text
++
+ def test_run_detail_hides_apply_approved_action_when_no_approved_rows() -> None:
+     from fitcv_cp.models import PipelineRun, RunStatus
+     from datetime import datetime, timezone
+diff --git a/tests/test_fitcv_cp/test_run_detail_output_availability.py b/tests/test_fitcv_cp/test_run_detail_output_availability.py
+index 3661d957..90c94837 100644
+--- a/tests/test_fitcv_cp/test_run_detail_output_availability.py
++++ b/tests/test_fitcv_cp/test_run_detail_output_availability.py
+@@ -49,31 +49,47 @@ def test_output_availability_not_ready_when_run_not_succeeded() -> None:
+ def test_run_detail_template_mentions_output_availability_contract() -> None:
+     template_path = "src/fitcv_cp/templates/run_detail.html"
+     content = open(template_path, encoding="utf-8").read()
+-    assert 'id="outputs-action"' in content
++    assert 'id="outputs-action"' not in content
+     assert 'id="run-overview-core"' in content
+-    assert 'id="advanced-diagnostics"' in content
+-    assert 'href="/admin/runs/{{ run.run_id }}/synonym-review"' in content
+-    assert 'href="/admin/runs/{{ run.run_id }}/artifacts"' in content
+-    assert 'href="#diag-synonym-fingerprints"' in content
+-    assert 'id="synonym-review-workspace"' in content
+-    assert 'id="synonym-review-overview"' in content
+-    assert 'id="artifacts-overview"' in content
+-    assert 'id="run-exports-workspace"' in content
+-    assert 'id="diag-synonym-fingerprints"' in content
+-    assert 'id="diag-event-delivery-health"' in content
+-    assert 'id="diag-telemetry-export-health"' in content
+-    assert 'id="diag-langfuse-trace-link-health"' in content
+-    assert 'id="diag-dead-letter-replay-summary"' in content
+-    assert 'id="diag-agentic-runtime-alignment"' in content
+-    assert "overview_consistency_summary.dead_letter_events" in content
+-    assert "Run-scoped overlay: synonym overrides applied only to this run." in content
+-    assert "Triage mode: strategy for recommendation freshness and reuse behavior." in content
+-    assert "Suppressed: proposals hidden by suppression policy or duplicate resolution." in content
+-    assert "Alias conflict: alias currently maps to another canonical term and needs explicit decision." in content
+-    assert "Confidence score: model certainty for proposed mapping." in content
++    assert "<h3 style=\"margin:0 0 0.35rem\">Synonym Proposal Review</h3>" in content
++    assert "<h3>Pipeline Results</h3>" in content
++    assert "<h2>Event Timeline</h2>" in content
++    assert "<h3 style=\"margin:0 0 0.85rem\">Artifacts</h3>" in content
++    assert "Compatibility note: outputs/download actions moved to <strong>Artifacts</strong>." in content
+     assert "output_availability." in content
+ 
+ 
++
++
++def test_run_detail_template_enforces_canonical_section_order_and_no_overview_duplication() -> None:
++    template_path = "src/fitcv_cp/templates/run_detail.html"
++    content = open(template_path, encoding="utf-8").read()
++    assert content.count(">Run Overview</h3>") == 1
++    overview_pos = content.index(">Run Overview</h3>")
++    synonym_pos = content.index(">Synonym Proposal Review</h3>")
++    pipeline_pos = content.index(">Pipeline Results</h3>")
++    timeline_pos = content.index(">Event Timeline</h2>")
++    artifacts_pos = content.index('id="artifacts"')
++    advanced_pos = content.index('id="advanced-diagnostics"')
++    assert overview_pos < synonym_pos < pipeline_pos < timeline_pos < artifacts_pos < advanced_pos
++    assert 'id="outputs-action"' not in content
++
++def test_advanced_diagnostics_collapsed_container_preserves_evidence_sections() -> None:
++    template_path = "src/fitcv_cp/templates/run_detail.html"
++    content = open(template_path, encoding="utf-8").read()
++    assert '<details class="card" id="advanced-diagnostics">' in content
++    assert "Advanced &amp; Diagnostics" in content
++    assert "<h3 style=\"margin:0\">Stage Result Policy + Trace Summary</h3>" in content
++    assert "<h3 style=\"margin:0\">Event Delivery Health</h3>" in content
++    assert "<h3 style=\"margin:0\">Telemetry Export Health</h3>" in content
++    assert "<h3 style=\"margin:0\">Langfuse Trace-Link Health</h3>" in content
++    assert "<h3 style=\"margin:0\">Dead-letter Replay Summary</h3>" in content
++    assert "<h3 style=\"margin:0\">Agentic Runtime Alignment</h3>" in content
++    assert content.index('id="artifacts"') < content.index('id="advanced-diagnostics"')
++    assert "Replay Dead-letter Events" not in content
++    assert "Synonym Fingerprints" not in content
++    assert "Trace Links" not in content
++
+ def test_overview_core_excludes_diagnostic_only_snippets() -> None:
+     template_path = "src/fitcv_cp/templates/run_detail.html"
+     content = open(template_path, encoding="utf-8").read()
+@@ -84,7 +100,7 @@ def test_overview_core_excludes_diagnostic_only_snippets() -> None:
+     assert "overlay={{ synonym_fingerprints.run_overlay_fingerprint" not in overview_block
+     assert "suggestions={{ synonym_fingerprints.mapping_suggestions_fingerprint" not in overview_block
+     assert '/admin/cvs/{{ cv.version_id }}/download' in content
+-    assert 'href="#generated-outputs"' in content
++    assert 'href="#generated-outputs"' not in content
+ 
+ 
+ def test_run_detail_visibility_registry_has_expected_tiers() -> None:
+@@ -110,3 +126,5 @@ def test_overview_consistency_summary_matches_diagnostics_sources() -> None:
+     assert summary["status"] == RunStatus.SUCCEEDED.value
+     assert summary["stage_count"] == 2
+     assert summary["dead_letter_events"] == 3
++
++

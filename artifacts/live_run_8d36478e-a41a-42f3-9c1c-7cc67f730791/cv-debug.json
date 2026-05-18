@@ -1,0 +1,2976 @@
+{
+  "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+  "status": "succeeded",
+  "debug_schema_version": "cv_generation_debug_v3",
+  "run_mode": "manual_staged",
+  "run_mode_label": "Stage by Stage",
+  "created_at": "2026-05-18T00:25:34.751837+00:00",
+  "ranked_jobs_total": 4,
+  "debug_records_captured": 4,
+  "attempted_generation_jobs_total": 4,
+  "non_attempted_ranked_jobs_total": 0,
+  "omission_reason_counts": {},
+  "snapshot_complete": true,
+  "debug_records": [
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+      "job_title": "Business & Data Analyst - B2B2C",
+      "status": "generation_failed",
+      "ranking_fit_label": "stretch",
+      "reranker_fit_label": "stretch",
+      "fit_classification": "stretch",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "generation_failed",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "SQL",
+          "data lakes",
+          "PowerBI",
+          "Looker",
+          "Tableau",
+          "Excel",
+          "Google Sheets",
+          "pivot tables",
+          "data modeling",
+          "advanced formulas"
+        ],
+        "responsibilities": [
+          "Own business and performance analysis across B2B2C products, partners, and markets",
+          "Analyze large datasets to identify trends, risks, and opportunities",
+          "Build and maintain commercial and operational reports (revenue, margins, ARPU, churn, usage, onboarding KPIs)",
+          "Translate raw data into narratives and recommendations for senior stakeholders",
+          "Support pricing analysis, partner performance reviews, and business cases",
+          "Work with Product, Sales, Finance, and Operations teams to align data with business reality",
+          "Ensure data accuracy, consistency, and logical interpretation across reports and dashboards"
+        ],
+        "job_family": "analytics",
+        "domain": "telecommunications"
+      },
+      "evidence_used": [
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[2]",
+          "name": "Junior Data Analyst — RetailCo AG",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "responsibility_alignment",
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.222222,
+              "semantic": 0.244678,
+              "combined": 0.228959
+            },
+            "role_alignment": {
+              "lexical": 1.0,
+              "semantic": 0.278454,
+              "combined": 0.711382
+            },
+            "responsibility_alignment": {
+              "lexical": 0.072727,
+              "semantic": 0.350298,
+              "combined": 0.280905
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 21,
+                "reused": 252
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[0]",
+          "name": "FitCV — AI-Powered CV Generation Pipeline",
+          "matched_channels": [
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.355582,
+              "combined": 0.213349
+            },
+            "responsibility_alignment": {
+              "lexical": 0.018182,
+              "semantic": 0.317323,
+              "combined": 0.242538
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 21,
+                "reused": 252
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[3]",
+          "name": "Cut compute costs by 35% by migrating legacy Spark jobs to Dataproc Serverless.",
+          "matched_channels": [
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.19605,
+              "combined": 0.11763
+            },
+            "responsibility_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.403502,
+              "combined": 0.302627
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 21,
+                "reused": 252
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[0]",
+          "name": "Senior Data Engineer — Acme Analytics GmbH",
+          "matched_channels": [
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "selection_reasons": [
+            "domain_alignment",
+            "role_alignment"
+          ],
+          "channel_subscores": {
+            "role_alignment": {
+              "lexical": 0.25,
+              "semantic": 0.126674,
+              "combined": 0.20067
+            },
+            "domain_alignment": {
+              "lexical": 0.5,
+              "semantic": 0.369583,
+              "combined": 0.42175
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 21,
+                "reused": 252
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[1]",
+          "name": "Real-Time Fraud Detection on AWS",
+          "matched_channels": [
+            "required_skill_support"
+          ],
+          "selection_reasons": [
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.111111,
+              "semantic": 0.292347,
+              "combined": 0.165482
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 21,
+                "reused": 252
+              }
+            }
+          }
+        }
+      ],
+      "evidence_selection_summary": {
+        "channel_counts": {
+          "required_skill_support": 4,
+          "role_alignment": 4,
+          "domain_alignment": 4,
+          "responsibility_alignment": 4
+        },
+        "fallback_used": false,
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 16,
+        "deduped_pool_size": 8,
+        "selected_evidence_count": 5,
+        "selected_evidence_ids": [
+          "exp_3",
+          "proj_1",
+          "ach_4",
+          "exp_1",
+          "proj_2"
+        ],
+        "unselected_top_candidates": [
+          {
+            "evidence_id": "exp_2",
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[1]",
+            "name": "Data Engineer — Fintech Startup GmbH",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment",
+              "domain_alignment",
+              "responsibility_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.222222,
+                "semantic": 0.266556,
+                "combined": 0.235522
+              },
+              "role_alignment": {
+                "lexical": 0.25,
+                "semantic": 0.185174,
+                "combined": 0.22407
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.0,
+                "combined": 0.2
+              },
+              "responsibility_alignment": {
+                "lexical": 0.072727,
+                "semantic": 0.269442,
+                "combined": 0.220263
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_3",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[2]",
+            "name": "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards.",
+            "matched_channels": [
+              "required_skill_support"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.111111,
+                "semantic": 0.306286,
+                "combined": 0.169663
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_2",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[1]",
+            "name": "Enabled real-time dashboard updates under 30 seconds via Pub/Sub → Dataflow streaming architecture.",
+            "matched_channels": [
+              "role_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.340488,
+                "combined": 0.136195
+              }
+            }
+          }
+        ],
+        "hybrid_alignment": {
+          "required_skill_support": {
+            "lexical_weight": 0.7,
+            "semantic_weight": 0.3
+          },
+          "role_alignment": {
+            "lexical_weight": 0.6,
+            "semantic_weight": 0.4
+          },
+          "responsibility_alignment": {
+            "lexical_weight": 0.25,
+            "semantic_weight": 0.75
+          },
+          "domain_alignment": {
+            "lexical_weight": 0.4,
+            "semantic_weight": 0.6
+          }
+        },
+        "semantic_alignment": {
+          "enabled": true,
+          "semantic_methods": {
+            "required_skill_support": "embedding_similarity",
+            "role_alignment": "embedding_similarity",
+            "responsibility_alignment": "embedding_similarity",
+            "domain_alignment": "embedding_similarity"
+          },
+          "reuse_state": {
+            "candidate_evidence": "mixed_fresh_and_reused",
+            "job_context": "mixed_fresh_and_reused"
+          },
+          "embedding_counts": {
+            "candidate_evidence": {
+              "fresh": 32,
+              "reused": 20
+            },
+            "job_context": {
+              "fresh": 21,
+              "reused": 252
+            }
+          }
+        }
+      },
+      "gap_summary": {
+        "matched": [
+          "SQL",
+          "PowerBI",
+          "Looker",
+          "Tableau",
+          "Excel",
+          "data modeling"
+        ],
+        "partial": [],
+        "missing": [
+          "data lakes",
+          "Google Sheets",
+          "pivot tables",
+          "advanced formulas"
+        ],
+        "matchable_required_count": 10,
+        "ignored_for_fit": [],
+        "years_risk": false,
+        "overclaim_risk": []
+      },
+      "structured_cv_initial": null,
+      "validation_initial": null,
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": null,
+      "markdown_final": null,
+      "enabled_sections": [
+        "Summary",
+        "Education",
+        "Experience",
+        "Skills",
+        "Certifications",
+        "Projects",
+        "Languages"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\cv_generation_structured_write_v1.md",
+      "outcome_reason": null,
+      "error": {
+        "stage": "agentic_live_provider",
+        "message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+      },
+      "review_required_reason_code": null,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_langgraph_live",
+        "provider": "openai",
+        "model": null,
+        "base_url": null
+      },
+      "agentic_live_trace": {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_generation",
+        "trace_status": "degraded",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_langgraph_live",
+          "provider": "openai",
+          "model": null,
+          "base_url": null,
+          "prompt_contract": "fitcv_structured_generation_prompt",
+          "template_path": "templates/cv_template.md",
+          "response_schema_name": "fitcv_structured_cv_document"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "initial_generation",
+            "started_at": "2026-05-18T00:25:33.486568+00:00",
+            "input_character_count": 9402,
+            "input_item_count": 5,
+            "retry_reason": null,
+            "debug_flags_active": {
+              "FITCV_LANGGRAPH_DEBUG_LIVE": false,
+              "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH": false
+            },
+            "prompt_contract": "fitcv_structured_generation_prompt",
+            "template_path": "templates/cv_template.md",
+            "response_schema_name": "fitcv_structured_cv_document",
+            "finished_at": "2026-05-18T00:25:33.972710+00:00",
+            "latency_ms": 486,
+            "provider_status": "error",
+            "accepted_output_present": false,
+            "error_stage": "agentic_live_provider",
+            "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+            "error_code": "401"
+          }
+        ],
+        "input_summary": {
+          "attempt_count": 1,
+          "input_item_count": 5
+        },
+        "output_summary": {
+          "accepted_output_present": false,
+          "final_status": "generation_failed"
+        },
+        "validation_summary": {
+          "initial_valid": false,
+          "final_valid": false,
+          "initial_missing_fields": [],
+          "final_missing_fields": [],
+          "violation_count": 0,
+          "warning_count": 0
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempt_count": 0,
+          "repair_targets": [],
+          "repair_reason": ""
+        },
+        "error_summary": {
+          "error_stage": "agentic_live_provider",
+          "error_code": "401",
+          "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+        }
+      }
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+      "status": "generation_failed",
+      "ranking_fit_label": "stretch",
+      "reranker_fit_label": "stretch",
+      "fit_classification": "stretch",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "generation_failed",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "Python",
+          "pandas",
+          "NumPy",
+          "SciPy",
+          "scikit-learn",
+          "statsmodels",
+          "SQL",
+          "database operations",
+          "statistical analysis",
+          "machine learning",
+          "LLMs",
+          "RAG",
+          "prompt engineering",
+          "vector databases",
+          "MLOps",
+          "model deployment",
+          "TensorFlow",
+          "PyTorch",
+          "LangChain",
+          "matplotlib",
+          "seaborn",
+          "feature engineering",
+          "predictive modeling",
+          "EDA",
+          "data ingestion",
+          "data cleaning"
+        ],
+        "responsibilities": [
+          "Design original computational data science problems simulating real-world analytical workflows",
+          "Create Python-based problems using standard data science libraries",
+          "Ensure problems computationally intensive and not solvable manually within reasonable timeframes",
+          "Develop problems involving data processing, statistical analysis, feature engineering, predictive modeling, insight extraction",
+          "Create deterministic, reproducible problems (avoid stochastic elements or use fixed random seeds)",
+          "Base problems on real business challenges (customer analytics, risk assessment, fraud detection, forecasting, optimization, operational efficiency)",
+          "Design end-to-end problems across data science pipeline (ingestion, cleaning, EDA, modeling, validation, deployment considerations)",
+          "Incorporate big data processing scenarios requiring scalable computation",
+          "Verify solutions in Python using standard statistical methods and libraries",
+          "Document problem statements with business context and provide verified correct answers",
+          "Create training prompts and refine model responses for AI projects"
+        ],
+        "job_family": "data_science",
+        "domain": "artificial intelligence",
+        "location_type": "remote"
+      },
+      "evidence_used": [
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[0]",
+          "name": "Senior Data Engineer — Acme Analytics GmbH",
+          "matched_channels": [
+            "required_skill_support",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "required_skill_support",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.086957,
+              "semantic": 0.383382,
+              "combined": 0.175884
+            },
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.243672,
+              "combined": 0.146203
+            },
+            "responsibility_alignment": {
+              "lexical": 0.054348,
+              "semantic": 0.353368,
+              "combined": 0.278613
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 39,
+                "reused": 468
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[0]",
+          "name": "FitCV — AI-Powered CV Generation Pipeline",
+          "matched_channels": [
+            "role_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "role_alignment"
+          ],
+          "channel_subscores": {
+            "role_alignment": {
+              "lexical": 0.142857,
+              "semantic": 0.13503,
+              "combined": 0.139726
+            },
+            "responsibility_alignment": {
+              "lexical": 0.065217,
+              "semantic": 0.517741,
+              "combined": 0.40461
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 39,
+                "reused": 468
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[4]",
+          "name": "Achieved 94% precision and 91% recall on fraud detection model in production.",
+          "matched_channels": [
+            "domain_alignment"
+          ],
+          "selection_reasons": [
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.417059,
+              "combined": 0.250236
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 39,
+                "reused": 468
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[2]",
+          "name": "Open-Source dbt Package for Marketing Attribution",
+          "matched_channels": [
+            "required_skill_support"
+          ],
+          "selection_reasons": [
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.086957,
+              "semantic": 0.608312,
+              "combined": 0.243363
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 39,
+                "reused": 468
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[1]",
+          "name": "Data Engineer — Fintech Startup GmbH",
+          "matched_channels": [
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "channel_subscores": {
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.502854,
+              "combined": 0.301712
+            },
+            "responsibility_alignment": {
+              "lexical": 0.097826,
+              "semantic": 0.335724,
+              "combined": 0.27625
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 39,
+                "reused": 468
+              }
+            }
+          }
+        }
+      ],
+      "evidence_selection_summary": {
+        "channel_counts": {
+          "required_skill_support": 4,
+          "role_alignment": 4,
+          "domain_alignment": 4,
+          "responsibility_alignment": 4
+        },
+        "fallback_used": false,
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 16,
+        "deduped_pool_size": 10,
+        "selected_evidence_count": 5,
+        "selected_evidence_ids": [
+          "exp_1",
+          "proj_1",
+          "ach_5",
+          "proj_3",
+          "exp_2"
+        ],
+        "unselected_top_candidates": [
+          {
+            "evidence_id": "exp_3",
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[2]",
+            "name": "Junior Data Analyst — RetailCo AG",
+            "matched_channels": [
+              "required_skill_support",
+              "role_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.130435,
+                "semantic": 0.438346,
+                "combined": 0.222808
+              },
+              "role_alignment": {
+                "lexical": 0.142857,
+                "semantic": 0.07793,
+                "combined": 0.116886
+              }
+            }
+          },
+          {
+            "evidence_id": "proj_2",
+            "evidence_type": "project_entry",
+            "source_ref": "projects[1]",
+            "name": "Real-Time Fraud Detection on AWS",
+            "matched_channels": [
+              "required_skill_support",
+              "domain_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.086957,
+                "semantic": 0.465737,
+                "combined": 0.200591
+              },
+              "domain_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.185241,
+                "combined": 0.111145
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_7",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[6]",
+            "name": "Won 2nd place at TU Munich University Hackathon (2017).",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.402441,
+                "combined": 0.30183
+              }
+            }
+          }
+        ],
+        "hybrid_alignment": {
+          "required_skill_support": {
+            "lexical_weight": 0.7,
+            "semantic_weight": 0.3
+          },
+          "role_alignment": {
+            "lexical_weight": 0.6,
+            "semantic_weight": 0.4
+          },
+          "responsibility_alignment": {
+            "lexical_weight": 0.25,
+            "semantic_weight": 0.75
+          },
+          "domain_alignment": {
+            "lexical_weight": 0.4,
+            "semantic_weight": 0.6
+          }
+        },
+        "semantic_alignment": {
+          "enabled": true,
+          "semantic_methods": {
+            "required_skill_support": "embedding_similarity",
+            "role_alignment": "embedding_similarity",
+            "responsibility_alignment": "embedding_similarity",
+            "domain_alignment": "embedding_similarity"
+          },
+          "reuse_state": {
+            "candidate_evidence": "mixed_fresh_and_reused",
+            "job_context": "mixed_fresh_and_reused"
+          },
+          "embedding_counts": {
+            "candidate_evidence": {
+              "fresh": 32,
+              "reused": 20
+            },
+            "job_context": {
+              "fresh": 39,
+              "reused": 468
+            }
+          }
+        }
+      },
+      "gap_summary": {
+        "matched": [
+          "Python",
+          "pandas",
+          "SQL"
+        ],
+        "partial": [
+          {
+            "required": "machine learning",
+            "candidate": "BigQuery ML",
+            "canonical": "machine learning"
+          },
+          {
+            "required": "LLMs",
+            "candidate": "Vertex AI",
+            "canonical": "genai"
+          },
+          {
+            "required": "RAG",
+            "candidate": "Vertex AI",
+            "canonical": "genai"
+          },
+          {
+            "required": "prompt engineering",
+            "candidate": "Vertex AI",
+            "canonical": "genai"
+          },
+          {
+            "required": "vector databases",
+            "candidate": "Vertex AI",
+            "canonical": "genai"
+          }
+        ],
+        "missing": [
+          "NumPy",
+          "SciPy",
+          "scikit-learn",
+          "statsmodels",
+          "database operations",
+          "statistical analysis",
+          "MLOps",
+          "model deployment",
+          "TensorFlow",
+          "PyTorch",
+          "LangChain",
+          "matplotlib",
+          "seaborn",
+          "feature engineering",
+          "predictive modeling",
+          "EDA",
+          "data ingestion",
+          "data cleaning"
+        ],
+        "matchable_required_count": 26,
+        "ignored_for_fit": [],
+        "years_risk": false,
+        "overclaim_risk": []
+      },
+      "structured_cv_initial": null,
+      "validation_initial": null,
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": null,
+      "markdown_final": null,
+      "enabled_sections": [
+        "Summary",
+        "Education",
+        "Experience",
+        "Skills",
+        "Certifications",
+        "Projects",
+        "Languages"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\cv_generation_structured_write_v1.md",
+      "outcome_reason": null,
+      "error": {
+        "stage": "agentic_live_provider",
+        "message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+      },
+      "review_required_reason_code": null,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_langgraph_live",
+        "provider": "openai",
+        "model": null,
+        "base_url": null
+      },
+      "agentic_live_trace": {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_generation",
+        "trace_status": "degraded",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_langgraph_live",
+          "provider": "openai",
+          "model": null,
+          "base_url": null,
+          "prompt_contract": "fitcv_structured_generation_prompt",
+          "template_path": "templates/cv_template.md",
+          "response_schema_name": "fitcv_structured_cv_document"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "initial_generation",
+            "started_at": "2026-05-18T00:25:33.988416+00:00",
+            "input_character_count": 10101,
+            "input_item_count": 5,
+            "retry_reason": null,
+            "debug_flags_active": {
+              "FITCV_LANGGRAPH_DEBUG_LIVE": false,
+              "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH": false
+            },
+            "prompt_contract": "fitcv_structured_generation_prompt",
+            "template_path": "templates/cv_template.md",
+            "response_schema_name": "fitcv_structured_cv_document",
+            "finished_at": "2026-05-18T00:25:34.228586+00:00",
+            "latency_ms": 240,
+            "provider_status": "error",
+            "accepted_output_present": false,
+            "error_stage": "agentic_live_provider",
+            "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+            "error_code": "401"
+          }
+        ],
+        "input_summary": {
+          "attempt_count": 1,
+          "input_item_count": 5
+        },
+        "output_summary": {
+          "accepted_output_present": false,
+          "final_status": "generation_failed"
+        },
+        "validation_summary": {
+          "initial_valid": false,
+          "final_valid": false,
+          "initial_missing_fields": [],
+          "final_missing_fields": [],
+          "violation_count": 0,
+          "warning_count": 0
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempt_count": 0,
+          "repair_targets": [],
+          "repair_reason": ""
+        },
+        "error_summary": {
+          "error_stage": "agentic_live_provider",
+          "error_code": "401",
+          "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+        }
+      }
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+      "job_title": "Data Analyst - Retail Banking",
+      "status": "generation_failed",
+      "ranking_fit_label": "stretch",
+      "reranker_fit_label": "stretch",
+      "fit_classification": "stretch",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "generation_failed",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "SQL",
+          "Python",
+          "BI tools (MicroStrategy, PowerBI)",
+          "Git",
+          "Data Vault",
+          "3NF",
+          "Redshift",
+          "Jira",
+          "Confluence",
+          "Anforderungsmanagement",
+          "Datenintegration",
+          "Cloud Data Platform",
+          "Datenarchitektur",
+          "Datenmodellierung",
+          "Data Governance",
+          "Datenqualität",
+          "Datenschutz",
+          "Business Intelligence"
+        ],
+        "responsibilities": [
+          "Work in Business Intelligence team and provide business units with data and insights",
+          "Translate retail banking (private customers) requirements for product development, sales, and technical product evolution into analytics deliverables",
+          "Partner with Product Owner; run workshops for scoping and requirements specification",
+          "Analyze internal and external data sources; define/implement rules/logic for data integration in cloud data platform",
+          "Bridge business requirements and technical implementation; support delivery and test new artifacts",
+          "Collaborate with data engineers and experts in data architecture, data modeling, data governance, data quality, and data privacy",
+          "Work with modern tool stack in agile setup",
+          "Contribute to Data Analyst community; share knowledge and stay up to date"
+        ],
+        "job_family": "analytics",
+        "domain": "banking",
+        "location_type": "hybrid"
+      },
+      "evidence_used": [
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[2]",
+          "name": "Junior Data Analyst — RetailCo AG",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "responsibility_alignment",
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.157895,
+              "semantic": 0.33519,
+              "combined": 0.211083
+            },
+            "role_alignment": {
+              "lexical": 1.0,
+              "semantic": 0.0,
+              "combined": 0.6
+            },
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.174443,
+              "combined": 0.104666
+            },
+            "responsibility_alignment": {
+              "lexical": 0.059701,
+              "semantic": 0.281563,
+              "combined": 0.226098
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 32,
+                "reused": 384
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[0]",
+          "name": "Reduced reporting latency by 40% by rebuilding GA4 → BigQuery pipeline with dbt.",
+          "matched_channels": [
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment"
+          ],
+          "channel_subscores": {
+            "responsibility_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.453705,
+              "combined": 0.340279
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 32,
+                "reused": 384
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[2]",
+          "name": "Open-Source dbt Package for Marketing Attribution",
+          "matched_channels": [
+            "required_skill_support"
+          ],
+          "selection_reasons": [
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.105263,
+              "semantic": 0.361601,
+              "combined": 0.182165
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 32,
+                "reused": 384
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[0]",
+          "name": "Senior Data Engineer — Acme Analytics GmbH",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "domain_alignment",
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.157895,
+              "semantic": 0.238761,
+              "combined": 0.182155
+            },
+            "role_alignment": {
+              "lexical": 0.25,
+              "semantic": 0.241093,
+              "combined": 0.246437
+            },
+            "domain_alignment": {
+              "lexical": 0.5,
+              "semantic": 0.060184,
+              "combined": 0.236111
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 32,
+                "reused": 384
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[1]",
+          "name": "Enabled real-time dashboard updates under 30 seconds via Pub/Sub → Dataflow streaming architecture.",
+          "matched_channels": [
+            "role_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "role_alignment"
+          ],
+          "channel_subscores": {
+            "role_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.340488,
+              "combined": 0.136195
+            },
+            "responsibility_alignment": {
+              "lexical": 0.014925,
+              "semantic": 0.356682,
+              "combined": 0.271243
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 32,
+                "reused": 384
+              }
+            }
+          }
+        }
+      ],
+      "evidence_selection_summary": {
+        "channel_counts": {
+          "required_skill_support": 4,
+          "role_alignment": 4,
+          "domain_alignment": 4,
+          "responsibility_alignment": 4
+        },
+        "fallback_used": false,
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 16,
+        "deduped_pool_size": 9,
+        "selected_evidence_count": 5,
+        "selected_evidence_ids": [
+          "exp_3",
+          "ach_1",
+          "proj_3",
+          "exp_1",
+          "ach_2"
+        ],
+        "unselected_top_candidates": [
+          {
+            "evidence_id": "exp_2",
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[1]",
+            "name": "Data Engineer — Fintech Startup GmbH",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.25,
+                "semantic": 0.060083,
+                "combined": 0.174033
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.0,
+                "combined": 0.2
+              }
+            }
+          },
+          {
+            "evidence_id": "proj_1",
+            "evidence_type": "project_entry",
+            "source_ref": "projects[0]",
+            "name": "FitCV — AI-Powered CV Generation Pipeline",
+            "matched_channels": [
+              "required_skill_support"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.052632,
+                "semantic": 0.463421,
+                "combined": 0.175868
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_4",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[3]",
+            "name": "Cut compute costs by 35% by migrating legacy Spark jobs to Dataproc Serverless.",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.409664,
+                "combined": 0.307248
+              }
+            }
+          }
+        ],
+        "hybrid_alignment": {
+          "required_skill_support": {
+            "lexical_weight": 0.7,
+            "semantic_weight": 0.3
+          },
+          "role_alignment": {
+            "lexical_weight": 0.6,
+            "semantic_weight": 0.4
+          },
+          "responsibility_alignment": {
+            "lexical_weight": 0.25,
+            "semantic_weight": 0.75
+          },
+          "domain_alignment": {
+            "lexical_weight": 0.4,
+            "semantic_weight": 0.6
+          }
+        },
+        "semantic_alignment": {
+          "enabled": true,
+          "semantic_methods": {
+            "required_skill_support": "embedding_similarity",
+            "role_alignment": "embedding_similarity",
+            "responsibility_alignment": "embedding_similarity",
+            "domain_alignment": "embedding_similarity"
+          },
+          "reuse_state": {
+            "candidate_evidence": "mixed_fresh_and_reused",
+            "job_context": "mixed_fresh_and_reused"
+          },
+          "embedding_counts": {
+            "candidate_evidence": {
+              "fresh": 32,
+              "reused": 20
+            },
+            "job_context": {
+              "fresh": 32,
+              "reused": 384
+            }
+          }
+        }
+      },
+      "gap_summary": {
+        "matched": [
+          "SQL",
+          "Python",
+          "BI tools (MicroStrategy, PowerBI)",
+          "Git"
+        ],
+        "partial": [],
+        "missing": [
+          "Data Vault",
+          "3NF",
+          "Redshift",
+          "Jira",
+          "Confluence",
+          "Anforderungsmanagement",
+          "Datenintegration",
+          "Cloud Data Platform",
+          "Datenarchitektur",
+          "Datenmodellierung",
+          "Data Governance",
+          "Datenqualität",
+          "Datenschutz",
+          "Business Intelligence"
+        ],
+        "matchable_required_count": 18,
+        "ignored_for_fit": [],
+        "years_risk": false,
+        "overclaim_risk": []
+      },
+      "structured_cv_initial": null,
+      "validation_initial": null,
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": null,
+      "markdown_final": null,
+      "enabled_sections": [
+        "Summary",
+        "Education",
+        "Experience",
+        "Skills",
+        "Certifications",
+        "Projects",
+        "Languages"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\cv_generation_structured_write_v1.md",
+      "outcome_reason": null,
+      "error": {
+        "stage": "agentic_live_provider",
+        "message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+      },
+      "review_required_reason_code": null,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_langgraph_live",
+        "provider": "openai",
+        "model": null,
+        "base_url": null
+      },
+      "agentic_live_trace": {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_generation",
+        "trace_status": "degraded",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_langgraph_live",
+          "provider": "openai",
+          "model": null,
+          "base_url": null,
+          "prompt_contract": "fitcv_structured_generation_prompt",
+          "template_path": "templates/cv_template.md",
+          "response_schema_name": "fitcv_structured_cv_document"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "initial_generation",
+            "started_at": "2026-05-18T00:25:34.247810+00:00",
+            "input_character_count": 9119,
+            "input_item_count": 5,
+            "retry_reason": null,
+            "debug_flags_active": {
+              "FITCV_LANGGRAPH_DEBUG_LIVE": false,
+              "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH": false
+            },
+            "prompt_contract": "fitcv_structured_generation_prompt",
+            "template_path": "templates/cv_template.md",
+            "response_schema_name": "fitcv_structured_cv_document",
+            "finished_at": "2026-05-18T00:25:34.475760+00:00",
+            "latency_ms": 227,
+            "provider_status": "error",
+            "accepted_output_present": false,
+            "error_stage": "agentic_live_provider",
+            "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+            "error_code": "401"
+          }
+        ],
+        "input_summary": {
+          "attempt_count": 1,
+          "input_item_count": 5
+        },
+        "output_summary": {
+          "accepted_output_present": false,
+          "final_status": "generation_failed"
+        },
+        "validation_summary": {
+          "initial_valid": false,
+          "final_valid": false,
+          "initial_missing_fields": [],
+          "final_missing_fields": [],
+          "violation_count": 0,
+          "warning_count": 0
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempt_count": 0,
+          "repair_targets": [],
+          "repair_reason": ""
+        },
+        "error_summary": {
+          "error_stage": "agentic_live_provider",
+          "error_code": "401",
+          "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+        }
+      }
+    },
+    {
+      "job_url": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+      "job_title": "Data Analyst - Data Quality",
+      "status": "generation_failed",
+      "ranking_fit_label": "stretch",
+      "reranker_fit_label": "stretch",
+      "fit_classification": "stretch",
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "generation_failed",
+          "attempted": true
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "analysis_input_summary": {
+        "required_skills": [
+          "Anforderungsmanagement",
+          "SQL",
+          "BI Tools (MicroStrategy, PowerBI)",
+          "Datenvisualisierung",
+          "Data Vault",
+          "3NF",
+          "Jira",
+          "Confluence",
+          "Data-Quality-Maßnahmen und -Prozesse"
+        ],
+        "responsibilities": [
+          "Work Business Intelligence team, provide business units relevant data, insights",
+          "Translate private customer domain requirements (product dev, sales, technical enhancement) into analytics deliverables",
+          "Partner product owner, run workshops for clarification, requirement specification",
+          "Analyze internal, external data sources; define, implement data quality measures, processes",
+          "Bridge regulatory business requirements to technical implementation; support delivery, end-to-end testing of new artifacts, DQ reports",
+          "Collaborate with data engineers and experts in data governance, data quality, compliance, data protection",
+          "Use modern tool stack in agile setup",
+          "Contribute to data analyst community, share knowledge"
+        ],
+        "job_family": "analytics",
+        "domain": "banking",
+        "location_type": "hybrid"
+      },
+      "evidence_used": [
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[2]",
+          "name": "Junior Data Analyst — RetailCo AG",
+          "matched_channels": [
+            "required_skill_support",
+            "role_alignment",
+            "domain_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "required_skill_support",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.2,
+              "semantic": 0.208964,
+              "combined": 0.202689
+            },
+            "role_alignment": {
+              "lexical": 1.0,
+              "semantic": 0.0,
+              "combined": 0.6
+            },
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.174443,
+              "combined": 0.104666
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[0]",
+          "name": "FitCV — AI-Powered CV Generation Pipeline",
+          "matched_channels": [
+            "required_skill_support",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.0,
+              "semantic": 0.463421,
+              "combined": 0.139026
+            },
+            "responsibility_alignment": {
+              "lexical": 0.030303,
+              "semantic": 0.500443,
+              "combined": 0.382908
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "achievement",
+          "source_ref": "achievements[2]",
+          "name": "Reduced ad-hoc reporting requests by 60% by building Looker self-service dashboards.",
+          "matched_channels": [
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "responsibility_alignment",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "domain_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.182871,
+              "combined": 0.109723
+            },
+            "responsibility_alignment": {
+              "lexical": 0.0,
+              "semantic": 0.243199,
+              "combined": 0.182399
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "experience_entry",
+          "source_ref": "experiences[1]",
+          "name": "Data Engineer — Fintech Startup GmbH",
+          "matched_channels": [
+            "role_alignment",
+            "domain_alignment",
+            "responsibility_alignment"
+          ],
+          "selection_reasons": [
+            "role_alignment",
+            "responsibility_alignment",
+            "domain_alignment"
+          ],
+          "channel_subscores": {
+            "role_alignment": {
+              "lexical": 0.333333,
+              "semantic": 0.343272,
+              "combined": 0.337309
+            },
+            "domain_alignment": {
+              "lexical": 0.5,
+              "semantic": 0.0,
+              "combined": 0.2
+            },
+            "responsibility_alignment": {
+              "lexical": 0.075758,
+              "semantic": 0.358445,
+              "combined": 0.287773
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        },
+        {
+          "evidence_type": "project_entry",
+          "source_ref": "projects[1]",
+          "name": "Real-Time Fraud Detection on AWS",
+          "matched_channels": [
+            "required_skill_support"
+          ],
+          "selection_reasons": [
+            "required_skill_support"
+          ],
+          "channel_subscores": {
+            "required_skill_support": {
+              "lexical": 0.1,
+              "semantic": 0.3685,
+              "combined": 0.18055
+            }
+          },
+          "semantic_alignment": {
+            "enabled": true,
+            "semantic_methods": {
+              "required_skill_support": "embedding_similarity",
+              "role_alignment": "embedding_similarity",
+              "responsibility_alignment": "embedding_similarity",
+              "domain_alignment": "embedding_similarity"
+            },
+            "reuse_state": {
+              "candidate_evidence": "mixed_fresh_and_reused",
+              "job_context": "mixed_fresh_and_reused"
+            },
+            "embedding_counts": {
+              "candidate_evidence": {
+                "fresh": 32,
+                "reused": 20
+              },
+              "job_context": {
+                "fresh": 23,
+                "reused": 276
+              }
+            }
+          }
+        }
+      ],
+      "evidence_selection_summary": {
+        "channel_counts": {
+          "required_skill_support": 4,
+          "role_alignment": 4,
+          "domain_alignment": 4,
+          "responsibility_alignment": 4
+        },
+        "fallback_used": false,
+        "effective_channel_pool_size": 4,
+        "merged_pool_size": 16,
+        "deduped_pool_size": 9,
+        "selected_evidence_count": 5,
+        "selected_evidence_ids": [
+          "exp_3",
+          "proj_1",
+          "ach_3",
+          "exp_2",
+          "proj_2"
+        ],
+        "unselected_top_candidates": [
+          {
+            "evidence_id": "exp_1",
+            "evidence_type": "experience_entry",
+            "source_ref": "experiences[0]",
+            "name": "Senior Data Engineer — Acme Analytics GmbH",
+            "matched_channels": [
+              "role_alignment",
+              "domain_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "role_alignment": {
+                "lexical": 0.333333,
+                "semantic": 0.0,
+                "combined": 0.2
+              },
+              "domain_alignment": {
+                "lexical": 0.5,
+                "semantic": 0.060184,
+                "combined": 0.236111
+              }
+            }
+          },
+          {
+            "evidence_id": "proj_3",
+            "evidence_type": "project_entry",
+            "source_ref": "projects[2]",
+            "name": "Open-Source dbt Package for Marketing Attribution",
+            "matched_channels": [
+              "required_skill_support"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "required_skill_support": {
+                "lexical": 0.1,
+                "semantic": 0.139566,
+                "combined": 0.11187
+              }
+            }
+          },
+          {
+            "evidence_id": "ach_4",
+            "evidence_type": "achievement",
+            "source_ref": "achievements[3]",
+            "name": "Cut compute costs by 35% by migrating legacy Spark jobs to Dataproc Serverless.",
+            "matched_channels": [
+              "responsibility_alignment"
+            ],
+            "selection_score": 0.0,
+            "channel_subscores": {
+              "responsibility_alignment": {
+                "lexical": 0.0,
+                "semantic": 0.387261,
+                "combined": 0.290445
+              }
+            }
+          }
+        ],
+        "hybrid_alignment": {
+          "required_skill_support": {
+            "lexical_weight": 0.7,
+            "semantic_weight": 0.3
+          },
+          "role_alignment": {
+            "lexical_weight": 0.6,
+            "semantic_weight": 0.4
+          },
+          "responsibility_alignment": {
+            "lexical_weight": 0.25,
+            "semantic_weight": 0.75
+          },
+          "domain_alignment": {
+            "lexical_weight": 0.4,
+            "semantic_weight": 0.6
+          }
+        },
+        "semantic_alignment": {
+          "enabled": true,
+          "semantic_methods": {
+            "required_skill_support": "embedding_similarity",
+            "role_alignment": "embedding_similarity",
+            "responsibility_alignment": "embedding_similarity",
+            "domain_alignment": "embedding_similarity"
+          },
+          "reuse_state": {
+            "candidate_evidence": "mixed_fresh_and_reused",
+            "job_context": "mixed_fresh_and_reused"
+          },
+          "embedding_counts": {
+            "candidate_evidence": {
+              "fresh": 32,
+              "reused": 20
+            },
+            "job_context": {
+              "fresh": 23,
+              "reused": 276
+            }
+          }
+        }
+      },
+      "gap_summary": {
+        "matched": [
+          "SQL",
+          "BI Tools (MicroStrategy, PowerBI)",
+          "Data-Quality-Maßnahmen und -Prozesse"
+        ],
+        "partial": [],
+        "missing": [
+          "Anforderungsmanagement",
+          "Datenvisualisierung",
+          "Data Vault",
+          "3NF",
+          "Jira",
+          "Confluence"
+        ],
+        "matchable_required_count": 9,
+        "ignored_for_fit": [],
+        "years_risk": false,
+        "overclaim_risk": []
+      },
+      "structured_cv_initial": null,
+      "validation_initial": null,
+      "repair_attempt": {
+        "performed": false,
+        "missing_sections": []
+      },
+      "structured_cv_final": null,
+      "markdown_final": null,
+      "enabled_sections": [
+        "Summary",
+        "Education",
+        "Experience",
+        "Skills",
+        "Certifications",
+        "Projects",
+        "Languages"
+      ],
+      "cv_generation_model": "gemini-2.5-flash",
+      "cv_prompt_id": "cv_generation.structured_write.v1",
+      "cv_prompt_template_path": "C:\\Users\\HOANG PHI LONG DANG\\repos\\JOB-PROJECT\\src\\fitcv\\prompts\\templates\\cv_generation_structured_write_v1.md",
+      "outcome_reason": null,
+      "error": {
+        "stage": "agentic_live_provider",
+        "message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+      },
+      "review_required_reason_code": null,
+      "attempt_count": 1,
+      "failed_rule_ids": [],
+      "first_failing_section_key": null,
+      "operator_note": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_langgraph_live",
+        "provider": "openai",
+        "model": null,
+        "base_url": null
+      },
+      "agentic_live_trace": {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_generation",
+        "trace_status": "degraded",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_langgraph_live",
+          "provider": "openai",
+          "model": null,
+          "base_url": null,
+          "prompt_contract": "fitcv_structured_generation_prompt",
+          "template_path": "templates/cv_template.md",
+          "response_schema_name": "fitcv_structured_cv_document"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "initial_generation",
+            "started_at": "2026-05-18T00:25:34.496557+00:00",
+            "input_character_count": 9372,
+            "input_item_count": 5,
+            "retry_reason": null,
+            "debug_flags_active": {
+              "FITCV_LANGGRAPH_DEBUG_LIVE": false,
+              "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH": false
+            },
+            "prompt_contract": "fitcv_structured_generation_prompt",
+            "template_path": "templates/cv_template.md",
+            "response_schema_name": "fitcv_structured_cv_document",
+            "finished_at": "2026-05-18T00:25:34.708642+00:00",
+            "latency_ms": 212,
+            "provider_status": "error",
+            "accepted_output_present": false,
+            "error_stage": "agentic_live_provider",
+            "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+            "error_code": "401"
+          }
+        ],
+        "input_summary": {
+          "attempt_count": 1,
+          "input_item_count": 5
+        },
+        "output_summary": {
+          "accepted_output_present": false,
+          "final_status": "generation_failed"
+        },
+        "validation_summary": {
+          "initial_valid": false,
+          "final_valid": false,
+          "initial_missing_fields": [],
+          "final_missing_fields": [],
+          "violation_count": 0,
+          "warning_count": 0
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempt_count": 0,
+          "repair_targets": [],
+          "repair_reason": ""
+        },
+        "error_summary": {
+          "error_stage": "agentic_live_provider",
+          "error_code": "401",
+          "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+        }
+      }
+    }
+  ],
+  "agentic_live_trace": {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "trace_schema_version": "agentic_step_trace_run_v1",
+    "trace_family": "agentic_step_trace",
+    "step_id": "cv_generation",
+    "late_stage_mode": {
+      "late_stage_mode": "agentic",
+      "agentic_late_stage_enabled": true,
+      "mode_source": "cv.agentic_late_stage.unified_runtime",
+      "agentic_status": "completed"
+    },
+    "trace_status": "degraded",
+    "trace_summary": {
+      "records_total": 4,
+      "present_records": 4,
+      "attempted_generation_jobs_total": 4
+    },
+    "records": [
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_generation",
+        "trace_status": "degraded",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_langgraph_live",
+          "provider": "openai",
+          "model": null,
+          "base_url": null,
+          "prompt_contract": "fitcv_structured_generation_prompt",
+          "template_path": "templates/cv_template.md",
+          "response_schema_name": "fitcv_structured_cv_document"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "initial_generation",
+            "started_at": "2026-05-18T00:25:33.486568+00:00",
+            "input_character_count": 9402,
+            "input_item_count": 5,
+            "retry_reason": null,
+            "debug_flags_active": {
+              "FITCV_LANGGRAPH_DEBUG_LIVE": false,
+              "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH": false
+            },
+            "prompt_contract": "fitcv_structured_generation_prompt",
+            "template_path": "templates/cv_template.md",
+            "response_schema_name": "fitcv_structured_cv_document",
+            "finished_at": "2026-05-18T00:25:33.972710+00:00",
+            "latency_ms": 486,
+            "provider_status": "error",
+            "accepted_output_present": false,
+            "error_stage": "agentic_live_provider",
+            "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+            "error_code": "401"
+          }
+        ],
+        "input_summary": {
+          "attempt_count": 1,
+          "input_item_count": 5
+        },
+        "output_summary": {
+          "accepted_output_present": false,
+          "final_status": "generation_failed"
+        },
+        "validation_summary": {
+          "initial_valid": false,
+          "final_valid": false,
+          "initial_missing_fields": [],
+          "final_missing_fields": [],
+          "violation_count": 0,
+          "warning_count": 0
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempt_count": 0,
+          "repair_targets": [],
+          "repair_reason": ""
+        },
+        "error_summary": {
+          "error_stage": "agentic_live_provider",
+          "error_code": "401",
+          "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+        },
+        "record_id": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+        "status": "generation_failed",
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "generation_failed",
+            "attempted": true
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_generation.json"
+        }
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_generation",
+        "trace_status": "degraded",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_langgraph_live",
+          "provider": "openai",
+          "model": null,
+          "base_url": null,
+          "prompt_contract": "fitcv_structured_generation_prompt",
+          "template_path": "templates/cv_template.md",
+          "response_schema_name": "fitcv_structured_cv_document"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "initial_generation",
+            "started_at": "2026-05-18T00:25:33.988416+00:00",
+            "input_character_count": 10101,
+            "input_item_count": 5,
+            "retry_reason": null,
+            "debug_flags_active": {
+              "FITCV_LANGGRAPH_DEBUG_LIVE": false,
+              "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH": false
+            },
+            "prompt_contract": "fitcv_structured_generation_prompt",
+            "template_path": "templates/cv_template.md",
+            "response_schema_name": "fitcv_structured_cv_document",
+            "finished_at": "2026-05-18T00:25:34.228586+00:00",
+            "latency_ms": 240,
+            "provider_status": "error",
+            "accepted_output_present": false,
+            "error_stage": "agentic_live_provider",
+            "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+            "error_code": "401"
+          }
+        ],
+        "input_summary": {
+          "attempt_count": 1,
+          "input_item_count": 5
+        },
+        "output_summary": {
+          "accepted_output_present": false,
+          "final_status": "generation_failed"
+        },
+        "validation_summary": {
+          "initial_valid": false,
+          "final_valid": false,
+          "initial_missing_fields": [],
+          "final_missing_fields": [],
+          "violation_count": 0,
+          "warning_count": 0
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempt_count": 0,
+          "repair_targets": [],
+          "repair_reason": ""
+        },
+        "error_summary": {
+          "error_stage": "agentic_live_provider",
+          "error_code": "401",
+          "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+        },
+        "record_id": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "status": "generation_failed",
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "generation_failed",
+            "attempted": true
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_generation.json"
+        }
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_generation",
+        "trace_status": "degraded",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_langgraph_live",
+          "provider": "openai",
+          "model": null,
+          "base_url": null,
+          "prompt_contract": "fitcv_structured_generation_prompt",
+          "template_path": "templates/cv_template.md",
+          "response_schema_name": "fitcv_structured_cv_document"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "initial_generation",
+            "started_at": "2026-05-18T00:25:34.247810+00:00",
+            "input_character_count": 9119,
+            "input_item_count": 5,
+            "retry_reason": null,
+            "debug_flags_active": {
+              "FITCV_LANGGRAPH_DEBUG_LIVE": false,
+              "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH": false
+            },
+            "prompt_contract": "fitcv_structured_generation_prompt",
+            "template_path": "templates/cv_template.md",
+            "response_schema_name": "fitcv_structured_cv_document",
+            "finished_at": "2026-05-18T00:25:34.475760+00:00",
+            "latency_ms": 227,
+            "provider_status": "error",
+            "accepted_output_present": false,
+            "error_stage": "agentic_live_provider",
+            "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+            "error_code": "401"
+          }
+        ],
+        "input_summary": {
+          "attempt_count": 1,
+          "input_item_count": 5
+        },
+        "output_summary": {
+          "accepted_output_present": false,
+          "final_status": "generation_failed"
+        },
+        "validation_summary": {
+          "initial_valid": false,
+          "final_valid": false,
+          "initial_missing_fields": [],
+          "final_missing_fields": [],
+          "violation_count": 0,
+          "warning_count": 0
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempt_count": 0,
+          "repair_targets": [],
+          "repair_reason": ""
+        },
+        "error_summary": {
+          "error_stage": "agentic_live_provider",
+          "error_code": "401",
+          "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+        },
+        "record_id": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "status": "generation_failed",
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "generation_failed",
+            "attempted": true
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_generation.json"
+        }
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_generation",
+        "trace_status": "degraded",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_langgraph_live",
+          "provider": "openai",
+          "model": null,
+          "base_url": null,
+          "prompt_contract": "fitcv_structured_generation_prompt",
+          "template_path": "templates/cv_template.md",
+          "response_schema_name": "fitcv_structured_cv_document"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "initial_generation",
+            "started_at": "2026-05-18T00:25:34.496557+00:00",
+            "input_character_count": 9372,
+            "input_item_count": 5,
+            "retry_reason": null,
+            "debug_flags_active": {
+              "FITCV_LANGGRAPH_DEBUG_LIVE": false,
+              "FITCV_LANGGRAPH_DEBUG_LIVE_DUMP_PATH": false
+            },
+            "prompt_contract": "fitcv_structured_generation_prompt",
+            "template_path": "templates/cv_template.md",
+            "response_schema_name": "fitcv_structured_cv_document",
+            "finished_at": "2026-05-18T00:25:34.708642+00:00",
+            "latency_ms": 212,
+            "provider_status": "error",
+            "accepted_output_present": false,
+            "error_stage": "agentic_live_provider",
+            "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}",
+            "error_code": "401"
+          }
+        ],
+        "input_summary": {
+          "attempt_count": 1,
+          "input_item_count": 5
+        },
+        "output_summary": {
+          "accepted_output_present": false,
+          "final_status": "generation_failed"
+        },
+        "validation_summary": {
+          "initial_valid": false,
+          "final_valid": false,
+          "initial_missing_fields": [],
+          "final_missing_fields": [],
+          "violation_count": 0,
+          "warning_count": 0
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempt_count": 0,
+          "repair_targets": [],
+          "repair_reason": ""
+        },
+        "error_summary": {
+          "error_stage": "agentic_live_provider",
+          "error_code": "401",
+          "error_message": "OpenAI Responses API returned HTTP 401: {\n  \"error\": {\n    \"message\": \"Incorrect API key provided: sk-c698f***********************3e7e. You can find your API key at https://platform.openai.com/account/api-keys.\",\n    \"type\": \"invalid_request_error\",\n    \"code\": \"invalid_api_key\",\n    \"param\": null\n  },\n  \"status\": 401\n}"
+        },
+        "record_id": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+        "status": "generation_failed",
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "generation_failed",
+            "attempted": true
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_generation.json"
+        }
+      }
+    ],
+    "degradation": {
+      "reason": "provider_or_capture_degraded"
+    },
+    "artifact_refs": {
+      "cv_debug_artifact": "cv-debug.json",
+      "stage_artifact": "cv_generation.json"
+    }
+  },
+  "cv_analysis_trace": {
+    "run_id": "8d36478e-a41a-42f3-9c1c-7cc67f730791",
+    "trace_schema_version": "agentic_step_trace_run_v1",
+    "trace_family": "agentic_step_trace",
+    "step_id": "cv_analysis",
+    "late_stage_mode": {
+      "late_stage_mode": "agentic",
+      "agentic_late_stage_enabled": true,
+      "mode_source": "cv.agentic_late_stage.unified_runtime",
+      "agentic_status": "completed"
+    },
+    "trace_status": "completed",
+    "trace_summary": {
+      "records_total": 4,
+      "present_records": 4,
+      "attempted_analysis_jobs_total": 4
+    },
+    "records": [
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_analysis",
+        "trace_status": "completed",
+        "record_id": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+        "status": "ready_for_generation",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "cv.agentic_late_stage.enabled"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "analysis",
+            "attempt_status": "ready_for_generation",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "analysis_input_fingerprint": "a85087aea5863c2fd2da64d9f3504038ec7307346c12050770d4b96fb56d36dc",
+          "required_skills_count": 10,
+          "preferred_skills_count": 0,
+          "responsibilities_count": 7
+        },
+        "output_summary": {
+          "selected_evidence_count": 5,
+          "fallback_used": false,
+          "requirement_coverage_count": 10,
+          "section_confidence_present": true
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null,
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "not_attempted",
+            "attempted": false
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_analysis.json"
+        }
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_analysis",
+        "trace_status": "completed",
+        "record_id": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+        "status": "ready_for_generation",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "cv.agentic_late_stage.enabled"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "analysis",
+            "attempt_status": "ready_for_generation",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "analysis_input_fingerprint": "490e873e091b4265c9589f83b320416bc457f2a6ede4cec03ba4aa548380ad3a",
+          "required_skills_count": 26,
+          "preferred_skills_count": 0,
+          "responsibilities_count": 11
+        },
+        "output_summary": {
+          "selected_evidence_count": 5,
+          "fallback_used": false,
+          "requirement_coverage_count": 26,
+          "section_confidence_present": true
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null,
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "not_attempted",
+            "attempted": false
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_analysis.json"
+        }
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_analysis",
+        "trace_status": "completed",
+        "record_id": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+        "status": "ready_for_generation",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "cv.agentic_late_stage.enabled"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "analysis",
+            "attempt_status": "ready_for_generation",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "analysis_input_fingerprint": "396a590c303dc8fa6c5b3cc8ac95d9ba70966f31c2f8588df29536b6e73318d3",
+          "required_skills_count": 18,
+          "preferred_skills_count": 0,
+          "responsibilities_count": 8
+        },
+        "output_summary": {
+          "selected_evidence_count": 5,
+          "fallback_used": false,
+          "requirement_coverage_count": 18,
+          "section_confidence_present": true
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null,
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "not_attempted",
+            "attempted": false
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_analysis.json"
+        }
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "cv_analysis",
+        "trace_status": "completed",
+        "record_id": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+        "scope_type": "job",
+        "scope_key": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+        "status": "ready_for_generation",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "cv.agentic_late_stage.enabled"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "analysis",
+            "attempt_status": "ready_for_generation",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "analysis_input_fingerprint": "92672bf089df14a2d043b4168f7c091d8c5420dd938f782bb8f9fed707002b89",
+          "required_skills_count": 9,
+          "preferred_skills_count": 0,
+          "responsibilities_count": 8
+        },
+        "output_summary": {
+          "selected_evidence_count": 5,
+          "fallback_used": false,
+          "requirement_coverage_count": 9,
+          "section_confidence_present": true
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null,
+        "decision_chain": {
+          "shortlist": {
+            "status": "returned_by_vector_search",
+            "advanced_to_scoring": true
+          },
+          "primary_fit": {
+            "source": "reranker",
+            "label": "stretch"
+          },
+          "cv_analysis": {
+            "status": "ready_for_generation",
+            "completed": true
+          },
+          "cv_generation": {
+            "status": "not_attempted",
+            "attempted": false
+          },
+          "validation": {
+            "status": "not_run"
+          }
+        },
+        "artifact_refs": {
+          "cv_debug_artifact": "cv-debug.json",
+          "stage_artifact": "cv_analysis.json"
+        }
+      }
+    ],
+    "degradation": {},
+    "artifact_refs": {
+      "cv_debug_artifact": "cv-debug.json",
+      "stage_artifact": "cv_analysis.json"
+    }
+  }
+}

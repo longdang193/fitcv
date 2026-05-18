@@ -27,6 +27,11 @@ You are an expert in systematic code improvement. Focus on structural optimizati
 4. **Check types** - Run mypy: `uvx mypy src --show-error-codes`
 5. **Commit if green** - Preserve working state and repeat.
 
+## Core Heuristic: Structural Symmetry
+
+**Enforce Structural Symmetry and Invariance**
+Actively identify symmetry, repeated patterns, and shared structures across the codebase. When equivalent logic exists in multiple places, consolidate it into a unified abstraction, reusable function, or generalized pipeline. Ruthlessly eliminate unnecessary special cases—preserve divergent logic *only* when it is operationally, mathematically, or domain-specifically required. The objective is to minimize redundant computation, simplify the system's mental model, and maximize testability.
+
 ## Code Smell Detection Tools
 
 Use system search tools to detect these structural smells BEFORE modifying code:

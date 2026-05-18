@@ -95,10 +95,10 @@ Rules:
 - Use the current local date and hour.
 - Use one question per file.
 - Start each file with the required frontmatter from the templates reference.
-- Include validator-friendly metadata in frontmatter, especially
-  `question_type`, `learning_mode`, `bloom_level`, `source_scope`, and
-  type-specific `validation` fields.
-- Add a descriptive `#` title after frontmatter. The title summarizes the main
+- Include validator-friendly metadata in frontmatter: `question_type`,
+  `learning_mode`, `bloom_level`, and `source_scope`.
+- Do not include `validation` metadata in frontmatter.
+- Add a descriptive `##` title after frontmatter. The title summarizes the main
   concept tested.
 - The title is also the filename source. Titles cannot contain these
   characters: `* " \ / < > : | ?`.

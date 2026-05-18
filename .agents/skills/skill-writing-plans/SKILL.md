@@ -96,6 +96,10 @@ Use GitNexus when plan quality depends on cross-file dependency awareness.
 - If GitNexus conflicts with source/docs/tests, trust source/docs/tests.
 - If GitNexus has tooling or query issues, consult the `gitnexus-guide` skill first; if unresolved, continue source-first.
 
+## Planning Standard: Structural Symmetry
+
+When breaking down tasks, ensure the plan implements shared abstractions rather than redundant, parallel logic. Task steps should consolidate equivalent logic and eliminate unnecessary special cases unless their operational difference is strictly required.
+
 ## Preconditions
 
 - triage exists (`skill-planning-dispatch`)

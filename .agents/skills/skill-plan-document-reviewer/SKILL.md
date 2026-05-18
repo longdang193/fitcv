@@ -91,6 +91,10 @@ Check these areas:
   - for starter/public sync work, does the plan accidentally copy project-specific behavior into generic layers?
 - completion readiness
   - if executed exactly as written, would the final verification be trustworthy?
+- structural symmetry and abstraction
+  - does the plan introduce redundant computation or parallel logic that could be unified?
+  - are shared structures correctly refactored into common abstractions or pipelines?
+  - does the plan reject unnecessary special cases unless their operational difference is explicitly justified?
 
 ## Output Format
 

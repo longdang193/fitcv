@@ -1,0 +1,297 @@
+{
+  "run_id": "1764fd52-b7a0-43eb-987a-8cb13dee1235",
+  "trace_schema_version": "agentic_step_trace_run_v1",
+  "trace_family": "agentic_step_trace",
+  "step_id": "cv_analysis",
+  "late_stage_mode": {
+    "late_stage_mode": "agentic",
+    "agentic_late_stage_enabled": true,
+    "mode_source": "cv.agentic_late_stage.unified_runtime",
+    "agentic_status": "completed"
+  },
+  "trace_status": "completed",
+  "trace_summary": {
+    "records_total": 4,
+    "present_records": 4,
+    "attempted_analysis_jobs_total": 4
+  },
+  "records": [
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+      "scope_type": "job",
+      "scope_key": "https://de.linkedin.com/jobs/view/business-data-analyst-b2b2c-at-1global-4321360960?trk=public_jobs_topcard-title",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "e11f3ce10fd39069b7bd1dfabd384652cbcdc6df58cc233f670b1fb78862ceb9",
+        "required_skills_count": 10,
+        "preferred_skills_count": 0,
+        "responsibilities_count": 7
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 10,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "scope_type": "job",
+      "scope_key": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "94d22cfc0da322285b41182431a4434cc98869cd13bec8af81cc564b1c4ccb68",
+        "required_skills_count": 26,
+        "preferred_skills_count": 0,
+        "responsibilities_count": 11
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 26,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+      "scope_type": "job",
+      "scope_key": "https://de.linkedin.com/jobs/view/data-analyst-retail-banking-at-dkb-service-gmbh-4366239154?trk=public_jobs_topcard-title",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "6037a96ab9f7bc06d777584a51cd03dcafadc19c30c3063ffb9beea4c9763202",
+        "required_skills_count": 18,
+        "preferred_skills_count": 0,
+        "responsibilities_count": 8
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 18,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    },
+    {
+      "trace_schema_version": "agentic_step_trace_record_v1",
+      "trace_family": "agentic_step_trace",
+      "step_id": "cv_analysis",
+      "trace_status": "completed",
+      "record_id": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+      "scope_type": "job",
+      "scope_key": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+      "status": "ready_for_generation",
+      "runtime_provenance": {
+        "runtime_path": "fitcv_agentic_cv_analysis_builtin",
+        "provider": "fitcv_builtin",
+        "mode_source": "cv.agentic_late_stage.enabled"
+      },
+      "attempts": [
+        {
+          "attempt_index": 1,
+          "attempt_type": "analysis",
+          "attempt_status": "ready_for_generation",
+          "provider_status": "completed"
+        }
+      ],
+      "input_summary": {
+        "analysis_input_fingerprint": "3981ee75d710c62e66c2cb689cdfa59cffa016b242533f5f3b1fe8c3d72835dd",
+        "required_skills_count": 9,
+        "preferred_skills_count": 0,
+        "responsibilities_count": 8
+      },
+      "output_summary": {
+        "selected_evidence_count": 5,
+        "fallback_used": false,
+        "requirement_coverage_count": 9,
+        "section_confidence_present": true
+      },
+      "validation_summary": {
+        "status": "not_run"
+      },
+      "repair_summary": {
+        "repair_attempted": false,
+        "repair_attempts": 0
+      },
+      "error_summary": null,
+      "decision_chain": {
+        "shortlist": {
+          "status": "returned_by_vector_search",
+          "advanced_to_scoring": true
+        },
+        "primary_fit": {
+          "source": "reranker",
+          "label": "stretch"
+        },
+        "cv_analysis": {
+          "status": "ready_for_generation",
+          "completed": true
+        },
+        "cv_generation": {
+          "status": "not_attempted",
+          "attempted": false
+        },
+        "validation": {
+          "status": "not_run"
+        }
+      },
+      "artifact_refs": {
+        "cv_debug_artifact": "cv-debug.json",
+        "stage_artifact": "cv_analysis.json"
+      }
+    }
+  ],
+  "degradation": {},
+  "artifact_refs": {
+    "cv_debug_artifact": "cv-debug.json",
+    "stage_artifact": "cv_analysis.json"
+  }
+}
