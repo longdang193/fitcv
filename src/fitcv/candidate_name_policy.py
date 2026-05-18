@@ -1,3 +1,20 @@
+"""@meta
+name: candidate_name_policy
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Provide candidate-name placeholder normalization and resolution helpers.
+inputs:
+  - candidate profile payloads and generated name tokens
+outputs:
+  - normalized placeholder checks and resolved candidate profile name
+lifecycle:
+  - status: active
+"""
+
 """Shared candidate-name placeholder policy for CV generation flows."""
 
 from typing import Any

@@ -1,3 +1,20 @@
+"""@meta
+name: runtime_routing
+type: module
+domain: runtime
+ownership: feature
+capabilities:
+  - cv_system.stage-artifact-diagnostics
+responsibility:
+  - Translate configured routing settings into typed CV generation runtime routes.
+inputs:
+  - resolved config dictionaries and routing defaults
+outputs:
+  - typed CV generation routing object
+lifecycle:
+  - status: active
+"""
+
 """Shared routing translation utilities for CV generation runtime paths."""
 
 from dataclasses import dataclass
