@@ -22,6 +22,7 @@ import os
 import re
 import sqlite3
 import threading
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, TypedDict
 from types import SimpleNamespace
@@ -46,6 +47,14 @@ _ENRICH_RATE_LOCK: threading.Lock = threading.Lock()
 _FALLBACK_LOCATION_TYPES: frozenset[str] = frozenset({"remote", "hybrid", "onsite"})
 _FALLBACK_SENIORITY_ENRICH: frozenset[str] = frozenset({"junior", "mid", "senior", "lead"})
 
+@dataclass(frozen=True)
+class NormalizationPolicy:
+    valid_location_types: frozenset[str]
+    valid_seniority_enrich: frozenset[str]
+    skill_synonyms: dict[str, str]
+    domain_alias_map: dict[str, str]
+    role_family_alias_map: dict[str, str]
+    role_taxonomy: dict[str, Any]
 
 def _get_valid_location_types(config: dict | None) -> frozenset[str]:
     if config:
@@ -61,6 +70,48 @@ def _get_valid_seniority_enrich(config: dict | None) -> frozenset[str]:
         if vals:
             return frozenset(str(v).lower() for v in vals)
     return _FALLBACK_SENIORITY_ENRICH
+
+def _build_normalization_policy(config: dict | None) -> NormalizationPolicy:
+    cfg = config or {}
+    raw_synonyms = cfg.get("skill_synonyms")
+    skill_synonyms = (
+        {
+            str(alias).strip().lower(): str(canonical).strip().lower()
+            for alias, canonical in raw_synonyms.items()
+            if str(alias).strip() and str(canonical).strip()
+        }
+        if isinstance(raw_synonyms, dict)
+        else {}
+    )
+    raw_domain_alias_map = cfg.get("domain_alias_map")
+    domain_alias_map = (
+        {
+            str(alias).strip().lower(): str(canonical).strip().lower()
+            for alias, canonical in raw_domain_alias_map.items()
+            if str(alias).strip() and str(canonical).strip()
+        }
+        if isinstance(raw_domain_alias_map, dict)
+        else {}
+    )
+    raw_role_family_alias_map = cfg.get("role_family_alias_map")
+    role_family_alias_map = (
+        {
+            str(alias).strip().lower(): str(canonical).strip().lower()
+            for alias, canonical in raw_role_family_alias_map.items()
+            if str(alias).strip() and str(canonical).strip()
+        }
+        if isinstance(raw_role_family_alias_map, dict)
+        else {}
+    )
+    role_taxonomy = cfg.get("role_taxonomy")
+    return NormalizationPolicy(
+        valid_location_types=_get_valid_location_types(cfg),
+        valid_seniority_enrich=_get_valid_seniority_enrich(cfg),
+        skill_synonyms=skill_synonyms,
+        domain_alias_map=domain_alias_map,
+        role_family_alias_map=role_family_alias_map,
+        role_taxonomy=role_taxonomy if isinstance(role_taxonomy, dict) else {},
+    )
 
 # ── schema: which fields are arrays vs scalars ─────────────────────────────────
 
@@ -253,14 +304,7 @@ def _normalize_text_item(value: Any) -> str | None:
 
 
 def _get_skill_synonyms(config: dict | None) -> dict[str, str]:
-    raw_synonyms = (config or {}).get("skill_synonyms")
-    if not isinstance(raw_synonyms, dict):
-        return {}
-    return {
-        str(alias).strip().lower(): str(canonical).strip().lower()
-        for alias, canonical in raw_synonyms.items()
-        if str(alias).strip() and str(canonical).strip()
-    }
+    return _build_normalization_policy(config).skill_synonyms
 
 
 def _canonicalize_text_item(field_name: str, raw_text: str, config: dict | None) -> str:
@@ -763,6 +807,7 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
         - job_family, domain → lowercased free strings
     """
     errors: list[str] = []
+    policy = _build_normalization_policy(config)
     cleaned = _strip_markdown_fences(response_text)
 
     try:
@@ -804,6 +849,10 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
     for field in _KNOWN_FIELDS:
         raw_value = raw.get(field)
         parsed[field] = _coerce_field(field, raw_value, config)
+    if isinstance(raw.get("location_type"), str) and raw.get("location_type") and parsed.get("location_type") is None:
+        errors.append("coercion_warning:location_type:invalid_enum")
+    if isinstance(raw.get("seniority"), str) and raw.get("seniority") and parsed.get("seniority") is None:
+        errors.append("coercion_warning:seniority:invalid_enum")
 
     parsed["location_type_raw"] = _normalize_text_item(raw.get("location_type"))
     parsed["seniority_raw"] = _normalize_text_item(raw.get("seniority"))
@@ -834,13 +883,13 @@ def parse_extraction_response(response_text: str, config: dict | None = None) ->
         field="domain",
         alias_raw=parsed.get("domain_raw"),
         canonical_raw=parsed.get("domain"),
-        config=config,
+        config=config or {"domain_alias_map": policy.domain_alias_map},
     )
     role_family_mapping_suggestions = _build_field_mapping_suggestions(
         field="role_family",
         alias_raw=parsed.get("job_family_raw"),
         canonical_raw=parsed.get("job_family"),
-        config=config,
+        config=config or {"role_family_alias_map": policy.role_family_alias_map, "role_taxonomy": policy.role_taxonomy},
     )
     parsed["mapping_suggestions"] = mapping_suggestions
     parsed["domain_mapping_suggestions"] = domain_mapping_suggestions
@@ -1069,9 +1118,7 @@ def lookup_reusable_structured_jobs(
         )
         reusable_rows: dict[str, dict[str, Any]] = {}
         with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
-            conn.execute("PRAGMA journal_mode=WAL;")
-            conn.execute("PRAGMA synchronous=NORMAL;")
-            conn.execute("PRAGMA busy_timeout=30000;")
+            _configure_sqlite_connection(conn)
             _ensure_sqlite_structured_jobs_table(conn)
             for job_url, raw_fingerprint, contract_fingerprint, payload_json in conn.execute(sql, job_urls).fetchall():
                 if not isinstance(job_url, str) or not job_url:
@@ -1510,7 +1557,8 @@ _MERGE_COLUMNS = [
     "preferred_skill_entities_json", "responsibilities", "responsibilities_canonical",
     "domain_raw", "domain", "tech_stack", "tech_stack_canonical",
     "years_experience_min", "years_experience_max", "keywords", "keywords_canonical",
-    "job_family_raw", "job_family", "mapping_suggestions_json", "description_cleaned",
+    "job_family_raw", "job_family", "mapping_suggestions_json", "domain_mapping_suggestions_json",
+    "role_family_mapping_suggestions_json", "description_cleaned",
     "enrichment_version", "enrichment_model", "enriched_at",
     "raw_job_fingerprint", "enrich_contract_fingerprint", "enrich_reuse_status",
 ]
@@ -1552,6 +1600,8 @@ _STAGING_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("job_family_raw", "STRING", "NULLABLE"),
     ("job_family", "STRING", "NULLABLE"),
     ("mapping_suggestions_json", "STRING", "NULLABLE"),
+    ("domain_mapping_suggestions_json", "STRING", "NULLABLE"),
+    ("role_family_mapping_suggestions_json", "STRING", "NULLABLE"),
     ("description_cleaned", "STRING", "NULLABLE"),
     ("enrichment_version", "STRING", "NULLABLE"),
     ("enrichment_model", "STRING", "NULLABLE"),
@@ -1565,6 +1615,8 @@ _STRUCTURED_JSON_LIST_FIELDS: tuple[tuple[str, str], ...] = (
     ("required_skill_entities", "required_skill_entities_json"),
     ("preferred_skill_entities", "preferred_skill_entities_json"),
     ("mapping_suggestions", "mapping_suggestions_json"),
+    ("domain_mapping_suggestions", "domain_mapping_suggestions_json"),
+    ("role_family_mapping_suggestions", "role_family_mapping_suggestions_json"),
 )
 
 _STRUCTURED_SCHEMA_KEYS: frozenset[str] = frozenset(
@@ -1572,15 +1624,30 @@ _STRUCTURED_SCHEMA_KEYS: frozenset[str] = frozenset(
 )
 
 
-def _map_to_structured_jobs_row(row: dict[str, Any]) -> dict[str, Any]:
+def _project_enriched_row(
+    row: dict[str, Any],
+    *,
+    schema_keys: frozenset[str],
+    json_list_fields: tuple[tuple[str, str], ...],
+    extra_fields: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     mapped: dict[str, Any] = {}
-    for key in _STRUCTURED_SCHEMA_KEYS:
+    if extra_fields:
+        mapped.update(extra_fields)
+    for key in schema_keys:
         if key in row:
             mapped[key] = row[key]
-    for source_key, target_key in _STRUCTURED_JSON_LIST_FIELDS:
+    for source_key, target_key in json_list_fields:
         if source_key in row:
             mapped[target_key] = json.dumps(row.get(source_key, []), ensure_ascii=False)
     return mapped
+
+def _map_to_structured_jobs_row(row: dict[str, Any]) -> dict[str, Any]:
+    return _project_enriched_row(
+        row,
+        schema_keys=_STRUCTURED_SCHEMA_KEYS,
+        json_list_fields=_STRUCTURED_JSON_LIST_FIELDS,
+    )
 
 
 def load_structured_jobs(
@@ -1597,9 +1664,7 @@ def load_structured_jobs(
     """
     if sqlite_mode_enabled(config):
         with sqlite3.connect(_sqlite_path(), timeout=30) as conn:
-            conn.execute("PRAGMA journal_mode=WAL;")
-            conn.execute("PRAGMA synchronous=NORMAL;")
-            conn.execute("PRAGMA busy_timeout=30000;")
+            _configure_sqlite_connection(conn)
             _ensure_sqlite_structured_jobs_table(conn)
             rows = []
             for row in enriched:
@@ -1719,6 +1784,8 @@ _RUN_SCHEMA_FIELDS: tuple[tuple[str, str, str], ...] = (
     ("job_family_raw",       "STRING",    "NULLABLE"),
     ("job_family",           "STRING",    "NULLABLE"),
     ("mapping_suggestions_json", "STRING", "NULLABLE"),
+    ("domain_mapping_suggestions_json", "STRING", "NULLABLE"),
+    ("role_family_mapping_suggestions_json", "STRING", "NULLABLE"),
     ("description_cleaned",  "STRING",    "NULLABLE"),
     ("enrichment_version",   "STRING",    "NULLABLE"),
     ("enrichment_model",     "STRING",    "NULLABLE"),
@@ -1736,14 +1803,12 @@ def _map_to_run_structured_jobs_row(
     run_id: str,
 ) -> dict[str, Any]:
     """Project an enriched row into the run_structured_jobs schema, injecting run_id."""
-    mapped: dict[str, Any] = {"run_id": run_id}
-    for key in _RUN_SCHEMA_KEYS - {"run_id"}:
-        if key in row:
-            mapped[key] = row[key]
-    for source_key, target_key in _STRUCTURED_JSON_LIST_FIELDS:
-        if source_key in row:
-            mapped[target_key] = json.dumps(row.get(source_key, []), ensure_ascii=False)
-    return mapped
+    return _project_enriched_row(
+        row,
+        schema_keys=_RUN_SCHEMA_KEYS - {"run_id"},
+        json_list_fields=_STRUCTURED_JSON_LIST_FIELDS,
+        extra_fields={"run_id": run_id},
+    )
 
 
 def _ensure_sqlite_run_structured_jobs_table(conn: sqlite3.Connection) -> None:
@@ -1783,6 +1848,7 @@ def load_run_structured_jobs(
         db_path = _sqlite_path()
         os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
         with sqlite3.connect(db_path) as conn:
+            _configure_sqlite_connection(conn)
             _ensure_sqlite_run_structured_jobs_table(conn)
             conn.executemany(
                 """
@@ -1836,6 +1902,12 @@ def load_run_structured_jobs(
 
 def _sqlite_path() -> str:
     return str(os.environ.get("FITCV_CP_SQLITE_PATH") or "data/fitcv_cp.sqlite3").strip() or "data/fitcv_cp.sqlite3"
+
+
+def _configure_sqlite_connection(conn: sqlite3.Connection) -> None:
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
+    conn.execute("PRAGMA busy_timeout=30000;")
 
 
 def _ensure_sqlite_structured_jobs_table(conn: sqlite3.Connection) -> None:

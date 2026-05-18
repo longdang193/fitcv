@@ -443,6 +443,7 @@ def test_parse_extraction_response_bad_enum_returns_none() -> None:
     raw = '{"location_type": "in-person-hybrid-flexible"}'
     result = parse_extraction_response(raw)
     assert result["parsed"]["location_type"] is None     # unknown enum → null
+    assert "coercion_warning:location_type:invalid_enum" in result["errors"]
 
 
 def test_parse_extraction_response_null_list_coerced_to_empty() -> None:
@@ -469,6 +470,7 @@ def test_parse_extraction_response_bad_seniority_returns_none() -> None:
     raw = '{"seniority": "very experienced"}'
     result = parse_extraction_response(raw)
     assert result["parsed"]["seniority"] is None
+    assert "coercion_warning:seniority:invalid_enum" in result["errors"]
 
 
 def test_parse_extraction_response_uses_skill_entities_for_canonical_fields() -> None:
@@ -1293,6 +1295,8 @@ def test_load_run_structured_jobs_writes_sqlite_rows(
             "required_skill_entities": [{"raw_text": "SQL", "canonical": "sql"}],
             "preferred_skill_entities": [{"raw_text": "dbt", "canonical": "dbt"}],
             "mapping_suggestions": [{"canonical": "sql", "matches": True}],
+            "domain_mapping_suggestions": [{"field": "domain", "alias": "fintech", "canonical": "finance"}],
+            "role_family_mapping_suggestions": [{"field": "role_family", "alias": "data scientist", "canonical": "data_science"}],
             "enriched_at": "2026-05-10T00:00:00+00:00",
         }
     ]
@@ -1314,6 +1318,8 @@ def test_load_run_structured_jobs_writes_sqlite_rows(
     assert payload["required_skills"] == ["SQL", "Python"]
     assert payload["required_skill_entities_json"] == '[{"raw_text": "SQL", "canonical": "sql"}]'
     assert payload["mapping_suggestions_json"] == '[{"canonical": "sql", "matches": true}]'
+    assert payload["domain_mapping_suggestions_json"] == '[{"field": "domain", "alias": "fintech", "canonical": "finance"}]'
+    assert payload["role_family_mapping_suggestions_json"] == '[{"field": "role_family", "alias": "data scientist", "canonical": "data_science"}]'
 
 
 # ── EnrichmentOutput + _apply_structured_normalization ───────────────────────
