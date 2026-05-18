@@ -4133,20 +4133,6 @@ def _timeline_stage_label(event_stage: str) -> str:
         return "—"
     return TIMELINE_STAGE_LABELS.get(normalized, normalized.replace("_", " ").title())
 
-def _timeline_semantic_outcome(event: RunEvent, payload: dict[str, Any]) -> str:
-    stage = str(event.stage or "").strip()
-    deterministic_outcome = str(payload.get("deterministic_outcome") or "").strip().lower()
-    stage_owned_subreason = str(payload.get("stage_owned_subreason") or "").strip().lower()
-    if stage == "layer4_cv_validation_failed":
-        if deterministic_outcome == "rejected" and stage_owned_subreason == "validation_failed":
-            return "expected_rejection"
-        return "unexpected_failure"
-    if stage_owned_subreason == "review_required" or deterministic_outcome == "review_required":
-        return "requires_review"
-    if stage == "pipeline_complete":
-        return "summary"
-    return "normal_progress"
-
 
 
 def _timeline_semantic_outcome(event: RunEvent, payload: dict[str, Any]) -> str:
@@ -8850,6 +8836,7 @@ def _run_to_dict(run: PipelineRun) -> dict:
         "orchestration_backend": run.orchestration_backend,
         "orchestration_run_id": run.orchestration_run_id,
     }
+
 
 
 
