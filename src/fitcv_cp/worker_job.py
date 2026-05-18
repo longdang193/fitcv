@@ -19,10 +19,12 @@ import json
 import logging
 import os
 import re
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Any
 
+import yaml
 from google.cloud import bigquery
 
 from fitcv.config import apply_runtime_skill_synonym_overlay, parse_skill_synonym_overlay_yaml
@@ -61,6 +63,14 @@ from fitcv_cp.synonym_proposals import (
     build_synonym_proposals_payload,
     transition_synonym_proposal_status,
 )
+from fitcv_cp.run_artifact_contracts import (
+    iso_or_none,
+    json_safe,
+    normalized_run_mode,
+    replay_context_payload,
+    run_mode_label,
+    string_or_none,
+)
 
 logger = logging.getLogger(__name__)
 _MAX_DEBUG_MARKDOWN_CHARS = 4000
@@ -84,10 +94,6 @@ _CV_DEBUG_ANALYSIS_OMISSION_STATUSES = {
     "blocked_by_reranker_fit",
     "skipped_fit_gate",
     "analysis_failed",
-}
-_RUN_MODE_LABELS = {
-    "run_all": "Run All",
-    "manual_staged": "Stage by Stage",
 }
 _NON_SKILL_MIN_SUPPORT_FOR_PROPOSAL = 2
 _WINDOWS_ABSOLUTE_PATH_PATTERN = re.compile(r"^[A-Za-z]:[\\/]")
@@ -320,35 +326,8 @@ def _build_results_export_payload(
     finished_at: datetime.datetime,
     replay_context: dict[str, Any],
 ) -> str:
-    def _json_safe(value: Any) -> Any:
-        if isinstance(value, datetime.datetime):
-            return value.isoformat()
-        if isinstance(value, datetime.date):
-            return value.isoformat()
-        if isinstance(value, dict):
-            return {str(k): _json_safe(v) for k, v in value.items()}
-        if isinstance(value, list):
-            return [_json_safe(item) for item in value]
-        if isinstance(value, tuple):
-            return [_json_safe(item) for item in value]
-        if isinstance(value, set):
-            return [_json_safe(item) for item in sorted(value)]
-        return value
-
-    def _string_or_none(value: Any) -> str | None:
-        return value if isinstance(value, str) else None
-
-    def _normalized_run_mode(value: Any) -> str:
-        run_mode = _string_or_none(value)
-        if run_mode in _RUN_MODE_LABELS:
-            return run_mode
-        return "run_all"
-
-    def _iso_or_none(value: Any) -> str | None:
-        return value.isoformat() if isinstance(value, datetime.datetime) else None
-
     diagnostic_support = {
-        "late_stage_reuse_snapshots": _json_safe(summary.get("late_stage_reuse_snapshots") or {}),
+        "late_stage_reuse_snapshots": json_safe(summary.get("late_stage_reuse_snapshots") or {}),
     }
     stage_result_summary: dict[str, Any] = {}
     stage_transition_artifacts = dict(summary.get("stage_transition_artifacts") or {})
@@ -364,7 +343,7 @@ def _build_results_export_payload(
         )
         stage_result_summary[str(stage_id)] = {
             "status": str(block.get("status") or ""),
-            "decision": _json_safe(stage_result.get("decision") or {}),
+            "decision": json_safe(stage_result.get("decision") or {}),
             "policy_version": str(stage_result.get("policy_version") or ""),
             "trace_context": {
                 "trace_id": str(trace_context.get("trace_id") or ""),
@@ -380,15 +359,15 @@ def _build_results_export_payload(
         "run_id": run_id,
         "results_schema_version": "results_job_ledger_v3",
         "status": RunStatus.SUCCEEDED.value,
-        "triggered_by": _string_or_none(getattr(run_record, "triggered_by", "")) or "",
-        "run_mode": _normalized_run_mode(getattr(run_record, "run_mode", None)),
-        "run_mode_label": _RUN_MODE_LABELS[_normalized_run_mode(getattr(run_record, "run_mode", None))],
-        "created_at": _iso_or_none(getattr(run_record, "created_at", None)),
-        "started_at": _iso_or_none(getattr(run_record, "started_at", None)),
+        "triggered_by": string_or_none(getattr(run_record, "triggered_by", "")) or "",
+        "run_mode": normalized_run_mode(getattr(run_record, "run_mode", None)),
+        "run_mode_label": run_mode_label(getattr(run_record, "run_mode", None)),
+        "created_at": iso_or_none(getattr(run_record, "created_at", None)),
+        "started_at": iso_or_none(getattr(run_record, "started_at", None)),
         "finished_at": finished_at.isoformat(),
-        "jobs_path": _string_or_none(getattr(run_record, "jobs_path", "")) or "",
-        "jobs_input_source": _string_or_none(getattr(run_record, "jobs_input_source", None)),
-        "candidate_profile_source": _string_or_none(getattr(run_record, "candidate_profile_source", None)),
+        "jobs_path": string_or_none(getattr(run_record, "jobs_path", "")) or "",
+        "jobs_input_source": string_or_none(getattr(run_record, "jobs_input_source", None)),
+        "candidate_profile_source": string_or_none(getattr(run_record, "candidate_profile_source", None)),
         "summary": {
             "total_jobs": int(summary.get("total_jobs", 0)),
             "passed_filter": int(summary.get("passed_filter", 0)),
@@ -398,13 +377,8 @@ def _build_results_export_payload(
         "late_stage_mode": _build_late_stage_mode_payload(summary=summary),
         "stage_result_summary": stage_result_summary,
         "data_plane": data_plane_contract_payload(effective_config),
-        "replay_context": {
-            "replay_mode": str(replay_context.get("replay_mode") or "strict"),
-            "replay_source_run_id": str(replay_context.get("replay_source_run_id") or run_id),
-            "policy_registry_version": str(replay_context.get("policy_registry_version") or "policy_registry.v1"),
-            "policy_envelope_signature": str(replay_context.get("policy_envelope_signature") or ""),
-        },
-        "results": _json_safe(export_results),
+        "replay_context": replay_context_payload(replay_context=replay_context, run_id=run_id),
+        "results": json_safe(export_results),
     }
     if diagnostic_support["late_stage_reuse_snapshots"]:
         payload["diagnostic_support"] = diagnostic_support
@@ -480,15 +454,6 @@ def _build_cv_generation_debug_payload(
     summary: dict[str, Any],
     finished_at: datetime.datetime,
 ) -> str:
-    def _string_or_none(value: Any) -> str | None:
-        return value if isinstance(value, str) else None
-
-    def _normalized_run_mode(value: Any) -> str:
-        run_mode = _string_or_none(value)
-        if run_mode in _RUN_MODE_LABELS:
-            return run_mode
-        return "run_all"
-
     def _truncate_large_fields(record: dict[str, Any]) -> dict[str, Any]:
         truncated = dict(record)
         markdown_final = truncated.get("markdown_final")
@@ -541,8 +506,8 @@ def _build_cv_generation_debug_payload(
         "run_id": run_id,
         "status": RunStatus.SUCCEEDED.value,
         "debug_schema_version": "cv_generation_debug_v3",
-        "run_mode": _normalized_run_mode(getattr(run_record, "run_mode", None)),
-        "run_mode_label": _RUN_MODE_LABELS[_normalized_run_mode(getattr(run_record, "run_mode", None))],
+        "run_mode": normalized_run_mode(getattr(run_record, "run_mode", None)),
+        "run_mode_label": run_mode_label(getattr(run_record, "run_mode", None)),
         "created_at": finished_at.isoformat(),
         "ranked_jobs_total": ranked_jobs_total,
         "debug_records_captured": len(debug_records),
@@ -600,12 +565,7 @@ def _build_manual_checkpoint_payload(
         "next_stage": summary.get("next_stage"),
         "completed_stages": list(summary.get("completed_stages") or []),
         "checkpoint_payload": summary.get("checkpoint_payload") or {},
-        "replay_context": {
-            "replay_mode": str(replay_context.get("replay_mode") or "strict"),
-            "replay_source_run_id": str(replay_context.get("replay_source_run_id") or run_id),
-            "policy_registry_version": str(replay_context.get("policy_registry_version") or "policy_registry.v1"),
-            "policy_envelope_signature": str(replay_context.get("policy_envelope_signature") or ""),
-        },
+        "replay_context": replay_context_payload(replay_context=replay_context, run_id=run_id),
     }
     return json.dumps(payload, ensure_ascii=False)
 
@@ -656,12 +616,7 @@ def _build_settings_used_payload(
             ),
         },
         "data_plane": data_plane_contract_payload(effective_config),
-        "replay_context": {
-            "replay_mode": str(replay_context.get("replay_mode") or "strict"),
-            "replay_source_run_id": str(replay_context.get("replay_source_run_id") or run_id),
-            "policy_registry_version": str(replay_context.get("policy_registry_version") or "policy_registry.v1"),
-            "policy_envelope_signature": str(replay_context.get("policy_envelope_signature") or ""),
-        },
+        "replay_context": replay_context_payload(replay_context=replay_context, run_id=run_id),
     }
     if sqlite_mode:
         data_plane = dict(payload.get("data_plane") or {})
@@ -698,7 +653,8 @@ def _build_synonym_proposals_payload(
     existing_payload_json: str | None = None,
     global_synonyms: dict[str, str] | None = None,
 ) -> str:
-    # Backwards-compatible shim for existing test/import callers.
+    # Deprecated compatibility shim for test/import callers.
+    # Runtime should call fitcv_cp.synonym_proposals.build_synonym_proposals_payload directly.
     return build_synonym_proposals_payload(
         run_id=run_id,
         summary=summary,
@@ -747,17 +703,8 @@ def _synonym_management_mode_from_run_record(run_record: Any) -> dict[str, bool]
             except (TypeError, json.JSONDecodeError):
                 parsed = None
             settings_payload = parsed if isinstance(parsed, dict) else None
-    resolved = resolve_synonym_management_mode(settings_payload)
-    return {
-        "propose_enabled": bool(resolved.get("propose_enabled", True)),
-        "apply_to_run_enabled": bool(resolved.get("apply_to_run_enabled", True)),
-        "promote_global_enabled": bool(resolved.get("promote_global_enabled", True)),
-        "auto_triage_recommendation_enabled": bool(resolved.get("auto_triage_recommendation_enabled", True)),
-        "triage_recommendation_reuse_enabled": bool(resolved.get("triage_recommendation_reuse_enabled", True)),
-        "auto_apply_recommendation_enabled": bool(resolved.get("auto_apply_recommendation_enabled", False)),
-        "auto_promote_global_enabled": bool(resolved.get("auto_promote_global_enabled", False)),
-        "auto_accept_ai_action_enabled": bool(resolved.get("auto_accept_ai_action_enabled", True)),
-    }
+    # Keep worker policy flags fully sourced from shared synonym policy resolver.
+    return resolve_synonym_management_mode(settings_payload)
 
 def _stable_sha256_json(payload: dict[str, Any]) -> str:
     raw = json.dumps(payload, sort_keys=True, ensure_ascii=False)
@@ -824,15 +771,36 @@ def _load_global_skill_synonyms_map() -> dict[str, str]:
 def _build_synonym_overlay_yaml(overlay: dict[str, str]) -> str:
     if not overlay:
         return ""
-    lines = ["skill_synonyms:"]
-    for alias, canonical in sorted(overlay.items()):
-        lines.append(f"  {alias}: {canonical}")
-    return "\n".join(lines) + "\n"
+    payload = {
+        "skill_synonyms": {
+            str(alias): str(canonical)
+            for alias, canonical in sorted(overlay.items())
+        }
+    }
+    return yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
 
 def _persist_global_skill_synonyms_map(mappings: dict[str, str]) -> None:
     path = _global_skill_synonyms_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_build_synonym_overlay_yaml(mappings), encoding="utf-8")
+    content = _build_synonym_overlay_yaml(mappings)
+    tmp_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=str(path.parent),
+            prefix=f"{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as tmp_file:
+            tmp_file.write(content)
+            tmp_file.flush()
+            os.fsync(tmp_file.fileno())
+            tmp_path = Path(tmp_file.name)
+        os.replace(tmp_path, path)
+    finally:
+        if tmp_path is not None and tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
 
 
 def _map_review_required_reason_code(record: dict[str, Any]) -> str:

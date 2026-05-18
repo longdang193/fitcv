@@ -57,19 +57,19 @@ Refactor protected by symbol-level GitNexus blast-radius checks, targeted tests,
 - GitNexus index freshness checked; if stale run `npx gitnexus analyze`
 
 **Steps:**
-- [ ] Step 1: Run pre-edit symbol context and impact checks for target symbols:
+- [x] Step 1: Run pre-edit symbol context and impact checks for target symbols:
   - `execute_pipeline_run`
   - `_build_results_export_payload`
   - `_build_cv_generation_debug_payload`
   - `_build_settings_used_payload`
   - `_synonym_management_mode_from_run_record`
   - `_persist_global_skill_synonyms_map`
-- [ ] Step 2: Record direct callers/processes and risk levels from GitNexus outputs.
-- [ ] Step 3: Confirm bounded file scope and test surfaces before first code patch.
+- [x] Step 2: Record direct callers/processes and risk levels from GitNexus outputs.
+- [x] Step 3: Confirm bounded file scope and test surfaces before first code patch.
 
 **Verification:**
-- [ ] `npx gitnexus context <symbol> --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT"`
-- [ ] `npx gitnexus impact <symbol> --direction upstream --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT"`
+- [x] `npx gitnexus context <symbol> --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT"`
+- [x] `npx gitnexus impact <symbol> --direction upstream --repo "C:\Users\HOANG PHI LONG DANG\repos\JOB-PROJECT"`
 
 **Exit Criteria:**
 - every edited symbol has pre-edit impact evidence and accepted risk
@@ -90,21 +90,21 @@ Refactor protected by symbol-level GitNexus blast-radius checks, targeted tests,
 - extraction boundary fixed: helper-only, no orchestration branch rewrite
 
 **Steps:**
-- [ ] Step 1: Create shared helper module for:
+- [x] Step 1: Create shared helper module for:
   - run-mode normalization and label projection
   - replay-context normalization payload projection
   - shared JSON-safe conversion where needed
-- [ ] Step 2: Refactor artifact builders in `worker_job.py` to consume shared helpers:
+- [x] Step 2: Refactor artifact builders in `worker_job.py` to consume shared helpers:
   - `_build_results_export_payload`
   - `_build_cv_generation_debug_payload`
   - `_build_manual_checkpoint_payload`
   - `_build_settings_used_payload`
-- [ ] Step 3: Keep schema versions and key names unchanged; no field removals.
-- [ ] Step 4: Add/adjust tests that snapshot payload output parity against baseline fixtures.
+- [x] Step 3: Keep schema versions and key names unchanged; no field removals.
+- [x] Step 4: Add/adjust tests that snapshot payload output parity against baseline fixtures.
 
 **Verification:**
-- [ ] payload parity unit tests pass for baseline + edge fixtures
-- [ ] `uvx pytest tests/ -k "worker_job or artifact or replay_context"`
+- [x] payload parity unit tests pass for baseline + edge fixtures
+- [x] `uvx pytest tests/ -k "worker_job or artifact or replay_context"` *(executed equivalently via `python -m pytest tests/test_fitcv_cp/test_worker_job.py -q`: 54 passed)*
 
 **Exit Criteria:**
 - duplicated projection logic removed from target builders
@@ -126,15 +126,15 @@ Refactor protected by symbol-level GitNexus blast-radius checks, targeted tests,
 - no API-breaking change to `resolve_synonym_management_mode`
 
 **Steps:**
-- [ ] Step 1: Replace duplicated fallback assembly in `_synonym_management_mode_from_run_record` with authoritative resolver output pass-through normalization.
-- [ ] Step 2: Keep transition semantics intact (`transition_synonym_proposal_status` compatibility).
-- [ ] Step 3: Evaluate `_build_synonym_proposals_payload` shim:
+- [x] Step 1: Replace duplicated fallback assembly in `_synonym_management_mode_from_run_record` with authoritative resolver output pass-through normalization.
+- [x] Step 2: Keep transition semantics intact (`transition_synonym_proposal_status` compatibility).
+- [x] Step 3: Evaluate `_build_synonym_proposals_payload` shim:
   - retain with explicit deprecation marker if callers remain
   - remove only if call graph/tests prove no production dependency
 - [ ] Step 4: Add tests asserting exact default dict behavior across both modules.
 
 **Verification:**
-- [ ] `uvx pytest tests/ -k "synonym and policy"`
+- [ ] `uvx pytest tests/ -k "synonym and policy"` *(worker_job synonym slices pass; settings schema lane has unrelated pre-existing failures)*
 - [ ] contract tests prove all policy flags and defaults unchanged
 
 **Exit Criteria:**
