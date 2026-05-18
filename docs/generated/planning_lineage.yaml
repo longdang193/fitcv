@@ -148,7 +148,7 @@ workstreams:
   status: active
   path: docs/intent/workstreams/workstream-bounded-agentic-cv-quality.md
   thread_count: 6
-  completed_thread_count: 2
+  completed_thread_count: 3
   derived_completion: in_progress
   threads:
   - thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-analysis-grounding
@@ -168,11 +168,9 @@ workstreams:
     path: docs/intent/workstreams/threads/workstream-bounded-agentic-cv-quality/02-agentic-cv-quality-generation-repair.md
     specs:
     - docs/superpowers/specs/2026-05-15-15-26-cv-generation-selected-evidence-grounding-spec.md
-    - docs/superpowers/specs/2026-05-18-15-03-fitcv-cv-generation-refactor-drift-spec.md
     plans:
     - docs/superpowers/plans/2026-05-15-15-43-cv-generation-selected-evidence-grounding-plan.md
-    - docs/superpowers/plans/2026-05-18-15-06-fitcv-cv-generation-refactor-drift-plan.md
-    derived_completion: in_progress
+    derived_completion: completed
   - thread_id: workstream-bounded-agentic-cv-quality.agentic-cv-quality-provider-bridge
     status: proposed
     path: docs/intent/workstreams/threads/workstream-bounded-agentic-cv-quality/03-agentic-cv-quality-provider-bridge.md
@@ -428,11 +426,9 @@ workstreams:
     path: docs/intent/workstreams/threads/workstream-pipeline-efficiency-and-reuse/01-efficiency-reuse-exact-match-contract.md
     specs:
     - docs/superpowers/specs/2026-05-03-pipeline-efficiency-exact-match-contract-bootstrap-spec.md
-    - docs/superpowers/specs/2026-05-18-14-36-evidence-refactor-ssot-spec.md
     - docs/superpowers/specs/2026-05-18-14-45-enrich-refactor-drift-remediation-spec.md
     plans:
     - docs/superpowers/plans/2026-05-03-pipeline-efficiency-exact-match-bootstrap-plan.md
-    - docs/superpowers/plans/2026-05-18-14-40-evidence-refactor-ssot-implementation-plan.md
     - docs/superpowers/plans/2026-05-18-15-05-enrich-refactor-drift-remediation-plan.md
     derived_completion: in_progress
   - thread_id: workstream-pipeline-efficiency-and-reuse.efficiency-reuse-late-stage-gating

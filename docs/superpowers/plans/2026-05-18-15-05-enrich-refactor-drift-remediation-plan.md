@@ -56,14 +56,14 @@ Tests and checks demonstrate no contract regressions and show drift fixes with e
 - worktree ready and baseline tests green
 
 **Steps:**
-- [ ] Run `uv run pytest tests/test_enrich.py -q` and record baseline
-- [ ] Identify target symbols to edit (`_map_to_structured_jobs_row`, `_map_to_run_structured_jobs_row`, `_STRUCTURED_JSON_LIST_FIELDS`, `_STAGING_SCHEMA_FIELDS`, `_RUN_SCHEMA_FIELDS`, `_apply_structured_normalization`, `parse_extraction_response`, SQLite write helpers)
-- [ ] Run GitNexus impact checks for each edit target when tooling available (`gitnexus_impact` upstream)
-- [ ] If any HIGH/CRITICAL risk surfaced, pause and reorder edits interface-first
+- [x] Run `uv run pytest tests/test_enrich.py -q` and record baseline
+- [x] Identify target symbols to edit (`_map_to_structured_jobs_row`, `_map_to_run_structured_jobs_row`, `_STRUCTURED_JSON_LIST_FIELDS`, `_STAGING_SCHEMA_FIELDS`, `_RUN_SCHEMA_FIELDS`, `_apply_structured_normalization`, `parse_extraction_response`, SQLite write helpers)
+- [x] Run GitNexus impact checks for each edit target when tooling available (`gitnexus_impact` upstream)
+- [x] If any HIGH/CRITICAL risk surfaced, pause and reorder edits interface-first
 
 **Verification:**
-- [ ] baseline test output captured
-- [ ] impact gate evidence captured (or documented tool unavailability)
+- [x] baseline test output captured
+- [x] impact gate evidence captured (or documented tool unavailability)
 
 **Exit Criteria:**
 - baseline behavior and risk map known before code modification
@@ -82,15 +82,15 @@ Tests and checks demonstrate no contract regressions and show drift fixes with e
 - Task 1 complete
 
 **Steps:**
-- [ ] Introduce shared projector helper (e.g., `project_enriched_row`) parameterized by schema keys, JSON list fields, and optional injected fields
-- [ ] Refactor `_map_to_structured_jobs_row` and `_map_to_run_structured_jobs_row` to call shared projector only
-- [ ] Extend schema constants to include JSON persistence columns for `domain_mapping_suggestions` and `role_family_mapping_suggestions`
-- [ ] Ensure merge column lists and staging/run schema fields remain internally consistent
-- [ ] Add/adjust tests proving projected payload includes all expected JSON companion fields
+- [x] Introduce shared projector helper (e.g., `project_enriched_row`) parameterized by schema keys, JSON list fields, and optional injected fields
+- [x] Refactor `_map_to_structured_jobs_row` and `_map_to_run_structured_jobs_row` to call shared projector only
+- [x] Extend schema constants to include JSON persistence columns for `domain_mapping_suggestions` and `role_family_mapping_suggestions`
+- [x] Ensure merge column lists and staging/run schema fields remain internally consistent
+- [x] Add/adjust tests proving projected payload includes all expected JSON companion fields
 
 **Verification:**
-- [ ] `uv run pytest tests/test_enrich.py -q`
-- [ ] targeted assertions for mapper output include domain/role mapping suggestion JSON fields
+- [x] `uv run pytest tests/test_enrich.py -q`
+- [x] targeted assertions for mapper output include domain/role mapping suggestion JSON fields
 
 **Exit Criteria:**
 - one projection implementation path used by both storage mappers
@@ -110,14 +110,14 @@ Tests and checks demonstrate no contract regressions and show drift fixes with e
 - Task 2 complete
 
 **Steps:**
-- [ ] Introduce `NormalizationPolicy` data object containing synonyms, enum sets, alias maps, and role taxonomy hints
-- [ ] Refactor normalization helpers to accept policy object instead of repeated raw config extraction
-- [ ] Ensure parse path and structured-output path share same policy instance per operation scope
-- [ ] Add regression tests comparing parse and structured paths for equivalent canonical outputs on same fixture
+- [x] Introduce `NormalizationPolicy` data object containing synonyms, enum sets, alias maps, and role taxonomy hints
+- [x] Refactor normalization helpers to accept policy object instead of repeated raw config extraction
+- [x] Ensure parse path and structured-output path share same policy instance per operation scope
+- [x] Add regression tests comparing parse and structured paths for equivalent canonical outputs on same fixture
 
 **Verification:**
-- [ ] `uv run pytest tests/test_enrich.py -q`
-- [ ] focused tests for enum coercion, skill canonicalization, and mapping suggestion generation parity
+- [x] `uv run pytest tests/test_enrich.py -q`
+- [x] focused tests for enum coercion, skill canonicalization, and mapping suggestion generation parity
 
 **Exit Criteria:**
 - normalization rules have one operational source of truth
@@ -136,14 +136,14 @@ Tests and checks demonstrate no contract regressions and show drift fixes with e
 - Task 3 complete
 
 **Steps:**
-- [ ] Extract shared SQLite connection setup helper and use it in both `load_structured_jobs` and `load_run_structured_jobs`
-- [ ] Extend `parse_extraction_response` to append tagged warning entries for coercion drops/invalids while preserving fallback non-throw contract
-- [ ] Add tests for warning emission on invalid enum/non-list/invalid confidence cases
-- [ ] Confirm no caller behavior regressions in merge/enrich paths
+- [x] Extract shared SQLite connection setup helper and use it in both `load_structured_jobs` and `load_run_structured_jobs`
+- [x] Extend `parse_extraction_response` to append tagged warning entries for coercion drops/invalids while preserving fallback non-throw contract
+- [x] Add tests for warning emission on invalid enum/non-list/invalid confidence cases
+- [x] Confirm no caller behavior regressions in merge/enrich paths
 
 **Verification:**
-- [ ] `uv run pytest tests/test_enrich.py -q`
-- [ ] assertions for `errors` warning contents and non-throw behavior
+- [x] `uv run pytest tests/test_enrich.py -q`
+- [x] assertions for `errors` warning contents and non-throw behavior
 
 **Exit Criteria:**
 - SQLite path policy consistent across write flows
@@ -163,15 +163,15 @@ Tests and checks demonstrate no contract regressions and show drift fixes with e
 - Tasks 1-4 complete
 
 **Steps:**
-- [ ] Run final targeted tests for enrich module
-- [ ] Run type checks for source package
-- [ ] Run GitNexus changed-scope check when tooling available (`gitnexus_detect_changes`)
-- [ ] Prepare concise implementation evidence summary mapped to spec acceptance criteria
+- [x] Run final targeted tests for enrich module
+- [x] Run type checks for source package
+- [x] Run GitNexus changed-scope check when tooling available (`gitnexus_detect_changes`)
+- [x] Prepare concise implementation evidence summary mapped to spec acceptance criteria
 
 **Verification:**
-- [ ] `uv run pytest tests/test_enrich.py -q`
-- [ ] `uvx mypy src --show-error-codes`
-- [ ] `python scripts/hooks/run_validator.py --fast` (expect known unrelated baseline failure unless separately fixed)
+- [x] `uv run pytest tests/test_enrich.py -q`
+- [x] `uvx mypy src --show-error-codes`
+- [x] `python scripts/hooks/run_validator.py --fast` (expect known unrelated baseline failure unless separately fixed)
 
 **Exit Criteria:**
 - evidence demonstrates acceptance criteria satisfied
@@ -241,3 +241,5 @@ Invariant IDs:
 - none
 Spec needed: no
 Plan needed: yes
+
+
