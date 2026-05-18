@@ -38,20 +38,21 @@
 - **Result summary:**
   - GitNexus refreshed.
   - branch ahead/behind: `1/0`.
-  - working tree dirty with scoped and unrelated kept changes.
+  - lane implementation commit present: `c8c0606a`.
+  - working tree clean at lane handoff checkpoint.
 - **Failing checks (if any):** none new.
-- **Gaps still unverified:** merge-eligibility commit state not satisfied.
+- **Gaps still unverified:** none for lane implementation readiness; merge/reconcile gate execution pending.
 
 ## 6) Open Blockers / Risks
 
-- Lane not merge-eligible while uncommitted changes remain.
+- none blocking at lane implementation stage.
 
 ## 7) Next Exact Action
 
-- **Action type:** git state transition
+- **Action type:** closure reconciliation gate
 - **Target:** current lane worktree
-- **Exact command or edit intent:** stage scoped lane files and create one lane commit so merge/PR orchestration gates can run.
-- **Why this is next:** all implementation and validation criteria are complete; uncommitted state is sole blocker.
+- **Exact command or edit intent:** run strict closure precondition gate and, if passing, run pre-merge checks and ff-only merge workflow.
+- **Why this is next:** implementation commit and validation evidence exist; remaining work is closure orchestration only.
 
 ## 8) Resume Prompt (Copy/Paste)
 
