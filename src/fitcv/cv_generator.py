@@ -26,6 +26,10 @@ from jinja2 import BaseLoader, Environment, TemplateError
 
 from fitcv.candidate_name_policy import resolved_candidate_profile_name
 from fitcv.candidate import flatten_skills
+from fitcv.placeholder_policy import (
+    is_placeholder_token as _shared_is_placeholder_token,
+    normalize_placeholder_token as _shared_normalize_placeholder_token,
+)
 from fitcv.config import (
     CV_SECTION_KEY_TO_NAME,
     CV_STRUCTURED_SECTION_KEYS,
@@ -1100,14 +1104,11 @@ def _coerce_object_list(values: Any) -> list[dict[str, Any]]:
 
 
 def _normalize_placeholder_token(value: Any) -> str:
-    normalized = str(value or "").strip().lower()
-    normalized = normalized.replace("–", "-").replace("—", "-")
-    normalized = re.sub(r"\s+", " ", normalized)
-    return normalized
+    return _shared_normalize_placeholder_token(value)
 
 
 def _is_placeholder_token(value: Any) -> bool:
-    return _normalize_placeholder_token(value) in _EDUCATION_PLACEHOLDER_TOKENS
+    return _shared_is_placeholder_token(value)
 
 
 def _is_synthetic_education_entry(entry: dict[str, Any]) -> bool:
