@@ -596,7 +596,7 @@ def continue_run_submission(
     )
 
 def orchestration_job_status(queue_job_id: str, redis_url: str = "redis://redis:6379/0") -> str:
-    return ORCHESTRATION_ADAPTER.status(queue_job_id=queue_job_id, redis_url=redis_url)
+    return get_queue_job_status(queue_job_id=queue_job_id, redis_url=redis_url)
 
 def _build_orchestration_diagnostics(run: PipelineRun) -> dict[str, Any]:
     backend = str(run.orchestration_backend or "").strip() or str(ORCHESTRATION_ADAPTER.name or "default_queue")
@@ -4133,8 +4133,6 @@ def _timeline_stage_label(event_stage: str) -> str:
         return "—"
     return TIMELINE_STAGE_LABELS.get(normalized, normalized.replace("_", " ").title())
 
-
-
 def _timeline_semantic_outcome(event: RunEvent, payload: dict[str, Any]) -> str:
     stage = str(event.stage or "").strip()
     deterministic_outcome = str(payload.get("deterministic_outcome") or "").strip().lower()
@@ -4400,6 +4398,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     metadata_only_keys = metadata_only_settings_keys()
     editable_keys = editable_settings_keys()
     hidden_deprecated_keys = hidden_deprecated_settings_keys()
+
+    def require_run_or_404(run_id: str, *, detail: str = "Run not found") -> PipelineRun:
+        run = get_run(run_id, bq, project=project, dataset=dataset)
+        if run is None:
+            raise HTTPException(status_code=404, detail=detail)
+        return run
 
     def _reconcile_orphaned_running_run(run: PipelineRun) -> PipelineRun:
         """Repair RUNNING rows if their RQ job disappeared or already terminated."""
@@ -5731,22 +5735,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         if synonym_overlay_mode == "default_config":
             pass
         elif synonym_overlay_mode == "upload":
-            if not synonym_overlay_file or not synonym_overlay_file.filename:
-                raise HTTPException(status_code=422, detail="synonym_overlay_file required for upload mode")
-            synonym_overlay_filename = str(synonym_overlay_file.filename or "").strip()
-            raw_bytes = await synonym_overlay_file.read()
-            if not raw_bytes:
-                raise HTTPException(status_code=422, detail="Uploaded synonym overlay file is empty")
-            try:
-                raw_text = raw_bytes.decode("utf-8")
-            except UnicodeDecodeError as exc:
-                raise HTTPException(status_code=422, detail="Synonym overlay must be UTF-8 encoded text") from exc
-            try:
-                synonym_overlay_payload = parse_runtime_synonym_overlay_yaml(raw_text)
-            except ValueError as exc:
-                raise HTTPException(status_code=422, detail=str(exc)) from exc
-            _validate_overlay_scope(synonym_overlay_payload, overlay_upload_scope)
-            synonym_overlay_raw_yaml = raw_text
+            synonym_overlay_filename, synonym_overlay_payload, synonym_overlay_raw_yaml = await _parse_uploaded_synonym_overlay(
+                synonym_overlay_file,
+                overlay_upload_scope=overlay_upload_scope,
+                missing_file_detail="synonym_overlay_file required for upload mode",
+                missing_filename_detail="synonym_overlay_file required for upload mode",
+            )
         else:
             raise HTTPException(status_code=422, detail=f"Unknown synonym_overlay_mode: {synonym_overlay_mode!r}")
 
@@ -5774,17 +5768,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
     @app.get("/runs/{run_id}")
     def get_run_detail(run_id: str) -> dict:
-        run = get_run(run_id, bq, project=project, dataset=dataset)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
+        run = require_run_or_404(run_id)
         run = _reconcile_orphaned_running_run(run)
         return _run_to_dict(run)
 
     @app.get("/runs/{run_id}/events")
     def get_run_events_list(run_id: str) -> list:
-        run = get_run(run_id, bq, project=project, dataset=dataset)
-        if run is None:
-            raise HTTPException(status_code=404, detail="Run not found")
+        _ = require_run_or_404(run_id)
         events = get_events(run_id, bq, project=project, dataset=dataset)
         return [
             {
@@ -5802,6 +5792,48 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
     def get_settings_view() -> dict:
         return load_active_settings(bq=bq, project=project, dataset=dataset)
 
+    def _coerce_and_validate_single_setting(
+        key: str,
+        raw_value: Any,
+    ) -> Any:
+        try:
+            coerced = coerce_value(key, raw_value)
+        except KeyError:
+            raise HTTPException(status_code=422, detail=f"Unknown setting key: {key!r}")
+        except (ValueError, TypeError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+        try:
+            validate_settings({key: coerced})
+        except ValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
+        return coerced
+
+    async def _parse_uploaded_synonym_overlay(
+        synonym_overlay_file: UploadFile | None,
+        *,
+        overlay_upload_scope: str,
+        missing_file_detail: str,
+        missing_filename_detail: str,
+    ) -> tuple[str, dict[str, Any], str]:
+        if not synonym_overlay_file:
+            raise HTTPException(status_code=422, detail=missing_file_detail)
+        filename = str(synonym_overlay_file.filename or "").strip()
+        if not filename:
+            raise HTTPException(status_code=422, detail=missing_filename_detail)
+        raw_bytes = await synonym_overlay_file.read()
+        if not raw_bytes:
+            raise HTTPException(status_code=422, detail="Uploaded synonym overlay file is empty")
+        try:
+            raw_text = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(status_code=422, detail="Synonym overlay must be UTF-8 encoded text") from exc
+        try:
+            overlay_payload = parse_runtime_synonym_overlay_yaml(raw_text)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        _validate_overlay_scope(overlay_payload, overlay_upload_scope)
+        return filename, overlay_payload, raw_text
+
     @app.post("/settings/{key}", status_code=200)
     def update_setting(key: str, body: SettingUpdate) -> dict:
         if key in metadata_only_keys:
@@ -5811,16 +5843,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 status_code=422,
                 detail=f"Setting '{key}' is hidden_deprecated and cannot be saved through settings routes",
             )
-        try:
-            coerced = coerce_value(key, body.value)
-        except KeyError:
-            raise HTTPException(status_code=422, detail=f"Unknown setting key: {key!r}")
-        except (ValueError, TypeError) as exc:
-            raise HTTPException(status_code=422, detail=str(exc))
-        try:
-            validate_settings({key: coerced})
-        except ValidationError as exc:
-            raise HTTPException(status_code=422, detail=str(exc))
+        coerced = _coerce_and_validate_single_setting(key, body.value)
         save_setting(key, coerced, updated_by=body.updated_by, bq=bq, project=project, dataset=dataset)
         return {"key": key, "value": coerced}
 
@@ -5861,14 +5884,13 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 status_code=422,
             )
         try:
-            coerced = coerce_value(key, value)
-            validate_settings({key: coerced})
-        except (KeyError, ValidationError, ValueError) as exc:
+            coerced = _coerce_and_validate_single_setting(key, value)
+        except HTTPException as exc:
             active = load_active_settings(bq=bq, project=project, dataset=dataset)
             return templates.TemplateResponse(
                 request=request,
                 name="settings.html",
-                context=_build_settings_context(active, error=str(exc)),
+                context=_build_settings_context(active, error=str(exc.detail)),
                 status_code=422,
             )
         save_setting(key, coerced, updated_by="admin", bq=bq, project=project, dataset=dataset)
@@ -5988,9 +6010,9 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
             else:
                 raw = _settings_form_value(form, key)
             try:
-                coerced[key] = coerce_value(key, raw)
-            except (KeyError, ValueError) as exc:
-                section_errors[key] = str(exc)
+                coerced[key] = _coerce_and_validate_single_setting(key, raw)
+            except HTTPException as exc:
+                section_errors[key] = str(exc.detail)
 
         # Run cross-key validation across all coerced values in this section
         if not section_errors:
@@ -6418,21 +6440,12 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
                 status_code=409,
                 detail="Synonym overlay upload is only available for manual runs paused after enrich",
             )
-        filename = str(synonym_overlay_file.filename or "").strip()
-        if not filename:
-            raise HTTPException(status_code=422, detail="A synonym overlay YAML file is required")
-        raw_bytes = await synonym_overlay_file.read()
-        if not raw_bytes:
-            raise HTTPException(status_code=422, detail="Uploaded synonym overlay file is empty")
-        try:
-            raw_text = raw_bytes.decode("utf-8")
-        except UnicodeDecodeError as exc:
-            raise HTTPException(status_code=422, detail="Synonym overlay must be UTF-8 encoded text") from exc
-        try:
-            overlay_payload = parse_runtime_synonym_overlay_yaml(raw_text)
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        _validate_overlay_scope(overlay_payload, overlay_upload_scope)
+        filename, overlay_payload, raw_text = await _parse_uploaded_synonym_overlay(
+            synonym_overlay_file,
+            overlay_upload_scope=overlay_upload_scope,
+            missing_file_detail="A synonym overlay YAML file is required",
+            missing_filename_detail="A synonym overlay YAML file is required",
+        )
 
         effective_config = _load_run_effective_config_snapshot(run)
         uploaded_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -8171,9 +8184,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
         filter_name: str = "all",
         q: str = "",
     ) -> HTMLResponse:
-        run = get_run(run_id, bq, project=project, dataset=dataset)
-        if run is None:
-            raise HTTPException(status_code=404)
+        run = require_run_or_404(run_id, detail="")
         page = _coerce_positive_int(page, default=1, minimum=1, maximum=10000)
         page_size = _coerce_positive_int(page_size, default=25, minimum=10, maximum=100)
         context = _build_enriched_tab_context(
@@ -8195,9 +8206,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
     @app.get("/admin/runs/{run_id}/tabs/jobs-input", response_class=HTMLResponse)
     def admin_run_detail_tab_jobs_input(request: Request, run_id: str) -> HTMLResponse:
-        run = get_run(run_id, bq, project=project, dataset=dataset)
-        if run is None:
-            raise HTTPException(status_code=404)
+        run = require_run_or_404(run_id, detail="")
         return templates.TemplateResponse(
             request=request,
             name="run_detail_tab_jobs_input.html",
@@ -8206,9 +8215,7 @@ def create_app(bq: Any, project: str, dataset: str, redis_url: str) -> FastAPI:
 
     @app.get("/admin/runs/{run_id}/tabs/profile", response_class=HTMLResponse)
     def admin_run_detail_tab_profile(request: Request, run_id: str) -> HTMLResponse:
-        run = get_run(run_id, bq, project=project, dataset=dataset)
-        if run is None:
-            raise HTTPException(status_code=404)
+        run = require_run_or_404(run_id, detail="")
         candidate_profile_pretty: str | None = None
         if run.candidate_profile_json:
             try:
