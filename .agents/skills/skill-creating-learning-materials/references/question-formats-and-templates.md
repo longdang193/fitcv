@@ -21,45 +21,16 @@ question_type: qa | multiple_choice | drag_and_drop
 learning_mode: bloom | socratic | interview | mixed
 bloom_level: remember | understand | apply | analyze | evaluate | create | mixed | auto
 source_scope: repo | file | feature | concept | interview_topic
-validation:
-  one_question_per_file: true
-  required_tokens:
-    - START
-    - T-F_Obsidian-v2
-    - END
-  requires_title: true
-  requires_explanation: true
 ---
 ```
 
-Add type-specific validation fields:
-
-```yaml
-# Q&A
-validation:
-  requires_answer_field: true
-
-# Multiple choice
-validation:
-  option_count: 4
-  correct_answer_count: 1
-  requires_answer_field: true
-
-# Drag-and-drop / ordering
-validation:
-  requires_items_block: true
-  ordered_item_count: 3
-  distractor_count: 3
-  requires_answer_field: false
-```
-
-When writing real files, merge the common validation fields with the
-type-specific fields into one `validation` block.
+Do not include `validation` metadata in frontmatter; structure is defined by the
+card body template instead.
 
 Then add a descriptive Markdown heading:
 
 ```markdown
-# [Filename-Safe Question Title]
+## [Filename-Safe Question Title]
 ```
 
 The title summarizes the main topic or concept tested. It is also used as the
@@ -77,10 +48,10 @@ docs/learning/YYYY-MM-DD-HH-<title>.md
 
 ## Instructions
 
-1. **Follow the structure exactly** including the keywords `START`, `END`, and
+1. **Follow the structure exactly** including the keywords `SSTART`, `EEND`, and
    `T-F_Obsidian` in uppercase.
 2. Each question must begin with a **descriptive title** in Markdown heading
-   format (`#`) summarizing the main topic or concept tested. Titles cannot
+   format (`##`) summarizing the main topic or concept tested. Titles cannot
    contain any of these characters: `* " \ / < > : | ?`.
 3. Use `...` for **inline code** examples, such as `NULL` or
    `CASE WHEN ... THEN ... END`.
@@ -103,7 +74,7 @@ Use for definitions, plain-language explanations, short interview answers, and
 concept checks.
 
 ```text
-START
+SSTART
 
 T-F_Obsidian-v2
 
@@ -113,7 +84,7 @@ A: [Answer]
 
 E: [Explanation]
 
-END
+EEND
 ```
 
 ### Q&A Sample
@@ -131,19 +102,10 @@ question_type: qa
 learning_mode: interview
 bloom_level: understand
 source_scope: concept
-validation:
-  one_question_per_file: true
-  required_tokens:
-    - START
-    - T-F_Obsidian-v2
-    - END
-  requires_title: true
-  requires_explanation: true
-  requires_answer_field: true
 ---
-# Release Record Source Of Truth
+## Release Record Source Of Truth
 
-START
+SSTART
 
 T-F_Obsidian-v2
 
@@ -161,7 +123,7 @@ A model artifact only proves that a model exists. A release record proves which
 candidate was officially approved and why, so monitoring and deployment checks
 should anchor on it before interpreting later evidence.
 
-END
+EEND
 ```
 
 ## Multiple Choice Template
@@ -170,7 +132,7 @@ Use for distinction questions, misconceptions, boundary checks, and
 scenario-based judgment where one option is best.
 
 ```text
-START
+SSTART
 
 T-F_Obsidian-v2
 
@@ -184,7 +146,7 @@ A: [Answer]
 
 E: [Explanation]
 
-END
+EEND
 ```
 
 Guidance:
@@ -210,21 +172,10 @@ question_type: multiple_choice
 learning_mode: interview
 bloom_level: apply
 source_scope: concept
-validation:
-  one_question_per_file: true
-  required_tokens:
-    - START
-    - T-F_Obsidian-v2
-    - END
-  requires_title: true
-  requires_explanation: true
-  requires_answer_field: true
-  option_count: 4
-  correct_answer_count: 1
 ---
-# Monitoring Baseline Evidence
+## Monitoring Baseline Evidence
 
-START
+SSTART
 
 T-F_Obsidian-v2
 
@@ -247,7 +198,7 @@ wrong because a model artifact can exist without being approved. C is wrong
 because capture evidence describes observed traffic, not release approval. D is
 wrong because console output is not durable release evidence.
 
-END
+EEND
 ```
 
 ## Drag-And-Drop / Ordering Template
@@ -256,7 +207,7 @@ Use for flows, lifecycle stages, handoffs, architecture sequences, debugging
 order, and pipeline ordering.
 
 ```text
-START
+SSTART
 
 T-F_Obsidian-v2
 
@@ -271,7 +222,7 @@ items:
 
 E: [Explanation]
 
-END
+EEND
 ```
 
 Guidance:
@@ -298,22 +249,10 @@ question_type: drag_and_drop
 learning_mode: bloom
 bloom_level: apply
 source_scope: concept
-validation:
-  one_question_per_file: true
-  required_tokens:
-    - START
-    - T-F_Obsidian-v2
-    - END
-  requires_title: true
-  requires_explanation: true
-  requires_items_block: true
-  requires_answer_field: false
-  ordered_item_count: 3
-  distractor_count: 3
 ---
-# Knowledge Mining Implementation Flow
+## Knowledge Mining Implementation Flow
 
-START
+SSTART
 
 T-F_Obsidian-v2
 
@@ -347,7 +286,7 @@ and finally exploring the enriched data for patterns and insights. The image
 classification steps are distractors because they describe a custom vision
 workflow, not the general knowledge mining pipeline.
 
-END
+EEND
 ```
 
 ## Mixed Format

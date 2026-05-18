@@ -93,6 +93,8 @@ def _ensure_local_pipeline_run_events_table(conn: sqlite3.Connection) -> None:
 def _pipeline_run_to_json(run: PipelineRun) -> str:
     payload = dataclasses.asdict(run)
     payload["status"] = run.status.value
+    # Backward-compat alias for legacy artifact readers.
+    payload["stage_artifacts_json"] = run.stage_transition_artifacts_json
     for field_name in (
         "created_at",
         "started_at",
@@ -144,7 +146,10 @@ def _pipeline_run_from_json(run_json: str) -> Optional[PipelineRun]:
         effective_settings_json=payload.get("effective_settings_json"),
         results_export_json=payload.get("results_export_json"),
         cv_generation_debug_json=payload.get("cv_generation_debug_json"),
-        stage_transition_artifacts_json=payload.get("stage_transition_artifacts_json"),
+        stage_transition_artifacts_json=(
+            payload.get("stage_transition_artifacts_json")
+            or payload.get("stage_artifacts_json")
+        ),
         settings_used_json=payload.get("settings_used_json"),
         mapping_suggestions_json=payload.get("mapping_suggestions_json"),
         synonym_proposals_json=payload.get("synonym_proposals_json"),

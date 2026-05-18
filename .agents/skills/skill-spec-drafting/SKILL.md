@@ -62,6 +62,10 @@ Before drafting a spec, read:
 - Keep design decisions, invariants, and validation proof in their canonical sections.
 - Keep non-goals explicit so implementation plans stay bounded.
 
+## Design Standard: Structural Symmetry
+
+Ensure the specification enforces structural symmetry and invariance. The spec should consolidate equivalent logic into shared abstractions and explicitly reject unnecessary special cases. Preserve divergent logic only when mathematically, logically, or operationally required.
+
 ## Preconditions
 
 - triage exists (`skill-planning-dispatch`)

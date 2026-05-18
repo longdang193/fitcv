@@ -659,6 +659,44 @@ def test_row_to_run_maps_stage_transition_artifacts_json() -> None:
     result = _row_to_run(row)
     assert result.stage_transition_artifacts_json == '{"run_id":"r4","stages":{}}'
 
+def test_pipeline_run_to_json_includes_legacy_stage_artifacts_alias() -> None:
+    """Keep legacy stage_artifacts_json key for compatibility."""
+    from fitcv_cp.bq_store import _pipeline_run_to_json
+
+    run = PipelineRun(
+        run_id="r4a",
+        status=RunStatus.SUCCEEDED,
+        triggered_by="admin",
+        trigger_source="ui",
+        jobs_path="data/jobs.json",
+        config_path=".env.yaml",
+        created_at=datetime.datetime.now(datetime.timezone.utc),
+        stage_transition_artifacts_json='{"run_id":"r4a","artifacts":{"stages":{}}}',
+    )
+    payload = json.loads(_pipeline_run_to_json(run))
+    assert payload["stage_transition_artifacts_json"] == run.stage_transition_artifacts_json
+    assert payload["stage_artifacts_json"] == run.stage_transition_artifacts_json
+
+def test_pipeline_run_from_json_accepts_legacy_stage_artifacts_alias() -> None:
+    """Read legacy stage_artifacts_json when new key is absent."""
+    from fitcv_cp.bq_store import _pipeline_run_from_json
+
+    raw = json.dumps(
+        {
+            "run_id": "r4b",
+            "status": "succeeded",
+            "triggered_by": "admin",
+            "trigger_source": "ui",
+            "jobs_path": "data/jobs.json",
+            "config_path": ".env.yaml",
+            "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "stage_artifacts_json": '{"run_id":"r4b","artifacts":{"stages":{}}}',
+        }
+    )
+    run = _pipeline_run_from_json(raw)
+    assert run is not None
+    assert run.stage_transition_artifacts_json == '{"run_id":"r4b","artifacts":{"stages":{}}}'
+
 
 def test_row_to_run_maps_settings_used_json() -> None:
     """_row_to_run maps the run-scoped settings-used snapshot field."""

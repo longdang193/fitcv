@@ -84,6 +84,10 @@ guessing.
 - If GitNexus conflicts with source/docs/tests, trust source/docs/tests.
 - If GitNexus has tooling or query issues, consult the `gitnexus-guide` skill first; if unresolved, continue source-first.
 
+## Architectural Principle: Structural Symmetry
+
+When exploring and designing new features, always prioritize structural symmetry and invariance. Consolidate equivalent logic into unified abstractions, reusable functions, or generalized pipelines. Eliminate unnecessary special cases—preserve divergent logic only when it is operationally, mathematically, or domain-specifically required. The goal is to minimize redundant computation and simplify the system's mental model.
+
 ## Minimal Workflow
 
 <MUST-DO>

@@ -1,0 +1,471 @@
+{
+  "run_id": "d83b2303-07f6-47c8-ae1e-59671112fbf9",
+  "synonym_proposals_schema_version": "synonym_proposals_v1",
+  "created_at": "2026-05-17T22:42:41.931273+00:00",
+  "proposal_generation_status": "generated",
+  "persistence_status": "persisted",
+  "proposals": [
+    {
+      "proposal_id": "synprop-880fcf15377e",
+      "run_id": "d83b2303-07f6-47c8-ae1e-59671112fbf9",
+      "field": "domain",
+      "alias": "it services and it consulting",
+      "canonical": "artificial intelligence",
+      "candidate_aliases": [
+        "it services and it consulting"
+      ],
+      "candidate_canonicals": [
+        "artificial intelligence",
+        "fintech"
+      ],
+      "confidence": 1.0,
+      "rationale": {
+        "kind": "alias_conflict",
+        "occurrence_count": 2,
+        "distinct_canonical_count": 2
+      },
+      "evidence_summary": {
+        "occurrence_count": 2,
+        "average_confidence": 1.0,
+        "must_have_skills": [],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/freelance-data-scientist-python-sql-ai-trainer-at-mindrift-4377122044?trk=public_jobs_topcard-title",
+            "job_title": "Freelance Data Scientist (Python & SQL) - AI Trainer",
+            "confidence": 1.0
+          },
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/junior-credit-decisions-analyst-m-f-d-at-youlend-4373950965?trk=public_jobs_topcard-title",
+            "job_title": "Junior Credit Decisions Analyst (m/f/d)",
+            "confidence": 1.0
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": true,
+        "conflicting_canonicals": [
+          "fintech"
+        ]
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "conflict_bundle",
+      "source_artifact_refs": {
+        "run_id": "d83b2303-07f6-47c8-ae1e-59671112fbf9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "defer",
+      "recommendation_confidence": 0.85,
+      "recommendation_rationale": "Alias maps to multiple canonical candidates; review conflict manually.",
+      "recommendation_risk_flags": [
+        "alias_canonical_conflict"
+      ],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-17T22:42:41.982953+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "ff2692d33bd3ac0c77c56c896166c230a0df24a13cddd1f83423013b7069a52f"
+      }
+    },
+    {
+      "proposal_id": "synprop-f15cdb5b7752",
+      "run_id": "d83b2303-07f6-47c8-ae1e-59671112fbf9",
+      "field": "skill",
+      "alias": "datenvisualisierung",
+      "canonical": "data visualization",
+      "candidate_aliases": [
+        "datenvisualisierung"
+      ],
+      "candidate_canonicals": [
+        "data visualization"
+      ],
+      "confidence": 0.93,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.93,
+        "must_have_skills": [
+          "data visualization"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+            "job_title": "Data Analyst - Data Quality",
+            "confidence": 0.93
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "d83b2303-07f6-47c8-ae1e-59671112fbf9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.93,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-17T22:42:41.982953+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "14666d04f41bc0f8e84ab976530fa738950f99f1f703e20bb5d9e5f39a0d063e"
+      }
+    },
+    {
+      "proposal_id": "synprop-e3d79c014b3f",
+      "run_id": "d83b2303-07f6-47c8-ae1e-59671112fbf9",
+      "field": "skill",
+      "alias": "3nf",
+      "canonical": "third normal form (3nf)",
+      "candidate_aliases": [
+        "3nf"
+      ],
+      "candidate_canonicals": [
+        "third normal form (3nf)"
+      ],
+      "confidence": 0.9,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.9,
+        "must_have_skills": [
+          "third normal form (3nf)"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+            "job_title": "Data Analyst - Data Quality",
+            "confidence": 0.9
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "d83b2303-07f6-47c8-ae1e-59671112fbf9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.9,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-17T22:42:41.982953+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "bd604fb7ff124037e60035107ce0d698b699133547ab0e23bb15ea6e584b86ea"
+      }
+    },
+    {
+      "proposal_id": "synprop-c5dab1047424",
+      "run_id": "d83b2303-07f6-47c8-ae1e-59671112fbf9",
+      "field": "skill",
+      "alias": "anforderungsmanagement",
+      "canonical": "requirements management",
+      "candidate_aliases": [
+        "anforderungsmanagement"
+      ],
+      "candidate_canonicals": [
+        "requirements management"
+      ],
+      "confidence": 0.86,
+      "rationale": {
+        "kind": "repeated_alias_mapping",
+        "occurrence_count": 1,
+        "distinct_canonical_count": 1
+      },
+      "evidence_summary": {
+        "occurrence_count": 1,
+        "average_confidence": 0.86,
+        "must_have_skills": [
+          "requirements management"
+        ],
+        "sample_job_refs": [
+          {
+            "job_url": "https://de.linkedin.com/jobs/view/data-analyst-data-quality-at-dkb-deutsche-kreditbank-ag-4366243112?trk=public_jobs_topcard-title",
+            "job_title": "Data Analyst - Data Quality",
+            "confidence": 0.86
+          }
+        ]
+      },
+      "conflict_summary": {
+        "has_conflict": false,
+        "conflicting_canonicals": []
+      },
+      "proposal_status": "proposed_unreviewed",
+      "proposal_scope": "run_scoped_overlay_candidate",
+      "proposal_family": "alias_to_canonical_mapping",
+      "source_artifact_refs": {
+        "run_id": "d83b2303-07f6-47c8-ae1e-59671112fbf9",
+        "artifact_type": "mapping_suggestions"
+      },
+      "review_history": [],
+      "recommended_action": "approve",
+      "recommendation_confidence": 0.86,
+      "recommendation_rationale": "Alias/canonical pair appears stable for run-scoped overlay.",
+      "recommendation_risk_flags": [],
+      "recommendation_runtime": {
+        "provider": "fitcv_builtin",
+        "model": "synonym_triage_v1",
+        "wire_api": "builtin",
+        "triage_at": "2026-05-17T22:42:41.982953+00:00",
+        "triage_version": "synonym_triage_v1",
+        "triage_fingerprint": "290d5f929652ec9b7e7a851e1b9d81fa30edc0790b314a000f2741f7303aa5cd"
+      }
+    }
+  ],
+  "synonym_proposals_trace": {
+    "run_id": "d83b2303-07f6-47c8-ae1e-59671112fbf9",
+    "trace_schema_version": "agentic_step_trace_run_v1",
+    "trace_family": "agentic_step_trace",
+    "step_id": "synonym_proposals",
+    "created_at": "2026-05-17T22:42:41.931273+00:00",
+    "trace_status": "completed",
+    "trace_summary": {
+      "records_total": 4,
+      "present_records": 4,
+      "proposal_count": 4,
+      "suppressed_as_already_global_count": 0,
+      "generated_for_review_count": 4,
+      "suppressed_count_by_field": {
+        "role_family": 1,
+        "domain": 2
+      },
+      "suppressed_reason_counts_by_field": {
+        "role_family": {
+          "insufficient_non_skill_support": 1
+        },
+        "domain": {
+          "insufficient_non_skill_support": 2
+        }
+      },
+      "suppression_source": "run_effective_skill_synonyms",
+      "triage_recommendation_generated_total": 4,
+      "triage_recommendation_reused_total": 0,
+      "triage_recommendation_fresh_total": 4,
+      "triage_recommendation_suppressed_total": 0,
+      "triage_recommendation_reuse_reason": "reuse_enabled",
+      "triage_recommendation_fingerprint": "06d50da2002bea45cf6df2649fd03ca86aff2652292e75a6590d47d43460b422",
+      "auto_apply_recommendation_applied": 0,
+      "auto_apply_recommendation_skipped": 0,
+      "auto_apply_recommendation_failed": 0,
+      "auto_apply_recommendation_reason_counts": {},
+      "auto_promote_global_applied": 0,
+      "auto_promote_global_skipped": 0,
+      "auto_promote_global_failed": 0,
+      "auto_promote_global_skip_reason": "disabled"
+    },
+    "records": [
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-880fcf15377e",
+        "scope_type": "alias",
+        "scope_key": "it services and it consulting",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "it services and it consulting",
+          "candidate_canonicals_count": 2
+        },
+        "output_summary": {
+          "proposal_family": "conflict_bundle",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 1.0
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-f15cdb5b7752",
+        "scope_type": "alias",
+        "scope_key": "datenvisualisierung",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "datenvisualisierung",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.93
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-e3d79c014b3f",
+        "scope_type": "alias",
+        "scope_key": "3nf",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "3nf",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.9
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      },
+      {
+        "trace_schema_version": "agentic_step_trace_record_v1",
+        "trace_family": "agentic_step_trace",
+        "step_id": "synonym_proposals",
+        "trace_status": "completed",
+        "record_id": "synprop-c5dab1047424",
+        "scope_type": "alias",
+        "scope_key": "anforderungsmanagement",
+        "status": "proposed_unreviewed",
+        "runtime_provenance": {
+          "runtime_path": "fitcv_synonym_proposal_builder_builtin",
+          "provider": "fitcv_builtin",
+          "mode_source": "mapping_suggestions_to_synonym_proposals"
+        },
+        "attempts": [
+          {
+            "attempt_index": 1,
+            "attempt_type": "proposal_generation",
+            "attempt_status": "completed",
+            "provider_status": "completed"
+          }
+        ],
+        "input_summary": {
+          "alias": "anforderungsmanagement",
+          "candidate_canonicals_count": 1
+        },
+        "output_summary": {
+          "proposal_family": "alias_to_canonical_mapping",
+          "proposal_scope": "run_scoped_overlay_candidate",
+          "confidence": 0.86
+        },
+        "validation_summary": {
+          "status": "not_run"
+        },
+        "repair_summary": {
+          "repair_attempted": false,
+          "repair_attempts": 0
+        },
+        "error_summary": null
+      }
+    ],
+    "degradation": {},
+    "artifact_refs": {
+      "proposal_artifact": "synonym-proposals.json",
+      "stage_artifact": "enrich.json"
+    },
+    "suppression_examples": [
+      {
+        "field": "role_family",
+        "alias": "data science",
+        "canonical": "data_science"
+      },
+      {
+        "field": "domain",
+        "alias": "motor vehicle manufacturing and technology, information and internet",
+        "canonical": "automotive mobility"
+      },
+      {
+        "field": "domain",
+        "alias": "non-profit organizations and primary and secondary education",
+        "canonical": "telecommunications"
+      }
+    ]
+  }
+}

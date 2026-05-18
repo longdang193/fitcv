@@ -1,0 +1,65 @@
+[
+  {
+    "run_id": "3383b1c2-5097-49a8-aae6-ccfe610d88a9",
+    "event_id": "f05715ec-2d8a-430f-983d-38f7a46817f6",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=3383b1c2-5097-49a8-aae6-ccfe610d88a9]",
+    "created_at": "2026-05-17T22:38:11.046289+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"f5176600212e626ac578f7cf501bd29f\", \"span_id\": \"820a81c766b08b1f\", \"parent_span_id\": \"c7a93e27d450f123\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "3383b1c2-5097-49a8-aae6-ccfe610d88a9",
+    "event_id": "0359295a-8b0d-46a3-b849-633eff8bbc86",
+    "stage": "layer1_normalize",
+    "level": "info",
+    "message": "Normalization dedupe: kept 6 of 7 jobs, removed 1 duplicate(s)",
+    "created_at": "2026-05-17T22:38:11.069401+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"450836caa74cc4182d85ae4c02bbe844\", \"span_id\": \"b0d79016086a99a4\", \"parent_span_id\": \"94859158495b740a\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "3383b1c2-5097-49a8-aae6-ccfe610d88a9",
+    "event_id": "b167ae7c-45fa-4bbb-9a69-016a81e5998c",
+    "stage": "stage_checkpoint",
+    "level": "info",
+    "message": "Paused after normalize; next stage: enrich",
+    "created_at": "2026-05-17T22:38:11.101914+00:00",
+    "payload_json": null
+  },
+  {
+    "run_id": "3383b1c2-5097-49a8-aae6-ccfe610d88a9",
+    "event_id": "52c4d277-412e-4dd7-8ff3-7b84ff92e187",
+    "stage": "manual_continue_requested",
+    "level": "info",
+    "message": "Manual run queued to continue from enrich (strict)",
+    "created_at": "2026-05-17T22:38:56.211020+00:00",
+    "payload_json": "{\"replay_mode\": \"strict\", \"replay_source_run_id\": \"3383b1c2-5097-49a8-aae6-ccfe610d88a9\", \"policy_registry_version\": \"policy_registry.v1\", \"policy_envelope_signature\": \"1139f3642c834773fb3e08aa32ad76bdbc940818dc0f22685d200755735483d3\"}"
+  },
+  {
+    "run_id": "3383b1c2-5097-49a8-aae6-ccfe610d88a9",
+    "event_id": "5d3aabcf-07a2-42ad-97e8-4272dcf4a8cd",
+    "stage": "pipeline_start",
+    "level": "info",
+    "message": "Run started [run_id=3383b1c2-5097-49a8-aae6-ccfe610d88a9]",
+    "created_at": "2026-05-17T22:38:56.760777+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"f5176600212e626ac578f7cf501bd29f\", \"span_id\": \"820a81c766b08b1f\", \"parent_span_id\": \"c7a93e27d450f123\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "3383b1c2-5097-49a8-aae6-ccfe610d88a9",
+    "event_id": "783eec01-632f-4e8b-b6f0-995650eb2712",
+    "stage": "layer1b_pre_filter",
+    "level": "info",
+    "message": "Pre-enrichment filter: 6 pass, 0 rejected",
+    "created_at": "2026-05-17T22:38:56.779234+00:00",
+    "payload_json": "{\"trace_context\": {\"trace_id\": \"4c8c375676c693ef80bbe81958bcd85a\", \"span_id\": \"a6b023674506c3f1\", \"parent_span_id\": \"a25684de89ce7dca\"}, \"telemetry_export\": {\"status\": \"disabled\", \"degradation_reason\": \"otel_disabled\"}, \"langfuse_rich_io\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\", \"input\": null, \"output\": null}, \"langfuse_link\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_disabled\", \"trace_url\": null}, \"langfuse_rich_io_native\": {\"status\": \"disabled\", \"degradation_reason\": \"langfuse_rich_io_disabled\"}}"
+  },
+  {
+    "run_id": "3383b1c2-5097-49a8-aae6-ccfe610d88a9",
+    "event_id": "a3b7844d-3784-4a0e-93b3-5402b87aaf5f",
+    "stage": "pipeline_failed",
+    "level": "error",
+    "message": "[Errno 2] No such file or directory: 'sa_key.json'",
+    "created_at": "2026-05-17T22:42:59.983494+00:00",
+    "payload_json": null
+  }
+]
