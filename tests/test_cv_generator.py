@@ -26,6 +26,7 @@ from fitcv.cv_generator import (
     _normalize_cv_markdown,
     build_empty_structured_cv,
     build_generation_prompt,
+    build_live_structured_cv_response_schema,
     build_structured_generation_prompt,
     generate_cv,
     render_cv_markdown,
@@ -451,6 +452,36 @@ def test_validate_structured_cv_respects_config_required_sections_when_provided(
 
     validate_structured_cv(doc, config=config)
 
+def test_live_schema_required_sections_match_default_validator_shape() -> None:
+    schema = build_live_structured_cv_response_schema()
+    required = schema["properties"]["sections"]["required"]  # type: ignore[index]
+    assert required == [
+        "header",
+        "summary",
+        "experience",
+        "projects",
+        "education",
+        "skills",
+        "certifications",
+        "publications",
+        "languages",
+    ]
+
+def test_live_schema_required_sections_match_config_required_sections() -> None:
+    config = {
+        "cv": {
+            "composition": {
+                "summary": {"enabled": False},
+                "experience": {"enabled": True, "required": True},
+                "skills": {"enabled": True, "required": True},
+            }
+        },
+        "required_cv_sections": ["Experience", "Skills"],
+    }
+    schema = build_live_structured_cv_response_schema(config=config)
+    required = schema["properties"]["sections"]["required"]  # type: ignore[index]
+    assert required == ["header", "experience", "skills"]
+
 
 def test_validate_structured_cv_rejects_malformed_skills_groups() -> None:
     doc = build_empty_structured_cv(
@@ -780,7 +811,7 @@ def test_generate_cv_uses_openai_compatible_routed_client(
     tmp_path: Path,
 ) -> None:
     monkeypatch.setattr(
-        "fitcv.cv_generator.resolve_model_routing_part",
+        "fitcv.runtime_routing.resolve_model_routing_part",
         lambda *args, **kwargs: {
             "provider": "openai_compatible",
             "model": "cx/gpt-5.2",
@@ -870,7 +901,7 @@ def test_generate_cv_reads_model_from_nested_cv_config(
 ) -> None:
     """generate_cv must read cv.generation.model, not flat cv_generation_model."""
     monkeypatch.setattr(
-        "fitcv.cv_generator.resolve_model_routing_part",
+        "fitcv.runtime_routing.resolve_model_routing_part",
         lambda *args, **kwargs: {
             "provider": "openai_compatible",
             "model": "cx/gpt-5.2",

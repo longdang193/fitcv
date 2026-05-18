@@ -4,19 +4,16 @@ type: module
 domain: runtime
 ownership: feature
 capabilities:
-  - cv_system.stage-artifact-diagnostics
+  - inspection_debugging.cv-generation-diagnostics
 responsibility:
-  - Translate configured routing settings into typed CV generation runtime routes.
+  - Provide SSOT routing translation and env override helpers for CV generation paths.
 inputs:
-  - resolved config dictionaries and routing defaults
+  - routing-capable config dictionaries and process environment
 outputs:
-  - typed CV generation routing object
+  - canonical routing object, langgraph env overrides, resolved API key
 lifecycle:
   - status: active
 """
-
-"""Shared routing translation utilities for CV generation runtime paths."""
-
 from dataclasses import dataclass
 import os
 from typing import Any
@@ -53,7 +50,6 @@ def resolve_cv_generation_routing(config: dict[str, Any]) -> CvGenerationRouting
 
 
 def build_langgraph_env_overrides() -> dict[str, str]:
-    """Resolve deterministic LangGraph live-runtime env overrides from SSOT routing."""
     try:
         enrich_route = resolve_model_routing_part("enrich_extraction")
         cv_route = resolve_model_routing_part("cv_generation_structured_write")

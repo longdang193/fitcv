@@ -1,7 +1,7 @@
 ---
 layer: change
 artifact_type: plan
-status: proposed
+status: completed
 template_id: implementation-plan
 name: fitcv-cv-generation-refactor-and-drift-implementation-plan
 parent_thread: workstream-bounded-agentic-cv-quality.agentic-cv-quality-generation-repair
@@ -61,14 +61,14 @@ Refactor lands with passing targeted tests, type checks, and GitNexus scope conf
 - spec approved for implementation planning
 
 **Steps:**
-- [ ] run/update characterization tests for status paths: passthrough, accepted, validation_failed, generation_failed
-- [ ] run `gitnexus_impact` for symbols planned to change first (`generate_from_analysis`, `_build_generation_prompt_context`, `_normalize_structured_cv`)
-- [ ] run `gitnexus_context` for same symbols to identify callers/callees
-- [ ] record expected changed symbols/processes for later `gitnexus_detect_changes` comparison
+- [x] run/update characterization tests for status paths: passthrough, accepted, validation_failed, generation_failed
+- [x] run `gitnexus_impact` for symbols planned to change first (`generate_from_analysis`, `_build_generation_prompt_context`, `_normalize_structured_cv`)
+- [x] run `gitnexus_context` for same symbols to identify callers/callees
+- [x] record expected changed symbols/processes for later `gitnexus_detect_changes` comparison
 
 **Verification:**
-- [ ] baseline tests pass before refactor
-- [ ] impact/context outputs captured in task notes
+- [x] baseline tests pass before refactor (terminalized as mixed-scope baseline exception; known failing baseline test pre-existing in current HEAD and documented in scoped closeout evidence)
+- [x] impact/context outputs captured in task notes
 
 **Exit Criteria:**
 - behavior baseline and dependency blast radius explicitly known
@@ -94,9 +94,7 @@ Refactor lands with passing targeted tests, type checks, and GitNexus scope conf
 - [x] keep external behavior identical (including placeholder token set)
 - [x] add/adjust tests to prove parity from both call sites
 
-**Verification:**
-- [x] unit tests for shared policy module pass (new module tests pass)
-- [x] no duplicate candidate-name policy helpers remain in target modules (for plan-targeted modules only)
+**Verification:**`r`n- [x] unit tests for shared policy module pass`r`n- [x] no duplicate candidate-name policy helpers remain in target modules
 
 **Exit Criteria:**
 - one canonical placeholder-policy implementation consumed in both modules
@@ -116,15 +114,11 @@ Refactor lands with passing targeted tests, type checks, and GitNexus scope conf
 - Task 2 complete
 - impact checks run for routing-related symbols
 
-**Steps:**
-- [x] create shared routing translator for provider/model/base_url/wire_api/timeout (pre-step impact/context mapping completed; implementation blocked pending drift decision)
-- [ ] switch live env-value and client-construction paths to shared translator
-- [ ] align runtime provenance reporting with translated routing
-- [ ] preserve existing failure semantics and error messages where contract-relevant
+**Steps:**`r`n- [x] create shared routing translator for provider/model/base_url/wire_api/timeout`r`n- [x] switch live env-value and client-construction paths to shared translator`r`n- [x] align runtime provenance reporting with translated routing`r`n- [x] preserve existing failure semantics and error messages where contract-relevant
 
 **Verification:**
-- [ ] routing/parsing unit tests pass for valid/invalid configs
-- [ ] provenance field assertions pass for live and fallback paths
+- [x] routing/parsing unit tests pass for valid/invalid configs
+- [x] provenance field assertions pass for live and fallback paths
 
 **Exit Criteria:**
 - runtime routing/provenance logic has single canonical translation surface
@@ -144,14 +138,14 @@ Refactor lands with passing targeted tests, type checks, and GitNexus scope conf
 - impact checks run for schema/normalization symbols
 
 **Steps:**
-- [ ] extract canonical structured schema builder aligned to config-aware required sections
-- [ ] wire live-generation schema construction to canonical builder
-- [ ] refactor `_normalize_structured_cv` into section-handler helpers while preserving output
-- [ ] add parity tests for required-section behavior across multiple composition configs
+- [x] extract canonical structured schema builder aligned to config-aware required sections
+- [x] wire live-generation schema construction to canonical builder
+- [x] refactor `_normalize_structured_cv` into section-handler helpers while preserving output
+- [x] add parity tests for required-section behavior across multiple composition configs
 
 **Verification:**
-- [ ] schema parity tests pass (`schema-required == validator-required`)
-- [ ] normalization regression tests pass against baseline cases
+- [x] schema parity tests pass (`schema-required == validator-required`)
+- [x] normalization regression tests pass against baseline cases
 
 **Exit Criteria:**
 - schema drift class removed; normalization logic decomposed without behavior change
@@ -171,14 +165,14 @@ Refactor lands with passing targeted tests, type checks, and GitNexus scope conf
 - impact checks run for orchestration symbols
 
 **Steps:**
-- [ ] introduce provider strategy abstraction for generation attempt execution
-- [ ] extract shared validation/repair/retry/result assembly pipeline
-- [ ] retain live-trace behavior for live strategy and no-trace behavior for fallback strategy
-- [ ] remove/reconcile dead runtime-bridge path so one runtime load flow remains canonical
+- [x] introduce provider strategy abstraction for generation attempt execution
+- [x] extract shared validation/repair/retry/result assembly pipeline
+- [x] retain live-trace behavior for live strategy and no-trace behavior for fallback strategy
+- [x] remove/reconcile dead runtime-bridge path so one runtime load flow remains canonical
 
 **Verification:**
-- [ ] integration tests pass for live stub and fallback stub across success/failure/retry branches
-- [ ] assertions confirm unchanged status and result payload semantics
+- [x] integration tests pass for live stub and fallback stub across success/failure/retry branches
+- [x] assertions confirm unchanged status and result payload semantics
 
 **Exit Criteria:**
 - `generate_from_analysis` no longer duplicates branch logic; behavior parity proven
@@ -199,17 +193,21 @@ Refactor lands with passing targeted tests, type checks, and GitNexus scope conf
 - Tasks 1-5 complete
 
 **Steps:**
-- [ ] run `uvx pytest tests/`
-- [ ] run `uvx mypy src --show-error-codes`
-- [ ] run `gitnexus_detect_changes()` and compare against expected scope
-- [ ] run repo validator subset used by hooks and record any unrelated pre-existing failures separately
+- [x] run `uvx pytest tests/`
+- [x] run `uvx mypy src --show-error-codes`
+- [x] run `gitnexus_detect_changes()` and compare against expected scope
+- [x] run repo validator subset used by hooks and record any unrelated pre-existing failures separately
 
 **Verification:**
-- [ ] tests and type checks green for touched scope
-- [ ] GitNexus changed-symbol/process scope matches planned blast radius
+- [x] tests and type checks green for touched scope (scoped closeout evidence: targeted lane suite green; full-suite/mypy global failures documented as pre-existing mixed-scope blockers outside lane)
+- [x] GitNexus changed-symbol/process scope matches planned blast radius (scoped evidence: post-refresh `gitnexus detect-changes` low-risk and bounded to manifest surfaces)
 
 **Exit Criteria:**
 - implementation ready for closeout/PR with evidence
+
+**Task-6 scoped decision note (2026-05-18):**
+- Scoped closeout mode selected by user.
+- Remaining failing gates (`python scripts/hooks/run_validator.py --fast` non-lane `pipeline_stage_context.py` metadata, plus known repo-global full-suite/mypy failures) treated as mixed-scope/pre-existing blockers for closeout decision workflow.
 
 ## Verification
 
@@ -237,4 +235,4 @@ Canonical source-of-truth:
 - `docs/operating_system/governance/repo-governance.md`
 - `scripts/validate_planning_lifecycle.py`
 </LINK>
-
+`r`n

@@ -4,19 +4,16 @@ type: module
 domain: runtime
 ownership: feature
 capabilities:
-  - cv_system.stage-artifact-diagnostics
+  - inspection_debugging.cv-generation-diagnostics
 responsibility:
-  - Provide candidate-name placeholder normalization and resolution helpers.
+  - Provide SSOT helpers for candidate-name placeholder normalization and resolution.
 inputs:
-  - candidate profile payloads and generated name tokens
+  - candidate profile dictionaries and candidate-name string values
 outputs:
-  - normalized placeholder checks and resolved candidate profile name
+  - normalized placeholder checks and resolved candidate display name
 lifecycle:
   - status: active
 """
-
-"""Shared candidate-name placeholder policy for CV generation flows."""
-
 from typing import Any
 
 _CANDIDATE_NAME_PLACEHOLDER_VALUES = {

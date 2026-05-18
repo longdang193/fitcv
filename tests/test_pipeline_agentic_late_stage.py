@@ -827,6 +827,30 @@ def test_generate_from_analysis_does_not_silently_fallback_when_live_runtime_ret
     assert result["agentic_live_trace"]["attempts"][0]["error_stage"] == "agentic_live_provider"
     assert result["agentic_live_trace"]["error_summary"]["error_stage"] == "agentic_live_provider"
 
+@patch("fitcv.agentic_cv_generation.generate_cv")
+def test_generate_from_analysis_fallback_path_has_no_live_trace(
+    mock_generate_cv: MagicMock,
+) -> None:
+    analysis_record = _minimal_analysis_record()
+    profile = _minimal_profile()
+    config = _minimal_config()
+    config["cv"]["agentic_late_stage"]["enabled"] = True
+
+    mock_generate_cv.return_value = {
+        "structured_cv": _minimal_structured_cv(),
+        "markdown": "# Test Candidate\n## Summary\nGrounded summary",
+    }
+
+    with patch(
+        "fitcv.agentic_cv_generation._live_runtime_provenance_or_none",
+        return_value=None,
+    ):
+        result = generate_from_analysis(analysis_record, profile, config)
+
+    assert result["status"] in {"accepted", "validation_failed"}
+    assert result["runtime_provenance"]["runtime_path"] == "fitcv_builtin_gemini"
+    assert "agentic_live_trace" not in result
+
 
 def test_build_fitcv_langgraph_env_values_uses_process_env_only() -> None:
     with patch.dict(

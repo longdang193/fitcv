@@ -24,7 +24,7 @@ import importlib
 import os
 import sys
 import time
-from typing import Any, Final, Iterator, Literal, TypedDict, cast
+from typing import Any, Callable, Final, Iterator, Literal, TypedDict, cast
 
 from fitcv.agentic_cv_analysis import (
     BLOCKED_BY_RERANKER_STATUS,
@@ -37,10 +37,13 @@ from fitcv.agentic_cv_analysis import (
     extract_job_title,
     extract_job_url,
 )
-from fitcv.config import get_cv_generation_model, resolve_model_routing_part
+from fitcv.candidate_name_policy import is_candidate_name_placeholder, resolved_candidate_profile_name
+from fitcv.config import get_cv_generation_model
+from fitcv.runtime_routing import build_langgraph_env_overrides
 from fitcv.cv_generator import (
     _normalize_structured_cv,
     _resolve_template_path,
+    build_live_structured_cv_response_schema as _canonical_live_structured_cv_response_schema,
     build_structured_generation_prompt,
     generate_cv,
     render_cv_markdown,
@@ -54,11 +57,6 @@ DEFAULT_MAX_SUMMARY_LINES = 3
 DEFAULT_FITCV_LANGGRAPH_REPO_NAME = "fitcv-langgraph"
 
 _REPAIRABLE_VALIDATION_FIELDS = ("grounding_violations", "skill_violations")
-_CANDIDATE_NAME_PLACEHOLDER_VALUES = {
-    "candidate name",
-    "your name",
-}
-
 GenerationStatus = Literal[
     "accepted",
     "validation_failed",
@@ -127,10 +125,6 @@ _LIVE_TRACE_DEBUG_ENV_KEYS = (
 )
 
 
-class _LanggraphRuntimeBridge(TypedDict):
-    env_values: dict[str, str]
-    run_from_analysis: Any
-
 
 def _empty_repair_attempt() -> RepairAttempt:
     return {
@@ -159,25 +153,8 @@ def _discover_fitcv_langgraph_repo_root() -> Path | None:
 def _build_fitcv_langgraph_env_values(repo_root: Path | None) -> dict[str, str]:
     del repo_root
     env_values = dict(os.environ)
-    # Keep runtime routing deterministic from control-plane SSOT.
-    # Unify provider routing across AI stages by inheriting enrich provider path.
-    try:
-        enrich_route = resolve_model_routing_part("enrich_extraction")
-        cv_route = resolve_model_routing_part("cv_generation_structured_write")
-    except Exception:
-        return env_values
-    provider = str(enrich_route.get("provider") or "").strip()
-    base_url = str(enrich_route.get("base_url") or "").strip()
-    wire_api = str(enrich_route.get("wire_api") or "").strip()
-    model = str(cv_route.get("model") or "").strip()
-    if provider:
-        env_values["FITCV_LANGGRAPH_PROVIDER"] = provider
-    if base_url:
-        env_values["FITCV_LANGGRAPH_OPENAI_BASE_URL"] = base_url
-    if wire_api:
-        env_values["FITCV_LANGGRAPH_WIRE_API"] = wire_api
-    if model:
-        env_values["FITCV_LANGGRAPH_MODEL"] = model
+    for key, value in build_langgraph_env_overrides().items():
+        env_values.setdefault(key, value)
     return env_values
 
 @contextmanager
@@ -235,7 +212,7 @@ def _build_generation_ready_analysis(
             "company": str(job.get("company") or job.get("companyName") or ""),
         },
         "profile_input": {
-            "candidate_name": _resolved_candidate_profile_name(profile) or str(profile.get("name") or ""),
+            "candidate_name": resolved_candidate_profile_name(profile) or str(profile.get("name") or ""),
         },
         "required_sections": ["summary", "experience", "skills"],
         "generation_constraints": {
@@ -296,33 +273,6 @@ def _augmented_gap_summary_from_analysis(analysis_record: dict[str, Any]) -> dic
     return gap_summary
 
 
-def _load_fitcv_langgraph_runtime() -> _LanggraphRuntimeBridge | None:
-    runtime_runner = globals().get("run_cv_generation_from_analysis")
-    runtime_loader = globals().get("load_live_provider_config_from_env")
-    repo_root = _discover_fitcv_langgraph_repo_root()
-    env_values = _build_fitcv_langgraph_env_values(repo_root)
-
-    if runtime_loader is None or runtime_runner is None:
-        if repo_root is not None:
-            src_root = repo_root / "src"
-            if src_root.is_dir():
-                src_root_text = str(src_root)
-                if src_root_text not in sys.path:
-                    sys.path.insert(0, src_root_text)
-        try:
-            live_module = importlib.import_module("fitcv_langgraph.providers.live")
-            graph_module = importlib.import_module("fitcv_langgraph.graphs.cv_generation.graph")
-        except Exception:
-            return None
-        runtime_loader = getattr(live_module, "load_live_provider_config_from_env")
-        runtime_runner = getattr(graph_module, "run_cv_generation_from_analysis")
-
-    runtime_loader(env_values)
-    return {
-        "env_values": env_values,
-        "run_from_analysis": runtime_runner,
-    }
-
 
 def _build_runtime_provenance(env_values: dict[str, str]) -> dict[str, Any]:
     provider = str(env_values.get("FITCV_LANGGRAPH_PROVIDER", "openai") or "openai").strip().lower()
@@ -357,177 +307,7 @@ def _live_runtime_provenance_or_none() -> dict[str, Any] | None:
 
 
 def _build_live_structured_cv_response_schema() -> dict[str, Any]:
-    nullable_string_schema = {
-        "anyOf": [
-            {"type": "string"},
-            {"type": "null"},
-        ]
-    }
-    bullet_schema = {
-        "type": "string",
-    }
-    return {
-        "type": "object",
-        "additionalProperties": False,
-        "required": ["sections"],
-        "properties": {
-            "sections": {
-                "type": "object",
-                "additionalProperties": False,
-                "required": [
-                    "header",
-                    "summary",
-                    "experience",
-                    "projects",
-                    "education",
-                    "skills",
-                    "certifications",
-                    "publications",
-                    "languages",
-                ],
-                "properties": {
-                    "header": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "required": ["name", "title", "location", "contact"],
-                        "properties": {
-                            "name": {"type": "string"},
-                            "title": {"type": "string"},
-                            "location": nullable_string_schema,
-                            "contact": {
-                                "type": "object",
-                                "additionalProperties": False,
-                                "required": ["email", "phone", "linkedin"],
-                                "properties": {
-                                    "email": nullable_string_schema,
-                                    "phone": nullable_string_schema,
-                                    "linkedin": nullable_string_schema,
-                                },
-                            },
-                        },
-                    },
-                    "summary": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "required": ["text"],
-                        "properties": {
-                            "text": {"type": "string"},
-                        },
-                    },
-                    "experience": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "required": ["role", "company", "start", "end", "location", "bullets"],
-                            "properties": {
-                                "role": {"type": "string"},
-                                "company": {"type": "string"},
-                                "start": nullable_string_schema,
-                                "end": nullable_string_schema,
-                                "location": nullable_string_schema,
-                                "bullets": {
-                                    "type": "array",
-                                    "items": bullet_schema,
-                                },
-                            },
-                        },
-                    },
-                    "projects": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "required": ["name", "context", "bullets"],
-                            "properties": {
-                                "name": {"type": "string"},
-                                "context": nullable_string_schema,
-                                "bullets": {
-                                    "type": "array",
-                                    "items": bullet_schema,
-                                },
-                            },
-                        },
-                    },
-                    "education": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "required": ["degree", "institution", "field", "start", "end"],
-                            "properties": {
-                                "degree": {"type": "string"},
-                                "institution": {"type": "string"},
-                                "field": nullable_string_schema,
-                                "start": nullable_string_schema,
-                                "end": nullable_string_schema,
-                            },
-                        },
-                    },
-                    "skills": {
-                        "type": "object",
-                        "additionalProperties": False,
-                        "required": ["groups"],
-                        "properties": {
-                            "groups": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "additionalProperties": False,
-                                    "required": ["label", "items"],
-                                    "properties": {
-                                        "label": {"type": "string"},
-                                        "items": {
-                                            "type": "array",
-                                            "items": {"type": "string"},
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                    "certifications": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "required": ["name", "issuer", "year"],
-                            "properties": {
-                                "name": {"type": "string"},
-                                "issuer": nullable_string_schema,
-                                "year": nullable_string_schema,
-                            },
-                        },
-                    },
-                    "publications": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "required": ["title", "publisher", "year"],
-                            "properties": {
-                                "title": {"type": "string"},
-                                "publisher": nullable_string_schema,
-                                "year": nullable_string_schema,
-                            },
-                        },
-                    },
-                    "languages": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "required": ["name", "level"],
-                            "properties": {
-                                "name": {"type": "string"},
-                                "level": nullable_string_schema,
-                            },
-                        },
-                    },
-                },
-            },
-        },
-    }
+    return _canonical_live_structured_cv_response_schema(config={})
 
 
 def _generate_cv_with_live_provider(
@@ -602,7 +382,7 @@ def _generate_cv_with_live_provider(
             ),
             input_text=prompt,
             schema_name=_LIVE_TRACE_SCHEMA_NAME,
-            schema=_build_live_structured_cv_response_schema(),
+            schema=_canonical_live_structured_cv_response_schema(config=config),
         )
         if isinstance(response_payload, dict):
             response_id = str(response_payload.get("response_id") or response_payload.get("id") or "").strip() or None
@@ -764,25 +544,6 @@ def _coerce_error_payload(value: Any) -> ErrorPayload | None:
     }
 
 
-def _normalize_candidate_name_token(value: str) -> str:
-    normalized = str(value or "")
-    normalized = normalized.replace("[", " ").replace("]", " ")
-    return " ".join(normalized.split()).strip().lower()
-
-
-def _is_candidate_name_placeholder(value: Any) -> bool:
-    if not isinstance(value, str):
-        return False
-    return _normalize_candidate_name_token(value) in _CANDIDATE_NAME_PLACEHOLDER_VALUES
-
-
-def _resolved_candidate_profile_name(profile: dict[str, Any] | None) -> str:
-    if not isinstance(profile, dict):
-        return ""
-    candidate_name = str(profile.get("name") or "").strip()
-    if not candidate_name or _is_candidate_name_placeholder(candidate_name):
-        return ""
-    return candidate_name
 
 
 def _is_candidate_name_placeholder_validation(validation: dict[str, Any]) -> bool:
@@ -801,7 +562,7 @@ def _should_repair_candidate_name_placeholder(
         return False
     if not isinstance(structured_cv, dict):
         return False
-    if not _resolved_candidate_profile_name(profile):
+    if not resolved_candidate_profile_name(profile):
         return False
     if list(validation.get("missing_sections") or []):
         return False
@@ -819,7 +580,7 @@ def _should_repair_candidate_name_placeholder(
     header = sections.get("header")
     if not isinstance(header, dict):
         return False
-    return _is_candidate_name_placeholder(header.get("name"))
+    return is_candidate_name_placeholder(header.get("name"))
 
 
 def _should_retry_missing_sections(validation: dict[str, Any]) -> bool:
@@ -883,6 +644,134 @@ def _build_validation_snapshot(validation: dict[str, Any] | None) -> ValidationS
         "markdown_quality_review_flags": list(validation.get("markdown_quality_review_flags") or []),
     }
 
+def _run_generation_validations(
+    markdown: str,
+    *,
+    profile: dict[str, Any],
+    config: dict[str, Any],
+    structured_cv: dict[str, Any] | None,
+    analysis_grounding: AnalysisGroundingPayload,
+) -> dict[str, Any]:
+    return run_all_validations(
+        markdown,
+        profile=profile,
+        config=config,
+        structured_cv=structured_cv,
+        analysis_grounding=analysis_grounding,
+    )
+
+def _determine_repair_targets(validation: dict[str, Any], structured_cv: dict[str, Any] | None) -> list[str]:
+    repair_targets: list[str] = []
+    if not validation["valid"] and _should_retry_missing_sections(validation):
+        repair_targets = list(validation.get("missing_sections") or [])
+    if repair_targets:
+        return repair_targets
+    return _shallow_section_repair_targets(structured_cv)
+
+def _run_repair_cycle(
+    *,
+    structured_cv: dict[str, Any] | None,
+    markdown: str,
+    validation: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+    analysis_grounding: AnalysisGroundingPayload,
+    retry_executor: Callable[[list[str]], tuple[dict[str, Any] | None, str, dict[str, Any]]],
+) -> tuple[dict[str, Any] | None, str, dict[str, Any], RepairAttempt]:
+    repair_attempt = _empty_repair_attempt()
+    if not validation["valid"] and _should_repair_candidate_name_placeholder(validation, structured_cv, profile):
+        repair_attempt = _build_candidate_name_repair_attempt()
+        structured_cv, markdown = _repair_candidate_name_placeholder(structured_cv or {}, profile, config)
+        validation = _run_generation_validations(
+            markdown,
+            profile=profile,
+            config=config,
+            structured_cv=structured_cv,
+            analysis_grounding=analysis_grounding,
+        )
+
+    repair_targets = _determine_repair_targets(validation, structured_cv)
+    if repair_targets:
+        repair_attempt = _build_repair_attempt(repair_targets)
+        structured_cv, markdown, validation = retry_executor(repair_targets)
+
+    return structured_cv, markdown, validation, repair_attempt
+
+def _execute_generation_attempt(
+    generator: Callable[[list[str] | None], Any],
+    *,
+    profile: dict[str, Any],
+    config: dict[str, Any],
+    analysis_grounding: AnalysisGroundingPayload,
+    repair_missing_sections: list[str] | None = None,
+) -> tuple[dict[str, Any] | None, str, dict[str, Any]]:
+    generated_cv = generator(repair_missing_sections)
+    structured_cv, markdown = _unwrap_generated_cv(generated_cv)
+    validation = _run_generation_validations(
+        markdown,
+        profile=profile,
+        config=config,
+        structured_cv=structured_cv,
+        analysis_grounding=analysis_grounding,
+    )
+    return structured_cv, markdown, validation
+
+def _build_live_provider_generator(
+    *,
+    job: dict[str, Any],
+    evidence_payload: list[dict[str, Any]],
+    gap_summary: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+    fit: str,
+    evidence_selection_summary: dict[str, Any],
+    env_values: dict[str, str],
+) -> Callable[[list[str] | None, dict[str, Any], int], Any]:
+    def _call(
+        repair_missing_sections: list[str] | None,
+        trace_attempt: dict[str, Any],
+        attempt_index: int,
+    ) -> Any:
+        return _generate_cv_with_live_provider(
+            job=job,
+            evidence=evidence_payload,
+            gap=gap_summary,
+            profile=profile,
+            config=config,
+            fit_classification=fit,
+            evidence_selection_summary=evidence_selection_summary,
+            repair_missing_sections=repair_missing_sections,
+            env_values=env_values,
+            trace_attempt=trace_attempt,
+            attempt_index=attempt_index,
+        )
+
+    return _call
+
+def _build_fallback_provider_generator(
+    *,
+    job: dict[str, Any],
+    evidence_payload: list[dict[str, Any]],
+    gap_summary: dict[str, Any],
+    profile: dict[str, Any],
+    config: dict[str, Any],
+    fit: str,
+    evidence_selection_summary: dict[str, Any],
+) -> Callable[[list[str] | None], Any]:
+    def _call(repair_missing_sections: list[str] | None) -> Any:
+        return generate_cv(
+            job,
+            evidence_payload,
+            gap_summary,
+            profile,
+            config,
+            fit_classification=fit,
+            evidence_selection_summary=evidence_selection_summary,
+            repair_missing_sections=repair_missing_sections,
+        )
+
+    return _call
+
 
 def _build_repair_attempt(missing_sections: list[str] | None = None) -> RepairAttempt:
     return {
@@ -907,7 +796,7 @@ def _repair_candidate_name_placeholder(
     repaired_structured_cv = deepcopy(structured_cv)
     sections = repaired_structured_cv.setdefault("sections", {})
     header = sections.setdefault("header", {})
-    header["name"] = _resolved_candidate_profile_name(profile)
+    header["name"] = resolved_candidate_profile_name(profile)
     repaired_markdown = render_cv_markdown(repaired_structured_cv, config)
     return repaired_structured_cv, repaired_markdown
 
@@ -981,6 +870,38 @@ def _build_result(
         result["agentic_live_trace"] = dict(agentic_live_trace)
     return result
 
+def _build_generation_result_payload(
+    *,
+    analysis_record: dict[str, Any],
+    job: dict[str, Any],
+    fit_classification: FitClassification | None,
+    structured_cv_initial: dict[str, Any] | None,
+    validation_initial: ValidationSnapshot | None,
+    repair_attempt: RepairAttempt,
+    status: GenerationStatus,
+    structured_cv_final: dict[str, Any] | None,
+    markdown_final: str | None,
+    validation: dict[str, Any] | None,
+    error: ErrorPayload | None,
+    runtime_provenance: dict[str, Any] | None = None,
+    agentic_live_trace: dict[str, Any] | None = None,
+) -> CvGenerationResult:
+    return _build_result(
+        analysis_record=analysis_record,
+        job=job,
+        status=status,
+        fit_classification=fit_classification,
+        structured_cv_initial=structured_cv_initial,
+        validation_initial=validation_initial,
+        repair_attempt=repair_attempt,
+        structured_cv_final=structured_cv_final,
+        markdown_final=markdown_final,
+        validation=validation,
+        error=error,
+        runtime_provenance=runtime_provenance,
+        agentic_live_trace=agentic_live_trace,
+    )
+
 
 def generate_from_analysis(
     analysis_record: dict[str, Any],
@@ -999,7 +920,7 @@ def generate_from_analysis(
     fit_classification = _coerce_fit_classification(analysis_record.get("fit_classification"))
     if status != READY_FOR_GENERATION_STATUS:
         passthrough_error = analysis_record.get("outcome_reason") or analysis_record.get("error")
-        return _build_result(
+        return _build_generation_result_payload(
             analysis_record=analysis_record,
             job=job,
             status=_coerce_passthrough_status(status),
@@ -1038,81 +959,66 @@ def generate_from_analysis(
         )
         first_attempt_trace: dict[str, Any] = {}
         try:
-            generated_cv = _generate_cv_with_live_provider(
+            live_provider_generator = _build_live_provider_generator(
                 job=job,
-                evidence=evidence_payload,
-                gap=gap_summary,
+                evidence_payload=evidence_payload,
+                gap_summary=gap_summary,
                 profile=profile,
                 config=config,
-                fit_classification=fit,
+                fit=fit,
                 evidence_selection_summary=dict(analysis_record.get("evidence_selection_summary") or {}),
-                repair_missing_sections=None,
                 env_values=env_values,
-                trace_attempt=first_attempt_trace,
-                attempt_index=1,
             )
             first_attempt_trace.setdefault("attempt_index", 1)
-            first_attempt_trace.setdefault("provider_status", "accepted")
             first_attempt_trace.setdefault("attempt_type", "initial_generation")
-            first_attempt_trace.setdefault("accepted_output_present", True)
             first_attempt_trace.setdefault("retry_reason", None)
             trace_payload["attempts"].append(first_attempt_trace)
-            structured_cv, markdown = _unwrap_generated_cv(generated_cv)
-            structured_cv_initial = structured_cv
-            validation = run_all_validations(
-                markdown,
+            structured_cv, markdown, validation = _execute_generation_attempt(
+                lambda repair_missing_sections: live_provider_generator(
+                    repair_missing_sections,
+                    first_attempt_trace,
+                    1,
+                ),
                 profile=profile,
                 config=config,
                 analysis_grounding=analysis_grounding,
-                structured_cv=structured_cv,
+                repair_missing_sections=None,
             )
+            first_attempt_trace.setdefault("provider_status", "accepted")
+            first_attempt_trace.setdefault("accepted_output_present", True)
+            structured_cv_initial = structured_cv
             validation_initial = _build_validation_snapshot(validation)
-            if not validation["valid"] and _should_repair_candidate_name_placeholder(validation, structured_cv, profile):
-                assert structured_cv is not None
-                structured_cv, markdown = _repair_candidate_name_placeholder(structured_cv, profile, config)
-                validation = run_all_validations(
-                    markdown,
-                    profile=profile,
-                    config=config,
-                    analysis_grounding=analysis_grounding,
-                    structured_cv=structured_cv,
-                )
 
-            repair_targets: list[str] = []
-            if not validation["valid"] and _should_retry_missing_sections(validation):
-                repair_targets = list(validation.get("missing_sections") or [])
-            if not repair_targets:
-                repair_targets = _shallow_section_repair_targets(structured_cv)
-            if repair_targets:
-                repair_attempt = _build_repair_attempt(repair_targets)
+            def _live_retry_executor(
+                repair_targets: list[str],
+            ) -> tuple[dict[str, Any] | None, str, dict[str, Any]]:
                 second_attempt_trace: dict[str, Any] = {}
-                generated_cv = _generate_cv_with_live_provider(
-                    job=job,
-                    evidence=evidence_payload,
-                    gap=gap_summary,
-                    profile=profile,
-                    config=config,
-                    fit_classification=fit,
-                    evidence_selection_summary=dict(analysis_record.get("evidence_selection_summary") or {}),
-                    repair_missing_sections=repair_targets,
-                    env_values=env_values,
-                    trace_attempt=second_attempt_trace,
-                    attempt_index=2,
-                )
                 second_attempt_trace.setdefault("attempt_index", 2)
                 second_attempt_trace.setdefault("provider_status", "accepted")
                 second_attempt_trace.setdefault("attempt_type", "repair_retry")
                 second_attempt_trace.setdefault("accepted_output_present", True)
                 second_attempt_trace.setdefault("retry_reason", "missing_or_shallow_sections")
                 trace_payload["attempts"].append(second_attempt_trace)
-                structured_cv, markdown = _unwrap_generated_cv(generated_cv)
-                validation = run_all_validations(
-                    markdown,
+                return _execute_generation_attempt(
+                    lambda repair_missing_sections: live_provider_generator(
+                        repair_missing_sections,
+                        second_attempt_trace,
+                        2,
+                    ),
                     profile=profile,
                     config=config,
                     analysis_grounding=analysis_grounding,
-                    structured_cv=structured_cv,
+                    repair_missing_sections=repair_targets,
                 )
+            structured_cv, markdown, validation, repair_attempt = _run_repair_cycle(
+                structured_cv=structured_cv,
+                markdown=markdown,
+                validation=validation,
+                profile=profile,
+                config=config,
+                analysis_grounding=analysis_grounding,
+                retry_executor=_live_retry_executor,
+            )
             _update_live_trace_validation_cycle(
                 trace_payload,
                 validation_initial=validation_initial,
@@ -1138,7 +1044,7 @@ def generate_from_analysis(
                     "error_stage": "validation",
                     "error_message": f"Live provider CV validation failed for {extract_job_url(job)}",
                 }
-                return _build_result(
+                return _build_generation_result_payload(
                     analysis_record=analysis_record,
                     job=job,
                     status=VALIDATION_FAILED_STATUS,
@@ -1162,7 +1068,7 @@ def generate_from_analysis(
                 "final_status": ACCEPTED_STATUS,
             }
             trace_payload["error_summary"] = None
-            return _build_result(
+            return _build_generation_result_payload(
                 analysis_record=analysis_record,
                 job=job,
                 status=ACCEPTED_STATUS,
@@ -1216,7 +1122,7 @@ def generate_from_analysis(
                 "error_code": _error_code_from_message(str(exc)),
                 "error_message": str(exc),
             }
-            return _build_result(
+            return _build_generation_result_payload(
                 analysis_record=analysis_record,
                 job=job,
                 status=GENERATION_FAILED_STATUS,
@@ -1257,66 +1163,43 @@ def generate_from_analysis(
     repair_attempt = _empty_repair_attempt()
 
     try:
-        generated_cv = generate_cv(
-            job,
-            evidence_payload,
-            gap_summary,
-            profile,
-            config,
-            fit_classification=fit,
+        fallback_provider_generator = _build_fallback_provider_generator(
+            job=job,
+            evidence_payload=evidence_payload,
+            gap_summary=gap_summary,
+            profile=profile,
+            config=config,
+            fit=fit,
             evidence_selection_summary=dict(analysis_record.get("evidence_selection_summary") or {}),
         )
-        structured_cv, markdown = _unwrap_generated_cv(generated_cv)
-        structured_cv_initial = structured_cv
 
-        validation = run_all_validations(
-            markdown,
-            profile,
-            config,
-            structured_cv=structured_cv,
+        structured_cv, markdown, validation = _execute_generation_attempt(
+            fallback_provider_generator,
+            profile=profile,
+            config=config,
             analysis_grounding=analysis_grounding,
+            repair_missing_sections=None,
         )
+        structured_cv_initial = structured_cv
         validation_initial = _build_validation_snapshot(validation)
-
-        if not validation["valid"] and _should_repair_candidate_name_placeholder(validation, structured_cv, profile):
-            repair_attempt = _build_candidate_name_repair_attempt()
-            structured_cv, markdown = _repair_candidate_name_placeholder(structured_cv or {}, profile, config)
-            validation = run_all_validations(
-                markdown,
-                profile,
-                config,
-                structured_cv=structured_cv,
+        structured_cv, markdown, validation, repair_attempt = _run_repair_cycle(
+            structured_cv=structured_cv,
+            markdown=markdown,
+            validation=validation,
+            profile=profile,
+            config=config,
+            analysis_grounding=analysis_grounding,
+            retry_executor=lambda repair_targets: _execute_generation_attempt(
+                fallback_provider_generator,
+                profile=profile,
+                config=config,
                 analysis_grounding=analysis_grounding,
-            )
-
-        repair_targets: list[str] = []
-        if not validation["valid"] and _should_retry_missing_sections(validation):
-            repair_targets = list(validation.get("missing_sections") or [])
-        if not repair_targets:
-            repair_targets = _shallow_section_repair_targets(structured_cv)
-        if repair_targets:
-            repair_attempt = _build_repair_attempt(repair_targets)
-            generated_cv = generate_cv(
-                job,
-                evidence_payload,
-                gap_summary,
-                profile,
-                config,
-                fit_classification=fit,
-                evidence_selection_summary=dict(analysis_record.get("evidence_selection_summary") or {}),
                 repair_missing_sections=repair_targets,
-            )
-            structured_cv, markdown = _unwrap_generated_cv(generated_cv)
-            validation = run_all_validations(
-                markdown,
-                profile,
-                config,
-                structured_cv=structured_cv,
-                analysis_grounding=analysis_grounding,
-            )
+            ),
+        )
 
         if not validation["valid"]:
-            return _build_result(
+            return _build_generation_result_payload(
                 analysis_record=analysis_record,
                 job=job,
                 status=VALIDATION_FAILED_STATUS,
@@ -1334,7 +1217,7 @@ def generate_from_analysis(
                 runtime_provenance=fallback_runtime_provenance,
             )
 
-        return _build_result(
+        return _build_generation_result_payload(
             analysis_record=analysis_record,
             job=job,
             status=ACCEPTED_STATUS,
@@ -1349,7 +1232,7 @@ def generate_from_analysis(
             runtime_provenance=fallback_runtime_provenance,
         )
     except Exception as exc:
-        return _build_result(
+        return _build_generation_result_payload(
             analysis_record=analysis_record,
             job=job,
             status=GENERATION_FAILED_STATUS,
@@ -1366,3 +1249,9 @@ def generate_from_analysis(
             },
             runtime_provenance=fallback_runtime_provenance,
         )
+
+
+
+
+
+
