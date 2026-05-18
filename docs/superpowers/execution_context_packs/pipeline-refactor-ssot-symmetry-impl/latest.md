@@ -22,7 +22,7 @@
   - Task 1 Step 1-3 + verification
   - Task 2 Step 1-4 + verification
   - Task 3 Step 1 dispatcher map scaffolding (`_build_stage_dispatch_map`)
-- **In Progress:** closure orchestration ready; pre-merge checks next.
+- **Current Status:** closure orchestration active under strict evidence-first gate; latest blocker is non-fast-forward lane merge requirement.
 - **Deferred / Dropped:** none
 - **Known divergence from plan (if any):** `PipelineContext` still pending; state-focused extraction delivered first.
 
@@ -68,7 +68,7 @@
 - `src/fitcv/pipeline.py` — extracted `_run_agentic_retry_if_recoverable` local helper for recoverable retry decision path
 - `src/fitcv/pipeline.py` — extracted `_handle_agentic_non_accepted_result` local helper for agentic non-accepted debug-record path
 - `src/fitcv/pipeline.py` — extracted `_handle_agentic_review_required_result` local helper for agentic review-required branch
-- `docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md` — Task 3 Step 3 marked complete; Step 4 marked in progress
+- `docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md` — Task 3 Step 3 and Step 4 marked complete
 - `docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md` — Task 3 Step 4 marked complete
 - `src/fitcv/pipeline.py` — added `CV_STATUS_TRANSITION_REGISTRY` and rewired deterministic-truth/validation-status/review-reason mapping helpers
 - `src/fitcv/pipeline_observability.py` — new observability sidecar module with bounded event payload builder
@@ -88,8 +88,8 @@
 - `src/fitcv/pipeline_stage_artifacts.py` — extracted `build_cv_generation_stage_block` per-stage summarizer helper
 - `src/fitcv/pipeline.py` — cv_generation stage block rewired to `build_cv_generation_stage_block`
 - `docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md` — Task 5 Step 2 marked complete
-- `docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md` — Task 5 Step 3 marked complete; Step 4 marked in progress
-- `docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md` — Task 6 Step 1 marked complete, Step 2 marked complete, Step 3 marked in progress
+- `docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md` — Task 5 Step 3 and Step 4 marked complete
+- `docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md` — Task 6 Step 1-4 marked complete (Step 3 closed with approved mypy baseline-debt waiver)
 - `docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md` — Task 6 Step 3 marked complete with approved mypy waiver; Step 4 marked complete
 - `tests/test_pipeline_stage_resume_parity.py` — added dispatch-map parity test
 - `docs/superpowers/plans/2026-05-18-11-13-pipeline-refactor-ssot-symmetry-implementation-plan.md` — progress sync
@@ -109,21 +109,21 @@
   - Verification tests: `pytest tests/test_pipeline.py tests/test_pipeline_stage_resume_parity.py tests/test_pipeline_status_registry.py -q` => `128 passed`; `pytest tests/test_fitcv_cp/test_bq_store.py tests/test_fitcv_cp/test_worker_job.py -k "stage_transition_artifacts" -q` => `4 passed, 110 deselected`.
   - Validator: `python scripts/hooks/run_validator.py --fast` passed.
   - Mypy: narrowed gate attempted and documented as blocked by pre-existing repo-wide debt; user approved Step 3 exception.
-  - Closure entry-gate check: `git rev-list --count HEAD --not origin/main` => `0` (no lane commits yet), and plan file still contains unresolved unchecked verification checklist lines, so merge orchestration cannot start.
+  - Closure entry-gate checks: lane now has implementation commits (`30ca3939`, `c30722c3`, `d43f2ece`), plan and context checklists are reconciled (unchecked checklist count `0`), and repo-contract validator fallback passed.
 - **Failing checks (if any):** `uvx` env dependency mismatch unresolved.
 - **Gaps still unverified:** full suite, mypy, GitNexus detect_changes final proof.
 
 ## 6) Open Blockers / Risks
 
 - Local `data/fitcv_cp.sqlite3` dirty; must remain unstaged.
-- Remaining work: satisfy closure entry gates (create lane implementation commit and reconcile unresolved checklist items in lane-active plan) before PR/merge orchestration.
+- Remaining work: reconcile lane branch divergence vs `main` to satisfy `git merge --ff-only` requirement before merge/push.
 
 ## 7) Next Exact Action
 
 - **Action type:** edit
 - **Target:** `src/fitcv/pipeline_stage_artifacts.py`, `src/fitcv/pipeline.py`
-- **Exact command or edit intent:** create first lane implementation commit for in-scope changes, then reconcile lane-active plan unchecked verification lines against captured evidence.
-- **Why this is next:** closure prompt entry gate requires implementation commits and zero unresolved checklist items before merge orchestration.
+- **Exact command or edit intent:** rebase `codex/pipeline-refactor-ssot-symmetry-impl` onto current `main`, re-run closure pre-merge checks, then retry `git merge --ff-only`.
+- **Why this is next:** latest closure run is blocked only by non-fast-forward merge condition.
 
 ## 8) Resume Prompt (Copy/Paste)
 
